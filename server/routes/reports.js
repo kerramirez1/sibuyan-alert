@@ -1,0 +1,49 @@
+import express from 'express';
+import {
+    createReport,
+    getReports,
+    getReportById,
+    getMyReports,
+    addReportUpdate,
+    getHighRiskZones,
+    getMapConfig,
+    getStats,
+    getMunicipalities,
+    getCategories,
+    geocodeLocation,
+} from '../controllers/reportController.js';
+import { protect, optionalAuth } from '../middleware/auth.js';
+import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
+import { uploadReportImages, handleMulterError } from '../middleware/upload.js';
+
+const router = express.Router();
+
+// Public routes - accessible to everyone (including non-authenticated users)
+router.get('/high-risk-zones', getHighRiskZones);  // ✅ Ordinary users CAN access
+router.get('/map-config', getMapConfig);
+router.get('/stats', getStats);  // ✅ Ordinary users CAN access aggregated stats
+router.get('/municipalities', getMunicipalities);  // ✅ Ordinary users CAN access
+router.get('/categories', getCategories);
+router.post('/geocode', geocodeLocation);
+
+// Public report listing for map visibility (verified/responding only by default)
+router.get('/', optionalAuth, getReports);
+
+// Protected routes - require authentication AND block ordinary users
+router.get('/my-reports', protect, blockOrdinaryUsers, getMyReports);  // ❌ Ordinary users CANNOT access
+router.post(
+    '/',
+    protect,
+    requireVerifiedReporter,  // Also blocks ordinary users
+    uploadReportImages,
+    handleMulterError,
+    createReport
+);  // ❌ Ordinary users CANNOT submit reports
+
+// Single report: public can view verified/responding, private for pending/rejected
+router.post('/:id/updates', protect, requireVerifiedReporter, addReportUpdate);
+router.get('/:id', optionalAuth, getReportById);
+
+export default router;
+
+
