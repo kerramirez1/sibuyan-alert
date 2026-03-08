@@ -197,7 +197,7 @@
   }
 
   .card-hover:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 40px rgba(22, 163, 74, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(22, 163, 74, 0.05);
   }
 
   /* Inputs - Premium Edition */
@@ -338,6 +338,12 @@
     @apply card flex items-center gap-4;
     position: relative;
     overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(22, 163, 74, 0.1), 0 6px 20px rgba(0, 0, 0, 0.08);
   }
 
   .stat-card::before {
@@ -345,11 +351,18 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 100px;
-    height: 100px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(22, 163, 74, 0.08) 0%, transparent 70%);
     border-radius: 50%;
     transform: translate(30%, -30%);
+    transition: all 0.4s ease;
+  }
+
+  .stat-card:hover::before {
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(22, 163, 74, 0.15) 0%, transparent 70%);
   }
 
   .stat-icon {
@@ -357,11 +370,11 @@
     @apply text-white text-2xl;
     background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .stat-card:hover .stat-icon {
-    transform: scale(1.1) rotate(5deg);
+    transform: scale(1.12) rotate(5deg);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
@@ -627,6 +640,62 @@
 .focus-visible-ring {
   @apply focus-visible:outline-none focus-visible:ring-2;
   @apply focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+}
+
+/* Page Transition */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.page-transition-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Sidebar Active Link Glow */
+.sidebar-link-active {
+  position: relative;
+}
+
+.sidebar-link-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 20px rgba(22, 163, 74, 0.25), 0 0 6px rgba(22, 163, 74, 0.15);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Premium Stat Number */
+.stat-number {
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colored Card Variants */
+.card-blue:hover {
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.card-emerald:hover {
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.card-amber:hover {
+  box-shadow: 0 12px 40px rgba(245, 158, 11, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.card-red:hover {
+  box-shadow: 0 12px 40px rgba(239, 68, 68, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 /* Hide floating map overlays while mobile sidebar is open */

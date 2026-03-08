@@ -95,6 +95,9 @@ export default {
                 sans: ['Inter', 'system-ui', 'sans-serif'],
                 display: ['Outfit', 'system-ui', 'sans-serif'],
             },
+            fontWeight: {
+                black: '900',
+            },
             animation: {
                 'slide-in': 'slideIn 0.3s ease-out',
                 'slide-out': 'slideOut 0.3s ease-in',

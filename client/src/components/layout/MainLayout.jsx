@@ -164,7 +164,7 @@ const MainLayout = () => {
                                         end={!isAuthenticated}
                                         className={() =>
                                             `group flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isHomeActive
-                                                ? 'bg-gradient-to-r from-brand-600 to-emerald-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
+                                                ? 'bg-gradient-to-r from-brand-600 to-emerald-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
                                                 : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
                                             }`
                                         }
@@ -179,7 +179,7 @@ const MainLayout = () => {
                                         className={() => {
                                             const isMapActive = location.pathname === '/dashboard' && currentView === 'map';
                                             return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isMapActive
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
+                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
                                                 : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
                                                 }`;
                                         }}
@@ -193,7 +193,7 @@ const MainLayout = () => {
                                         to="/accident-history"
                                         className={({ isActive }) =>
                                             `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
+                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
                                                 : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
                                             }`
                                         }
@@ -223,7 +223,7 @@ const MainLayout = () => {
                                                 ? location.pathname === '/dashboard' && currentView !== 'map'
                                                 : isActive;
                                             return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${active
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
+                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
                                                 : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
                                                 }`;
                                         }}
@@ -264,7 +264,7 @@ const MainLayout = () => {
                                                         : isActive;
 
                                                 return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${adminItemActive
-                                                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
+                                                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
                                                     : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
                                                     }`;
                                             }}
@@ -451,7 +451,17 @@ const MainLayout = () => {
 
                     {/* Page Content Scrollable Area */}
                     <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pb-8 custom-scrollbar">
-                        <Outlet />
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={location.pathname}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                                <Outlet />
+                            </motion.div>
+                        </AnimatePresence>
                     </main>
                 </div>
             </div>
