@@ -67,6 +67,10 @@ const userSchema = new mongoose.Schema(
             type: String, // File path for reporter ID verification
             default: null,
         },
+        selfiePhoto: {
+            type: String, // Cloudinary URL for face verification selfie
+            default: null,
+        },
         isVerified: {
             type: Boolean,
             default: false,

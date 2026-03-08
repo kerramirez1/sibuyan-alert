@@ -55,6 +55,16 @@ const idDocStorage = new CloudinaryStorage({
     },
 });
 
+// Storage configuration for selfie verification photos
+const selfieStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'sibuyan-alert/selfies',
+        allowed_formats: ['jpg', 'png', 'webp'],
+        public_id: (req, file) => `selfie-${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+    },
+});
+
 // Storage configuration for report images
 const reportStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
@@ -80,10 +90,13 @@ export const uploadIdDocument = multer({
     storage: idDocStorage,
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB max
-        files: 1,
+        files: 2,
     },
     fileFilter: documentFilter,
-}).single('idDocument');
+}).fields([
+    { name: 'idDocument', maxCount: 1 },
+    { name: 'selfiePhoto', maxCount: 1 },
+]);
 
 export const uploadReportImages = multer({
     storage: reportStorage,

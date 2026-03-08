@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +16,10 @@ import {
     HiOutlineCloudUpload,
     HiOutlineLocationMarker,
     HiOutlineEye,
-    HiOutlineEyeOff
+    HiOutlineEyeOff,
+    HiOutlineCamera,
+    HiOutlineRefresh,
+    HiOutlineShieldCheck,
 } from 'react-icons/hi';
 
 const MUNICIPALITIES_DATA = {
@@ -25,9 +28,15 @@ const MUNICIPALITIES_DATA = {
     'San Fernando': ['Azagra', 'Butong', 'Cabugao', 'Catmon', 'Lambingan', 'Mabolo', 'Otod', 'Pili', 'Poblacion', 'San Isidro', 'Taclobo', 'Tuburan'],
 };
 
+const TOTAL_STEPS = 3;
+
 const RegisterPage = () => {
     const { register } = useAuth();
     const fileInputRef = useRef(null);
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const streamRef = useRef(null);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -38,11 +47,91 @@ const RegisterPage = () => {
     });
     const [idFile, setIdFile] = useState(null);
     const [idPreview, setIdPreview] = useState(null);
+    const [selfieBlob, setSelfieBlob] = useState(null);
+    const [selfiePreview, setSelfiePreview] = useState(null);
+    const [cameraActive, setCameraActive] = useState(false);
+    const [cameraError, setCameraError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Cleanup camera on unmount
+    useEffect(() => {
+        return () => stopCamera();
+    }, []);
+
+    // Attach stream to video element once cameraActive causes it to mount
+    useEffect(() => {
+        if (cameraActive && streamRef.current && videoRef.current && !videoRef.current.srcObject) {
+            videoRef.current.srcObject = streamRef.current;
+            videoRef.current.play().catch(err => console.error('Video play error:', err));
+        }
+    }, [cameraActive]);
+
+    const startCamera = useCallback(async () => {
+        setCameraError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false,
+            });
+            streamRef.current = stream;
+            // Set cameraActive to mount the <video> element first,
+            // then the useEffect above will attach the stream
+            setCameraActive(true);
+        } catch (err) {
+            console.error('Camera error:', err);
+            setCameraError(
+                err.name === 'NotAllowedError'
+                    ? 'Camera access denied. Please allow camera permissions.'
+                    : 'Could not access camera. Please check your device.'
+            );
+        }
+    }, []);
+
+    const stopCamera = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setCameraActive(false);
+    }, []);
+
+    const captureSelfie = useCallback(() => {
+        if (!videoRef.current || !canvasRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext('2d');
+        // Mirror the selfie horizontally for natural look
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        canvas.toBlob((blob) => {
+            if (blob) {
+                setSelfieBlob(blob);
+                setSelfiePreview(URL.createObjectURL(blob));
+                stopCamera();
+            }
+        }, 'image/jpeg', 0.9);
+    }, [stopCamera]);
+
+    const retakeSelfie = useCallback(() => {
+        if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+        setSelfieBlob(null);
+        setSelfiePreview(null);
+        startCamera();
+    }, [selfiePreview, startCamera]);
 
     const validate = () => {
         const newErrors = {};
@@ -76,16 +165,30 @@ const RegisterPage = () => {
             }
         }
 
+        if (step === 3) {
+            if (!selfieBlob) {
+                newErrors.selfie = 'A selfie photo is required for face verification.';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleNext = () => {
-        if (validate()) setStep(2);
+        if (validate()) {
+            const nextStep = step + 1;
+            setStep(nextStep);
+            // Auto-start camera when entering selfie step
+            if (nextStep === 3 && !selfieBlob) {
+                setTimeout(() => startCamera(), 400);
+            }
+        }
     };
 
     const handleBack = () => {
-        setStep(1);
+        if (step === 3) stopCamera();
+        setStep(step - 1);
     };
 
     const handleSubmit = async (e) => {
@@ -100,6 +203,12 @@ const RegisterPage = () => {
         submitData.append('municipality', formData.municipality);
         submitData.append('address', `${formData.barangay}, ${formData.municipality}, Sibuyan Island, Romblon`);
         submitData.append('idDocument', idFile);
+
+        // Append selfie as a file
+        if (selfieBlob) {
+            const selfieFile = new File([selfieBlob], 'selfie.jpg', { type: 'image/jpeg' });
+            submitData.append('selfiePhoto', selfieFile);
+        }
 
         try {
             await register(submitData);
@@ -149,6 +258,8 @@ const RegisterPage = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const stepLabels = ['Account Info', 'Upload ID', 'Face Verify'];
+
     return (
         <div className="w-full">
             {/* Header */}
@@ -168,21 +279,37 @@ const RegisterPage = () => {
                 </p>
             </div>
 
-            {/* Progress Indicators */}
-            <div className="flex items-center gap-3 mb-8">
-                <div className="flex-1 flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step >= 1 ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30' : 'bg-gray-200 text-gray-400'}`}>
-                        {step > 1 ? <HiOutlineCheck className="w-5 h-5" /> : '1'}
+            {/* Progress Indicators - 3 Steps */}
+            <div className="flex items-center gap-2 mb-8">
+                {[1, 2, 3].map((s, idx) => (
+                    <div key={s} className="flex-1 flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${step > s
+                            ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30'
+                            : step === s
+                                ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-200'
+                                : 'bg-gray-200 text-gray-400'
+                            }`}>
+                            {step > s ? <HiOutlineCheck className="w-4 h-4" /> : s}
+                        </div>
+                        {idx < 2 && (
+                            <div className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${step > s ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gray-200'}`} />
+                        )}
                     </div>
-                    <div className={`flex-1 h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gray-200'}`}></div>
-                </div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step >= 2 ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30' : 'bg-gray-200 text-gray-400'}`}>
-                    2
-                </div>
+                ))}
+            </div>
+
+            {/* Step Labels */}
+            <div className="flex justify-between mb-6 px-1">
+                {stepLabels.map((label, idx) => (
+                    <span key={label} className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${step === idx + 1 ? 'text-emerald-600' : step > idx + 1 ? 'text-emerald-400' : 'text-gray-300'}`}>
+                        {label}
+                    </span>
+                ))}
             </div>
 
             <form onSubmit={handleSubmit}>
                 <AnimatePresence mode="wait">
+                    {/* ==================== STEP 1: Account Info ==================== */}
                     {step === 1 && (
                         <motion.div
                             key="step1"
@@ -191,61 +318,20 @@ const RegisterPage = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="space-y-4"
                         >
+                            <Input label="Full Name" name="name" placeholder="Juan Dela Cruz" value={formData.name} onChange={handleChange} error={errors.name} icon={HiOutlineUser} />
+                            <Input label="Email Address" type="email" name="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} error={errors.email} icon={HiOutlineMail} />
                             <Input
-                                label="Full Name"
-                                name="name"
-                                placeholder="Juan Dela Cruz"
-                                value={formData.name}
-                                onChange={handleChange}
-                                error={errors.name}
-                                icon={HiOutlineUser}
-                            />
-                            <Input
-                                label="Email Address"
-                                type="email"
-                                name="email"
-                                placeholder="you@example.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                                error={errors.email}
-                                icon={HiOutlineMail}
-                            />
-                            <Input
-                                label="Password"
-                                type={showPassword ? 'text' : 'password'}
-                                name="password"
-                                placeholder="Create a password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                error={errors.password}
-                                icon={HiOutlineLockClosed}
+                                label="Password" type={showPassword ? 'text' : 'password'} name="password" placeholder="Create a password" value={formData.password} onChange={handleChange} error={errors.password} icon={HiOutlineLockClosed}
                                 rightElement={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword((prev) => !prev)}
-                                        className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    >
+                                    <button type="button" onClick={() => setShowPassword(p => !p)} className="p-1 text-gray-500 hover:text-gray-700 transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                         {showPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
                                     </button>
                                 }
                             />
                             <Input
-                                label="Confirm Password"
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                name="confirmPassword"
-                                placeholder="Confirm password"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                error={errors.confirmPassword}
-                                icon={HiOutlineLockClosed}
+                                label="Confirm Password" type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" placeholder="Confirm password" value={formData.confirmPassword} onChange={handleChange} error={errors.confirmPassword} icon={HiOutlineLockClosed}
                                 rightElement={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                        className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                                    >
+                                    <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="p-1 text-gray-500 hover:text-gray-700 transition-colors" aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
                                         {showConfirmPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
                                     </button>
                                 }
@@ -258,7 +344,6 @@ const RegisterPage = () => {
                                     Address
                                 </label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {/* Municipality */}
                                     <div>
                                         <select
                                             name="municipality"
@@ -267,20 +352,15 @@ const RegisterPage = () => {
                                                 setFormData({ ...formData, municipality: e.target.value, barangay: '' });
                                                 if (errors.municipality) setErrors({ ...errors, municipality: '' });
                                             }}
-                                            className={`w-full px-4 py-3.5 bg-gray-50 border-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none cursor-pointer ${errors.municipality ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                                                } ${!formData.municipality ? 'text-gray-400' : 'text-gray-900'}`}
+                                            className={`w-full px-4 py-3.5 bg-gray-50 border-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none cursor-pointer ${errors.municipality ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'} ${!formData.municipality ? 'text-gray-400' : 'text-gray-900'}`}
                                         >
                                             <option value="">Select Municipality</option>
                                             {Object.keys(MUNICIPALITIES_DATA).map((mun) => (
                                                 <option key={mun} value={mun}>{mun}</option>
                                             ))}
                                         </select>
-                                        {errors.municipality && (
-                                            <p className="mt-1.5 text-xs text-red-600 font-semibold">{errors.municipality}</p>
-                                        )}
+                                        {errors.municipality && <p className="mt-1.5 text-xs text-red-600 font-semibold">{errors.municipality}</p>}
                                     </div>
-
-                                    {/* Barangay */}
                                     <div>
                                         <select
                                             name="barangay"
@@ -290,32 +370,25 @@ const RegisterPage = () => {
                                                 if (errors.barangay) setErrors({ ...errors, barangay: '' });
                                             }}
                                             disabled={!formData.municipality}
-                                            className={`w-full px-4 py-3.5 bg-gray-50 border-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none cursor-pointer ${errors.barangay ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                                                } ${!formData.barangay ? 'text-gray-400' : 'text-gray-900'} ${!formData.municipality ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            className={`w-full px-4 py-3.5 bg-gray-50 border-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none cursor-pointer ${errors.barangay ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'} ${!formData.barangay ? 'text-gray-400' : 'text-gray-900'} ${!formData.municipality ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             <option value="">{formData.municipality ? 'Select Barangay' : 'Select municipality first'}</option>
                                             {formData.municipality && MUNICIPALITIES_DATA[formData.municipality]?.map((brgy) => (
                                                 <option key={brgy} value={brgy}>{brgy}</option>
                                             ))}
                                         </select>
-                                        {errors.barangay && (
-                                            <p className="mt-1.5 text-xs text-red-600 font-semibold">{errors.barangay}</p>
-                                        )}
+                                        {errors.barangay && <p className="mt-1.5 text-xs text-red-600 font-semibold">{errors.barangay}</p>}
                                     </div>
                                 </div>
                             </div>
 
-
-                            <Button
-                                type="button"
-                                onClick={handleNext}
-                                className="w-full py-4 text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-xl shadow-xl hover:shadow-2xl shadow-emerald-500/30 mt-6 transform hover:scale-[1.02] active:scale-95 transition-all"
-                            >
+                            <Button type="button" onClick={handleNext} className="w-full py-4 text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-xl shadow-xl hover:shadow-2xl shadow-emerald-500/30 mt-6 transform hover:scale-[1.02] active:scale-95 transition-all">
                                 Continue <HiOutlineArrowRight className="inline ml-2 w-5 h-5" />
                             </Button>
                         </motion.div>
                     )}
 
+                    {/* ==================== STEP 2: ID Upload ==================== */}
                     {step === 2 && (
                         <motion.div
                             key="step2"
@@ -384,16 +457,162 @@ const RegisterPage = () => {
                                     <HiOutlineIdentification className="w-7 h-7 text-white" />
                                 </div>
                                 <p className="text-sm text-blue-900 leading-relaxed">
-                                    <strong className="font-bold">Verification Required:</strong> Your account will be reviewed by an administrator. You will receive an email once approved.
+                                    <strong className="font-bold">Accepted IDs:</strong> Government-issued ID, School ID, Barangay ID, or any valid document with your photo and name.
                                 </p>
                             </div>
 
-                            <div className="flex gap-4 pt-6">
-                                <Button
-                                    type="button"
-                                    onClick={handleBack}
-                                    className="flex-1 py-4 font-bold bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-xl shadow-sm hover:shadow-md transition-all"
+                            <div className="flex gap-4 pt-4">
+                                <Button type="button" onClick={handleBack} className="flex-1 py-4 font-bold bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-xl shadow-sm hover:shadow-md transition-all">
+                                    Back
+                                </Button>
+                                <Button type="button" onClick={handleNext} className="flex-1 py-4 font-bold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-xl shadow-xl hover:shadow-2xl shadow-emerald-500/30 transform hover:scale-[1.02] active:scale-95 transition-all">
+                                    Continue <HiOutlineArrowRight className="inline ml-1 w-5 h-5" />
+                                </Button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ==================== STEP 3: Selfie / Face Verification ==================== */}
+                    {step === 3 && (
+                        <motion.div
+                            key="step3"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="space-y-6"
+                        >
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    Face Verification
+                                </label>
+                                <p className="text-xs text-gray-500 mb-4">Take a clear selfie to match with your ID document.</p>
+
+                                {/* Camera / Preview Area */}
+                                <div className="relative rounded-2xl overflow-hidden bg-gray-900 aspect-[4/3] shadow-2xl border-2 border-gray-200">
+                                    {/* Live Camera Feed */}
+                                    {cameraActive && !selfiePreview && (
+                                        <>
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                                className="w-full h-full object-cover"
+                                                style={{ transform: 'scaleX(-1)' }}
+                                            />
+                                            {/* Face Guide Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="w-48 h-60 sm:w-56 sm:h-72 border-[3px] border-white/50 rounded-[50%] shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+                                            </div>
+                                            <div className="absolute top-4 left-0 right-0 text-center">
+                                                <span className="bg-black/60 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full inline-flex items-center gap-2">
+                                                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                                    Position your face in the oval
+                                                </span>
+                                            </div>
+                                            {/* Capture Button */}
+                                            <div className="absolute bottom-5 left-0 right-0 flex justify-center">
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={captureSelfie}
+                                                    whileHover={{ scale: 1.1 }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                    className="w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center ring-4 ring-white/30 hover:ring-emerald-400/50 transition-all"
+                                                >
+                                                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
+                                                        <HiOutlineCamera className="w-6 h-6 text-white" />
+                                                    </div>
+                                                </motion.button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Captured Preview */}
+                                    {selfiePreview && (
+                                        <>
+                                            <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 px-4">
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={retakeSelfie}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="flex items-center gap-2 px-5 py-2.5 bg-white/90 backdrop-blur-md text-gray-800 font-bold text-sm rounded-xl shadow-xl hover:bg-white transition-all"
+                                                >
+                                                    <HiOutlineRefresh className="w-4 h-4" /> Retake
+                                                </motion.button>
+                                            </div>
+                                            <div className="absolute top-4 right-4">
+                                                <span className="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 shadow-lg">
+                                                    <HiOutlineCheck className="w-3.5 h-3.5" /> Captured
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Camera Error / Not Started */}
+                                    {!cameraActive && !selfiePreview && (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                                            {cameraError ? (
+                                                <>
+                                                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                                                        <HiOutlineX className="w-8 h-8 text-red-400" />
+                                                    </div>
+                                                    <p className="text-red-300 font-semibold text-sm mb-4">{cameraError}</p>
+                                                    <button type="button" onClick={startCamera} className="text-white text-sm font-bold bg-white/20 hover:bg-white/30 px-5 py-2.5 rounded-xl transition-all">
+                                                        Try Again
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl shadow-lg flex items-center justify-center mb-4">
+                                                        <HiOutlineCamera className="w-10 h-10 text-white" />
+                                                    </div>
+                                                    <p className="text-white font-bold text-lg mb-2">Ready for Selfie</p>
+                                                    <p className="text-gray-400 text-sm mb-5">Click below to open your camera</p>
+                                                    <button type="button" onClick={startCamera} className="text-white text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/25 transition-all hover:scale-105">
+                                                        Open Camera
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Hidden canvas for capture */}
+                                <canvas ref={canvasRef} className="hidden" />
+
+                                {errors.selfie && (
+                                    <p className="mt-3 text-sm text-red-600 font-semibold flex items-center gap-2 bg-red-50 p-3 rounded-xl">
+                                        <HiOutlineX className="w-5 h-5" /> {errors.selfie}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Info Banner */}
+                            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-4 flex gap-3 shadow-md">
+                                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <HiOutlineShieldCheck className="w-5 h-5 text-white" />
+                                </div>
+                                <p className="text-xs text-emerald-900 leading-relaxed">
+                                    <strong className="font-bold">Privacy Protected:</strong> Your selfie is used only for identity verification by administrators. It will be stored securely and never shared.
+                                </p>
+                            </div>
+
+                            {/* Form Error */}
+                            {errors.form && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-3.5 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 text-red-700 rounded-xl flex items-center gap-3"
                                 >
+                                    <HiOutlineX className="w-5 h-5 shrink-0" />
+                                    <span className="font-semibold text-sm">{errors.form}</span>
+                                </motion.div>
+                            )}
+
+                            <div className="flex gap-4 pt-2">
+                                <Button type="button" onClick={handleBack} className="flex-1 py-4 font-bold bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-xl shadow-sm hover:shadow-md transition-all">
                                     Back
                                 </Button>
                                 <Button

@@ -21,8 +21,9 @@ export const register = async (req, res) => {
             });
         }
 
-        // Get ID document path from multer
-        const idDocument = req.file ? req.file.path : null;
+        // Get file paths from multer (.fields())
+        const idDocument = req.files?.idDocument?.[0]?.path || null;
+        const selfiePhoto = req.files?.selfiePhoto?.[0]?.path || null;
 
         if (!idDocument) {
             return res.status(400).json({
@@ -47,6 +48,7 @@ export const register = async (req, res) => {
             assignedMunicipality: municipality,
             role: 'reporter',
             idDocument,
+            selfiePhoto,
             isVerified: false,
             verificationStatus: 'pending',
         });
@@ -338,14 +340,18 @@ export const resubmitIdDocument = async (req, res) => {
             });
         }
 
-        if (!req.file) {
+        const idDoc = req.files?.idDocument?.[0]?.path || null;
+        if (!idDoc) {
             return res.status(400).json({
                 success: false,
                 message: 'Please upload an ID document',
             });
         }
 
-        user.idDocument = req.file.path;
+        user.idDocument = idDoc;
+        // Also update selfie if resubmitted
+        const selfie = req.files?.selfiePhoto?.[0]?.path || null;
+        if (selfie) user.selfiePhoto = selfie;
         user.verificationStatus = 'pending';
         user.verificationFeedback = null;
         await user.save();

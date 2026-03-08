@@ -13,6 +13,7 @@ import {
     HiOutlineEye,
     HiOutlineTrash,
     HiOutlineLocationMarker,
+    HiOutlineCamera,
 } from 'react-icons/hi';
 
 const AdminUsersPage = () => {
@@ -212,7 +213,7 @@ const AdminUsersPage = () => {
                                     <th>User</th>
                                     <th>Role</th>
                                     <th>Verification</th>
-                                    <th>ID Document</th>
+                                    <th>Documents</th>
                                     <th>Joined</th>
                                     <th>Last Login</th>
                                     <th>Actions</th>
@@ -239,8 +240,8 @@ const AdminUsersPage = () => {
                                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${user.role === 'admin' ? 'bg-gradient-to-br from-danger-500 to-danger-700' :
                                                         user.role === 'municipal_admin' ? 'bg-gradient-to-br from-indigo-500 to-indigo-700' :
                                                             user.role === 'responder' ? 'bg-gradient-to-br from-orange-500 to-orange-700' :
-                                                        user.role === 'reporter' ? 'bg-gradient-to-br from-primary-500 to-primary-700' :
-                                                            'bg-gradient-to-br from-gray-400 to-gray-600'
+                                                                user.role === 'reporter' ? 'bg-gradient-to-br from-primary-500 to-primary-700' :
+                                                                    'bg-gradient-to-br from-gray-400 to-gray-600'
                                                         }`}>
                                                         {user.avatar ? (
                                                             <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
@@ -263,19 +264,33 @@ const AdminUsersPage = () => {
                                             <td>{getRoleBadge(user.role)}</td>
                                             <td>{getVerificationBadge(user.verificationStatus)}</td>
                                             <td>
-                                                {user.idDocument ? (
-                                                    <a
-                                                        href={user.idDocument}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                                                    >
-                                                        <HiOutlineEye className="w-4 h-4" />
-                                                        View ID
-                                                    </a>
-                                                ) : (
-                                                    <span className="text-gray-400">-</span>
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {user.idDocument ? (
+                                                        <a
+                                                            href={user.idDocument}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs font-medium"
+                                                        >
+                                                            <HiOutlineIdentification className="w-4 h-4" />
+                                                            ID
+                                                        </a>
+                                                    ) : null}
+                                                    {user.selfiePhoto ? (
+                                                        <a
+                                                            href={user.selfiePhoto}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-emerald-600 hover:text-emerald-700 flex items-center gap-1 text-xs font-medium"
+                                                        >
+                                                            <HiOutlineCamera className="w-4 h-4" />
+                                                            Selfie
+                                                        </a>
+                                                    ) : null}
+                                                    {!user.idDocument && !user.selfiePhoto && (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="text-gray-500">
                                                 {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
@@ -346,25 +361,57 @@ const AdminUsersPage = () => {
                             </div>
                         </div>
 
-                        {selectedUser.idDocument && (
+                        {/* Verification Documents — Side-by-Side */}
+                        {(selectedUser.idDocument || selectedUser.selfiePhoto) && (
                             <div className="mb-6">
-                                <p className="label">ID Document</p>
-                                {selectedUser.idDocument.endsWith('.pdf') ? (
-                                    <a
-                                        href={selectedUser.idDocument}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="btn-secondary w-full"
-                                    >
-                                        <HiOutlineEye className="w-5 h-5" />
-                                        View PDF Document
-                                    </a>
-                                ) : (
-                                    <img
-                                        src={selectedUser.idDocument}
-                                        alt="ID Document"
-                                        className="w-full rounded-xl border border-gray-200"
-                                    />
+                                <p className="label mb-3">Verification Documents</p>
+                                <div className={`grid gap-4 ${selectedUser.idDocument && selectedUser.selfiePhoto ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                    {/* ID Document */}
+                                    {selectedUser.idDocument && (
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                <HiOutlineIdentification className="w-3.5 h-3.5" /> ID Document
+                                            </p>
+                                            {selectedUser.idDocument.endsWith('.pdf') ? (
+                                                <a href={selectedUser.idDocument} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-sm">
+                                                    <HiOutlineEye className="w-4 h-4" /> View PDF
+                                                </a>
+                                            ) : (
+                                                <a href={selectedUser.idDocument} target="_blank" rel="noopener noreferrer" className="block">
+                                                    <img
+                                                        src={selectedUser.idDocument}
+                                                        alt="ID Document"
+                                                        className="w-full rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                                                    />
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Selfie Photo */}
+                                    {selectedUser.selfiePhoto && (
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                <HiOutlineCamera className="w-3.5 h-3.5" /> Face Verification
+                                            </p>
+                                            <a href={selectedUser.selfiePhoto} target="_blank" rel="noopener noreferrer" className="block">
+                                                <img
+                                                    src={selectedUser.selfiePhoto}
+                                                    alt="Selfie Verification"
+                                                    className="w-full rounded-xl border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                                                />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Comparison hint */}
+                                {selectedUser.idDocument && selectedUser.selfiePhoto && (
+                                    <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-2.5 text-center">
+                                        <p className="text-[11px] text-blue-700 font-medium">
+                                            ↔ Compare the ID photo with the selfie to verify identity match
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         )}
