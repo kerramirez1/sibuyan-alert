@@ -199,10 +199,32 @@ const AccidentHistoryPage = () => {
                     className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5"
                 >
                     {[
-                        { label: 'Total Resolved', value: stats.total, gradient: 'from-indigo-500 to-purple-600', icon: '📊' },
-                        { label: 'Last 7 Days', value: stats.last7, gradient: 'from-blue-400 to-cyan-500', icon: '📅' },
-                        { label: 'Last 30 Days', value: stats.last30, gradient: 'from-brand-500 to-brand-700', icon: '📆' },
-                        { label: 'Top Area', value: stats.topMunicipality, gradient: 'from-rose-400 to-pink-600', icon: '📍', isText: true, sub: `${stats.topCount} incidents` },
+                        {
+                            label: 'Total Resolved',
+                            value: stats.total,
+                            gradient: 'from-indigo-500 to-purple-600',
+                            icon: <HiOutlineBadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />,
+                        },
+                        {
+                            label: 'Last 7 Days',
+                            value: stats.last7,
+                            gradient: 'from-blue-400 to-cyan-500',
+                            icon: <HiOutlineClock className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600" />,
+                        },
+                        {
+                            label: 'Last 30 Days',
+                            value: stats.last30,
+                            gradient: 'from-brand-500 to-brand-700',
+                            icon: <HiOutlineCalendar className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />,
+                        },
+                        {
+                            label: 'Top Area',
+                            value: stats.topMunicipality,
+                            gradient: 'from-rose-400 to-pink-600',
+                            icon: <HiOutlineLocationMarker className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />,
+                            isText: true,
+                            sub: `${stats.topCount} incidents`,
+                        },
                     ].map((s, i) => (
                         <motion.div
                             key={s.label}
@@ -212,7 +234,9 @@ const AccidentHistoryPage = () => {
                             className="card !p-3 sm:!p-4 relative overflow-hidden group cursor-default hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
                         >
                             <div className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-[0.04] group-hover:opacity-[0.09] transition-opacity rounded-2xl`} />
-                            <span className="text-base sm:text-lg mb-1 block">{s.icon}</span>
+                            <span className="mb-1 flex h-8 w-8 items-center justify-center rounded-xl bg-white/80 shadow-sm ring-1 ring-gray-100">
+                                {s.icon}
+                            </span>
                             {s.isText ? (
                                 <>
                                     <p className="text-sm sm:text-base font-display font-bold text-gray-800 break-words">{s.value}</p>

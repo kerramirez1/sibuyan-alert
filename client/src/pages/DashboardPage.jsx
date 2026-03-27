@@ -1081,7 +1081,7 @@ const DashboardPage = () => {
                                             user.agency === 'BFP' ? 'bg-orange-100 text-orange-700' :
                                                 'bg-gray-100 text-gray-700'
                                     }`}>
-                                    {user.agency === 'MDRRMO' ? '🚑' : user.agency === 'PNP' ? '👮' : user.agency === 'SDH' ? '⚕️' : user.agency === 'BFP' ? '🚒' : '📍'} {user.agency}
+                                    {user.agency}
                                 </span>
                             )}
                         </div>
@@ -1853,8 +1853,8 @@ const DashboardPage = () => {
                                                     : report.severity === 'critical' || report.severity === 'severe' ? 'bg-red-100 text-red-700'
                                                         : 'bg-gray-100 text-gray-600'
                                                 }`}>
-                                                {report.status === 'resolved' ? '✅ Resolved'
-                                                    : report.status === 'responding' ? '🚨 Responding'
+                                                {report.status === 'resolved' ? 'Resolved'
+                                                    : report.status === 'responding' ? 'Responding'
                                                         : report.severity}
                                             </span>
                                         </div>

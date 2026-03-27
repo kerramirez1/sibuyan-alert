@@ -67,12 +67,12 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
 
     // Unit type icons and colors
     const unitStyles = {
-        MDRRMO: { icon: '🚑', color: '#dc2626', bg: '#fee2e2' },
-        PNP: { icon: '👮', color: '#2563eb', bg: '#dbeafe' },
-        BFP: { icon: '🚒', color: '#ea580c', bg: '#fed7aa' },
-        RESCUE: { icon: '⛑️', color: '#16a34a', bg: '#dcfce7' },
-        MEDICAL: { icon: '⚕️', color: '#7c3aed', bg: '#ede9fe' },
-        BARANGAY: { icon: '🏛️', color: '#0891b2', bg: '#cffafe' },
+        MDRRMO: { color: '#dc2626', bg: '#fee2e2' },
+        PNP: { color: '#2563eb', bg: '#dbeafe' },
+        BFP: { color: '#ea580c', bg: '#fed7aa' },
+        RESCUE: { color: '#16a34a', bg: '#dcfce7' },
+        MEDICAL: { color: '#7c3aed', bg: '#ede9fe' },
+        BARANGAY: { color: '#0891b2', bg: '#cffafe' },
     };
 
     return (
@@ -116,7 +116,7 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
                     }}
                 >
                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700' }}>
-                        🚨 Select Your Responding Unit
+                        Select Your Responding Unit
                     </h2>
                     <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', opacity: 0.95 }}>
                         {municipality} - Choose the unit responding to this incident
@@ -132,7 +132,7 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
                     }}
                 >
                     {Object.entries(groupedUnits).map(([type, typeUnits]) => {
-                        const style = unitStyles[type] || { icon: '📍', color: '#6b7280', bg: '#f3f4f6' };
+                        const style = unitStyles[type] || { color: '#6b7280', bg: '#f3f4f6' };
 
                         return (
                             <div key={type} style={{ marginBottom: '1.5rem' }}>
@@ -146,7 +146,19 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
                                         letterSpacing: '0.05em',
                                     }}
                                 >
-                                    {style.icon} {type}
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            display: 'inline-block',
+                                            width: '0.625rem',
+                                            height: '0.625rem',
+                                            borderRadius: '9999px',
+                                            backgroundColor: style.color,
+                                            marginRight: '0.5rem',
+                                            verticalAlign: 'middle',
+                                        }}
+                                    />
+                                    {type}
                                 </h3>
                                 <div
                                     style={{
@@ -195,7 +207,18 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
                                                     }
                                                 }}
                                             >
-                                                {isSelected && <span style={{ fontSize: '1.25rem' }}>✓</span>}
+                                                {isSelected && (
+                                                    <span
+                                                        aria-hidden="true"
+                                                        style={{
+                                                            width: '0.875rem',
+                                                            height: '0.875rem',
+                                                            borderRadius: '9999px',
+                                                            backgroundColor: style.color,
+                                                            flexShrink: 0,
+                                                        }}
+                                                    />
+                                                )}
                                                 <span>{unit.unitName}</span>
                                             </button>
                                         );
@@ -268,7 +291,7 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
                             }
                         }}
                     >
-                        🚨 Confirm & Respond
+                        Confirm & Respond
                     </button>
                 </div>
             </div>

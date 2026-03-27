@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 
 const SocketContext = createContext(null);
 
+const getNotificationId = (notification) => notification?.id ?? notification?._id ?? null;
+
 export const useSocket = () => {
     const context = useContext(SocketContext);
     if (!context) {
@@ -95,7 +97,7 @@ export const SocketProvider = ({ children }) => {
             const notification = {
                 _id: `alert_${Date.now()}`,
                 type: 'report_verified',
-                title: '🚨 New Verified Incident!',
+                title: 'New Verified Incident!',
                 message: `${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || 'Unknown Location'}`,
                 isRead: false,
                 createdAt: new Date(),
@@ -108,8 +110,7 @@ export const SocketProvider = ({ children }) => {
             setNotifications((prev) => [notification, ...prev]);
             setUnreadCount((prev) => prev + 1);
 
-            toast(`🚨 VERIFIED: ${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || alertData.municipalityName}`, {
-                icon: '🔔',
+            toast(`VERIFIED: ${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || alertData.municipalityName}`, {
                 duration: 8000,
                 style: {
                     background: '#ef4444',
@@ -137,7 +138,6 @@ export const SocketProvider = ({ children }) => {
         // Multi-unit response notification
         socket.on('multiUnitResponse', (data) => {
             toast(`${data.responder?.unitType} ${data.responder?.unitName} is responding`, {
-                icon: '🚑',
                 duration: 5000,
             });
         });
@@ -145,7 +145,6 @@ export const SocketProvider = ({ children }) => {
         // Report verified (visible to all)
         socket.on('reportVerified', (report) => {
             toast.success(`New accident report verified at ${report.address}`, {
-                icon: '⚠️',
                 duration: 5000,
             });
         });
@@ -161,7 +160,6 @@ export const SocketProvider = ({ children }) => {
         socket.on('reportResponded', (data) => {
             const label = data.respondedBy?.agencyLabel || data.respondedBy?.agency || 'Responder';
             toast(`${label} is now responding to a report`, {
-                icon: '🚨',
                 duration: 5000,
             });
         });
@@ -170,7 +168,6 @@ export const SocketProvider = ({ children }) => {
         socket.on('reportResolved', (data) => {
             const label = data.resolvedBy?.agencyLabel || data.resolvedBy?.agency || 'Responder';
             toast.success(`Report resolved by ${label}`, {
-                icon: '✅',
                 duration: 5000,
             });
         });
@@ -190,19 +187,19 @@ export const SocketProvider = ({ children }) => {
             const toastOptions = { duration: 5000 };
             switch (notification.type) {
                 case 'reporter_verified':
-                    toast.success(notification.message, { ...toastOptions, icon: '🎉' });
+                    toast.success(notification.message, toastOptions);
                     break;
                 case 'reporter_rejected':
                     toast.error(notification.message, toastOptions);
                     break;
                 case 'report_verified':
-                    toast.success(notification.message, { ...toastOptions, icon: '✅' });
+                    toast.success(notification.message, toastOptions);
                     break;
                 case 'report_rejected':
                     toast.error(notification.message, toastOptions);
                     break;
                 case 'new_report':
-                    toast(notification.message, { ...toastOptions, icon: '🚨' });
+                    toast(notification.message, toastOptions);
                     break;
                 case 'report_update':
                     toast(notification.message, { ...toastOptions, icon: 'i' });
@@ -249,12 +246,25 @@ export const SocketProvider = ({ children }) => {
 
     // Mark notification as read
     const markAsRead = useCallback((notificationId) => {
+        let unreadNotificationWasUpdated = false;
+
         setNotifications((prev) =>
-            prev.map((n) =>
-                n.id === notificationId ? { ...n, isRead: true } : n
-            )
+            prev.map((notification) => {
+                if (getNotificationId(notification) !== notificationId) {
+                    return notification;
+                }
+
+                if (!notification.isRead) {
+                    unreadNotificationWasUpdated = true;
+                }
+
+                return { ...notification, isRead: true };
+            })
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+
+        if (unreadNotificationWasUpdated) {
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
     }, []);
 
     const value = {

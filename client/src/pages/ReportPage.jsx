@@ -529,7 +529,7 @@ const ReportPage = () => {
                                             className="relative z-10 p-3 pointer-events-none flex flex-col items-start mt-auto mb-4"
                                         >
                                             <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border-l-4 border-orange-500 rounded-r-2xl shadow-2xl p-4 ml-2 max-w-xs">
-                                                <p className="text-sm font-bold text-gray-800 mb-1">📍 Is this accurate?</p>
+                                            <p className="text-sm font-bold text-gray-800 mb-1">Is this accurate?</p>
                                                 <p className="text-xs text-gray-600 mb-3">GPS Accuracy: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded-md text-[11px] font-bold">{gpsAccuracy ? Math.round(gpsAccuracy) : '?'}m</span></p>
                                                 <div className="flex gap-2">
                                                     <button

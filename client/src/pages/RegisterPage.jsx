@@ -28,8 +28,6 @@ const MUNICIPALITIES_DATA = {
     'San Fernando': ['Azagra', 'Butong', 'Cabugao', 'Catmon', 'Lambingan', 'Mabolo', 'Otod', 'Pili', 'Poblacion', 'San Isidro', 'Taclobo', 'Tuburan'],
 };
 
-const TOTAL_STEPS = 3;
-
 const RegisterPage = () => {
     const { register } = useAuth();
     const fileInputRef = useRef(null);
@@ -273,10 +271,10 @@ const RegisterPage = () => {
                     <HiOutlineUser className="w-10 h-10 text-white relative z-10" />
                 </div>
                 <h2 className="text-4xl font-display font-black bg-gradient-to-r from-gray-900 via-emerald-700 to-green-600 bg-clip-text text-transparent mb-2">
-                    ✨ Create Account
+                    Create Account
                 </h2>
                 <p className="text-gray-600 text-base font-medium">
-                    Join the network as a <span className="text-emerald-600 font-bold">verified reporter</span> 🚀
+                    Join the network as a <span className="text-emerald-600 font-bold">verified reporter</span>
                 </p>
             </div>
 

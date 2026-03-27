@@ -215,7 +215,7 @@ const AdminReportsPage = () => {
                 unitName: unitData.unitName,
                 unitType: unitData.unitType,
             });
-            toast.success(response.data.message, { icon: '🚨', duration: 4000 });
+            toast.success(response.data.message, { duration: 4000 });
 
             // Refresh reports to get updated responders array
             fetchReports();
@@ -226,7 +226,7 @@ const AdminReportsPage = () => {
         } catch (error) {
             const msg = error.response?.data?.message || 'Failed to respond to report';
             if (error.response?.status === 409) {
-                toast.error(msg, { icon: '⚠️', duration: 5000 });
+            toast.error(msg, { duration: 5000 });
                 fetchReports();
             } else {
                 toast.error(msg);
@@ -246,7 +246,7 @@ const AdminReportsPage = () => {
                 resolutionNotes: resolveNotes,
             });
 
-            toast.success(response.data.message, { icon: '✅', duration: 4000 });
+            toast.success(response.data.message, { duration: 4000 });
             setResolveModalOpen(false);
 
             // Update local state

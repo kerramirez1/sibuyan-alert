@@ -296,13 +296,13 @@ const HomePage = () => {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-600 shadow-lg shadow-brand-500/50"></span>
                             </span>
-                            🚨 Real-Time Accident Alert & Mapping System
+                            Real-Time Accident Alert & Mapping System
                         </div>
 
                         <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black text-gray-900 mb-8 tracking-tight leading-[1.1]">
                             <span className="inline-block animate-fade-in">Accident Alert &</span><br />
-                            <span className="inline-block animate-fade-in" style={{animationDelay: '0.1s'}}>Mapping System</span><br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-blue-600 to-emerald-500 animate-gradient-x inline-block" style={{animationDelay: '0.2s'}}>
+                            <span className="inline-block animate-fade-in" style={{ animationDelay: '0.1s' }}>Mapping System</span><br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-blue-600 to-emerald-500 animate-gradient-x inline-block" style={{ animationDelay: '0.2s' }}>
                                 for Sibuyan Island
                             </span>
                         </h1>
@@ -312,7 +312,7 @@ const HomePage = () => {
                         </p>
 
                         <p className="text-sm sm:text-base text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-                            🗺️ View live accidents & high-risk zones freely • 📝 Register as a reporter to contribute • 🚨 Get instant emergency alerts
+                            View live accidents & high-risk zones freely • Register as a reporter to contribute • Get instant emergency alerts
                         </p>
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 mt-10">
@@ -322,14 +322,14 @@ const HomePage = () => {
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                                 <HiOutlineMap className="w-6 h-6 sm:w-7 sm:h-7 relative z-10 group-hover:rotate-12 transition-transform" />
-                                <span className="relative z-10">🗺️ View Live Map</span>
+                                <span className="relative z-10">View Live Map</span>
                             </Link>
                             {!isAuthenticated && (
                                 <Link
                                     to="/register"
                                     className="group w-full sm:w-auto px-8 sm:px-12 py-5 sm:py-6 bg-white text-gray-900 border-2 border-gray-300 rounded-2xl font-black text-base sm:text-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-brand-50 hover:border-brand-400 transition-all shadow-xl hover:shadow-2xl flex items-center justify-center gap-2 transform hover:scale-[1.05] relative overflow-hidden"
                                 >
-                                    <span className="relative z-10">✨ Become a Reporter</span>
+                                    <span className="relative z-10">Become a Reporter</span>
                                     <HiOutlineArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
                                 </Link>
                             )}
@@ -338,7 +338,7 @@ const HomePage = () => {
                         {/* Enhanced Public Analytics Bar */}
                         {publicStats && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto mt-10">
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.3 }}
@@ -350,7 +350,7 @@ const HomePage = () => {
                                     <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.verifiedReportsThisMonth || 0}</span>
                                     <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Verified Reports<br /><span className="text-blue-600">(This Month)</span></span>
                                 </motion.div>
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.4 }}
@@ -362,7 +362,7 @@ const HomePage = () => {
                                     <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.activeHighRiskZones || 0}</span>
                                     <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Active<br /><span className="text-orange-600">High-Risk Zones</span></span>
                                 </motion.div>
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.5 }}
@@ -374,7 +374,7 @@ const HomePage = () => {
                                     <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.totalReportsAllTime || 0}</span>
                                     <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Total Incidents<br /><span className="text-emerald-600">Resolved</span></span>
                                 </motion.div>
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.6 }}

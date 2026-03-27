@@ -137,7 +137,7 @@ const ForgotPasswordPage = () => {
 
                                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-5 sm:mb-6">
                                     <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
-                                        📧 Didn't receive the email? Check your spam folder or{' '}
+                            Didn't receive the email? Check your spam folder or{' '}
                                         <button
                                             onClick={() => setSent(false)}
                                             className="text-blue-600 font-bold hover:underline transition-all"

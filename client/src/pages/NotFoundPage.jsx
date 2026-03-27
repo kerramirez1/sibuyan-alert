@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineHome, HiOutlineArrowLeft, HiOutlineEmojiSad } from 'react-icons/hi';
+import { HiOutlineHome, HiOutlineArrowLeft } from 'react-icons/hi';
 
 const NotFoundPage = () => {
     return (
@@ -26,7 +26,7 @@ const NotFoundPage = () => {
                 >
                     <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-2xl shadow-indigo-500/50 relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer"></div>
-                        <span className="text-6xl sm:text-7xl relative z-10">😵</span>
+                        <span className="text-6xl sm:text-7xl relative z-10">404</span>
                     </div>
                 </motion.div>
 
@@ -52,7 +52,7 @@ const NotFoundPage = () => {
                     </h1>
 
                     <p className="text-gray-600 text-base sm:text-xl mb-10 sm:mb-12 leading-relaxed px-4 sm:px-0 font-medium">
-                        The page you're looking for doesn't exist or has been moved to a different location. 🗺️
+                        The page you're looking for doesn't exist or has been moved to a different location.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4 sm:px-0">
@@ -62,14 +62,14 @@ const NotFoundPage = () => {
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                             <HiOutlineHome className="w-5 h-5 sm:w-6 sm:h-6 relative z-10" />
-                            <span className="relative z-10">🏠 Go Home</span>
+                            <span className="relative z-10">Go Home</span>
                         </Link>
                         <button
                             onClick={() => window.history.back()}
                             className="group w-full sm:w-auto flex items-center justify-center gap-3 px-8 sm:px-10 py-4 sm:py-5 bg-white border-2 border-gray-300 text-gray-700 text-base sm:text-lg font-black rounded-2xl hover:bg-gray-50 hover:border-gray-400 shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
                         >
                             <HiOutlineArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 group-hover:-translate-x-1 transition-transform" />
-                            ⬅️ Go Back
+                            Go Back
                         </button>
                     </div>
                 </motion.div>
@@ -81,7 +81,7 @@ const NotFoundPage = () => {
                     transition={{ delay: 0.8 }}
                     className="mt-10 text-sm text-gray-400 font-medium"
                 >
-                    Lost in the digital wilderness? We'll help you find your way! 🧭
+                    Lost in the digital wilderness? We'll help you find your way!
                 </motion.p>
             </motion.div>
         </div>

@@ -89,10 +89,10 @@ const LoginPage = () => {
             >
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-brand-50 to-emerald-50 border border-brand-200 rounded-full mb-4">
                     <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-                    <span className="text-xs font-bold text-brand-700">🔐 Secure Login</span>
+                    <span className="text-xs font-bold text-brand-700">Secure Login</span>
                 </div>
                 <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-2 tracking-tight">
-                    Welcome Back! 👋
+                    Welcome Back!
                 </h2>
                 <p className="text-sm sm:text-base text-gray-500 leading-relaxed">
                     Sign in to access your <span className="text-brand-600 font-semibold">Sibuyan Alert</span> account.
@@ -124,7 +124,7 @@ const LoginPage = () => {
                 {/* Email Field */}
                 <div>
                     <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2">
-                        📧 Email Address
+                        Email Address
                     </label>
                     <div className="relative group">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors duration-200">
@@ -164,7 +164,7 @@ const LoginPage = () => {
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <label className="block text-xs sm:text-sm font-bold text-gray-700">
-                            🔒 Password
+                            Password
                         </label>
                         <Link
                             to="/forgot-password"
@@ -255,7 +255,7 @@ const LoginPage = () => {
                             </>
                         ) : (
                             <>
-                                <span>🚀 Sign In to Dashboard</span>
+                                <span>Sign In to Dashboard</span>
                                 <HiOutlineArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </>
                         )}
@@ -296,7 +296,7 @@ const LoginPage = () => {
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
                         <h3 className="font-black text-sm sm:text-base text-gray-900 group-hover:text-emerald-700 transition-colors mb-1">
-                            ✨ Register as a Reporter
+                            Register as a Reporter
                         </h3>
                         <p className="text-xs sm:text-sm text-gray-600 font-medium">
                             Create account to submit accident reports
@@ -315,7 +315,7 @@ const LoginPage = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-black text-xs sm:text-sm text-gray-900 group-hover:text-blue-700 transition-colors mb-0.5">
-                            🗺️ View Public Safety Map
+                            View Public Safety Map
                         </h3>
                         <p className="text-[11px] sm:text-xs text-gray-600 font-medium">No login required • Free access</p>
                     </div>
@@ -332,7 +332,7 @@ const LoginPage = () => {
             >
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
                     <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold">🔐 256-bit Encrypted & Secured</span>
+                    <span className="text-xs font-bold">256-bit Encrypted & Secured</span>
                 </div>
             </motion.div>
         </div>
