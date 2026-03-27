@@ -9,7 +9,6 @@ import {
     HiOutlineHome,
     HiOutlineMap,
     HiOutlineClipboardList,
-    HiOutlineLightningBolt,
     HiOutlineUsers,
     HiOutlineLogout,
     HiOutlineMenu,
@@ -42,9 +41,8 @@ const MainLayout = () => {
             href: '/admin',
             icon: HiOutlineHome
         },
-        { name: 'Verify Reporters', href: '/admin/users', icon: HiOutlineUsers },
+        { name: 'Manage Users', href: '/admin/users', icon: HiOutlineUsers },
         { name: 'Incident Reports', href: '/admin/reports', iconSrc: '/icons/report.logo.png' },
-        { name: 'Dispatch Queue', href: '/admin/reports?view=dispatch-queue', icon: HiOutlineLightningBolt },
     ];
 
     const filteredNav = isAuthenticated
@@ -61,7 +59,7 @@ const MainLayout = () => {
             if (user?.role === 'admin' || user?.role === 'municipal_admin') return true;
             // Responders can only see dashboard and incident reports (no user management)
             if (user?.role === 'responder') {
-                return item.name !== 'Verify Reporters';
+                return item.href !== '/admin/users';
             }
             return false;
         })
@@ -254,14 +252,10 @@ const MainLayout = () => {
                                             key={item.name}
                                             to={item.href}
                                             className={({ isActive }) => {
-                                                const isDispatchItem = item.href.includes('view=dispatch-queue');
                                                 const isIncidentReportsItem = item.href === '/admin/reports';
-                                                const isReportsPath = location.pathname === '/admin/reports';
-                                                const adminItemActive = isDispatchItem
-                                                    ? isReportsPath && currentView === 'dispatch-queue'
-                                                    : isIncidentReportsItem
-                                                        ? isReportsPath && currentView !== 'dispatch-queue'
-                                                        : isActive;
+                                                const adminItemActive = isIncidentReportsItem
+                                                    ? location.pathname === '/admin/reports'
+                                                    : isActive;
 
                                                 return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${adminItemActive
                                                     ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'

@@ -264,18 +264,19 @@ const RegisterPage = () => {
         <div className="w-full">
             {/* Header */}
             <div className="mb-8">
-                <Link to="/login" className="inline-flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-semibold transition-colors mb-6 group">
+                <Link to="/login" className="inline-flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 font-bold transition-all mb-6 group hover:gap-3">
                     <HiOutlineArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    Back to Login
+                    ← Back to Login
                 </Link>
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-                    <HiOutlineUser className="w-8 h-8 text-white" />
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl shadow-emerald-500/40 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                    <HiOutlineUser className="w-10 h-10 text-white relative z-10" />
                 </div>
-                <h2 className="text-3xl font-display font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Create Account
+                <h2 className="text-4xl font-display font-black bg-gradient-to-r from-gray-900 via-emerald-700 to-green-600 bg-clip-text text-transparent mb-2">
+                    ✨ Create Account
                 </h2>
-                <p className="text-gray-600 mt-2 text-lg">
-                    Join the network as a verified reporter.
+                <p className="text-gray-600 text-base font-medium">
+                    Join the network as a <span className="text-emerald-600 font-bold">verified reporter</span> 🚀
                 </p>
             </div>
 
@@ -283,25 +284,29 @@ const RegisterPage = () => {
             <div className="flex items-center gap-2 mb-8">
                 {[1, 2, 3].map((s, idx) => (
                     <div key={s} className="flex-1 flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${step > s
-                            ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30'
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-300 ${step > s
+                            ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-xl shadow-emerald-500/40 scale-110'
                             : step === s
-                                ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-200'
-                                : 'bg-gray-200 text-gray-400'
+                                ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-xl shadow-emerald-500/40 ring-4 ring-emerald-200 scale-110'
+                                : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
                             }`}>
-                            {step > s ? <HiOutlineCheck className="w-4 h-4" /> : s}
-                        </div>
+                            {step > s ? <HiOutlineCheck className="w-5 h-5" /> : s}
+                        </motion.div>
                         {idx < 2 && (
-                            <div className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${step > s ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gray-200'}`} />
+                            <div className={`flex-1 h-2 rounded-full transition-all duration-500 ${step > s ? 'bg-gradient-to-r from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30' : 'bg-gray-200'}`} />
                         )}
                     </div>
                 ))}
             </div>
 
             {/* Step Labels */}
-            <div className="flex justify-between mb-6 px-1">
+            <div className="flex justify-between mb-8 px-1">
                 {stepLabels.map((label, idx) => (
-                    <span key={label} className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${step === idx + 1 ? 'text-emerald-600' : step > idx + 1 ? 'text-emerald-400' : 'text-gray-300'}`}>
+                    <span key={label} className={`text-xs font-black uppercase tracking-wider transition-colors ${step === idx + 1 ? 'text-emerald-600' : step > idx + 1 ? 'text-emerald-500' : 'text-gray-400'}`}>
                         {label}
                     </span>
                 ))}

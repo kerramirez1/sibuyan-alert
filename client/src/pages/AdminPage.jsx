@@ -285,7 +285,7 @@ const AdminPage = () => {
                             {user?.assignedMunicipality && <span className="text-gray-500 text-lg font-normal"> · {showAll ? 'All Sibuyan' : user.assignedMunicipality}</span>}
                         </h1>
                         <p className="text-gray-600">
-                            Manage reports, verify reporters, and coordinate emergency response.
+                            Manage users, review reports, and coordinate emergency response.
                         </p>
                     </div>
                     {hasMunicipality && (
