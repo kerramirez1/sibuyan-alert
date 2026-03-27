@@ -9,6 +9,7 @@ import {
     HiOutlineHome,
     HiOutlineMap,
     HiOutlineClipboardList,
+    HiOutlineLocationMarker,
     HiOutlineUsers,
     HiOutlineLogout,
     HiOutlineMenu,
@@ -43,6 +44,7 @@ const MainLayout = () => {
         },
         { name: 'Manage Users', href: '/admin/users', icon: HiOutlineUsers },
         { name: 'Incident Reports', href: '/admin/reports', iconSrc: '/icons/report.logo.png' },
+        { name: 'Manage High-Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['admin', 'municipal_admin'] },
     ];
 
     const filteredNav = isAuthenticated
@@ -55,6 +57,7 @@ const MainLayout = () => {
 
     const filteredAdminNav = isAuthenticated
         ? adminNavigation.filter((item) => {
+            if (item.roles && !item.roles.includes(user?.role)) return false;
             // Both super admin and municipal admin can manage users and reports
             if (user?.role === 'admin' || user?.role === 'municipal_admin') return true;
             // Responders can only see dashboard and incident reports (no user management)
@@ -253,8 +256,11 @@ const MainLayout = () => {
                                             to={item.href}
                                             className={({ isActive }) => {
                                                 const isIncidentReportsItem = item.href === '/admin/reports';
+                                                const isHighRiskZonesItem = item.href === '/admin/zones';
                                                 const adminItemActive = isIncidentReportsItem
                                                     ? location.pathname === '/admin/reports'
+                                                    : isHighRiskZonesItem
+                                                        ? location.pathname === '/admin/zones'
                                                     : isActive;
 
                                                 return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${adminItemActive
