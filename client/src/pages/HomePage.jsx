@@ -25,16 +25,16 @@ const StepCard = ({ number, icon: Icon, title, desc, color, delay }) => (
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ delay, duration: 0.6 }}
-        className="relative flex flex-col items-center text-center p-8 rounded-3xl bg-white border-2 border-gray-100 shadow-lg hover:shadow-2xl hover:border-blue-100 transition-all duration-300 group"
+        className="relative flex flex-col items-center text-center p-6 rounded-2xl bg-white border border-gray-100 shadow-md hover:shadow-xl hover:border-blue-100 transition-all duration-300 group"
     >
         {/* Step number badge */}
-        <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full ${color} text-white text-sm font-black flex items-center justify-center shadow-lg`}>
+        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full ${color} text-white text-xs font-black flex items-center justify-center shadow-md`}>
             {number}
         </div>
-        <div className={`w-16 h-16 rounded-2xl ${color} bg-opacity-10 flex items-center justify-center mb-5 mt-3 group-hover:scale-110 transition-transform shadow-md`}>
-            <Icon className={`w-8 h-8 ${color.replace('bg-', 'text-')}`} />
+        <div className={`w-12 h-12 rounded-xl ${color} bg-opacity-10 flex items-center justify-center mb-4 mt-2 group-hover:scale-110 transition-transform shadow-sm`}>
+            <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
         </div>
-        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{title}</h3>
+        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2">{title}</h3>
         <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{desc}</p>
     </motion.div>
 );
@@ -237,7 +237,7 @@ const HomePage = () => {
                         <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
                             <img src="/icons/Alert.png" alt="Sibuyan Alert Logo" className="w-full h-full object-contain" />
                         </div>
-                        <span className="font-display font-bold text-lg sm:text-2xl text-gray-900 tracking-tight">
+                        <span className="font-display font-bold text-lg sm:text-xl text-gray-900 tracking-tight">
                             Sibuyan <span className="text-brand-600 hidden xs:inline">Alert</span>
                         </span>
                     </Link>
@@ -246,7 +246,7 @@ const HomePage = () => {
                         {isAuthenticated ? (
                             <Link
                                 to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'}
-                                className="flex items-center gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs sm:text-base"
+                                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs sm:text-sm"
                             >
                                 <span className="hidden xs:inline">
                                     {user?.role === 'reporter' ? 'Go to My Reports' : 'Go to Analytics Dashboard'}
@@ -260,13 +260,13 @@ const HomePage = () => {
                             <div className="flex items-center gap-2 sm:gap-4">
                                 <Link
                                     to="/login"
-                                    className="px-4 sm:px-6 py-2.5 sm:py-3 text-gray-700 hover:text-brand-600 font-bold transition-all rounded-xl hover:bg-brand-50 text-xs sm:text-base"
+                                    className="px-4 sm:px-5 py-2 sm:py-2.5 text-gray-700 hover:text-brand-600 font-bold transition-all rounded-xl hover:bg-brand-50 text-xs sm:text-sm"
                                 >
                                     Sign In
                                 </Link>
                                 <Link
                                     to="/register"
-                                    className="px-5 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl font-bold hover:from-gray-800 hover:to-gray-700 transition-all shadow-xl hover:shadow-2xl transform hover:scale-[1.02] active:scale-95 text-xs sm:text-base whitespace-nowrap"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl font-bold hover:from-gray-800 hover:to-gray-700 transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95 text-xs sm:text-sm whitespace-nowrap"
                                 >
                                     <span className="hidden xs:inline">Become a Reporter</span>
                                     <span className="xs:hidden">Join Now</span>
@@ -291,15 +291,15 @@ const HomePage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
                     >
-                        <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-white to-brand-50 border-2 border-brand-200 rounded-full text-brand-700 text-sm font-bold mb-8 shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-white to-brand-50 border border-brand-200 rounded-full text-brand-700 text-xs sm:text-sm font-bold mb-6 shadow-sm hover:shadow transition-all hover:scale-105">
                             <span className="flex h-2.5 w-2.5 relative">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-600 shadow-lg shadow-brand-500/50"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-600 shadow-sm shadow-brand-500/50"></span>
                             </span>
                             Real-Time Accident Alert & Mapping System
                         </div>
 
-                        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-black text-gray-900 mb-8 tracking-tight leading-[1.1]">
+                        <h1 className="text-3xl sm:text-5xl md:text-6xl font-display font-black text-gray-900 mb-6 tracking-tight leading-[1.15]">
                             <span className="inline-block animate-fade-in">Accident Alert &</span><br />
                             <span className="inline-block animate-fade-in" style={{ animationDelay: '0.1s' }}>Mapping System</span><br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-blue-600 to-emerald-500 animate-gradient-x inline-block" style={{ animationDelay: '0.2s' }}>
@@ -307,27 +307,27 @@ const HomePage = () => {
                             </span>
                         </h1>
 
-                        <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-4 leading-relaxed font-medium">
+                        <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-4 leading-relaxed font-medium">
                             Real-time accident monitoring and emergency response coordination for <span className="text-brand-600 font-bold">safer communities</span> across Sibuyan Island.
                         </p>
 
-                        <p className="text-sm sm:text-base text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+                        <p className="text-sm text-gray-500 max-w-2xl mx-auto mb-8 leading-relaxed">
                             View live accidents & high-risk zones freely • Register as a reporter to contribute • Get instant emergency alerts
                         </p>
 
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 mt-10">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 mt-8">
                             <Link
                                 to="/dashboard?view=map"
-                                className="group w-full sm:w-auto px-8 sm:px-12 py-5 sm:py-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-2xl font-black text-base sm:text-lg shadow-2xl shadow-blue-500/50 hover:shadow-blue-600/60 flex items-center justify-center gap-3 transform hover:scale-[1.08] active:scale-95 transition-all duration-300 relative overflow-hidden"
+                                className="group w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold text-sm sm:text-base shadow-lg shadow-blue-500/40 hover:shadow-blue-600/50 flex items-center justify-center gap-2 transform hover:scale-[1.05] active:scale-95 transition-all duration-300 relative overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                                <HiOutlineMap className="w-6 h-6 sm:w-7 sm:h-7 relative z-10 group-hover:rotate-12 transition-transform" />
+                                <HiOutlineMap className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 group-hover:rotate-12 transition-transform" />
                                 <span className="relative z-10">View Live Map</span>
                             </Link>
                             {!isAuthenticated && (
                                 <Link
                                     to="/register"
-                                    className="group w-full sm:w-auto px-8 sm:px-12 py-5 sm:py-6 bg-white text-gray-900 border-2 border-gray-300 rounded-2xl font-black text-base sm:text-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-brand-50 hover:border-brand-400 transition-all shadow-xl hover:shadow-2xl flex items-center justify-center gap-2 transform hover:scale-[1.05] relative overflow-hidden"
+                                    className="group w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-white text-gray-900 border border-gray-300 rounded-xl font-bold text-sm sm:text-base hover:bg-gradient-to-r hover:from-gray-50 hover:to-brand-50 hover:border-brand-400 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.03] relative overflow-hidden"
                                 >
                                     <span className="relative z-10">Become a Reporter</span>
                                     <HiOutlineArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
@@ -344,11 +344,11 @@ const HomePage = () => {
                                     transition={{ delay: 0.3 }}
                                     className="group bg-gradient-to-br from-white to-blue-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-blue-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:rotate-12 transition-transform">
-                                        <HiOutlineShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
+                                        <HiOutlineShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </div>
-                                    <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.verifiedReportsThisMonth || 0}</span>
-                                    <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Verified Reports<br /><span className="text-blue-600">(This Month)</span></span>
+                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.verifiedReportsThisMonth || 0}</span>
+                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Verified Reports<br /><span className="text-blue-600">(This Month)</span></span>
                                 </motion.div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -356,11 +356,11 @@ const HomePage = () => {
                                     transition={{ delay: 0.4 }}
                                     className="group bg-gradient-to-br from-white to-orange-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-orange-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:rotate-12 transition-transform">
-                                        <HiOutlineLocationMarker className="w-6 h-6 sm:w-7 sm:h-7" />
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
+                                        <HiOutlineLocationMarker className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </div>
-                                    <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.activeHighRiskZones || 0}</span>
-                                    <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Active<br /><span className="text-orange-600">High-Risk Zones</span></span>
+                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.activeHighRiskZones || 0}</span>
+                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Active<br /><span className="text-orange-600">High-Risk Zones</span></span>
                                 </motion.div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -368,11 +368,11 @@ const HomePage = () => {
                                     transition={{ delay: 0.5 }}
                                     className="group bg-gradient-to-br from-white to-emerald-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-emerald-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:rotate-12 transition-transform">
-                                        <HiOutlineChartBar className="w-6 h-6 sm:w-7 sm:h-7" />
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
+                                        <HiOutlineChartBar className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </div>
-                                    <span className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">{publicStats.totalReportsAllTime || 0}</span>
-                                    <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">Total Incidents<br /><span className="text-emerald-600">Resolved</span></span>
+                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.totalReportsAllTime || 0}</span>
+                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Total Incidents<br /><span className="text-emerald-600">Resolved</span></span>
                                 </motion.div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -380,11 +380,11 @@ const HomePage = () => {
                                     transition={{ delay: 0.6 }}
                                     className="group bg-gradient-to-br from-white to-brand-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-brand-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-2xl flex items-center justify-center mb-3 shadow-lg relative overflow-hidden">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md relative overflow-hidden">
                                         <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                                        <div className="w-3 h-3 rounded-full bg-white animate-pulse shadow-lg shadow-white/50 relative z-10"></div>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse shadow-md shadow-white/50 relative z-10"></div>
                                     </div>
-                                    <span className="text-xl sm:text-2xl font-black text-gray-900 mb-1 capitalize">{publicStats.systemStatus || 'Operational'}</span>
+                                    <span className="text-lg sm:text-xl font-black text-gray-900 mb-1 capitalize">{publicStats.systemStatus || 'Operational'}</span>
                                     <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">System<br /><span className="text-brand-600">Status</span></span>
                                 </motion.div>
                             </div>
@@ -400,13 +400,13 @@ const HomePage = () => {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-center mb-16"
+                        className="text-center mb-12"
                     >
-                        <span className="inline-block px-4 py-1 bg-brand-50 text-brand-700 text-sm font-bold rounded-full mb-4 border border-brand-100">How It Works</span>
-                        <h2 className="text-2xl sm:text-4xl font-display font-bold text-gray-900 mb-4">
+                        <span className="inline-block px-3 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-full mb-3 border border-brand-100 uppercase tracking-wide">How It Works</span>
+                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-3">
                             From Report to Response
                         </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto text-base sm:text-lg">
+                        <p className="text-gray-500 max-w-xl mx-auto text-sm sm:text-base">
                             A streamlined 3-step process connecting community reporters with emergency responders.
                         </p>
                     </motion.div>
@@ -422,18 +422,18 @@ const HomePage = () => {
             </section>
 
             {/* Features Grid */}
-            <section className="py-24 bg-white">
+            <section className="py-20 bg-white">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-4">
+                    <div className="text-center mb-12">
+                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-3">
                             Powerful Tools for Community Safety
                         </h2>
-                        <p className="text-gray-500 max-w-2xl mx-auto text-base sm:text-lg">
+                        <p className="text-gray-500 max-w-2xl mx-auto text-sm sm:text-base">
                             Equipping citizens and authorities with state-of-the-art technology to coordinate effective emergency response.
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {features.map((feature, idx) => (
                             <motion.div
                                 key={idx}
@@ -441,13 +441,13 @@ const HomePage = () => {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-200 hover:shadow-2xl transition-all duration-300 group transform hover:scale-[1.02]"
+                                className="p-6 rounded-2xl bg-white border border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300 group transform hover:scale-[1.02]"
                             >
-                                <div className={`w-16 h-16 rounded-2xl ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 shadow-lg transition-all`}>
-                                    <feature.icon className="w-8 h-8" />
+                                <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 shadow-md transition-all`}>
+                                    <feature.icon className="w-6 h-6" />
                                 </div>
-                                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                                <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{feature.description}</p>
+                                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
+                                <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
                             </motion.div>
                         ))}
                     </div>
@@ -455,17 +455,17 @@ const HomePage = () => {
             </section>
 
             {/* Stats/Municipality Section */}
-            <section className="py-24 bg-gray-900 text-white overflow-hidden relative">
+            <section className="py-20 bg-gray-900 text-white overflow-hidden relative">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     {/* Section Header */}
-                    <div className="mb-16 md:text-center max-w-3xl mx-auto">
-                        <h2 className="text-2xl sm:text-4xl font-display font-bold mb-6">
+                    <div className="mb-12 md:text-center max-w-3xl mx-auto">
+                        <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
                             Coverage Across Sibuyan
                         </h2>
-                        <p className="text-gray-400 text-base sm:text-lg">
+                        <p className="text-gray-400 text-sm sm:text-base">
                             Promoting safety and rapid response across all municipalities. We work directly with local Barangays to verify reports and coordinate assistance.
                         </p>
                     </div>
@@ -487,9 +487,9 @@ const HomePage = () => {
                                         initial={{ opacity: 0, x: -20 }}
                                         whileInView={{ opacity: 1, x: 0 }}
                                         viewport={{ once: true }}
-                                        className="flex items-center gap-5 p-6 rounded-2xl bg-white/10 border-2 border-white/20 hover:bg-white/15 hover:border-white/30 transition-all group backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                                        className="flex items-center gap-4 p-5 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all group backdrop-blur-sm shadow-md hover:shadow-lg transform hover:scale-[1.02]"
                                     >
-                                        <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center p-1 border-2 border-white/20 overflow-hidden group-hover:scale-110 transition-transform shadow-md">
+                                        <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center p-1 border-2 border-white/20 overflow-hidden group-hover:scale-110 transition-transform shadow-md">
                                             {logoConfig ? (
                                                 <img
                                                     src={logoConfig.src}
@@ -503,7 +503,7 @@ const HomePage = () => {
                                             )}
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-lg sm:text-xl mb-1 group-hover:text-brand-300 transition-colors">{muni.name}</h4>
+                                            <h4 className="font-bold text-base sm:text-lg mb-1 group-hover:text-brand-300 transition-colors">{muni.name}</h4>
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50"></div>
                                                 <p className="text-xs sm:text-sm text-gray-300 font-semibold">
@@ -532,30 +532,30 @@ const HomePage = () => {
                             <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-8 -mb-8 blur-2xl"></div>
 
                             <div className="relative z-10">
-                                <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8 border border-white/10">
-                                    <HiOutlineUserGroup className="w-7 h-7 text-white" />
+                                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-6 border border-white/10">
+                                    <HiOutlineUserGroup className="w-6 h-6 text-white" />
                                 </div>
 
                                 {isAuthenticated ? (
                                     <>
-                                        <h3 className="text-2xl sm:text-3xl font-display font-bold mb-4">Welcome Back!</h3>
-                                        <p className="text-brand-100 text-base sm:text-lg mb-10 leading-relaxed">
+                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3">Welcome Back!</h3>
+                                        <p className="text-brand-100 text-sm sm:text-base mb-8 leading-relaxed">
                                             You're already part of the network. Head to your dashboard to view reports, analytics, and more.
                                         </p>
-                                        <Link to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} className="block w-full py-4 sm:py-5 bg-white text-brand-700 font-bold text-base sm:text-lg text-center rounded-2xl hover:bg-brand-50 transition-all shadow-2xl shadow-black/20 transform hover:scale-[1.02]">
+                                        <Link to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} className="block w-full py-3.5 sm:py-4 bg-white text-brand-700 font-bold text-sm sm:text-base text-center rounded-xl hover:bg-brand-50 transition-all shadow-xl shadow-black/10 transform hover:scale-[1.02]">
                                             {user?.role === 'reporter' ? 'Go to My Reports' : 'Go to Dashboard'}
                                         </Link>
                                     </>
                                 ) : (
                                     <>
-                                        <h3 className="text-2xl sm:text-3xl font-display font-bold mb-4">Join the Network</h3>
-                                        <p className="text-brand-100 text-base sm:text-lg mb-10 leading-relaxed">
+                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3">Join the Network</h3>
+                                        <p className="text-brand-100 text-sm sm:text-base mb-8 leading-relaxed">
                                             Get verified status to submit reports, access real-time analytics, and help save lives in your community.
                                         </p>
-                                        <Link to="/register" className="block w-full py-4 sm:py-5 bg-white text-brand-700 font-bold text-base sm:text-lg text-center rounded-2xl hover:bg-brand-50 transition-all shadow-2xl shadow-black/20 transform hover:scale-[1.02]">
+                                        <Link to="/register" className="block w-full py-3.5 sm:py-4 bg-white text-brand-700 font-bold text-sm sm:text-base text-center rounded-xl hover:bg-brand-50 transition-all shadow-xl shadow-black/10 transform hover:scale-[1.02]">
                                             Register Now
                                         </Link>
-                                        <p className="text-xs text-center text-brand-200 mt-6 font-medium tracking-wide uppercase">
+                                        <p className="text-xs text-center text-brand-200 mt-4 font-medium tracking-wide uppercase">
                                             Verification takes less than 2 minutes
                                         </p>
                                     </>
@@ -648,7 +648,7 @@ const HomePage = () => {
             </Modal>
 
             {/* Simple Footer */}
-            <footer className="bg-white border-t border-gray-100 py-12">
+            <footer className="bg-white border-t border-gray-100 py-8">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
