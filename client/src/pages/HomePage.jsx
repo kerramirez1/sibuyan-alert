@@ -422,34 +422,53 @@ const HomePage = () => {
             </section>
 
             {/* Features Grid */}
-            <section className="py-20 bg-white">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-12">
-                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-3">
+            <section className="py-24 bg-slate-50 relative overflow-hidden">
+                {/* Decorative subtle background accents */}
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-brand-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+                <div className="max-w-7xl mx-auto px-6 relative z-10">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl sm:text-4xl font-display font-bold text-gray-900 mb-4">
                             Powerful Tools for Community Safety
                         </h2>
-                        <p className="text-gray-500 max-w-2xl mx-auto text-sm sm:text-base">
+                        <p className="text-gray-500 max-w-2xl mx-auto text-base sm:text-lg">
                             Equipping citizens and authorities with state-of-the-art technology to coordinate effective emergency response.
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {features.map((feature, idx) => (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: idx * 0.1 }}
-                                className="p-6 rounded-2xl bg-white border border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300 group transform hover:scale-[1.02]"
-                            >
-                                <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 shadow-md transition-all`}>
-                                    <feature.icon className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
-                                <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
-                            </motion.div>
-                        ))}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                        {features.map((feature, idx) => {
+                            const styleMap = {
+                                'bg-blue-50 text-blue-600': { hoverBorder: 'hover:border-blue-300', glow: 'group-hover:bg-blue-400/10', iconShadow: 'group-hover:shadow-blue-500/20' },
+                                'bg-emerald-50 text-emerald-600': { hoverBorder: 'hover:border-emerald-300', glow: 'group-hover:bg-emerald-400/10', iconShadow: 'group-hover:shadow-emerald-500/20' },
+                                'bg-orange-50 text-orange-600': { hoverBorder: 'hover:border-orange-300', glow: 'group-hover:bg-orange-400/10', iconShadow: 'group-hover:shadow-orange-500/20' },
+                                'bg-purple-50 text-purple-600': { hoverBorder: 'hover:border-purple-300', glow: 'group-hover:bg-purple-400/10', iconShadow: 'group-hover:shadow-purple-500/20' },
+                            };
+                            const styles = styleMap[feature.color] || styleMap['bg-blue-50 text-blue-600'];
+
+                            return (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className={`relative p-8 rounded-[2rem] bg-white border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] ${styles.hoverBorder} transition-all duration-500 group hover:-translate-y-2 hover:shadow-2xl overflow-hidden cursor-default`}
+                                >
+                                    {/* Soft gradient blob on hover */}
+                                    <div className={`absolute top-0 right-0 w-40 h-40 rounded-full -mr-20 -mt-20 blur-3xl transition-colors duration-500 ${styles.glow} z-0`}></div>
+                                    
+                                    <div className="relative z-10">
+                                        <div className={`w-14 h-14 rounded-2xl ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 shadow-sm transition-all duration-300 ${styles.iconShadow}`}>
+                                            <feature.icon className="w-7 h-7" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+                                        <p className="text-gray-500 text-sm leading-relaxed">{feature.description}</p>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 </div>
             </section>
@@ -487,9 +506,9 @@ const HomePage = () => {
                                         initial={{ opacity: 0, x: -20 }}
                                         whileInView={{ opacity: 1, x: 0 }}
                                         viewport={{ once: true }}
-                                        className="flex items-center gap-4 p-5 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all group backdrop-blur-sm shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                                        className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all duration-300 group backdrop-blur-md shadow-lg hover:shadow-2xl hover:-translate-y-1"
                                     >
-                                        <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center p-1 border-2 border-white/20 overflow-hidden group-hover:scale-110 transition-transform shadow-md">
+                                        <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center p-2 border border-white/10 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-300">
                                             {logoConfig ? (
                                                 <img
                                                     src={logoConfig.src}
@@ -526,36 +545,36 @@ const HomePage = () => {
                             initial={{ opacity: 0, x: 20 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
-                            className="bg-gradient-to-br from-brand-600 to-emerald-600 rounded-3xl p-8 lg:p-10 shadow-2xl relative overflow-hidden"
+                            className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8 lg:p-10 shadow-2xl relative overflow-hidden group"
                         >
-                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-12 -mt-12 blur-3xl"></div>
-                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-8 -mb-8 blur-2xl"></div>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full -mr-16 -mt-16 blur-3xl transition-all duration-700 group-hover:bg-brand-500/20"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full -ml-12 -mb-12 blur-3xl transition-all duration-700 group-hover:bg-blue-500/20"></div>
 
                             <div className="relative z-10">
-                                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-6 border border-white/10">
-                                    <HiOutlineUserGroup className="w-6 h-6 text-white" />
+                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 border border-white/10 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                                    <HiOutlineUserGroup className="w-6 h-6 text-brand-300" />
                                 </div>
 
                                 {isAuthenticated ? (
                                     <>
-                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3">Welcome Back!</h3>
-                                        <p className="text-brand-100 text-sm sm:text-base mb-8 leading-relaxed">
+                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3 text-white">Welcome Back!</h3>
+                                        <p className="text-gray-400 text-sm sm:text-base mb-8 leading-relaxed">
                                             You're already part of the network. Head to your dashboard to view reports, analytics, and more.
                                         </p>
-                                        <Link to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} className="block w-full py-3.5 sm:py-4 bg-white text-brand-700 font-bold text-sm sm:text-base text-center rounded-xl hover:bg-brand-50 transition-all shadow-xl shadow-black/10 transform hover:scale-[1.02]">
+                                        <Link to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} className="block w-full py-3.5 sm:py-4 bg-gradient-to-r from-brand-600 to-blue-600 text-white font-bold text-sm sm:text-base text-center rounded-xl hover:from-brand-500 hover:to-blue-500 transition-all shadow-lg transform hover:-translate-y-1">
                                             {user?.role === 'reporter' ? 'Go to My Reports' : 'Go to Dashboard'}
                                         </Link>
                                     </>
                                 ) : (
                                     <>
-                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3">Join the Network</h3>
-                                        <p className="text-brand-100 text-sm sm:text-base mb-8 leading-relaxed">
+                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3 text-white">Join the Network</h3>
+                                        <p className="text-gray-400 text-sm sm:text-base mb-8 leading-relaxed">
                                             Get verified status to submit reports, access real-time analytics, and help save lives in your community.
                                         </p>
-                                        <Link to="/register" className="block w-full py-3.5 sm:py-4 bg-white text-brand-700 font-bold text-sm sm:text-base text-center rounded-xl hover:bg-brand-50 transition-all shadow-xl shadow-black/10 transform hover:scale-[1.02]">
+                                        <Link to="/register" className="block w-full py-3.5 sm:py-4 bg-gradient-to-r from-brand-600 to-blue-600 text-white font-bold text-sm sm:text-base text-center rounded-xl hover:from-brand-500 hover:to-blue-500 transition-all shadow-lg transform hover:-translate-y-1">
                                             Register Now
                                         </Link>
-                                        <p className="text-xs text-center text-brand-200 mt-4 font-medium tracking-wide uppercase">
+                                        <p className="text-xs text-center text-gray-500 mt-5 font-medium tracking-wide uppercase">
                                             Verification takes less than 2 minutes
                                         </p>
                                     </>

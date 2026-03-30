@@ -182,19 +182,13 @@ const AuthLayout = () => {
             </div>
 
             {/* Right Side - Form Container */}
-            <div className="w-full lg:w-[48%] xl:w-1/2 flex items-center justify-center p-5 sm:p-8 md:p-12 relative">
-                {/* Mobile-only subtle background */}
-                <div className="absolute inset-0 -z-10 lg:hidden overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-blue-50/30" />
-                    <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-brand-100 rounded-full blur-[80px] opacity-40" />
-                    <div className="absolute bottom-[-10%] left-[-15%] w-[50%] h-[50%] bg-emerald-100 rounded-full blur-[80px] opacity-30" />
-                </div>
+            <div className="w-full lg:w-[48%] xl:w-1/2 min-h-screen flex items-center justify-center p-5 sm:p-8 md:p-12 bg-slate-50">
 
                 <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="w-full max-w-[420px]"
+                    className="w-full max-w-[460px]"
                 >
                     <Outlet />
                 </motion.div>
