@@ -1,0 +1,89 @@
+@startuml
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam actorStyle stickman
+skinparam ArrowColor #7FA6E6
+skinparam usecase {
+  BackgroundColor #3F6FC3
+  BorderColor #2D57A1
+  FontColor white
+}
+
+title USE CASE DIAGRAM\n(Sibuyan Alert System)
+
+left to right direction
+
+actor Guest as G
+actor Admin as A
+actor Reporter as R
+actor Responder as RS
+
+usecase "View Public Map" as UC1
+usecase "View Accident History" as UC2
+usecase "Login / Register" as UC3
+usecase "View Notifications" as UC4
+usecase "Manage Profile" as UC5
+usecase "Analyze Dashboard" as UC6
+usecase "Download Analytics\nData" as UC7
+usecase "Manage Users" as UC8
+usecase "Manage Reports" as UC9
+usecase "Manage High-Risk\nAreas" as UC10
+usecase "View My Reports" as UC11
+usecase "Submit New Report" as UC12
+usecase "Receive Alert" as UC13
+usecase "Respond to Incident" as UC14
+usecase "Logout" as UC15
+
+G --> UC1
+G --> UC2
+G --> UC3
+
+A --> UC1
+A --> UC2
+A --> UC3
+A --> UC4
+A --> UC5
+A --> UC6
+A --> UC7
+A --> UC8
+A --> UC9
+A --> UC10
+A --> UC15
+
+R --> UC1
+R --> UC2
+R --> UC3
+R --> UC4
+R --> UC5
+R --> UC11
+R --> UC12
+R --> UC15
+
+RS --> UC1
+RS --> UC2
+RS --> UC3
+RS --> UC4
+RS --> UC5
+RS --> UC9
+RS --> UC13
+RS --> UC14
+RS --> UC15
+
+' Keeps the use cases in one clean vertical stack similar to the sample format.
+UC1 -[hidden]down- UC2
+UC2 -[hidden]down- UC3
+UC3 -[hidden]down- UC4
+UC4 -[hidden]down- UC5
+UC5 -[hidden]down- UC6
+UC6 -[hidden]down- UC7
+UC7 -[hidden]down- UC8
+UC8 -[hidden]down- UC9
+UC9 -[hidden]down- UC10
+UC10 -[hidden]down- UC11
+UC11 -[hidden]down- UC12
+UC12 -[hidden]down- UC13
+UC13 -[hidden]down- UC14
+UC14 -[hidden]down- UC15
+
+@enduml
