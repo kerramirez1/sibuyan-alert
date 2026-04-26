@@ -121,8 +121,13 @@ const MainLayout = () => {
                                     className="w-full h-full object-contain"
                                 />
                             </div>
-                            <span className="font-display font-bold text-2xl text-brand-900 tracking-tight">
-                                Sibuyan <span className="text-brand-600">Alert</span>
+                            <span className="min-w-0 font-display leading-none">
+                                <span className="block whitespace-nowrap text-[17px] font-black tracking-tight text-brand-900 sm:text-lg">
+                                    Accident<span className="text-brand-600">Alert</span>
+                                </span>
+                                <span className="mt-1 block whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em] text-brand-700/65 sm:text-[11px]">
+                                    &amp; Mapping System
+                                </span>
                             </span>
                         </NavLink>
                         <button
@@ -187,7 +192,7 @@ const MainLayout = () => {
                                         onClick={() => setSidebarOpen(false)}
                                     >
                                         <HiOutlineGlobe className="w-4.5 h-4.5" />
-                                        <span>Public Map</span>
+                                        <span>Map</span>
                                     </NavLink>
 
                                     <NavLink

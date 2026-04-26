@@ -717,7 +717,7 @@ const DashboardPage = () => {
                     <div>
                         <div className="flex items-center gap-2 sm:gap-3 mb-2">
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                            <span className="text-xs sm:text-sm font-bold text-emerald-600 uppercase tracking-wider">Public Map</span>
+                            <span className="text-xs sm:text-sm font-bold text-emerald-600 uppercase tracking-wider">Map</span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Safety Awareness Map</h1>
                         <p className="text-gray-600 text-sm sm:text-base mt-1">View high-risk zones and accident statistics for Sibuyan Island</p>
@@ -909,7 +909,7 @@ const DashboardPage = () => {
                     <div>
                         <div className="flex items-center gap-2 sm:gap-3 mb-2">
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                            <span className="text-xs sm:text-sm font-bold text-emerald-600 uppercase tracking-widest">{isAdmin ? 'Admin View' : isResponder ? 'Responder View' : 'Public Map'}</span>
+                            <span className="text-xs sm:text-sm font-bold text-emerald-600 uppercase tracking-widest">{isAdmin ? 'Admin View' : isResponder ? 'Responder View' : 'Map'}</span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent tracking-tight">Safety Awareness Map</h1>
                         <p className="text-gray-600 text-sm sm:text-base mt-1">Real-time accident tracking & high risk zone monitoring</p>
@@ -1072,7 +1072,7 @@ const DashboardPage = () => {
                         <div className="flex items-center gap-2 mb-1">
                             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50 shrink-0"></div>
                             <span className="text-[10px] sm:text-sm font-bold text-emerald-600 uppercase tracking-widest">
-                                {(isAdmin && !isResponder) ? 'Admin View' : (isAdmin || isResponder) ? 'Responder View' : 'Public Map'}
+                                {(isAdmin && !isResponder) ? 'Admin View' : (isAdmin || isResponder) ? 'Responder View' : 'Map'}
                             </span>
                             {isResponder && user?.agency && (
                                 <span className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 rounded-full ${user.agency === 'MDRRMO' ? 'bg-red-100 text-red-700' :
