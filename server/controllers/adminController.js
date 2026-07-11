@@ -1142,11 +1142,15 @@ export const resolveReport = async (req, res) => {
             });
         }
 
-        // Only the assigned responder can resolve (accountability)
-        if (!report.respondedBy || report.respondedBy.toString() !== responder._id.toString()) {
+        // Only the assigned responder, any responding units, or administrators can resolve
+        const isFirstResponder = report.respondedBy && report.respondedBy.toString() === responder._id.toString();
+        const isJoinedResponder = report.responders?.some(r => r.user && r.user.toString() === responder._id.toString());
+        const isAdmin = ['admin', 'municipal_admin'].includes(responder.role);
+
+        if (!isFirstResponder && !isJoinedResponder && !isAdmin) {
             return res.status(403).json({
                 success: false,
-                message: 'Only the assigned responder can resolve this report.',
+                message: 'Access denied - Only assigned responders or administrators can resolve this report.',
             });
         }
 
