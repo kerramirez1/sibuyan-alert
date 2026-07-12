@@ -14,6 +14,12 @@ import {
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
+import {
+    validateVerifyReporter,
+    validateVerifyReport,
+    validateRespondToReport,
+    validateResolveReport,
+} from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -31,20 +37,20 @@ router.get('/dashboard', requireRole('admin', 'municipal_admin'), getDashboardSt
 // ============================================================
 router.get('/users', requireRole('admin', 'municipal_admin'), getUsers);
 router.get('/users/:id', requireRole('admin', 'municipal_admin'), getUserById);
-router.put('/users/:id/verify', requireRole('admin', 'municipal_admin'), verifyReporter);
+router.put('/users/:id/verify', requireRole('admin', 'municipal_admin'), validateVerifyReporter, verifyReporter);
 router.delete('/users/:id', requireRole('admin', 'municipal_admin'), deleteUser);
 
 // ============================================================
 // Report management — accessible to all admin-level roles
 // ============================================================
 router.get('/reports', getAllReports);
-router.put('/reports/:id/verify', requireRole('admin', 'municipal_admin'), verifyReport);
-router.put('/reports/:id/respond', respondToReport);
-router.put('/reports/:id/resolve', resolveReport);
+router.put('/reports/:id/verify', requireRole('admin', 'municipal_admin'), validateVerifyReport, verifyReport);
+router.put('/reports/:id/respond', validateRespondToReport, respondToReport);
+router.put('/reports/:id/resolve', validateResolveReport, resolveReport);
 router.delete('/reports/:id', requireRole('admin', 'municipal_admin'), deleteReport);
 
 // ============================================================
-// Responder duty status â€” responders can toggle own status
+// Responder duty status — responders can toggle own status
 // ============================================================
 router.put('/responders/me/duty-status', requireRole('responder'), updateMyDutyStatus);
 

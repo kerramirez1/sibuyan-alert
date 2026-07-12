@@ -15,6 +15,8 @@ import {
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError } from '../middleware/upload.js';
+import { validateCreateReport } from '../middleware/validate.js';
+import { reportCreationLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -35,8 +37,10 @@ router.post(
     '/',
     protect,
     requireVerifiedReporter,  // Also blocks ordinary users
+    reportCreationLimiter,
     uploadReportImages,
     handleMulterError,
+    validateCreateReport,
     createReport
 );  // ❌ Ordinary users CANNOT submit reports
 

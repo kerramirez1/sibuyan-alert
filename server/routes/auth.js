@@ -11,14 +11,21 @@ import {
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 import { uploadIdDocument, uploadAvatar, handleMulterError } from '../middleware/upload.js';
+import {
+    validateLogin,
+    validateRegister,
+    validateForgotPassword,
+    validateResetPassword,
+} from '../middleware/validate.js';
+import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-// Public routes
-router.post('/register', uploadIdDocument, handleMulterError, register);
-router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+// Public routes (with validation + rate limiting)
+router.post('/register', authLimiter, uploadIdDocument, handleMulterError, validateRegister, register);
+router.post('/login', authLimiter, validateLogin, login);
+router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
+router.post('/reset-password/:token', authLimiter, validateResetPassword, resetPassword);
 
 
 // Protected routes
