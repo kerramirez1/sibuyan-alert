@@ -71,19 +71,26 @@ export const validateResetPassword = [
 
 export const validateCreateReport = [
     body('address')
-        .trim()
-        .notEmpty().withMessage('Address is required'),
+        .custom((value, { req }) => {
+            const trimmedVal = (value || '').trim();
+            const hasLat = req.body.lat !== undefined && req.body.lat !== '';
+            const hasLng = req.body.lng !== undefined && req.body.lng !== '';
+            if (!trimmedVal && (!hasLat || !hasLng)) {
+                throw new Error('Address is required when coordinates are not provided');
+            }
+            return true;
+        }),
     body('lat')
-        .optional()
+        .optional({ checkFalsy: true })
         .isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
     body('lng')
-        .optional()
+        .optional({ checkFalsy: true })
         .isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
     body('severity')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn(['minor', 'moderate', 'severe', 'critical']).withMessage('Invalid severity level'),
     body('description')
-        .optional()
+        .optional({ checkFalsy: true })
         .isLength({ max: 2000 }).withMessage('Description cannot exceed 2000 characters'),
     handleValidationErrors,
 ];
@@ -135,3 +142,17 @@ export const validateResolveReport = [
         .isLength({ max: 1000 }).withMessage('Resolution notes cannot exceed 1000 characters'),
     handleValidationErrors,
 ];
+
+export const validateTransferReport = [
+    param('id')
+        .isMongoId().withMessage('Invalid report ID'),
+    body('targetMunicipalityId')
+        .notEmpty().withMessage('Target municipality ID is required')
+        .isMongoId().withMessage('Invalid target municipality ID'),
+    body('reason')
+        .notEmpty().withMessage('Transfer reason is required')
+        .isLength({ min: 10 }).withMessage('Reason must be at least 10 characters long')
+        .isLength({ max: 1000 }).withMessage('Reason cannot exceed 1000 characters'),
+    handleValidationErrors,
+];
+

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { adminAPI } from '../services/api';
+import { adminAPI, reportsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Modal from '../components/ui/Modal';
@@ -20,6 +20,7 @@ import {
     HiOutlineBadgeCheck,
     HiOutlineGlobe,
     HiOutlineMap,
+    HiOutlineSwitchHorizontal,
 } from 'react-icons/hi';
 import ImageViewer from '../components/ui/ImageViewer';
 import MapView from '../components/map/MapView';
@@ -46,6 +47,12 @@ const AdminReportsPage = () => {
     const [resolveNotes, setResolveNotes] = useState('');
     const [resolveLoading, setResolveLoading] = useState(false);
     const [showAll, setShowAll] = useState(false);
+
+    // Transfer modal state
+    const [transferModalOpen, setTransferModalOpen] = useState(false);
+    const [transferData, setTransferData] = useState({ targetMunicipalityId: '', reason: '' });
+    const [transferLoading, setTransferLoading] = useState(false);
+    const [municipalities, setMunicipalities] = useState([]);
 
     // Image viewer state
     const [viewerOpen, setViewerOpen] = useState(false);
@@ -103,6 +110,10 @@ const AdminReportsPage = () => {
             fetchReports();
         });
 
+        const unsubTransferred = subscribe('reportTransferred', () => {
+            fetchReports();
+        });
+
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
             if (!data?.id || !data?.report?.reportUpdates) return;
             setReports((prev) =>
@@ -124,6 +135,7 @@ const AdminReportsPage = () => {
             unsubResolve();
             unsubDelete();
             unsubReporterUpdate();
+            unsubTransferred();
         };
     }, [subscribe]);
 
@@ -276,6 +288,68 @@ const AdminReportsPage = () => {
         }
     };
 
+    const openTransferModal = async (report) => {
+        setSelectedReport(report);
+        setTransferData({ targetMunicipalityId: '', reason: '' });
+        setTransferModalOpen(true);
+
+        if (municipalities.length === 0) {
+            try {
+                const response = await reportsAPI.getMunicipalities();
+                setMunicipalities(response.data.data || []);
+            } catch (error) {
+                console.error('Failed to load municipalities:', error);
+                toast.error('Failed to load neighboring municipalities');
+            }
+        }
+    };
+
+    const handleTransfer = async () => {
+        if (!selectedReport || !transferData.targetMunicipalityId || !transferData.reason.trim()) return;
+
+        if (transferData.reason.trim().length < 10) {
+            toast.error('Transfer reason must be at least 10 characters long');
+            return;
+        }
+
+        setTransferLoading(true);
+        try {
+            const response = await adminAPI.transferReport(selectedReport._id, {
+                targetMunicipalityId: transferData.targetMunicipalityId,
+                reason: transferData.reason,
+            });
+
+            toast.success(response.data.message || 'Report transferred successfully', { duration: 4000 });
+            setTransferModalOpen(false);
+
+            // Update local reports list
+            setReports((prev) =>
+                prev.map((r) =>
+                    r._id === selectedReport._id
+                        ? {
+                            ...r,
+                            municipality: transferData.targetMunicipalityId,
+                            municipalityName: municipalities.find(m => m._id === transferData.targetMunicipalityId)?.name || r.municipalityName,
+                            status: 'transferred',
+                        }
+                        : r
+                )
+            );
+
+            // Close details modal if open
+            if (viewModalOpen) {
+                setViewModalOpen(false);
+            }
+
+            fetchReports();
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Failed to transfer report';
+            toast.error(msg);
+        } finally {
+            setTransferLoading(false);
+        }
+    };
+
     const handleDelete = async (reportId) => {
         if (!confirm('Are you sure you want to delete this report?')) return;
 
@@ -300,14 +374,23 @@ const AdminReportsPage = () => {
     };
 
     const visibleReports = isDispatchQueueView
-        ? reports.filter((report) => report.status === 'verified' && !hasResponderAssigned(report))
+        ? reports.filter((report) =>
+            report.status === 'transferred' ||
+            (report.status === 'verified' && !hasResponderAssigned(report))
+        )
         : reports;
 
     // Check if the current user is the assigned responder for a report
     const isAssignedResponder = (report) => {
-        if (!report.respondedBy || !user) return false;
-        const responderId = report.respondedBy?._id || report.respondedBy;
-        return responderId.toString() === user._id?.toString() || responderId.toString() === user.id?.toString();
+        if (!user) return false;
+        const currentUserId = (user._id || user.id)?.toString();
+        const firstResponderId = report.respondedBy?._id || report.respondedBy;
+        const isFirstResponder = firstResponderId?.toString() === currentUserId;
+        const isJoinedResponder = report.responders?.some((entry) => {
+            const responderId = entry.user?._id || entry.user;
+            return responderId?.toString() === currentUserId;
+        });
+        return isFirstResponder || Boolean(isJoinedResponder);
     };
 
     const getStatusBadge = (status) => {
@@ -547,7 +630,7 @@ const AdminReportsPage = () => {
                                                     </button>
 
                                                     {/* RESPOND BUTTON — verified and responding reports (non-exclusive) */}
-                                                    {(report.status === 'verified' || report.status === 'responding') && (
+                                                    {user?.role === 'responder' && ['verified', 'transferred', 'responding'].includes(report.status) && (
                                                         <button
                                                             onClick={() => openUnitSelectionModal(report._id)}
                                                             disabled={respondLoading === report._id}
@@ -573,7 +656,7 @@ const AdminReportsPage = () => {
                                                         </button>
                                                     )}
 
-                                                    {report.status === 'pending' && isAdmin && (
+                                                    {['pending', 'transferred'].includes(report.status) && isAdmin && (
                                                         <>
                                                             <button
                                                                 onClick={() => openVerifyModal(report, 'verified')}
@@ -590,6 +673,15 @@ const AdminReportsPage = () => {
                                                                 <HiOutlineXCircle className="w-5 h-5" />
                                                             </button>
                                                         </>
+                                                    )}
+                                                    {isAdmin && ['verified', 'responding', 'transferred'].includes(report.status) && (
+                                                        <button
+                                                            onClick={() => openTransferModal(report)}
+                                                            className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+                                                            title="Transfer Incident"
+                                                        >
+                                                            <HiOutlineSwitchHorizontal className="w-5 h-5" />
+                                                        </button>
                                                     )}
                                                     {isAdmin && (
                                                         <button
@@ -774,76 +866,95 @@ const AdminReportsPage = () => {
                             </div>
                         )}
 
-                        <div className="pt-4 border-t flex flex-wrap justify-end gap-3">
-                            <Button
-                                variant="secondary"
-                                onClick={() => {
-                                    setViewModalOpen(false);
-                                    navigate(`/dashboard?view=map&lat=${selectedReport.coordinates.lat}&lng=${selectedReport.coordinates.lng}&zoom=16`);
-                                }}
-                                className="flex items-center gap-2"
-                            >
-                                <HiOutlineMap className="w-5 h-5" />
-                                View in Map
-                            </Button>
-
-                            <Button variant="secondary" onClick={() => setViewModalOpen(false)}>
-                                Close
-                            </Button>
-
-                            {/* Respond button in modal (multi-unit, non-exclusive) */}
-                            {(selectedReport.status === 'verified' || selectedReport.status === 'responding') && (
+                        <div className="pt-4 border-t flex flex-nowrap items-center justify-between gap-2 overflow-x-auto hide-scrollbar">
+                            <div className="flex items-center gap-2 shrink-0">
                                 <Button
-                                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25"
+                                    size="sm"
+                                    variant="secondary"
                                     onClick={() => {
                                         setViewModalOpen(false);
-                                        openUnitSelectionModal(selectedReport._id);
+                                        navigate(`/dashboard?view=map&lat=${selectedReport.coordinates.lat}&lng=${selectedReport.coordinates.lng}&zoom=16`);
                                     }}
-                                    loading={respondLoading === selectedReport._id}
+                                    className="flex items-center gap-1.5"
                                 >
-                                    <HiOutlineLightningBolt className="w-5 h-5" />
-                                    {selectedReport.status === 'responding' ? 'Join Response' : 'Respond Now'}
+                                    <HiOutlineMap className="w-4 h-4" />
+                                    Map
                                 </Button>
-                            )}
+                            </div>
 
-                            {/* Resolve button in modal — only assigned responder */}
-                            {selectedReport.status === 'responding' && isAssignedResponder(selectedReport) && (
-                                <Button
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/25"
-                                    onClick={() => {
-                                        setViewModalOpen(false);
-                                        openResolveModal(selectedReport);
-                                    }}
-                                >
-                                    <HiOutlineBadgeCheck className="w-5 h-5" />
-                                    Mark Resolved
-                                </Button>
-                            )}
-
-                            {selectedReport.status === 'pending' && (
-                                <>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {user?.role === 'responder' && ['verified', 'transferred', 'responding'].includes(selectedReport.status) && (
                                     <Button
-                                        variant="success"
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 flex items-center gap-1.5"
                                         onClick={() => {
                                             setViewModalOpen(false);
-                                            openVerifyModal(selectedReport, 'verified');
+                                            openUnitSelectionModal(selectedReport._id);
                                         }}
+                                        loading={respondLoading === selectedReport._id}
                                     >
-                                        <HiOutlineCheckCircle className="w-5 h-5" />
-                                        Verify
+                                        <HiOutlineLightningBolt className="w-4 h-4" />
+                                        {selectedReport.status === 'responding' ? 'Join' : 'Respond'}
                                     </Button>
+                                )}
+
+                                {selectedReport.status === 'responding' && isAssignedResponder(selectedReport) && (
                                     <Button
-                                        variant="danger"
+                                        size="sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/25 flex items-center gap-1.5"
                                         onClick={() => {
                                             setViewModalOpen(false);
-                                            openVerifyModal(selectedReport, 'rejected');
+                                            openResolveModal(selectedReport);
                                         }}
                                     >
-                                        <HiOutlineXCircle className="w-5 h-5" />
-                                        Reject
+                                        <HiOutlineBadgeCheck className="w-4 h-4" />
+                                        Resolve
                                     </Button>
-                                </>
-                            )}
+                                )}
+
+                                {isAdmin && ['verified', 'responding', 'transferred'].includes(selectedReport.status) && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/25 flex items-center gap-1.5"
+                                        onClick={() => {
+                                            setViewModalOpen(false);
+                                            openTransferModal(selectedReport);
+                                        }}
+                                    >
+                                        <HiOutlineSwitchHorizontal className="w-4 h-4" />
+                                        Transfer
+                                    </Button>
+                                )}
+
+                                {['pending', 'transferred'].includes(selectedReport.status) && isAdmin && (
+                                    <>
+                                         <Button
+                                             size="sm"
+                                             variant="success"
+                                             onClick={() => {
+                                                 setViewModalOpen(false);
+                                                 openVerifyModal(selectedReport, 'verified');
+                                             }}
+                                             className="flex items-center gap-1.5"
+                                         >
+                                             <HiOutlineCheckCircle className="w-4 h-4" />
+                                             Verify
+                                         </Button>
+                                         <Button
+                                             size="sm"
+                                             variant="danger"
+                                             onClick={() => {
+                                                 setViewModalOpen(false);
+                                                 openVerifyModal(selectedReport, 'rejected');
+                                             }}
+                                             className="flex items-center gap-1.5"
+                                         >
+                                             <HiOutlineXCircle className="w-4 h-4" />
+                                             Reject
+                                         </Button>
+                                     </>
+                                 )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -964,6 +1075,75 @@ const AdminReportsPage = () => {
                 onSelect={handleUnitSelected}
                 municipality={user?.assignedMunicipality || 'Cajidiocan'}
             />
+
+            {/* Transfer Modal */}
+            <Modal
+                isOpen={transferModalOpen}
+                onClose={() => setTransferModalOpen(false)}
+                title="Transfer Incident Report"
+                size="md"
+            >
+                {selectedReport && (
+                    <div>
+                        <div className="p-4 bg-gray-50 rounded-xl mb-4">
+                            <p className="font-semibold text-gray-900 mb-1">Current Jurisdiction:</p>
+                            <p className="text-sm text-gray-700 mb-2">{selectedReport.municipalityName || 'None'}</p>
+                            <p className="font-semibold text-gray-900 mb-1">Incident Address:</p>
+                            <p className="text-sm text-gray-600 line-clamp-2">{selectedReport.address}</p>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="label">Target Municipality (Mutual Aid partner)</label>
+                            <select
+                                value={transferData.targetMunicipalityId}
+                                onChange={(e) => setTransferData({ ...transferData, targetMunicipalityId: e.target.value })}
+                                className="input"
+                            >
+                                <option value="">Select neighboring municipality...</option>
+                                {municipalities
+                                    .filter(m => {
+                                        const currentMuniId = selectedReport.municipality?._id || selectedReport.municipality;
+                                        return m._id !== currentMuniId;
+                                    })
+                                    .map(m => (
+                                        <option key={m._id} value={m._id}>{m.name}</option>
+                                    ))
+                                }
+                            </select>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="label">Reason for Transfer (Min 10 characters)</label>
+                            <textarea
+                                value={transferData.reason}
+                                onChange={(e) => setTransferData({ ...transferData, reason: e.target.value })}
+                                placeholder="e.g., Incident is closer to Magdiwang station; boundary road access..."
+                                rows={4}
+                                className="input resize-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setTransferModalOpen(false)}
+                                className="flex-1"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                                onClick={handleTransfer}
+                                loading={transferLoading}
+                                disabled={!transferData.targetMunicipalityId || transferData.reason.trim().length < 10}
+                            >
+                                <HiOutlineSwitchHorizontal className="w-5 h-5" />
+                                Confirm Transfer
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             <ImageViewer
                 isOpen={viewerOpen}

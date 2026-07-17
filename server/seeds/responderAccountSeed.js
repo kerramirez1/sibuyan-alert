@@ -44,4 +44,3 @@ export const seedResponderAccounts = async () => {
 };
 
 export default { seedResponderAccounts };
-

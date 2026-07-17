@@ -13,6 +13,7 @@ import {
     HiOutlineXCircle,
     HiOutlineDocumentText,
     HiOutlineInbox,
+    HiOutlineSwitchHorizontal,
 } from 'react-icons/hi';
 
 const NotificationBell = () => {
@@ -175,6 +176,9 @@ const NotificationBell = () => {
             case 'reporter_rejected':
                 navigate('/');
                 break;
+            case 'report_transferred':
+                navigate('/admin/reports');
+                break;
             default:
                 break;
         }
@@ -204,6 +208,8 @@ const NotificationBell = () => {
                 return <HiOutlineDocumentText className="w-5 h-5 text-blue-500" />;
             case 'new_report':
                 return <HiOutlineExclamation className="w-5 h-5 text-accent-500" />;
+            case 'report_transferred':
+                return <HiOutlineSwitchHorizontal className="w-5 h-5 text-purple-500" />;
             default:
                 return <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />;
         }

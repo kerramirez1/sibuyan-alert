@@ -21,6 +21,13 @@ const INCIDENT_COLORS = {
     accident: '#3B82F6',
 };
 
+const STATUS_MARKER_COLORS = {
+    pending: '#F97316',
+    verified: '#2563EB',
+    transferred: '#7C3AED',
+    responding: '#EF4444',
+};
+
 // Zone colors
 const ZONE_COLORS = {
     landslide_prone: '#EF4444',
@@ -51,6 +58,7 @@ const MapView = ({
     canRespond = false,
     onRespondToReport = null,
     canResolve = false,
+    canResolveReport = null,
     onResolveReport = null,
 }) => {
     const mapContainerRef = useRef(null);
@@ -365,40 +373,62 @@ const MapView = ({
             return hasResponders || !!report.respondedBy;
         };
 
+        const getReportCoordinates = (report) => {
+            const lat = Number(report?.coordinates?.lat ?? report?.location?.coordinates?.[1] ?? report?.lat);
+            const lng = Number(report?.coordinates?.lng ?? report?.location?.coordinates?.[0] ?? report?.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+            return { lat, lng };
+        };
+
         // Filter reports
         const displayReports = showPending
-            ? reports.filter((r) => r.status === 'pending' || r.status === 'verified' || r.status === 'responding')
-            : reports.filter((r) => r.status === 'verified' || r.status === 'responding');
+            ? reports.filter((r) => ['pending', 'verified', 'transferred', 'responding'].includes(r.status))
+            : reports.filter((r) => ['verified', 'transferred', 'responding'].includes(r.status));
 
         const categoryFilteredReports = filterCategory
             ? displayReports.filter(r => r.incidentCategory === filterCategory)
             : displayReports;
 
         const filteredReports = filterStatus === 'pending'
-            ? categoryFilteredReports.filter((r) => ['pending', 'verified'].includes(r.status) && !isReportAssigned(r))
+            ? categoryFilteredReports.filter((r) =>
+                r.status === 'transferred' ||
+                (r.status === 'pending' && !isReportAssigned(r))
+            )
             : filterStatus === 'responding'
                 ? categoryFilteredReports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r)))
                 : categoryFilteredReports;
 
+        const getReportMarkerColor = (report) => {
+            if (report.status === 'pending') return STATUS_MARKER_COLORS.pending;
+            if (report.status === 'transferred') return STATUS_MARKER_COLORS.transferred;
+            if (report.status === 'responding') return STATUS_MARKER_COLORS.responding;
+            if (report.status === 'verified') return STATUS_MARKER_COLORS.verified;
+            return INCIDENT_COLORS[report.incidentCategory] || STATUS_MARKER_COLORS.verified;
+        };
+
         // Generate report features
         const reportFeatures = filteredReports
-            .filter(r => r.coordinates)
-            .map(report => ({
-                type: 'Feature',
-                properties: {
-                    id: report._id,
-                    title: report.title,
-                    address: report.address,
-                    description: report.description,
-                    incidentCategory: report.incidentCategory,
-                    incidentTime: report.incidentTime,
-                    color: INCIDENT_COLORS[report.incidentCategory] || '#3B82F6',
-                },
-                geometry: {
-                    type: 'Point',
-                    coordinates: [report.coordinates.lng, report.coordinates.lat],
-                },
-            }));
+            .map(report => {
+                const coords = getReportCoordinates(report);
+                if (!coords) return null;
+                return {
+                    type: 'Feature',
+                    properties: {
+                        id: report._id,
+                        title: report.title,
+                        address: report.address,
+                        description: report.description,
+                        incidentCategory: report.incidentCategory,
+                        incidentTime: report.incidentTime,
+                        color: getReportMarkerColor(report),
+                    },
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [coords.lng, coords.lat],
+                    },
+                };
+            })
+            .filter(Boolean);
 
         // Generate zone features
         const zoneFeatures = highRiskZones.map(zone => {
@@ -432,14 +462,18 @@ const MapView = ({
 
         // Create HTML markers for reports (visible on top of 3D)
         filteredReports
-            .filter(r => r.coordinates)
             .forEach(report => {
-                const color = INCIDENT_COLORS[report.incidentCategory] || '#3B82F6';
+                const coords = getReportCoordinates(report);
+                if (!coords) return;
                 const isResponding = report.status === 'responding';
                 const isPending = report.status === 'pending';
-                const canRespondToThisReport = canRespond && report.status === 'verified';
-                const canResolveThisReport = canResolve && report.status === 'responding';
-                const markerColor = isResponding ? '#EF4444' : isPending ? '#F59E0B' : color;
+                const canRespondToThisReport = canRespond && ['verified', 'transferred'].includes(report.status);
+                const canResolveThisReport = canResolve &&
+                    report.status === 'responding' &&
+                    (!canResolveReport || canResolveReport(report));
+                const markerColor = getReportMarkerColor(report);
+                const markerWidth = isPending ? 30 : 24;
+                const markerHeight = isPending ? 40 : 32;
 
                 const el = document.createElement('div');
                 el.className = 'report-marker';
@@ -463,7 +497,7 @@ const MapView = ({
                                 animation: responderPulse 1.8s ease-out infinite 0.9s;
                             "></div>
                         ` : ''}
-                        <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : ''}">
+                        <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : isPending ? 'filter: drop-shadow(0 0 14px rgba(249,115,22,0.95));' : ''}">
                             <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${markerColor}"/>
                             ${isPending ? `
                                 <circle cx="12" cy="11.5" r="4.5" fill="none" stroke="white" stroke-width="1.5"/>
@@ -475,9 +509,10 @@ const MapView = ({
                     </div>
                 `;
                 el.style.cursor = 'pointer';
+                el.style.zIndex = isPending ? '40' : '30';
 
                 const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-                    .setLngLat([report.coordinates.lng, report.coordinates.lat])
+                    .setLngLat([coords.lng, coords.lat])
                     .addTo(map);
 
                 // Open fixed modal instead of inline map popup
@@ -510,6 +545,7 @@ const MapView = ({
 
             const el = document.createElement('div');
             el.className = 'zone-marker';
+            el.style.zIndex = '10';
             el.innerHTML = `
                 <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center;">
                     <div style="
@@ -649,7 +685,7 @@ const MapView = ({
                 accuracySource.setData({ type: 'FeatureCollection', features: [] });
             }
         }
-    }, [reports, highRiskZones, selectedLocation, userLocation, showPending, filterCategory, filterStatus, mapReady, generateCirclePolygon, gpsAccuracy, canRespond, canResolve, onRespondToReport, onResolveReport]);
+    }, [reports, highRiskZones, selectedLocation, userLocation, showPending, filterCategory, filterStatus, mapReady, generateCirclePolygon, gpsAccuracy, canRespond, canResolve, canResolveReport, onRespondToReport, onResolveReport]);
 
     // Handle focus location updates (for dynamic changes)
     useEffect(() => {
@@ -691,8 +727,9 @@ const MapView = ({
     };
 
     const getStatusBadgeClass = (status) => {
-        if (status === 'responding') return 'bg-emerald-100 text-emerald-700';
+        if (status === 'responding') return 'bg-red-100 text-red-700';
         if (status === 'verified') return 'bg-blue-100 text-blue-700';
+        if (status === 'transferred') return 'bg-purple-100 text-purple-700';
         if (status === 'pending') return 'bg-amber-100 text-amber-700';
         if (status === 'resolved') return 'bg-gray-100 text-gray-700';
         return 'bg-gray-100 text-gray-700';
@@ -906,7 +943,7 @@ const MapView = ({
                     </div>
                     <div className="w-px h-3 bg-gray-200" />
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500" />
+                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-500" />
                         <span className="text-[9px] sm:text-[11px] font-semibold text-gray-600">Pending</span>
                     </div>
                     <div className="w-px h-3 bg-gray-200" />

@@ -55,6 +55,8 @@ export const getMunicipalAdminsConfig = () => {
 };
 
 export const getResponderAccountsConfig = () => {
+    // Account creation must be explicitly configured. Never fall back to
+    // repository-known credentials in a running environment.
     const data = parseJsonEnv('SEED_RESPONDER_ACCOUNTS_JSON', []);
     if (!Array.isArray(data)) {
         throw new Error('SEED_RESPONDER_ACCOUNTS_JSON must be a JSON array');
@@ -80,4 +82,3 @@ export const getLegacyEmailsToCleanup = () => {
         .filter((email) => isNonEmptyString(email))
         .map((email) => email.toLowerCase().trim());
 };
-

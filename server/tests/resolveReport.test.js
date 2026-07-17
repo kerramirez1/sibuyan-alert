@@ -187,9 +187,10 @@ describe('resolveReport controller', () => {
         );
     });
 
-    test('allows resolution if user is an admin or municipal admin', async () => {
+    test('allows resolution if a municipal admin is in the report municipality', async () => {
         const mockReport = {
             status: 'responding',
+            municipalityName: 'Cajidiocan',
             respondedBy: 'user1',
             responders: [{ user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' }],
             save: jest.fn().mockResolvedValue({}),
@@ -202,7 +203,12 @@ describe('resolveReport controller', () => {
         });
         Report.findById().populate.mockResolvedValue(mockReport);
 
-        req.user = { _id: 'adminUser', role: 'municipal_admin', agency: 'LGU' };
+        req.user = {
+            _id: 'adminUser',
+            role: 'municipal_admin',
+            agency: 'LGU',
+            assignedMunicipality: 'Cajidiocan',
+        };
 
         await resolveReport(req, res);
 
@@ -215,5 +221,60 @@ describe('resolveReport controller', () => {
                 message: expect.stringContaining('Report resolved successfully'),
             })
         );
+    });
+
+    test('denies a municipal admin from resolving another municipality report', async () => {
+        const mockReport = {
+            status: 'responding',
+            municipalityName: 'Magdiwang',
+            respondedBy: 'user1',
+            responders: [{ user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' }],
+        };
+        Report.findById.mockReturnValue({
+            populate: jest.fn().mockReturnThis(),
+        });
+        Report.findById().populate.mockResolvedValue(mockReport);
+        req.user = {
+            _id: 'adminUser',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        await resolveReport(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('outside your jurisdiction'),
+        }));
+    });
+
+    test('keeps a successful resolution successful when the reporter account is unavailable', async () => {
+        const mockReport = {
+            status: 'responding',
+            municipalityName: 'Cajidiocan',
+            respondedBy: 'user1',
+            responders: [{ user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' }],
+            reporter: null,
+            address: 'Main Street',
+            save: jest.fn().mockResolvedValue({}),
+            populate: jest.fn().mockResolvedValue({}),
+        };
+        Report.findById.mockReturnValue({
+            populate: jest.fn().mockReturnThis(),
+        });
+        Report.findById().populate.mockResolvedValue(mockReport);
+        req.user = {
+            _id: 'user1',
+            role: 'responder',
+            agency: 'MDRRMO',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        await resolveReport(req, res);
+
+        expect(mockReport.status).toBe('resolved');
+        expect(res.status).not.toHaveBeenCalledWith(409);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
 });

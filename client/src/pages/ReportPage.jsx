@@ -56,6 +56,8 @@ const itemVariants = {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } },
 };
 
+const LOCATION_TOAST_ID = 'location-acquisition';
+
 const ReportPage = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
@@ -168,13 +170,30 @@ const ReportPage = () => {
     };
 
     const watchIdRef = useRef(null);
+    const locationTimeoutRef = useRef(null);
+    const locationRequestRef = useRef(0);
+    const locationDetectionActiveRef = useRef(false);
 
-    const handleLocationSelect = async (location) => {
-        if (watchIdRef.current !== null) {
+    const stopLocationDetection = ({ dismissToast = false } = {}) => {
+        locationRequestRef.current += 1;
+        locationDetectionActiveRef.current = false;
+
+        if (watchIdRef.current !== null && navigator.geolocation) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
-            setGeoLoading(false);
         }
+        if (locationTimeoutRef.current !== null) {
+            clearTimeout(locationTimeoutRef.current);
+            locationTimeoutRef.current = null;
+        }
+        if (dismissToast) {
+            toast.dismiss(LOCATION_TOAST_ID);
+        }
+    };
+
+    const handleLocationSelect = async (location) => {
+        stopLocationDetection({ dismissToast: true });
+        setGeoLoading(false);
         setSelectedLocation(location);
         setErrors(prev => ({ ...prev, location: '' }));
         setLocationStatus('verified');
@@ -207,57 +226,67 @@ const ReportPage = () => {
             toast.error('Geolocation is not supported by your browser');
             return;
         }
-        if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-        }
+        if (locationDetectionActiveRef.current) return;
+
+        stopLocationDetection({ dismissToast: true });
+        const requestId = locationRequestRef.current + 1;
+        locationRequestRef.current = requestId;
+        locationDetectionActiveRef.current = true;
         setGeoLoading(true);
         setLocationStatus('detecting');
-        const toastId = toast.loading('Acquiring location...');
+        toast.loading('Acquiring location...', { id: LOCATION_TOAST_ID });
         let bestAccuracy = Infinity;
 
-        const timeoutId = setTimeout(() => {
+        locationTimeoutRef.current = setTimeout(() => {
+            if (locationRequestRef.current !== requestId) return;
             if (watchIdRef.current !== null) {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
+            locationTimeoutRef.current = null;
+            locationDetectionActiveRef.current = false;
             setGeoLoading(false);
             if (bestAccuracy === Infinity) {
-                toast.error('Could not determine location. Please search or pin manually.', { id: toastId });
+                toast.error('Could not determine location. Please search or pin manually.', { id: LOCATION_TOAST_ID });
                 setLocationStatus('idle');
             } else {
-                toast.success(`Location found (Accuracy: ${Math.round(bestAccuracy)}m)`, { id: toastId });
+                toast.success(`Location found (Accuracy: ${Math.round(bestAccuracy)}m)`, { id: LOCATION_TOAST_ID });
                 setLocationStatus('confirming');
             }
         }, 12000);
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
+                if (locationRequestRef.current !== requestId) return;
                 const { latitude, longitude, accuracy } = position.coords;
                 if (accuracy < bestAccuracy || bestAccuracy === Infinity) {
                     bestAccuracy = accuracy;
                     setGpsAccuracy(accuracy);
                     const location = { lat: latitude, lng: longitude };
                     setUserLocation(location);
-                    if (locationStatus === 'detecting' || locationStatus === 'idle') {
-                        setSelectedLocation(location);
-                        setFocusLocation({ ...location, zoom: accuracy < 100 ? 17 : 14 });
-                        setErrors(prev => ({ ...prev, location: '' }));
-                    }
+                    setSelectedLocation(location);
+                    setFocusLocation({ ...location, zoom: accuracy < 100 ? 17 : 14 });
+                    setErrors(prev => ({ ...prev, location: '' }));
                     if (accuracy < 30) {
-                        toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: toastId });
+                        toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                         if (watchIdRef.current !== null) {
                             navigator.geolocation.clearWatch(watchIdRef.current);
                             watchIdRef.current = null;
                         }
-                        clearTimeout(timeoutId);
+                        if (locationTimeoutRef.current !== null) {
+                            clearTimeout(locationTimeoutRef.current);
+                            locationTimeoutRef.current = null;
+                        }
+                        locationDetectionActiveRef.current = false;
                         setGeoLoading(false);
                         setLocationStatus('confirming');
                     } else {
-                        toast.loading(`Refining... (${Math.round(accuracy)}m)`, { id: toastId });
+                        toast.loading(`Refining... (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                     }
                 }
             },
             (error) => {
+                if (locationRequestRef.current !== requestId) return;
                 console.error('Geolocation error:', error);
                 if (bestAccuracy === Infinity) {
                     let errorMessage = 'Location error. Please pin manually.';
@@ -274,10 +303,14 @@ const ReportPage = () => {
                         navigator.geolocation.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
                     }
-                    clearTimeout(timeoutId);
+                    if (locationTimeoutRef.current !== null) {
+                        clearTimeout(locationTimeoutRef.current);
+                        locationTimeoutRef.current = null;
+                    }
+                    locationDetectionActiveRef.current = false;
                     setGeoLoading(false);
                     setLocationStatus('idle');
-                    toast.error(errorMessage, { id: toastId });
+                    toast.error(errorMessage, { id: LOCATION_TOAST_ID });
                 }
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -285,12 +318,15 @@ const ReportPage = () => {
     };
 
     const confirmLocation = () => {
+        stopLocationDetection({ dismissToast: true });
         setLocationStatus('verified');
         setGpsAccuracy(null);
         toast.success('Location verified!');
     };
 
     const retryLocation = () => {
+        stopLocationDetection({ dismissToast: true });
+        setGeoLoading(false);
         setLocationStatus('idle');
         setSelectedLocation(null);
         setGpsAccuracy(null);
@@ -299,7 +335,7 @@ const ReportPage = () => {
     useEffect(() => {
         detectLocation();
         return () => {
-            if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+            stopLocationDetection({ dismissToast: true });
         };
     }, []);
 

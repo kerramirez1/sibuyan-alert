@@ -150,10 +150,11 @@ export const createReport = async (req, res) => {
         // Get Socket.io instance
         const io = req.app.get('io');
 
-        // Emit real-time update for new report (global broadcast)
+        // Pending reports are only broadcast to authorized operational users.
+        // Public clients receive the report after verification.
         if (io) {
             const categoryConfig = INCIDENT_CATEGORIES[finalCategory];
-            io.emit('newReport', {
+            const newReportPayload = {
                 id: report._id,
                 category: finalCategory,
                 categoryLabel: categoryConfig.label,
@@ -167,7 +168,13 @@ export const createReport = async (req, res) => {
                 priority: report.priority,
                 casualties: report.casualties,
                 responseEstimate,
-            });
+            };
+
+            let reportAudience = io.to('role_admin');
+            if (locationResult.municipalityName) {
+                reportAudience = reportAudience.to(`municipality_${locationResult.municipalityName}`);
+            }
+            reportAudience.emit('newReport', newReportPayload);
 
             // Notify municipality-specific responder room using municipality NAME
             // (frontend joins rooms as `municipality_${user.assignedMunicipality}`)
@@ -277,11 +284,18 @@ export const getReports = async (req, res) => {
 
         const query = {};
 
-        // Status filter (default to verified for public)
+        // Public feeds may only expose reports that have passed verification.
+        // "all" means all publishable lifecycle states, not every database state.
+        const publishableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
         if (status === 'all') {
-            query.status = { $in: ['verified', 'responding', 'resolved'] };
-        } else {
+            query.status = { $in: publishableStatuses };
+        } else if (publishableStatuses.includes(status)) {
             query.status = status;
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid public report status',
+            });
         }
 
         // Filter by category
@@ -312,6 +326,7 @@ export const getReports = async (req, res) => {
         }
 
         const reports = await Report.find(query)
+            .select('-transferHistory -resolutionNotes')
             .populate('reporter', 'name avatar')
             .populate('municipality', 'name code')
             .sort({ incidentTime: -1 })
@@ -349,7 +364,7 @@ export const getReports = async (req, res) => {
 export const getReportById = async (req, res) => {
     try {
         const report = await Report.findById(req.params.id)
-            .populate('reporter', 'name avatar email')
+            .populate('reporter', 'name avatar')
             .populate('verifiedBy', 'name')
             .populate('reportUpdates.author', 'name role agency')
             .populate('municipality', 'name code emergencyContacts responseCapabilities');
@@ -361,11 +376,14 @@ export const getReportById = async (req, res) => {
             });
         }
 
-        // Check access for pending/rejected reports
-        if (report.status !== 'verified' && report.status !== 'responding') {
-            const isOwner = req.user && report.reporter._id.toString() === req.user._id.toString();
-            const isAdmin = req.user && req.user.role === 'admin';
+        const isOwner = Boolean(
+            req.user && report.reporter?._id?.toString() === req.user._id.toString()
+        );
+        const isAdmin = req.user?.role === 'admin';
 
+        // Match the public list visibility rules for individual report access.
+        const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
+        if (!publicViewableStatuses.includes(report.status)) {
             if (!isOwner && !isAdmin) {
                 return res.status(403).json({
                     success: false,
@@ -378,9 +396,16 @@ export const getReportById = async (req, res) => {
         report.viewCount += 1;
         await report.save();
 
+        const responseData = report.toObject();
+        if (!isOwner && !isAdmin) {
+            delete responseData.transferHistory;
+            delete responseData.resolutionNotes;
+            delete responseData.rejectionReason;
+        }
+
         res.json({
             success: true,
-            data: report,
+            data: responseData,
         });
     } catch (error) {
         console.error('Get report error:', error);

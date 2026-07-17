@@ -60,26 +60,22 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         const userId = user?._id || user?.id;
         if (socket && isAuthenticated && userId) {
-            const token = localStorage.getItem('token');
-            socket.emit('join', { token });
+            const authenticateSocket = () => {
+                const token = localStorage.getItem('token');
+                socket.emit('join', { token });
+            };
 
-            // Join responder room for auto-alerts if user is responder or municipal_admin
-            if (['responder', 'municipal_admin'].includes(user?.role) && user?.assignedMunicipality) {
-                socket.emit('joinResponderRoom', user.assignedMunicipality);
-            }
+            // Socket.IO rooms are cleared on disconnect, so authenticate on the
+            // initial connection and every successful reconnect.
+            socket.on('connect', authenticateSocket);
+            if (socket.connected) authenticateSocket();
 
-            // Join municipality room
-            if (user?.assignedMunicipality) {
-                socket.emit('joinMunicipality', user.assignedMunicipality);
-            }
+            return () => {
+                socket.off('connect', authenticateSocket);
+                socket.emit('leave');
+            };
         }
-
-        return () => {
-            if (socket && userId) {
-                socket.emit('leave', userId);
-            }
-        };
-    }, [socket, isAuthenticated, user]);
+    }, [socket, isAuthenticated, user?._id, user?.id]);
 
     // Listen for real-time events
     useEffect(() => {
@@ -156,19 +152,19 @@ export const SocketProvider = ({ children }) => {
             });
         });
 
-        // Report responded to by a responder
-        socket.on('reportResponded', (data) => {
-            const label = data.respondedBy?.agencyLabel || data.respondedBy?.agency || 'Responder';
-            toast(`${label} is now responding to a report`, {
-                duration: 5000,
-            });
-        });
-
         // Report resolved
         socket.on('reportResolved', (data) => {
             const label = data.resolvedBy?.agencyLabel || data.resolvedBy?.agency || 'Responder';
             toast.success(`Report resolved by ${label}`, {
                 duration: 5000,
+            });
+        });
+
+        // Report transferred
+        socket.on('reportTransferred', (data) => {
+            toast(`Incident transferred from ${data.fromMunicipality} to ${data.toMunicipality}`, {
+                duration: 6000,
+                icon: '🔄',
             });
         });
 
@@ -216,8 +212,8 @@ export const SocketProvider = ({ children }) => {
             socket.off('multiUnitResponse');
             socket.off('reportVerified');
             socket.off('reportRejected');
-            socket.off('reportResponded');
             socket.off('reportResolved');
+            socket.off('reportTransferred');
             socket.off('notification');
         };
     }, [socket, user?.role]);

@@ -94,8 +94,13 @@ export const AuthProvider = ({ children }) => {
 
             toast.success(`Welcome back, ${user.name}!`);
 
-            // Navigate all users to public map after login
-            navigate('/dashboard');
+            if (user.role === 'responder') {
+                navigate('/admin/reports?view=dispatch-queue');
+            } else if (['admin', 'municipal_admin'].includes(user.role)) {
+                navigate('/admin');
+            } else {
+                navigate('/dashboard');
+            }
 
             return { success: true };
         } catch (error) {

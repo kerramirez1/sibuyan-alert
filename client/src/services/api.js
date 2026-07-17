@@ -82,6 +82,7 @@ export const adminAPI = {
     verifyReport: (id, data) => api.put(`/admin/reports/${id}/verify`, data),
     respondToReport: (id, data) => api.put(`/admin/reports/${id}/respond`, data),
     resolveReport: (id, data) => api.put(`/admin/reports/${id}/resolve`, data),
+    transferReport: (id, data) => api.put(`/admin/reports/${id}/transfer`, data),
     deleteReport: (id) => api.delete(`/admin/reports/${id}`),
     deleteUser: (id) => api.delete(`/admin/users/${id}`),
     getOnlineUsers: (params) => api.get('/admin/online-users', { params }),

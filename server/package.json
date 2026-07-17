@@ -8,6 +8,8 @@
         "start": "node server.js",
         "dev": "nodemon server.js",
         "seed": "node seeds/adminSeed.js",
+        "seed:responders": "node seeds/seedResponders.js",
+        "reset:responders": "node seeds/seedResponders.js",
         "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
     },
     "dependencies": {

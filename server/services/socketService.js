@@ -72,6 +72,20 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
 
     // Broadcast to all clients (public update)
     io.emit('multiUnitResponse', responseData);
+    io.emit('reportResponded', {
+        id: report._id,
+        status: 'responding',
+        municipalityName: report.municipalityName,
+        respondedBy: {
+            _id: responder._id,
+            name: responder.name,
+            agency: responder.agency,
+            unitName,
+            unitType,
+        },
+        respondedAt: responseData.respondedAt,
+        responders: report.responders || [],
+    });
 
     // Also broadcast to municipality-specific room (use municipalityName to match frontend rooms)
     if (report.municipalityName) {
@@ -157,11 +171,56 @@ export const leaveResponderRoom = (socket, municipalityId) => {
     console.log(`👮 Responder left room: ${responderRoom}`);
 };
 
+/**
+ * Broadcast report transfer notification
+ * @param {Object} io - Socket.IO instance
+ * @param {Object} report - The transferred report
+ * @param {String} fromMuni - Originating municipality name
+ * @param {String} toMuni - Target municipality name
+ * @param {String} reason - Reason for transfer
+ */
+export const broadcastReportTransfer = (io, report, fromMuni, toMuni, reason) => {
+    if (!io) return;
+
+    const eventData = {
+        id: report._id,
+        title: report.title,
+        address: report.address,
+        description: report.description,
+        incidentCategory: report.incidentCategory,
+        incidentType: report.incidentType,
+        incidentTime: report.incidentTime,
+        coordinates: report.coordinates,
+        severity: report.severity,
+        fromMunicipality: fromMuni,
+        toMunicipality: toMuni,
+        municipalityName: toMuni,
+        status: report.status,
+    };
+
+    // 1. Emit to general dashboard channel (public update)
+    io.emit('reportTransferred', eventData);
+
+    // 2. Alert the target municipality specifically
+    io.to(`municipality_${toMuni}`).emit('localIncidentTransferredIn', eventData);
+    io.to(`municipality_${toMuni}_responders`).emit('reportVerifiedAlert', {
+        ...report.toObject(),
+        id: report._id,
+        timestamp: new Date()
+    });
+
+    // 3. Alert the originating municipality specifically
+    io.to(`municipality_${fromMuni}`).emit('localIncidentTransferredOut', eventData);
+
+    console.log(`🔄 Report ${report._id} transferred from ${fromMuni} to ${toMuni}`);
+};
+
 export default {
     broadcastVerifiedReportToResponders,
     broadcastMultiUnitResponse,
     broadcastReportVerified,
     broadcastReportRejected,
+    broadcastReportTransfer,
     joinResponderRoom,
     leaveResponderRoom,
 };

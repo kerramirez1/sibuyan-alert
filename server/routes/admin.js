@@ -11,6 +11,7 @@ import {
     deleteUser,
     getDashboardStats,
     updateMyDutyStatus,
+    transferReport,
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
@@ -19,6 +20,7 @@ import {
     validateVerifyReport,
     validateRespondToReport,
     validateResolveReport,
+    validateTransferReport,
 } from '../middleware/validate.js';
 
 const router = express.Router();
@@ -45,8 +47,9 @@ router.delete('/users/:id', requireRole('admin', 'municipal_admin'), deleteUser)
 // ============================================================
 router.get('/reports', getAllReports);
 router.put('/reports/:id/verify', requireRole('admin', 'municipal_admin'), validateVerifyReport, verifyReport);
-router.put('/reports/:id/respond', validateRespondToReport, respondToReport);
+router.put('/reports/:id/respond', requireRole('responder'), validateRespondToReport, respondToReport);
 router.put('/reports/:id/resolve', validateResolveReport, resolveReport);
+router.put('/reports/:id/transfer', requireRole('admin', 'municipal_admin'), validateTransferReport, transferReport);
 router.delete('/reports/:id', requireRole('admin', 'municipal_admin'), deleteReport);
 
 // ============================================================

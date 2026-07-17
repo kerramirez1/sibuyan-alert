@@ -90,6 +90,37 @@ const reportSchema = new mongoose.Schema(
         municipalityName: {
             type: String, // Denormalized for quick access
         },
+        originalMunicipality: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Municipality',
+        },
+        originalMunicipalityName: {
+            type: String,
+        },
+        transferHistory: [{
+            fromMunicipality: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Municipality',
+            },
+            fromMunicipalityName: String,
+            toMunicipality: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Municipality',
+            },
+            toMunicipalityName: String,
+            reason: {
+                type: String,
+                required: true,
+            },
+            transferredBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+            transferredAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
 
         // Timing
         incidentTime: {
@@ -130,7 +161,7 @@ const reportSchema = new mongoose.Schema(
         // Status & Workflow
         status: {
             type: String,
-            enum: ['pending', 'verified', 'responding', 'resolved', 'rejected'],
+            enum: ['pending', 'verified', 'transferred', 'responding', 'resolved', 'rejected'],
             default: 'pending',
         },
 
@@ -352,6 +383,12 @@ reportSchema.pre('save', async function (next) {
         } catch (error) {
             console.warn('Could not auto-assign municipality:', error.message);
         }
+    }
+
+    // Auto-initialize original municipality fields
+    if (this.municipality && !this.originalMunicipality) {
+        this.originalMunicipality = this.municipality;
+        this.originalMunicipalityName = this.municipalityName;
     }
 
     next();

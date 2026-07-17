@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
                 'reporter_rejected',    // Reporter verification rejected
                 'high_risk_alert',      // High-risk zone detected
                 'system',               // System notification
+                'report_transferred',   // Incident report transferred to another municipality
             ],
             required: true,
         },

@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Report from '../models/Report.js';
+import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushNotification, pushTemplates } from '../services/pushService.js';
@@ -380,17 +381,27 @@ export const getAllReports = async (req, res) => {
         const query = {};
         const admin = req.user;
 
-        // Municipal admins can only see reports in their jurisdiction (unless showAll)
+        // Municipal admins can only see reports in their jurisdiction or originally theirs (unless showAll)
         if (admin.assignedMunicipality && !showAll) {
-            query.municipalityName = admin.assignedMunicipality;
+            query.$and = [{
+                $or: [
+                    { municipalityName: admin.assignedMunicipality },
+                    { originalMunicipalityName: admin.assignedMunicipality }
+                ],
+            }];
         } else if (municipality) {
             // Super admin can filter by municipality
-            query.municipalityName = municipality;
+            query.$and = [{
+                $or: [
+                    { municipalityName: municipality },
+                    { originalMunicipalityName: municipality }
+                ],
+            }];
         }
 
         // Responders can see pending + active lifecycle reports (but not rejected)
         if (admin.role === 'responder') {
-            const responderVisibleStatuses = ['pending', 'verified', 'responding', 'resolved'];
+            const responderVisibleStatuses = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
             if (status && responderVisibleStatuses.includes(status)) {
                 query.status = status;
             } else {
@@ -402,11 +413,16 @@ export const getAllReports = async (req, res) => {
         if (category) query.incidentCategory = category;
         if (safeSearch) {
             const pattern = escapeRegex(safeSearch);
-            query.$or = [
-                { address: { $regex: pattern, $options: 'i' } },
-                { description: { $regex: pattern, $options: 'i' } },
-                { title: { $regex: pattern, $options: 'i' } },
-                { municipalityName: { $regex: pattern, $options: 'i' } },
+            query.$and = [
+                ...(query.$and || []),
+                {
+                    $or: [
+                        { address: { $regex: pattern, $options: 'i' } },
+                        { description: { $regex: pattern, $options: 'i' } },
+                        { title: { $regex: pattern, $options: 'i' } },
+                        { municipalityName: { $regex: pattern, $options: 'i' } },
+                    ],
+                },
             ];
         }
         if (startDate || endDate) {
@@ -538,6 +554,15 @@ export const verifyReport = async (req, res) => {
             } else {
                 // Notify reporter about rejection
                 broadcastReportRejected(io, report.reporter._id, report._id, rejectionReason);
+
+                let reviewAudience = io.to('role_admin');
+                if (report.municipalityName) {
+                    reviewAudience = reviewAudience.to(`municipality_${report.municipalityName}`);
+                }
+                reviewAudience.emit('reportRejectedUpdate', {
+                    id: report._id,
+                    status: 'rejected',
+                });
             }
         }
 
@@ -955,11 +980,12 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Only verified reports can be responded to
-        if (report.status !== 'verified' && report.status !== 'responding') {
+        // Verified and transferred reports can start a response; additional
+        // units can join a response already in progress.
+        if (!['verified', 'transferred', 'responding'].includes(report.status)) {
             return res.status(400).json({
                 success: false,
-                message: `Cannot respond to a report with status "${report.status}". Only verified reports can be responded to.`,
+                message: `Cannot respond to a report with status "${report.status}".`,
             });
         }
 
@@ -998,10 +1024,9 @@ export const respondToReport = async (req, res) => {
             notes: null,
         });
 
-        // Update status to 'responding' if this is the first responder
-        if (report.responders.length === 1) {
-            report.status = 'responding';
-        }
+        // A transferred report may retain earlier mutual-aid responders, so
+        // always move it back into the active response state.
+        report.status = 'responding';
 
         // Update legacy fields for backward compatibility (first responder)
         if (report.responders.length === 1) {
@@ -1142,6 +1167,15 @@ export const resolveReport = async (req, res) => {
             });
         }
 
+        // Municipality-scoped accounts may only close incidents currently
+        // handled by their own jurisdiction. Global admins remain unrestricted.
+        if (responder.role !== 'admin' && !ensureReportScopeAccess(responder, report)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to resolve reports outside your jurisdiction',
+            });
+        }
+
         // Only the assigned responder, any responding units, or administrators can resolve
         const isFirstResponder = report.respondedBy && report.respondedBy.toString() === responder._id.toString();
         const isJoinedResponder = report.responders?.some(r => r.user && r.user.toString() === responder._id.toString());
@@ -1185,37 +1219,38 @@ export const resolveReport = async (req, res) => {
             });
         }
 
+        // Notification delivery is best-effort and must not turn a successful
+        // state transition into an API error.
         if (!report.reporter?._id) {
-            return res.status(409).json({
-                success: false,
-                message: 'Report reporter account is unavailable',
-            });
-        }
+            console.warn('Skipping resolution notification because reporter account is unavailable');
+        } else {
+            try {
+                await Notification.createAndSend(
+                    {
+                        recipient: report.reporter._id,
+                        type: 'report_resolved',
+                        title: '✅ Incident Resolved',
+                        message: `Your report at ${report.address} has been resolved by ${agencyLabel} (${responder.name}).${resolutionNotes ? ` Notes: ${resolutionNotes}` : ''}`,
+                        data: {
+                            reportId: report._id,
+                            responderId: responder._id,
+                            agency: responder.agency,
+                        },
+                    },
+                    io
+                );
 
-        // Create notification for the reporter
-        await Notification.createAndSend(
-            {
-                recipient: report.reporter._id,
-                type: 'report_resolved',
-                title: '✅ Incident Resolved',
-                message: `Your report at ${report.address} has been resolved by ${agencyLabel} (${responder.name}).${resolutionNotes ? ` Notes: ${resolutionNotes}` : ''}`,
-                data: {
-                    reportId: report._id,
-                    responderId: responder._id,
-                    agency: responder.agency,
-                },
-            },
-            io
-        );
-
-        // Send push notification to reporter
-        if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-            await sendPushNotification(report.reporter.pushSubscription, {
-                title: '✅ Incident Resolved',
-                body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
-                icon: '/icon-192x192.png',
-                data: { url: '/my-reports' },
-            });
+                if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
+                    await sendPushNotification(report.reporter.pushSubscription, {
+                        title: '✅ Incident Resolved',
+                        body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
+                        icon: '/icon-192x192.png',
+                        data: { url: '/my-reports' },
+                    });
+                }
+            } catch (notificationError) {
+                console.error('Failed to notify reporter about resolution:', notificationError);
+            }
         }
 
         res.json({
@@ -1232,6 +1267,127 @@ export const resolveReport = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Transfer response authority to a neighboring municipality
+ * @route   PUT /api/admin/reports/:id/transfer
+ * @access  Private (admin/municipal_admin only)
+ */
+export const transferReport = async (req, res) => {
+    try {
+        const { targetMunicipalityId, reason } = req.body;
+        const admin = req.user;
+
+        const report = await Report.findById(req.params.id)
+            .populate('reporter', 'name email pushSubscription notificationPreferences');
+
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found',
+            });
+        }
+
+        // Only allow transfer for verified, responding, or transferred reports
+        const transferableStatuses = ['verified', 'responding', 'transferred'];
+        if (!transferableStatuses.includes(report.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot transfer a report with status "${report.status}".`,
+            });
+        }
+
+        // Verify the admin has scope access to the report BEFORE transferring
+        if (!ensureReportScopeAccess(admin, report)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to manage or transfer reports outside your jurisdiction',
+            });
+        }
+
+        // Find target municipality
+        const targetMuni = await Municipality.findById(targetMunicipalityId);
+        if (!targetMuni) {
+            return res.status(404).json({
+                success: false,
+                message: 'Target municipality not found',
+            });
+        }
+
+        if (targetMuni._id.toString() === report.municipality?.toString()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot transfer to the current handling municipality',
+            });
+        }
+
+        const fromMuniId = report.municipality;
+        const fromMuniName = report.municipalityName;
+
+        // Perform the transfer
+        report.municipality = targetMuni._id;
+        report.municipalityName = targetMuni.name;
+        report.status = 'transferred';
+
+        report.transferHistory.push({
+            fromMunicipality: fromMuniId,
+            fromMunicipalityName: fromMuniName,
+            toMunicipality: targetMuni._id,
+            toMunicipalityName: targetMuni.name,
+            reason,
+            transferredBy: admin._id,
+        });
+
+        await report.save();
+
+        // Broadcast real-time update
+        const io = req.app.get('io');
+        if (io) {
+            const { broadcastReportTransfer } = await import('../services/socketService.js');
+            broadcastReportTransfer(io, report, fromMuniName, targetMuni.name, reason);
+        }
+
+        // Notify target municipal admins & responders
+        try {
+            const targetAdmins = await User.find({
+                role: { $in: ['municipal_admin', 'responder'] },
+                assignedMunicipality: targetMuni.name,
+            }).select('_id');
+
+            for (const targetUser of targetAdmins) {
+                await Notification.createAndSend(
+                    {
+                        recipient: targetUser._id,
+                        type: 'report_transferred',
+                        title: '🔄 Cross-Border Incident Transferred',
+                        message: `Incident at ${report.address} has been transferred to your municipality from ${fromMuniName}. Reason: ${reason}`,
+                        data: {
+                            reportId: report._id,
+                            fromMunicipality: fromMuniName,
+                            toMunicipality: targetMuni.name,
+                            reason,
+                        },
+                    },
+                    io
+                );
+            }
+        } catch (err) {
+            console.error('Failed to notify target municipality users:', err);
+        }
+
+        res.json({
+            success: true,
+            message: `Report successfully transferred to ${targetMuni.name}`,
+            data: report,
+        });
+    } catch (error) {
+        console.error('Transfer report error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to transfer report',
+        });
+    }
+};
+
 export default {
     getUsers,
     getUserById,
@@ -1244,4 +1400,5 @@ export default {
     deleteUser,
     getDashboardStats,
     updateMyDutyStatus,
+    transferReport,
 };

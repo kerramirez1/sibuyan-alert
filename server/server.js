@@ -178,6 +178,20 @@ io.on('connection', (socket) => {
 
         socket.join(`user_${socket.data.user.id}`);
 
+        if (socket.data.user.role === 'admin') {
+            socket.join('role_admin');
+        }
+
+        // Authentication and authorization are complete at this point, so join
+        // all permitted rooms here instead of relying on follow-up client events.
+        if (socket.data.user.assignedMunicipality) {
+            socket.join(`municipality_${socket.data.user.assignedMunicipality}`);
+
+            if (['responder', 'municipal_admin'].includes(socket.data.user.role)) {
+                socket.join(`municipality_${socket.data.user.assignedMunicipality}_responders`);
+            }
+        }
+
         const userInfo = {
             userId: socket.data.user.id,
             socketId: socket.id,
@@ -239,6 +253,29 @@ io.on('connection', (socket) => {
         const user = getAuthenticatedUser();
         if (user) {
             socket.leave(`user_${user.id}`);
+            socket.leave('role_admin');
+            if (user.assignedMunicipality) {
+                socket.leave(`municipality_${user.assignedMunicipality}`);
+                socket.leave(`municipality_${user.assignedMunicipality}_responders`);
+            }
+
+            const userInfo = onlineUsers.get(socket.id);
+            onlineUsers.delete(socket.id);
+            socket.data.user = null;
+
+            const stillOnline = Array.from(onlineUsers.values()).some(
+                (entry) => entry.userId === user.id
+            );
+            if (!stillOnline && userInfo?.assignedMunicipality) {
+                io.to(`municipality_${userInfo.assignedMunicipality}`).emit('userOffline', {
+                    userId: userInfo.userId,
+                    name: userInfo.name,
+                });
+            }
+
+            io.emit('onlineUsersUpdate', {
+                onlineCount: new Set(Array.from(onlineUsers.values()).map((entry) => entry.userId)).size,
+            });
         }
     });
 

@@ -101,7 +101,7 @@ export const login = async (req, res) => {
         }
 
         // Find user with password field
-        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+        const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
 
         if (!user) {
             return res.status(401).json({

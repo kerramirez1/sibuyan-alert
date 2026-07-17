@@ -81,6 +81,7 @@ describe('API service', () => {
         expect(typeof adminAPI.verifyReport).toBe('function');
         expect(typeof adminAPI.respondToReport).toBe('function');
         expect(typeof adminAPI.resolveReport).toBe('function');
+        expect(typeof adminAPI.transferReport).toBe('function');
         expect(typeof adminAPI.deleteReport).toBe('function');
         expect(typeof adminAPI.deleteUser).toBe('function');
         expect(typeof adminAPI.updateMyDutyStatus).toBe('function');

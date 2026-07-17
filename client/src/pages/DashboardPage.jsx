@@ -252,6 +252,11 @@ const DashboardPage = () => {
     const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
     const activeMunicipality = (hasMunicipality && !showAll) ? user.assignedMunicipality : null;
 
+    const dashboardReports = useMemo(() => {
+        if (!activeMunicipality) return reports;
+        return reports.filter((r) => r.municipalityName === activeMunicipality);
+    }, [reports, activeMunicipality]);
+
     const isReportAssigned = useCallback((report) => {
         if (!report) return false;
         const hasResponders = Array.isArray(report.responders) && report.responders.length > 0;
@@ -260,52 +265,68 @@ const DashboardPage = () => {
 
     const isAwaitingResponder = useCallback((report) => {
         if (!report) return false;
+        if (report.status === 'transferred') return true;
         const awaitingStatuses = ['pending'];
         return awaitingStatuses.includes(report.status) && !isReportAssigned(report);
     }, [isReportAssigned]);
 
+    const canCurrentResponderResolve = useCallback((report) => {
+        if (!isResponder || !user) return false;
+        const currentUserId = (user._id || user.id)?.toString();
+        const firstResponderId = report?.respondedBy?._id || report?.respondedBy;
+        if (firstResponderId?.toString() === currentUserId) return true;
+
+        return Boolean(report?.responders?.some((entry) => {
+            const responderId = entry.user?._id || entry.user;
+            return responderId?.toString() === currentUserId;
+        }));
+    }, [isResponder, user]);
+
+    const hasMapCoordinates = useCallback((report) => {
+        const lat = Number(report?.coordinates?.lat ?? report?.location?.coordinates?.[1] ?? report?.lat);
+        const lng = Number(report?.coordinates?.lng ?? report?.location?.coordinates?.[0] ?? report?.lng);
+        return Number.isFinite(lat) && Number.isFinite(lng);
+    }, []);
+
+    const verifiedIncidentReports = useMemo(
+        () => dashboardReports.filter((r) => r.status === 'verified'),
+        [dashboardReports]
+    );
+
     const responderMapPendingCount = useMemo(
-        () => reports.filter((r) => isAwaitingResponder(r)).length,
-        [reports, isAwaitingResponder]
+        () => dashboardReports.filter((r) => isAwaitingResponder(r) && hasMapCoordinates(r)).length,
+        [dashboardReports, isAwaitingResponder, hasMapCoordinates]
     );
 
     const responderPendingReports = useMemo(
-        () => reports.filter((r) => isAwaitingResponder(r)),
-        [reports, isAwaitingResponder]
+        () => dashboardReports.filter((r) => isAwaitingResponder(r) && hasMapCoordinates(r)),
+        [dashboardReports, isAwaitingResponder, hasMapCoordinates]
     );
 
     const responderRespondingReports = useMemo(
-        () => reports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r))),
-        [reports, isReportAssigned]
+        () => dashboardReports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r))),
+        [dashboardReports, isReportAssigned]
     );
 
     const responderMapRespondingCount = useMemo(
-        () => reports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r))).length,
-        [reports, isReportAssigned]
+        () => responderRespondingReports.length,
+        [responderRespondingReports]
     );
 
     const computedActiveIncidents = useMemo(() => {
-        if (isAdmin) {
-            return reports.filter(r => r.status === 'verified').length;
-        }
-        return roleStats?.activeIncidents || 0;
-    }, [isAdmin, reports, roleStats]);
+        return verifiedIncidentReports.length;
+    }, [verifiedIncidentReports]);
 
     const computedResolvedTodayReports = useMemo(() => {
         const today = new Date().toDateString();
-        return reports.filter(r => {
+        return dashboardReports.filter(r => {
             if (r.status !== 'resolved') return false;
             const rDate = new Date(r.resolvedAt || r.updatedAt || r.createdAt).toDateString();
             if (rDate !== today) return false;
-            if (isAdmin) {
-                if (activeMunicipality) {
-                    return r.municipalityName === activeMunicipality;
-                }
-                return true;
-            }
+            if (isAdmin) return true;
             return r.resolvedBy?._id === user?._id || r.resolvedBy === user?._id;
         });
-    }, [isAdmin, reports, user, activeMunicipality]);
+    }, [isAdmin, dashboardReports, user]);
 
     const computedResolvedToday = useMemo(() => {
         if (isAdmin || isResponder) {
@@ -440,10 +461,7 @@ const DashboardPage = () => {
 
 
     // Filter reports by municipality on the client side
-    const filteredReports = useMemo(() => {
-        if (!activeMunicipality) return reports;
-        return reports.filter(r => r.municipalityName === activeMunicipality);
-    }, [reports, activeMunicipality]);
+    const filteredReports = dashboardReports;
 
     // Further filter by selected month for analytics
     const monthFilteredReports = useMemo(() => {
@@ -508,7 +526,14 @@ const DashboardPage = () => {
         });
         const unsub2 = subscribe('reportResponded', (data) => {
             setReports(prev => prev.map(r => r._id === data.id
-                ? { ...r, status: 'responding', respondedBy: data.respondedBy, respondedAt: data.respondedAt }
+                ? {
+                    ...r,
+                    status: 'responding',
+                    municipalityName: data.municipalityName || r.municipalityName,
+                    respondedBy: data.respondedBy,
+                    respondedAt: data.respondedAt,
+                    responders: data.responders || r.responders,
+                }
                 : r
             ));
             scheduleStatsRefresh();
@@ -540,6 +565,27 @@ const DashboardPage = () => {
             setHighRiskZones(prev => prev.filter(z => z._id !== data.id));
             scheduleStatsRefresh();
         });
+        const unsub8 = subscribe('reportTransferred', (data) => {
+            const normalized = normalizeIncomingReport({
+                ...data,
+                status: 'transferred',
+                municipalityName: data.toMunicipality || data.municipalityName,
+            });
+            if (!normalized) return;
+            setReports(prev => {
+                const existing = prev.find((report) => report._id === normalized._id);
+                if (!existing) return [normalized, ...prev];
+                return prev.map((report) =>
+                    report._id === normalized._id ? { ...report, ...normalized } : report
+                );
+            });
+            scheduleStatsRefresh();
+        });
+        const unsub9 = subscribe('reportRejectedUpdate', (data) => {
+            if (!data?.id) return;
+            setReports(prev => prev.filter((report) => report._id !== data.id));
+            scheduleStatsRefresh();
+        });
 
         return () => {
             if (statsDebounceTimer) {
@@ -554,6 +600,8 @@ const DashboardPage = () => {
             unsub5();
             unsub6();
             unsub7();
+            unsub8();
+            unsub9();
         };
     }, [subscribe, activeMunicipality]);
 
@@ -777,7 +825,7 @@ const DashboardPage = () => {
                         </div>
                     </div>
                     <div className={`${STANDARD_MAP_CONTAINER_CLASS} relative rounded-xl overflow-hidden m-1 sm:m-2`}>
-                        <MapView reports={reports} highRiskZones={highRiskZones} enable3D={true} className="h-full w-full" focusLocation={focusLocation} />
+                        <MapView reports={dashboardReports} highRiskZones={highRiskZones} showPending={canViewReports} enable3D={true} className="h-full w-full" focusLocation={focusLocation} />
                     </div>
                 </motion.div>
 
@@ -823,9 +871,9 @@ const DashboardPage = () => {
                     title="Verified Incidents"
                 >
                     <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {reports.filter(r => r.status === 'verified').length > 0 ? (
+                        {verifiedIncidentReports.length > 0 ? (
                             <div className="grid gap-3">
-                                {reports.filter(r => r.status === 'verified').map((report, idx) => {
+                                {verifiedIncidentReports.map((report, idx) => {
                                     return (
                                         <motion.div
                                             key={report._id}
@@ -940,12 +988,12 @@ const DashboardPage = () => {
                 >
                     <div className={`${STANDARD_MAP_CONTAINER_CLASS} relative rounded-xl sm:rounded-[1.8rem] overflow-hidden m-1 sm:m-2`}>
                         <MapView
-                            reports={reports}
+                            reports={dashboardReports}
                             highRiskZones={highRiskZones}
                             enable3D={true}
                             className="h-full w-full"
                             focusLocation={focusLocation}
-                            showPending={isAdmin || isResponder}
+                            showPending={false}
                             filterStatus={isResponder ? responderMapFilter : null}
                             canRespond={isResponder}
                             onRespondToReport={handleMapRespond}
@@ -984,9 +1032,9 @@ const DashboardPage = () => {
                     title="Verified Incidents"
                 >
                     <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {reports.filter(r => r.status === 'verified').length > 0 ? (
+                        {verifiedIncidentReports.length > 0 ? (
                             <div className="grid gap-3">
-                                {reports.filter(r => r.status === 'verified').map((report, idx) => {
+                                {verifiedIncidentReports.map((report, idx) => {
                                     return (
                                         <motion.div
                                             key={report._id}
@@ -1124,16 +1172,17 @@ const DashboardPage = () => {
                 >
                     <div className={`${STANDARD_MAP_CONTAINER_CLASS} relative rounded-xl overflow-hidden m-1 sm:m-2`}>
                         <MapView
-                            reports={reports}
+                            reports={dashboardReports}
                             highRiskZones={highRiskZones}
                             enable3D={true}
                             className="h-full w-full"
                             focusLocation={focusLocation}
                             showPending={isResponder || isAdmin}
                             filterStatus={(isResponder || isAdmin) ? responderMapFilter : null}
-                            canRespond={isResponder || isAdmin}
+                            canRespond={isResponder}
                             onRespondToReport={handleMapRespond}
-                            canResolve={isResponder || isAdmin}
+                            canResolve={isResponder}
+                            canResolveReport={canCurrentResponderResolve}
                             onResolveReport={handleMapResolve}
                         />
                         <div className="hidden sm:block absolute top-6 left-6 z-10">
@@ -1436,9 +1485,9 @@ const DashboardPage = () => {
 
                 <Modal isOpen={showIncidentModal} onClose={() => setShowIncidentModal(false)} title="Verified Incidents">
                     <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {reports.filter(r => r.status === 'verified').length > 0 ? (
+                        {verifiedIncidentReports.length > 0 ? (
                             <div className="grid gap-3">
-                                {reports.filter(r => r.status === 'verified').map((report, idx) => (
+                                {verifiedIncidentReports.map((report, idx) => (
                                     <motion.div key={report._id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.05 }}
                                         className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gray-50/50 hover:bg-white border border-gray-100 hover:border-brand-200 rounded-2xl transition-all duration-300">
                                         <div className="flex items-center gap-4">
@@ -1810,7 +1859,7 @@ const DashboardPage = () => {
                         </span>
                     </div>
                     <div className={`${STANDARD_MAP_CONTAINER_CLASS} relative rounded-xl overflow-hidden m-1 sm:m-2`}>
-                        <MapView reports={reports} highRiskZones={highRiskZones} showPending={isAdmin || isResponder} enable3D={true} className="h-full w-full" focusLocation={focusLocation} />
+                        <MapView reports={dashboardReports} highRiskZones={highRiskZones} showPending={canViewReports} enable3D={true} className="h-full w-full" focusLocation={focusLocation} />
                     </div>
                 </div>
             </div>
