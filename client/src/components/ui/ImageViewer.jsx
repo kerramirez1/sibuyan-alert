@@ -1,9 +1,19 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiX, HiDownload } from 'react-icons/hi';
+import { useEffect } from 'react';
 
 const ImageViewer = ({ isOpen, onClose, imageSrc, alt = 'Image' }) => {
     // Simple state could be used for zoom, but for now let's just make it a big modal
     // If user wants more details, a simple full-screen overlay is usually best.
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -28,6 +38,7 @@ const ImageViewer = ({ isOpen, onClose, imageSrc, alt = 'Image' }) => {
                             rel="noopener noreferrer"
                             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-md"
                             title="Open Original"
+                            aria-label="Open original image"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <HiDownload className="w-6 h-6" />
@@ -35,6 +46,7 @@ const ImageViewer = ({ isOpen, onClose, imageSrc, alt = 'Image' }) => {
                         <button
                             onClick={onClose}
                             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-md"
+                            aria-label="Close image viewer"
                         >
                             <HiX className="w-6 h-6" />
                         </button>

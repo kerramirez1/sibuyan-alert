@@ -1142,12 +1142,19 @@ export const respondToReport = async (req, res) => {
 /**
  * @desc    Resolve a report (only the assigned responder can resolve)
  * @route   PUT /api/admin/reports/:id/resolve
- * @access  Private (admin only - assigned responder)
+ * @access  Private (assigned responder only)
  */
 export const resolveReport = async (req, res) => {
     try {
         const { resolutionNotes } = req.body;
         const responder = req.user;
+
+        if (!responder || responder.role !== 'responder') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied - Only responders can resolve incident reports.',
+            });
+        }
 
         const report = await Report.findById(req.params.id)
             .populate('reporter', 'name email pushSubscription notificationPreferences');
@@ -1167,24 +1174,22 @@ export const resolveReport = async (req, res) => {
             });
         }
 
-        // Municipality-scoped accounts may only close incidents currently
-        // handled by their own jurisdiction. Global admins remain unrestricted.
-        if (responder.role !== 'admin' && !ensureReportScopeAccess(responder, report)) {
+        // Responders may only close incidents handled by their jurisdiction.
+        if (!ensureReportScopeAccess(responder, report)) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to resolve reports outside your jurisdiction',
             });
         }
 
-        // Only the assigned responder, any responding units, or administrators can resolve
+        // Only the first responder or a joined responding unit can resolve.
         const isFirstResponder = report.respondedBy && report.respondedBy.toString() === responder._id.toString();
         const isJoinedResponder = report.responders?.some(r => r.user && r.user.toString() === responder._id.toString());
-        const isAdmin = ['admin', 'municipal_admin'].includes(responder.role);
 
-        if (!isFirstResponder && !isJoinedResponder && !isAdmin) {
+        if (!isFirstResponder && !isJoinedResponder) {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied - Only assigned responders or administrators can resolve this report.',
+                message: 'Access denied - Only assigned responders can resolve this report.',
             });
         }
 

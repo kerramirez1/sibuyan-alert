@@ -56,6 +56,7 @@ describe('resolveReport controller', () => {
         req = {
             params: { id: 'report123' },
             body: { resolutionNotes: 'Fixed the issue' },
+            user: { _id: 'user1', role: 'responder', agency: 'MDRRMO' },
             app: {
                 get: jest.fn().mockReturnValue({ emit: jest.fn() }),
             },
@@ -119,7 +120,7 @@ describe('resolveReport controller', () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 success: false,
-                message: expect.stringContaining('Only assigned responders or administrators can resolve this report'),
+                message: expect.stringContaining('Only assigned responders can resolve this report'),
             })
         );
     });
@@ -187,7 +188,7 @@ describe('resolveReport controller', () => {
         );
     });
 
-    test('allows resolution if a municipal admin is in the report municipality', async () => {
+    test('denies resolution when the caller is a municipal admin', async () => {
         const mockReport = {
             status: 'responding',
             municipalityName: 'Cajidiocan',
@@ -212,18 +213,15 @@ describe('resolveReport controller', () => {
 
         await resolveReport(req, res);
 
-        expect(mockReport.status).toBe('resolved');
-        expect(mockReport.resolvedBy).toBe('adminUser');
-        expect(mockReport.save).toHaveBeenCalled();
-        expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({
-                success: true,
-                message: expect.stringContaining('Report resolved successfully'),
-            })
-        );
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(mockReport.save).not.toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('Only responders can resolve'),
+        }));
     });
 
-    test('denies a municipal admin from resolving another municipality report', async () => {
+    test('denies a municipal admin before evaluating municipality scope', async () => {
         const mockReport = {
             status: 'responding',
             municipalityName: 'Magdiwang',
@@ -245,7 +243,7 @@ describe('resolveReport controller', () => {
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
-            message: expect.stringContaining('outside your jurisdiction'),
+            message: expect.stringContaining('Only responders can resolve'),
         }));
     });
 

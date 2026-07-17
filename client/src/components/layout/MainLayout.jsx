@@ -455,7 +455,7 @@ const MainLayout = () => {
                     </header>
 
                     {/* Page Content Scrollable Area */}
-                    <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pb-8 custom-scrollbar">
+                    <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 sm:px-6 lg:px-8 custom-scrollbar">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={location.pathname}
