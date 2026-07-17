@@ -392,7 +392,7 @@ const MapView = ({
         const filteredReports = filterStatus === 'pending'
             ? categoryFilteredReports.filter((r) =>
                 r.status === 'transferred' ||
-                (r.status === 'pending' && !isReportAssigned(r))
+                (['pending', 'verified'].includes(r.status) && !isReportAssigned(r))
             )
             : filterStatus === 'responding'
                 ? categoryFilteredReports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r)))
