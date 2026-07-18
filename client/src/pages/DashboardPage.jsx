@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { reportsAPI, adminAPI, highRiskZonesAPI, analyticsAPI } from '../services/api';
@@ -33,6 +33,7 @@ const DashboardPage = () => {
     const [showMapRespondingModal, setShowMapRespondingModal] = useState(false);
     const [showMapResolvedModal, setShowMapResolvedModal] = useState(false);
     const [responderMapFilter, setResponderMapFilter] = useState('all');
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const historySectionRef = useRef(null);
     const isMapView = searchParams.get('view') === 'map';
@@ -454,9 +455,25 @@ const DashboardPage = () => {
         const counts = {};
         monthFilteredReports.forEach(r => {
             if (r.barangay) {
-                const name = `${r.barangay}${r.municipalityName ? ` (${r.municipalityName})` : ''}`;
+                const name = activeMunicipality
+                    ? r.barangay
+                    : `${r.barangay}${r.municipalityName ? ` (${r.municipalityName})` : ''}`;
                 counts[name] = (counts[name] || 0) + 1;
             }
+        });
+        return Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+    }, [monthFilteredReports, activeMunicipality]);
+
+    const incidentTypeBarData = useMemo(() => {
+        const counts = {};
+        monthFilteredReports.forEach((report) => {
+            const rawType = report.incidentType || report.incidentCategory || 'Unspecified';
+            const name = rawType
+                .replace(/[_-]+/g, ' ')
+                .replace(/\b\w/g, (character) => character.toUpperCase());
+            counts[name] = (counts[name] || 0) + 1;
         });
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
@@ -465,18 +482,27 @@ const DashboardPage = () => {
 
     // Response performance metrics
     const performanceMetrics = useMemo(() => {
-        const respondedReports = monthFilteredReports.filter(r => r.respondedAt && r.createdAt);
+        const responseMinutes = monthFilteredReports
+            .filter(r => r.respondedAt && r.createdAt)
+            .map(r => differenceInMinutes(new Date(r.respondedAt), new Date(r.createdAt)))
+            .filter(minutes => Number.isFinite(minutes) && minutes >= 0)
+            .sort((a, b) => a - b);
         const resolvedReports = monthFilteredReports.filter(r => r.status === 'resolved');
         const respondingReports = monthFilteredReports.filter(r => r.status === 'responding');
+        const pendingCount = monthFilteredReports.filter(r => r.status === 'pending').length;
+        const dispatchReadyCount = monthFilteredReports.filter(r => (
+            ['verified', 'transferred'].includes(r.status) && !isReportAssigned(r)
+        )).length;
 
-        // Avg response time (from creation to first response)
-        let avgResponseMin = 0;
-        if (respondedReports.length > 0) {
-            const totalMin = respondedReports.reduce((sum, r) => {
-                return sum + differenceInMinutes(new Date(r.respondedAt), new Date(r.createdAt));
-            }, 0);
-            avgResponseMin = Math.round(totalMin / respondedReports.length);
-        }
+        const avgResponseMin = responseMinutes.length
+            ? Math.round(responseMinutes.reduce((sum, minutes) => sum + minutes, 0) / responseMinutes.length)
+            : null;
+        const middleIndex = Math.floor(responseMinutes.length / 2);
+        const medianResponseMin = responseMinutes.length
+            ? Math.round(responseMinutes.length % 2
+                ? responseMinutes[middleIndex]
+                : (responseMinutes[middleIndex - 1] + responseMinutes[middleIndex]) / 2)
+            : null;
 
         // Resolution rate
         const totalActionable = monthFilteredReports.filter(r => ['verified', 'transferred', 'responding', 'resolved'].includes(r.status)).length;
@@ -484,11 +510,15 @@ const DashboardPage = () => {
 
         return {
             avgResponseMin,
+            medianResponseMin,
+            responseSampleCount: responseMinutes.length,
             resolvedCount: resolvedReports.length,
             respondingCount: respondingReports.length,
+            pendingCount,
+            dispatchReadyCount,
             resolutionRate,
         };
-    }, [monthFilteredReports]);
+    }, [isReportAssigned, monthFilteredReports]);
 
 
     const showMapWorkspace = !isAdmin || isResponder || isMapView;
@@ -541,19 +571,21 @@ const DashboardPage = () => {
             setSelectedMonth={setSelectedMonth}
             stats={stats}
             reports={monthFilteredReports}
-            allReports={reports}
+            allReports={dashboardReports}
             highRiskZones={highRiskZones}
             performanceMetrics={performanceMetrics}
             chartData={chartData}
             statusData={statusData}
             municipalityBarData={municipalityBarData}
             barangayBarData={barangayBarData}
+            incidentTypeBarData={incidentTypeBarData}
             dashboardReports={dashboardReports}
             focusLocation={focusLocation}
             historySectionRef={historySectionRef}
             loading={loading}
             error={dashboardError}
             onOpenMap={() => setSearchParams({ view: 'map' })}
+            onOpenReports={() => navigate('/admin/reports')}
         />
     );
 };
