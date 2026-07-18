@@ -12,6 +12,7 @@ import {
     getDashboardStats,
     updateMyDutyStatus,
     transferReport,
+    acknowledgeTransfer,
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
@@ -21,6 +22,7 @@ import {
     validateRespondToReport,
     validateResolveReport,
     validateTransferReport,
+    validateAcknowledgeTransfer,
 } from '../middleware/validate.js';
 
 const router = express.Router();
@@ -50,6 +52,7 @@ router.put('/reports/:id/verify', requireRole('admin', 'municipal_admin'), valid
 router.put('/reports/:id/respond', requireRole('responder'), validateRespondToReport, respondToReport);
 router.put('/reports/:id/resolve', requireRole('responder'), validateResolveReport, resolveReport);
 router.put('/reports/:id/transfer', requireRole('admin', 'municipal_admin'), validateTransferReport, transferReport);
+router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
 router.delete('/reports/:id', requireRole('admin', 'municipal_admin'), deleteReport);
 
 // ============================================================

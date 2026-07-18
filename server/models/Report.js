@@ -120,6 +120,15 @@ const reportSchema = new mongoose.Schema(
                 type: Date,
                 default: Date.now,
             },
+            acknowledgedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                default: null,
+            },
+            acknowledgedAt: {
+                type: Date,
+                default: null,
+            },
         }],
 
         // Timing

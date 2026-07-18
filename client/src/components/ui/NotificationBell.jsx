@@ -177,6 +177,7 @@ const NotificationBell = () => {
                 navigate('/');
                 break;
             case 'report_transferred':
+            case 'report_transfer_acknowledged':
                 navigate('/admin/reports');
                 break;
             default:
@@ -209,6 +210,7 @@ const NotificationBell = () => {
             case 'new_report':
                 return <HiOutlineExclamation className="w-5 h-5 text-accent-500" />;
             case 'report_transferred':
+            case 'report_transfer_acknowledged':
                 return <HiOutlineSwitchHorizontal className="w-5 h-5 text-purple-500" />;
             default:
                 return <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />;

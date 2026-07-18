@@ -48,6 +48,9 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
     const updates = Array.isArray(report.reportUpdates)
         ? [...report.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         : [];
+    const transfers = Array.isArray(report.transferHistory)
+        ? [...report.transferHistory].reverse()
+        : [];
 
     return (
         <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby="incident-details-title">
@@ -96,6 +99,41 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
                             {report.description || 'No description provided.'}
                         </p>
                     </section>
+
+                    {transfers.length > 0 && (
+                        <section className="mt-5" aria-labelledby="transfer-history-heading">
+                            <h3 id="transfer-history-heading" className="text-sm font-bold text-gray-900">Transfer history</h3>
+                            <ol className="mt-3 space-y-3">
+                                {transfers.map((transfer, index) => (
+                                    <li key={transfer._id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+                                        <div className="flex flex-col gap-2 min-[360px]:flex-row min-[360px]:items-start min-[360px]:justify-between">
+                                            <div>
+                                                <p className="text-sm font-semibold text-violet-950">
+                                                    {transfer.fromMunicipalityName || 'Previous municipality'} → {transfer.toMunicipalityName || 'Target municipality'}
+                                                </p>
+                                                <p className="mt-1 text-xs text-violet-700">
+                                                    Transferred {formatDate(transfer.transferredAt)}
+                                                    {transfer.transferredBy?.name ? ` by ${transfer.transferredBy.name}` : ''}
+                                                </p>
+                                            </div>
+                                            {transfer.acknowledgedAt ? (
+                                                <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Acknowledged</span>
+                                            ) : (
+                                                <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Awaiting acknowledgment</span>
+                                            )}
+                                        </div>
+                                        <p className="mt-3 border-t border-violet-200 pt-3 text-sm text-violet-900">{transfer.reason}</p>
+                                        {transfer.acknowledgedAt && (
+                                            <p className="mt-2 text-xs text-emerald-700">
+                                                Acknowledged {formatDate(transfer.acknowledgedAt)}
+                                                {transfer.acknowledgedBy?.name ? ` by ${transfer.acknowledgedBy.name}` : ''}
+                                            </p>
+                                        )}
+                                    </li>
+                                ))}
+                            </ol>
+                        </section>
+                    )}
 
                     {coordinates && (
                         <section className="mt-5" aria-labelledby="incident-location-heading">

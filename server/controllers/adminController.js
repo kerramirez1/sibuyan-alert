@@ -436,6 +436,8 @@ export const getAllReports = async (req, res) => {
             .populate('verifiedBy', 'name')
             .populate('respondedBy', 'name email agency assignedMunicipality')
             .populate('resolvedBy', 'name email agency assignedMunicipality')
+            .populate('transferHistory.transferredBy', 'name role assignedMunicipality')
+            .populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality')
             .populate('reportUpdates.author', 'name role agency')
             .populate('municipality', 'name code')
             .sort({ createdAt: -1 })
@@ -1393,6 +1395,107 @@ export const transferReport = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Acknowledge the latest municipality transfer without blocking response
+ * @route   PUT /api/admin/reports/:id/acknowledge-transfer
+ * @access  Private (target municipal_admin only)
+ */
+export const acknowledgeTransfer = async (req, res) => {
+    try {
+        const municipalAdmin = req.user;
+
+        if (municipalAdmin?.role !== 'municipal_admin' || !municipalAdmin.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only the target municipal administrator can acknowledge a transfer',
+            });
+        }
+
+        const report = await Report.findById(req.params.id);
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found',
+            });
+        }
+
+        const latestTransfer = report.transferHistory?.[report.transferHistory.length - 1];
+        if (!latestTransfer) {
+            return res.status(409).json({
+                success: false,
+                message: 'This report has no transfer to acknowledge',
+            });
+        }
+
+        const isCurrentTarget = (
+            latestTransfer.toMunicipalityName === municipalAdmin.assignedMunicipality
+            && report.municipalityName === municipalAdmin.assignedMunicipality
+        );
+        if (!isCurrentTarget) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only the current target municipality can acknowledge this transfer',
+            });
+        }
+
+        if (latestTransfer.acknowledgedAt) {
+            await report.populate('transferHistory.transferredBy', 'name role assignedMunicipality');
+            await report.populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality');
+            return res.json({
+                success: true,
+                message: 'Transfer already acknowledged',
+                data: report,
+            });
+        }
+
+        latestTransfer.acknowledgedBy = municipalAdmin._id;
+        latestTransfer.acknowledgedAt = new Date();
+        await report.save();
+        await report.populate('transferHistory.transferredBy', 'name role assignedMunicipality');
+        await report.populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality');
+
+        const io = req.app.get('io');
+        if (io) {
+            const { broadcastTransferAcknowledged } = await import('../services/socketService.js');
+            broadcastTransferAcknowledged(io, report, latestTransfer, municipalAdmin);
+        }
+
+        const transferringAdminId = latestTransfer.transferredBy?._id || latestTransfer.transferredBy;
+        if (transferringAdminId && transferringAdminId.toString() !== municipalAdmin._id.toString()) {
+            try {
+                await Notification.createAndSend(
+                    {
+                        recipient: transferringAdminId,
+                        type: 'report_transfer_acknowledged',
+                        title: 'Transfer Acknowledged',
+                        message: `${municipalAdmin.assignedMunicipality} acknowledged the transferred incident at ${report.address}.`,
+                        data: {
+                            reportId: report._id,
+                            municipality: municipalAdmin.assignedMunicipality,
+                            acknowledgedAt: latestTransfer.acknowledgedAt,
+                        },
+                    },
+                    io
+                );
+            } catch (notificationError) {
+                console.error('Failed to notify the transferring administrator:', notificationError);
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Transfer acknowledged successfully',
+            data: report,
+        });
+    } catch (error) {
+        console.error('Acknowledge transfer error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to acknowledge transfer',
+        });
+    }
+};
+
 export default {
     getUsers,
     getUserById,
@@ -1406,4 +1509,5 @@ export default {
     getDashboardStats,
     updateMyDutyStatus,
     transferReport,
+    acknowledgeTransfer,
 };

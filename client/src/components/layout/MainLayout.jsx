@@ -7,8 +7,8 @@ import NotificationBell from '../ui/NotificationBell';
 import toast from 'react-hot-toast';
 import {
     HiOutlineHome,
-    HiOutlineMap,
     HiOutlineClipboardList,
+    HiOutlineDocumentAdd,
     HiOutlineLocationMarker,
     HiOutlineUsers,
     HiOutlineLogout,
@@ -19,9 +19,28 @@ import {
     HiOutlineStatusOnline,
     HiOutlineClock,
     HiOutlineArrowRight,
+    HiOutlineChevronRight,
     HiOutlineUserAdd,
-    HiOutlineUserCircle,
 } from 'react-icons/hi';
+
+const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1';
+const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
+    ? 'bg-brand-50 font-semibold text-brand-800'
+    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950'}`;
+const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0';
+const SECTION_CLASS = 'mt-4 pt-1';
+const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400';
+
+const getAccountContext = (user) => {
+    const roleLabels = {
+        admin: 'System admin',
+        municipal_admin: 'Municipal admin',
+        responder: user?.agency ? `${user.agency} responder` : 'Responder',
+        reporter: 'Reporter',
+    };
+    const role = roleLabels[user?.role] || 'Account';
+    return user?.assignedMunicipality ? `${role} · ${user.assignedMunicipality}` : role;
+};
 
 const MainLayout = () => {
     const { user, logout, canSubmitReports, isAuthenticated, updateUser } = useAuth();
@@ -31,20 +50,20 @@ const MainLayout = () => {
     const currentView = new URLSearchParams(location.search).get('view');
 
     const navigation = [
-        { name: 'Analytics Dashboard', href: '/dashboard', icon: HiOutlineMap, roles: ['admin', 'municipal_admin'] },
-        { name: 'Submit Report', href: '/report', iconSrc: '/icons/report.logo.png', roles: ['reporter'], requireVerified: true },
+        { name: 'Submit Report', href: '/report', icon: HiOutlineDocumentAdd, roles: ['reporter'], requireVerified: true },
         { name: 'My Reports', href: '/my-reports', icon: HiOutlineClipboardList, roles: ['reporter'] },
     ];
 
     const adminNavigation = [
         {
-            name: (user?.role === 'admin' || user?.role === 'municipal_admin') ? 'Admin Dashboard' : 'Responder Dashboard',
+            name: 'Operations Dashboard',
             href: '/admin',
-            icon: HiOutlineHome
+            icon: HiOutlineHome,
+            roles: ['admin', 'municipal_admin'],
         },
-        { name: 'Manage Users', href: '/admin/users', icon: HiOutlineUsers },
-        { name: 'Incident Reports', href: '/admin/reports', iconSrc: '/icons/report.logo.png' },
-        { name: 'Manage High-Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['admin', 'municipal_admin'] },
+        { name: 'Users', href: '/admin/users', icon: HiOutlineUsers },
+        { name: 'Incident Reports', href: '/admin/reports', icon: HiOutlineClipboardList },
+        { name: 'Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['admin', 'municipal_admin'] },
     ];
 
     const filteredNav = isAuthenticated
@@ -92,15 +111,17 @@ const MainLayout = () => {
 
     return (
         <>
-            <div className="flex h-screen bg-white">
+            <div className="flex h-screen min-h-0 bg-white supports-[height:100dvh]:h-dvh">
                 {/* Mobile Sidebar Overlay */}
                 <AnimatePresence>
                     {sidebarOpen && (
-                        <motion.div
+                        <motion.button
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+                            type="button"
+                            aria-label="Close navigation menu"
+                            className="fixed inset-0 z-40 bg-black/45 lg:hidden"
                             onClick={() => setSidebarOpen(false)}
                         />
                     )}
@@ -108,13 +129,13 @@ const MainLayout = () => {
 
                 {/* Sidebar */}
                 <aside
-                    className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-brand-50/50 backdrop-blur-xl border-r border-brand-100 transform transition-transform duration-300 ease-out lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                        } flex flex-col`}
+                    aria-label="Primary navigation"
+                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Logo */}
-                    <div className="h-24 flex items-center px-8">
-                        <NavLink to="/" className="flex items-center gap-3 group">
-                            <div className="w-10 h-10 bg-white rounded-xl p-1 overflow-hidden flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:scale-105 transition-transform">
+                    <div className="flex min-h-20 items-center px-4">
+                        <NavLink to="/" className="group flex min-w-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 p-1">
                                 <img
                                     src="/icons/Alert.png"
                                     alt="Sibuyan Alert Logo"
@@ -131,22 +152,24 @@ const MainLayout = () => {
                             </span>
                         </NavLink>
                         <button
+                            type="button"
                             onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden ml-auto p-2 text-brand-600 hover:bg-brand-100 rounded-lg"
+                            aria-label="Close navigation menu"
+                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
                         >
                             <HiOutlineX className="w-6 h-6" />
                         </button>
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-5 space-y-1 overflow-y-auto custom-scrollbar">
+                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-2">
                         {/* Quick Links - always visible */}
                         {(() => {
                             // Smart Home redirect based on role
                             const homeHref = !isAuthenticated
                                 ? '/'
                                 : user?.role === 'reporter'
-                                    ? '/my-reports'
+                                    ? '/'
                                     : (user?.role === 'admin' || user?.role === 'municipal_admin')
                                         ? '/dashboard'
                                         : user?.role === 'responder'
@@ -156,57 +179,49 @@ const MainLayout = () => {
                             const isHomeActive = !isAuthenticated
                                 ? location.pathname === '/'
                                 : user?.role === 'reporter'
-                                    ? location.pathname === '/my-reports'
+                                    ? location.pathname === '/'
                                     : (user?.role === 'admin' || user?.role === 'municipal_admin')
                                         ? location.pathname === '/dashboard' && currentView !== 'map'
                                         : user?.role === 'responder'
                                             ? location.pathname === '/admin'
                                             : location.pathname === '/';
+                            const homeLabel = user?.role === 'admin' || user?.role === 'municipal_admin'
+                                ? 'Analytics Dashboard'
+                                : user?.role === 'responder'
+                                    ? 'Responder Dashboard'
+                                    : 'Home';
 
                             return (
                                 <div className="space-y-1">
                                     <NavLink
                                         to={homeHref}
                                         end={!isAuthenticated}
-                                        className={() =>
-                                            `group flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isHomeActive
-                                                ? 'bg-gradient-to-r from-brand-600 to-emerald-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
-                                                : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                            }`
-                                        }
+                                        className={() => getNavLinkClass(isHomeActive)}
                                         onClick={() => setSidebarOpen(false)}
                                     >
-                                        <HiOutlineHome className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
-                                        <span>Home</span>
+                                        <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
+                                        <span className="truncate">{homeLabel}</span>
                                     </NavLink>
 
                                     <NavLink
                                         to="/dashboard?view=map"
                                         className={() => {
                                             const isMapActive = location.pathname === '/dashboard' && currentView === 'map';
-                                            return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isMapActive
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
-                                                : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                                }`;
+                                            return getNavLinkClass(isMapActive);
                                         }}
                                         onClick={() => setSidebarOpen(false)}
                                     >
-                                        <HiOutlineGlobe className="w-4.5 h-4.5" />
-                                        <span>Map</span>
+                                        <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
+                                        <span className="truncate">Map</span>
                                     </NavLink>
 
                                     <NavLink
                                         to="/accident-history"
-                                        className={({ isActive }) =>
-                                            `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
-                                                : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                            }`
-                                        }
+                                        className={({ isActive }) => getNavLinkClass(isActive)}
                                         onClick={() => setSidebarOpen(false)}
                                     >
-                                        <HiOutlineClock className="w-4.5 h-4.5" />
-                                        <span>Accident History</span>
+                                        <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
+                                        <span className="truncate">Accident History</span>
                                     </NavLink>
                                 </div>
                             );
@@ -214,8 +229,8 @@ const MainLayout = () => {
 
                         {/* Authenticated Nav Items */}
                         {isAuthenticated && filteredNav.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-brand-100/60 space-y-1">
-                                <h3 className="px-3 text-[10px] font-bold text-brand-900/40 uppercase tracking-wider mb-2">
+                            <div className={`${SECTION_CLASS} space-y-1`}>
+                                <h3 className={SECTION_HEADING_CLASS}>
                                     Reporting Tools
                                 </h3>
                                 {filteredNav.map((item) => (
@@ -228,21 +243,12 @@ const MainLayout = () => {
                                             const active = itemIsDashboard
                                                 ? location.pathname === '/dashboard' && currentView !== 'map'
                                                 : isActive;
-                                            return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${active
-                                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
-                                                : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                                }`;
+                                            return getNavLinkClass(active);
                                         }}
                                         onClick={() => setSidebarOpen(false)}
                                     >
-                                        {item.iconSrc ? (
-                                            <span className="w-4.5 h-4.5 flex items-center justify-center flex-shrink-0">
-                                                <img src={item.iconSrc} alt={`${item.name} icon`} className="w-3.5 h-3.5 object-contain" />
-                                            </span>
-                                        ) : (
-                                            <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
-                                        )}
-                                        <span>{item.name}</span>
+                                        <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
+                                        <span className="truncate">{item.name}</span>
                                     </NavLink>
                                 ))}
                             </div>
@@ -250,9 +256,9 @@ const MainLayout = () => {
 
                         {/* Admin Section - Visible to admins and responders */}
                         {isAuthenticated && (user?.role === 'admin' || user?.role === 'municipal_admin' || user?.role === 'responder') && filteredAdminNav.length > 0 && (
-                            <div className="mt-5 pt-4">
-                                <h3 className="px-3 text-[10px] font-bold text-brand-900/40 uppercase tracking-wider mb-2.5">
-                                    Response & Management
+                            <div className={SECTION_CLASS}>
+                                <h3 className={SECTION_HEADING_CLASS}>
+                                    Operations
                                 </h3>
                                 <div className="space-y-1">
                                     {filteredAdminNav.map((item) => (
@@ -268,55 +274,25 @@ const MainLayout = () => {
                                                         ? location.pathname === '/admin/zones'
                                                     : isActive;
 
-                                                return `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${adminItemActive
-                                                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1 sidebar-link-active'
-                                                    : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                                    }`;
+                                                return getNavLinkClass(adminItemActive);
                                             }}
                                             onClick={() => setSidebarOpen(false)}
                                         >
-                                            {item.iconSrc ? (
-                                                <span className="w-4.5 h-4.5 flex items-center justify-center flex-shrink-0">
-                                                    <img src={item.iconSrc} alt={`${item.name} icon`} className="w-3.5 h-3.5 object-contain" />
-                                                </span>
-                                            ) : (
-                                                <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
-                                            )}
-                                            <span>{item.name}</span>
+                                            <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
+                                            <span className="truncate">{item.name}</span>
                                         </NavLink>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {/* Profile Settings — visible to all authenticated users */}
-                        {isAuthenticated && (
-                            <div className="mt-3 pt-3 border-t border-brand-100/60 space-y-1">
-                                <h3 className="px-3 text-[10px] font-bold text-brand-900/40 uppercase tracking-wider mb-2">
-                                    Account
-                                </h3>
-                                <NavLink
-                                    to="/profile"
-                                    className={({ isActive }) =>
-                                        `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
-                                            ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 translate-x-1'
-                                            : 'text-brand-900/70 hover:bg-brand-100/80 hover:text-brand-900'
-                                        }`
-                                    }
-                                    onClick={() => setSidebarOpen(false)}
-                                >
-                                    <HiOutlineUserCircle className="w-4.5 h-4.5 flex-shrink-0" />
-                                    <span>Profile Settings</span>
-                                </NavLink>
-                            </div>
-                        )}
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="p-4 mt-auto space-y-4">
+                    <div className="mt-auto space-y-3 border-t border-gray-100 bg-white p-3">
                         {/* Responder Duty Status */}
                         {isAuthenticated && user?.role === 'responder' && (
-                            <div className="bg-white border border-brand-100 rounded-xl p-3">
+                            <div className="rounded-xl bg-gray-50 p-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <p className="text-xs font-bold text-brand-900">Duty Status</p>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${user?.isOnDuty !== false
@@ -329,7 +305,7 @@ const MainLayout = () => {
                                 <button
                                     onClick={handleToggleDutyStatus}
                                     disabled={dutyUpdating}
-                                    className={`w-full flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-colors ${user?.isOnDuty !== false
+                                    className={`flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${user?.isOnDuty !== false
                                         ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                                         } ${dutyUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
@@ -342,66 +318,65 @@ const MainLayout = () => {
 
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
-                            <div className="flex items-center gap-2 px-1">
-                                <div className="w-9 h-9 rounded-full bg-brand-200/50 p-0.5">
-                                    {user?.avatar ? (
-                                        <img
-                                            src={user.avatar.startsWith('http') ? user.avatar : `${import.meta.env.VITE_API_URL || ''}/${user.avatar}`}
-                                            alt={user.name}
-                                            className="w-full h-full rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold">
-                                            {user?.name?.charAt(0).toUpperCase()}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-brand-900 truncate">{user?.name}</p>
-                                    <p className="text-xs text-brand-500 truncate capitalize">
-                                        {user?.role === 'admin' && user?.agency
-                                            ? `${user.agency === 'LGU' ? 'MDRRMO' : user.agency} Responder`
-                                            : user?.role}
-                                        {user?.assignedMunicipality ? ` · ${user.assignedMunicipality}` : ''}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={logout}
-                                    className="p-1.5 text-brand-400 hover:text-danger-500 hover:bg-danger-50 rounded-md transition-colors"
-                                    title="Logout"
+                            <div className="space-y-2">
+                                <Link
+                                    to="/profile"
+                                    onClick={() => setSidebarOpen(false)}
+                                    className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_1.25rem] items-center gap-3 rounded-xl bg-gray-50 p-3 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    aria-label="Open profile settings"
                                 >
-                                    <HiOutlineLogout className="w-4 h-4" />
+                                    <div className="h-10 w-10 shrink-0 rounded-full bg-brand-200/50 p-0.5">
+                                        {user?.avatar ? (
+                                            <img
+                                                src={user.avatar.startsWith('http') ? user.avatar : `${import.meta.env.VITE_API_URL || ''}/${user.avatar}`}
+                                                alt={user.name}
+                                                className="h-full w-full rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">
+                                                {user?.name?.charAt(0).toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="line-clamp-2 text-sm font-semibold leading-4 text-gray-900">{user?.name}</p>
+                                        <p className="mt-1 break-words text-xs leading-4 text-gray-500">{getAccountContext(user)}</p>
+                                    </div>
+                                    <HiOutlineChevronRight className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={logout}
+                                    className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-lg px-3 text-xs font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                >
+                                    <HiOutlineLogout className="h-5 w-5" aria-hidden="true" />
+                                    Sign out
                                 </button>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {/* Guest Welcome Card */}
-                                <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-emerald-700 rounded-2xl p-4 shadow-lg shadow-brand-500/20">
-                                    {/* Decorative elements */}
-                                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-6 -mt-6 blur-xl" />
-                                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-4 -mb-4 blur-lg" />
-
-                                    <div className="relative z-10">
-                                        <div className="flex items-center gap-2.5 mb-3">
-                                            <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                                                <HiOutlineGlobe className="w-4 h-4 text-white" />
+                                <div className="rounded-xl border border-brand-100 bg-white p-4">
+                                    <div>
+                                        <div className="mb-3 flex items-center gap-2.5">
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
+                                                <HiOutlineGlobe className="h-5 w-5 text-brand-700" aria-hidden="true" />
                                             </div>
                                             <div>
-                                                <p className="text-white text-xs font-bold leading-tight">Guest Mode</p>
-                                                <p className="text-brand-200 text-[10px]">Limited access</p>
+                                                <p className="text-xs font-semibold leading-tight text-brand-900">Guest mode</p>
+                                                <p className="text-[11px] text-brand-600">Limited access</p>
                                             </div>
                                         </div>
-                                        <p className="text-brand-100 text-[11px] leading-relaxed mb-3.5">
+                                        <p className="mb-3.5 text-xs leading-relaxed text-gray-600">
                                             Sign in to submit reports, track incidents, and coordinate with responders.
                                         </p>
                                         <Link
                                             to="/login"
                                             onClick={() => setSidebarOpen(false)}
-                                            className="group flex items-center justify-center gap-2 w-full py-2.5 bg-white text-brand-700 font-bold text-xs rounded-xl hover:bg-brand-50 transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                                            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                                         >
                                             <HiOutlineLogin className="w-4 h-4" />
                                             Sign In
-                                            <HiOutlineArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                            <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
                                         </Link>
                                     </div>
                                 </div>
@@ -409,7 +384,7 @@ const MainLayout = () => {
                                 <Link
                                     to="/register"
                                     onClick={() => setSidebarOpen(false)}
-                                    className="group flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-white text-brand-700 border-2 border-brand-200 font-bold text-xs rounded-xl hover:bg-brand-50 hover:border-brand-300 transition-all"
+                                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-brand-200 bg-white px-3 py-2.5 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                 >
                                     <HiOutlineUserAdd className="w-4 h-4" />
                                     Become a Reporter
@@ -424,8 +399,10 @@ const MainLayout = () => {
                     {/* Header */}
                     <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-md sticky top-0 z-30">
                         <button
+                            type="button"
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 text-brand-600 hover:bg-brand-50 rounded-lg -ml-2"
+                            aria-label="Open navigation menu"
+                            className="-ml-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
                         >
                             <HiOutlineMenu className="w-6 h-6" />
                         </button>

@@ -25,6 +25,7 @@ const useIncidentActions = ({
     const [respondLoadingId, setRespondLoadingId] = useState(null);
     const [resolveLoading, setResolveLoading] = useState(false);
     const [transferLoading, setTransferLoading] = useState(false);
+    const [acknowledgeLoadingId, setAcknowledgeLoadingId] = useState(null);
     const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
     const openReview = useCallback((report, status) => {
@@ -177,6 +178,25 @@ const useIncidentActions = ({
         }
     }, [municipalities, patchReport, refreshReports, transferDialog]);
 
+    const acknowledgeTransfer = useCallback(async (report) => {
+        if (!getIncidentCapabilities(user, report).canAcknowledgeTransfer) {
+            toast.error('Only the current target municipal administrator can acknowledge this transfer.');
+            return;
+        }
+
+        setAcknowledgeLoadingId(report._id);
+        try {
+            const response = await adminAPI.acknowledgeTransfer(report._id);
+            patchReport(report._id, response.data?.data || {});
+            toast.success(response.data?.message || 'Transfer acknowledged');
+            await refreshReports({ silent: true });
+        } catch (error) {
+            toast.error(getApiError(error, 'Failed to acknowledge transfer'));
+        } finally {
+            setAcknowledgeLoadingId(null);
+        }
+    }, [patchReport, refreshReports, user]);
+
     const deleteReport = useCallback(async (report) => {
         if (!getIncidentCapabilities(user, report).canDelete) {
             toast.error('Only administrators can delete incident reports.');
@@ -219,11 +239,13 @@ const useIncidentActions = ({
         confirmTransfer,
         transferLoading,
         municipalities,
+        acknowledgeLoadingId,
         deleteLoadingId,
         openReview,
         openRespond,
         openResolve,
         openTransfer,
+        acknowledgeTransfer,
         deleteReport,
     };
 };

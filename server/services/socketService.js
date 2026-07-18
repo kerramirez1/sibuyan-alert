@@ -215,12 +215,35 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, reason) =>
     console.log(`🔄 Report ${report._id} transferred from ${fromMuni} to ${toMuni}`);
 };
 
+/**
+ * Broadcast a non-blocking acknowledgment of the latest municipality transfer.
+ * The report lifecycle and responder eligibility remain unchanged.
+ */
+export const broadcastTransferAcknowledged = (io, report, transfer, municipalAdmin) => {
+    if (!io) return;
+
+    io.emit('reportTransferAcknowledged', {
+        id: report._id,
+        status: report.status,
+        municipalityName: report.municipalityName,
+        transferId: transfer._id,
+        acknowledgedAt: transfer.acknowledgedAt,
+        acknowledgedBy: {
+            _id: municipalAdmin._id,
+            name: municipalAdmin.name,
+            role: municipalAdmin.role,
+            assignedMunicipality: municipalAdmin.assignedMunicipality,
+        },
+    });
+};
+
 export default {
     broadcastVerifiedReportToResponders,
     broadcastMultiUnitResponse,
     broadcastReportVerified,
     broadcastReportRejected,
     broadcastReportTransfer,
+    broadcastTransferAcknowledged,
     joinResponderRoom,
     leaveResponderRoom,
 };

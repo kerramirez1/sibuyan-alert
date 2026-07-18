@@ -51,10 +51,14 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
     const patchReport = useCallback((id, changes) => {
         if (!id) return;
         setReports((current) => current.map((report) => (
-            report._id === id ? { ...report, ...changes } : report
+            report._id === id
+                ? (typeof changes === 'function' ? changes(report) : { ...report, ...changes })
+                : report
         )));
         setSelectedReport((current) => (
-            current?._id === id ? { ...current, ...changes } : current
+            current?._id === id
+                ? (typeof changes === 'function' ? changes(current) : { ...current, ...changes })
+                : current
         ));
     }, []);
 
@@ -106,6 +110,29 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
             refreshRef.current({ silent: true });
         });
 
+        const unsubTransferAcknowledged = subscribe('reportTransferAcknowledged', (data) => {
+            patchReport(data?.id, (report) => {
+                const history = Array.isArray(report.transferHistory) ? report.transferHistory : [];
+                const targetTransferId = data?.transferId?.toString();
+                return {
+                    ...report,
+                    transferHistory: history.map((transfer, index) => {
+                        const transferId = (transfer._id || transfer.id)?.toString();
+                        const isTarget = targetTransferId
+                            ? transferId === targetTransferId
+                            : index === history.length - 1;
+                        return isTarget
+                            ? {
+                                ...transfer,
+                                acknowledgedBy: data?.acknowledgedBy,
+                                acknowledgedAt: data?.acknowledgedAt,
+                            }
+                            : transfer;
+                    }),
+                };
+            });
+        });
+
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
             if (!data?.id || !data?.report?.reportUpdates) return;
             patchReport(data.id, { reportUpdates: data.report.reportUpdates });
@@ -118,6 +145,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
             unsubReject();
             unsubDelete();
             unsubTransferred();
+            unsubTransferAcknowledged();
             unsubReporterUpdate();
         };
     }, [patchReport, removeReport, subscribe]);

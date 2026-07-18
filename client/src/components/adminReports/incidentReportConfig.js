@@ -49,7 +49,7 @@ export const SEVERITY_STYLES = {
 
 export const ADMIN_ROLES = ['admin', 'municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
-export const ADMIN_REVIEWABLE_STATUSES = ['pending', 'transferred'];
+export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];
 
 export const getAgencyLabel = (agency) => {
@@ -67,6 +67,11 @@ export const getAgencyLabel = (agency) => {
 export const hasResponderAssigned = (report) => (
     Boolean(report?.respondedBy) || (Array.isArray(report?.responders) && report.responders.length > 0)
 );
+
+export const getLatestTransfer = (report) => {
+    const history = Array.isArray(report?.transferHistory) ? report.transferHistory : [];
+    return history.length > 0 ? history[history.length - 1] : null;
+};
 
 export const isAssignedResponder = (user, report) => {
     if (user?.role !== 'responder' || !report) return false;
@@ -92,12 +97,20 @@ export const getIncidentCapabilities = (user, report) => {
     const isResponder = user?.role === 'responder';
     const status = report?.status;
     const withinResponderScope = isWithinResponderScope(user, report);
+    const latestTransfer = getLatestTransfer(report);
+    const isTargetMunicipalAdmin = (
+        user?.role === 'municipal_admin'
+        && Boolean(user.assignedMunicipality)
+        && latestTransfer?.toMunicipalityName === user.assignedMunicipality
+        && report?.municipalityName === user.assignedMunicipality
+    );
 
     return {
         canInspect: Boolean(report),
         canVerify: isAdmin && ADMIN_REVIEWABLE_STATUSES.includes(status),
         canReject: isAdmin && ADMIN_REVIEWABLE_STATUSES.includes(status),
         canTransfer: isAdmin && ADMIN_TRANSFERABLE_STATUSES.includes(status),
+        canAcknowledgeTransfer: isTargetMunicipalAdmin && !latestTransfer?.acknowledgedAt,
         canDelete: isAdmin && Boolean(report),
         canRespond: isResponder && withinResponderScope && RESPONDER_ACTIONABLE_STATUSES.includes(status),
         canResolve: isResponder && withinResponderScope && status === 'responding' && isAssignedResponder(user, report),

@@ -189,6 +189,7 @@ export const SocketProvider = ({ children }) => {
                     toast.error(notification.message, toastOptions);
                     break;
                 case 'report_verified':
+                case 'report_transfer_acknowledged':
                     toast.success(notification.message, toastOptions);
                     break;
                 case 'report_rejected':

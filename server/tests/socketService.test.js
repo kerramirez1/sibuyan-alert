@@ -2,6 +2,7 @@ import { describe, expect, test, jest } from '@jest/globals';
 import {
     broadcastMultiUnitResponse,
     broadcastReportTransfer,
+    broadcastTransferAcknowledged,
 } from '../services/socketService.js';
 
 const createIo = () => {
@@ -74,5 +75,35 @@ describe('socket report lifecycle events', () => {
         );
         const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportTransferred')[1];
         expect(publicPayload).not.toHaveProperty('reason');
+    });
+
+    test('broadcasts transfer acknowledgment without changing lifecycle status', () => {
+        const io = createIo();
+        const report = {
+            _id: 'report1',
+            status: 'responding',
+            municipalityName: 'Cajidiocan',
+        };
+        const transfer = {
+            _id: 'transfer1',
+            acknowledgedAt: new Date('2026-07-17T10:15:00Z'),
+        };
+        const municipalAdmin = {
+            _id: 'admin1',
+            name: 'Cajidiocan Admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        broadcastTransferAcknowledged(io, report, transfer, municipalAdmin);
+
+        expect(io.emit).toHaveBeenCalledWith('reportTransferAcknowledged', {
+            id: 'report1',
+            status: 'responding',
+            municipalityName: 'Cajidiocan',
+            transferId: 'transfer1',
+            acknowledgedAt: transfer.acknowledgedAt,
+            acknowledgedBy: municipalAdmin,
+        });
     });
 });

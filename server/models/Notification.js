@@ -21,6 +21,7 @@ const notificationSchema = new mongoose.Schema(
                 'high_risk_alert',      // High-risk zone detected
                 'system',               // System notification
                 'report_transferred',   // Incident report transferred to another municipality
+                'report_transfer_acknowledged', // Target municipality acknowledged a transfer
             ],
             required: true,
         },

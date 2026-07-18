@@ -33,8 +33,8 @@ const IncidentQueueControls = ({
 
     return (
         <>
-            <header className="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+            <header className="mb-4 flex min-w-0 flex-col gap-4 border-b border-gray-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                         {role === 'responder' ? 'Responder operations' : 'Incident management'}
                     </p>
@@ -55,12 +55,12 @@ const IncidentQueueControls = ({
                     )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-2 lg:w-auto lg:grid-flow-col lg:auto-cols-max lg:grid-cols-none">
                     {isAdmin && municipality && (
                         <button
                             type="button"
                             onClick={() => setShowAll(!showAll)}
-                            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         >
                             <HiOutlineGlobe className="h-4 w-4" aria-hidden="true" />
                             {showAll ? 'Use municipal scope' : 'View all Sibuyan'}
@@ -70,7 +70,7 @@ const IncidentQueueControls = ({
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60"
                     >
                         <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
@@ -84,7 +84,7 @@ const IncidentQueueControls = ({
                         event.preventDefault();
                         applySearch();
                     }}
-                    className="flex flex-col gap-2 sm:flex-row"
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
                 >
                     <label className="relative flex-1">
                         <span className="sr-only">Search incidents</span>
@@ -99,7 +99,7 @@ const IncidentQueueControls = ({
                     </label>
                     <button
                         type="submit"
-                        className="min-h-10 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        className="min-h-11 rounded-lg bg-gray-900 px-5 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
                     >
                         Search
                     </button>
@@ -107,7 +107,7 @@ const IncidentQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         >
                             <HiOutlineX className="h-4 w-4" aria-hidden="true" />
                             Clear

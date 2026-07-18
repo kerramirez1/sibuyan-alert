@@ -13,6 +13,7 @@ import {
     HiOutlineDocumentText,
     HiOutlineInbox,
     HiOutlineBell,
+    HiOutlineSwitchHorizontal,
 } from 'react-icons/hi';
 
 const NotificationsPage = () => {
@@ -103,6 +104,10 @@ const NotificationsPage = () => {
                     navigate('/my-reports');
                 }
                 break;
+            case 'report_transferred':
+            case 'report_transfer_acknowledged':
+                navigate('/admin/reports');
+                break;
             case 'reporter_verified':
             case 'reporter_rejected':
                 navigate('/');
@@ -124,6 +129,9 @@ const NotificationsPage = () => {
                 return { icon: HiOutlineExclamation, color: 'text-blue-500', bg: 'bg-blue-50', ring: 'ring-blue-100' };
             case 'report_update':
                 return { icon: HiOutlineDocumentText, color: 'text-indigo-500', bg: 'bg-indigo-50', ring: 'ring-indigo-100' };
+            case 'report_transferred':
+            case 'report_transfer_acknowledged':
+                return { icon: HiOutlineSwitchHorizontal, color: 'text-violet-500', bg: 'bg-violet-50', ring: 'ring-violet-100' };
             case 'new_report':
                 return { icon: HiOutlineExclamation, color: 'text-amber-500', bg: 'bg-amber-50', ring: 'ring-amber-100' };
             default:

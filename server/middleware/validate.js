@@ -156,3 +156,8 @@ export const validateTransferReport = [
     handleValidationErrors,
 ];
 
+export const validateAcknowledgeTransfer = [
+    param('id')
+        .isMongoId().withMessage('Invalid report ID'),
+    handleValidationErrors,
+];

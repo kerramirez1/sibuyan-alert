@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     respondToReport: vi.fn(),
     resolveReport: vi.fn(),
     transferReport: vi.fn(),
+    acknowledgeTransfer: vi.fn(),
     deleteReport: vi.fn(),
     getMunicipalities: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
@@ -38,6 +39,7 @@ vi.mock('../services/api', () => ({
         respondToReport: mocks.respondToReport,
         resolveReport: mocks.resolveReport,
         transferReport: mocks.transferReport,
+        acknowledgeTransfer: mocks.acknowledgeTransfer,
         deleteReport: mocks.deleteReport,
     },
     reportsAPI: { getMunicipalities: mocks.getMunicipalities },
@@ -112,6 +114,7 @@ describe('AdminReportsPage operational queue', () => {
             mocks.respondToReport,
             mocks.resolveReport,
             mocks.transferReport,
+            mocks.acknowledgeTransfer,
             mocks.deleteReport,
             mocks.getMunicipalities,
         ].forEach((mock) => mock.mockReset());
@@ -120,6 +123,7 @@ describe('AdminReportsPage operational queue', () => {
         mocks.respondToReport.mockResolvedValue({ data: { message: 'Response started', data: { status: 'responding' } } });
         mocks.resolveReport.mockResolvedValue({ data: { message: 'Incident resolved', data: { status: 'resolved' } } });
         mocks.transferReport.mockResolvedValue({ data: { message: 'Incident transferred', data: { status: 'transferred' } } });
+        mocks.acknowledgeTransfer.mockResolvedValue({ data: { message: 'Transfer acknowledged', data: { status: 'transferred' } } });
         mocks.deleteReport.mockResolvedValue({ data: { success: true } });
         mocks.getMunicipalities.mockResolvedValue({ data: { data: [] } });
     });
@@ -139,11 +143,12 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.getByTestId('incident-table').querySelector('table')).toHaveClass('table-fixed');
         const compactVerifyButton = screen.getAllByRole('button', { name: 'Verify report' })
             .find((button) => button.hasAttribute('aria-label'));
-        expect(compactVerifyButton.parentElement).toHaveClass('grid-cols-4');
+        expect(compactVerifyButton).toHaveClass('h-10', 'w-10');
+        expect(compactVerifyButton.parentElement).toHaveClass('flex', 'flex-wrap', 'justify-center');
         const mobileVerifyButton = screen.getAllByRole('button', { name: 'Verify report' })
             .find((button) => !button.hasAttribute('aria-label'));
         expect(mobileVerifyButton).toHaveClass('w-full', 'min-h-11');
-        expect(mobileVerifyButton.parentElement).toHaveClass('grid-cols-1', 'min-[360px]:grid-cols-2');
+        expect(mobileVerifyButton.parentElement.className).toContain('auto-fit');
     });
 
     test('closes the incident details drawer from its exit button', async () => {
@@ -184,9 +189,21 @@ describe('AdminReportsPage operational queue', () => {
     });
 
     test('applies lifecycle socket updates and unsubscribes on unmount', async () => {
+        const transferredReport = createReport({
+            _id: 'report-2',
+            address: 'Transferred boundary incident',
+            status: 'transferred',
+            transferHistory: [{
+                _id: 'transfer-1',
+                fromMunicipalityName: 'Magdiwang',
+                toMunicipalityName: 'Cajidiocan',
+                transferredAt: '2026-07-17T08:08:00.000Z',
+                acknowledgedAt: null,
+            }],
+        });
         mocks.getReports.mockResolvedValue(apiResponse([
             createReport({ status: 'verified' }),
-            createReport({ _id: 'report-2', address: 'Transferred boundary incident', status: 'transferred' }),
+            transferredReport,
         ]));
         const { unmount } = renderPage();
         await screen.findAllByText('Poblacion coastal road');
@@ -212,6 +229,16 @@ describe('AdminReportsPage operational queue', () => {
         });
         expect(screen.getAllByText('Resolved').length).toBeGreaterThan(0);
 
+        act(() => {
+            mocks.callbacks.reportTransferAcknowledged({
+                id: 'report-2',
+                transferId: 'transfer-1',
+                acknowledgedAt: '2026-07-17T08:15:00.000Z',
+                acknowledgedBy: { _id: 'admin-1', name: 'Cajidiocan Admin' },
+            });
+        });
+        expect(screen.getAllByText('Transfer acknowledged').length).toBeGreaterThan(0);
+
         expect(Object.keys(mocks.callbacks)).toEqual(expect.arrayContaining([
             'reportResponded',
             'reportResolved',
@@ -219,6 +246,7 @@ describe('AdminReportsPage operational queue', () => {
             'reportRejectedUpdate',
             'reportDeleted',
             'reportTransferred',
+            'reportTransferAcknowledged',
             'reportUpdatedByReporter',
         ]));
 
@@ -267,6 +295,73 @@ describe('AdminReportsPage operational queue', () => {
             status: 'verified',
             rejectionReason: '',
         }));
+    });
+
+    test('lets only the current target municipal admin acknowledge the latest transfer', async () => {
+        const transferredReport = createReport({
+            status: 'transferred',
+            transferHistory: [{
+                _id: 'transfer-1',
+                fromMunicipalityName: 'Magdiwang',
+                toMunicipalityName: 'Cajidiocan',
+                reason: 'The incident coordinates are inside Cajidiocan.',
+                transferredBy: { _id: 'source-admin', name: 'Magdiwang Admin' },
+                transferredAt: '2026-07-17T08:08:00.000Z',
+                acknowledgedAt: null,
+            }],
+        });
+        const acknowledgedReport = {
+            ...transferredReport,
+            transferHistory: [{
+                ...transferredReport.transferHistory[0],
+                acknowledgedAt: '2026-07-17T08:15:00.000Z',
+                acknowledgedBy: { _id: 'admin-1', name: 'Cajidiocan Admin' },
+            }],
+        };
+        mocks.getReports
+            .mockResolvedValueOnce(apiResponse([transferredReport]))
+            .mockResolvedValue(apiResponse([acknowledgedReport]));
+        mocks.acknowledgeTransfer.mockResolvedValue({
+            data: {
+                message: 'Transfer acknowledged successfully',
+                data: acknowledgedReport,
+            },
+        });
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        expect(screen.getAllByText('Awaiting acknowledgment').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'Verify report' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Reject report' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole('button', { name: 'Acknowledge transfer' })[0]);
+
+        await waitFor(() => expect(mocks.acknowledgeTransfer).toHaveBeenCalledWith('report-1'));
+        expect(await screen.findAllByText('Transfer acknowledged')).not.toHaveLength(0);
+        expect(mocks.toast.success).toHaveBeenCalledWith('Transfer acknowledged successfully');
+    });
+
+    test('does not expose acknowledgment to an administrator outside the target municipality', async () => {
+        mocks.user = {
+            _id: 'source-admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Magdiwang',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([createReport({
+            status: 'transferred',
+            transferHistory: [{
+                _id: 'transfer-1',
+                fromMunicipalityName: 'Magdiwang',
+                toMunicipalityName: 'Cajidiocan',
+                transferredAt: '2026-07-17T08:08:00.000Z',
+                acknowledgedAt: null,
+            }],
+        })]));
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        expect(screen.queryByRole('button', { name: 'Acknowledge transfer' })).not.toBeInTheDocument();
     });
 
     test('renders loading, empty, and error states with retry', async () => {

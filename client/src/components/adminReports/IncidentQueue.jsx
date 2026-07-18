@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineBadgeCheck,
     HiOutlineCheckCircle,
+    HiOutlineClock,
     HiOutlineEye,
     HiOutlineLightningBolt,
     HiOutlineLocationMarker,
@@ -13,6 +14,7 @@ import {
     getAgencyLabel,
     getIncidentCapabilities,
     getIncidentDate,
+    getLatestTransfer,
     INCIDENT_STATUS,
     SEVERITY_STYLES,
 } from './incidentReportConfig';
@@ -38,6 +40,21 @@ export const IncidentStatusBadge = ({ status }) => {
     );
 };
 
+const TransferAcknowledgmentState = ({ report }) => {
+    const transfer = getLatestTransfer(report);
+    if (!transfer) return null;
+
+    const acknowledged = Boolean(transfer.acknowledgedAt);
+    const Icon = acknowledged ? HiOutlineCheckCircle : HiOutlineClock;
+
+    return (
+        <span className={`mt-2 flex max-w-full items-start gap-1.5 text-xs font-medium leading-4 ${acknowledged ? 'text-emerald-700' : 'text-amber-700'}`}>
+            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{acknowledged ? 'Transfer acknowledged' : 'Awaiting acknowledgment'}</span>
+        </span>
+    );
+};
+
 const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = false, disabled = false }) => {
     const tones = {
         neutral: 'border-gray-200 text-gray-700 hover:bg-gray-50',
@@ -54,7 +71,7 @@ const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = 
             disabled={disabled}
             aria-label={compact ? label : undefined}
             title={compact ? label : undefined}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-50 ${compact ? 'h-9 w-9 p-0' : 'min-h-11 w-full min-w-0 px-2 py-2.5 min-[360px]:px-3'} ${tones[tone]}`}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-50 ${compact ? 'h-10 w-10 shrink-0 p-0' : 'min-h-11 w-full min-w-0 px-3 py-2.5'} ${tones[tone]}`}
         >
             <Icon className={`h-4 w-4 ${disabled ? 'animate-pulse' : ''}`} aria-hidden="true" />
             {!compact && <span className="min-w-0 break-words text-center leading-tight">{label}</span>}
@@ -67,13 +84,25 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
     const isResponding = report.status === 'responding';
 
     return (
-        <div className={compact ? 'grid w-fit grid-cols-4 gap-1.5' : 'grid w-full grid-cols-1 gap-2 min-[360px]:grid-cols-2'}>
+        <div className={compact
+            ? 'flex w-full flex-wrap items-center justify-center gap-2'
+            : 'grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-2'}>
             {!hideInspect && (
                 <ActionButton
                     label="Inspect report"
                     icon={HiOutlineEye}
                     onClick={() => onInspect(report)}
                     compact={compact}
+                />
+            )}
+            {capabilities.canAcknowledgeTransfer && (
+                <ActionButton
+                    label="Acknowledge transfer"
+                    icon={HiOutlineCheckCircle}
+                    onClick={() => actions.acknowledgeTransfer(report)}
+                    tone="violet"
+                    compact={compact}
+                    disabled={actions.acknowledgeLoadingId === report._id}
                 />
             )}
             {capabilities.canRespond && (
@@ -141,7 +170,7 @@ const IncidentSummary = ({ report }) => (
         <div className="flex items-start gap-2">
             <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
             <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-950">{report.address || 'Address unavailable'}</p>
+                <p className="line-clamp-2 text-sm font-semibold leading-5 text-gray-950">{report.address || 'Address unavailable'}</p>
                 <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{report.description || 'No description provided'}</p>
             </div>
         </div>
@@ -205,14 +234,17 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
 
     return (
         <section aria-label="Incident queue">
-            <div className="space-y-3 xl:hidden">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:hidden">
                 {reports.map((report) => (
-                    <article key={report._id} className="rounded-xl border border-gray-200 bg-white p-4">
-                        <div className="flex items-start justify-between gap-3">
+                    <article key={report._id} className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <IncidentSummary report={report} />
-                            <IncidentStatusBadge status={report.status} />
+                            <div className="shrink-0 sm:max-w-40 sm:text-right">
+                                <IncidentStatusBadge status={report.status} />
+                                <TransferAcknowledgmentState report={report} />
+                            </div>
                         </div>
-                        <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-gray-100 py-3 text-xs">
+                        <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-x-4 gap-y-3 border-y border-gray-100 py-3 text-xs">
                             <div>
                                 <dt className="text-gray-500">Reporter</dt>
                                 <dd className="mt-0.5 font-medium text-gray-800">{report.reporter?.name || 'Unknown reporter'}</dd>
@@ -221,7 +253,7 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
                                 <dt className="text-gray-500">Incident time</dt>
                                 <dd className="mt-0.5 font-medium text-gray-800">{formatRelativeTime(getIncidentDate(report))}</dd>
                             </div>
-                            <div className="col-span-2">
+                            <div>
                                 <dt className="text-gray-500">Responder</dt>
                                 <dd className="mt-0.5"><ResponderSummary report={report} /></dd>
                             </div>
@@ -233,15 +265,15 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
                 ))}
             </div>
 
-            <div data-testid="incident-table" className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white xl:block">
+            <div data-testid="incident-table" className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white 2xl:block">
                 <table className="w-full table-fixed border-collapse text-left">
                     <colgroup>
-                        <col className="w-[29%]" />
-                        <col className="w-[14%]" />
+                        <col className="w-[27%]" />
+                        <col className="w-[13%]" />
+                        <col className="w-[18%]" />
                         <col className="w-[11%]" />
                         <col className="w-[13%]" />
-                        <col className="w-[13%]" />
-                        <col className="w-[20%]" />
+                        <col className="w-[18%]" />
                     </colgroup>
                     <thead className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
@@ -250,20 +282,23 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
                             <th className="px-4 py-3">Status</th>
                             <th className="px-4 py-3">Responder</th>
                             <th className="px-4 py-3">Incident time</th>
-                            <th className="px-4 py-3">Actions</th>
+                            <th className="px-4 py-3 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {reports.map((report) => (
-                            <tr key={report._id} className="align-top hover:bg-gray-50/70">
+                            <tr key={report._id} className="align-middle hover:bg-gray-50/70">
                                 <td className="min-w-0 px-4 py-4"><IncidentSummary report={report} /></td>
                                 <td className="min-w-0 px-4 py-4">
                                     <p className="break-words text-sm font-medium text-gray-800">{report.reporter?.name || 'Unknown reporter'}</p>
                                     <p className="text-xs text-gray-500">{report.reporter?.isVerified ? 'Verified account' : 'Reporter account'}</p>
                                 </td>
-                                <td className="px-4 py-4"><IncidentStatusBadge status={report.status} /></td>
+                                <td className="px-4 py-4">
+                                    <IncidentStatusBadge status={report.status} />
+                                    <TransferAcknowledgmentState report={report} />
+                                </td>
                                 <td className="px-4 py-4"><ResponderSummary report={report} /></td>
-                                <td className="px-4 py-4 text-sm text-gray-600">{formatRelativeTime(getIncidentDate(report))}</td>
+                                <td className="px-4 py-4 text-sm leading-5 text-gray-600">{formatRelativeTime(getIncidentDate(report))}</td>
                                 <td className="px-4 py-4">
                                     <IncidentActionButtons report={report} user={user} actions={actions} onInspect={onInspect} compact />
                                 </td>
