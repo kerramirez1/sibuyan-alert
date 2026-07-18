@@ -3,6 +3,7 @@ node_modules/
 uploads/
 *.log
 ACCOUNTS.md
+coverage/
 
 
 
