@@ -1,6 +1,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import {
     broadcastMultiUnitResponse,
+    broadcastReportVerified,
     broadcastReportTransfer,
     broadcastTransferAcknowledged,
 } from '../services/socketService.js';
@@ -46,6 +47,54 @@ describe('socket report lifecycle events', () => {
         );
     });
 
+    test('keeps the first response timestamp and responder when another unit joins', () => {
+        const io = createIo();
+        const firstRespondedAt = new Date('2026-07-17T10:05:00Z');
+        const report = {
+            _id: 'report1',
+            municipalityName: 'Magdiwang',
+            respondedBy: 'responder1',
+            respondedAt: firstRespondedAt,
+            responders: [
+                { user: 'responder1', respondedAt: firstRespondedAt },
+                { user: 'responder2', respondedAt: new Date('2026-07-17T10:20:00Z') },
+            ],
+        };
+
+        broadcastMultiUnitResponse(
+            io,
+            report,
+            { _id: 'responder2', name: 'Joining Unit', agency: 'PNP' },
+            'PNP - Magdiwang',
+            'PNP'
+        );
+
+        const payload = io.emit.mock.calls.find(([event]) => event === 'reportResponded')[1];
+        expect(payload.respondedAt).toBe(firstRespondedAt);
+        expect(payload.respondedBy).toEqual({ _id: 'responder1' });
+    });
+
+    test('includes canonical analytics fields in verified report events', () => {
+        const io = createIo();
+        const createdAt = new Date('2026-07-17T09:00:00Z');
+        const report = {
+            _id: 'report1',
+            createdAt,
+            updatedAt: new Date('2026-07-17T09:10:00Z'),
+            incidentTime: new Date('2026-07-16T22:00:00Z'),
+            municipalityName: 'Cajidiocan',
+            barangay: 'Poblacion',
+        };
+
+        broadcastReportVerified(io, report);
+
+        expect(io.emit).toHaveBeenCalledWith('reportVerified', expect.objectContaining({
+            id: 'report1',
+            createdAt,
+            barangay: 'Poblacion',
+        }));
+    });
+
     test('broadcasts a public-safe transferred marker payload', () => {
         const io = createIo();
         const report = {
@@ -56,6 +105,8 @@ describe('socket report lifecycle events', () => {
             incidentCategory: 'accident',
             incidentType: 'vehicular',
             incidentTime: new Date('2026-07-17T10:00:00Z'),
+            createdAt: new Date('2026-07-17T10:05:00Z'),
+            barangay: 'Boundary',
             coordinates: { lat: 12.4, lng: 122.5 },
             severity: 'moderate',
             status: 'transferred',
@@ -71,6 +122,8 @@ describe('socket report lifecycle events', () => {
                 municipalityName: 'Magdiwang',
                 status: 'transferred',
                 coordinates: { lat: 12.4, lng: 122.5 },
+                createdAt: report.createdAt,
+                barangay: 'Boundary',
             })
         );
         const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportTransferred')[1];

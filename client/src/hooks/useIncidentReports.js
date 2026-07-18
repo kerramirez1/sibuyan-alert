@@ -70,13 +70,14 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
 
     useEffect(() => {
         const unsubRespond = subscribe('reportResponded', (data) => {
-            patchReport(data?.id, {
+            patchReport(data?.id, (report) => ({
+                ...report,
                 status: 'responding',
-                respondedBy: data?.respondedBy,
-                respondedAt: data?.respondedAt,
-                responders: data?.responders,
-                responderAgency: data?.respondedBy?.agency,
-            });
+                respondedBy: report.respondedBy || data?.respondedBy,
+                respondedAt: report.respondedAt || data?.respondedAt,
+                responders: data?.responders || report.responders,
+                responderAgency: report.responderAgency || data?.respondedBy?.agency,
+            }));
         });
 
         const unsubResolve = subscribe('reportResolved', (data) => {

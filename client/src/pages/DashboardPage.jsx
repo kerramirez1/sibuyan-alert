@@ -5,6 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { reportsAPI, adminAPI, highRiskZonesAPI, analyticsAPI } from '../services/api';
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
 import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
+import {
+    fetchAllAdminReportPages,
+    updateDashboardReportStatus,
+    upsertDashboardReport,
+} from '../utils/dashboardReports';
 import { format, isSameDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
 
 const STATUS_COLORS = {
@@ -20,7 +25,6 @@ const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
     const [reports, setReports] = useState([]);
     const [highRiskZones, setHighRiskZones] = useState([]);
-    const [stats, setStats] = useState(null);
     const [roleStats, setRoleStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
@@ -60,7 +64,9 @@ const DashboardPage = () => {
     const isAdmin = ['admin', 'municipal_admin'].includes(user?.role);
     const isResponder = user?.role === 'responder';
     const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
-    const activeMunicipality = (hasMunicipality && !showAll) ? user.assignedMunicipality : null;
+    const canViewAllMunicipalities = user?.role === 'admin';
+    const effectiveShowAll = canViewAllMunicipalities && showAll;
+    const activeMunicipality = (hasMunicipality && !effectiveShowAll) ? user.assignedMunicipality : null;
 
     const dashboardReports = useMemo(() => {
         if (!activeMunicipality) return reports;
@@ -133,8 +139,8 @@ const DashboardPage = () => {
 
             const response = await adminAPI.respondToReport(report._id, unitPayload);
 
-            const refreshed = await adminAPI.getReports({ limit: 1000 });
-            setReports(refreshed.data.data.reports || []);
+            const refreshedReports = await fetchAllAdminReportPages(adminAPI.getReports);
+            setReports(refreshedReports);
 
             return { ok: true, message: response.data?.message || 'Now responding to incident' };
         } catch (error) {
@@ -150,8 +156,8 @@ const DashboardPage = () => {
         try {
             const response = await adminAPI.resolveReport(report._id, { resolutionNotes: 'Resolved via map popup' });
 
-            const refreshed = await adminAPI.getReports({ limit: 1000 });
-            setReports(refreshed.data.data.reports || []);
+            const refreshedReports = await fetchAllAdminReportPages(adminAPI.getReports);
+            setReports(refreshedReports);
 
             return { ok: true, message: response.data?.message || 'Incident resolved successfully' };
         } catch (error) {
@@ -171,19 +177,13 @@ const DashboardPage = () => {
         if (canViewReports) {
             setLoading(true);
             if (isAdmin) {
-                // Admin fetch: Pass showAll param to get consolidated data when toggled
-                adminAPI.getReports({ limit: 1000, showAll: showAll })
-                    .then(res => {
-                        setReports(res.data.data.reports || []);
-                    })
+                fetchAllAdminReportPages(adminAPI.getReports, { showAll: effectiveShowAll })
+                    .then(setReports)
                     .catch(handleReportLoadError)
                     .finally(() => setLoading(false));
             } else if (isResponder) {
-                // Responder fetch: use admin endpoint so pending reports are included
-                adminAPI.getReports({ limit: 1000 })
-                    .then(res => {
-                        setReports(res.data.data.reports || []);
-                    })
+                fetchAllAdminReportPages(adminAPI.getReports)
+                    .then(setReports)
                     .catch(handleReportLoadError)
                     .finally(() => setLoading(false));
             } else {
@@ -195,11 +195,6 @@ const DashboardPage = () => {
                     .catch(handleReportLoadError)
                     .finally(() => setLoading(false));
             }
-
-            const statsParams = activeMunicipality ? { municipalityName: activeMunicipality } : {};
-            reportsAPI.getStats(statsParams)
-                .then(res => setStats(res.data.data))
-                .catch(err => console.error(err));
 
             // Responder dashboard cards rely on roleStats; fetch it in this branch too.
             if (isResponder) {
@@ -233,15 +228,12 @@ const DashboardPage = () => {
                 .catch(handleReportLoadError)
                 .finally(() => setLoading(false));
 
-            reportsAPI.getStats()
-                .then(res => setStats(res.data.data))
-                .catch(err => console.error(err));
         }
 
-        highRiskZonesAPI.getAll()
+        highRiskZonesAPI.getAll(activeMunicipality ? { municipality: activeMunicipality } : undefined)
             .then(res => setHighRiskZones(res.data.data || []))
             .catch(err => console.error(err));
-    }, [canViewReports, isReporter, isResponder, activeMunicipality, showAll]);
+    }, [canViewReports, isReporter, isResponder, activeMunicipality, effectiveShowAll]);
 
     useEffect(() => {
         if (!isResponder) {
@@ -266,24 +258,6 @@ const DashboardPage = () => {
 
     // Real-time map updates (including public viewers)
     useEffect(() => {
-        let statsDebounceTimer = null;
-
-        const refreshStats = () => {
-            const statsParams = activeMunicipality ? { municipalityName: activeMunicipality } : {};
-            reportsAPI.getStats(statsParams)
-                .then(res => setStats(res.data.data))
-                .catch(err => console.error(err));
-        };
-
-        const scheduleStatsRefresh = () => {
-            if (statsDebounceTimer) {
-                clearTimeout(statsDebounceTimer);
-            }
-            statsDebounceTimer = setTimeout(() => {
-                refreshStats();
-            }, 400);
-        };
-
         const normalizeIncomingReport = (report) => {
             if (!report) return null;
             const id = report._id || report.id;
@@ -304,56 +278,49 @@ const DashboardPage = () => {
         const unsub0 = subscribe('newReport', (data) => {
             const normalized = normalizeIncomingReport(data);
             if (!normalized) return;
-            setReports(prev => [normalized, ...prev.filter(r => r._id !== normalized._id)]);
-            scheduleStatsRefresh();
+            setReports((previous) => upsertDashboardReport(previous, normalized));
         });
 
         const unsub1 = subscribe('reportVerified', (report) => {
             const normalized = normalizeIncomingReport({ ...report, status: 'verified' });
             if (!normalized) return;
-            setReports(prev => [normalized, ...prev.filter(r => r._id !== normalized._id)]);
-            scheduleStatsRefresh();
+            setReports((previous) => upsertDashboardReport(previous, normalized));
         });
         const unsub2 = subscribe('reportResponded', (data) => {
-            setReports(prev => prev.map(r => r._id === data.id
-                ? {
-                    ...r,
-                    status: 'responding',
-                    municipalityName: data.municipalityName || r.municipalityName,
-                    respondedBy: data.respondedBy,
-                    respondedAt: data.respondedAt,
-                    responders: data.responders || r.responders,
-                }
-                : r
-            ));
-            scheduleStatsRefresh();
+            setReports((previous) => upsertDashboardReport(previous, {
+                ...data,
+                _id: data.id,
+                status: 'responding',
+            }));
         });
         const unsub3 = subscribe('reportResolved', (data) => {
-            setReports(prev => prev.map(r => r._id === data.id
-                ? { ...r, status: 'resolved', resolvedBy: data.resolvedBy, resolvedAt: data.resolvedAt }
-                : r
-            ));
-            scheduleStatsRefresh();
+            setReports((previous) => upsertDashboardReport(previous, {
+                ...data,
+                _id: data.id,
+                status: 'resolved',
+            }));
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
             // Remove the deleted report from local state
             setReports(prev => prev.filter(r => r._id !== data.id));
-            scheduleStatsRefresh();
         });
         const unsub5 = subscribe('highRiskZoneCreated', (zone) => {
             if (!zone?._id) return;
+            if (activeMunicipality && zone.municipality !== activeMunicipality) return;
             setHighRiskZones(prev => [zone, ...prev.filter(z => z._id !== zone._id)]);
-            scheduleStatsRefresh();
         });
         const unsub6 = subscribe('highRiskZoneUpdated', (zone) => {
             if (!zone?._id) return;
-            setHighRiskZones(prev => prev.map(z => z._id === zone._id ? zone : z));
-            scheduleStatsRefresh();
+            setHighRiskZones((previous) => {
+                if (activeMunicipality && zone.municipality !== activeMunicipality) {
+                    return previous.filter((existing) => existing._id !== zone._id);
+                }
+                return [zone, ...previous.filter((existing) => existing._id !== zone._id)];
+            });
         });
         const unsub7 = subscribe('highRiskZoneDeleted', (data) => {
             if (!data?.id) return;
             setHighRiskZones(prev => prev.filter(z => z._id !== data.id));
-            scheduleStatsRefresh();
         });
         const unsub8 = subscribe('reportTransferred', (data) => {
             const normalized = normalizeIncomingReport({
@@ -362,26 +329,14 @@ const DashboardPage = () => {
                 municipalityName: data.toMunicipality || data.municipalityName,
             });
             if (!normalized) return;
-            setReports(prev => {
-                const existing = prev.find((report) => report._id === normalized._id);
-                if (!existing) return [normalized, ...prev];
-                return prev.map((report) =>
-                    report._id === normalized._id ? { ...report, ...normalized } : report
-                );
-            });
-            scheduleStatsRefresh();
+            setReports((previous) => upsertDashboardReport(previous, normalized));
         });
         const unsub9 = subscribe('reportRejectedUpdate', (data) => {
             if (!data?.id) return;
-            setReports(prev => prev.filter((report) => report._id !== data.id));
-            scheduleStatsRefresh();
+            setReports((previous) => updateDashboardReportStatus(previous, data.id, 'rejected'));
         });
 
         return () => {
-            if (statsDebounceTimer) {
-                clearTimeout(statsDebounceTimer);
-                statsDebounceTimer = null;
-            }
             unsub0();
             unsub1();
             unsub2();
@@ -565,11 +520,11 @@ const DashboardPage = () => {
         <DashboardAnalyticsWorkspace
             user={user}
             hasMunicipality={hasMunicipality}
-            showAll={showAll}
+            canViewAllMunicipalities={canViewAllMunicipalities}
+            showAll={effectiveShowAll}
             setShowAll={setShowAll}
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
-            stats={stats}
             reports={monthFilteredReports}
             allReports={dashboardReports}
             highRiskZones={highRiskZones}

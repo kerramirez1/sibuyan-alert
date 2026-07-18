@@ -58,6 +58,17 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
         return;
     }
 
+    const firstResponderEntry = report.responders?.[0];
+    const firstResponderId = report.respondedBy?._id
+        || report.respondedBy
+        || firstResponderEntry?.user?._id
+        || firstResponderEntry?.user
+        || responder._id;
+    const isCurrentResponderFirst = firstResponderId?.toString() === responder._id?.toString();
+    const firstRespondedAt = report.respondedAt
+        || firstResponderEntry?.respondedAt
+        || new Date();
+
     const responseData = {
         reportId: report._id,
         responder: {
@@ -76,14 +87,16 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
         id: report._id,
         status: 'responding',
         municipalityName: report.municipalityName,
-        respondedBy: {
-            _id: responder._id,
-            name: responder.name,
-            agency: responder.agency,
-            unitName,
-            unitType,
-        },
-        respondedAt: responseData.respondedAt,
+        respondedBy: isCurrentResponderFirst
+            ? {
+                _id: responder._id,
+                name: responder.name,
+                agency: responder.agency,
+                unitName,
+                unitType,
+            }
+            : { _id: firstResponderId },
+        respondedAt: firstRespondedAt,
         responders: report.responders || [],
     });
 
@@ -116,6 +129,9 @@ export const broadcastReportVerified = (io, report) => {
         municipalityName: report.municipalityName,
         coordinates: report.coordinates,
         incidentTime: report.incidentTime,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        barangay: report.barangay,
         severity: report.severity,
         priority: report.priority,
         casualties: report.casualties,
@@ -190,6 +206,9 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, reason) =>
         incidentCategory: report.incidentCategory,
         incidentType: report.incidentType,
         incidentTime: report.incidentTime,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        barangay: report.barangay,
         coordinates: report.coordinates,
         severity: report.severity,
         fromMunicipality: fromMuni,

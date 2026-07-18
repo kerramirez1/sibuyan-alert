@@ -1,8 +1,7 @@
 import User from '../models/User.js';
 import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
-
-const canViewAllMunicipalities = (user) => ['admin', 'municipal_admin'].includes(user.role);
+import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
 
 const getMunicipalityScopedUserIds = async (municipalityName) => {
     const [assignedUsers, reporterIdsFromReports] = await Promise.all([

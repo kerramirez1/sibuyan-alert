@@ -140,16 +140,19 @@ function MyReportsPage() {
         const updateReport = (id, changes) => {
             if (!id) return;
             setReports((current) => current.map((report) => (
-                report._id === id ? { ...report, ...changes } : report
+                report._id === id
+                    ? (typeof changes === 'function' ? changes(report) : { ...report, ...changes })
+                    : report
             )));
         };
 
         const unsubRespond = subscribe('reportResponded', (data) => {
-            updateReport(data?.id, {
+            updateReport(data?.id, (report) => ({
+                ...report,
                 status: 'responding',
-                respondedBy: data?.respondedBy,
-                respondedAt: data?.respondedAt,
-            });
+                respondedBy: report.respondedBy || data?.respondedBy,
+                respondedAt: report.respondedAt || data?.respondedAt,
+            }));
         });
         const unsubResolve = subscribe('reportResolved', (data) => {
             updateReport(data?.id, {

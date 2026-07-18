@@ -177,11 +177,11 @@ const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = fa
 const DashboardAnalyticsWorkspace = ({
     user,
     hasMunicipality,
+    canViewAllMunicipalities,
     showAll,
     setShowAll,
     selectedMonth,
     setSelectedMonth,
-    stats,
     reports,
     allReports,
     highRiskZones,
@@ -211,7 +211,7 @@ const DashboardAnalyticsWorkspace = ({
         ]);
         const summaryData = [
             { Metric: 'New Reports in Selected Month', Value: reports.length },
-            { Metric: 'Total Reports in Scope', Value: stats?.totalReports ?? reports.length },
+            { Metric: 'Total Reports in Scope', Value: allReports.length },
             { Metric: 'Pending Review', Value: performanceMetrics.pendingCount },
             { Metric: 'Available for Dispatch', Value: performanceMetrics.dispatchReadyCount },
             { Metric: 'Active Responses', Value: performanceMetrics.respondingCount },
@@ -310,7 +310,7 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    {hasMunicipality && (
+                    {hasMunicipality && canViewAllMunicipalities && (
                         <button type="button" onClick={() => setShowAll(!showAll)} className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 lg:w-auto lg:min-w-44 ${showAll ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}>
                             <HiOutlineGlobe className="h-4 w-4" aria-hidden="true" />
                             <span className="truncate">{showAll ? 'All Sibuyan' : user?.assignedMunicipality}</span>

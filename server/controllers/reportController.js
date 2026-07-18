@@ -632,7 +632,9 @@ export const getStats = async (req, res) => {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         // Build match query
-        const matchQuery = { status: { $in: ['verified', 'responding', 'resolved'] } };
+        // Public aggregates include every published lifecycle state. Pending and
+        // rejected reports remain private to operational users.
+        const matchQuery = { status: { $in: ['verified', 'transferred', 'responding', 'resolved'] } };
         if (category) matchQuery.incidentCategory = category;
         if (municipality) matchQuery.municipality = municipality;
         if (municipalityName) matchQuery.municipalityName = municipalityName;

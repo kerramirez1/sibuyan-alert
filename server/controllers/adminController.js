@@ -5,6 +5,7 @@ import Notification from '../models/Notification.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushNotification, pushTemplates } from '../services/pushService.js';
 import { broadcastVerifiedReportToResponders, broadcastReportVerified, broadcastReportRejected } from '../services/socketService.js';
+import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -21,8 +22,6 @@ const sanitizeSearch = (value) => {
     if (!trimmed) return null;
     return trimmed.slice(0, 100);
 };
-
-const canViewAllMunicipalities = (user) => ['admin', 'municipal_admin'].includes(user.role);
 
 const ensureReportScopeAccess = (user, report) => {
     if (!user.assignedMunicipality) return true;
@@ -451,9 +450,10 @@ export const getAllReports = async (req, res) => {
             ? { municipalityName: admin.assignedMunicipality }
             : {};
 
-        const [pending, verified, rejected, responding, resolved] = await Promise.all([
+        const [pending, verified, transferred, rejected, responding, resolved] = await Promise.all([
             Report.countDocuments({ ...statsQuery, status: 'pending' }),
             Report.countDocuments({ ...statsQuery, status: 'verified' }),
+            Report.countDocuments({ ...statsQuery, status: 'transferred' }),
             Report.countDocuments({ ...statsQuery, status: 'rejected' }),
             Report.countDocuments({ ...statsQuery, status: 'responding' }),
             Report.countDocuments({ ...statsQuery, status: 'resolved' }),
@@ -473,10 +473,11 @@ export const getAllReports = async (req, res) => {
                 stats: {
                     pending,
                     verified,
+                    transferred,
                     rejected,
                     responding,
                     resolved,
-                    total: pending + verified + rejected + responding + resolved,
+                    total: pending + verified + transferred + rejected + responding + resolved,
                 },
                 adminMunicipality: admin.assignedMunicipality || null,
             },

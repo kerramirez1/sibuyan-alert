@@ -35,6 +35,7 @@ const report = {
 const baseProps = {
     user: { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
     hasMunicipality: true,
+    canViewAllMunicipalities: false,
     showAll: false,
     setShowAll: vi.fn(),
     selectedMonth,
@@ -77,6 +78,7 @@ describe('DashboardAnalyticsWorkspace', () => {
         render(<DashboardAnalyticsWorkspace {...baseProps} onOpenMap={onOpenMap} onOpenReports={onOpenReports} />);
 
         expect(screen.getByRole('heading', { name: 'Incident overview' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Cajidiocan' })).not.toBeInTheDocument();
         expect(screen.getByRole('toolbar', { name: 'Analytics controls' })).toHaveClass(
             'grid-cols-1',
             'sm:grid-cols-2',

@@ -29,6 +29,7 @@ const IncidentQueueControls = ({
     loading,
 }) => {
     const isAdmin = ADMIN_ROLES.includes(role);
+    const canViewAllMunicipalities = role === 'admin';
     const hasFilters = Boolean(status || appliedSearch);
 
     return (
@@ -56,7 +57,7 @@ const IncidentQueueControls = ({
                 </div>
 
                 <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-2 lg:w-auto lg:grid-flow-col lg:auto-cols-max lg:grid-cols-none">
-                    {isAdmin && municipality && (
+                    {canViewAllMunicipalities && municipality && (
                         <button
                             type="button"
                             onClick={() => setShowAll(!showAll)}

@@ -1,0 +1,92 @@
+import { describe, expect, test, vi } from 'vitest';
+import {
+    fetchAllAdminReportPages,
+    mergeDashboardReport,
+    updateDashboardReportStatus,
+    upsertDashboardReport,
+} from '../utils/dashboardReports';
+
+describe('dashboard report data synchronization', () => {
+    test('preserves canonical submission and first-response fields during socket merges', () => {
+        const existing = {
+            _id: 'report-1',
+            createdAt: '2026-06-30T23:55:00.000Z',
+            barangay: 'Poblacion',
+            reporter: { _id: 'reporter-1', name: 'Reporter' },
+            respondedAt: '2026-07-01T00:05:00.000Z',
+            respondedBy: { _id: 'responder-1', name: 'First Responder' },
+        };
+
+        const merged = mergeDashboardReport(existing, {
+            id: 'report-1',
+            status: 'responding',
+            incidentTime: '2026-07-02T10:00:00.000Z',
+            respondedAt: '2026-07-02T10:30:00.000Z',
+            respondedBy: { _id: 'responder-2', name: 'Additional Responder' },
+            responders: [{ user: 'responder-1' }, { user: 'responder-2' }],
+        });
+
+        expect(merged).toMatchObject({
+            _id: 'report-1',
+            status: 'responding',
+            createdAt: existing.createdAt,
+            barangay: 'Poblacion',
+            reporter: existing.reporter,
+            respondedAt: existing.respondedAt,
+            respondedBy: existing.respondedBy,
+        });
+        expect(merged.responders).toHaveLength(2);
+    });
+
+    test('updates rejected lifecycle state without removing the report', () => {
+        const reports = [{ _id: 'report-1', status: 'pending', createdAt: '2026-07-01T00:00:00.000Z' }];
+        const updated = updateDashboardReportStatus(reports, 'report-1', 'rejected');
+
+        expect(updated).toHaveLength(1);
+        expect(updated[0]).toMatchObject({ _id: 'report-1', status: 'rejected' });
+    });
+
+    test('merges verified payloads into existing records instead of replacing complete data', () => {
+        const reports = [{
+            _id: 'report-1',
+            status: 'pending',
+            createdAt: '2026-07-01T00:00:00.000Z',
+            barangay: 'Cambajao',
+            reporter: { name: 'Reporter' },
+        }];
+
+        const updated = upsertDashboardReport(reports, {
+            _id: 'report-1',
+            status: 'verified',
+            address: 'Updated address',
+            incidentTime: '2026-06-30T20:00:00.000Z',
+        });
+
+        expect(updated[0]).toMatchObject({
+            status: 'verified',
+            createdAt: '2026-07-01T00:00:00.000Z',
+            barangay: 'Cambajao',
+            reporter: { name: 'Reporter' },
+            address: 'Updated address',
+        });
+    });
+
+    test('loads and deduplicates every paginated admin report page', async () => {
+        const fetchPage = vi.fn(({ page, limit }) => Promise.resolve({
+            data: {
+                data: {
+                    reports: page === 1
+                        ? [{ _id: 'report-1' }, { _id: 'report-2' }]
+                        : [{ _id: 'report-2' }, { _id: 'report-3' }],
+                    pagination: { page, pages: 2, limit },
+                },
+            },
+        }));
+
+        const reports = await fetchAllAdminReportPages(fetchPage, { showAll: false }, 2);
+
+        expect(fetchPage).toHaveBeenNthCalledWith(1, { showAll: false, page: 1, limit: 2 });
+        expect(fetchPage).toHaveBeenNthCalledWith(2, { showAll: false, page: 2, limit: 2 });
+        expect(reports.map((report) => report._id)).toEqual(['report-1', 'report-2', 'report-3']);
+    });
+});
