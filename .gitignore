@@ -1,0 +1,6 @@
+ACCOUNTS.md
+scratch/
+.env
+node_modules/
+*.log
+uploads/
