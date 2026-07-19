@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { adminAPI } from '../services/api';
+import { adminAPI, filesAPI } from '../services/api';
+import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
@@ -29,10 +30,58 @@ const AdminUsersPage = () => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [verificationAssets, setVerificationAssets] = useState({
+        idDocument: null,
+        selfiePhoto: null,
+        loading: false,
+        error: null,
+    });
 
     useEffect(() => {
         fetchUsers();
     }, [filter]);
+
+    useEffect(() => {
+        if (!verifyModalOpen || !selectedUser) return undefined;
+
+        let cancelled = false;
+        const blobUrls = [];
+        const loadAsset = async (url) => {
+            if (!url) return null;
+            if (!isGridFsAsset(url)) return resolveAssetUrl(url);
+            const response = await filesAPI.getProtected(url);
+            const blobUrl = URL.createObjectURL(response.data);
+            blobUrls.push(blobUrl);
+            return blobUrl;
+        };
+
+        setVerificationAssets({ idDocument: null, selfiePhoto: null, loading: true, error: null });
+        Promise.all([
+            loadAsset(selectedUser.idDocument),
+            loadAsset(selectedUser.selfiePhoto),
+        ])
+            .then(([idDocument, selfiePhoto]) => {
+                if (!cancelled) {
+                    setVerificationAssets({ idDocument, selfiePhoto, loading: false, error: null });
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to load verification files:', error);
+                if (!cancelled) {
+                    setVerificationAssets({
+                        idDocument: null,
+                        selfiePhoto: null,
+                        loading: false,
+                        error: 'Verification files could not be loaded.',
+                    });
+                }
+            });
+
+        return () => {
+            cancelled = true;
+            blobUrls.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [verifyModalOpen, selectedUser]);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -80,6 +129,35 @@ const AdminUsersPage = () => {
     const openDeleteModal = (user) => {
         setUserToDelete(user);
         setDeleteModalOpen(true);
+    };
+
+    const openAsset = async (url) => {
+        if (!url) return;
+        if (!isGridFsAsset(url)) {
+            window.open(resolveAssetUrl(url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        const previewWindow = window.open('', '_blank');
+        if (previewWindow) previewWindow.opener = null;
+
+        try {
+            const response = await filesAPI.getProtected(url);
+            const blobUrl = URL.createObjectURL(response.data);
+            if (previewWindow) {
+                previewWindow.location.replace(blobUrl);
+            } else {
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.click();
+            }
+            window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        } catch (error) {
+            previewWindow?.close();
+            toast.error(error.response?.data?.message || 'Failed to open protected file');
+        }
     };
 
     const handleDelete = async () => {
@@ -244,7 +322,7 @@ const AdminUsersPage = () => {
                                                                     'bg-gradient-to-br from-gray-400 to-gray-600'
                                                         }`}>
                                                         {user.avatar ? (
-                                                            <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                                                            <img src={resolveAssetUrl(user.avatar)} alt="" className="w-full h-full rounded-full object-cover" />
                                                         ) : (
                                                             user.name?.charAt(0).toUpperCase()
                                                         )}
@@ -266,26 +344,24 @@ const AdminUsersPage = () => {
                                             <td>
                                                 <div className="flex items-center gap-2">
                                                     {user.idDocument ? (
-                                                        <a
-                                                            href={user.idDocument}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openAsset(user.idDocument)}
                                                             className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs font-medium"
                                                         >
                                                             <HiOutlineIdentification className="w-4 h-4" />
                                                             ID
-                                                        </a>
+                                                        </button>
                                                     ) : null}
                                                     {user.selfiePhoto ? (
-                                                        <a
-                                                            href={user.selfiePhoto}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openAsset(user.selfiePhoto)}
                                                             className="text-emerald-600 hover:text-emerald-700 flex items-center gap-1 text-xs font-medium"
                                                         >
                                                             <HiOutlineCamera className="w-4 h-4" />
                                                             Selfie
-                                                        </a>
+                                                        </button>
                                                     ) : null}
                                                     {!user.idDocument && !user.selfiePhoto && (
                                                         <span className="text-gray-400">-</span>
@@ -365,7 +441,13 @@ const AdminUsersPage = () => {
                         {(selectedUser.idDocument || selectedUser.selfiePhoto) && (
                             <div className="mb-6">
                                 <p className="label mb-3">Verification Documents</p>
-                                <div className={`grid gap-4 ${selectedUser.idDocument && selectedUser.selfiePhoto ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                {verificationAssets.loading && (
+                                    <p className="text-sm text-gray-500">Loading protected verification files...</p>
+                                )}
+                                {verificationAssets.error && (
+                                    <p className="text-sm text-danger-600" role="alert">{verificationAssets.error}</p>
+                                )}
+                                <div className={`grid gap-4 ${selectedUser.idDocument && selectedUser.selfiePhoto ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
                                     {/* ID Document */}
                                     {selectedUser.idDocument && (
                                         <div>
@@ -373,17 +455,23 @@ const AdminUsersPage = () => {
                                                 <HiOutlineIdentification className="w-3.5 h-3.5" /> ID Document
                                             </p>
                                             {selectedUser.idDocument.endsWith('.pdf') ? (
-                                                <a href={selectedUser.idDocument} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-sm">
+                                                <button type="button" onClick={() => openAsset(selectedUser.idDocument)} className="btn-secondary w-full text-sm">
                                                     <HiOutlineEye className="w-4 h-4" /> View PDF
-                                                </a>
+                                                </button>
                                             ) : (
-                                                <a href={selectedUser.idDocument} target="_blank" rel="noopener noreferrer" className="block">
-                                                    <img
-                                                        src={selectedUser.idDocument}
-                                                        alt="ID Document"
-                                                        className="w-full rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
-                                                    />
-                                                </a>
+                                                <button type="button" onClick={() => openAsset(selectedUser.idDocument)} className="block w-full">
+                                                    {verificationAssets.idDocument ? (
+                                                        <img
+                                                            src={verificationAssets.idDocument}
+                                                            alt="ID Document"
+                                                            className="w-full rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                                                        />
+                                                    ) : (
+                                                        <span className="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 text-sm text-gray-500">
+                                                            Preview unavailable
+                                                        </span>
+                                                    )}
+                                                </button>
                                             )}
                                         </div>
                                     )}
@@ -394,13 +482,19 @@ const AdminUsersPage = () => {
                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                                                 <HiOutlineCamera className="w-3.5 h-3.5" /> Face Verification
                                             </p>
-                                            <a href={selectedUser.selfiePhoto} target="_blank" rel="noopener noreferrer" className="block">
-                                                <img
-                                                    src={selectedUser.selfiePhoto}
-                                                    alt="Selfie Verification"
-                                                    className="w-full rounded-xl border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
-                                                />
-                                            </a>
+                                            <button type="button" onClick={() => openAsset(selectedUser.selfiePhoto)} className="block w-full">
+                                                {verificationAssets.selfiePhoto ? (
+                                                    <img
+                                                        src={verificationAssets.selfiePhoto}
+                                                        alt="Selfie Verification"
+                                                        className="w-full rounded-xl border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                                                    />
+                                                ) : (
+                                                    <span className="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 text-sm text-gray-500">
+                                                        Preview unavailable
+                                                    </span>
+                                                )}
+                                            </button>
                                         </div>
                                     )}
                                 </div>

@@ -7,6 +7,7 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import { resolveAssetUrl } from '../../utils/assets';
 import { IncidentActionButtons, IncidentStatusBadge } from './IncidentQueue';
 import {
     getAgencyLabel,
@@ -207,11 +208,11 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
                                     <button
                                         key={`${image}-${index}`}
                                         type="button"
-                                        onClick={() => onViewImage(image)}
+                                        onClick={() => onViewImage(resolveAssetUrl(image))}
                                         className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                         aria-label={`View evidence photo ${index + 1}`}
                                     >
-                                        <img src={image} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover" />
+                                        <img src={resolveAssetUrl(image)} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover" />
                                     </button>
                                 ))}
                             </div>

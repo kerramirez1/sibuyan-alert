@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { adminAPI } from '../../services/api';
 import NotificationBell from '../ui/NotificationBell';
 import toast from 'react-hot-toast';
+import { resolveAssetUrl } from '../../utils/assets';
 import {
     HiOutlineHome,
     HiOutlineClipboardList,
@@ -328,7 +329,7 @@ const MainLayout = () => {
                                     <div className="h-10 w-10 shrink-0 rounded-full bg-brand-200/50 p-0.5">
                                         {user?.avatar ? (
                                             <img
-                                                src={user.avatar.startsWith('http') ? user.avatar : `${import.meta.env.VITE_API_URL || ''}/${user.avatar}`}
+                                                src={resolveAssetUrl(user.avatar)}
                                                 alt={user.name}
                                                 className="h-full w-full rounded-full object-cover"
                                             />

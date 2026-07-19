@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { resolveAssetUrl } from '../utils/assets';
 import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
 
 const ProfileSettingsPage = () => {
@@ -37,10 +38,7 @@ const ProfileSettingsPage = () => {
                 email: user.email || '',
             }));
             if (user.avatar) {
-                const avatarUrl = user.avatar.startsWith('http')
-                    ? user.avatar
-                    : `${import.meta.env.VITE_API_URL || ''}/${user.avatar}`;
-                setAvatarPreview(avatarUrl);
+                setAvatarPreview(resolveAssetUrl(user.avatar));
             }
         }
     }, [user]);

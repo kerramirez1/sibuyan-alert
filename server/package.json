@@ -10,11 +10,11 @@
         "seed": "node seeds/adminSeed.js",
         "seed:responders": "node seeds/seedResponders.js",
         "reset:responders": "node seeds/seedResponders.js",
+        "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
         "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
     },
     "dependencies": {
         "bcryptjs": "^2.4.3",
-        "cloudinary": "^1.41.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
@@ -23,7 +23,6 @@
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^8.0.3",
         "multer": "^1.4.5-lts.1",
-        "multer-storage-cloudinary": "^4.0.0",
         "nodemailer": "^6.9.7",
         "passport": "^0.7.0",
         "passport-google-oauth20": "^2.0.0",

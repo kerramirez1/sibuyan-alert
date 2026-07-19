@@ -5,6 +5,7 @@ import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { formatDistanceToNow } from 'date-fns';
+import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineUsers,
     HiOutlineClock,
@@ -364,7 +365,7 @@ const AdminPage = () => {
                                                         'bg-gradient-to-br from-gray-400 to-gray-600'
                                             }`}>
                                             {activeUser.avatar ? (
-                                                <img src={activeUser.avatar} alt={activeUser.name} className="w-full h-full rounded-full object-cover" />
+                                                <img src={resolveAssetUrl(activeUser.avatar)} alt={activeUser.name} className="w-full h-full rounded-full object-cover" />
                                             ) : (
                                                 activeUser.name?.charAt(0).toUpperCase() || '?'
                                             )}

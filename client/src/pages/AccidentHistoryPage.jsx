@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import toast from 'react-hot-toast';
+import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineArchive,
     HiOutlineBadgeCheck,
@@ -395,10 +396,10 @@ const AccidentHistoryPage = () => {
                                                                         <button
                                                                             key={image}
                                                                             type="button"
-                                                                            onClick={() => { setViewerImage(image); setViewerOpen(true); }}
+                                                                            onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
                                                                             className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
                                                                         >
-                                                                            <img src={image} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
+                                                                            <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
                                                                         </button>
                                                                     ))}
                                                                 </div>

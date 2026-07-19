@@ -54,7 +54,7 @@ const reportSchema = new mongoose.Schema(
             maxlength: [2000, 'Description cannot exceed 2000 characters'],
         },
         images: [{
-            type: String, // File paths for uploaded images
+            type: String, // Public GridFS delivery URLs for uploaded images
         }],
 
         // Location Information

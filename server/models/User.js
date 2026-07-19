@@ -64,11 +64,11 @@ const userSchema = new mongoose.Schema(
             default: null,
         },
         idDocument: {
-            type: String, // File path for reporter ID verification
+            type: String, // Private GridFS delivery URL for reporter ID verification
             default: null,
         },
         selfiePhoto: {
-            type: String, // Cloudinary URL for face verification selfie
+            type: String, // Private GridFS delivery URL for face verification selfie
             default: null,
         },
         isVerified: {

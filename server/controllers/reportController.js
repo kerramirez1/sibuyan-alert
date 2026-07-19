@@ -6,6 +6,7 @@ import { isWithinSibuyanBounds } from '../services/geocoding.js';
 import { processLocation, getResponseTimeEstimate } from '../services/locationService.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
+import { deleteGridFsFilesByUrls, uploadFilesToGridFS } from '../services/gridFsService.js';
 
 /**
  * Incident Categories Configuration
@@ -24,6 +25,9 @@ const INCIDENT_CATEGORIES = {
  * @access  Private (verified reporters only)
  */
 export const createReport = async (req, res) => {
+    let report = null;
+    let uploadedImageUrls = [];
+
     try {
         const {
             incidentCategory,
@@ -114,13 +118,19 @@ export const createReport = async (req, res) => {
 
 
 
-        // Handle image uploads
-        const images = req.files
-            ? req.files.map((file) => file.path)
-            : [];
+        // Persist validated evidence in MongoDB GridFS only after location validation succeeds.
+        if (req.files?.length) {
+            const storedImages = await uploadFilesToGridFS(req.files, {
+                category: 'report_evidence',
+                visibility: 'public',
+                ownerId: req.user._id,
+                municipalityName: locationResult.municipalityName,
+            });
+            uploadedImageUrls = storedImages.map(({ url }) => url);
+        }
 
         // Create the report with processed location data
-        const report = await Report.create({
+        report = await Report.create({
             reporter: req.user._id,
             incidentCategory: finalCategory,
             incidentType: finalType,
@@ -136,7 +146,7 @@ export const createReport = async (req, res) => {
             severity: severity || 'moderate',
             casualties,
             affectedArea,
-            images,
+            images: uploadedImageUrls,
             status: 'pending',
             // Store location processing metadata
             locationSource: locationResult.source,
@@ -254,6 +264,9 @@ export const createReport = async (req, res) => {
             data: report,
         });
     } catch (error) {
+        if (!report && uploadedImageUrls.length) {
+            await deleteGridFsFilesByUrls(uploadedImageUrls);
+        }
         console.error('Create report error:', error);
         res.status(500).json({
             success: false,

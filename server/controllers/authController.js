@@ -1,6 +1,12 @@
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 import { generateToken } from '../middleware/auth.js';
 import { sendVerificationEmail } from '../services/emailService.js';
+import {
+    deleteGridFsFileByUrl,
+    deleteGridFsFilesByUrls,
+    uploadFileToGridFS,
+} from '../services/gridFsService.js';
 
 /**
  * @desc    Register a new reporter (with ID upload)
@@ -8,6 +14,9 @@ import { sendVerificationEmail } from '../services/emailService.js';
  * @access  Public
  */
 export const register = async (req, res) => {
+    const uploadedFileUrls = [];
+    let userCreated = false;
+
     try {
         const { email, password, name, address, municipality } = req.body;
         const allowedMunicipalities = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
@@ -21,11 +30,10 @@ export const register = async (req, res) => {
             });
         }
 
-        // Get file paths from multer (.fields())
-        const idDocument = req.files?.idDocument?.[0]?.path || null;
-        const selfiePhoto = req.files?.selfiePhoto?.[0]?.path || null;
+        const idDocumentFile = req.files?.idDocument?.[0] || null;
+        const selfiePhotoFile = req.files?.selfiePhoto?.[0] || null;
 
-        if (!idDocument) {
+        if (!idDocumentFile) {
             return res.status(400).json({
                 success: false,
                 message: 'ID document is required for reporter registration',
@@ -39,19 +47,42 @@ export const register = async (req, res) => {
             });
         }
 
+        const userId = new mongoose.Types.ObjectId();
+        const storageMetadata = {
+            visibility: 'private',
+            ownerId: userId,
+            municipalityName: municipality,
+        };
+        const storedIdDocument = await uploadFileToGridFS(idDocumentFile, {
+            ...storageMetadata,
+            category: 'identity_document',
+        });
+        uploadedFileUrls.push(storedIdDocument.url);
+
+        let storedSelfie = null;
+        if (selfiePhotoFile) {
+            storedSelfie = await uploadFileToGridFS(selfiePhotoFile, {
+                ...storageMetadata,
+                category: 'identity_selfie',
+            });
+            uploadedFileUrls.push(storedSelfie.url);
+        }
+
         // Create reporter user (pending verification)
         const user = await User.create({
+            _id: userId,
             email: email.toLowerCase(),
             password,
             name,
             address: address || null,
             assignedMunicipality: municipality,
             role: 'reporter',
-            idDocument,
-            selfiePhoto,
+            idDocument: storedIdDocument.url,
+            selfiePhoto: storedSelfie?.url || null,
             isVerified: false,
             verificationStatus: 'pending',
         });
+        userCreated = true;
 
         // Generate token
         const token = generateToken(user._id);
@@ -74,6 +105,9 @@ export const register = async (req, res) => {
             },
         });
     } catch (error) {
+        if (!userCreated) {
+            await deleteGridFsFilesByUrls(uploadedFileUrls);
+        }
         console.error('Registration error:', error);
         res.status(500).json({
             success: false,
@@ -208,6 +242,9 @@ export const getMe = async (req, res) => {
  * @access  Private
  */
 export const updateProfile = async (req, res) => {
+    let uploadedAvatarUrl = null;
+    let profileSaved = false;
+
     try {
         const { name, email, currentPassword, newPassword, notificationPreferences } = req.body;
 
@@ -258,13 +295,31 @@ export const updateProfile = async (req, res) => {
             };
         }
 
+        const previousAvatar = user.avatar;
+
         // Handle avatar upload
         if (req.file) {
-            user.avatar = req.file.path;
+            const storedAvatar = await uploadFileToGridFS(req.file, {
+                category: 'avatar',
+                visibility: 'public',
+                ownerId: user._id,
+                municipalityName: user.assignedMunicipality,
+            });
+            uploadedAvatarUrl = storedAvatar.url;
+            user.avatar = storedAvatar.url;
         }
 
         // Save user (role is protected - cannot be changed via this endpoint)
         await user.save();
+        profileSaved = true;
+
+        if (uploadedAvatarUrl && previousAvatar) {
+            try {
+                await deleteGridFsFileByUrl(previousAvatar);
+            } catch (error) {
+                console.warn('Failed to remove previous avatar:', error.message);
+            }
+        }
 
         res.json({
             success: true,
@@ -283,6 +338,9 @@ export const updateProfile = async (req, res) => {
             },
         });
     } catch (error) {
+        if (uploadedAvatarUrl && !profileSaved) {
+            await deleteGridFsFileByUrl(uploadedAvatarUrl);
+        }
         console.error('Update profile error:', error);
         res.status(500).json({
             success: false,
@@ -323,6 +381,9 @@ export const savePushSubscription = async (req, res) => {
  * @access  Private (reporters only)
  */
 export const resubmitIdDocument = async (req, res) => {
+    const uploadedFileUrls = [];
+    let profileSaved = false;
+
     try {
         const user = await User.findById(req.user._id);
 
@@ -340,21 +401,43 @@ export const resubmitIdDocument = async (req, res) => {
             });
         }
 
-        const idDoc = req.files?.idDocument?.[0]?.path || null;
-        if (!idDoc) {
+        const idDocumentFile = req.files?.idDocument?.[0] || null;
+        if (!idDocumentFile) {
             return res.status(400).json({
                 success: false,
                 message: 'Please upload an ID document',
             });
         }
 
-        user.idDocument = idDoc;
-        // Also update selfie if resubmitted
-        const selfie = req.files?.selfiePhoto?.[0]?.path || null;
-        if (selfie) user.selfiePhoto = selfie;
+        const previousFiles = [user.idDocument].filter(Boolean);
+        const storageMetadata = {
+            visibility: 'private',
+            ownerId: user._id,
+            municipalityName: user.assignedMunicipality,
+        };
+        const storedIdDocument = await uploadFileToGridFS(idDocumentFile, {
+            ...storageMetadata,
+            category: 'identity_document',
+        });
+        uploadedFileUrls.push(storedIdDocument.url);
+        user.idDocument = storedIdDocument.url;
+
+        const selfieFile = req.files?.selfiePhoto?.[0] || null;
+        if (selfieFile) {
+            if (user.selfiePhoto) previousFiles.push(user.selfiePhoto);
+            const storedSelfie = await uploadFileToGridFS(selfieFile, {
+                ...storageMetadata,
+                category: 'identity_selfie',
+            });
+            uploadedFileUrls.push(storedSelfie.url);
+            user.selfiePhoto = storedSelfie.url;
+        }
         user.verificationStatus = 'pending';
         user.verificationFeedback = null;
         await user.save();
+        profileSaved = true;
+
+        await deleteGridFsFilesByUrls(previousFiles);
 
         res.json({
             success: true,
@@ -364,10 +447,13 @@ export const resubmitIdDocument = async (req, res) => {
             },
         });
     } catch (error) {
+        if (!profileSaved) {
+            await deleteGridFsFilesByUrls(uploadedFileUrls);
+        }
         console.error('Resubmit ID error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to res ubmit ID document',
+            message: 'Failed to resubmit ID document',
         });
     }
 };

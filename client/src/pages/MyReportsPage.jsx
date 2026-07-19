@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineBadgeCheck,
     HiOutlineChartBar,
@@ -430,10 +431,10 @@ function MyReportsPage() {
                                                                     <button
                                                                         key={`${image}-${index}`}
                                                                         type="button"
-                                                                        onClick={() => { setViewerImage(image); setViewerOpen(true); }}
+                                                                        onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
                                                                         className="h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                                                                     >
-                                                                        <img src={image} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
+                                                                        <img src={resolveAssetUrl(image)} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
                                                                     </button>
                                                                 ))}
                                                             </div>

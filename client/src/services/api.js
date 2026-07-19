@@ -38,6 +38,15 @@ api.interceptors.response.use(
 
 export default api;
 
+const toApiFilePath = (value) => {
+    const path = /^https?:\/\//i.test(value) ? new URL(value).pathname : value;
+    return path.startsWith('/api/') ? path.slice('/api'.length) : path;
+};
+
+export const filesAPI = {
+    getProtected: (url) => api.get(toApiFilePath(url), { responseType: 'blob' }),
+};
+
 // Auth API
 export const authAPI = {
     login: (data) => api.post('/auth/login', data),

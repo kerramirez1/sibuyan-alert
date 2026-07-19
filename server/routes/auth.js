@@ -10,7 +10,7 @@ import {
     resetPassword,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
-import { uploadIdDocument, uploadAvatar, handleMulterError } from '../middleware/upload.js';
+import { uploadIdDocument, uploadAvatar, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import {
     validateLogin,
     validateRegister,
@@ -22,7 +22,7 @@ import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js'
 const router = express.Router();
 
 // Public routes (with validation + rate limiting)
-router.post('/register', authLimiter, uploadIdDocument, handleMulterError, validateRegister, register);
+router.post('/register', authLimiter, uploadIdDocument, handleMulterError, validateUploadContent, validateRegister, register);
 router.post('/login', authLimiter, validateLogin, login);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password/:token', authLimiter, validateResetPassword, resetPassword);
@@ -30,8 +30,8 @@ router.post('/reset-password/:token', authLimiter, validateResetPassword, resetP
 
 // Protected routes
 router.get('/me', protect, getMe);
-router.put('/me', protect, uploadAvatar, handleMulterError, updateProfile);
+router.put('/me', protect, uploadAvatar, handleMulterError, validateUploadContent, updateProfile);
 router.post('/push-subscription', protect, savePushSubscription);
-router.post('/resubmit-id', protect, uploadIdDocument, handleMulterError, resubmitIdDocument);
+router.post('/resubmit-id', protect, uploadIdDocument, handleMulterError, validateUploadContent, resubmitIdDocument);
 
 export default router;

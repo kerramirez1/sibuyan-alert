@@ -6,13 +6,7 @@ import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailS
 import { sendPushNotification, pushTemplates } from '../services/pushService.js';
 import { broadcastVerifiedReportToResponders, broadcastReportVerified, broadcastReportRejected } from '../services/socketService.js';
 import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, '../uploads');
+import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -666,6 +660,8 @@ export const deleteReport = async (req, res) => {
 
         await report.deleteOne();
 
+        await deleteGridFsFilesByUrls(report.images);
+
         // Emit real-time update
         const io = req.app.get('io');
         if (io) {
@@ -731,29 +727,25 @@ export const deleteUser = async (req, res) => {
             });
         }
 
-        // 1. Delete associated files
-        if (user.avatar && user.avatar.startsWith('/uploads')) {
-            const avatarPath = path.join(__dirname, '..', user.avatar);
-            if (fs.existsSync(avatarPath)) {
-                fs.unlinkSync(avatarPath);
-            }
-        }
+        const reportsToDelete = await Report.find({ reporter: user._id }).select('images');
+        const associatedFileUrls = [
+            user.avatar,
+            user.idDocument,
+            user.selfiePhoto,
+            ...reportsToDelete.flatMap((report) => report.images || []),
+        ].filter(Boolean);
 
-        if (user.idDocument && user.idDocument.startsWith('/uploads')) {
-            const idPath = path.join(__dirname, '..', user.idDocument);
-            if (fs.existsSync(idPath)) {
-                fs.unlinkSync(idPath);
-            }
-        }
-
-        // 2. Delete notifications
+        // 1. Delete notifications
         await Notification.deleteMany({ recipient: user._id });
 
-        // 3. Delete non-production reports from this account
+        // 2. Delete non-production reports from this account
         await Report.deleteMany({ reporter: user._id });
 
-        // 4. Delete the user
+        // 3. Delete the user
         await user.deleteOne();
+
+        // 4. Remove GridFS files after database references are gone.
+        await deleteGridFsFilesByUrls(associatedFileUrls);
 
         res.json({
             success: true,

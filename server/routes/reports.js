@@ -14,7 +14,7 @@ import {
 } from '../controllers/reportController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
-import { uploadReportImages, handleMulterError } from '../middleware/upload.js';
+import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport } from '../middleware/validate.js';
 import { reportCreationLimiter } from '../middleware/rateLimiter.js';
 
@@ -40,6 +40,7 @@ router.post(
     reportCreationLimiter,
     uploadReportImages,
     handleMulterError,
+    validateUploadContent,
     validateCreateReport,
     createReport
 );  // ❌ Ordinary users CANNOT submit reports
@@ -49,5 +50,4 @@ router.post('/:id/updates', protect, requireVerifiedReporter, addReportUpdate);
 router.get('/:id', optionalAuth, getReportById);
 
 export default router;
-
 
