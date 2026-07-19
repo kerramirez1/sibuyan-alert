@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import {
     HiOutlineMap,
     HiOutlineShieldCheck,
     HiOutlineBell,
-    HiOutlineUserGroup,
     HiOutlineArrowRight,
     HiOutlineLocationMarker,
     HiOutlineLightningBolt,
@@ -18,26 +16,22 @@ import {
 import { reportsAPI, highRiskZonesAPI, analyticsAPI } from '../services/api';
 import Modal from '../components/ui/Modal';
 
-// Step card for "How it Works"
-const StepCard = ({ number, icon: Icon, title, desc, color, delay }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay, duration: 0.6 }}
-        className="relative flex flex-col items-center text-center p-6 rounded-2xl bg-white border border-gray-100 shadow-md hover:shadow-xl hover:border-blue-100 transition-all duration-300 group"
-    >
-        {/* Step number badge */}
-        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full ${color} text-white text-xs font-black flex items-center justify-center shadow-md`}>
-            {number}
-        </div>
-        <div className={`w-12 h-12 rounded-xl ${color} bg-opacity-10 flex items-center justify-center mb-4 mt-2 group-hover:scale-110 transition-transform shadow-sm`}>
-            <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
-        </div>
-        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2">{title}</h3>
-        <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{desc}</p>
-    </motion.div>
-);
+const getVerifiedPeriodLabel = (period) => {
+    if (!period?.startAt) return 'Verified this month';
+
+    const startAt = new Date(period.startAt);
+    if (Number.isNaN(startAt.getTime())) return 'Verified this month';
+
+    try {
+        return `Verified in ${new Intl.DateTimeFormat('en-PH', {
+            month: 'short',
+            year: 'numeric',
+            timeZone: period.timezone || 'Asia/Manila',
+        }).format(startAt)}`;
+    } catch {
+        return 'Verified this month';
+    }
+};
 
 const HomePage = () => {
     const { isAuthenticated, user } = useAuth();
@@ -45,643 +39,501 @@ const HomePage = () => {
     const [municipalities, setMunicipalities] = useState([
         { name: 'Cajidiocan', code: 'CAJ', barangays: [] },
         { name: 'Magdiwang', code: 'MAG', barangays: [] },
-        { name: 'San Fernando', code: 'SAF', barangays: [] }
+        { name: 'San Fernando', code: 'SFN', barangays: [] },
     ]);
     const [showHighRiskModal, setShowHighRiskModal] = useState(false);
     const [highRiskZones, setHighRiskZones] = useState([]);
     const [loadingHighRisk, setLoadingHighRisk] = useState(false);
+    const [highRiskError, setHighRiskError] = useState(false);
+    const [publicStats, setPublicStats] = useState(null);
+    const [publicStatsState, setPublicStatsState] = useState('loading');
     const refreshDebounceRef = useRef(null);
 
     const fetchHighRiskZones = useCallback(async () => {
         setLoadingHighRisk(true);
+        setHighRiskError(false);
         try {
             const response = await highRiskZonesAPI.getAll();
             if (response.data.success) {
                 setHighRiskZones(response.data.data);
+            } else {
+                throw new Error('High-risk-zone response was unsuccessful');
             }
-        } catch (error) {
-            console.error('Failed to fetch high risk zones:', error);
+        } catch (e) {
+            console.error('Failed to fetch high risk zones:', e);
+            setHighRiskError(true);
         } finally {
             setLoadingHighRisk(false);
         }
     }, []);
 
-    const [publicStats, setPublicStats] = useState(null);
-
     const fetchPublicStats = useCallback(async () => {
+        setPublicStatsState((current) => current === 'ready' ? current : 'loading');
         try {
             const res = await analyticsAPI.getPublic();
             if (res.data.success) {
-                const payload = res.data.data || {};
+                const p = res.data.data || {};
                 setPublicStats({
-                    verifiedReportsThisMonth: payload.verifiedReportsThisMonth ?? payload.verifiedThisMonth ?? 0,
-                    activeHighRiskZones: payload.activeHighRiskZones ?? 0,
-                    totalReportsAllTime: payload.totalReportsAllTime ?? 0,
-                    systemStatus: payload.systemStatus || 'Operational',
+                    verifiedReportsThisMonth: p.verifiedReportsThisMonth ?? p.verifiedThisMonth ?? 0,
+                    activeHighRiskZones: p.activeHighRiskZones ?? 0,
+                    totalReportsAllTime: p.totalReportsAllTime ?? 0,
+                    systemStatus: p.systemStatus || 'Operational',
+                    period: p.period || null,
                 });
+                setPublicStatsState('ready');
+                return;
             }
-        } catch (err) {
-            console.error('Failed to fetch public analytics', err);
-            // Fallback: derive basic analytics from available public endpoints
-            try {
-                const [statsRes, zonesRes] = await Promise.all([
-                    reportsAPI.getStats(),
-                    highRiskZonesAPI.getAll(),
-                ]);
-
-                const stats = statsRes.data?.data || {};
-                const zones = zonesRes.data?.data || [];
-
-                setPublicStats({
-                    verifiedReportsThisMonth: stats.reportsLast30Days || 0,
-                    activeHighRiskZones: zones.length,
-                    totalReportsAllTime: stats.totalReports || 0,
-                    systemStatus: 'Operational',
-                });
-            } catch (fallbackErr) {
-                console.error('Fallback public analytics fetch failed', fallbackErr);
-                setPublicStats({
-                    verifiedReportsThisMonth: 0,
-                    activeHighRiskZones: 0,
-                    totalReportsAllTime: 0,
-                    systemStatus: 'Operational',
-                });
-            }
+            throw new Error('Public analytics response was unsuccessful');
+        } catch {
+            // Do not substitute /reports/stats here: its reportsLast30Days value
+            // is a rolling window and is not equivalent to this calendar-month metric.
+            setPublicStats(null);
+            setPublicStatsState('error');
         }
     }, []);
 
-    useEffect(() => {
-        fetchPublicStats();
-    }, [fetchPublicStats]);
+    useEffect(() => { fetchPublicStats(); }, [fetchPublicStats]);
+    useEffect(() => { if (showHighRiskModal) fetchHighRiskZones(); }, [showHighRiskModal, fetchHighRiskZones]);
 
     useEffect(() => {
-        if (!showHighRiskModal) return;
-        fetchHighRiskZones();
-    }, [showHighRiskModal, fetchHighRiskZones]);
-
-    useEffect(() => {
-        const scheduleRefreshPublicData = () => {
-            if (refreshDebounceRef.current) {
-                clearTimeout(refreshDebounceRef.current);
-            }
+        const debounce = () => {
+            if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
             refreshDebounceRef.current = setTimeout(() => {
                 fetchPublicStats();
-                if (showHighRiskModal) {
-                    fetchHighRiskZones();
-                }
+                if (showHighRiskModal) fetchHighRiskZones();
             }, 400);
         };
-
-        const unsub1 = subscribe('newReport', scheduleRefreshPublicData);
-        const unsub2 = subscribe('reportVerified', scheduleRefreshPublicData);
-        const unsub3 = subscribe('reportResolved', scheduleRefreshPublicData);
-        const unsub4 = subscribe('reportDeleted', scheduleRefreshPublicData);
-        const unsub5 = subscribe('highRiskZoneCreated', scheduleRefreshPublicData);
-        const unsub6 = subscribe('highRiskZoneUpdated', scheduleRefreshPublicData);
-        const unsub7 = subscribe('highRiskZoneDeleted', scheduleRefreshPublicData);
-
+        const subs = [
+            subscribe('newReport', debounce),
+            subscribe('reportVerified', debounce),
+            subscribe('reportResolved', debounce),
+            subscribe('reportDeleted', debounce),
+            subscribe('highRiskZoneCreated', debounce),
+            subscribe('highRiskZoneUpdated', debounce),
+            subscribe('highRiskZoneDeleted', debounce),
+        ];
         return () => {
-            if (refreshDebounceRef.current) {
-                clearTimeout(refreshDebounceRef.current);
-                refreshDebounceRef.current = null;
-            }
-            unsub1();
-            unsub2();
-            unsub3();
-            unsub4();
-            unsub5();
-            unsub6();
-            unsub7();
+            if (refreshDebounceRef.current) { clearTimeout(refreshDebounceRef.current); refreshDebounceRef.current = null; }
+            subs.forEach(u => u());
         };
     }, [subscribe, fetchPublicStats, fetchHighRiskZones, showHighRiskModal]);
 
     useEffect(() => {
-        const fetchMunicipalities = async () => {
-            try {
-                const response = await reportsAPI.getMunicipalities();
-                if (response.data.success && response.data.data.length > 0) {
-                    setMunicipalities(response.data.data);
-                }
-            } catch (error) {
-                console.error('Failed to fetch municipalities:', error);
-            }
-        };
-        fetchMunicipalities();
+        reportsAPI.getMunicipalities()
+            .then(r => { if (r.data.success && r.data.data.length > 0) setMunicipalities(r.data.data); })
+            .catch(() => {});
     }, []);
 
-    const features = [
-        {
-            icon: HiOutlineMap,
-            title: 'Live Surveillance',
-            description: 'Real-time interactive map tracking accidents across all municipalities with pinpoint accuracy.',
-            color: 'bg-blue-50 text-blue-600',
-        },
-        {
-            icon: HiOutlineShieldCheck,
-            title: 'Verified Reports',
-            description: 'Community-driven reporting system verified by local authorities for maximum reliability.',
-            color: 'bg-emerald-50 text-emerald-600',
-        },
-        {
-            icon: HiOutlineBell,
-            title: 'Instant Alerts',
-            description: 'Receive immediate notifications about emergency situations in your vicinity.',
-            color: 'bg-orange-50 text-orange-600',
-        },
-        {
-            icon: HiOutlineChartBar,
-            title: 'Data Analytics',
-            description: 'Comprehensive insights and trends to help improve safety measures and response times.',
-            color: 'bg-purple-50 text-purple-600',
-        },
-    ];
+    const barangayCount = (name) => name === 'Cajidiocan' ? 15 : name === 'Magdiwang' ? 9 : 12;
+    const totalBarangayCount = municipalities.reduce(
+        (total, municipality) => total + (municipality.barangays?.length || barangayCount(municipality.name)),
+        0
+    );
+
+    const verifiedPeriodLabel = getVerifiedPeriodLabel(publicStats?.period);
+
+    const logoConfig = {
+        Cajidiocan: { src: '/icons/Cajidiocan.logo.png', scale: 'scale-150' },
+        Magdiwang: { src: '/icons/Magdiwang.logo.png', scale: 'scale-150' },
+        'San Fernando': { src: '/icons/Sanfernando.logo.png', scale: 'scale-75' },
+    };
+
+    const severityBadge = (s) => ({
+        critical: 'bg-red-50 text-red-600 border-red-200',
+        high: 'bg-orange-50 text-orange-600 border-orange-200',
+        medium: 'bg-amber-50 text-amber-700 border-amber-200',
+        low: 'bg-blue-50 text-blue-600 border-blue-200',
+    }[s] || 'bg-gray-50 text-gray-600 border-gray-200');
 
     const steps = [
-        {
-            number: '1',
-            icon: HiOutlineDocumentText,
-            title: 'Submit a Report',
-            desc: 'Verified reporters submit accident details — location, photos, severity, and type.',
-            color: 'bg-blue-500',
-            delay: 0,
-        },
-        {
-            number: '2',
-            icon: HiOutlineClipboardCheck,
-            title: 'Admin Verifies',
-            desc: 'Municipal admins review and verify reports before broadcasting to responders.',
-            color: 'bg-emerald-500',
-            delay: 0.15,
-        },
-        {
-            number: '3',
-            icon: HiOutlineShieldCheck,
-            title: 'Responders Act',
-            desc: 'BFP, PNP, MDRRMO, and SDH receive instant alerts and respond to the scene.',
-            color: 'bg-orange-500',
-            delay: 0.3,
-        },
+        { n: '01', Icon: HiOutlineDocumentText, title: 'Reporter submits', desc: 'Verified residents file an incident — location, category, severity, and photos.' },
+        { n: '02', Icon: HiOutlineClipboardCheck, title: 'Admin verifies', desc: 'Municipal administrators review and publish the report to active responders.' },
+        { n: '03', Icon: HiOutlineShieldCheck, title: 'Responders act', desc: 'BFP, PNP, MDRRMO, and SDH receive instant alerts and navigate to the scene.' },
     ];
 
-    return (
-        <div
-            className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed font-sans selection:bg-brand-200 selection:text-brand-900"
-            style={{
-                backgroundImage: "linear-gradient(rgba(249,250,251,0.18), rgba(249,250,251,0.28)), url('/images/sibuyan-hero.jpg')",
-            }}
-        >
-            {/* Navigation */}
-            <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <Link to="/" className="flex items-center gap-1 sm:gap-3 group">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <img src="/icons/Alert.png" alt="Sibuyan Alert Logo" className="w-full h-full object-contain" />
-                        </div>
-                        <span className="font-display font-bold text-lg sm:text-xl text-gray-900 tracking-tight">
-                            Sibuyan <span className="text-brand-600 hidden xs:inline">Alert</span>
-                        </span>
-                    </Link>
+    const features = [
+        { Icon: HiOutlineMap, title: 'Live map', desc: 'Real-time incident map with satellite and street views across all municipalities.' },
+        { Icon: HiOutlineShieldCheck, title: 'Verified reports', desc: 'Every report is reviewed by local authorities before going live to responders.' },
+        { Icon: HiOutlineBell, title: 'Instant alerts', desc: 'Push notifications the moment a report is verified, assigned, or resolved.' },
+        { Icon: HiOutlineChartBar, title: 'Analytics', desc: 'Response time trends, heatmaps, and monthly summaries per municipality.' },
+    ];
 
-                    <div className="flex items-center gap-4">
+    const destPath = user?.role === 'reporter' ? '/my-reports' : '/dashboard';
+
+    return (
+        <div className="min-h-screen bg-white text-gray-900 font-sans antialiased">
+
+            {/* ── Navbar ── */}
+            <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100/80">
+                <div className="max-w-6xl mx-auto px-5 sm:px-8 h-[60px] flex items-center justify-between">
+                    <Link to="/" className="flex items-center gap-2.5 group">
+                        <img src="/icons/Alert.png" alt="Sibuyan Alert" className="w-7 h-7 object-contain" />
+                        <span className="font-bold text-[15px] text-gray-900 tracking-tight">Sibuyan Alert</span>
+                    </Link>
+                    <nav className="flex items-center gap-1">
                         {isAuthenticated ? (
                             <Link
-                                to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'}
-                                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs sm:text-sm"
+                                to={destPath}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
                             >
-                                <span className="hidden xs:inline">
-                                    {user?.role === 'reporter' ? 'Go to My Reports' : 'Go to Analytics Dashboard'}
-                                </span>
-                                <span className="xs:hidden">
-                                    {user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}
-                                </span>
-                                <HiOutlineArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                                {user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}
+                                <HiOutlineArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         ) : (
-                            <div className="flex items-center gap-2 sm:gap-4">
-                                <Link
-                                    to="/login"
-                                    className="px-4 sm:px-5 py-2 sm:py-2.5 text-gray-700 hover:text-brand-600 font-bold transition-all rounded-xl hover:bg-brand-50 text-xs sm:text-sm"
-                                >
-                                    Sign In
+                            <>
+                                <Link to="/login" className="px-3.5 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-50">
+                                    Sign in
                                 </Link>
-                                <Link
-                                    to="/register"
-                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl font-bold hover:from-gray-800 hover:to-gray-700 transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95 text-xs sm:text-sm whitespace-nowrap"
-                                >
-                                    <span className="hidden xs:inline">Become a Reporter</span>
-                                    <span className="xs:hidden">Join Now</span>
+                                <Link to="/register" className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors ml-1">
+                                    Get started
                                 </Link>
-                            </div>
+                            </>
                         )}
-                    </div>
+                    </nav>
                 </div>
-            </nav>
+            </header>
 
-            {/* Hero Section */}
-            <section className="relative pt-32 pb-20 overflow-hidden">
-
-                {/* Enhanced Abstract Background Elements */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] bg-gradient-to-br from-brand-100 via-blue-50 to-emerald-50 rounded-full blur-3xl z-[1] opacity-70 pointer-events-none animate-pulse" />
-                <div className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100 to-indigo-50 rounded-full blur-3xl z-[1] opacity-60 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-emerald-50 to-brand-50 rounded-full blur-3xl z-[1] opacity-50 pointer-events-none" />
-
-                <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8 }}
-                    >
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-white to-brand-50 border border-brand-200 rounded-full text-brand-700 text-xs sm:text-sm font-bold mb-6 shadow-sm hover:shadow transition-all hover:scale-105">
-                            <span className="flex h-2.5 w-2.5 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-600 shadow-sm shadow-brand-500/50"></span>
+            {/* Hero */}
+            <section className="overflow-hidden border-b border-gray-100 pt-[60px]">
+                <div className="grid lg:min-h-[660px] lg:grid-cols-[minmax(0,1fr)_minmax(420px,1fr)] xl:min-h-[700px]">
+                    <div className="flex w-full max-w-[640px] flex-col justify-center px-5 py-14 sm:px-8 sm:py-16 lg:ml-auto lg:px-8 lg:py-16 lg:pr-14 xl:pr-20">
+                        <div className={`mb-8 inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 ${publicStatsState === 'error' ? 'border-amber-200 bg-amber-50' : 'border-emerald-200/80 bg-emerald-50'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${publicStatsState === 'error' ? 'bg-amber-500' : publicStatsState === 'loading' ? 'bg-gray-400' : 'bg-emerald-500'}`} />
+                            <span className={`text-xs font-medium ${publicStatsState === 'error' ? 'text-amber-800' : 'text-emerald-700'}`}>
+                                {publicStatsState === 'loading'
+                                    ? 'Checking live system data'
+                                    : publicStatsState === 'error'
+                                        ? 'Live data temporarily unavailable'
+                                        : 'Live across Sibuyan Island'}
                             </span>
-                            Real-Time Accident Alert & Mapping System
                         </div>
 
-                        <h1 className="text-3xl sm:text-5xl md:text-6xl font-display font-black text-gray-900 mb-6 tracking-tight leading-[1.15]">
-                            <span className="inline-block animate-fade-in">Accident Alert &</span><br />
-                            <span className="inline-block animate-fade-in" style={{ animationDelay: '0.1s' }}>Mapping System</span><br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-blue-600 to-emerald-500 animate-gradient-x inline-block" style={{ animationDelay: '0.2s' }}>
-                                for Sibuyan Island
-                            </span>
+                        <h1 className="mb-6 text-4xl font-extrabold leading-[1.06] tracking-tight text-gray-900 xs:text-[2.6rem] sm:text-5xl lg:text-[3.25rem]">
+                            Accident reports,<br />
+                            <span className="text-emerald-700">verified &amp; mapped</span><br />
+                            in real time.
                         </h1>
 
-                        <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-4 leading-relaxed font-medium">
-                            Real-time accident monitoring and emergency response coordination for <span className="text-brand-600 font-bold">safer communities</span> across Sibuyan Island.
+                        <p className="mb-10 max-w-[480px] text-[1.05rem] leading-relaxed text-gray-500">
+                            A community reporting system that connects Sibuyan residents, municipal administrators, and emergency responders in one operational view.
                         </p>
 
-                        <p className="text-sm text-gray-500 max-w-2xl mx-auto mb-8 leading-relaxed">
-                            View live accidents & high-risk zones freely • Register as a reporter to contribute • Get instant emergency alerts
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 mt-8">
+                        <div className="mb-8 flex flex-col gap-3 xs:flex-row xs:flex-wrap">
                             <Link
                                 to="/dashboard?view=map"
-                                className="group w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold text-sm sm:text-base shadow-lg shadow-blue-500/40 hover:shadow-blue-600/50 flex items-center justify-center gap-2 transform hover:scale-[1.05] active:scale-95 transition-all duration-300 relative overflow-hidden"
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                                <HiOutlineMap className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 group-hover:rotate-12 transition-transform" />
-                                <span className="relative z-10">View Live Map</span>
+                                <HiOutlineMap className="h-4 w-4" />
+                                View live map
                             </Link>
                             {!isAuthenticated && (
                                 <Link
                                     to="/register"
-                                    className="group w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-white text-gray-900 border border-gray-300 rounded-xl font-bold text-sm sm:text-base hover:bg-gradient-to-r hover:from-gray-50 hover:to-brand-50 hover:border-brand-400 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.03] relative overflow-hidden"
+                                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
                                 >
-                                    <span className="relative z-10">Become a Reporter</span>
-                                    <HiOutlineArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+                                    Become a reporter
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5" />
                                 </Link>
                             )}
                         </div>
 
-                        {/* Enhanced Public Analytics Bar */}
-                        {publicStats && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto mt-10">
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="group bg-gradient-to-br from-white to-blue-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-blue-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                >
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
-                                        <HiOutlineShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-                                    </div>
-                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.verifiedReportsThisMonth || 0}</span>
-                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Verified Reports<br /><span className="text-blue-600">(This Month)</span></span>
-                                </motion.div>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="group bg-gradient-to-br from-white to-orange-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-orange-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                >
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
-                                        <HiOutlineLocationMarker className="w-5 h-5 sm:w-6 sm:h-6" />
-                                    </div>
-                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.activeHighRiskZones || 0}</span>
-                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Active<br /><span className="text-orange-600">High-Risk Zones</span></span>
-                                </motion.div>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.5 }}
-                                    className="group bg-gradient-to-br from-white to-emerald-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-emerald-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                >
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:rotate-12 transition-transform">
-                                        <HiOutlineChartBar className="w-5 h-5 sm:w-6 sm:h-6" />
-                                    </div>
-                                    <span className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">{publicStats.totalReportsAllTime || 0}</span>
-                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Total Incidents<br /><span className="text-emerald-600">Resolved</span></span>
-                                </motion.div>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.6 }}
-                                    className="group bg-gradient-to-br from-white to-brand-50 backdrop-blur-md p-5 sm:p-6 rounded-3xl border-2 border-brand-100 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                >
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md relative overflow-hidden">
-                                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                                        <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse shadow-md shadow-white/50 relative z-10"></div>
-                                    </div>
-                                    <span className="text-lg sm:text-xl font-black text-gray-900 mb-1 capitalize">{publicStats.systemStatus || 'Operational'}</span>
-                                    <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wider text-center">System<br /><span className="text-brand-600">Status</span></span>
-                                </motion.div>
+                        <figure className="relative -mx-5 mb-8 h-60 overflow-hidden sm:-mx-8 sm:h-80 lg:hidden">
+                            <img
+                                src="/images/sibuyan-hero.jpg"
+                                alt="Mountain ridges of Mount Guiting-Guiting overlooking Sibuyan Island"
+                                className="absolute inset-0 h-full w-full object-cover object-[60%_55%]"
+                                {...{ fetchpriority: 'high' }}
+                                decoding="async"
+                            />
+                            <figcaption className="absolute inset-x-0 bottom-0 bg-gray-950/75 px-5 py-3 text-xs font-medium text-white sm:px-8">
+                                Mt. Guiting-Guiting · Sibuyan Island, Romblon
+                            </figcaption>
+                        </figure>
+
+                        <div className="mb-12 flex flex-wrap items-center gap-x-4 gap-y-1.5 lg:mb-10">
+                            <span className="text-xs text-gray-400">Coordinated with</span>
+                            {['BFP', 'PNP', 'MDRRMO', 'SDH'].map(agency => (
+                                <span key={agency} className="rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">{agency}</span>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-7 sm:gap-6">
+                            <div>
+                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">
+                                    {publicStatsState === 'loading' ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'}
+                                </div>
+                                <div className="mt-1 text-xs leading-snug text-gray-400">{verifiedPeriodLabel}</div>
                             </div>
-                        )}
-                    </motion.div>
+                            <button
+                                type="button"
+                                onClick={() => setShowHighRiskModal(true)}
+                                className="-m-2 rounded-lg p-2 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                                aria-haspopup="dialog"
+                            >
+                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">
+                                    {publicStatsState === 'loading' ? '…' : publicStats?.activeHighRiskZones ?? '—'}
+                                </div>
+                                <div className="mt-1 text-xs leading-snug text-gray-400">Active risk zones</div>
+                            </button>
+                            <div>
+                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">{municipalities.length}</div>
+                                <div className="mt-1 text-xs leading-snug text-gray-400">Municipalities covered</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <figure className="relative hidden min-h-[660px] overflow-hidden lg:block xl:min-h-[700px]">
+                        <img
+                            src="/images/sibuyan-hero.jpg"
+                            alt="Mountain ridges of Mount Guiting-Guiting overlooking Sibuyan Island"
+                            className="absolute inset-0 h-full w-full object-cover object-[60%_55%]"
+                            {...{ fetchpriority: 'high' }}
+                            decoding="async"
+                        />
+                        <figcaption className="absolute bottom-5 right-5 rounded-md bg-gray-950/75 px-3 py-2 text-xs font-medium tracking-wide text-white">
+                            Mt. Guiting-Guiting · Sibuyan Island, Romblon
+                        </figcaption>
+                    </figure>
                 </div>
             </section>
 
-            {/* ─── How It Works ─── */}
-            <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
-                <div className="max-w-7xl mx-auto px-6">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="text-center mb-12"
-                    >
-                        <span className="inline-block px-3 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-full mb-3 border border-brand-100 uppercase tracking-wide">How It Works</span>
-                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-3">
-                            From Report to Response
+            {/* ── How it works ── */}
+            <section className="py-24 px-5 sm:px-8 bg-[#fafafa] border-y border-gray-100">
+                <div className="max-w-6xl mx-auto">
+                    <div className="mb-12">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">How it works</p>
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                            From incident to response, in three steps.
                         </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto text-sm sm:text-base">
-                            A streamlined 3-step process connecting community reporters with emergency responders.
+                        <p className="text-sm text-gray-400 max-w-md">
+                            Anyone in the community can report. Authorities verify. Responders coordinate through the same incident record.
                         </p>
-                    </motion.div>
+                    </div>
 
-                    <div className="grid md:grid-cols-3 gap-6 relative">
-                        {/* Connecting line (desktop) */}
-                        <div className="hidden md:block absolute top-[4.5rem] left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] h-0.5 bg-gradient-to-r from-blue-200 via-emerald-200 to-orange-200 z-0"></div>
-                        {steps.map((step) => (
-                            <StepCard key={step.number} {...step} />
+                    <div className="grid overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                        {steps.map(({ n, Icon, title, desc }) => (
+                            <div key={n} className="p-8 sm:p-10">
+                                <span className="text-[11px] font-bold text-gray-300 tracking-widest tabular-nums block mb-6">{n}</span>
+                                <Icon className="w-5 h-5 text-blue-600 mb-4" />
+                                <h3 className="font-semibold text-gray-900 mb-2 text-[15px]">{title}</h3>
+                                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                            </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Features Grid */}
-            <section className="py-24 bg-slate-50 relative overflow-hidden">
-                {/* Decorative subtle background accents */}
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px] pointer-events-none"></div>
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-brand-500/5 rounded-full blur-[100px] pointer-events-none"></div>
-
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <div className="text-center mb-16">
-                        <h2 className="text-3xl sm:text-4xl font-display font-bold text-gray-900 mb-4">
-                            Powerful Tools for Community Safety
+            {/* ── Features ── */}
+            <section className="py-24 px-5 sm:px-8">
+                <div className="max-w-6xl mx-auto">
+                    <div className="mb-12">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Features</p>
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                            Built for speed and reliability.
                         </h2>
-                        <p className="text-gray-500 max-w-2xl mx-auto text-base sm:text-lg">
-                            Equipping citizens and authorities with state-of-the-art technology to coordinate effective emergency response.
-                        </p>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-                        {features.map((feature, idx) => {
-                            const styleMap = {
-                                'bg-blue-50 text-blue-600': { hoverBorder: 'hover:border-blue-300', glow: 'group-hover:bg-blue-400/10', iconShadow: 'group-hover:shadow-blue-500/20' },
-                                'bg-emerald-50 text-emerald-600': { hoverBorder: 'hover:border-emerald-300', glow: 'group-hover:bg-emerald-400/10', iconShadow: 'group-hover:shadow-emerald-500/20' },
-                                'bg-orange-50 text-orange-600': { hoverBorder: 'hover:border-orange-300', glow: 'group-hover:bg-orange-400/10', iconShadow: 'group-hover:shadow-orange-500/20' },
-                                'bg-purple-50 text-purple-600': { hoverBorder: 'hover:border-purple-300', glow: 'group-hover:bg-purple-400/10', iconShadow: 'group-hover:shadow-purple-500/20' },
-                            };
-                            const styles = styleMap[feature.color] || styleMap['bg-blue-50 text-blue-600'];
-
-                            return (
-                                <motion.div
-                                    key={idx}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: idx * 0.1 }}
-                                    className={`relative p-8 rounded-[2rem] bg-white border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] ${styles.hoverBorder} transition-all duration-500 group hover:-translate-y-2 hover:shadow-2xl overflow-hidden cursor-default`}
-                                >
-                                    {/* Soft gradient blob on hover */}
-                                    <div className={`absolute top-0 right-0 w-40 h-40 rounded-full -mr-20 -mt-20 blur-3xl transition-colors duration-500 ${styles.glow} z-0`}></div>
-                                    
-                                    <div className="relative z-10">
-                                        <div className={`w-14 h-14 rounded-2xl ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 shadow-sm transition-all duration-300 ${styles.iconShadow}`}>
-                                            <feature.icon className="w-7 h-7" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                                        <p className="text-gray-500 text-sm leading-relaxed">{feature.description}</p>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        {features.map(({ Icon, title, desc }) => (
+                            <div
+                                key={title}
+                                className="group p-6 rounded-xl border border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-default"
+                            >
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
+                                    <Icon className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <h3 className="font-semibold text-gray-900 mb-1.5 text-[15px]">{title}</h3>
+                                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
 
-            {/* Stats/Municipality Section */}
-            <section className="py-20 bg-gray-900 text-white overflow-hidden relative">
-                {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+            {/* ── Coverage ── */}
+            <section className="py-24 px-5 sm:px-8 bg-gray-950 text-white">
+                <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 xl:gap-24 items-start">
 
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    {/* Section Header */}
-                    <div className="mb-12 md:text-center max-w-3xl mx-auto">
-                        <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
-                            Coverage Across Sibuyan
+                    {/* Left: Municipality list */}
+                    <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Coverage</p>
+                        <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-white">
+                            Active across all of Sibuyan Island.
                         </h2>
-                        <p className="text-gray-400 text-sm sm:text-base">
-                            Promoting safety and rapid response across all municipalities. We work directly with local Barangays to verify reports and coordinate assistance.
+                        <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-sm">
+                            Coordinating with barangay councils and response agencies for rapid, verified incident management island-wide.
                         </p>
-                    </div>
+                        {/* Community totals */}
+                        <div className="flex items-center gap-6 mb-10 pb-8 border-b border-white/[0.06]">
+                            <div>
+                                <p className="text-2xl font-bold text-white tabular-nums">3</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Municipalities</p>
+                            </div>
+                            <div className="w-px h-8 bg-white/10" />
+                            <div>
+                                <p className="text-2xl font-bold text-white tabular-nums">{totalBarangayCount}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Barangays covered</p>
+                            </div>
+                            <div className="w-px h-8 bg-white/10" />
+                            <div>
+                                <p className="text-2xl font-bold text-white tabular-nums">4</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Response agencies</p>
+                            </div>
+                        </div>
 
-                    <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-                        {/* Municipality List */}
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             {municipalities.map((muni) => {
-                                // Logo configuration to ensure visual consistency
-                                const logoConfig = {
-                                    'Cajidiocan': { src: '/icons/Cajidiocan.logo.png', scale: 'scale-150' },
-                                    'Magdiwang': { src: '/icons/Magdiwang.logo.png', scale: 'scale-150' },
-                                    'San Fernando': { src: '/icons/Sanfernando.logo.png', scale: 'scale-75' },
-                                }[muni.name] || null;
-
+                                const logo = logoConfig[muni.name];
+                                const count = muni.barangays?.length > 0 ? muni.barangays.length : barangayCount(muni.name);
                                 return (
-                                    <motion.div
+                                    <div
                                         key={muni.code}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        whileInView={{ opacity: 1, x: 0 }}
-                                        viewport={{ once: true }}
-                                        className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all duration-300 group backdrop-blur-md shadow-lg hover:shadow-2xl hover:-translate-y-1"
+                                        className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.07] transition-colors"
                                     >
-                                        <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center p-2 border border-white/10 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-300">
-                                            {logoConfig ? (
-                                                <img
-                                                    src={logoConfig.src}
-                                                    alt={`${muni.name} Logo`}
-                                                    className={`w-full h-full object-contain ${logoConfig.scale}`}
-                                                />
-                                            ) : (
-                                                <span className="text-brand-400 font-bold text-lg">
-                                                    {muni.name.charAt(0)}
-                                                </span>
-                                            )}
+                                        <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0 overflow-hidden p-1">
+                                            {logo
+                                                ? <img src={logo.src} alt={muni.name} className={`w-full h-full object-contain ${logo.scale}`} />
+                                                : <span className="text-white font-bold text-sm">{muni.name[0]}</span>
+                                            }
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="font-bold text-base sm:text-lg mb-1 group-hover:text-brand-300 transition-colors">{muni.name}</h4>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                                                <p className="text-xs sm:text-sm text-gray-300 font-semibold">
-                                                    {muni.barangays?.length > 0 ? muni.barangays.length : (
-                                                        muni.name === 'Cajidiocan' ? 14 :
-                                                            muni.name === 'Magdiwang' ? 9 :
-                                                                muni.name === 'San Fernando' ? 13 : 0
-                                                    )} Barangays Active
-                                                </p>
-                                            </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-[14px] text-white">{muni.name}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{count} barangays</p>
                                         </div>
-                                        <HiOutlineArrowRight className="w-6 h-6 text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                                    </motion.div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <HiOutlineShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                                            <span className="text-xs text-emerald-400 font-medium">Covered</span>
+                                        </div>
+                                    </div>
                                 );
                             })}
                         </div>
+                    </div>
 
-                        {/* Join Network CTA */}
-                        <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8 lg:p-10 shadow-2xl relative overflow-hidden group"
-                        >
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full -mr-16 -mt-16 blur-3xl transition-all duration-700 group-hover:bg-brand-500/20"></div>
-                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full -ml-12 -mb-12 blur-3xl transition-all duration-700 group-hover:bg-blue-500/20"></div>
-
-                            <div className="relative z-10">
-                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 border border-white/10 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                                    <HiOutlineUserGroup className="w-6 h-6 text-brand-300" />
-                                </div>
-
-                                {isAuthenticated ? (
-                                    <>
-                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3 text-white">Welcome Back!</h3>
-                                        <p className="text-gray-400 text-sm sm:text-base mb-8 leading-relaxed">
-                                            You're already part of the network. Head to your dashboard to view reports, analytics, and more.
-                                        </p>
-                                        <Link to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} className="block w-full py-3.5 sm:py-4 bg-gradient-to-r from-brand-600 to-blue-600 text-white font-bold text-sm sm:text-base text-center rounded-xl hover:from-brand-500 hover:to-blue-500 transition-all shadow-lg transform hover:-translate-y-1">
-                                            {user?.role === 'reporter' ? 'Go to My Reports' : 'Go to Dashboard'}
-                                        </Link>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h3 className="text-xl sm:text-2xl font-display font-bold mb-3 text-white">Join the Network</h3>
-                                        <p className="text-gray-400 text-sm sm:text-base mb-8 leading-relaxed">
-                                            Get verified status to submit reports, access real-time analytics, and help save lives in your community.
-                                        </p>
-                                        <Link to="/register" className="block w-full py-3.5 sm:py-4 bg-gradient-to-r from-brand-600 to-blue-600 text-white font-bold text-sm sm:text-base text-center rounded-xl hover:from-brand-500 hover:to-blue-500 transition-all shadow-lg transform hover:-translate-y-1">
-                                            Register Now
-                                        </Link>
-                                        <p className="text-xs text-center text-gray-500 mt-5 font-medium tracking-wide uppercase">
-                                            Verification takes less than 2 minutes
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        </motion.div>
+                    {/* Right: CTA card */}
+                    <div className="lg:sticky lg:top-24">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+                            {isAuthenticated ? (
+                                <>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-6">Your account</p>
+                                    <h3 className="text-xl font-bold text-white mb-2">Welcome back.</h3>
+                                    <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                                        Head to your dashboard to review live incidents, analytics, and response activity.
+                                    </p>
+                                    <Link
+                                        to={destPath}
+                                        className="flex items-center justify-center gap-2 w-full py-3 bg-white text-gray-900 font-medium text-sm rounded-lg hover:bg-gray-100 transition-colors"
+                                    >
+                                        Go to {user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}
+                                        <HiOutlineArrowRight className="w-4 h-4" />
+                                    </Link>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-6">Get access</p>
+                                    <h3 className="text-xl font-bold text-white mb-2">Join the network.</h3>
+                                    <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                                        Register as a verified reporter to submit incidents, receive alerts, and help keep Sibuyan Island safe.
+                                    </p>
+                                    <Link
+                                        to="/register"
+                                        className="flex items-center justify-center gap-2 w-full py-3 bg-white text-gray-900 font-medium text-sm rounded-lg hover:bg-gray-100 transition-colors"
+                                    >
+                                        Create an account
+                                        <HiOutlineArrowRight className="w-4 h-4" />
+                                    </Link>
+                                    <p className="text-center text-xs text-gray-600 mt-4">
+                                        Already registered?{' '}
+                                        <Link to="/login" className="text-gray-400 hover:text-white transition-colors font-medium">Sign in</Link>
+                                    </p>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* High Risk Zones Modal */}
-            <Modal
-                isOpen={showHighRiskModal}
-                onClose={() => setShowHighRiskModal(false)}
-                title="Active High Risk Zones"
-                size="lg"
-            >
+            {/* ── High Risk Zones Modal ── */}
+            <Modal isOpen={showHighRiskModal} onClose={() => setShowHighRiskModal(false)} title="Active High Risk Zones" size="lg">
                 {loadingHighRisk ? (
-                    <div className="flex justify-center items-center py-12">
-                        <div className="w-10 h-10 border-4 border-gray-200 border-t-brand-600 rounded-full animate-spin"></div>
+                    <div className="flex justify-center items-center py-14">
+                        <div className="w-7 h-7 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+                    </div>
+                ) : highRiskError ? (
+                    <div className="py-14 text-center" role="alert">
+                        <HiOutlineShieldCheck className="mx-auto mb-3 h-9 w-9 text-gray-300" />
+                        <h3 className="mb-1 text-sm font-semibold text-gray-900">Unable to load risk zones</h3>
+                        <p className="mb-4 text-sm text-gray-500">Live risk-zone data is temporarily unavailable.</p>
+                        <button
+                            type="button"
+                            onClick={fetchHighRiskZones}
+                            className="min-h-11 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                        >
+                            Try again
+                        </button>
                     </div>
                 ) : highRiskZones.length === 0 ? (
-                    <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <HiOutlineShieldCheck className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">No Active Zones</h3>
-                        <p className="text-gray-500">There are currently no high-risk zones reported in Sibuyan Island.</p>
+                    <div className="text-center py-14">
+                        <HiOutlineShieldCheck className="w-9 h-9 text-gray-300 mx-auto mb-3" />
+                        <h3 className="font-semibold text-gray-900 mb-1 text-sm">No active zones</h3>
+                        <p className="text-sm text-gray-400">No high-risk zones are currently reported on Sibuyan Island.</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="divide-y divide-gray-100">
                         {highRiskZones.map((zone) => (
-                            <div
-                                key={zone._id}
-                                className="p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white hover:border-brand-200 hover:shadow-md transition-all group"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${zone.severity === 'critical' ? 'bg-red-50 text-red-600 border-red-200' :
-                                                zone.severity === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                                                    zone.severity === 'medium' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
-                                                        'bg-blue-50 text-blue-600 border-blue-200'
-                                                }`}>
+                            <div key={zone._id} className="py-4 first:pt-0 last:pb-0">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                            <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${severityBadge(zone.severity)}`}>
                                                 {zone.severity}
                                             </span>
-                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                                                {zone.municipality}
+                                            <span className="text-xs text-gray-400">{zone.municipality}</span>
+                                        </div>
+                                        <h4 className="font-semibold text-gray-900 text-sm mb-1">{zone.name}</h4>
+                                        <p className="text-xs text-gray-500 leading-relaxed mb-2">{zone.description}</p>
+                                        <div className="flex gap-4 text-xs text-gray-400">
+                                            <span className="flex items-center gap-1">
+                                                <HiOutlineLightningBolt className="w-3 h-3" />
+                                                {zone.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <HiOutlineLocationMarker className="w-3 h-3" />
+                                                {zone.radius}m radius
                                             </span>
                                         </div>
-                                        <h4 className="font-bold text-gray-900 text-lg group-hover:text-brand-700 transition-colors">
-                                            {zone.name}
-                                        </h4>
-                                        <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                                            {zone.description}
-                                        </p>
-                                        <div className="flex items-center gap-4 mt-3 text-xs font-medium text-gray-400">
-                                            <div className="flex items-center gap-1.5">
-                                                <HiOutlineLightningBolt className="w-4 h-4" />
-                                                <span>{zone.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <HiOutlineLocationMarker className="w-4 h-4" />
-                                                <span>{zone.radius}m Radius</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${zone.severity === 'critical' ? 'bg-red-100 text-red-600 border-red-200' :
-                                        zone.severity === 'high' ? 'bg-orange-100 text-orange-600 border-orange-200' :
-                                            zone.severity === 'medium' ? 'bg-yellow-100 text-yellow-600 border-yellow-200' :
-                                                'bg-blue-100 text-blue-600 border-blue-200'
-                                        }`}>
-                                        <HiOutlineMap className="w-6 h-6" />
                                     </div>
                                 </div>
                             </div>
                         ))}
-
-                        <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="pt-4">
                             <Link
                                 to="/dashboard?view=map"
-                                className="w-full flex items-center justify-center gap-2 py-3 bg-brand-50 text-brand-700 font-bold rounded-xl hover:bg-brand-100 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
                             >
-                                <HiOutlineMap className="w-5 h-5" />
-                                View Zones on Map
+                                <HiOutlineMap className="w-4 h-4" />
+                                View all zones on map
                             </Link>
                         </div>
                     </div>
                 )}
             </Modal>
 
-            {/* Simple Footer */}
-            <footer className="bg-white border-t border-gray-100 py-8">
-                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
-                            <img src="/icons/Alert.png" alt="Sibuyan Alert Logo" className="w-full h-full object-contain" />
+            {/* ── Footer ── */}
+            <footer className="border-t border-gray-100 pt-8 pb-7 px-5 sm:px-8">
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-5">
+                        <div className="flex items-center gap-2">
+                            <img src="/icons/Alert.png" alt="Sibuyan Alert" className="w-5 h-5 object-contain" />
+                            <span className="text-sm font-semibold text-gray-900">Sibuyan Alert</span>
                         </div>
-                        <span className="font-display font-bold text-lg text-gray-900">Sibuyan Alert</span>
+                        <p className="text-xs text-gray-400">Public incident awareness and response coordination</p>
                     </div>
-                    <p className="text-gray-500 text-sm">
-                        &copy; 2026 Sibuyan Alert System. All rights reserved.
-                    </p>
-                    <div className="flex gap-6">
-                        <button onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-gray-400 hover:text-brand-600 transition-colors">Privacy</button>
-                        <button onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-gray-400 hover:text-brand-600 transition-colors">Terms</button>
-                        <button onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-gray-400 hover:text-brand-600 transition-colors">Contact</button>
+                    <div className="pt-5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <p className="text-xs text-gray-400 text-center sm:text-left">
+                            Built for the communities of Sibuyan Island — Cajidiocan, Magdiwang &amp; San Fernando.
+                        </p>
+                        <p className="text-xs text-gray-400 shrink-0">© 2026 Sibuyan Alert System.</p>
                     </div>
                 </div>
             </footer>

@@ -298,6 +298,7 @@ const reportSchema = new mongoose.Schema(
 // Indexes for efficient queries
 reportSchema.index({ 'coordinates.lat': 1, 'coordinates.lng': 1 });
 reportSchema.index({ status: 1, createdAt: -1 });
+reportSchema.index({ status: 1, verifiedAt: -1 });
 reportSchema.index({ incidentCategory: 1, status: 1 });
 reportSchema.index({ municipality: 1, status: 1 });
 reportSchema.index({ priority: 1, createdAt: -1 });

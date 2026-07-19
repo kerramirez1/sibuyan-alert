@@ -2,6 +2,10 @@ import User from '../models/User.js';
 import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
 import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
+import {
+    getPhilippineCalendarMonthRange,
+    PUBLIC_REPORT_STATUSES,
+} from '../utils/publicAnalytics.js';
 
 const getMunicipalityScopedUserIds = async (municipalityName) => {
     const [assignedUsers, reporterIdsFromReports] = await Promise.all([
@@ -210,17 +214,35 @@ export const getReporterAnalytics = async (req, res) => {
 
 export const getPublicAnalytics = async (req, res) => {
     try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const period = getPhilippineCalendarMonthRange();
+        const publishedStatusFilter = () => ({ $in: [...PUBLIC_REPORT_STATUSES] });
 
         const [
             verifiedThisMonth,
             activeHighRiskZones,
             totalReportsAllTime,
         ] = await Promise.all([
-            Report.countDocuments({ status: { $in: ['verified', 'resolved'] }, createdAt: { $gte: thirtyDaysAgo } }),
-            HighRiskZone.countDocuments({ isActive: { $ne: false } }),
-            Report.countDocuments({ status: { $in: ['verified', 'resolved'] } }),
+            Report.countDocuments({
+                status: publishedStatusFilter(),
+                $or: [
+                    {
+                        verifiedAt: {
+                            $gte: period.startAt,
+                            $lt: period.endAt,
+                        },
+                    },
+                    {
+                        // Legacy reports created before verifiedAt was introduced.
+                        verifiedAt: null,
+                        createdAt: {
+                            $gte: period.startAt,
+                            $lt: period.endAt,
+                        },
+                    },
+                ],
+            }),
+            HighRiskZone.countDocuments({ isActive: true }),
+            Report.countDocuments({ status: publishedStatusFilter() }),
         ]);
 
         res.json({
@@ -232,6 +254,14 @@ export const getPublicAnalytics = async (req, res) => {
                 activeHighRiskZones,
                 totalReportsAllTime,
                 systemStatus: 'Active',
+                period: {
+                    type: 'calendar_month',
+                    timezone: period.timezone,
+                    year: period.year,
+                    month: period.month,
+                    startAt: period.startAt.toISOString(),
+                    endAt: period.endAt.toISOString(),
+                },
             },
         });
     } catch (error) {

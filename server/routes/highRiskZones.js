@@ -2,6 +2,7 @@ import express from 'express';
 import HighRiskZone from '../models/HighRiskZone.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
+import { sortHighRiskZonesBySeverity } from '../utils/highRiskZones.js';
 
 const router = express.Router();
 
@@ -21,11 +22,12 @@ router.get('/', async (req, res) => {
 
         const zones = await HighRiskZone.find(query)
             .populate('createdBy', 'name')
-            .sort({ severity: -1, createdAt: -1 });
+            .sort({ createdAt: -1 });
+        const prioritizedZones = sortHighRiskZonesBySeverity(zones);
 
         res.json({
             success: true,
-            data: zones,
+            data: prioritizedZones,
         });
     } catch (error) {
         console.error('Get high-risk zones error:', error);
