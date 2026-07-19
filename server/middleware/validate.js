@@ -1,4 +1,8 @@
 import { body, param, validationResult } from 'express-validator';
+import {
+    isValidSibuyanAddress,
+    SIBUYAN_MUNICIPALITY_NAMES,
+} from '../config/sibuyanLocations.js';
 
 /**
  * Middleware to check validation results and return errors if any.
@@ -46,7 +50,12 @@ export const validateRegister = [
     body('municipality')
         .trim()
         .notEmpty().withMessage('Municipality is required')
-        .isIn(['Cajidiocan', 'Magdiwang', 'San Fernando']).withMessage('Invalid municipality'),
+        .isIn(SIBUYAN_MUNICIPALITY_NAMES).withMessage('Invalid municipality'),
+    body('barangay')
+        .trim()
+        .notEmpty().withMessage('Barangay is required')
+        .custom((barangay, { req }) => isValidSibuyanAddress(req.body.municipality, barangay))
+        .withMessage('Barangay does not belong to the selected municipality'),
     handleValidationErrors,
 ];
 

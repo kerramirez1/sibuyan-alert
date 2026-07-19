@@ -7,6 +7,7 @@ import {
     deleteGridFsFilesByUrls,
     uploadFileToGridFS,
 } from '../services/gridFsService.js';
+import { isValidSibuyanAddress } from '../config/sibuyanLocations.js';
 
 /**
  * @desc    Register a new reporter (with ID upload)
@@ -18,8 +19,7 @@ export const register = async (req, res) => {
     let userCreated = false;
 
     try {
-        const { email, password, name, address, municipality } = req.body;
-        const allowedMunicipalities = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
+        const { email, password, name, municipality, barangay } = req.body;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -40,12 +40,14 @@ export const register = async (req, res) => {
             });
         }
 
-        if (!municipality || !allowedMunicipalities.includes(municipality)) {
+        if (!isValidSibuyanAddress(municipality, barangay)) {
             return res.status(400).json({
                 success: false,
-                message: 'Valid municipality is required',
+                message: 'Select a valid barangay for the chosen municipality',
             });
         }
+
+        const canonicalAddress = `${barangay}, ${municipality}, Sibuyan Island, Romblon`;
 
         const userId = new mongoose.Types.ObjectId();
         const storageMetadata = {
@@ -74,7 +76,8 @@ export const register = async (req, res) => {
             email: email.toLowerCase(),
             password,
             name,
-            address: address || null,
+            address: canonicalAddress,
+            barangay,
             assignedMunicipality: municipality,
             role: 'reporter',
             idDocument: storedIdDocument.url,
@@ -97,6 +100,7 @@ export const register = async (req, res) => {
                     name: user.name,
                     role: user.role,
                     address: user.address,
+                    barangay: user.barangay,
                     assignedMunicipality: user.assignedMunicipality,
                     isVerified: user.isVerified,
                     verificationStatus: user.verificationStatus,
@@ -182,6 +186,7 @@ export const login = async (req, res) => {
                     assignedMunicipality: user.assignedMunicipality,
                     avatar: user.avatar,
                     address: user.address,
+                    barangay: user.barangay,
                     isOnDuty: user.isOnDuty !== false,
                     isVerified: user.isVerified,
                     verificationStatus: user.verificationStatus,
@@ -220,6 +225,7 @@ export const getMe = async (req, res) => {
                 assignedMunicipality: user.assignedMunicipality,
                 avatar: user.avatar,
                 address: user.address,
+                barangay: user.barangay,
                 isOnDuty: user.isOnDuty !== false,
                 isVerified: user.isVerified,
                 verificationStatus: user.verificationStatus,

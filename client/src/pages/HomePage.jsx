@@ -124,7 +124,7 @@ const HomePage = () => {
             .catch(() => {});
     }, []);
 
-    const barangayCount = (name) => name === 'Cajidiocan' ? 15 : name === 'Magdiwang' ? 9 : 12;
+    const barangayCount = (name) => name === 'Cajidiocan' ? 14 : name === 'Magdiwang' ? 9 : 12;
     const totalBarangayCount = municipalities.reduce(
         (total, municipality) => total + (municipality.barangays?.length || barangayCount(municipality.name)),
         0

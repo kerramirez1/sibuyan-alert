@@ -63,6 +63,12 @@ const userSchema = new mongoose.Schema(
             maxlength: [300, 'Address cannot exceed 300 characters'],
             default: null,
         },
+        barangay: {
+            type: String,
+            trim: true,
+            maxlength: [100, 'Barangay cannot exceed 100 characters'],
+            default: null,
+        },
         idDocument: {
             type: String, // Private GridFS delivery URL for reporter ID verification
             default: null,
@@ -172,6 +178,8 @@ userSchema.virtual('profile').get(function () {
         role: this.role,
         agency: this.agency,
         assignedMunicipality: this.assignedMunicipality,
+        barangay: this.barangay,
+        address: this.address,
         avatar: this.avatar,
         isOnDuty: this.isOnDuty,
         isVerified: this.isVerified,

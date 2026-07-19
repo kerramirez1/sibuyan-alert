@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
     HiOutlineMap,
     HiOutlineLightningBolt,
@@ -9,192 +8,118 @@ import {
 
 const features = [
     {
-        icon: HiOutlineMap,
-        title: 'Interactive Mapping',
-        desc: 'Live tracking of incidents and hazards across all municipalities with 3D visualization.',
-        gradient: 'from-blue-500 to-cyan-400',
+        Icon: HiOutlineMap,
+        title: 'Operational Map',
+        desc: 'Published incidents and active high-risk zones in map and 3D views.',
     },
     {
-        icon: HiOutlineLightningBolt,
-        title: 'Instant Alerts',
-        desc: 'Immediate notifications for verified emergencies and disaster warnings.',
-        gradient: 'from-amber-500 to-orange-400',
+        Icon: HiOutlineLightningBolt,
+        title: 'Responder Alerts',
+        desc: 'Updates for municipal response units after verification or transfer.',
     },
     {
-        icon: HiOutlineUserGroup,
-        title: 'Community Driven',
-        desc: 'Connecting residents, responders, and LGUs for faster coordination.',
-        gradient: 'from-emerald-500 to-green-400',
+        Icon: HiOutlineUserGroup,
+        title: 'Role-based Workflow',
+        desc: 'Residents report, administrators review, and responders act.',
     },
     {
-        icon: HiOutlineShieldCheck,
-        title: 'Verified Reports',
-        desc: 'Every report is reviewed by local authorities before being broadcast.',
-        gradient: 'from-purple-500 to-indigo-400',
+        Icon: HiOutlineShieldCheck,
+        title: 'Administrator Review',
+        desc: 'Pending reports stay off the public map until verified.',
     },
 ];
 
-const FloatingOrb = ({ className, delay = 0 }) => (
-    <motion.div
-        animate={{
-            y: [0, -20, 0],
-            x: [0, 10, 0],
-            scale: [1, 1.05, 1],
-        }}
-        transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay,
-        }}
-        className={className}
-    />
-);
+const municipalitySeals = [
+    {
+        name: 'Cajidiocan',
+        src: '/icons/Cajidiocan.logo.png',
+        imageClass: 'scale-[1.8]',
+    },
+    {
+        name: 'Magdiwang',
+        src: '/icons/Magdiwang.logo.png',
+        imageClass: 'scale-[1.55]',
+    },
+    {
+        name: 'San Fernando',
+        src: '/icons/Sanfernando.logo.png',
+        imageClass: 'scale-[0.86]',
+    },
+];
 
-const AuthLayout = () => {
-    return (
-        <div className="min-h-screen flex bg-white font-sans selection:bg-brand-200 selection:text-brand-900">
-            {/* Left Side - Branding (Visible on Desktop) */}
-            <div className="hidden lg:flex lg:w-[52%] xl:w-1/2 relative overflow-hidden items-center justify-center p-10 xl:p-14">
-                {/* Deep gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-950 via-brand-900 to-slate-900" />
-
-                {/* Animated mesh gradient overlay */}
-                <div className="absolute inset-0 opacity-40">
-                    <FloatingOrb
-                        className="absolute top-[-15%] left-[-10%] w-[70%] h-[70%] bg-brand-600 rounded-full blur-[100px]"
-                        delay={0}
-                    />
-                    <FloatingOrb
-                        className="absolute bottom-[-15%] right-[-10%] w-[65%] h-[65%] bg-emerald-600 rounded-full blur-[100px]"
-                        delay={2}
-                    />
-                    <FloatingOrb
-                        className="absolute top-[25%] right-[10%] w-[45%] h-[45%] bg-blue-600 rounded-full blur-[100px]"
-                        delay={4}
-                    />
-                    <FloatingOrb
-                        className="absolute bottom-[20%] left-[15%] w-[35%] h-[35%] bg-purple-600 rounded-full blur-[80px]"
-                        delay={6}
-                    />
+const AuthLayout = () => (
+    <div className="min-h-dvh bg-gray-50 font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900 lg:grid lg:grid-cols-[minmax(410px,42%)_minmax(0,1fr)]">
+        <aside className="hidden min-h-dvh border-r border-brand-900 bg-brand-950 text-white lg:flex lg:flex-col" aria-label="Sibuyan Alert system overview">
+            <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-10 py-12 xl:px-14">
+                <div className="mb-10 flex items-center gap-3.5">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 ring-1 ring-white/20">
+                        <img
+                            src="/icons/Alert.png"
+                            alt=""
+                            className="h-full w-full object-contain"
+                        />
+                    </div>
+                    <div>
+                        <p className="font-display text-2xl font-bold leading-none tracking-tight">
+                            Sibuyan <span className="text-emerald-400">Alert</span>
+                        </p>
+                        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
+                            Accident Alert &amp; Mapping System
+                        </p>
+                    </div>
                 </div>
 
-                {/* Subtle grid pattern overlay */}
-                <div
-                    className="absolute inset-0 opacity-[0.03]"
-                    style={{
-                        backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)',
-                        backgroundSize: '24px 24px',
-                    }}
-                />
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+                    Sibuyan Island incident coordination
+                </p>
+                <h1 className="max-w-lg font-display text-3xl font-bold leading-tight tracking-tight text-white xl:text-4xl">
+                    Report, review, map, and coordinate accident response in one system.
+                </h1>
+                <p className="mt-4 max-w-lg text-sm leading-6 text-brand-200/80">
+                    Built for residents, municipal administrators, and emergency response units across Sibuyan Island.
+                </p>
 
-                {/* Content */}
-                <div className="relative z-10 w-full max-w-lg">
-                    {/* Logo + Title */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7 }}
-                        className="mb-10"
-                    >
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-14 h-14 bg-white rounded-2xl p-1.5 overflow-hidden flex items-center justify-center shadow-2xl shadow-black/20 ring-1 ring-white/20">
-                                <img
-                                    src="/icons/Alert.png"
-                                    alt="Sibuyan Alert Logo"
-                                    className="w-full h-full object-contain"
-                                />
+                <div className="mt-10 grid grid-cols-2 border-y border-white/10">
+                    {features.map(({ Icon, title, desc }, index) => (
+                        <div
+                            key={title}
+                            className={`py-5 ${index % 2 === 0 ? 'border-r border-white/10 pr-5' : 'pl-5'} ${index < 2 ? 'border-b border-white/10' : ''}`}
+                        >
+                            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-emerald-300">
+                                <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                             </div>
-                            <div className="text-white">
-                                <h1 className="font-display font-bold text-3xl leading-none tracking-tight">
-                                    Sibuyan <span className="text-emerald-400">Alert</span>
-                                </h1>
-                                <p className="text-brand-300 text-xs tracking-[0.2em] uppercase mt-1 font-medium">
-                                    Accident Alert & Mapping System
-                                </p>
-                            </div>
+                            <h2 className="text-sm font-semibold text-white">{title}</h2>
+                            <p className="mt-1.5 text-xs leading-5 text-brand-200/70">{desc}</p>
                         </div>
+                    ))}
+                </div>
 
-                        <h2 className="text-white text-2xl xl:text-3xl font-bold leading-snug mb-3">
-                            Real-time accident reporting and emergency coordination for{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                                Sibuyan Island
+                <div className="mt-8 flex items-center gap-3 border-t border-white/10 pt-6">
+                    <div className="flex shrink-0 items-center gap-1.5" aria-label="Municipality seals">
+                        {municipalitySeals.map(({ name, src, imageClass }) => (
+                            <span key={name} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white/20" title={name}>
+                                <img src={src} alt={`${name} seal`} className={`h-full w-full object-contain ${imageClass}`} />
                             </span>
-                            .
-                        </h2>
-                        <p className="text-brand-300/80 text-sm leading-relaxed">
-                            Keeping communities safe through technology-driven incident management.
-                        </p>
-                    </motion.div>
-
-                    {/* Feature Cards */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {features.map((feature, idx) => (
-                            <motion.div
-                                key={feature.title}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: 0.3 + idx * 0.1 }}
-                                className="group relative bg-white/[0.06] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.08] hover:border-white/20 rounded-2xl p-4 transition-all duration-300 cursor-default"
-                            >
-                                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                                    <feature.icon className="w-4.5 h-4.5 text-white" />
-                                </div>
-                                <h3 className="text-white font-bold text-sm mb-1 group-hover:text-emerald-300 transition-colors">
-                                    {feature.title}
-                                </h3>
-                                <p className="text-brand-300/70 text-xs leading-relaxed line-clamp-2">
-                                    {feature.desc}
-                                </p>
-                            </motion.div>
                         ))}
                     </div>
-
-                    {/* Trust indicators */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 1, duration: 0.8 }}
-                        className="mt-8 flex items-center gap-4"
-                    >
-                        <div className="flex -space-x-2">
-                            {['C', 'M', 'S'].map((letter, i) => (
-                                <div
-                                    key={letter}
-                                    className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 border-2 border-brand-900 flex items-center justify-center text-[10px] font-bold text-white shadow-lg"
-                                    style={{ zIndex: 3 - i }}
-                                >
-                                    {letter}
-                                </div>
-                            ))}
-                        </div>
-                        <div>
-                            <p className="text-white/80 text-xs font-semibold">3 Municipalities Connected</p>
-                            <p className="text-brand-400/60 text-[10px]">Cajidiocan · Magdiwang · San Fernando</p>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* Copyright */}
-                <div className="absolute bottom-6 left-0 right-0 text-center text-brand-400/30 text-[10px] font-medium tracking-[0.15em] uppercase">
-                    © 2026 Sibuyan Alert System
+                    <div>
+                        <p className="text-xs font-semibold text-white">Coverage across 3 municipalities</p>
+                        <p className="mt-0.5 text-[11px] text-brand-300/70">Cajidiocan · Magdiwang · San Fernando</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Right Side - Form Container */}
-            <div className="w-full lg:w-[48%] xl:w-1/2 min-h-screen flex items-center justify-center p-5 sm:p-8 md:p-12 bg-slate-50">
+            <p className="px-10 pb-7 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-brand-300/50 xl:px-14">
+                © 2026 Sibuyan Alert System
+            </p>
+        </aside>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="w-full max-w-[460px]"
-                >
-                    <Outlet />
-                </motion.div>
+        <main className="flex min-h-dvh w-full items-center justify-center bg-gray-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <div className="w-full max-w-[440px]">
+                <Outlet />
             </div>
-        </div>
-    );
-};
+        </main>
+    </div>
+);
 
 export default AuthLayout;

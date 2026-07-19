@@ -91,7 +91,7 @@ describe('HomePage operational landing page', () => {
         expect(screen.getAllByAltText(/Mountain ridges of Mount Guiting-Guiting/i)).toHaveLength(2);
         expect(await screen.findByText('Verified in Jul 2026')).toBeInTheDocument();
         expect(screen.getByText('Municipalities covered')).toBeInTheDocument();
-        expect(screen.getByText('15 barangays')).toBeInTheDocument();
+        expect(screen.getByText('14 barangays')).toBeInTheDocument();
         expect(screen.getByText('12 barangays')).toBeInTheDocument();
 
         fireEvent.click(await screen.findByRole('button', { name: /Active risk zones/i }));
