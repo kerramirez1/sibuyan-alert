@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
+import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { installCompassOrientationToggle } from '../../utils/mapNavigation';
 import { createOperationalMapStyle } from '../../config/mapProvider';
+import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -25,6 +27,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const [mapReady, setMapReady] = useState(false);
+    const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
 
     // Generate GeoJSON features from zones
     const generateFeatures = useCallback((zones) => {
@@ -63,7 +66,12 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-        const provider = createOperationalMapStyle({ enableTerrain: true, includeStreet: false });
+        const provider = createOperationalMapStyle({
+            enableTerrain: performanceProfile.terrainEnabled,
+            enableHillshade: false,
+            terrainMaxZoom: performanceProfile.terrainMaxZoom,
+            includeStreet: false,
+        });
         const mapInstance = new maplibregl.Map({
             container: mapContainerRef.current,
             style: provider.style,
@@ -71,7 +79,11 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             zoom: 11,
             pitch: 55,
             bearing: -15,
-            antialias: true,
+            antialias: performanceProfile.antialias,
+            pixelRatio: performanceProfile.pixelRatio,
+            maxTileCacheSize: performanceProfile.maxTileCacheSize,
+            fadeDuration: performanceProfile.fadeDuration,
+            renderWorldCopies: false,
             maxZoom: 17,
         });
 
@@ -111,7 +123,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             mapInstance.remove();
             mapInstanceRef.current = null;
         };
-    }, []);
+    }, [performanceProfile]);
 
     // Update zones when data changes or map becomes ready
     useEffect(() => {
@@ -134,8 +146,9 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             pitch: 55,
             bearing: -15,
             essential: true,
+            duration: performanceProfile.navigationDuration,
         });
-    }, [focusLocation]);
+    }, [focusLocation, performanceProfile.navigationDuration]);
 
     return (
         <div className={`relative ${className}`} style={{ minHeight: '500px', height: '100%' }}>

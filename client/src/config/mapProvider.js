@@ -162,12 +162,18 @@ const createPmtilesStreetLayers = (sourceId, dark) => (
 
 export const createOperationalMapStyle = ({
     enableTerrain = true,
+    enableHillshade = false,
+    terrainMaxZoom = 14,
     includeStreet = true,
     dark = false,
     pmtilesUrl = configuredPmtilesUrl,
     terrainTilesUrl = configuredTerrainUrl,
     pmtilesInspection = null,
 } = {}) => {
+    const normalizedTerrainMaxZoom = Math.min(
+        15,
+        Math.max(0, Number.isFinite(Number(terrainMaxZoom)) ? Number(terrainMaxZoom) : 14)
+    );
     let normalizedPmtilesUrl = '';
     try {
         normalizedPmtilesUrl = includeStreet ? toPmtilesProtocolUrl(pmtilesUrl) : '';
@@ -205,19 +211,21 @@ export const createOperationalMapStyle = ({
             type: 'raster-dem',
             tiles: [terrainTilesUrl],
             tileSize: 256,
-            maxzoom: 15,
+            maxzoom: normalizedTerrainMaxZoom,
             encoding: 'terrarium',
             attribution: 'Elevation data &copy; Mapzen contributors',
         };
-        mapLayers.push({
-            id: 'terrain-hillshade',
-            type: 'hillshade',
-            source: TERRAIN_SOURCE_ID,
-            paint: {
-                'hillshade-exaggeration': 0.28,
-                'hillshade-shadow-color': '#334155',
-            },
-        });
+        if (enableHillshade) {
+            mapLayers.push({
+                id: 'terrain-hillshade',
+                type: 'hillshade',
+                source: TERRAIN_SOURCE_ID,
+                paint: {
+                    'hillshade-exaggeration': 0.28,
+                    'hillshade-shadow-color': '#334155',
+                },
+            });
+        }
     }
 
     const primaryStreetLayerIds = [];

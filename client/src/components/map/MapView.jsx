@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
+import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,6 +12,7 @@ import {
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { installCompassOrientationToggle } from '../../utils/mapNavigation';
+import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 import {
     OPERATIONAL_MAX_ZOOM,
     PMTILES_SOURCE_ID,
@@ -90,6 +92,8 @@ const MapView = ({
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
+    const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
+    const effective3D = enable3D && performanceProfile.terrainEnabled;
 
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
@@ -102,7 +106,11 @@ const MapView = ({
     useEffect(() => {
         let active = true;
 
-        prepareOperationalMapStyle({ enableTerrain: enable3D }).then((provider) => {
+        prepareOperationalMapStyle({
+            enableTerrain: effective3D,
+            enableHillshade: false,
+            terrainMaxZoom: performanceProfile.terrainMaxZoom,
+        }).then((provider) => {
             if (!active) return;
             setMapProvider(provider);
             if (provider.pmtilesError) {
@@ -115,7 +123,7 @@ const MapView = ({
         return () => {
             active = false;
         };
-    }, [enable3D]);
+    }, [effective3D, performanceProfile.terrainMaxZoom]);
 
     // Generate circle polygon for zones
     const generateCirclePolygon = useCallback((center, radiusKm, points = 64) => {
@@ -153,9 +161,13 @@ const MapView = ({
             style: provider.style,
             center: SIBUYAN_CENTER,
             zoom: 11,
-            pitch: enable3D ? 45 : 0,
-            bearing: enable3D ? -17 : 0,
-            antialias: true,
+            pitch: effective3D ? 45 : 0,
+            bearing: effective3D ? -17 : 0,
+            antialias: performanceProfile.antialias,
+            pixelRatio: performanceProfile.pixelRatio,
+            maxTileCacheSize: performanceProfile.maxTileCacheSize,
+            fadeDuration: performanceProfile.fadeDuration,
+            renderWorldCopies: false,
             attributionControl: false,
             // A report pin must stay within the same server-enforced Sibuyan envelope.
             maxBounds: onLocationSelect ? SIBUYAN_INTERACTION_BOUNDS : [[121.5, 11.5], [123.5, 13.5]],
@@ -166,9 +178,18 @@ const MapView = ({
         mapInstance.addControl(navigationControl, 'top-right');
         mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
         const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
-            pitch: enable3D ? 45 : 0,
-            bearing: enable3D ? -17 : 0,
+            pitch: effective3D ? 45 : 0,
+            bearing: effective3D ? -17 : 0,
         });
+
+        const pauseMarkerAnimations = () => {
+            mapInstance.getContainer().classList.add('map-motion-active');
+        };
+        const resumeMarkerAnimations = () => {
+            mapInstance.getContainer().classList.remove('map-motion-active');
+        };
+        mapInstance.on('movestart', pauseMarkerAnimations);
+        mapInstance.on('moveend', resumeMarkerAnimations);
 
         mapInstance.on('error', (event) => {
             const sourceId = event?.sourceId || event?.source?.id;
@@ -246,7 +267,7 @@ const MapView = ({
             });
 
             // Add 3D extrusion for zones if enabled
-            if (enable3D) {
+            if (effective3D) {
                 mapInstance.addLayer({
                     id: 'zones-3d',
                     type: 'fill-extrusion',
@@ -368,12 +389,14 @@ const MapView = ({
         });
 
         return () => {
+            mapInstance.off('movestart', pauseMarkerAnimations);
+            mapInstance.off('moveend', resumeMarkerAnimations);
             removeCompassToggle();
             popupRef.current?.remove();
             mapInstance.remove();
             mapInstanceRef.current = null;
         };
-    }, [enable3D, mapProvider]);
+    }, [effective3D, mapProvider, performanceProfile]);
 
     // Handle map style switching
     useEffect(() => {
@@ -464,27 +487,7 @@ const MapView = ({
             })
             .filter(Boolean);
 
-        // Generate zone features
-        const zoneFeatures = highRiskZones.map(zone => {
-            const center = [zone.coordinates.lng, zone.coordinates.lat];
-            const radiusKm = zone.radius / 1000;
-            const coords = generateCirclePolygon(center, radiusKm);
-
-            return {
-                type: 'Feature',
-                properties: {
-                    color: ZONE_COLORS[zone.type] || ZONE_COLORS.other,
-                    height: zone.severity === 'critical' ? 500 : zone.severity === 'high' ? 300 : zone.severity === 'medium' ? 150 : 50,
-                    name: zone.name,
-                },
-                geometry: {
-                    type: 'Polygon',
-                    coordinates: [coords],
-                },
-            };
-        });
-
-        // Update sources
+        // Update the report source independently from GPS and risk-zone changes.
         const reportsSource = map.getSource('reports');
         if (reportsSource) {
             reportsSource.setData({ type: 'FeatureCollection', features: reportFeatures });
@@ -516,7 +519,7 @@ const MapView = ({
                 el.className = 'report-marker';
                 el.innerHTML = `
                     <div style="position:relative; width:40px; height:40px; display:flex; align-items:flex-end; justify-content:center;">
-                        ${isResponding ? `
+                        ${isResponding && performanceProfile.markerAnimations ? `
                             <div style="
                                 position:absolute;
                                 width:30px;
@@ -524,7 +527,8 @@ const MapView = ({
                                 border-radius:9999px;
                                 background:rgba(239,68,68,0.34);
                                 animation: responderPulse 1.8s ease-out infinite;
-                            "></div>
+                            " data-map-pulse>
+                            </div>
                             <div style="
                                 position:absolute;
                                 width:30px;
@@ -532,7 +536,7 @@ const MapView = ({
                                 border-radius:9999px;
                                 background:rgba(239,68,68,0.20);
                                 animation: responderPulse 1.8s ease-out infinite 0.9s;
-                            "></div>
+                            " data-map-pulse></div>
                         ` : ''}
                          <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : isPending ? 'filter: drop-shadow(0 0 14px rgba(249,115,22,0.95));' : ''}">
                             <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${markerColor}"/>
@@ -600,6 +604,33 @@ const MapView = ({
                 reportMarkersRef.current.push(marker);
             });
 
+    }, [reports, showPending, filterCategory, filterStatus, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations]);
+
+    // Risk zones change far less often than GPS updates. Keep their polygons and
+    // DOM markers isolated so acquiring a location never rebuilds the zone UI.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
+        const zoneFeatures = highRiskZones.map(zone => {
+            const center = [zone.coordinates.lng, zone.coordinates.lat];
+            const radiusKm = zone.radius / 1000;
+            const coords = generateCirclePolygon(center, radiusKm);
+
+            return {
+                type: 'Feature',
+                properties: {
+                    color: ZONE_COLORS[zone.type] || ZONE_COLORS.other,
+                    height: zone.severity === 'critical' ? 500 : zone.severity === 'high' ? 300 : zone.severity === 'medium' ? 150 : 50,
+                    name: zone.name,
+                },
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [coords],
+                },
+            };
+        });
+
         const zonesSource = map.getSource('zones');
         if (zonesSource) {
             zonesSource.setData({ type: 'FeatureCollection', features: zoneFeatures });
@@ -618,20 +649,20 @@ const MapView = ({
             el.style.zIndex = '10';
             el.innerHTML = `
                 <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center;">
-                    <div style="
+                    ${performanceProfile.markerAnimations ? `<div style="
                         position:absolute;
                         width:100%; height:100%;
                         background:rgba(239, 68, 68, 0.3);
                         border-radius:50%;
                         animation: dangerPulse 1.5s ease-out infinite;
-                    "></div>
+                    " data-map-pulse></div>
                     <div style="
                         position:absolute;
                         width:70%; height:70%;
                         background:rgba(239, 68, 68, 0.5);
                         border-radius:50%;
                         animation: dangerPulse 1.5s ease-out infinite 0.5s;
-                    "></div>
+                    " data-map-pulse></div>` : ''}
                     <div style="
                         width:24px; height:24px;
                         background:${color};
@@ -669,6 +700,15 @@ const MapView = ({
 
             zoneMarkersRef.current.push(marker);
         });
+
+    }, [highRiskZones, mapReady, generateCirclePolygon, performanceProfile.markerAnimations]);
+
+    // The draggable selected pin has its own update path. Moving it must not
+    // recreate operational incident or high-risk-zone markers.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
 
         // Update selected location
         const selectedSource = map.getSource('selected-location');
@@ -721,6 +761,16 @@ const MapView = ({
                 selectedMarkerRef.current = null;
             }
         }
+
+    }, [selectedLocation, mapReady]);
+
+    // GPS can update frequently. Only touch the blue-dot and accuracy sources so
+    // continuous watches remain smooth on mobile devices.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
+
         // Update User Location Logic (Blue Dot)
         const userSource = map.getSource('user-location');
         if (userSource && userLocation) {
@@ -755,7 +805,7 @@ const MapView = ({
                 accuracySource.setData({ type: 'FeatureCollection', features: [] });
             }
         }
-    }, [reports, highRiskZones, selectedLocation, userLocation, showPending, filterCategory, filterStatus, mapReady, generateCirclePolygon, gpsAccuracy, canRespond, canResolve, canResolveReport, onRespondToReport, onResolveReport]);
+    }, [userLocation, gpsAccuracy, mapReady, generateCirclePolygon]);
 
     // Handle focus location updates (for dynamic changes)
     useEffect(() => {
@@ -765,12 +815,12 @@ const MapView = ({
         map.flyTo({
             center: [focusLocation.lng, focusLocation.lat],
             zoom: focusLocation.zoom || 16,
-            pitch: enable3D ? 45 : 0,
-            bearing: enable3D ? -17 : 0,
+            pitch: effective3D ? 45 : 0,
+            bearing: effective3D ? -17 : 0,
             essential: true,
-            duration: 4000 // Cinematic slow-mo transition
+            duration: performanceProfile.navigationDuration,
         });
-    }, [focusLocation, enable3D, mapReady]);
+    }, [focusLocation, effective3D, mapReady, performanceProfile.navigationDuration]);
 
     // Navigation handlers
     const recenterMap = () => {
@@ -778,8 +828,9 @@ const MapView = ({
             mapInstanceRef.current.flyTo({
                 center: SIBUYAN_CENTER,
                 zoom: 11,
-                pitch: enable3D ? 45 : 0,
-                bearing: enable3D ? -17 : 0,
+                pitch: effective3D ? 45 : 0,
+                bearing: effective3D ? -17 : 0,
+                duration: performanceProfile.navigationDuration,
             });
         }
     };
@@ -789,8 +840,9 @@ const MapView = ({
             mapInstanceRef.current.flyTo({
                 center: center,
                 zoom: 13,
-                pitch: enable3D ? 45 : 0,
-                bearing: enable3D ? -17 : 0,
+                pitch: effective3D ? 45 : 0,
+                bearing: effective3D ? -17 : 0,
+                duration: performanceProfile.navigationDuration,
             });
         }
         setShowMuniMenu(false);
@@ -815,10 +867,10 @@ const MapView = ({
         mapInstanceRef.current.flyTo({
             center: [lng, lat],
             zoom: 17,
-            pitch: enable3D ? 45 : 0,
-            bearing: enable3D ? -17 : 0,
+            pitch: effective3D ? 45 : 0,
+            bearing: effective3D ? -17 : 0,
             essential: true,
-            duration: 1200,
+            duration: performanceProfile.navigationDuration,
         });
     };
 

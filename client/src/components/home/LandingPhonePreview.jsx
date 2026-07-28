@@ -1,14 +1,60 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
     HiOutlineBell,
     HiOutlineCheckCircle,
     HiOutlineLocationMarker,
     HiOutlineMap,
 } from 'react-icons/hi';
+import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 
 const Landing3DMapPreview = lazy(() => import('./Landing3DMapPreview'));
 
-const LandingPhonePreview = ({ verifiedCount, activeRiskZones, loading = false }) => (
+const LandingPhonePreview = ({ verifiedCount, activeRiskZones, loading = false }) => {
+    const previewContainerRef = useRef(null);
+    const [load3DPreview, setLoad3DPreview] = useState(false);
+    const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
+
+    useEffect(() => {
+        if (!performanceProfile.loadLanding3DPreview || !previewContainerRef.current) return undefined;
+
+        let idleHandle = null;
+        let timeoutHandle = null;
+        let cancelled = false;
+        const schedulePreview = () => {
+            if (typeof window.requestIdleCallback === 'function') {
+                idleHandle = window.requestIdleCallback(() => {
+                    if (!cancelled) setLoad3DPreview(true);
+                }, { timeout: 1500 });
+                return;
+            }
+            timeoutHandle = window.setTimeout(() => {
+                if (!cancelled) setLoad3DPreview(true);
+            }, 250);
+        };
+
+        let observer = null;
+        if (typeof IntersectionObserver === 'function') {
+            observer = new IntersectionObserver(([entry]) => {
+                if (!entry?.isIntersecting) return;
+                observer.disconnect();
+                schedulePreview();
+            }, { rootMargin: '160px' });
+            observer.observe(previewContainerRef.current);
+        } else {
+            schedulePreview();
+        }
+
+        return () => {
+            cancelled = true;
+            observer?.disconnect();
+            if (idleHandle !== null && typeof window.cancelIdleCallback === 'function') {
+                window.cancelIdleCallback(idleHandle);
+            }
+            if (timeoutHandle !== null) window.clearTimeout(timeoutHandle);
+        };
+    }, [performanceProfile.loadLanding3DPreview]);
+
+    return (
     <div
         className="relative mx-auto w-full max-w-[150px] sm:max-w-[220px] lg:max-w-[272px] xl:max-w-[292px]"
         role="img"
@@ -46,11 +92,13 @@ const LandingPhonePreview = ({ verifiedCount, activeRiskZones, loading = false }
                             </span>
                         </div>
 
-                        <div className="relative h-20 overflow-hidden rounded-lg bg-[#b8d0bd] shadow-inner min-[430px]:h-24 sm:h-36 sm:rounded-2xl lg:h-48">
+                        <div ref={previewContainerRef} className="relative h-20 overflow-hidden rounded-lg bg-[#b8d0bd] shadow-inner min-[430px]:h-24 sm:h-36 sm:rounded-2xl lg:h-48">
                             <img src="/images/sibuyan-hero.jpg" alt="" className="h-full w-full object-cover object-[62%_62%] saturate-[0.8]" />
-                            <Suspense fallback={null}>
-                                <Landing3DMapPreview />
-                            </Suspense>
+                            {load3DPreview && (
+                                <Suspense fallback={null}>
+                                    <Landing3DMapPreview />
+                                </Suspense>
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-b from-slate-950/5 via-transparent to-slate-950/40" />
                             <div className="absolute left-[22%] top-[32%] flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-[3px] ring-blue-500/20 sm:h-7 sm:w-7 sm:ring-4">
                                 <HiOutlineLocationMarker className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -110,6 +158,7 @@ const LandingPhonePreview = ({ verifiedCount, activeRiskZones, loading = false }
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export default LandingPhonePreview;

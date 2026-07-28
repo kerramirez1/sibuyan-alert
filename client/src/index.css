@@ -560,6 +560,17 @@
   }
 }
 
+/* Camera interaction takes priority over decorative marker animation. */
+.maplibregl-map.map-motion-active [data-map-pulse] {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maplibregl-map [data-map-pulse] {
+    animation: none !important;
+  }
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);

@@ -1,0 +1,44 @@
+const readMediaPreference = (query) => (
+    typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(query).matches
+);
+
+/**
+ * Produces one stable rendering profile per map instance. The profile keeps the
+ * operational map usable on lower-powered phones without changing its data,
+ * permissions, markers, or navigation behavior.
+ */
+export const getMapPerformanceProfile = (overrides = {}) => {
+    const browserWindow = typeof window !== 'undefined' ? window : undefined;
+    const browserNavigator = typeof navigator !== 'undefined' ? navigator : undefined;
+    const viewportWidth = overrides.viewportWidth ?? browserWindow?.innerWidth ?? 1280;
+    const devicePixelRatio = overrides.devicePixelRatio ?? browserWindow?.devicePixelRatio ?? 1;
+    const saveData = overrides.saveData ?? Boolean(browserNavigator?.connection?.saveData);
+    const deviceMemory = overrides.deviceMemory ?? browserNavigator?.deviceMemory;
+    const hardwareConcurrency = overrides.hardwareConcurrency ?? browserNavigator?.hardwareConcurrency;
+    const reducedMotion = overrides.reducedMotion ?? readMediaPreference('(prefers-reduced-motion: reduce)');
+
+    const compactViewport = viewportWidth < 768;
+    const limitedMemory = Number.isFinite(deviceMemory) && deviceMemory <= 4;
+    const limitedCpu = Number.isFinite(hardwareConcurrency) && hardwareConcurrency <= 4;
+    const resourceConstrained = saveData || (compactViewport && (limitedMemory || limitedCpu));
+
+    return {
+        compactViewport,
+        resourceConstrained,
+        terrainEnabled: !saveData,
+        terrainMaxZoom: resourceConstrained ? 12 : compactViewport ? 13 : 14,
+        antialias: !compactViewport && !resourceConstrained,
+        pixelRatio: resourceConstrained
+            ? 1
+            : Math.min(Math.max(devicePixelRatio, 1), compactViewport ? 1.5 : 2),
+        maxTileCacheSize: resourceConstrained ? 24 : compactViewport ? 40 : 80,
+        fadeDuration: reducedMotion || resourceConstrained ? 0 : 150,
+        markerAnimations: !reducedMotion && !resourceConstrained,
+        navigationDuration: reducedMotion ? 0 : resourceConstrained ? 450 : 800,
+        loadLanding3DPreview: !saveData && !reducedMotion && !resourceConstrained && !compactViewport,
+    };
+};
+
+export default getMapPerformanceProfile;

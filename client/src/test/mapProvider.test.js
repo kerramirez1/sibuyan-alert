@@ -76,13 +76,16 @@ describe('map provider configuration', () => {
             pmtilesUrl: '',
             terrainTilesUrl: 'https://terrain.example.gov/{z}/{x}/{y}.png',
             enableTerrain: true,
+            terrainMaxZoom: 13,
         });
 
         expect(result.style.sources[TERRAIN_SOURCE_ID]).toMatchObject({
             type: 'raster-dem',
             encoding: 'terrarium',
+            maxzoom: 13,
         });
         expect(result.style.terrain).toEqual({ source: TERRAIN_SOURCE_ID, exaggeration: 1 });
+        expect(result.style.layers).not.toContainEqual(expect.objectContaining({ id: 'terrain-hillshade' }));
     });
 
     test('rejects non-http map archive protocols', () => {
