@@ -67,7 +67,11 @@ describe('MainLayout responsive navigation', () => {
         expect(reportsLink.querySelector('svg')).toBeInTheDocument();
         expect(reportsLink.querySelector('img')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-11', 'w-full');
-        expect(screen.getByRole('main')).toHaveClass('pt-3', 'sm:pt-4', 'lg:pt-5');
+        const main = screen.getByRole('main');
+        expect(main).toHaveClass('min-h-0', 'overscroll-contain', 'pt-3', 'sm:pt-4', 'lg:pt-5');
+        expect(main.parentElement).toHaveClass('min-h-0', 'overflow-hidden');
+        expect(main.parentElement?.parentElement).toHaveClass('fixed', 'inset-0', 'overflow-hidden');
+        expect(document.body.style.overflow).toBe('hidden');
     });
 
     test('shows one clear active analytics destination on the administrative dashboard', () => {

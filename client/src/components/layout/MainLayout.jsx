@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -50,6 +50,19 @@ const MainLayout = () => {
     const [dutyUpdating, setDutyUpdating] = useState(false);
     const location = useLocation();
     const currentView = new URLSearchParams(location.search).get('view');
+
+    useEffect(() => {
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousDocumentOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            document.documentElement.style.overflow = previousDocumentOverflow;
+        };
+    }, []);
 
     const navigation = [
         { name: 'Submit Report', href: '/report', icon: HiOutlineDocumentAdd, roles: ['reporter'], requireVerified: true },
@@ -113,7 +126,7 @@ const MainLayout = () => {
 
     return (
         <>
-            <div className="flex h-screen min-h-0 bg-white dark:bg-gray-950 supports-[height:100dvh]:h-dvh">
+            <div className="fixed inset-0 flex min-h-0 overflow-hidden bg-white dark:bg-gray-950">
                 {/* Mobile Sidebar Overlay */}
                 <AnimatePresence>
                     {sidebarOpen && (
@@ -397,7 +410,7 @@ const MainLayout = () => {
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white dark:bg-gray-950">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-950">
                     {/* Header */}
                     <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-md sticky top-0 z-30 dark:border-b dark:border-gray-800 dark:bg-gray-950/85">
                         <button
@@ -435,7 +448,7 @@ const MainLayout = () => {
                     </header>
 
                     {/* Page Content Scrollable Area */}
-                    <main className="custom-scrollbar min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
+                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={location.pathname}
