@@ -71,7 +71,11 @@ export const reverseGeocode = async (lat, lng) => {
             lat: String(lat), lon: String(lng), format: 'jsonv2', addressdetails: '1', zoom: '18',
         });
         if (!data?.display_name) return null;
-        return { address: data.display_name, details: data.address || {} };
+        return {
+            address: data.display_name,
+            details: data.address || {},
+            featureName: data.name || '',
+        };
     } catch (error) {
         console.error('Reverse geocoding error:', error.message);
         return null;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const { createReportMock, geocodeLocationMock, toastMock } = vi.hoisted(() => ({
@@ -40,6 +40,7 @@ const renderPage = () => render(
 
 describe('ReportPage workflow', () => {
     let geolocation;
+    let watchPositionSuccess;
 
     beforeEach(() => {
         createReportMock.mockReset();
@@ -49,6 +50,7 @@ describe('ReportPage workflow', () => {
             data: {
                 data: {
                     address: 'Sibuyan Circumferential Road, Taguilos, Cajidiocan',
+                    displayAddress: 'Sibuyan Circumferential Road, Taguilos',
                     barangay: { name: 'Taguilos', psgcCode: '1705903014' },
                     barangayAssignment: 'matched',
                 },
@@ -56,7 +58,10 @@ describe('ReportPage workflow', () => {
         });
         Object.values(toastMock).forEach((mock) => mock.mockClear());
         geolocation = {
-            watchPosition: vi.fn(() => 7),
+            watchPosition: vi.fn((success) => {
+                watchPositionSuccess = success;
+                return 7;
+            }),
             clearWatch: vi.fn(),
         };
         Object.defineProperty(window.navigator, 'geolocation', {
@@ -95,6 +100,30 @@ describe('ReportPage workflow', () => {
             { lat: 12.39261, lng: 122.67985 },
             expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
+    });
+
+    test('automatically resolves address and barangay after acquiring a precise GPS location', async () => {
+        renderPage();
+
+        act(() => {
+            watchPositionSuccess({
+                coords: {
+                    latitude: 12.39261,
+                    longitude: 122.67985,
+                    accuracy: 18,
+                },
+            });
+        });
+
+        await waitFor(() => {
+            expect(screen.getByLabelText(/address or landmark/i)).toHaveValue('Sibuyan Circumferential Road, Taguilos');
+            expect(screen.getByLabelText(/^barangay$/i)).toHaveValue('Taguilos');
+        });
+        expect(geocodeLocationMock).toHaveBeenCalledWith(
+            { lat: 12.39261, lng: 122.67985 },
+            expect.objectContaining({ signal: expect.any(AbortSignal) })
+        );
+        expect(screen.getByRole('button', { name: /confirm location/i })).toBeInTheDocument();
     });
 
     test('clears a prior barangay when the current pin has no verified boundary', async () => {

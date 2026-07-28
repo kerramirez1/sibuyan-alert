@@ -89,6 +89,58 @@ const ReportPage = () => {
     const reverseGeocodeRequestRef = useRef(0);
     const reverseGeocodeAbortRef = useRef(null);
 
+    const resolveLocationLabels = async (location, successPrefix = 'Pinned in') => {
+        reverseGeocodeAbortRef.current?.abort();
+        const requestId = reverseGeocodeRequestRef.current + 1;
+        reverseGeocodeRequestRef.current = requestId;
+        const controller = new AbortController();
+        reverseGeocodeAbortRef.current = controller;
+
+        // Never display or submit labels that belong to the previous point while
+        // the current coordinate is being resolved.
+        setFormData((previous) => ({
+            ...previous,
+            address: '',
+            barangay: '',
+        }));
+
+        try {
+            const response = await reportsAPI.geocodeLocation(
+                { lat: location.lat, lng: location.lng },
+                { signal: controller.signal }
+            );
+            if (reverseGeocodeRequestRef.current !== requestId) return;
+
+            const data = response.data?.data;
+            const detectedAddress = String(data?.displayAddress || data?.address || '').trim();
+            const detectedBarangay = data?.barangay?.name || '';
+
+            setFormData((previous) => ({
+                ...previous,
+                address: detectedAddress,
+                // Only a verified boundary match may populate this field automatically.
+                barangay: detectedBarangay,
+            }));
+
+            if (detectedBarangay) {
+                toast.success(`${successPrefix}: ${detectedBarangay}`, { duration: 3000 });
+            } else if (detectedAddress) {
+                toast.error('Barangay could not be verified for this location. Adjust the pin or enter it manually.', { duration: 5000 });
+            } else {
+                toast.error('Could not identify the selected location. Adjust the pin and try again.', { duration: 5000 });
+            }
+        } catch (error) {
+            if (error?.code !== 'ERR_CANCELED' && error?.name !== 'CanceledError' && error?.name !== 'AbortError') {
+                console.warn('Reverse geocoding failed', error);
+                toast.error('Could not verify the barangay for this location. Adjust the pin or enter it manually.', { duration: 5000 });
+            }
+        } finally {
+            if (reverseGeocodeRequestRef.current === requestId) {
+                reverseGeocodeAbortRef.current = null;
+            }
+        }
+    };
+
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
         setIsSearching(true);
@@ -150,11 +202,6 @@ const ReportPage = () => {
             return;
         }
         stopLocationDetection({ dismissToast: true });
-        reverseGeocodeAbortRef.current?.abort();
-        const requestId = reverseGeocodeRequestRef.current + 1;
-        reverseGeocodeRequestRef.current = requestId;
-        const controller = new AbortController();
-        reverseGeocodeAbortRef.current = controller;
         setGeoLoading(false);
         setSelectedLocation(location);
         setFocusLocation({ ...location, zoom: 16 });
@@ -162,43 +209,7 @@ const ReportPage = () => {
         setLocationStatus('selected');
         setGpsAccuracy(null);
         setLocationCapture(buildLocationCapture(source));
-        // A new pin invalidates the previous place labels. Keeping them while
-        // the lookup is in flight can submit the last pin's barangay.
-        setFormData((previous) => ({
-            ...previous,
-            address: '',
-            barangay: '',
-        }));
-        try {
-            const response = await reportsAPI.geocodeLocation(
-                { lat: location.lat, lng: location.lng },
-                { signal: controller.signal }
-            );
-            if (reverseGeocodeRequestRef.current !== requestId) return;
-            const data = response.data?.data;
-            const detectedAddress = data?.address?.split(',').slice(0, 2).join(', ') || '';
-            const detectedBarangay = data?.barangay?.name || '';
-
-            setFormData((previous) => ({
-                ...previous,
-                address: detectedAddress,
-                // Only a boundary match may populate this field automatically.
-                barangay: detectedBarangay,
-            }));
-
-            if (detectedBarangay) {
-                toast.success(`Pinned in: ${detectedBarangay}`, { duration: 3000 });
-            } else if (detectedAddress) {
-                toast.error('Barangay could not be verified for this pin. Adjust the pin or enter it manually.', { duration: 5000 });
-            } else {
-                toast.error('Could not identify the selected location. Adjust the pin and try again.', { duration: 5000 });
-            }
-        } catch (e) {
-            if (e.code !== 'ERR_CANCELED') {
-                console.warn('Reverse geocoding failed', e);
-                toast.error('Could not verify the barangay for this pin. Adjust the pin or enter it manually.', { duration: 5000 });
-            }
-        }
+        await resolveLocationLabels(location);
     };
 
     const detectLocation = () => {
@@ -216,6 +227,7 @@ const ReportPage = () => {
         setLocationStatus('detecting');
         toast.loading('Acquiring location...', { id: LOCATION_TOAST_ID });
         let bestAccuracy = Infinity;
+        let bestLocation = null;
 
         locationTimeoutRef.current = setTimeout(() => {
             if (locationRequestRef.current !== requestId) return;
@@ -234,6 +246,9 @@ const ReportPage = () => {
                 if (assessment.usable) {
                     toast.success(assessment.message, { id: LOCATION_TOAST_ID });
                     setLocationStatus('confirming');
+                    if (bestLocation) {
+                        void resolveLocationLabels(bestLocation, 'GPS located in');
+                    }
                 } else {
                     setSelectedLocation(null);
                     setGpsAccuracy(null);
@@ -252,6 +267,7 @@ const ReportPage = () => {
                     bestAccuracy = accuracy;
                     setGpsAccuracy(accuracy);
                     const location = { lat: latitude, lng: longitude };
+                    bestLocation = location;
                     setUserLocation(location);
                     setSelectedLocation(location);
                     setFocusLocation({ ...location, zoom: accuracy < 100 ? 17 : 14 });
@@ -270,6 +286,7 @@ const ReportPage = () => {
                         locationDetectionActiveRef.current = false;
                         setGeoLoading(false);
                         setLocationStatus('confirming');
+                        void resolveLocationLabels(location, 'GPS located in');
                     } else {
                         toast.loading(`Refining... (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                     }
@@ -315,11 +332,19 @@ const ReportPage = () => {
 
     const retryLocation = () => {
         stopLocationDetection({ dismissToast: true });
+        reverseGeocodeAbortRef.current?.abort();
+        reverseGeocodeAbortRef.current = null;
+        reverseGeocodeRequestRef.current += 1;
         setGeoLoading(false);
         setLocationStatus('idle');
         setSelectedLocation(null);
         setGpsAccuracy(null);
         setLocationCapture(null);
+        setFormData((previous) => ({
+            ...previous,
+            address: '',
+            barangay: '',
+        }));
     };
 
     useEffect(() => {

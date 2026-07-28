@@ -7,6 +7,7 @@
 import Municipality from '../models/Municipality.js';
 import { geocodeAddress, reverseGeocode, isWithinSibuyanBounds } from './geocoding.js';
 import { resolveBarangayForCoordinates } from './barangayBoundaryService.js';
+import { buildIncidentAddressLabel } from '../utils/incidentAddress.js';
 import {
     findOfficialBarangay,
     isCoordinatePair,
@@ -64,6 +65,8 @@ export const processLocation = async ({ address, barangay, lat, lng }) => {
         barangayAssignment: 'unmatched',
         source: null,
         addressDetails: null,
+        providerAddress: null,
+        providerFeatureName: null,
         warnings: [],
     };
 
@@ -84,7 +87,8 @@ export const processLocation = async ({ address, barangay, lat, lng }) => {
             result.address = address?.trim() || null;
             if (!result.address) {
                 const reverseResult = await reverseGeocode(result.coordinates.lat, result.coordinates.lng);
-                result.address = reverseResult?.address || buildFallbackAddress(result.coordinates);
+                result.providerAddress = reverseResult?.address || null;
+                result.providerFeatureName = reverseResult?.featureName || null;
                 result.addressDetails = reverseResult?.details || null;
             }
         } else if (address?.trim() || barangay?.trim()) {
@@ -137,6 +141,15 @@ export const processLocation = async ({ address, barangay, lat, lng }) => {
             } else {
                 result.warnings.push('Location is not inside a configured municipal coverage area and requires administrator assignment.');
             }
+        }
+
+        if (result.source === 'provided' && !address?.trim()) {
+            result.address = buildIncidentAddressLabel({
+                addressDetails: result.addressDetails || {},
+                featureName: result.providerFeatureName,
+                authoritativeBarangay: result.barangay,
+                coordinates: result.coordinates,
+            }) || buildFallbackAddress(result.coordinates);
         }
 
         result.success = true;

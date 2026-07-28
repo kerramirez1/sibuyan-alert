@@ -841,6 +841,8 @@ export const geocodeLocation = async (req, res) => {
             data: {
                 coordinates: locationResult.coordinates,
                 address: locationResult.address,
+                displayAddress: locationResult.address,
+                providerAddress: locationResult.providerAddress,
                 addressDetails: locationResult.addressDetails,
                 barangay: locationResult.barangay
                     ? { name: locationResult.barangay, psgcCode: locationResult.barangayPsgcCode }
