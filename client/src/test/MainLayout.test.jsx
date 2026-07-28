@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from '../router';
 import { describe, expect, test, vi } from 'vitest';
 import { ThemeProvider } from '../context/ThemeContext';
 
@@ -41,9 +41,7 @@ const renderLayout = (entry = '/accident-history') => render(
     <ThemeProvider>
         <MemoryRouter initialEntries={[entry]}>
             <Routes>
-                <Route element={<MainLayout />}>
-                    <Route path="*" element={<div>Page content</div>} />
-                </Route>
+                <Route element={<MainLayout><div>Page content</div></MainLayout>} />
             </Routes>
         </MemoryRouter>
     </ThemeProvider>

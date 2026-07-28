@@ -1,12 +1,12 @@
 import express from 'express';
 import request from 'supertest';
-import { beforeEach, describe, expect, test, jest } from '@jest/globals';
+import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
 
 const findMock = jest.fn();
 const populateMock = jest.fn();
 const sortMock = jest.fn();
 
-jest.unstable_mockModule('../models/HighRiskZone.js', () => ({
+jest.mock('../models/HighRiskZone.js', () => ({
     default: { find: findMock },
 }));
 

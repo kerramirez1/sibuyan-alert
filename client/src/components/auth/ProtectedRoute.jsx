@@ -1,9 +1,9 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 import { HiOutlineExclamation, HiOutlineClock } from 'react-icons/hi';
 
-const ProtectedRoute = ({ allowedRoles = [], requireVerified = false }) => {
+const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }) => {
     const { user, isAuthenticated, loading } = useAuth();
     const location = useLocation();
 
@@ -77,7 +77,7 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false }) => {
         );
     }
 
-    return <Outlet />;
+    return children;
 };
 
 export default ProtectedRoute;

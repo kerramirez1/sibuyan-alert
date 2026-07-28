@@ -146,7 +146,7 @@ const useIncidentActions = ({
         try {
             const response = await reportsAPI.getMunicipalities();
             setMunicipalities(response.data?.data || []);
-        } catch (error) {
+        } catch {
             toast.error('Failed to load neighboring municipalities');
         }
     }, [municipalities.length, user]);

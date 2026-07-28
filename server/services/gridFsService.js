@@ -18,7 +18,8 @@ export const getGridFsBucket = () => {
 export const sanitizeFilename = (filename = 'file') => {
     const sanitized = String(filename)
         .normalize('NFKC')
-        .replace(/[\\/\0\r\n]/g, '_')
+        .split('\u0000').join('_')
+        .replace(/[\\/\r\n]/g, '_')
         .replace(/[^a-zA-Z0-9._()-]/g, '_')
         .replace(/_+/g, '_')
         .replace(/^[._]+/, '')

@@ -25,6 +25,7 @@ import {
     HiOutlineTruck,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import { buildCsvDocument } from '../../utils/csvExport';
 
 const MUNICIPALITY_COLORS = ['#2563eb', '#f97316', '#16a34a', '#dc2626', '#7c3aed'];
 const STATUS_STYLES = {
@@ -201,10 +202,7 @@ const DashboardAnalyticsWorkspace = ({
         .slice(0, 5);
 
     const exportDashboard = async () => {
-        const [XLSX, fileSaver] = await Promise.all([
-            import('xlsx'),
-            import('file-saver'),
-        ]);
+        const fileSaver = await import('file-saver');
         const summaryData = [
             { Metric: 'New Reports in Selected Month', Value: reports.length },
             { Metric: 'Total Reports in Scope', Value: allReports.length },
@@ -242,21 +240,51 @@ const DashboardAnalyticsWorkspace = ({
             'Radius (m)': zone.radius || 0,
         }));
 
-        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-        const incidentSheet = XLSX.utils.json_to_sheet(incidentData);
-        const zoneSheet = XLSX.utils.json_to_sheet(zoneData);
-        summarySheet['!cols'] = [{ wch: 34 }, { wch: 22 }];
-        incidentSheet['!cols'] = Array.from({ length: 12 }, () => ({ wch: 20 }));
-        zoneSheet['!cols'] = Array.from({ length: 7 }, () => ({ wch: 22 }));
+        const csv = buildCsvDocument([
+            {
+                title: 'Dashboard Summary',
+                columns: [
+                    { key: 'Metric', label: 'Metric' },
+                    { key: 'Value', label: 'Value' },
+                ],
+                rows: summaryData,
+            },
+            {
+                title: 'Incident Reports',
+                columns: [
+                    'Date Reported',
+                    'Incident Title',
+                    'Category',
+                    'Type',
+                    'Status',
+                    'Priority',
+                    'Municipality',
+                    'Barangay',
+                    'Exact Address',
+                    'Injuries',
+                    'Fatalities',
+                    'Reporter',
+                ].map((key) => ({ key, label: key })),
+                rows: incidentData,
+            },
+            {
+                title: 'High Risk Zones',
+                columns: [
+                    'Zone Name',
+                    'Type',
+                    'Municipality',
+                    'Address',
+                    'Status',
+                    'Incident Count',
+                    'Radius (m)',
+                ].map((key) => ({ key, label: key })),
+                rows: zoneData,
+            },
+        ]);
 
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Dashboard Summary');
-        XLSX.utils.book_append_sheet(workbook, incidentSheet, 'Incident Reports');
-        XLSX.utils.book_append_sheet(workbook, zoneSheet, 'High Risk Zones');
-        const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
         fileSaver.saveAs(
-            new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-            `Sibuyan_Alert_Analytics_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+            new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }),
+            `Sibuyan_Alert_Analytics_${format(new Date(), 'yyyy-MM-dd')}.csv`
         );
     };
 
@@ -328,7 +356,7 @@ const DashboardAnalyticsWorkspace = ({
                         <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
                         Map
                     </button>
-                    <button type="button" onClick={exportDashboard} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 lg:w-auto lg:min-w-28" aria-label="Export dashboard to Excel">
+                    <button type="button" onClick={exportDashboard} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 lg:w-auto lg:min-w-28" aria-label="Export dashboard data as CSV">
                         <HiOutlineDownload className="h-4 w-4" aria-hidden="true" />
                         Export
                     </button>

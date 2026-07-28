@@ -119,7 +119,7 @@ const AdminUsersPage = () => {
             toast.success(`Reporter ${verifyData.status === 'approved' ? 'approved' : 'rejected'} successfully`);
             setVerifyModalOpen(false);
             fetchUsers();
-        } catch (error) {
+        } catch {
             toast.error('Failed to update verification status');
         } finally {
             setVerifyLoading(false);

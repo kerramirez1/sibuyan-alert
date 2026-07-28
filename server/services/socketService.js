@@ -193,9 +193,9 @@ export const leaveResponderRoom = (socket, municipalityId) => {
  * @param {Object} report - The transferred report
  * @param {String} fromMuni - Originating municipality name
  * @param {String} toMuni - Target municipality name
- * @param {String} reason - Reason for transfer
+ * @param {String} _reason - Private transfer reason; deliberately excluded from public events
  */
-export const broadcastReportTransfer = (io, report, fromMuni, toMuni, reason) => {
+export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) => {
     if (!io) return;
 
     const eventData = {

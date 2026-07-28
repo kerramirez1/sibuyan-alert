@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ThemeProvider } from '../context/ThemeContext';
 

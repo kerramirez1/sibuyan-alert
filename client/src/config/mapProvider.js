@@ -150,7 +150,7 @@ const hiddenLayer = (layer, prefix = 'street') => ({
     ...layer,
     id: `${prefix}-${layer.id}`,
     layout: {
-        ...(layer.layout || {}),
+        ...layer.layout,
         visibility: 'none',
     },
 });

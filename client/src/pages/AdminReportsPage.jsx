@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '../router';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import useIncidentReports from '../hooks/useIncidentReports';

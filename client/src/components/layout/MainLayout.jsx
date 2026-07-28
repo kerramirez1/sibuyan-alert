@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
+import { NavLink, Link, useLocation } from '../../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { adminAPI } from '../../services/api';
@@ -43,7 +43,7 @@ const getAccountContext = (user) => {
     return user?.assignedMunicipality ? `${role} · ${user.assignedMunicipality}` : role;
 };
 
-const MainLayout = () => {
+const MainLayout = ({ children }) => {
     const { user, logout, canSubmitReports, isAuthenticated, updateUser } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dutyUpdating, setDutyUpdating] = useState(false);
@@ -455,7 +455,7 @@ const MainLayout = () => {
                                 exit={{ opacity: 0, y: -6 }}
                                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                             >
-                                <Outlet />
+                                {children}
                             </motion.div>
                         </AnimatePresence>
                     </main>

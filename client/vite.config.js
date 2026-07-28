@@ -40,5 +40,9 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: true,
+        // The operational map is already route/lazy-loaded. Its MapLibre,
+        // OpenLayers, PMTiles, and vector-style runtime is ~289 kB compressed;
+        // keep the warning budget aligned with that intentional boundary.
+        chunkSizeWarningLimit: 1100,
     },
 });

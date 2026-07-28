@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 prevVerificationStatusRef.current = nextStatus;
-            } catch (error) {
+            } catch {
                 // Silent fail: avoid noisy errors from temporary connectivity issues
             }
         }, 15000);
@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data.data);
             toast.success('Profile updated successfully');
             return { success: true };
-        } catch (error) {
+        } catch {
             toast.error('Failed to update profile');
             return { success: false };
         }
@@ -178,7 +178,7 @@ export const AuthProvider = ({ children }) => {
             }));
             toast.success('ID document resubmitted for verification');
             return { success: true };
-        } catch (error) {
+        } catch {
             toast.error('Failed to resubmit ID document');
             return { success: false };
         }

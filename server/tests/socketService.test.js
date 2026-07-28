@@ -1,4 +1,4 @@
-import { describe, expect, test, jest } from '@jest/globals';
+import { describe, expect, test, vi as jest } from 'vitest';
 import {
     broadcastMultiUnitResponse,
     broadcastReportVerified,
@@ -128,6 +128,7 @@ describe('socket report lifecycle events', () => {
         );
         const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportTransferred')[1];
         expect(publicPayload).not.toHaveProperty('reason');
+        expect(publicPayload).not.toHaveProperty('transferReason');
     });
 
     test('broadcasts transfer acknowledgment without changing lifecycle status', () => {

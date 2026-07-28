@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from './router';
 import { useAuth } from './context/AuthContext';
 
 // Layouts
@@ -48,56 +48,39 @@ function App() {
                 <Route path="/" element={<HomePage />} />
 
                 {/* Auth Routes */}
-                <Route element={<AuthLayout />}>
-                    <Route
-                        path="/login"
-                        element={isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <LoginPage />}
-                    />
-                    <Route
-                        path="/register"
-                        element={isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <RegisterPage />}
-                    />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-                </Route>
+                <Route path="/login" element={(
+                    <AuthLayout>
+                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <LoginPage />}
+                    </AuthLayout>
+                )} />
+                <Route path="/register" element={(
+                    <AuthLayout>
+                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <RegisterPage />}
+                    </AuthLayout>
+                )} />
+                <Route path="/forgot-password" element={<AuthLayout><ForgotPasswordPage /></AuthLayout>} />
+                <Route path="/reset-password/:token" element={<AuthLayout><ResetPasswordPage /></AuthLayout>} />
 
-                {/* Protected Routes */}
-                <Route element={<MainLayout />}>
-                    {/* Dashboard - accessible to all authenticated users and guests */}
-                    {/* Public map view is available to everyone, analytics restricted in DashboardPage */}
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/accident-history" element={<AccidentHistoryPage />} />
+                {/* Public map and history routes */}
+                <Route path="/dashboard" element={<MainLayout><DashboardPage /></MainLayout>} />
+                <Route path="/accident-history" element={<MainLayout><AccidentHistoryPage /></MainLayout>} />
 
-                    {/* Notifications - accessible to all authenticated users */}
-                    <Route element={<ProtectedRoute />}>
-                        <Route path="/notifications" element={<NotificationsPage />} />
-                        <Route path="/profile" element={<ProfileSettingsPage />} />
-                    </Route>
+                {/* Authenticated account routes */}
+                <Route path="/notifications" element={<MainLayout><ProtectedRoute><NotificationsPage /></ProtectedRoute></MainLayout>} />
+                <Route path="/profile" element={<MainLayout><ProtectedRoute><ProfileSettingsPage /></ProtectedRoute></MainLayout>} />
 
-                    {/* Reporter Only Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['reporter']} requireVerified />}>
-                        <Route path="/report" element={<ReportPage />} />
-                    </Route>
+                {/* Reporter routes */}
+                <Route path="/report" element={<MainLayout><ProtectedRoute allowedRoles={['reporter']} requireVerified><ReportPage /></ProtectedRoute></MainLayout>} />
+                <Route path="/my-reports" element={<MainLayout><ProtectedRoute allowedRoles={['reporter']}><MyReportsPage /></ProtectedRoute></MainLayout>} />
 
-                    <Route element={<ProtectedRoute allowedRoles={['reporter']} />}>
-                        <Route path="/my-reports" element={<MyReportsPage />} />
-                    </Route>
-
-                    {/* Admin & Responder Dashboard Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['municipal_admin', 'responder']} />}>
-                        <Route path="/admin" element={<AdminPage />} />
-                        <Route path="/admin/reports" element={<AdminReportsPage />} />
-                    </Route>
-
-                    {/* Admin Only Management Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['municipal_admin']} />}>
-                        <Route path="/admin/users" element={<AdminUsersPage />} />
-                        <Route path="/admin/zones" element={<AdminHighRiskZonesPage />} />
-                    </Route>
-                </Route>
+                {/* Administrator and responder routes */}
+                <Route path="/admin" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin', 'responder']}><AdminPage /></ProtectedRoute></MainLayout>} />
+                <Route path="/admin/reports" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin', 'responder']}><AdminReportsPage /></ProtectedRoute></MainLayout>} />
+                <Route path="/admin/users" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin']}><AdminUsersPage /></ProtectedRoute></MainLayout>} />
+                <Route path="/admin/zones" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin']}><AdminHighRiskZonesPage /></ProtectedRoute></MainLayout>} />
 
                 {/* 404 */}
-                <Route path="*" element={<NotFoundPage />} />
+                <Route element={<NotFoundPage />} />
             </Routes>
         </Suspense>
     );

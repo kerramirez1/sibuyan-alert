@@ -1,4 +1,3 @@
-import { Outlet } from 'react-router-dom';
 import {
     HiOutlineMap,
     HiOutlineLightningBolt,
@@ -48,7 +47,7 @@ const municipalitySeals = [
     },
 ];
 
-const AuthLayout = () => (
+const AuthLayout = ({ children }) => (
     <div className="auth-shell min-h-dvh bg-gray-50 font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900 dark:text-gray-100 lg:grid lg:grid-cols-[minmax(410px,42%)_minmax(0,1fr)]">
         <aside className="auth-overview hidden min-h-dvh border-r border-brand-900 bg-brand-950 text-white lg:flex lg:flex-col" aria-label="Sibuyan Alert system overview">
             <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-10 py-12 xl:px-14">
@@ -118,7 +117,7 @@ const AuthLayout = () => (
         <main className="auth-content relative flex min-h-dvh w-full items-center justify-center bg-gray-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
             <ThemeToggle className="absolute right-4 top-4 sm:right-6 sm:top-6" />
             <div className="w-full max-w-[440px]">
-                <Outlet />
+                {children}
             </div>
         </main>
     </div>

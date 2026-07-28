@@ -1,0 +1,22 @@
+{
+  "name": "sibuyan-accident-alert",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sibuyan Island Accident Alert and Mapping System",
+  "engines": {
+    "node": "24.x",
+    "npm": "11.x"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=sibuyan-accident-alert-client",
+    "start": "npm run start --workspace=sibuyan-accident-alert-server",
+    "lint": "npm run lint --workspace=sibuyan-accident-alert-client && npm run lint --workspace=sibuyan-accident-alert-server",
+    "test:client": "npm test --workspace=sibuyan-accident-alert-client -- --run",
+    "test:server": "npm test --workspace=sibuyan-accident-alert-server",
+    "test": "npm run test:client && npm run test:server"
+  }
+}

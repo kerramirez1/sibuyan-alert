@@ -2,6 +2,7 @@ ACCOUNTS.md
 scratch/
 .env
 node_modules/
+client/dist/
 *.log
 uploads/
 server/data/barangay-boundaries-2023-10-24-hierarchical/

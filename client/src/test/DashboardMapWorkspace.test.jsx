@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from '../router';
 
 const { mapPropsSpy } = vi.hoisted(() => ({ mapPropsSpy: vi.fn() }));
 

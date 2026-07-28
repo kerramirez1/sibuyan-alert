@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../../router';
 import { motion } from 'framer-motion';
 import { HiOutlineMap, HiOutlineArrowRight } from 'react-icons/hi';
 import { memo } from 'react';

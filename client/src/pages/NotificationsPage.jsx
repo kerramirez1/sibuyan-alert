@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';

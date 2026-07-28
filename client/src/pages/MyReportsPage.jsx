@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '../router';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../utils/assets';

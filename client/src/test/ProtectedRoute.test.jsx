@@ -1,6 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from '../router';
 
 // Mock framer-motion to avoid animation complexity in tests
 vi.mock('framer-motion', () => ({
@@ -35,9 +35,7 @@ const renderProtected = (props = {}) => {
     return render(
         <MemoryRouter initialEntries={['/protected']}>
             <Routes>
-                <Route element={<ProtectedRoute {...props} />}>
-                    <Route path="/protected" element={<div>Protected Content</div>} />
-                </Route>
+                <Route path="/protected" element={<ProtectedRoute {...props}><div>Protected Content</div></ProtectedRoute>} />
                 <Route path="/login" element={<div>Login Page</div>} />
             </Routes>
         </MemoryRouter>

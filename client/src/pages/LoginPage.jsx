@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from '../router';
 import { useAuth } from '../context/AuthContext';
 import {
     HiOutlineMail,

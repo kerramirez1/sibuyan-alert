@@ -1,28 +1,28 @@
-import { describe, expect, test, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
 
 // Mock the dependencies first
-jest.unstable_mockModule('../models/Report.js', () => ({
+jest.mock('../models/Report.js', () => ({
     default: {
         findById: jest.fn(),
     },
 }));
 
-jest.unstable_mockModule('../models/User.js', () => ({
+jest.mock('../models/User.js', () => ({
     default: {},
 }));
 
-jest.unstable_mockModule('../models/Notification.js', () => ({
+jest.mock('../models/Notification.js', () => ({
     default: {
         createAndSend: jest.fn().mockResolvedValue({}),
     },
 }));
 
-jest.unstable_mockModule('../services/emailService.js', () => ({
+jest.mock('../services/emailService.js', () => ({
     sendVerificationEmail: jest.fn(),
     sendReportStatusEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
-jest.unstable_mockModule('../services/pushService.js', () => ({
+jest.mock('../services/pushService.js', () => ({
     sendPushNotification: jest.fn().mockResolvedValue({}),
     pushTemplates: {
         reporterVerified: jest.fn(),
@@ -30,7 +30,7 @@ jest.unstable_mockModule('../services/pushService.js', () => ({
     },
 }));
 
-jest.unstable_mockModule('../services/socketService.js', () => ({
+jest.mock('../services/socketService.js', () => ({
     broadcastVerifiedReportToResponders: jest.fn(),
     broadcastReportVerified: jest.fn(),
     broadcastReportRejected: jest.fn(),

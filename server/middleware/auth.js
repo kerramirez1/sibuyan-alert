@@ -119,14 +119,14 @@ export const optionalAuth = async (req, res, next) => {
                 if (user && user.role !== 'admin') {
                     req.user = user;
                 }
-            } catch (error) {
+            } catch {
                 // Token invalid, but that's okay for optional auth
             }
         }
 
         next();
     } catch (error) {
-        next();
+        next(error);
     }
 };
 

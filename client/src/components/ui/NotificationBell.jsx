@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
@@ -65,7 +65,7 @@ const NotificationBell = () => {
                 try {
                     const response = await notificationsAPI.getUnreadCount();
                     setUnreadCount(response.data.data.unreadCount);
-                } catch (e) { /* ignore */ }
+                } catch { /* A later poll reconciles temporary fetch failures. */ }
             }, 1000);
         };
 

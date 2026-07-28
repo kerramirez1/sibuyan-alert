@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { describe, expect, test, vi as jest } from 'vitest';
 import { canReadFile } from '../controllers/fileController.js';
 import { parseGridFsFileId, sanitizeFilename } from '../services/gridFsService.js';
 import { validateUploadContent } from '../middleware/upload.js';

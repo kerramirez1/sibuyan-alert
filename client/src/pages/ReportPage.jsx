@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router';
 import { reportsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import ReportLocationPanel from '../components/report/ReportLocationPanel';

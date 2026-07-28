@@ -15,7 +15,7 @@ const parseJsonEnv = (name, fallback = null) => {
 
     try {
         return JSON.parse(raw);
-    } catch (error) {
+    } catch {
         throw new Error(`${name} must be valid JSON`);
     }
 };

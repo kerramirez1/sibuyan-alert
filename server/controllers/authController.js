@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { generateToken } from '../middleware/auth.js';
-import { sendVerificationEmail } from '../services/emailService.js';
 import {
     deleteGridFsFileByUrl,
     deleteGridFsFilesByUrls,

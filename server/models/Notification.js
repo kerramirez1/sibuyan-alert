@@ -65,7 +65,7 @@ notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 // Static method to create and send notification
-notificationSchema.statics.createAndSend = async function (data, io, pushService, emailService) {
+notificationSchema.statics.createAndSend = async function (data, io) {
     const notification = await this.create(data);
 
     // Emit via Socket.io for real-time in-app notification

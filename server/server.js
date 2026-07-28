@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from './models/User.js';
 
 // Load environment variables
@@ -11,6 +12,8 @@ dotenv.config();
 
 // Import configurations
 import connectDB from './config/db.js';
+import { configureProductionClient } from './config/clientApp.js';
+import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
 import { protect } from './middleware/auth.js';
 import { requireRole } from './middleware/roleCheck.js';
@@ -33,6 +36,12 @@ import fileRoutes from './routes/files.js';
 // Initialize Express app
 const app = express();
 const httpServer = createServer(app);
+
+if (process.env.NODE_ENV === 'production') {
+    // Heroku terminates TLS at its router. Trust only the first proxy so rate
+    // limiting and secure request metadata use the real client address.
+    app.set('trust proxy', 1);
+}
 
 // Initialize Socket.io
 const io = new Server(httpServer, {
@@ -60,8 +69,6 @@ const initializeDatabase = async () => {
     }
 };
 
-initializeDatabase();
-
 // Configure Web Push
 configureWebPush();
 
@@ -72,6 +79,15 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.get('/api/health', (req, res) => {
+    const databaseConnected = mongoose.connection.readyState === 1;
+    res.status(databaseConnected ? 200 : 503).json({
+        success: databaseConnected,
+        service: 'sibuyan-accident-alert',
+        database: databaseConnected ? 'connected' : 'unavailable',
+    });
+});
 
 // API Routes
 app.use('/api/files', fileRoutes);
@@ -92,7 +108,7 @@ const authenticateSocketToken = async (token) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('name role assignedMunicipality agency avatar isOnDuty');
         return user && user.role !== 'admin' ? user : null;
-    } catch (error) {
+    } catch {
         return null;
     }
 };
@@ -151,6 +167,7 @@ app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'resp
             total: enrichedUsers.length,
         });
     } catch (error) {
+        console.error('Failed to load online users:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to get online users',
@@ -306,8 +323,20 @@ io.on('connection', (socket) => {
     });
 });
 
+// Keep unknown API requests as JSON and never hand them to the SPA router.
+app.use('/api', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'API route not found',
+    });
+});
+
+// In production this serves the Vite build and client-side routes. In
+// development Vite continues to run independently with its API proxy.
+configureProductionClient(app);
+
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     console.error('❌ Error:', err);
 
     res.status(err.status || 500).json({
@@ -328,7 +357,11 @@ app.use((req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, () => {
+export const startServer = async () => {
+    validateRuntimeConfig(process.env);
+    await initializeDatabase();
+
+    return httpServer.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════════════════════════════╗');
     console.log('║                                                                ║');
@@ -348,7 +381,15 @@ httpServer.listen(PORT, () => {
     console.log('║                                                                ║');
     console.log('╚════════════════════════════════════════════════════════════════╝');
     console.log('');
-});
+    });
+};
+
+if (process.env.NODE_ENV !== 'test') {
+    startServer().catch((error) => {
+        console.error(`Failed to start server: ${error.message}`);
+        process.exit(1);
+    });
+}
 
 export default app;
 

@@ -61,7 +61,7 @@ export async function isPushSubscribed() {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
         return !!subscription;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

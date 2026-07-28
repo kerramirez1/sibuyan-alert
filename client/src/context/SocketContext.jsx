@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { resolveSocketOrigin } from '../utils/runtimeUrl';
 
 const SocketContext = createContext(null);
 
@@ -24,9 +25,11 @@ export const SocketProvider = ({ children }) => {
 
     // Initialize socket connection
     useEffect(() => {
-        // Use VITE_SOCKET_URL if available, otherwise fallback to VITE_API_URL but strip '/api' if present
-        const socketUrl = import.meta.env.VITE_SOCKET_URL ||
-            (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
+        const socketUrl = resolveSocketOrigin({
+            socketUrl: import.meta.env.VITE_SOCKET_URL,
+            apiUrl: import.meta.env.VITE_API_URL,
+            browserOrigin: window.location.origin,
+        });
 
         const socketInstance = io(socketUrl, {
             transports: ['websocket', 'polling'],

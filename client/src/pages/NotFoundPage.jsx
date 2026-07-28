@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../router';
 import { motion } from 'framer-motion';
 import { HiOutlineHome, HiOutlineArrowLeft } from 'react-icons/hi';
 import ThemeToggle from '../components/ui/ThemeToggle';

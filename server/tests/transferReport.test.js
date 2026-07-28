@@ -1,31 +1,31 @@
-import { describe, expect, test, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
 
 // Mock dependencies
-jest.unstable_mockModule('../models/Report.js', () => ({
+jest.mock('../models/Report.js', () => ({
     default: {
         findById: jest.fn(),
     },
 }));
 
-jest.unstable_mockModule('../models/Municipality.js', () => ({
+jest.mock('../models/Municipality.js', () => ({
     default: {
         findById: jest.fn(),
     },
 }));
 
-jest.unstable_mockModule('../models/User.js', () => ({
+jest.mock('../models/User.js', () => ({
     default: {
         find: jest.fn(),
     },
 }));
 
-jest.unstable_mockModule('../models/Notification.js', () => ({
+jest.mock('../models/Notification.js', () => ({
     default: {
         createAndSend: jest.fn().mockResolvedValue({}),
     },
 }));
 
-jest.unstable_mockModule('../services/socketService.js', () => ({
+jest.mock('../services/socketService.js', () => ({
     broadcastVerifiedReportToResponders: jest.fn(),
     broadcastReportVerified: jest.fn(),
     broadcastReportRejected: jest.fn(),

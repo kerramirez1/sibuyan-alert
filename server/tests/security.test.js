@@ -1,4 +1,4 @@
-import { describe, expect, test, jest } from '@jest/globals';
+import { describe, expect, test, vi as jest } from 'vitest';
 import { requireAdmin as requireAdminRoleCheck } from '../middleware/roleCheck.js';
 import { extractTokenFromCookieHeader } from '../middleware/auth.js';
 import User from '../models/User.js';

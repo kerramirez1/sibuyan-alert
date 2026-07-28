@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 import Modal from './ui/Modal';
 
 const AVAILABLE_UNITS = {
@@ -122,13 +121,6 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
             </div>
         </Modal>
     );
-};
-
-ResponderUnitModal.propTypes = {
-    isOpen: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-    onSelect: PropTypes.func.isRequired,
-    municipality: PropTypes.string.isRequired,
 };
 
 export default ResponderUnitModal;

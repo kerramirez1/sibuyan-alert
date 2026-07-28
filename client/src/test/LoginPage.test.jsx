@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ThemeProvider } from '../context/ThemeContext';
 
@@ -18,9 +18,7 @@ const renderLogin = () => render(
     <ThemeProvider>
         <MemoryRouter initialEntries={['/login']}>
             <Routes>
-                <Route element={<AuthLayout />}>
-                    <Route path="/login" element={<LoginPage />} />
-                </Route>
+                <Route path="/login" element={<AuthLayout><LoginPage /></AuthLayout>} />
             </Routes>
         </MemoryRouter>
     </ThemeProvider>

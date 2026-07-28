@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../../router';
 import { HiOutlineArrowRight, HiOutlineShieldCheck } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
 

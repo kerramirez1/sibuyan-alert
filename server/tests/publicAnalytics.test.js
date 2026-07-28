@@ -1,19 +1,19 @@
-import { describe, expect, test, afterEach, jest } from '@jest/globals';
+import { afterEach, describe, expect, test, vi as jest } from 'vitest';
 
 const reportCountDocuments = jest.fn();
 const highRiskZoneCountDocuments = jest.fn();
 
-jest.unstable_mockModule('../models/User.js', () => ({
+jest.mock('../models/User.js', () => ({
     default: {},
 }));
 
-jest.unstable_mockModule('../models/Report.js', () => ({
+jest.mock('../models/Report.js', () => ({
     default: {
         countDocuments: reportCountDocuments,
     },
 }));
 
-jest.unstable_mockModule('../models/HighRiskZone.js', () => ({
+jest.mock('../models/HighRiskZone.js', () => ({
     default: {
         countDocuments: highRiskZoneCountDocuments,
     },

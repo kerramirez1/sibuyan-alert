@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from '../router';
 
 const { createReportMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
     createReportMock: vi.fn(),

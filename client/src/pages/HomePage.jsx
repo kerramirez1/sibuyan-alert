@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '../router';
 import { HiOutlineArrowRight, HiOutlineLogin } from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
