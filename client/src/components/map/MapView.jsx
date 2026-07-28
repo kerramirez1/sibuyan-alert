@@ -12,8 +12,9 @@ import {
 } from '../../utils/mapReports';
 import { installCompassOrientationToggle } from '../../utils/mapNavigation';
 import {
-    createOperationalMapStyle,
+    OPERATIONAL_MAX_ZOOM,
     PMTILES_SOURCE_ID,
+    prepareOperationalMapStyle,
 } from '../../config/mapProvider';
 
 // Sibuyan Island bounds and center
@@ -79,7 +80,9 @@ const MapView = ({
     const zoneMarkersRef = useRef([]);
     const popupRef = useRef(null);
     const streetLayersRef = useRef({ all: [], active: [], fallback: null });
+    const streetZoomRangeRef = useRef({ min: 0, max: OPERATIONAL_MAX_ZOOM });
     const streetFallbackActivatedRef = useRef(false);
+    const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
     const [showMuniMenu, setShowMuniMenu] = useState(false);
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
@@ -95,6 +98,24 @@ const MapView = ({
     useEffect(() => {
         mapStyleRef.current = mapStyle;
     }, [mapStyle]);
+
+    useEffect(() => {
+        let active = true;
+
+        prepareOperationalMapStyle({ enableTerrain: enable3D }).then((provider) => {
+            if (!active) return;
+            setMapProvider(provider);
+            if (provider.pmtilesError) {
+                toast.error(`Street map archive unavailable: ${provider.pmtilesError}`, {
+                    id: 'street-map-validation-fallback',
+                });
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [enable3D]);
 
     // Generate circle polygon for zones
     const generateCirclePolygon = useCallback((center, radiusKm, points = 64) => {
@@ -113,13 +134,17 @@ const MapView = ({
 
     // Initialize map
     useEffect(() => {
-        if (!mapContainerRef.current || mapInstanceRef.current) return;
+        if (!mapContainerRef.current || mapInstanceRef.current || !mapProvider) return;
 
-        const provider = createOperationalMapStyle({ enableTerrain: enable3D });
+        const provider = mapProvider;
         streetLayersRef.current = {
             all: provider.allStreetLayerIds,
             active: provider.primaryStreetLayerIds,
             fallback: provider.fallbackStreetLayerId,
+        };
+        streetZoomRangeRef.current = {
+            min: provider.streetMinZoom,
+            max: provider.streetMaxZoom,
         };
         streetFallbackActivatedRef.current = false;
 
@@ -134,7 +159,7 @@ const MapView = ({
             attributionControl: false,
             // A report pin must stay within the same server-enforced Sibuyan envelope.
             maxBounds: onLocationSelect ? SIBUYAN_INTERACTION_BOUNDS : [[121.5, 11.5], [123.5, 13.5]],
-            maxZoom: 17,
+            maxZoom: OPERATIONAL_MAX_ZOOM,
         });
 
         const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
@@ -153,8 +178,10 @@ const MapView = ({
             streetLayersRef.current.active = streetLayersRef.current.fallback
                 ? [streetLayersRef.current.fallback]
                 : [];
+            streetZoomRangeRef.current = { min: 0, max: OPERATIONAL_MAX_ZOOM };
 
             if (mapStyleRef.current === 'streets') {
+                mapInstance.setMaxZoom(OPERATIONAL_MAX_ZOOM);
                 streetLayersRef.current.all.forEach((layerId) => {
                     if (mapInstance.getLayer(layerId)) {
                         mapInstance.setLayoutProperty(layerId, 'visibility', 'none');
@@ -346,7 +373,7 @@ const MapView = ({
             mapInstance.remove();
             mapInstanceRef.current = null;
         };
-    }, [enable3D]);
+    }, [enable3D, mapProvider]);
 
     // Handle map style switching
     useEffect(() => {
@@ -362,9 +389,15 @@ const MapView = ({
         streetLayersRef.current.all.forEach((layerId) => setVisibility(layerId, false));
 
         if (mapStyle === 'satellite') {
+            map.setMaxZoom(OPERATIONAL_MAX_ZOOM);
             setVisibility('esri-imagery-layer', true);
             setVisibility('esri-reference-layer', true);
         } else {
+            const streetMaxZoom = streetZoomRangeRef.current.max;
+            map.setMaxZoom(streetMaxZoom);
+            if (map.getZoom() > streetMaxZoom) {
+                map.easeTo({ zoom: streetMaxZoom, duration: 250 });
+            }
             setVisibility('esri-imagery-layer', false);
             setVisibility('esri-reference-layer', false);
             streetLayersRef.current.active.forEach((layerId) => setVisibility(layerId, true));
@@ -816,7 +849,7 @@ const MapView = ({
     };
 
     return (
-        <div className={`relative rounded-2xl overflow-hidden ${className}`} style={{ minHeight: '400px' }}>
+        <div className={`relative min-h-0 overflow-hidden rounded-2xl ${className}`}>
             <div
                 ref={mapContainerRef}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}

@@ -1,11 +1,12 @@
 import maplibregl from 'maplibre-gl';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-import { Protocol } from 'pmtiles';
+import { bytesToHeader, PMTiles, Protocol, TileType } from 'pmtiles';
 
 export const PMTILES_SOURCE_ID = 'sibuyan-pmtiles';
 export const STREET_FALLBACK_SOURCE_ID = 'osm-street-fallback';
 export const STREET_FALLBACK_LAYER_ID = 'osm-street-fallback-layer';
 export const TERRAIN_SOURCE_ID = 'sibuyan-terrain';
+export const OPERATIONAL_MAX_ZOOM = 17;
 
 const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const ESRI_REFERENCE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
@@ -16,8 +17,18 @@ const PROTOMAPS_SPRITE_URL = 'https://protomaps.github.io/basemaps-assets/sprite
 
 const configuredPmtilesUrl = String(import.meta.env.VITE_PMTILES_URL || '').trim();
 const configuredTerrainUrl = String(import.meta.env.VITE_TERRAIN_TILES_URL || DEFAULT_TERRAIN_URL).trim();
+const PMTILES_HEADER_RANGE = 'bytes=0-16383';
+const MIN_PMTILES_HEADER_BYTES = 127;
+const SIBUYAN_BOUNDS = {
+    minLon: 122.45,
+    minLat: 12.30,
+    maxLon: 122.70,
+    maxLat: 12.55,
+};
 
-let pmtilesProtocolRegistered = false;
+let pmtilesProtocol = null;
+const pmtilesArchives = new Map();
+const pmtilesInspectionPromises = new Map();
 
 const asHttpUrl = (value) => {
     const url = new URL(value, typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
@@ -27,18 +38,112 @@ const asHttpUrl = (value) => {
     return url.href;
 };
 
-export const toPmtilesProtocolUrl = (value) => {
+export const toPmtilesHttpUrl = (value) => {
     const candidate = String(value || '').trim();
     if (!candidate) return '';
-    if (candidate.startsWith('pmtiles://')) return candidate;
-    return `pmtiles://${asHttpUrl(candidate)}`;
+    return asHttpUrl(candidate.startsWith('pmtiles://') ? candidate.slice('pmtiles://'.length) : candidate);
+};
+
+export const toPmtilesProtocolUrl = (value) => {
+    const httpUrl = toPmtilesHttpUrl(value);
+    return httpUrl ? `pmtiles://${httpUrl}` : '';
 };
 
 export const ensurePmtilesProtocol = () => {
-    if (pmtilesProtocolRegistered) return;
-    const protocol = new Protocol();
-    maplibregl.addProtocol('pmtiles', protocol.tile);
-    pmtilesProtocolRegistered = true;
+    if (pmtilesProtocol) return pmtilesProtocol;
+    pmtilesProtocol = new Protocol();
+    maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+    return pmtilesProtocol;
+};
+
+const getPmtilesArchive = (httpUrl) => {
+    const existing = pmtilesArchives.get(httpUrl);
+    if (existing) return existing;
+
+    const archive = new PMTiles(httpUrl);
+    ensurePmtilesProtocol().add(archive);
+    pmtilesArchives.set(httpUrl, archive);
+    return archive;
+};
+
+const intersectsSibuyan = (header) => (
+    header.minLon <= SIBUYAN_BOUNDS.maxLon
+    && header.maxLon >= SIBUYAN_BOUNDS.minLon
+    && header.minLat <= SIBUYAN_BOUNDS.maxLat
+    && header.maxLat >= SIBUYAN_BOUNDS.minLat
+);
+
+const inspectPmtilesArchiveRequest = async (httpUrl, fetchImpl) => {
+    const response = await fetchImpl(httpUrl, {
+        method: 'GET',
+        headers: { Range: PMTILES_HEADER_RANGE },
+        credentials: 'same-origin',
+    });
+
+    if (response.status !== 206) {
+        throw new Error(`PMTiles host must return 206 Partial Content; received ${response.status}.`);
+    }
+
+    const contentRange = response.headers.get('content-range');
+    if (!contentRange || !/^bytes\s+0-\d+\/\d+$/i.test(contentRange)) {
+        throw new Error('PMTiles host returned an invalid or hidden Content-Range header.');
+    }
+
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength < MIN_PMTILES_HEADER_BYTES) {
+        throw new Error('PMTiles response is too small to contain a valid archive header.');
+    }
+
+    const view = new DataView(bytes);
+    if (view.getUint16(0, true) !== 0x4d50) {
+        throw new Error('Configured map archive is not a valid PMTiles file.');
+    }
+
+    const header = bytesToHeader(bytes.slice(0, MIN_PMTILES_HEADER_BYTES));
+    if (header.tileType !== TileType.Mvt) {
+        throw new Error('Configured PMTiles archive must contain vector MVT tiles.');
+    }
+    if (
+        !Number.isInteger(header.minZoom)
+        || !Number.isInteger(header.maxZoom)
+        || header.minZoom < 0
+        || header.maxZoom > 22
+        || header.minZoom > header.maxZoom
+    ) {
+        throw new Error('Configured PMTiles archive has an invalid zoom range.');
+    }
+    if (!intersectsSibuyan(header)) {
+        throw new Error('Configured PMTiles archive does not cover Sibuyan Island.');
+    }
+
+    getPmtilesArchive(httpUrl);
+
+    return {
+        minZoom: header.minZoom,
+        maxZoom: header.maxZoom,
+        bounds: [header.minLon, header.minLat, header.maxLon, header.maxLat],
+        rangeSupported: true,
+        cacheControl: response.headers.get('cache-control') || '',
+        etag: response.headers.get('etag') || '',
+    };
+};
+
+export const inspectPmtilesArchive = (value, { fetchImpl = globalThis.fetch } = {}) => {
+    const httpUrl = toPmtilesHttpUrl(value);
+    if (!httpUrl) return Promise.resolve(null);
+    if (typeof fetchImpl !== 'function') {
+        return Promise.reject(new Error('Fetch is unavailable for PMTiles validation.'));
+    }
+
+    if (!pmtilesInspectionPromises.has(httpUrl)) {
+        const inspection = inspectPmtilesArchiveRequest(httpUrl, fetchImpl)
+            .catch((error) => {
+                pmtilesInspectionPromises.delete(httpUrl);
+                throw error;
+            });
+        pmtilesInspectionPromises.set(httpUrl, inspection);
+    }
+    return pmtilesInspectionPromises.get(httpUrl);
 };
 
 const hiddenLayer = (layer, prefix = 'street') => ({
@@ -61,15 +166,16 @@ export const createOperationalMapStyle = ({
     dark = false,
     pmtilesUrl = configuredPmtilesUrl,
     terrainTilesUrl = configuredTerrainUrl,
+    pmtilesInspection = null,
 } = {}) => {
     let normalizedPmtilesUrl = '';
     try {
-        normalizedPmtilesUrl = toPmtilesProtocolUrl(pmtilesUrl);
+        normalizedPmtilesUrl = includeStreet ? toPmtilesProtocolUrl(pmtilesUrl) : '';
     } catch (error) {
         console.warn('Ignoring invalid VITE_PMTILES_URL.', error);
     }
 
-    if (normalizedPmtilesUrl) ensurePmtilesProtocol();
+    if (normalizedPmtilesUrl) getPmtilesArchive(toPmtilesHttpUrl(pmtilesUrl));
 
     const sources = {
         'esri-imagery': {
@@ -131,6 +237,12 @@ export const createOperationalMapStyle = ({
                 type: 'vector',
                 url: normalizedPmtilesUrl,
                 attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+                ...(pmtilesInspection
+                    ? {
+                        minzoom: pmtilesInspection.minZoom,
+                        maxzoom: pmtilesInspection.maxZoom,
+                    }
+                    : {}),
             };
             const vectorLayers = createPmtilesStreetLayers(PMTILES_SOURCE_ID, dark);
             vectorLayers.forEach((layer) => {
@@ -176,7 +288,36 @@ export const createOperationalMapStyle = ({
         primaryStreetLayerIds,
         allStreetLayerIds,
         fallbackStreetLayerId: includeStreet ? STREET_FALLBACK_LAYER_ID : null,
+        streetMinZoom: pmtilesInspection?.minZoom ?? 0,
+        streetMaxZoom: normalizedPmtilesUrl
+            ? Math.min(pmtilesInspection?.maxZoom ?? OPERATIONAL_MAX_ZOOM, OPERATIONAL_MAX_ZOOM)
+            : OPERATIONAL_MAX_ZOOM,
+        pmtilesInspection,
+        pmtilesError: null,
     };
+};
+
+export const prepareOperationalMapStyle = async (options = {}) => {
+    const includeStreet = options.includeStreet !== false;
+    const pmtilesUrl = options.pmtilesUrl ?? configuredPmtilesUrl;
+    if (!includeStreet || !String(pmtilesUrl || '').trim()) {
+        return createOperationalMapStyle(options);
+    }
+
+    try {
+        const pmtilesInspection = await inspectPmtilesArchive(pmtilesUrl);
+        return createOperationalMapStyle({
+            ...options,
+            pmtilesUrl,
+            pmtilesInspection,
+        });
+    } catch (error) {
+        console.warn('PMTiles validation failed; using the fallback street map.', error);
+        return {
+            ...createOperationalMapStyle({ ...options, pmtilesUrl: '' }),
+            pmtilesError: error instanceof Error ? error.message : 'PMTiles validation failed.',
+        };
+    }
 };
 
 export const getMapProviderStatus = () => ({

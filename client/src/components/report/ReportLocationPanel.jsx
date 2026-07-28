@@ -114,7 +114,7 @@ const ReportLocationPanel = ({
                 </div>
             </div>
 
-            <div className="h-[340px] sm:h-[430px] lg:h-[500px]">
+            <div className="h-[340px] min-h-0 overflow-hidden sm:h-[430px] lg:h-[500px]">
                 <MapView
                     onLocationSelect={handleLocationSelect}
                     selectedLocation={selectedLocation}
