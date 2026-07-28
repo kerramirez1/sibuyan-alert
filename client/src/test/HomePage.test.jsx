@@ -92,10 +92,13 @@ describe('HomePage operational landing page', () => {
 
         const copy = screen.getByTestId('landing-hero-copy');
         const phone = screen.getByTestId('landing-phone-preview');
+        const staticMapPreview = phone.querySelector('img[src="/images/map.png"]');
         const actions = screen.getByTestId('landing-hero-actions');
         const benefits = screen.getByTestId('landing-hero-benefits');
         const metrics = screen.getByTestId('landing-hero-metrics');
         expect(copy.compareDocumentPosition(phone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(staticMapPreview).toBeInTheDocument();
+        expect(phone.querySelector('.maplibregl-map')).not.toBeInTheDocument();
         expect(phone.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(actions.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

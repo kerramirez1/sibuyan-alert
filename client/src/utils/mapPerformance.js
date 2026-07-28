@@ -37,7 +37,6 @@ export const getMapPerformanceProfile = (overrides = {}) => {
         fadeDuration: reducedMotion || resourceConstrained ? 0 : 150,
         markerAnimations: !reducedMotion && !resourceConstrained,
         navigationDuration: reducedMotion ? 0 : resourceConstrained ? 450 : 800,
-        loadLanding3DPreview: !saveData && !reducedMotion && !resourceConstrained && !compactViewport,
     };
 };
 

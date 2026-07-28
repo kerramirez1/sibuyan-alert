@@ -531,18 +531,6 @@
   }
 }
 
-@keyframes dangerPulse {
-  0% {
-    transform: scale(0.5);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
 @keyframes responderPulse {
   0% {
     transform: scale(0.55);

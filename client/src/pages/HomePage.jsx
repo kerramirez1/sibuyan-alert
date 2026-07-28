@@ -103,7 +103,7 @@ const HomePage = () => {
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
-            <header className="fixed inset-x-0 top-0 z-50 border-b border-white/60 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-[#0d1917]/85">
+            <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200/80 bg-white/95 dark:border-white/10 dark:bg-[#0d1917]/95">
                 <div className="mx-auto flex h-[60px] max-w-[1440px] items-center justify-between gap-2 px-3 min-[360px]:px-4 sm:px-8 lg:px-10 xl:px-14">
                     <Link to="/" className="group flex min-w-0 shrink items-center gap-2.5" aria-label="Sibuyan Alert home">
                         <img src="/icons/Alert.png" alt="" className="h-8 w-8 shrink-0 rounded-lg object-contain" />

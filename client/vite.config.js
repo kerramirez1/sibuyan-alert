@@ -40,9 +40,29 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: true,
-        // The operational map is already route/lazy-loaded. Its MapLibre,
-        // OpenLayers, PMTiles, and vector-style runtime is ~289 kB compressed;
-        // keep the warning budget aligned with that intentional boundary.
+        rolldownOptions: {
+            output: {
+                // Keep the operational renderer and optional vector-tile stack
+                // outside page chunks. These groups are only requested by lazy
+                // map routes, so the static landing page never downloads them.
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: 'map-renderer',
+                            test: /node_modules[\\/]maplibre-gl[\\/]/,
+                            priority: 20,
+                        },
+                        {
+                            name: 'map-data',
+                            test: /node_modules[\\/](?:pmtiles|@protomaps[\\/]basemaps)[\\/]/,
+                            priority: 10,
+                        },
+                    ],
+                },
+            },
+        },
+        // The operational map is intentionally lazy-loaded and remains around
+        // 289 kB compressed across the dedicated chunks below.
         chunkSizeWarningLimit: 1100,
     },
 });

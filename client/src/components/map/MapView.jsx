@@ -7,7 +7,6 @@ import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
-    getMapCoordinates,
     getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
@@ -55,6 +54,13 @@ const SEVERITY_CONFIG = {
     medium: 'bg-amber-100 text-amber-700',
     low: 'bg-emerald-100 text-emerald-700',
 };
+
+// MapLibre fades HTML markers to 20% when terrain considers them occluded.
+// Operational incident and hazard pins must remain visible regardless of pitch.
+const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
+    opacity: 1,
+    opacityWhenCovered: 1,
+});
 
 const MapView = ({
     reports = [],
@@ -228,86 +234,6 @@ const MapView = ({
         });
 
         mapInstance.on('load', () => {
-            // Add sources
-            mapInstance.addSource('reports', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] },
-            });
-
-            mapInstance.addSource('zones', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] },
-            });
-
-            mapInstance.addSource('selected-location', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] },
-            });
-
-            // Add zone fill layer
-            mapInstance.addLayer({
-                id: 'zones-fill',
-                type: 'fill',
-                source: 'zones',
-                paint: {
-                    'fill-color': ['get', 'color'],
-                    'fill-opacity': 0.25,
-                },
-            });
-
-            // Add zone outline layer
-            mapInstance.addLayer({
-                id: 'zones-outline',
-                type: 'line',
-                source: 'zones',
-                paint: {
-                    'line-color': ['get', 'color'],
-                    'line-width': 2,
-                },
-            });
-
-            // Add 3D extrusion for zones if enabled
-            if (effective3D) {
-                mapInstance.addLayer({
-                    id: 'zones-3d',
-                    type: 'fill-extrusion',
-                    source: 'zones',
-                    paint: {
-                        'fill-extrusion-color': ['get', 'color'],
-                        'fill-extrusion-height': ['get', 'height'],
-                        'fill-extrusion-base': 0,
-                        'fill-extrusion-opacity': 0.5,
-                    },
-                });
-            }
-
-            // Add reports layer
-            mapInstance.addLayer({
-                id: 'reports-layer',
-                type: 'circle',
-                source: 'reports',
-                paint: {
-                    'circle-radius': 10,
-                    'circle-color': ['get', 'color'],
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': '#ffffff',
-                },
-            });
-
-            // Add selected location layer
-            mapInstance.addLayer({
-                id: 'selected-location-layer',
-                type: 'circle',
-                source: 'selected-location',
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': '#EF4444',
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': '#ffffff',
-                    'circle-opacity': 0.9,
-                },
-            });
-
             // Add user location layer (Blue Dot)
             mapInstance.addSource('user-location', {
                 type: 'geojson',
@@ -365,27 +291,13 @@ const MapView = ({
 
         // Handle map clicks
         mapInstance.on('click', (e) => {
-            // Check if clicked on a report
-            const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['reports-layer'] });
-
-            if (features.length > 0) {
-                // HTML markers handle click UI; avoid old inline popups.
-                return;
-            } else {
-                popupRef.current.remove();
-                // Trigger location select if callback provided
-                if (onLocationSelectRef.current) {
-                    onLocationSelectRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-                }
+            // Operational markers are accessible HTML controls and stop event
+            // propagation themselves. A canvas click therefore always means map
+            // selection and no duplicate WebGL hit layer is required.
+            popupRef.current.remove();
+            if (onLocationSelectRef.current) {
+                onLocationSelectRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });
             }
-        });
-
-        // Change cursor on hover
-        mapInstance.on('mouseenter', 'reports-layer', () => {
-            mapInstance.getCanvas().style.cursor = 'pointer';
-        });
-        mapInstance.on('mouseleave', 'reports-layer', () => {
-            mapInstance.getCanvas().style.cursor = '';
         });
 
         return () => {
@@ -462,36 +374,6 @@ const MapView = ({
             if (report.status === 'verified') return STATUS_MARKER_COLORS.verified;
             return INCIDENT_COLORS[report.incidentCategory] || STATUS_MARKER_COLORS.verified;
         };
-
-        // Generate report features
-        const reportFeatures = filteredReports
-            .map(report => {
-                const coords = getMapCoordinates(report);
-                if (!coords) return null;
-                return {
-                    type: 'Feature',
-                    properties: {
-                        id: report._id,
-                        title: report.title,
-                        address: report.address,
-                        description: report.description,
-                        incidentCategory: report.incidentCategory,
-                        incidentTime: report.incidentTime,
-                        color: getReportMarkerColor(report),
-                    },
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [coords.lng, coords.lat],
-                    },
-                };
-            })
-            .filter(Boolean);
-
-        // Update the report source independently from GPS and risk-zone changes.
-        const reportsSource = map.getSource('reports');
-        if (reportsSource) {
-            reportsSource.setData({ type: 'FeatureCollection', features: reportFeatures });
-        }
 
         // Clear existing report markers
         reportMarkersRef.current.forEach(marker => marker.remove());
@@ -579,7 +461,11 @@ const MapView = ({
                         : `${report.title || report.incidentType || 'Incident'} map marker`
                 );
 
-                const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+                const marker = new maplibregl.Marker({
+                    ...OPERATIONAL_MARKER_VISIBILITY,
+                    element: el,
+                    anchor: 'bottom',
+                })
                     .setLngLat([coords.lng, coords.lat])
                     .addTo(map);
 
@@ -606,35 +492,12 @@ const MapView = ({
 
     }, [reports, showPending, filterCategory, filterStatus, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations]);
 
-    // Risk zones change far less often than GPS updates. Keep their polygons and
-    // DOM markers isolated so acquiring a location never rebuilds the zone UI.
+    // Risk zones use one focused HTML pin in the operational map. Radius and 3D
+    // polygon visualization remain available in the dedicated risk-zone editor.
     useEffect(() => {
         if (!mapReady || !mapInstanceRef.current) return;
 
         const map = mapInstanceRef.current;
-        const zoneFeatures = highRiskZones.map(zone => {
-            const center = [zone.coordinates.lng, zone.coordinates.lat];
-            const radiusKm = zone.radius / 1000;
-            const coords = generateCirclePolygon(center, radiusKm);
-
-            return {
-                type: 'Feature',
-                properties: {
-                    color: ZONE_COLORS[zone.type] || ZONE_COLORS.other,
-                    height: zone.severity === 'critical' ? 500 : zone.severity === 'high' ? 300 : zone.severity === 'medium' ? 150 : 50,
-                    name: zone.name,
-                },
-                geometry: {
-                    type: 'Polygon',
-                    coordinates: [coords],
-                },
-            };
-        });
-
-        const zonesSource = map.getSource('zones');
-        if (zonesSource) {
-            zonesSource.setData({ type: 'FeatureCollection', features: zoneFeatures });
-        }
 
         // Clear existing zone markers
         zoneMarkersRef.current.forEach(marker => marker.remove());
@@ -648,21 +511,7 @@ const MapView = ({
             el.className = 'zone-marker';
             el.style.zIndex = '10';
             el.innerHTML = `
-                <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center;">
-                    ${performanceProfile.markerAnimations ? `<div style="
-                        position:absolute;
-                        width:100%; height:100%;
-                        background:rgba(239, 68, 68, 0.3);
-                        border-radius:50%;
-                        animation: dangerPulse 1.5s ease-out infinite;
-                    " data-map-pulse></div>
-                    <div style="
-                        position:absolute;
-                        width:70%; height:70%;
-                        background:rgba(239, 68, 68, 0.5);
-                        border-radius:50%;
-                        animation: dangerPulse 1.5s ease-out infinite 0.5s;
-                    " data-map-pulse></div>` : ''}
+                <div style="position:relative; width:32px; height:32px; display:flex; align-items:center; justify-content:center;">
                     <div style="
                         width:24px; height:24px;
                         background:${color};
@@ -684,7 +533,11 @@ const MapView = ({
             el.style.cursor = 'pointer';
             el.title = zone.name;
 
-            const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            const marker = new maplibregl.Marker({
+                ...OPERATIONAL_MARKER_VISIBILITY,
+                element: el,
+                anchor: 'bottom',
+            })
                 .setLngLat([zone.coordinates.lng, zone.coordinates.lat])
                 .addTo(map);
 
@@ -701,7 +554,7 @@ const MapView = ({
             zoneMarkersRef.current.push(marker);
         });
 
-    }, [highRiskZones, mapReady, generateCirclePolygon, performanceProfile.markerAnimations]);
+    }, [highRiskZones, mapReady]);
 
     // The draggable selected pin has its own update path. Moving it must not
     // recreate operational incident or high-risk-zone markers.
@@ -709,24 +562,6 @@ const MapView = ({
         if (!mapReady || !mapInstanceRef.current) return;
 
         const map = mapInstanceRef.current;
-
-        // Update selected location
-        const selectedSource = map.getSource('selected-location');
-        if (selectedSource && selectedLocation) {
-            selectedSource.setData({
-                type: 'FeatureCollection',
-                features: [{
-                    type: 'Feature',
-                    properties: {},
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [selectedLocation.lng, selectedLocation.lat],
-                    },
-                }],
-            });
-        } else if (selectedSource) {
-            selectedSource.setData({ type: 'FeatureCollection', features: [] });
-        }
 
         // Handle HTML Marker for selected location (always visible on top)
         if (selectedLocation) {
@@ -742,7 +577,12 @@ const MapView = ({
                 `;
                 el.style.cursor = 'pointer';
 
-                selectedMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: true })
+                selectedMarkerRef.current = new maplibregl.Marker({
+                    ...OPERATIONAL_MARKER_VISIBILITY,
+                    element: el,
+                    anchor: 'bottom',
+                    draggable: true,
+                })
                     .setLngLat([selectedLocation.lng, selectedLocation.lat])
                     .addTo(map);
 

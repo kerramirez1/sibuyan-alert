@@ -18,7 +18,6 @@ describe('map performance profile', () => {
             antialias: true,
             pixelRatio: 2,
             markerAnimations: true,
-            loadLanding3DPreview: true,
         });
     });
 
@@ -43,7 +42,7 @@ describe('map performance profile', () => {
         });
     });
 
-    test('respects data saver by avoiding terrain and the landing WebGL preview', () => {
+    test('respects data saver by avoiding terrain', () => {
         const profile = getMapPerformanceProfile({
             viewportWidth: 1280,
             devicePixelRatio: 2,
@@ -54,7 +53,6 @@ describe('map performance profile', () => {
         });
 
         expect(profile.terrainEnabled).toBe(false);
-        expect(profile.loadLanding3DPreview).toBe(false);
     });
 
     test('respects reduced motion for markers and camera transitions', () => {

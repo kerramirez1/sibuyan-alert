@@ -62,7 +62,7 @@ const LandingHero = ({
             <div className="mx-auto flex min-h-[calc(100svh-60px)] w-full max-w-[1440px] flex-col px-3 py-4 sm:px-8 sm:py-8 lg:px-10 lg:py-12 xl:px-14">
                 <div className="grid flex-1 grid-cols-[minmax(0,1fr)_clamp(108px,32vw,150px)] grid-rows-[auto_auto_auto] items-center gap-x-3 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.48fr)] sm:gap-x-8 sm:gap-y-6 lg:grid-cols-[minmax(0,1.06fr)_minmax(250px,0.72fr)_minmax(260px,0.88fr)] lg:grid-rows-[auto_auto] lg:gap-x-10 xl:gap-x-14">
                     <div data-testid="landing-hero-copy" className="col-start-1 row-start-1 min-w-0 overflow-hidden text-left lg:self-end">
-                        <div className={`mb-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md sm:mb-5 sm:gap-2 sm:px-3 sm:py-1.5 ${publicStatsState === 'error'
+                        <div className={`mb-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-1 shadow-sm sm:mb-5 sm:gap-2 sm:px-3 sm:py-1.5 ${publicStatsState === 'error'
                             ? 'border-amber-300/70 bg-white/75 text-amber-800 dark:border-amber-700/60 dark:bg-gray-900/70 dark:text-amber-300'
                             : 'border-emerald-300/70 bg-white/75 text-emerald-800 dark:border-emerald-700/60 dark:bg-gray-900/70 dark:text-emerald-300'}`}
                         >
@@ -105,7 +105,7 @@ const LandingHero = ({
                         {!isAuthenticated && (
                             <Link
                                 to="/register"
-                                className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-300/80 bg-white/80 px-4 py-2 text-xs font-bold text-gray-900 shadow-sm backdrop-blur-md transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+                                className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-300/80 bg-white/90 px-4 py-2 text-xs font-bold text-gray-900 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:border-white/15 dark:bg-[#18302a]/95 dark:text-white dark:hover:bg-[#1d3932]"
                             >
                                 Become a reporter <HiOutlineArrowRight className="h-4 w-4" />
                             </Link>
@@ -117,7 +117,7 @@ const LandingHero = ({
 
                     <div data-testid="landing-hero-benefits" className="col-span-2 row-start-3 grid grid-cols-2 gap-2 lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:grid-cols-1 lg:gap-2.5">
                         {benefits.map(({ Icon, title, description }) => (
-                            <div key={title} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/60 bg-white/70 p-2 shadow-[0_10px_30px_-22px_rgba(15,23,42,0.65)] backdrop-blur-xl sm:items-start sm:gap-3 sm:rounded-2xl sm:p-3.5 dark:border-white/10 dark:bg-[#152622]/80">
+                            <div key={title} className="flex min-w-0 items-center gap-2 rounded-xl border border-white/60 bg-white/90 p-2 shadow-[0_10px_30px_-22px_rgba(15,23,42,0.65)] sm:items-start sm:gap-3 sm:rounded-2xl sm:p-3.5 dark:border-white/10 dark:bg-[#152622]/95">
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 sm:h-10 sm:w-10 sm:rounded-xl dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/10">
                                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                                 </span>
@@ -130,7 +130,7 @@ const LandingHero = ({
                     </div>
                 </div>
 
-                <div data-testid="landing-hero-metrics" className="mx-auto mt-3 grid w-full max-w-5xl grid-cols-3 overflow-hidden rounded-xl border border-white/60 bg-white/75 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.75)] backdrop-blur-xl sm:mt-7 sm:rounded-2xl lg:mt-9 dark:border-white/10 dark:bg-[#101f1c]/80">
+                <div data-testid="landing-hero-metrics" className="mx-auto mt-3 grid w-full max-w-5xl grid-cols-3 overflow-hidden rounded-xl border border-white/60 bg-white/90 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.75)] sm:mt-7 sm:rounded-2xl lg:mt-9 dark:border-white/10 dark:bg-[#101f1c]/95">
                     <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label={verifiedPeriodLabel} />
                     <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="Active risk zones" bordered />
                     <Metric value={municipalityCount} label="Municipalities covered" />
