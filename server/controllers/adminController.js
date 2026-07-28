@@ -3,7 +3,7 @@ import Report from '../models/Report.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
-import { sendPushNotification, pushTemplates } from '../services/pushService.js';
+import { sendPushToUser, pushTemplates } from '../services/pushService.js';
 import { broadcastVerifiedReportToResponders, broadcastReportVerified, broadcastReportRejected } from '../services/socketService.js';
 import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
 
@@ -313,7 +313,7 @@ export const verifyReporter = async (req, res) => {
             const template = status === 'approved'
                 ? pushTemplates.reporterVerified()
                 : pushTemplates.reporterRejected(feedback);
-            await sendPushNotification(user.pushSubscription, template);
+            await sendPushToUser(user, template);
         }
 
         res.json({
@@ -598,7 +598,7 @@ export const verifyReport = async (req, res) => {
             const template = status === 'verified'
                 ? pushTemplates.reportVerified(report)
                 : pushTemplates.reportRejected(report, rejectionReason);
-            await sendPushNotification(report.reporter.pushSubscription, template);
+            await sendPushToUser(report.reporter, template);
         }
 
         res.json({
@@ -1081,7 +1081,7 @@ export const respondToReport = async (req, res) => {
 
         // Send push notification to reporter
         if (report.reporter?.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-            await sendPushNotification(report.reporter.pushSubscription, {
+            await sendPushToUser(report.reporter, {
                 title: isFirstResponder ? '🚨 Help is on the way!' : '🚑 More help arriving!',
                 body: `${unitType} ${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
                 icon: '/icon-192x192.png',
@@ -1218,7 +1218,7 @@ export const resolveReport = async (req, res) => {
                 );
 
                 if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-                    await sendPushNotification(report.reporter.pushSubscription, {
+                    await sendPushToUser(report.reporter, {
                         title: '✅ Incident Resolved',
                         body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
                         icon: '/icon-192x192.png',

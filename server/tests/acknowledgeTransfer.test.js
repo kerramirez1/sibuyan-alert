@@ -22,7 +22,7 @@ jest.mock('../services/emailService.js', () => ({
 }));
 
 jest.mock('../services/pushService.js', () => ({
-    sendPushNotification: jest.fn(),
+    sendPushToUser: jest.fn(),
     pushTemplates: {},
 }));
 

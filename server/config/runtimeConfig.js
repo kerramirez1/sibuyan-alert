@@ -1,4 +1,10 @@
 const REQUIRED_PRODUCTION_VARIABLES = ['MONGODB_URI', 'JWT_SECRET', 'CLIENT_URL'];
+const WEB_PUSH_VARIABLES = [
+    'VAPID_PUBLIC_KEY',
+    'VAPID_PRIVATE_KEY',
+    'VAPID_EMAIL',
+    'VITE_VAPID_PUBLIC_KEY',
+];
 
 const isHttpUrl = (value) => {
     try {
@@ -24,6 +30,20 @@ export const validateRuntimeConfig = (env = process.env) => {
 
     if (!isHttpUrl(env.CLIENT_URL)) {
         throw new Error('CLIENT_URL must be an absolute HTTP(S) URL in production');
+    }
+
+    const hasAnyWebPushConfig = WEB_PUSH_VARIABLES.some((name) => env[name]?.trim());
+    if (!hasAnyWebPushConfig) return;
+
+    const missingWebPush = WEB_PUSH_VARIABLES.filter((name) => !env[name]?.trim());
+    if (missingWebPush.length > 0) {
+        throw new Error(`Incomplete Web Push configuration: ${missingWebPush.join(', ')}`);
+    }
+    if (!/^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/i.test(env.VAPID_EMAIL.trim())) {
+        throw new Error('VAPID_EMAIL must use a mailto: or HTTPS contact URI');
+    }
+    if (env.VAPID_PUBLIC_KEY.trim() !== env.VITE_VAPID_PUBLIC_KEY.trim()) {
+        throw new Error('VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY must match');
     }
 };
 

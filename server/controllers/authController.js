@@ -7,6 +7,12 @@ import {
     uploadFileToGridFS,
 } from '../services/gridFsService.js';
 import { isValidSibuyanAddress } from '../config/sibuyanLocations.js';
+import {
+    normalizePushEndpoint,
+    normalizePushSubscription,
+    PushSubscriptionValidationError,
+} from '../utils/pushSubscription.js';
+import { sendPushToUser } from '../services/pushService.js';
 
 /**
  * @desc    Register a new reporter (with ID upload)
@@ -368,10 +374,23 @@ export const updateProfile = async (req, res) => {
  */
 export const savePushSubscription = async (req, res) => {
     try {
-        const { subscription } = req.body;
+        const subscription = normalizePushSubscription(req.body?.subscription);
+
+        // A browser endpoint must belong to only one account. This prevents a
+        // shared browser from receiving notifications for a previously signed-in user.
+        await User.updateMany(
+            {
+                _id: { $ne: req.user._id },
+                'pushSubscription.endpoint': subscription.endpoint,
+            },
+            { $set: { pushSubscription: null } }
+        );
 
         await User.findByIdAndUpdate(req.user._id, {
-            pushSubscription: subscription,
+            $set: {
+                pushSubscription: subscription,
+                'notificationPreferences.browserPush': true,
+            },
         });
 
         res.json({
@@ -379,10 +398,83 @@ export const savePushSubscription = async (req, res) => {
             message: 'Push subscription saved',
         });
     } catch (error) {
+        if (error instanceof PushSubscriptionValidationError) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
         console.error('Save push subscription error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to save push subscription',
+        });
+    }
+};
+
+/** Disable browser push for the current account and optionally verify the device endpoint. */
+export const deletePushSubscription = async (req, res) => {
+    try {
+        const endpoint = req.body?.endpoint == null
+            ? null
+            : normalizePushEndpoint(req.body.endpoint);
+        const filter = { _id: req.user._id };
+        if (endpoint) filter['pushSubscription.endpoint'] = endpoint;
+
+        await User.updateOne(filter, {
+            $set: {
+                pushSubscription: null,
+                'notificationPreferences.browserPush': false,
+            },
+        });
+
+        return res.json({
+            success: true,
+            message: 'Browser push notifications disabled',
+        });
+    } catch (error) {
+        if (error instanceof PushSubscriptionValidationError) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        console.error('Delete push subscription error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to disable browser push notifications',
+        });
+    }
+};
+
+/** Deliver a self-service test so users can verify the provider/browser path. */
+export const testPushSubscription = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id)
+            .select('_id pushSubscription notificationPreferences');
+        if (!user?.pushSubscription || !user.notificationPreferences?.browserPush) {
+            return res.status(409).json({
+                success: false,
+                message: 'Browser notifications are not enabled for this account',
+            });
+        }
+
+        const delivered = await sendPushToUser(user, {
+            title: 'Sibuyan Alert test',
+            body: 'Browser notifications are working on this device.',
+            tag: `push-test-${user._id}`,
+            url: '/profile',
+        });
+        if (!delivered) {
+            return res.status(503).json({
+                success: false,
+                message: 'The push provider did not accept the test notification',
+            });
+        }
+
+        return res.json({ success: true, message: 'Test notification sent' });
+    } catch (error) {
+        console.error('Test push notification error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to send test notification',
         });
     }
 };

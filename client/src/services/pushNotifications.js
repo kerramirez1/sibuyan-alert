@@ -1,79 +1,119 @@
-// Request push notification permission and subscribe
-export async function subscribeToPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Push notifications not supported');
-        return null;
-    }
+const SERVICE_WORKER_URL = '/sw.js';
 
-    try {
-        // Register service worker
-        const registration = await navigator.serviceWorker.register('/sw.js');
+export const isPushSupported = () => (
+    typeof window !== 'undefined'
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window
+    && 'Notification' in window
+);
 
-
-        // Request permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.warn('Push notification permission denied');
-            return null;
-        }
-
-        // Get VAPID public key from environment
-        const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-        if (!vapidPublicKey) {
-            console.warn('VAPID public key not configured');
-            return null;
-        }
-
-        // Subscribe to push
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
-
-
-        return subscription.toJSON();
-    } catch (error) {
-        console.error('Push subscription error:', error);
-        return null;
-    }
-}
-
-// Unsubscribe from push notifications
-export async function unsubscribeFromPush() {
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-            await subscription.unsubscribe();
-
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Push unsubscribe error:', error);
-        return false;
-    }
-}
-
-// Check if already subscribed
-export async function isPushSubscribed() {
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        return !!subscription;
-    } catch {
-        return false;
-    }
-}
-
-// Helper: Convert VAPID key
-function urlBase64ToUint8Array(base64String) {
+const urlBase64ToUint8Array = (base64String) => {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+    return Uint8Array.from(rawData, (character) => character.charCodeAt(0));
+};
+
+const applicationServerKeysMatch = (subscription, expectedKey) => {
+    const currentKey = subscription?.options?.applicationServerKey;
+    if (!currentKey) return true;
+
+    const currentBytes = new Uint8Array(currentKey);
+    return currentBytes.length === expectedKey.length
+        && currentBytes.every((value, index) => value === expectedKey[index]);
+};
+
+const getRegistration = async () => {
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
+        scope: '/',
+        updateViaCache: 'none',
+    });
+    await navigator.serviceWorker.ready;
+    return registration;
+};
+
+/**
+ * Create or recover a browser subscription. Permission is requested only when
+ * called from an explicit user action; silent synchronization never prompts.
+ */
+export async function subscribeToPush({ requestPermission = true } = {}) {
+    if (!isPushSupported()) {
+        return { status: 'unsupported', subscription: null };
     }
-    return outputArray;
+
+    try {
+        let permission = Notification.permission;
+        if (permission === 'default' && requestPermission) {
+            permission = await Notification.requestPermission();
+        }
+        if (permission !== 'granted') {
+            return { status: permission === 'denied' ? 'denied' : 'prompt', subscription: null };
+        }
+
+        const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim();
+        if (!vapidPublicKey) {
+            return { status: 'unconfigured', subscription: null };
+        }
+
+        const registration = await getRegistration();
+        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+        let subscription = await registration.pushManager.getSubscription();
+
+        // A subscription created with an old VAPID key cannot receive messages
+        // signed by the current key, so replace it after a key rotation.
+        if (subscription && !applicationServerKeysMatch(subscription, applicationServerKey)) {
+            await subscription.unsubscribe();
+            subscription = null;
+        }
+
+        if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            });
+        }
+
+        return { status: 'subscribed', subscription: subscription.toJSON() };
+    } catch (error) {
+        console.error('Push subscription error:', error);
+        return { status: 'error', subscription: null, error };
+    }
+}
+
+export async function unsubscribeFromPush() {
+    if (!isPushSupported()) return { status: 'unsupported', endpoint: null };
+
+    try {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        const subscription = await registration?.pushManager.getSubscription();
+        const endpoint = subscription?.endpoint || null;
+        if (subscription) await subscription.unsubscribe();
+        return { status: 'unsubscribed', endpoint };
+    } catch (error) {
+        console.error('Push unsubscribe error:', error);
+        return { status: 'error', endpoint: null, error };
+    }
+}
+
+export async function getPushState() {
+    if (!isPushSupported()) {
+        return { supported: false, permission: 'unsupported', subscribed: false };
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        const subscription = await registration?.pushManager.getSubscription();
+        return {
+            supported: true,
+            permission: Notification.permission,
+            subscribed: Boolean(subscription),
+            endpoint: subscription?.endpoint || null,
+        };
+    } catch {
+        return {
+            supported: true,
+            permission: Notification.permission,
+            subscribed: false,
+        };
+    }
 }

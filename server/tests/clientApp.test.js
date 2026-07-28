@@ -16,6 +16,7 @@ describe('combined production client hosting', () => {
             '<!doctype html><html><body><div id="root">Sibuyan Alert</div></body></html>'
         );
         await fs.writeFile(path.join(distPath, 'assets', 'app-abc123.js'), 'console.log("ready")');
+        await fs.writeFile(path.join(distPath, 'sw.js'), 'self.addEventListener("push", () => {})');
     });
 
     afterAll(async () => {
@@ -59,6 +60,16 @@ describe('combined production client hosting', () => {
 
         expect(response.status).toBe(200);
         expect(response.headers['cache-control']).toContain('immutable');
+    });
+
+    test('serves the service worker with revalidation instead of long-lived caching', async () => {
+        const app = express();
+        configureProductionClient(app, { nodeEnv: 'production', distPath });
+
+        const response = await request(app).get('/sw.js');
+
+        expect(response.status).toBe(200);
+        expect(response.headers['cache-control']).toBe('no-cache');
     });
 
     test('does not route unknown API requests through the SPA', async () => {

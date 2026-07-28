@@ -62,6 +62,10 @@ export const authAPI = {
         });
     },
     savePushSubscription: (subscription) => api.post('/auth/push-subscription', { subscription }),
+    deletePushSubscription: (endpoint) => api.delete('/auth/push-subscription', {
+        data: endpoint ? { endpoint } : {},
+    }),
+    testPushSubscription: () => api.post('/auth/push-subscription/test'),
     resubmitId: (formData) => api.post('/auth/resubmit-id', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
     }),

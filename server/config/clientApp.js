@@ -7,6 +7,10 @@ const configDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultClientDistPath = path.resolve(configDirectory, '../../client/dist');
 
 const setStaticCacheHeaders = (res, filePath) => {
+    if (path.basename(filePath) === 'sw.js') {
+        res.setHeader('Cache-Control', 'no-cache');
+        return;
+    }
     const assetsSegment = `${path.sep}assets${path.sep}`;
     if (filePath.includes(assetsSegment)) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

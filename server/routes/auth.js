@@ -5,6 +5,8 @@ import {
     getMe,
     updateProfile,
     savePushSubscription,
+    deletePushSubscription,
+    testPushSubscription,
     resubmitIdDocument,
     forgotPassword,
     resetPassword,
@@ -17,7 +19,7 @@ import {
     validateForgotPassword,
     validateResetPassword,
 } from '../middleware/validate.js';
-import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, passwordResetLimiter, pushSubscriptionLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -31,7 +33,9 @@ router.post('/reset-password/:token', authLimiter, validateResetPassword, resetP
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/me', protect, uploadAvatar, handleMulterError, validateUploadContent, updateProfile);
-router.post('/push-subscription', protect, savePushSubscription);
+router.post('/push-subscription', protect, pushSubscriptionLimiter, savePushSubscription);
+router.delete('/push-subscription', protect, pushSubscriptionLimiter, deletePushSubscription);
+router.post('/push-subscription/test', protect, pushSubscriptionLimiter, testPushSubscription);
 router.post('/resubmit-id', protect, uploadIdDocument, handleMulterError, validateUploadContent, resubmitIdDocument);
 
 export default router;

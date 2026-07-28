@@ -52,3 +52,15 @@ export const locationLookupLimiter = rateLimit({
         message: 'Too many location lookups. Please wait a moment and try again.',
     },
 });
+
+/** Protect subscription persistence without interfering with normal silent resync. */
+export const pushSubscriptionLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many notification subscription updates. Please try again shortly.',
+    },
+});

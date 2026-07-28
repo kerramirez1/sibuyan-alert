@@ -5,10 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../utils/assets';
-import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
+import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX, HiOutlineBell } from 'react-icons/hi';
 
 const ProfileSettingsPage = () => {
-    const { user, updateUser } = useAuth();
+    const {
+        user,
+        updateUser,
+        pushState,
+        enablePushNotifications,
+        disablePushNotifications,
+        sendTestPushNotification,
+    } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(null);
@@ -231,6 +238,35 @@ const ProfileSettingsPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePushToggle = async () => {
+        if (pushState.subscribed) {
+            const result = await disablePushNotifications();
+            if (result.success) toast.success('Browser notifications disabled');
+            else toast.error('Could not disable browser notifications');
+            return;
+        }
+
+        const result = await enablePushNotifications();
+        if (result.success) {
+            toast.success('Browser notifications enabled');
+            return;
+        }
+
+        const messages = {
+            denied: 'Notifications are blocked. Allow them in your browser site settings, then try again.',
+            unsupported: 'This browser does not support Web Push notifications.',
+            unconfigured: 'Browser notifications are not configured on this deployment.',
+            save_failed: 'The browser subscribed, but the account could not be updated. Please try again.',
+        };
+        toast.error(messages[result.status] || 'Could not enable browser notifications');
+    };
+
+    const handleTestPush = async () => {
+        const result = await sendTestPushNotification();
+        if (result.success) toast.success('Test notification sent');
+        else toast.error(result.message);
     };
 
     const InputField = ({ label, icon: LabelIcon, ...inputProps }) => (
@@ -491,6 +527,69 @@ const ProfileSettingsPage = () => {
                             )}
                         </div>
                     </motion.div>
+
+                    {/* Browser Notifications */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
+                        aria-labelledby="browser-notifications-heading"
+                    >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
+                                    <HiOutlineBell className="h-5 w-5 text-emerald-700" aria-hidden="true" />
+                                </div>
+                                <div>
+                                    <h3 id="browser-notifications-heading" className="text-sm font-bold text-gray-900 sm:text-base">
+                                        Browser notifications
+                                    </h3>
+                                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500 sm:text-sm">
+                                        Receive verified report, dispatch, response, and account updates even when this page is not open.
+                                    </p>
+                                    <p className="mt-2 text-xs font-semibold text-gray-600" aria-live="polite">
+                                        {pushState.loading
+                                            ? 'Checking this browser…'
+                                            : pushState.subscribed
+                                                ? 'Enabled on this browser'
+                                                : pushState.permission === 'denied'
+                                                    ? 'Blocked in browser settings'
+                                                    : pushState.supported === false
+                                                        ? 'Not supported by this browser'
+                                                        : 'Disabled on this browser'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+                                {pushState.subscribed && (
+                                    <button
+                                        type="button"
+                                        onClick={handleTestPush}
+                                        disabled={pushState.loading}
+                                        className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                                    >
+                                        Send test
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handlePushToggle}
+                                    disabled={pushState.loading || pushState.supported === false}
+                                    aria-pressed={pushState.subscribed}
+                                    className={`min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                        pushState.subscribed
+                                            ? 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    }`}
+                                >
+                                    {pushState.loading
+                                        ? 'Please wait…'
+                                        : pushState.subscribed ? 'Disable' : 'Enable notifications'}
+                                </button>
+                            </div>
+                        </div>
+                    </motion.section>
 
                     {/* Change Password */}
                     <motion.div

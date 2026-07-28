@@ -8,7 +8,7 @@
         "build": "vite build",
         "preview": "vite preview",
         "test": "vitest",
-        "lint": "oxlint src vite.config.js --deny-warnings"
+        "lint": "oxlint src public/sw.js vite.config.js --deny-warnings"
     },
     "dependencies": {
         "@protomaps/basemaps": "^5.7.2",

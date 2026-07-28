@@ -28,4 +28,27 @@ describe('production runtime configuration', () => {
             CLIENT_URL: 'https://sibuyan-alert.example',
         })).not.toThrow();
     });
+
+    test('rejects partial Web Push configuration', () => {
+        expect(() => validateRuntimeConfig({
+            NODE_ENV: 'production',
+            MONGODB_URI: 'mongodb+srv://example.invalid/database',
+            JWT_SECRET: 'a-strong-test-secret-with-32-characters',
+            CLIENT_URL: 'https://sibuyan-alert.example',
+            VAPID_PUBLIC_KEY: 'public-key',
+        })).toThrow('Incomplete Web Push configuration');
+    });
+
+    test('requires matching public keys for a Web Push deployment', () => {
+        expect(() => validateRuntimeConfig({
+            NODE_ENV: 'production',
+            MONGODB_URI: 'mongodb+srv://example.invalid/database',
+            JWT_SECRET: 'a-strong-test-secret-with-32-characters',
+            CLIENT_URL: 'https://sibuyan-alert.example',
+            VAPID_PUBLIC_KEY: 'public-key',
+            VAPID_PRIVATE_KEY: 'private-key',
+            VAPID_EMAIL: 'mailto:alerts@example.com',
+            VITE_VAPID_PUBLIC_KEY: 'different-public-key',
+        })).toThrow('must match');
+    });
 });

@@ -23,7 +23,7 @@ jest.mock('../services/emailService.js', () => ({
 }));
 
 jest.mock('../services/pushService.js', () => ({
-    sendPushNotification: jest.fn().mockResolvedValue({}),
+    sendPushToUser: jest.fn().mockResolvedValue(false),
     pushTemplates: {
         reporterVerified: jest.fn(),
         reporterRejected: jest.fn(),

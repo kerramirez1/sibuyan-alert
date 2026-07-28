@@ -1,133 +1,137 @@
 import webpush from 'web-push';
+import User from '../models/User.js';
 
-// Configure web-push with VAPID keys
-const configureWebPush = () => {
-    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-        webpush.setVapidDetails(
-            process.env.VAPID_EMAIL || 'mailto:sibuyan.alert@gmail.com',
-            process.env.VAPID_PUBLIC_KEY,
-            process.env.VAPID_PRIVATE_KEY
-        );
-        console.log('✅ Web Push configured');
-    } else {
-        console.warn('⚠️ VAPID keys not configured - Web Push disabled');
-    }
-};
+let webPushConfigured = false;
 
-/**
- * Send push notification
- * @param {Object} subscription - Push subscription object
- * @param {Object} payload - Notification payload
- * @returns {Promise<boolean>}
- */
-export const sendPushNotification = async (subscription, payload) => {
-    if (!subscription) {
+export const configureWebPush = () => {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+        webPushConfigured = false;
+        console.warn('Web Push disabled: VAPID keys are not configured');
         return false;
     }
 
+    webpush.setVapidDetails(
+        process.env.VAPID_EMAIL || 'mailto:sibuyan.alert@gmail.com',
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+    webPushConfigured = true;
+    console.log('Web Push configured');
+    return true;
+};
+
+export const sendPushNotification = async (subscription, payload) => {
+    if (!webPushConfigured || !subscription) return false;
+
     try {
-        const notificationPayload = JSON.stringify({
+        await webpush.sendNotification(subscription, JSON.stringify({
             title: payload.title || 'Sibuyan Alert',
-            body: payload.message || payload.body,
-            icon: '/icon-192.png',
-            badge: '/badge-72.png',
-            tag: payload.tag || 'default',
+            body: payload.message || payload.body || 'New notification',
+            icon: payload.icon || '/icons/Alert.png',
+            badge: payload.badge || '/icons/Alert.png',
+            tag: payload.tag || 'sibuyan-alert',
             data: {
-                url: payload.url || '/',
                 ...payload.data,
+                url: payload.url || payload.data?.url || '/',
             },
             actions: payload.actions || [
                 { action: 'view', title: 'View' },
                 { action: 'dismiss', title: 'Dismiss' },
             ],
-            requireInteraction: payload.requireInteraction || false,
+            requireInteraction: Boolean(payload.requireInteraction),
             vibrate: [200, 100, 200],
-        });
-
-        await webpush.sendNotification(subscription, notificationPayload);
-
+        }));
         return true;
     } catch (error) {
-        console.error('❌ Push notification error:', error);
-        // Subscription may be expired or invalid
         if (error.statusCode === 410 || error.statusCode === 404) {
-
             return { expired: true };
         }
+        console.error('Push notification delivery failed:', {
+            statusCode: error.statusCode,
+            message: error.message,
+        });
         return false;
     }
 };
 
-/**
- * Send push notification to multiple users
- * @param {Array} users - Array of users with pushSubscription
- * @param {Object} payload - Notification payload
- */
+/** Send to one account and remove endpoints rejected by the push provider. */
+export const sendPushToUser = async (user, payload) => {
+    if (!user?.pushSubscription || !user.notificationPreferences?.browserPush) return false;
+
+    const subscription = user.pushSubscription;
+    const result = await sendPushNotification(subscription, payload);
+    if (result?.expired && user._id) {
+        try {
+            await User.updateOne(
+                {
+                    _id: user._id,
+                    'pushSubscription.endpoint': subscription.endpoint,
+                },
+                { $set: { pushSubscription: null } }
+            );
+        } catch (error) {
+            console.error('Failed to remove expired push subscription:', {
+                userId: user._id.toString(),
+                message: error.message,
+            });
+        }
+        user.pushSubscription = null;
+        return false;
+    }
+
+    return result === true;
+};
+
 export const sendPushToUsers = async (users, payload) => {
     const results = await Promise.allSettled(
-        users.map(async (user) => {
-            if (user.pushSubscription && user.notificationPreferences?.browserPush) {
-                return await sendPushNotification(user.pushSubscription, payload);
-            }
-            return false;
-        })
+        users.map((user) => sendPushToUser(user, payload))
     );
-
     const successful = results.filter(
-        (r) => r.status === 'fulfilled' && r.value === true
+        (result) => result.status === 'fulfilled' && result.value === true
     ).length;
-
 
     return { total: users.length, successful };
 };
 
-/**
- * Notification templates
- */
 export const pushTemplates = {
     newReport: (report) => ({
-        title: '🚨 New Accident Report',
+        title: 'New Accident Report',
         message: `Accident reported at ${report.address}`,
         tag: `report-${report._id}`,
         url: `/dashboard?report=${report._id}`,
         requireInteraction: true,
         data: { reportId: report._id, type: 'new_report' },
     }),
-
     reportVerified: (report) => ({
-        title: '✅ Report Verified',
+        title: 'Report Verified',
         message: `Your report at ${report.address} has been verified`,
         tag: `report-${report._id}-verified`,
         url: `/dashboard?report=${report._id}`,
         data: { reportId: report._id, type: 'report_verified' },
     }),
-
     reportRejected: (report, reason) => ({
-        title: '❌ Report Not Verified',
+        title: 'Report Not Verified',
         message: reason || `Your report at ${report.address} was not verified`,
         tag: `report-${report._id}-rejected`,
-        url: `/dashboard`,
+        url: '/dashboard',
         data: { reportId: report._id, type: 'report_rejected' },
     }),
-
     reporterVerified: () => ({
-        title: '🎉 Account Verified!',
+        title: 'Account Verified',
         message: 'Your reporter account has been approved. Start reporting!',
         tag: 'verification-approved',
         url: '/report',
         data: { type: 'reporter_verified' },
     }),
-
     reporterRejected: (feedback) => ({
-        title: '⚠️ Verification Update',
+        title: 'Verification Update',
         message: feedback || 'Your reporter verification was not approved',
         tag: 'verification-rejected',
         url: '/login',
         data: { type: 'reporter_rejected' },
     }),
-
     highRiskAlert: (zone) => ({
-        title: '⚠️ High-Risk Zone Alert',
+        title: 'High-Risk Zone Alert',
         message: `Multiple accidents reported near ${zone.address}`,
         tag: `zone-${zone.id}`,
         url: '/dashboard',
@@ -136,11 +140,10 @@ export const pushTemplates = {
     }),
 };
 
-export { configureWebPush };
-
 export default {
     configureWebPush,
     sendPushNotification,
+    sendPushToUser,
     sendPushToUsers,
     pushTemplates,
 };

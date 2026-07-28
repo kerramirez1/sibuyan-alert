@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useNavigate } from '../router';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import {
+    getPushState,
+    subscribeToPush,
+    unsubscribeFromPush,
+} from '../services/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +21,12 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [pushState, setPushState] = useState({
+        supported: true,
+        permission: 'default',
+        subscribed: false,
+        loading: true,
+    });
     const navigate = useNavigate();
     const prevVerificationStatusRef = useRef(null);
 
@@ -166,6 +177,131 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    const enablePushNotifications = useCallback(async () => {
+        setPushState((current) => ({ ...current, loading: true }));
+        const result = await subscribeToPush({ requestPermission: true });
+
+        if (result.status !== 'subscribed') {
+            setPushState({
+                supported: result.status !== 'unsupported',
+                permission: result.status === 'denied'
+                    ? 'denied'
+                    : (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission),
+                subscribed: false,
+                loading: false,
+                error: result.status,
+            });
+            return { success: false, status: result.status };
+        }
+
+        const saved = await savePushSubscription(result.subscription);
+        setPushState({
+            supported: true,
+            permission: 'granted',
+            subscribed: saved.success,
+            loading: false,
+            error: saved.success ? null : 'save_failed',
+        });
+        if (saved.success) {
+            setUser((current) => current ? {
+                ...current,
+                notificationPreferences: {
+                    ...current.notificationPreferences,
+                    browserPush: true,
+                },
+            } : current);
+        }
+        return { success: saved.success, status: saved.success ? 'subscribed' : 'save_failed' };
+    }, [savePushSubscription]);
+
+    const disablePushNotifications = useCallback(async () => {
+        setPushState((current) => ({ ...current, loading: true }));
+        const localResult = await unsubscribeFromPush();
+        try {
+            await api.delete('/auth/push-subscription', {
+                data: localResult.endpoint ? { endpoint: localResult.endpoint } : {},
+            });
+            setPushState({
+                supported: localResult.status !== 'unsupported',
+                permission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+                subscribed: false,
+                loading: false,
+            });
+            setUser((current) => current ? {
+                ...current,
+                notificationPreferences: {
+                    ...current.notificationPreferences,
+                    browserPush: false,
+                },
+            } : current);
+            return { success: true };
+        } catch (error) {
+            console.error('Failed to disable push notifications:', error);
+            const currentState = await getPushState();
+            setPushState({ ...currentState, loading: false, error: 'delete_failed' });
+            return { success: false };
+        }
+    }, []);
+
+    const sendTestPushNotification = useCallback(async () => {
+        try {
+            await api.post('/auth/push-subscription/test');
+            return { success: true };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to send test notification',
+            };
+        }
+    }, []);
+
+    // Restore an existing granted subscription without displaying a browser
+    // permission prompt. Permission prompts are reserved for explicit user actions.
+    useEffect(() => {
+        let cancelled = false;
+        if (!user) {
+            setPushState({ supported: true, permission: 'default', subscribed: false, loading: false });
+            return () => { cancelled = true; };
+        }
+
+        const synchronizePush = async () => {
+            if (user.notificationPreferences?.browserPush === false) {
+                const state = await getPushState();
+                if (state.subscribed) await unsubscribeFromPush();
+                if (!cancelled) {
+                    setPushState({ ...state, subscribed: false, loading: false });
+                }
+                return;
+            }
+
+            const state = await getPushState();
+            if (cancelled) return;
+
+            if (state.supported && state.permission === 'granted') {
+                const result = await subscribeToPush({ requestPermission: false });
+                if (cancelled) return;
+                if (result.status === 'subscribed') {
+                    const saved = await savePushSubscription(result.subscription);
+                    if (!cancelled) {
+                        setPushState({
+                            supported: true,
+                            permission: 'granted',
+                            subscribed: saved.success,
+                            loading: false,
+                            error: saved.success ? null : 'save_failed',
+                        });
+                    }
+                    return;
+                }
+            }
+
+            setPushState({ ...state, loading: false });
+        };
+
+        synchronizePush();
+        return () => { cancelled = true; };
+    }, [user?.id, user?.notificationPreferences?.browserPush, savePushSubscription]);
+
     // Resubmit ID document
     const resubmitIdDocument = useCallback(async (formData) => {
         try {
@@ -217,6 +353,10 @@ export const AuthProvider = ({ children }) => {
         updateProfile,
         updateUser,
         savePushSubscription,
+        pushState,
+        enablePushNotifications,
+        disablePushNotifications,
+        sendTestPushNotification,
         resubmitIdDocument,
         hasRole,
         isVerifiedReporter,

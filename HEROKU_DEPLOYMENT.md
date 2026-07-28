@@ -47,7 +47,10 @@ SEED_LEGACY_EMAILS_JSON
 ```
 
 `VITE_VAPID_PUBLIC_KEY` is embedded during the client build and must be set
-before deploying. The private VAPID key remains server-only.
+before deploying. It must exactly match `VAPID_PUBLIC_KEY`. The private VAPID
+key remains server-only. After deployment, a signed-in user enables browser
+notifications explicitly from **Profile Settings**; the application never
+opens a permission prompt without a user action.
 
 ## Fresh database preparation
 
@@ -82,7 +85,10 @@ https://<app-name>.herokuapp.com/api/health
 
 The health endpoint returns HTTP 200 only after MongoDB is connected. Test a
 direct client route such as `/login`, an API request, a media URL, and a live
-Socket.IO update before sharing the deployment.
+Socket.IO update before sharing the deployment. For Web Push, enable browser
+notifications in Profile Settings and use **Send test**. Confirm delivery and
+that clicking it opens `/profile`; then repeat with the application tab closed.
+Browser push requires HTTPS, which Heroku provides.
 
 ## Scaling note
 
