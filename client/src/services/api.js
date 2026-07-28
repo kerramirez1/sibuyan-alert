@@ -103,7 +103,7 @@ export const adminAPI = {
 
 // High Risk Zones API
 export const highRiskZonesAPI = {
-    getAll: (params) => api.get('/high-risk-zones', { params }),
+    getAll: () => api.get('/high-risk-zones'),
     create: (data) => api.post('/high-risk-zones', data),
     update: (id, data) => api.put(`/high-risk-zones/${id}`, data),
     delete: (id) => api.delete(`/high-risk-zones/${id}`),

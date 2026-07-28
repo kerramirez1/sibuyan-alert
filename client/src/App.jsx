@@ -84,13 +84,13 @@ function App() {
                     </Route>
 
                     {/* Admin & Responder Dashboard Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['admin', 'municipal_admin', 'responder']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['municipal_admin', 'responder']} />}>
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/admin/reports" element={<AdminReportsPage />} />
                     </Route>
 
                     {/* Admin Only Management Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['admin', 'municipal_admin']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['municipal_admin']} />}>
                         <Route path="/admin/users" element={<AdminUsersPage />} />
                         <Route path="/admin/zones" element={<AdminHighRiskZonesPage />} />
                     </Route>

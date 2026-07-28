@@ -13,12 +13,9 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
     try {
-        const { municipality } = req.query;
+        // Public/authenticated visibility is island-wide by design. Municipality
+        // restrictions are enforced only by the protected mutation routes below.
         const query = { isActive: true };
-
-        if (municipality) {
-            query.municipality = municipality;
-        }
 
         const zones = await HighRiskZone.find(query)
             .populate('createdBy', 'name')
@@ -43,15 +40,22 @@ router.get('/', async (req, res) => {
  * @desc    Create a new high-risk zone
  * @access  Private (admin only)
  */
-router.post('/', protect, requireRole('admin', 'municipal_admin'), async (req, res) => {
+router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
     try {
         const { name, description, type, coordinates, radius, severity, municipality } = req.body;
         const admin = req.user;
 
-        // Municipal admins can only create zones in their jurisdiction
-        const targetMunicipality = admin.assignedMunicipality || municipality;
+        if (!admin.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
 
-        if (admin.assignedMunicipality && municipality && municipality !== admin.assignedMunicipality) {
+        // Municipal administrators can only create zones in their jurisdiction.
+        const targetMunicipality = admin.assignedMunicipality;
+
+        if (municipality && municipality !== admin.assignedMunicipality) {
             return res.status(403).json({
                 success: false,
                 message: 'You can only create zones in your assigned municipality',
@@ -101,7 +105,7 @@ router.post('/', protect, requireRole('admin', 'municipal_admin'), async (req, r
  * @desc    Update a high-risk zone
  * @access  Private (admin only)
  */
-router.put('/:id', protect, requireRole('admin', 'municipal_admin'), async (req, res) => {
+router.put('/:id', protect, requireRole('municipal_admin'), async (req, res) => {
     try {
         const zone = await HighRiskZone.findById(req.params.id);
         const admin = req.user;
@@ -114,7 +118,7 @@ router.put('/:id', protect, requireRole('admin', 'municipal_admin'), async (req,
         }
 
         // Check authorization
-        if (admin.assignedMunicipality && zone.municipality !== admin.assignedMunicipality) {
+        if (!admin.assignedMunicipality || zone.municipality !== admin.assignedMunicipality) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this zone',
@@ -157,7 +161,7 @@ router.put('/:id', protect, requireRole('admin', 'municipal_admin'), async (req,
  * @desc    Delete a high-risk zone
  * @access  Private (admin only)
  */
-router.delete('/:id', protect, requireRole('admin', 'municipal_admin'), async (req, res) => {
+router.delete('/:id', protect, requireRole('municipal_admin'), async (req, res) => {
     try {
         const zone = await HighRiskZone.findById(req.params.id);
         const admin = req.user;
@@ -170,7 +174,7 @@ router.delete('/:id', protect, requireRole('admin', 'municipal_admin'), async (r
         }
 
         // Check authorization
-        if (admin.assignedMunicipality && zone.municipality !== admin.assignedMunicipality) {
+        if (!admin.assignedMunicipality || zone.municipality !== admin.assignedMunicipality) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this zone',

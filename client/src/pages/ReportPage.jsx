@@ -6,12 +6,14 @@ import ReportLocationPanel from '../components/report/ReportLocationPanel';
 import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
+import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
 const ReportPage = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const { zones: highRiskZones } = useGlobalHighRiskZones();
 
     // Form State
     const [formData, setFormData] = useState({
@@ -437,7 +439,8 @@ const ReportPage = () => {
 
             <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-5">
                 <div className="lg:sticky lg:top-24">
-                    <ReportLocationPanel
+                <ReportLocationPanel
+                    highRiskZones={highRiskZones}
                         locationStatus={locationStatus}
                         geoLoading={geoLoading}
                         gpsAccuracy={gpsAccuracy}

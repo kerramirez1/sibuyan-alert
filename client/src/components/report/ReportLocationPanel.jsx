@@ -14,6 +14,7 @@ const STATUS_CONFIG = {
 };
 
 const ReportLocationPanel = ({
+    highRiskZones,
     locationStatus,
     geoLoading,
     gpsAccuracy,
@@ -116,6 +117,7 @@ const ReportLocationPanel = ({
 
             <div className="h-[340px] min-h-0 overflow-hidden sm:h-[430px] lg:h-[500px]">
                 <MapView
+                    highRiskZones={highRiskZones}
                     onLocationSelect={handleLocationSelect}
                     selectedLocation={selectedLocation}
                     userLocation={userLocation}

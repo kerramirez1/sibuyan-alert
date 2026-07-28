@@ -166,6 +166,13 @@ export const login = async (req, res) => {
             });
         }
 
+        if (user.role === 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'This account role has been retired. Contact your municipal administrator.',
+            });
+        }
+
         // Update last login
         user.lastLogin = new Date();
         await user.save();

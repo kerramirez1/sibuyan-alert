@@ -56,7 +56,7 @@ describe('resolveReport controller', () => {
         req = {
             params: { id: 'report123' },
             body: { resolutionNotes: 'Fixed the issue' },
-            user: { _id: 'user1', role: 'responder', agency: 'MDRRMO' },
+            user: { _id: 'user1', role: 'responder', agency: 'MDRRMO', assignedMunicipality: 'Cajidiocan' },
             app: {
                 get: jest.fn().mockReturnValue({ emit: jest.fn() }),
             },
@@ -104,6 +104,7 @@ describe('resolveReport controller', () => {
     test('denies access if user is responder but not first responder and not in responders list', async () => {
         const mockReport = {
             status: 'responding',
+            municipalityName: 'Cajidiocan',
             respondedBy: 'user1',
             responders: [{ user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' }],
         };
@@ -112,7 +113,7 @@ describe('resolveReport controller', () => {
         });
         Report.findById().populate.mockResolvedValue(mockReport);
 
-        req.user = { _id: 'user2', role: 'responder' };
+        req.user = { _id: 'user2', role: 'responder', assignedMunicipality: 'Cajidiocan' };
 
         await resolveReport(req, res);
 
@@ -128,6 +129,7 @@ describe('resolveReport controller', () => {
     test('allows resolution if user is the first responder', async () => {
         const mockReport = {
             status: 'responding',
+            municipalityName: 'Cajidiocan',
             respondedBy: 'user1',
             responders: [{ user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' }],
             save: jest.fn().mockResolvedValue({}),
@@ -140,7 +142,7 @@ describe('resolveReport controller', () => {
         });
         Report.findById().populate.mockResolvedValue(mockReport);
 
-        req.user = { _id: 'user1', role: 'responder', agency: 'MDRRMO' };
+        req.user = { _id: 'user1', role: 'responder', agency: 'MDRRMO', assignedMunicipality: 'Cajidiocan' };
 
         await resolveReport(req, res);
 
@@ -158,6 +160,7 @@ describe('resolveReport controller', () => {
     test('allows resolution if user is a joined responder in responders list', async () => {
         const mockReport = {
             status: 'responding',
+            municipalityName: 'Cajidiocan',
             respondedBy: 'user1',
             responders: [
                 { user: 'user1', unitName: 'MDRRMO', unitType: 'MDRRMO' },
@@ -173,7 +176,7 @@ describe('resolveReport controller', () => {
         });
         Report.findById().populate.mockResolvedValue(mockReport);
 
-        req.user = { _id: 'user2', role: 'responder', agency: 'BFP' };
+        req.user = { _id: 'user2', role: 'responder', agency: 'BFP', assignedMunicipality: 'Cajidiocan' };
 
         await resolveReport(req, res);
 

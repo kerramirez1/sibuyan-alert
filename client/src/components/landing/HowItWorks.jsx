@@ -1,58 +1,34 @@
-import { motion } from 'framer-motion';
-import { HiOutlineDocumentText, HiOutlineClipboardCheck, HiOutlineShieldCheck } from 'react-icons/hi';
+import { HiOutlineClipboardCheck, HiOutlineDocumentText, HiOutlineShieldCheck } from 'react-icons/hi';
 
 const steps = [
-    { n: '01', Icon: HiOutlineDocumentText, title: 'Reporter submits', desc: 'Verified residents file an incident — location, category, severity, and photos.' },
-    { n: '02', Icon: HiOutlineClipboardCheck, title: 'Admin verifies', desc: 'Municipal administrators review and publish the report to active responders.' },
-    { n: '03', Icon: HiOutlineShieldCheck, title: 'Responders act', desc: 'BFP, PNP, MDRRMO, and SDH receive instant alerts and navigate to the scene.' },
+    { n: '01', Icon: HiOutlineDocumentText, title: 'Reporter submits', desc: 'Verified residents file an incident with its location, category, severity, and supporting photos.' },
+    { n: '02', Icon: HiOutlineClipboardCheck, title: 'Administrator verifies', desc: 'Municipal administrators review the report before it is published to the operational map.' },
+    { n: '03', Icon: HiOutlineShieldCheck, title: 'Responders act', desc: 'Eligible municipal response units receive the incident and coordinate field action.' },
 ];
 
 const HowItWorks = () => (
-    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-100 bg-gray-50 px-5 py-24 sm:px-8">
-        <div className="max-w-6xl mx-auto">
-            <motion.div
-                className="mb-12"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-            >
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">How it works</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                    From incident to response, in three steps.
-                </h2>
-                <p className="text-sm text-gray-400 max-w-md">
-                    Anyone in the community can report. Authorities verify. Responders coordinate through the same incident record.
-                </p>
-            </motion.div>
+    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-100 bg-gray-50 px-5 py-20 dark:border-white/10 dark:bg-[#101f1c] sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+            <div className="mb-10 sm:mb-12">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">How it works</p>
+                <h2 className="mb-2 text-2xl font-black tracking-tight text-gray-950 dark:text-white sm:text-3xl">From report to field response.</h2>
+                <p className="max-w-xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">One incident record follows the exact review and response workflow without mixing administrator and responder responsibilities.</p>
+            </div>
 
-            <motion.div
-                className="grid overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={{
-                    visible: { transition: { staggerChildren: 0.1 } },
-                    hidden: {}
-                }}
-            >
-                {steps.map(({ n, Icon, title, desc }) => (
-                    <motion.div
-                        key={n}
-                        className="p-8 sm:p-10"
-                        variants={{
-                            hidden: { opacity: 0, y: 20 },
-                            visible: { opacity: 1, y: 0 }
-                        }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <span className="text-[11px] font-bold text-gray-300 tracking-widest tabular-nums block mb-6">{n}</span>
-                        <Icon className="w-5 h-5 text-blue-600 mb-4" />
-                        <h3 className="font-semibold text-gray-900 mb-2 text-[15px]">{title}</h3>
-                        <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
-                    </motion.div>
+            <div className="grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#152622] sm:grid-cols-3 sm:divide-x sm:divide-gray-200 sm:dark:divide-white/10">
+                {steps.map(({ n, Icon, title, desc }, index) => (
+                    <div key={n} className={`p-7 sm:p-8 lg:p-10 ${index > 0 ? 'border-t border-gray-200 dark:border-white/10 sm:border-t-0' : ''}`}>
+                        <div className="mb-6 flex items-center justify-between">
+                            <span className="text-[11px] font-black tracking-widest text-gray-300 dark:text-gray-600">{n}</span>
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                <Icon className="h-4 w-4" />
+                            </span>
+                        </div>
+                        <h3 className="mb-2 text-[15px] font-bold text-gray-950 dark:text-white">{title}</h3>
+                        <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">{desc}</p>
+                    </div>
                 ))}
-            </motion.div>
+            </div>
         </div>
     </section>
 );

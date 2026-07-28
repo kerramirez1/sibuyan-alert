@@ -71,18 +71,18 @@ describe('ProtectedRoute', () => {
         mockAuthValue.isAuthenticated = true;
         mockAuthValue.loading = false;
 
-        renderProtected({ allowedRoles: ['admin'] });
+        renderProtected({ allowedRoles: ['municipal_admin'] });
 
         expect(screen.getByText('Access Denied')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 
     test('allows access when user role is in allowedRoles', () => {
-        mockAuthValue.user = { role: 'admin' };
+        mockAuthValue.user = { role: 'municipal_admin' };
         mockAuthValue.isAuthenticated = true;
         mockAuthValue.loading = false;
 
-        renderProtected({ allowedRoles: ['admin', 'municipal_admin'] });
+        renderProtected({ allowedRoles: ['municipal_admin'] });
 
         expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });

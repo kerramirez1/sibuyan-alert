@@ -1,5 +1,4 @@
 import {
-    HiOutlineGlobe,
     HiOutlineRefresh,
     HiOutlineSearch,
     HiOutlineX,
@@ -23,13 +22,10 @@ const IncidentQueueControls = ({
     appliedSearch,
     applySearch,
     clearFilters,
-    showAll,
-    setShowAll,
     onRefresh,
     loading,
 }) => {
     const isAdmin = ADMIN_ROLES.includes(role);
-    const canViewAllMunicipalities = role === 'admin';
     const hasFilters = Boolean(status || appliedSearch);
 
     return (
@@ -45,7 +41,7 @@ const IncidentQueueControls = ({
                     <p className="mt-1 text-sm text-gray-600">
                         {isDispatchQueueView
                             ? 'Verified and transferred incidents available for response.'
-                            : `${resultCount} incident${resultCount === 1 ? '' : 's'} loaded${municipality ? ` for ${showAll ? 'all Sibuyan municipalities' : municipality}` : ''}.`}
+                            : `${resultCount} incident${resultCount === 1 ? '' : 's'} loaded${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600" aria-label="Operational totals">
@@ -57,16 +53,6 @@ const IncidentQueueControls = ({
                 </div>
 
                 <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-2 lg:w-auto lg:grid-flow-col lg:auto-cols-max lg:grid-cols-none">
-                    {canViewAllMunicipalities && municipality && (
-                        <button
-                            type="button"
-                            onClick={() => setShowAll(!showAll)}
-                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        >
-                            <HiOutlineGlobe className="h-4 w-4" aria-hidden="true" />
-                            {showAll ? 'Use municipal scope' : 'View all Sibuyan'}
-                        </button>
-                    )}
                     <button
                         type="button"
                         onClick={onRefresh}

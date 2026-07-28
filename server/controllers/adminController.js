@@ -5,7 +5,6 @@ import Notification from '../models/Notification.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushNotification, pushTemplates } from '../services/pushService.js';
 import { broadcastVerifiedReportToResponders, broadcastReportVerified, broadcastReportRejected } from '../services/socketService.js';
-import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
 import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -18,7 +17,7 @@ const sanitizeSearch = (value) => {
 };
 
 const ensureReportScopeAccess = (user, report) => {
-    if (!user.assignedMunicipality) return true;
+    if (!user?.assignedMunicipality) return false;
     return report.municipalityName === user.assignedMunicipality;
 };
 
@@ -40,11 +39,11 @@ const getMunicipalityScopedUserIds = async (municipalityName) => {
 };
 
 const ensureUserScopeAccess = async (adminUser, targetUser) => {
-    if (adminUser.role !== 'municipal_admin') {
-        return { allowed: true };
+    if (!adminUser.assignedMunicipality) {
+        return { allowed: false, message: 'Municipality is not assigned to this administrator' };
     }
 
-    if (['admin', 'municipal_admin'].includes(targetUser.role)) {
+    if (targetUser.role === 'municipal_admin' || targetUser.role === 'admin') {
         return { allowed: false, message: 'Not authorized to manage this account' };
     }
 
@@ -97,11 +96,11 @@ export const getUsers = async (req, res) => {
 
         const query = {};
 
-        if (role) {
+        if (role && ['ordinary', 'reporter', 'responder'].includes(role)) {
             query.role = role;
         } else {
-            // By default, exclude admins from the list to prevent accidental deletion
-            query.role = { $ne: 'admin' };
+            // Administrator accounts are not manageable from the municipal user list.
+            query.role = { $in: ['ordinary', 'reporter', 'responder'] };
         }
 
         if (verificationStatus) query.verificationStatus = verificationStatus;
@@ -113,7 +112,14 @@ export const getUsers = async (req, res) => {
             ];
         }
 
-        if (adminUser.role === 'municipal_admin' && adminUser.assignedMunicipality) {
+        if (!adminUser.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        if (adminUser.assignedMunicipality) {
             const scopedUserIds = await getMunicipalityScopedUserIds(adminUser.assignedMunicipality);
             query.$and = [
                 ...(query.$and || []),
@@ -132,28 +138,13 @@ export const getUsers = async (req, res) => {
         const total = await User.countDocuments(query);
 
         // Get counts by role
-        const [totalUsers, reporters, admins, pendingVerification] = await Promise.all(
-            adminUser.role === 'municipal_admin' && adminUser.assignedMunicipality
-                ? [
-                    User.countDocuments(query),
-                    User.countDocuments({
-                        role: 'reporter',
-                        ...(query.$and ? { $and: query.$and } : {}),
-                    }),
-                    User.countDocuments({ role: 'admin' }),
-                    User.countDocuments({
-                        role: 'reporter',
-                        verificationStatus: 'pending',
-                        ...(query.$and ? { $and: query.$and } : {}),
-                    }),
-                ]
-                : [
-                    User.countDocuments(),
-                    User.countDocuments({ role: 'reporter' }),
-                    User.countDocuments({ role: 'admin' }),
-                    User.countDocuments({ verificationStatus: 'pending' }),
-                ]
-        );
+        const scope = query.$and ? { $and: query.$and } : {};
+        const [totalUsers, reporters, responders, pendingVerification] = await Promise.all([
+            User.countDocuments({ role: { $in: ['ordinary', 'reporter', 'responder'] }, ...scope }),
+            User.countDocuments({ role: 'reporter', ...scope }),
+            User.countDocuments({ role: 'responder', ...scope }),
+            User.countDocuments({ role: 'reporter', verificationStatus: 'pending', ...scope }),
+        ]);
 
         res.json({
             success: true,
@@ -168,7 +159,7 @@ export const getUsers = async (req, res) => {
                 stats: {
                     totalUsers,
                     reporters,
-                    admins,
+                    responders,
                     pendingVerification,
                 },
             },
@@ -361,7 +352,6 @@ export const getAllReports = async (req, res) => {
         const {
             status,
             category,
-            municipality,
             page = 1,
             limit = 20,
             search,
@@ -369,28 +359,25 @@ export const getAllReports = async (req, res) => {
             endDate
         } = req.query;
 
-        const showAll = req.query.showAll === 'true' && canViewAllMunicipalities(req.user);
         const safeSearch = sanitizeSearch(search);
         const query = {};
         const admin = req.user;
 
-        // Municipal admins can only see reports in their jurisdiction or originally theirs (unless showAll)
-        if (admin.assignedMunicipality && !showAll) {
-            query.$and = [{
-                $or: [
-                    { municipalityName: admin.assignedMunicipality },
-                    { originalMunicipalityName: admin.assignedMunicipality }
-                ],
-            }];
-        } else if (municipality) {
-            // Super admin can filter by municipality
-            query.$and = [{
-                $or: [
-                    { municipalityName: municipality },
-                    { originalMunicipalityName: municipality }
-                ],
-            }];
+        if (!admin.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this account',
+            });
         }
+
+        const scopedMunicipality = admin.assignedMunicipality;
+        const scopeClause = {
+            $or: [
+                { municipalityName: scopedMunicipality },
+                { originalMunicipalityName: scopedMunicipality },
+            ],
+        };
+        query.$and = [scopeClause];
 
         // Responders can see pending + active lifecycle reports (but not rejected)
         if (admin.role === 'responder') {
@@ -439,10 +426,8 @@ export const getAllReports = async (req, res) => {
 
         const total = await Report.countDocuments(query);
 
-        // Get counts by status (scoped to admin's jurisdiction unless showAll)
-        const statsQuery = (admin.assignedMunicipality && !showAll)
-            ? { municipalityName: admin.assignedMunicipality }
-            : {};
+        // Counts use exactly the same municipal visibility scope as the queue.
+        const statsQuery = scopeClause;
 
         const [pending, verified, transferred, rejected, responding, resolved] = await Promise.all([
             Report.countDocuments({ ...statsQuery, status: 'pending' }),
@@ -552,11 +537,7 @@ export const verifyReport = async (req, res) => {
                 // Notify reporter about rejection
                 broadcastReportRejected(io, report.reporter._id, report._id, rejectionReason);
 
-                let reviewAudience = io.to('role_admin');
-                if (report.municipalityName) {
-                    reviewAudience = reviewAudience.to(`municipality_${report.municipalityName}`);
-                }
-                reviewAudience.emit('reportRejectedUpdate', {
+                io.to(`municipality_${report.municipalityName}`).emit('reportRejectedUpdate', {
                     id: report._id,
                     status: 'rejected',
                 });
@@ -775,15 +756,17 @@ export const getDashboardStats = async (req, res) => {
 
         const admin = req.user;
         const municipality = admin.assignedMunicipality;
-        const showAll = req.query.showAll === 'true' && canViewAllMunicipalities(admin);
+        if (!municipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
 
-        // Filter reports by municipality if admin is assigned to one (unless showAll)
-        const reportFilter = (municipality && !showAll) ? { municipalityName: municipality } : {};
-        const scopedUserIds = (municipality && !showAll)
-            ? await getMunicipalityScopedUserIds(municipality)
-            : null;
-        const userScopeFilter = scopedUserIds ? { _id: { $in: scopedUserIds }, role: { $ne: 'admin' } } : {};
-        const reporterScopeFilter = scopedUserIds ? { _id: { $in: scopedUserIds }, role: 'reporter' } : { role: 'reporter' };
+        const reportFilter = { municipalityName: municipality };
+        const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
+        const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
+        const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
 
         const [
             totalUsers,
@@ -997,13 +980,11 @@ export const respondToReport = async (req, res) => {
         }
 
         // Validate municipality access (responders can only respond to their municipality)
-        if (responder.role === 'responder' || responder.role === 'municipal_admin') {
-            if (responder.assignedMunicipality && report.municipalityName !== responder.assignedMunicipality) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'You can only respond to reports in your assigned municipality',
-                });
-            }
+        if (!responder.assignedMunicipality || report.municipalityName !== responder.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only respond to reports in your assigned municipality',
+            });
         }
 
         // Add responder to the responders array
@@ -1068,12 +1049,8 @@ export const respondToReport = async (req, res) => {
 
         // Notify admins that a responder has engaged with this report
         const adminRecipientsQuery = {
-            $or: [
-                { role: 'admin' },
-                ...(report.municipalityName
-                    ? [{ role: 'municipal_admin', assignedMunicipality: report.municipalityName }]
-                    : []),
-            ],
+            role: 'municipal_admin',
+            assignedMunicipality: report.municipalityName,
             _id: { $ne: responder._id },
         };
 

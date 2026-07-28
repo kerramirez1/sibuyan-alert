@@ -47,7 +47,7 @@ export const SEVERITY_STYLES = {
     minor: 'border-emerald-200 bg-emerald-50 text-emerald-800',
 };
 
-export const ADMIN_ROLES = ['admin', 'municipal_admin'];
+export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];

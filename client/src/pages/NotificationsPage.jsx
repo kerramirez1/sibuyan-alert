@@ -91,14 +91,14 @@ const NotificationsPage = () => {
                 navigate('/my-reports');
                 break;
             case 'report_responding':
-                if (['admin', 'municipal_admin', 'responder'].includes(user?.role)) {
+                if (['municipal_admin', 'responder'].includes(user?.role)) {
                     navigate('/admin/reports');
                 } else {
                     navigate('/my-reports');
                 }
                 break;
             case 'report_update':
-                if (['admin', 'municipal_admin', 'responder'].includes(user?.role)) {
+                if (['municipal_admin', 'responder'].includes(user?.role)) {
                     navigate('/admin/reports');
                 } else {
                     navigate('/my-reports');

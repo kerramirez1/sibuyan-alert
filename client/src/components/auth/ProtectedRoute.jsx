@@ -58,7 +58,7 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false }) => {
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Verification Required</h2>
                     <p className="text-gray-600 mb-4">
-                        Your reporter account is pending verification. You'll be able to submit reports once an admin approves your account.
+                        Your reporter account is pending verification. You'll be able to submit reports once your municipal administrator approves your account.
                     </p>
                     {user.verificationStatus === 'rejected' && user.verificationFeedback && (
                         <div className="bg-danger-50 border border-danger-200 rounded-xl p-4 text-left mb-4">

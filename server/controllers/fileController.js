@@ -4,8 +4,6 @@ import { findGridFsFile, getGridFsBucket, sanitizeFilename } from '../services/g
 export const canReadFile = (file, user) => {
     if (file.metadata?.visibility !== 'private') return true;
     if (!user) return false;
-    if (user.role === 'admin') return true;
-
     const ownerId = file.metadata?.ownerId?.toString();
     if (ownerId && ownerId === user._id.toString()) return true;
 

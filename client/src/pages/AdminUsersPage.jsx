@@ -179,8 +179,6 @@ const AdminUsersPage = () => {
 
     const getRoleBadge = (role) => {
         switch (role) {
-            case 'admin':
-                return <span className="badge bg-danger-100 text-danger-700">Admin</span>;
             case 'municipal_admin':
                 return <span className="badge bg-indigo-100 text-indigo-700">Municipal Admin</span>;
             case 'responder':
@@ -238,8 +236,8 @@ const AdminUsersPage = () => {
                             <p className="text-sm text-gray-500">Pending</p>
                         </div>
                         <div className="card bg-danger-50 flex flex-col justify-center">
-                            <p className="text-2xl font-bold text-danger-600">{stats.admins}</p>
-                            <p className="text-sm text-gray-500">Admins</p>
+                            <p className="text-2xl font-bold text-danger-600">{stats.responders}</p>
+                            <p className="text-sm text-gray-500">Responders</p>
                         </div>
                     </div>
                 )}
@@ -315,8 +313,7 @@ const AdminUsersPage = () => {
                                         <tr key={user._id}>
                                             <td>
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${user.role === 'admin' ? 'bg-gradient-to-br from-danger-500 to-danger-700' :
-                                                        user.role === 'municipal_admin' ? 'bg-gradient-to-br from-indigo-500 to-indigo-700' :
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${user.role === 'municipal_admin' ? 'bg-gradient-to-br from-indigo-500 to-indigo-700' :
                                                             user.role === 'responder' ? 'bg-gradient-to-br from-orange-500 to-orange-700' :
                                                                 user.role === 'reporter' ? 'bg-gradient-to-br from-primary-500 to-primary-700' :
                                                                     'bg-gradient-to-br from-gray-400 to-gray-600'

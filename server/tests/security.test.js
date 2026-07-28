@@ -1,6 +1,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { requireAdmin as requireAdminRoleCheck } from '../middleware/roleCheck.js';
 import { extractTokenFromCookieHeader } from '../middleware/auth.js';
+import User from '../models/User.js';
 
 const createRes = () => {
     const res = {};
@@ -10,6 +11,15 @@ const createRes = () => {
 };
 
 describe('security middleware', () => {
+    test('user schema no longer accepts the retired system-admin role', () => {
+        expect(User.schema.path('role').enumValues).toEqual([
+            'ordinary',
+            'reporter',
+            'municipal_admin',
+            'responder',
+        ]);
+    });
+
     test('roleCheck.requireAdmin denies responder role', () => {
         const req = { user: { role: 'responder' } };
         const res = createRes();
@@ -30,6 +40,17 @@ describe('security middleware', () => {
 
         expect(next).toHaveBeenCalledTimes(1);
         expect(res.status).not.toHaveBeenCalled();
+    });
+
+    test('roleCheck.requireAdmin denies the retired system-admin role', () => {
+        const req = { user: { role: 'admin' } };
+        const res = createRes();
+        const next = jest.fn();
+
+        requireAdminRoleCheck(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
     });
 });
 

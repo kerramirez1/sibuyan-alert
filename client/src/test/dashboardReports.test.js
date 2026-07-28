@@ -85,10 +85,10 @@ describe('dashboard report data synchronization', () => {
             },
         }));
 
-        const reports = await fetchAllAdminReportPages(fetchPage, { showAll: false }, 2);
+        const reports = await fetchAllAdminReportPages(fetchPage, {}, 2);
 
-        expect(fetchPage).toHaveBeenNthCalledWith(1, { showAll: false, page: 1, limit: 2 });
-        expect(fetchPage).toHaveBeenNthCalledWith(2, { showAll: false, page: 2, limit: 2 });
+        expect(fetchPage).toHaveBeenNthCalledWith(1, { page: 1, limit: 2 });
+        expect(fetchPage).toHaveBeenNthCalledWith(2, { page: 2, limit: 2 });
         expect(reports.map((report) => report._id)).toEqual(['report-1', 'report-2', 'report-3']);
     });
 

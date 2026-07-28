@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
-import { canViewAllMunicipalities } from '../utils/municipalityScope.js';
 import {
     getPhilippineCalendarMonthRange,
     PUBLIC_REPORT_STATUSES,
@@ -31,16 +30,19 @@ export const getAdminAnalytics = async (req, res) => {
 
         const admin = req.user;
         const municipality = admin.assignedMunicipality;
-        const showAll = req.query.showAll === 'true' && canViewAllMunicipalities(admin);
 
-        // Filter reports by municipality if admin is assigned to one (unless showAll)
-        const reportFilter = (municipality && !showAll) ? { municipalityName: municipality } : {};
-        const scopedUserIds = (municipality && !showAll)
-            ? await getMunicipalityScopedUserIds(municipality)
-            : null;
-        const userScopeFilter = scopedUserIds ? { _id: { $in: scopedUserIds }, role: { $ne: 'admin' } } : {};
-        const reporterScopeFilter = scopedUserIds ? { _id: { $in: scopedUserIds }, role: 'reporter' } : { role: 'reporter' };
-        const responderScopeFilter = scopedUserIds ? { _id: { $in: scopedUserIds }, role: 'responder' } : { role: 'responder' };
+        if (!municipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        const reportFilter = { municipalityName: municipality };
+        const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
+        const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
+        const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
+        const responderScopeFilter = { _id: { $in: scopedUserIds }, role: 'responder' };
 
         const [
             totalUsers,

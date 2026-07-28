@@ -288,7 +288,7 @@ const reportSchema = new mongoose.Schema(
             },
             authorRole: {
                 type: String,
-                enum: ['reporter', 'admin', 'municipal_admin'],
+                enum: ['reporter', 'municipal_admin'],
                 default: 'reporter',
             },
             message: {

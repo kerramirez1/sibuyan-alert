@@ -13,7 +13,6 @@ import {
     HiOutlineArrowRight,
     HiOutlineTrendingUp,
     HiOutlineLocationMarker,
-    HiOutlineGlobe,
 } from 'react-icons/hi';
 
 const ReportLogoIcon = ({ className = 'w-6 h-6' }) => (
@@ -25,11 +24,8 @@ const AdminPage = () => {
     const { subscribe } = useSocket();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [showAll, setShowAll] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [dutyUpdating, setDutyUpdating] = useState(false);
-
-    const hasMunicipality = !!user?.assignedMunicipality;
 
     useEffect(() => {
         if (!user) return;
@@ -41,12 +37,12 @@ const AdminPage = () => {
 
         fetchDashboardStats();
         fetchOnlineUsers();
-    }, [showAll, user?.role, user?.assignedMunicipality]);
+    }, [user?.role, user?.assignedMunicipality]);
 
     // Fetch online users
     const fetchOnlineUsers = async () => {
         try {
-            const params = showAll ? {} : (user?.assignedMunicipality ? { municipality: user.assignedMunicipality } : {});
+            const params = user?.assignedMunicipality ? { municipality: user.assignedMunicipality } : {};
             const response = await adminAPI.getOnlineUsers(params);
             setOnlineUsers(response.data.data || []);
         } catch (error) {
@@ -83,8 +79,7 @@ const AdminPage = () => {
         }
 
         try {
-            const params = showAll ? { showAll: 'true' } : {};
-            const response = await analyticsAPI.getAdmin(params);
+            const response = await analyticsAPI.getAdmin();
             setStats(response.data.data);
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
@@ -281,26 +276,14 @@ const AdminPage = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-display font-bold text-gray-900 mb-2">
-                            Responder Dashboard
+                            {user?.role === 'responder' ? 'Responder Dashboard' : 'Municipal Operations Dashboard'}
                             {user?.agency && <span className="text-brand-600"> — {user.agency === 'LGU' ? 'MDRRMO' : user.agency}</span>}
-                            {user?.assignedMunicipality && <span className="text-gray-500 text-lg font-normal"> · {showAll ? 'All Sibuyan' : user.assignedMunicipality}</span>}
+                            {user?.assignedMunicipality && <span className="text-gray-500 text-lg font-normal"> · {user.assignedMunicipality}</span>}
                         </h1>
                         <p className="text-gray-600">
                             Manage users, review reports, and coordinate emergency response.
                         </p>
                     </div>
-                    {hasMunicipality && (
-                        <button
-                            onClick={() => { setLoading(true); setShowAll(!showAll); }}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm border ${showAll
-                                ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700 shadow-brand-500/25'
-                                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                                }`}
-                        >
-                            <HiOutlineGlobe className="w-4.5 h-4.5" />
-                            {showAll ? 'Viewing: All Sibuyan' : 'View All Sibuyan'}
-                        </button>
-                    )}
                 </div>
 
                 {/* Stat Cards */}
@@ -358,8 +341,7 @@ const AdminPage = () => {
                                     className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all"
                                 >
                                     <div className="relative">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${activeUser.role === 'admin' ? 'bg-gradient-to-br from-red-500 to-red-700' :
-                                            activeUser.role === 'municipal_admin' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${activeUser.role === 'municipal_admin' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
                                                 activeUser.role === 'responder' ? 'bg-gradient-to-br from-orange-500 to-orange-700' :
                                                     activeUser.role === 'reporter' ? 'bg-gradient-to-br from-purple-500 to-purple-700' :
                                                         'bg-gradient-to-br from-gray-400 to-gray-600'
@@ -375,8 +357,7 @@ const AdminPage = () => {
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">{activeUser.name}</p>
                                         <div className="flex items-center gap-1.5">
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${activeUser.role === 'admin' ? 'bg-red-100 text-red-700' :
-                                                activeUser.role === 'municipal_admin' ? 'bg-blue-100 text-blue-700' :
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${activeUser.role === 'municipal_admin' ? 'bg-blue-100 text-blue-700' :
                                                     activeUser.role === 'responder' ? 'bg-orange-100 text-orange-700' :
                                                         activeUser.role === 'reporter' ? 'bg-purple-100 text-purple-700' :
                                                             'bg-gray-100 text-gray-600'
@@ -509,8 +490,7 @@ const AdminPage = () => {
                                         key={user._id}
                                         className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
                                     >
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${user.role === 'admin' ? 'bg-gradient-to-br from-danger-500 to-danger-700' :
-                                            user.role === 'reporter' ? 'bg-gradient-to-br from-primary-500 to-primary-700' :
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${user.role === 'reporter' ? 'bg-gradient-to-br from-primary-500 to-primary-700' :
                                                 'bg-gradient-to-br from-gray-400 to-gray-600'
                                             }`}>
                                             {user.name?.charAt(0).toUpperCase() || '?'}
@@ -523,8 +503,7 @@ const AdminPage = () => {
                                                 {user.email}
                                             </p>
                                         </div>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${user.role === 'admin' ? 'bg-danger-100 text-danger-700' :
-                                            user.role === 'reporter' ? 'bg-primary-100 text-primary-700' :
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${user.role === 'reporter' ? 'bg-primary-100 text-primary-700' :
                                                 'bg-gray-100 text-gray-600'
                                             }`}>
                                             {user.role}

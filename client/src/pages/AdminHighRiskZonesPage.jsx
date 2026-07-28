@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI } from '../services/api';
@@ -6,6 +6,7 @@ import MapView from '../components/map/MapView';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
+import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
@@ -34,8 +35,7 @@ const MUNICIPALITIES = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
 
 const AdminHighRiskZonesPage = () => {
     const { user } = useAuth();
-    const [zones, setZones] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { zones, loading, refresh: refreshZones } = useGlobalHighRiskZones();
     const [showForm, setShowForm] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [focusLocation, setFocusLocation] = useState(null);
@@ -50,26 +50,9 @@ const AdminHighRiskZonesPage = () => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Fetch zones
-    useEffect(() => {
-        fetchZones();
-    }, []);
-
-    const fetchZones = async () => {
-        try {
-            setLoading(true);
-            const params = user?.assignedMunicipality
-                ? { municipality: user.assignedMunicipality }
-                : {};
-            const response = await highRiskZonesAPI.getAll(params);
-            setZones(response.data.data || []);
-        } catch (error) {
-            console.error('Failed to fetch zones:', error);
-            toast.error('Failed to load high-risk zones');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const canManageZone = (zone) => (
+        !user?.assignedMunicipality || zone?.municipality === user.assignedMunicipality
+    );
 
     const handleLocationSelect = async (location) => {
         setSelectedLocation(location);
@@ -156,7 +139,7 @@ const AdminHighRiskZonesPage = () => {
             }
 
             resetForm();
-            fetchZones();
+            refreshZones();
         } catch (error) {
             console.error('Save zone error:', error);
             toast.error(error.response?.data?.message || 'Failed to save zone');
@@ -166,6 +149,10 @@ const AdminHighRiskZonesPage = () => {
     };
 
     const handleEdit = (zone) => {
+        if (!canManageZone(zone)) {
+            toast.error('You can view this zone but only its assigned municipality may manage it.');
+            return;
+        }
         setEditingZone(zone);
         setFormData({
             name: zone.name,
@@ -180,13 +167,17 @@ const AdminHighRiskZonesPage = () => {
         handleZoneClick(zone);
     };
 
-    const handleDelete = async (zoneId) => {
+    const handleDelete = async (zone) => {
+        if (!canManageZone(zone)) {
+            toast.error('You can view this zone but only its assigned municipality may manage it.');
+            return;
+        }
         if (!window.confirm('Are you sure you want to delete this zone?')) return;
 
         try {
-            await highRiskZonesAPI.delete(zoneId);
+            await highRiskZonesAPI.delete(zone._id);
             toast.success('Zone deleted');
-            fetchZones();
+            refreshZones();
         } catch (error) {
             console.error('Delete zone error:', error);
             toast.error('Failed to delete zone');
@@ -217,7 +208,7 @@ const AdminHighRiskZonesPage = () => {
                             High-Risk Zone Management
                         </h1>
                         <p className="text-gray-600 mt-1">
-                            Plot and manage danger zones for {user?.assignedMunicipality || 'all municipalities'}
+                            View hazards across Sibuyan and manage zones for {user?.assignedMunicipality || 'all municipalities'}
                         </p>
                     </div>
                     <Button
@@ -521,20 +512,30 @@ const AdminHighRiskZonesPage = () => {
                                                                     {severityInfo?.label}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex gap-1">
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
-                                                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                                                >
-                                                                    <HiOutlinePencil className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleDelete(zone._id); }}
-                                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                >
-                                                                    <HiOutlineTrash className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
+                                                            {canManageZone(zone) ? (
+                                                                <div className="flex gap-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label={`Edit ${zone.name}`}
+                                                                        onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
+                                                                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                                    >
+                                                                        <HiOutlinePencil className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label={`Delete ${zone.name}`}
+                                                                        onClick={(e) => { e.stopPropagation(); handleDelete(zone); }}
+                                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    >
+                                                                        <HiOutlineTrash className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-500">
+                                                                    View only
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </motion.div>
                                                 );

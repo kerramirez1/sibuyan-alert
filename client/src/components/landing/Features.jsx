@@ -1,50 +1,32 @@
-import { motion } from 'framer-motion';
-import { HiOutlineMap, HiOutlineShieldCheck, HiOutlineBell, HiOutlineChartBar } from 'react-icons/hi';
+import { HiOutlineBell, HiOutlineChartBar, HiOutlineMap, HiOutlineShieldCheck } from 'react-icons/hi';
 
 const features = [
-    { Icon: HiOutlineMap, title: 'Live map', desc: 'Real-time incident map with satellite and street views across all municipalities.' },
-    { Icon: HiOutlineShieldCheck, title: 'Verified reports', desc: 'Every report is reviewed by local authorities before going live to responders.' },
-    { Icon: HiOutlineBell, title: 'Instant alerts', desc: 'Push notifications the moment a report is verified, assigned, or resolved.' },
-    { Icon: HiOutlineChartBar, title: 'Analytics', desc: 'Response time trends, heatmaps, and monthly summaries per municipality.' },
+    { Icon: HiOutlineMap, title: 'Operational map', desc: 'Verified incidents, active responses, and mapped risk zones across Sibuyan.' },
+    { Icon: HiOutlineShieldCheck, title: 'Controlled publication', desc: 'Pending reports remain under administrator review before public visibility.' },
+    { Icon: HiOutlineBell, title: 'Lifecycle updates', desc: 'Authorized users receive real-time status, transfer, and response updates.' },
+    { Icon: HiOutlineChartBar, title: 'Municipal analytics', desc: 'Operational totals and response trends stay aligned with selected scope and period.' },
 ];
 
-const FeatureCard = ({ Icon, title, desc, index }) => (
-    <motion.div
-        key={title}
-        className="group p-6 rounded-xl border border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-default"
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: index * 0.1 }}
-        whileHover={{ y: -4 }}
-    >
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
-            <Icon className="w-4 h-4 text-blue-600" />
-        </div>
-        <h3 className="font-semibold text-gray-900 mb-1.5 text-[15px]">{title}</h3>
-        <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
-    </motion.div>
-);
-
 const Features = () => (
-    <section className="py-24 px-5 sm:px-8">
-        <div className="max-w-6xl mx-auto">
-            <motion.div
-                className="mb-12"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-            >
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Features</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    Built for speed and reliability.
-                </h2>
-            </motion.div>
+    <section className="bg-white px-5 py-20 dark:bg-gray-950 sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+            <div className="mb-10 flex flex-col justify-between gap-4 sm:mb-12 sm:flex-row sm:items-end">
+                <div>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Operational capabilities</p>
+                    <h2 className="text-2xl font-black tracking-tight text-gray-950 dark:text-white sm:text-3xl">Built around real municipal workflows.</h2>
+                </div>
+                <p className="max-w-md text-sm leading-relaxed text-gray-500 dark:text-gray-400">Focused tools for public awareness, administrative review, and field response—without unnecessary dashboard noise.</p>
+            </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {features.map((feature, index) => (
-                    <FeatureCard key={feature.title} {...feature} index={index} />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {features.map(({ Icon, title, desc }) => (
+                    <article key={title} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#152622] sm:p-6">
+                        <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                            <Icon className="h-5 w-5" />
+                        </span>
+                        <h3 className="mb-2 text-[15px] font-bold text-gray-950 dark:text-white">{title}</h3>
+                        <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">{desc}</p>
+                    </article>
                 ))}
             </div>
         </div>

@@ -29,7 +29,7 @@ const ZONE_LABELS = {
     other: 'Other Hazard',
 };
 
-const HighRiskZoneList = ({ onZoneSelect, selectedMunicipality = null, isExpanded = true }) => {
+const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -39,8 +39,7 @@ const HighRiskZoneList = ({ onZoneSelect, selectedMunicipality = null, isExpande
         const fetchZones = async () => {
             setLoading(true);
             try {
-                const params = selectedMunicipality ? { municipality: selectedMunicipality } : {};
-                const response = await highRiskZonesAPI.getAll(params);
+                const response = await highRiskZonesAPI.getAll();
                 setZones(response.data.data || []);
                 setError(null);
             } catch (err) {
@@ -52,7 +51,7 @@ const HighRiskZoneList = ({ onZoneSelect, selectedMunicipality = null, isExpande
         };
 
         fetchZones();
-    }, [selectedMunicipality]);
+    }, []);
 
     const handleZoneClick = (zone) => {
         if (onZoneSelect) {

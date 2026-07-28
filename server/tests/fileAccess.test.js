@@ -20,9 +20,9 @@ describe('GridFS file authorization', () => {
         expect(canReadFile(privateFile, null)).toBe(false);
     });
 
-    test('allows the file owner and a global administrator', () => {
+    test('allows the file owner but not a retired global administrator role', () => {
         expect(canReadFile(privateFile, { _id: 'owner-1', role: 'reporter' })).toBe(true);
-        expect(canReadFile(privateFile, { _id: 'admin-1', role: 'admin' })).toBe(true);
+        expect(canReadFile(privateFile, { _id: 'legacy-admin-1', role: 'admin' })).toBe(false);
     });
 
     test('limits municipal administrators to their municipality', () => {

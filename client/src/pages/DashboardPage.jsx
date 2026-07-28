@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
-import { reportsAPI, adminAPI, highRiskZonesAPI, analyticsAPI } from '../services/api';
+import { reportsAPI, adminAPI, analyticsAPI } from '../services/api';
+import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
 import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
 import {
@@ -27,13 +28,12 @@ const STATUS_COLORS = {
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
     const [reports, setReports] = useState([]);
-    const [highRiskZones, setHighRiskZones] = useState([]);
+    const { zones: highRiskZones } = useGlobalHighRiskZones();
     const [roleStats, setRoleStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe } = useSocket();
-    const [showAll, setShowAll] = useState(false);
     const [showZoneModal, setShowZoneModal] = useState(false);
     const [showIncidentModal, setShowIncidentModal] = useState(false);
     const [showMapPendingModal, setShowMapPendingModal] = useState(false);
@@ -64,12 +64,10 @@ const DashboardPage = () => {
     const isReporter = user?.role === 'reporter';
     // Reporters see the shared public map data plus their own summary metrics.
     const canViewReports = isAuthenticated && user && !isReporter && user.role !== 'ordinary';
-    const isAdmin = ['admin', 'municipal_admin'].includes(user?.role);
+    const isAdmin = user?.role === 'municipal_admin';
     const isResponder = user?.role === 'responder';
     const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
-    const canViewAllMunicipalities = user?.role === 'admin';
-    const effectiveShowAll = canViewAllMunicipalities && showAll;
-    const activeMunicipality = (hasMunicipality && !effectiveShowAll) ? user.assignedMunicipality : null;
+    const activeMunicipality = hasMunicipality ? user.assignedMunicipality : null;
 
     const dashboardReports = useMemo(() => {
         if (!activeMunicipality) return reports;
@@ -178,7 +176,7 @@ const DashboardPage = () => {
         if (canViewReports) {
             setLoading(true);
             if (isAdmin) {
-                fetchAllAdminReportPages(adminAPI.getReports, { showAll: effectiveShowAll })
+                fetchAllAdminReportPages(adminAPI.getReports)
                     .then(setReports)
                     .catch(handleReportLoadError)
                     .finally(() => setLoading(false));
@@ -231,10 +229,7 @@ const DashboardPage = () => {
 
         }
 
-        highRiskZonesAPI.getAll(activeMunicipality ? { municipality: activeMunicipality } : undefined)
-            .then(res => setHighRiskZones(res.data.data || []))
-            .catch(err => console.error(err));
-    }, [canViewReports, isReporter, isResponder, activeMunicipality, effectiveShowAll]);
+    }, [canViewReports, isReporter, isResponder, activeMunicipality, isAdmin]);
 
     useEffect(() => {
         if (!isResponder) {
@@ -304,24 +299,6 @@ const DashboardPage = () => {
         const unsub4 = subscribe('reportDeleted', (data) => {
             setReports((previous) => removeDashboardReport(previous, data?.id ?? data?._id));
         });
-        const unsub5 = subscribe('highRiskZoneCreated', (zone) => {
-            if (!zone?._id) return;
-            if (activeMunicipality && zone.municipality !== activeMunicipality) return;
-            setHighRiskZones(prev => [zone, ...prev.filter(z => z._id !== zone._id)]);
-        });
-        const unsub6 = subscribe('highRiskZoneUpdated', (zone) => {
-            if (!zone?._id) return;
-            setHighRiskZones((previous) => {
-                if (activeMunicipality && zone.municipality !== activeMunicipality) {
-                    return previous.filter((existing) => existing._id !== zone._id);
-                }
-                return [zone, ...previous.filter((existing) => existing._id !== zone._id)];
-            });
-        });
-        const unsub7 = subscribe('highRiskZoneDeleted', (data) => {
-            if (!data?.id) return;
-            setHighRiskZones(prev => prev.filter(z => z._id !== data.id));
-        });
         const unsub8 = subscribe('reportTransferred', (data) => {
             const normalized = normalizeIncomingReport({
                 ...data,
@@ -342,13 +319,10 @@ const DashboardPage = () => {
             unsub2();
             unsub3();
             unsub4();
-            unsub5();
-            unsub6();
-            unsub7();
             unsub8();
             unsub9();
         };
-    }, [subscribe, activeMunicipality]);
+    }, [subscribe]);
 
     useEffect(() => {
         if (panelView === 'incidents') {
@@ -520,9 +494,6 @@ const DashboardPage = () => {
         <DashboardAnalyticsWorkspace
             user={user}
             hasMunicipality={hasMunicipality}
-            canViewAllMunicipalities={canViewAllMunicipalities}
-            showAll={effectiveShowAll}
-            setShowAll={setShowAll}
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
             reports={monthFilteredReports}

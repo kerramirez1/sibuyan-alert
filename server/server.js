@@ -91,26 +91,32 @@ const authenticateSocketToken = async (token) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('name role assignedMunicipality agency avatar isOnDuty');
-        return user || null;
+        return user && user.role !== 'admin' ? user : null;
     } catch (error) {
         return null;
     }
 };
 
 // API endpoint: Get online users (for admin dashboard)
-app.get('/api/admin/online-users', protect, requireRole('admin', 'municipal_admin', 'responder'), async (req, res) => {
+app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'responder'), async (req, res) => {
     const { municipality: requestedMunicipality } = req.query;
-    let municipality = requestedMunicipality;
+    const assignedMunicipality = req.user.assignedMunicipality;
 
-    if (['municipal_admin', 'responder'].includes(req.user.role) && req.user.assignedMunicipality) {
-        if (requestedMunicipality && requestedMunicipality !== req.user.assignedMunicipality) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to view other municipalities',
-            });
-        }
-        municipality = req.user.assignedMunicipality;
+    if (!assignedMunicipality) {
+        return res.status(403).json({
+            success: false,
+            message: 'Municipality is not assigned to this account',
+        });
     }
+
+    if (requestedMunicipality && requestedMunicipality !== assignedMunicipality) {
+        return res.status(403).json({
+            success: false,
+            message: 'Not authorized to view other municipalities',
+        });
+    }
+
+    const municipality = assignedMunicipality;
 
     const users = Array.from(onlineUsers.values());
 
@@ -172,16 +178,15 @@ io.on('connection', (socket) => {
 
         socket.join(`user_${socket.data.user.id}`);
 
-        if (socket.data.user.role === 'admin') {
-            socket.join('role_admin');
-        }
-
         // Authentication and authorization are complete at this point, so join
         // all permitted rooms here instead of relying on follow-up client events.
-        if (socket.data.user.assignedMunicipality) {
+        if (
+            socket.data.user.assignedMunicipality
+            && ['municipal_admin', 'responder'].includes(socket.data.user.role)
+        ) {
             socket.join(`municipality_${socket.data.user.assignedMunicipality}`);
 
-            if (['responder', 'municipal_admin'].includes(socket.data.user.role)) {
+            if (socket.data.user.role === 'responder') {
                 socket.join(`municipality_${socket.data.user.assignedMunicipality}_responders`);
             }
         }
@@ -213,7 +218,11 @@ io.on('connection', (socket) => {
         const user = getAuthenticatedUser();
         if (!municipalityCode || !user) return;
 
-        if (user.assignedMunicipality && user.assignedMunicipality !== municipalityCode) {
+        if (
+            !['municipal_admin', 'responder'].includes(user.role)
+            || !user.assignedMunicipality
+            || user.assignedMunicipality !== municipalityCode
+        ) {
             socket.emit('authError', { message: 'Unauthorized municipality access' });
             return;
         }
@@ -226,7 +235,7 @@ io.on('connection', (socket) => {
         const user = getAuthenticatedUser();
         if (!municipalityCode || !user) return;
 
-        if (!['responder', 'municipal_admin'].includes(user.role)) {
+        if (user.role !== 'responder') {
             socket.emit('authError', { message: 'Responder access required' });
             return;
         }
@@ -247,7 +256,6 @@ io.on('connection', (socket) => {
         const user = getAuthenticatedUser();
         if (user) {
             socket.leave(`user_${user.id}`);
-            socket.leave('role_admin');
             if (user.assignedMunicipality) {
                 socket.leave(`municipality_${user.assignedMunicipality}`);
                 socket.leave(`municipality_${user.assignedMunicipality}_responders`);

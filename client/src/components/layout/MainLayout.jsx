@@ -35,7 +35,6 @@ const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase t
 
 const getAccountContext = (user) => {
     const roleLabels = {
-        admin: 'System admin',
         municipal_admin: 'Municipal admin',
         responder: user?.agency ? `${user.agency} responder` : 'Responder',
         reporter: 'Reporter',
@@ -74,11 +73,11 @@ const MainLayout = () => {
             name: 'Operations Dashboard',
             href: '/admin',
             icon: HiOutlineHome,
-            roles: ['admin', 'municipal_admin'],
+            roles: ['municipal_admin'],
         },
         { name: 'Users', href: '/admin/users', icon: HiOutlineUsers },
         { name: 'Incident Reports', href: '/admin/reports', icon: HiOutlineClipboardList },
-        { name: 'Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['admin', 'municipal_admin'] },
+        { name: 'Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['municipal_admin'] },
     ];
 
     const filteredNav = isAuthenticated
@@ -92,8 +91,7 @@ const MainLayout = () => {
     const filteredAdminNav = isAuthenticated
         ? adminNavigation.filter((item) => {
             if (item.roles && !item.roles.includes(user?.role)) return false;
-            // Both super admin and municipal admin can manage users and reports
-            if (user?.role === 'admin' || user?.role === 'municipal_admin') return true;
+            if (user?.role === 'municipal_admin') return true;
             // Responders can only see dashboard and incident reports (no user management)
             if (user?.role === 'responder') {
                 return item.href !== '/admin/users';
@@ -185,7 +183,7 @@ const MainLayout = () => {
                                 ? '/'
                                 : user?.role === 'reporter'
                                     ? '/'
-                                    : (user?.role === 'admin' || user?.role === 'municipal_admin')
+                                    : user?.role === 'municipal_admin'
                                         ? '/dashboard'
                                         : user?.role === 'responder'
                                             ? '/admin'
@@ -195,12 +193,12 @@ const MainLayout = () => {
                                 ? location.pathname === '/'
                                 : user?.role === 'reporter'
                                     ? location.pathname === '/'
-                                    : (user?.role === 'admin' || user?.role === 'municipal_admin')
+                                    : user?.role === 'municipal_admin'
                                         ? location.pathname === '/dashboard' && currentView !== 'map'
                                         : user?.role === 'responder'
                                             ? location.pathname === '/admin'
                                             : location.pathname === '/';
-                            const homeLabel = user?.role === 'admin' || user?.role === 'municipal_admin'
+                            const homeLabel = user?.role === 'municipal_admin'
                                 ? 'Analytics Dashboard'
                                 : user?.role === 'responder'
                                     ? 'Responder Dashboard'
@@ -269,8 +267,8 @@ const MainLayout = () => {
                             </div>
                         )}
 
-                        {/* Admin Section - Visible to admins and responders */}
-                        {isAuthenticated && (user?.role === 'admin' || user?.role === 'municipal_admin' || user?.role === 'responder') && filteredAdminNav.length > 0 && (
+                        {/* Operations section for municipal administrators and responders. */}
+                        {isAuthenticated && (user?.role === 'municipal_admin' || user?.role === 'responder') && filteredAdminNav.length > 0 && (
                             <div className={SECTION_CLASS}>
                                 <h3 className={SECTION_HEADING_CLASS}>
                                     Operations

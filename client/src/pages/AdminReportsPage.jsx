@@ -87,8 +87,6 @@ const AdminReportsPage = () => {
                 appliedSearch={reportState.appliedSearch}
                 applySearch={reportState.applySearch}
                 clearFilters={reportState.clearFilters}
-                showAll={reportState.showAll}
-                setShowAll={reportState.setShowAll}
                 onRefresh={() => reportState.refreshReports()}
                 loading={reportState.loading}
             />

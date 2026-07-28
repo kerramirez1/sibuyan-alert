@@ -15,7 +15,6 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
     const [status, setStatus] = useState(isDispatchQueueView ? '' : validInitialStatus);
     const [searchDraft, setSearchDraft] = useState('');
     const [appliedSearch, setAppliedSearch] = useState('');
-    const [showAll, setShowAll] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
 
     const fetchReports = useCallback(async ({ silent = false } = {}) => {
@@ -26,7 +25,6 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
             const params = {
                 ...(!isDispatchQueueView && status ? { status } : {}),
                 ...(appliedSearch ? { search: appliedSearch } : {}),
-                ...(showAll ? { showAll: 'true' } : {}),
             };
             const response = await adminAPI.getReports(params);
             const data = response.data?.data || {};
@@ -37,7 +35,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [appliedSearch, isDispatchQueueView, showAll, status]);
+    }, [appliedSearch, isDispatchQueueView, status]);
 
     useEffect(() => {
         fetchReports();
@@ -192,8 +190,6 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         appliedSearch,
         applySearch,
         clearFilters,
-        showAll,
-        setShowAll,
         selectedReport,
         setSelectedReport,
         patchReport,

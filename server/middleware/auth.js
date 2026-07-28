@@ -61,6 +61,15 @@ export const protect = async (req, res, next) => {
                 });
             }
 
+            // Legacy system-administrator accounts were retired. Reject them
+            // even before the one-time data migration has been run.
+            if (user.role === 'admin') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This account role is no longer supported',
+                });
+            }
+
             // Attach user to request
             req.user = user;
             next();
@@ -107,7 +116,7 @@ export const optionalAuth = async (req, res, next) => {
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const user = await User.findById(decoded.id);
-                if (user) {
+                if (user && user.role !== 'admin') {
                     req.user = user;
                 }
             } catch (error) {
@@ -131,7 +140,7 @@ export const generateToken = (userId) => {
 };
 
 /**
- * Require admin role (includes both admin and municipal_admin)
+ * Require the municipal administrator role.
  */
 export const requireAdmin = (req, res, next) => {
     if (!req.user) {
@@ -141,10 +150,10 @@ export const requireAdmin = (req, res, next) => {
         });
     }
 
-    if (!['admin', 'municipal_admin'].includes(req.user.role)) {
+    if (req.user.role !== 'municipal_admin') {
         return res.status(403).json({
             success: false,
-            message: 'Access denied - Admin privileges required',
+            message: 'Access denied - Municipal administrator privileges required',
         });
     }
 
@@ -162,7 +171,7 @@ export const requireMunicipalAdmin = (req, res, next) => {
         });
     }
 
-    if (!['admin', 'municipal_admin'].includes(req.user.role)) {
+    if (req.user.role !== 'municipal_admin') {
         return res.status(403).json({
             success: false,
             message: 'Access denied - Municipal admin privileges required',
@@ -183,7 +192,7 @@ export const requireResponder = (req, res, next) => {
         });
     }
 
-    if (!['admin', 'municipal_admin', 'responder'].includes(req.user.role)) {
+    if (req.user.role !== 'responder') {
         return res.status(403).json({
             success: false,
             message: 'Access denied - Responder privileges required',
@@ -204,7 +213,14 @@ export const requireVerifiedReporter = (req, res, next) => {
         });
     }
 
-    if (req.user.role === 'reporter' && !req.user.isVerified) {
+    if (req.user.role !== 'reporter') {
+        return res.status(403).json({
+            success: false,
+            message: 'Access denied - Reporter privileges required',
+        });
+    }
+
+    if (!req.user.isVerified) {
         return res.status(403).json({
             success: false,
             message: 'Access denied - Reporter verification pending',
@@ -224,11 +240,6 @@ export const validateMunicipalityAccess = (reportMunicipality) => {
                 success: false,
                 message: 'Not authorized',
             });
-        }
-
-        // Super admins have access to all municipalities
-        if (req.user.role === 'admin') {
-            return next();
         }
 
         // Municipal admins and responders must match municipality

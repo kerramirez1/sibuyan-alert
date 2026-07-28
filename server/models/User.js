@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['ordinary', 'reporter', 'admin', 'municipal_admin', 'responder'],
+            enum: ['ordinary', 'reporter', 'municipal_admin', 'responder'],
             default: 'ordinary',
         },
         // Municipality assignment for municipal admins and responders
@@ -32,6 +32,9 @@ const userSchema = new mongoose.Schema(
             type: String,
             enum: ['Cajidiocan', 'Magdiwang', 'San Fernando', null],
             default: null,
+            required: function requireOperationalMunicipality() {
+                return ['municipal_admin', 'responder'].includes(this.role);
+            },
         },
         // Responder unit details (e.g., "MDRRMO Rescue 1", "PNP Patrol 01")
         responderUnit: {
@@ -161,7 +164,7 @@ userSchema.pre('save', function (next) {
         if (this.role === 'reporter') {
             this.verificationStatus = 'pending';
             this.isVerified = false;
-        } else if (this.role === 'admin' || this.role === 'municipal_admin' || this.role === 'responder' || this.googleId) {
+        } else if (this.role === 'municipal_admin' || this.role === 'responder' || this.googleId) {
             this.verificationStatus = 'not_required';
             this.isVerified = true;
         }

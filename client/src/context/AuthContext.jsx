@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }) => {
 
             if (user.role === 'responder') {
                 navigate('/admin/reports?view=dispatch-queue');
-            } else if (['admin', 'municipal_admin'].includes(user.role)) {
+            } else if (user.role === 'municipal_admin') {
                 navigate('/admin');
             } else {
                 navigate('/dashboard');
@@ -199,7 +199,7 @@ export const AuthProvider = ({ children }) => {
     // Check if user can submit reports
     const canSubmitReports = useCallback(() => {
         if (!user) return false;
-        return user.role === 'admin' || (user.role === 'reporter' && user.isVerified);
+        return user.role === 'reporter' && user.isVerified;
     }, [user]);
 
     // Manual user state update

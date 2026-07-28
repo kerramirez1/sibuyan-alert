@@ -76,7 +76,7 @@ const AccidentHistoryPage = () => {
     const [viewerImage, setViewerImage] = useState(null);
 
     const canViewFullDetails = useMemo(() => (
-        Boolean(isAuthenticated && user && ['admin', 'municipal_admin', 'responder'].includes(user.role))
+        Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
     ), [isAuthenticated, user]);
 
     const fetchReports = useCallback(async (silent = false) => {

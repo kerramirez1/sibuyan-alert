@@ -35,9 +35,6 @@ const report = {
 const baseProps = {
     user: { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
     hasMunicipality: true,
-    canViewAllMunicipalities: false,
-    showAll: false,
-    setShowAll: vi.fn(),
     selectedMonth,
     setSelectedMonth: vi.fn(),
     stats: { totalReports: 1 },
@@ -103,13 +100,12 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(screen.getByText('verified')).toHaveClass('bg-blue-50');
     });
 
-    test('shows municipality comparisons only for the island-wide scope', () => {
+    test('shows municipality comparisons only when no municipal scope is provided', () => {
         render(
             <DashboardAnalyticsWorkspace
                 {...baseProps}
                 hasMunicipality={false}
-                showAll
-                user={{ role: 'admin' }}
+                user={null}
             />
         );
 

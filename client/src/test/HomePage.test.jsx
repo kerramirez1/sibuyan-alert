@@ -72,9 +72,9 @@ describe('HomePage operational landing page', () => {
     test('shows responsive hero actions and keeps the risk-zone metric non-interactive', async () => {
         renderPage();
 
-        expect(screen.getByRole('heading', { name: /Accident reports/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
         const mapAction = screen.getByRole('link', { name: 'View live map' });
-        const reporterAction = screen.getByRole('link', { name: 'Become a reporter' });
+        const [reporterAction] = screen.getAllByRole('link', { name: 'Become a reporter' });
         expect(mapAction).toHaveAttribute('href', '/dashboard?view=map');
         expect(reporterAction).toHaveAttribute('href', '/register');
         expect(mapAction).toHaveClass('min-h-10', 'sm:min-h-12');
@@ -87,8 +87,18 @@ describe('HomePage operational landing page', () => {
         expect(screen.getByText('14 barangays')).toBeInTheDocument();
         expect(screen.getByText('12 barangays')).toBeInTheDocument();
 
-        expect(screen.getByText('Active risk zones')).toBeInTheDocument();
+        expect(screen.getAllByText('Active risk zones').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();
+
+        const copy = screen.getByTestId('landing-hero-copy');
+        const phone = screen.getByTestId('landing-phone-preview');
+        const actions = screen.getByTestId('landing-hero-actions');
+        const benefits = screen.getByTestId('landing-hero-benefits');
+        const metrics = screen.getByTestId('landing-hero-metrics');
+        expect(copy.compareDocumentPosition(phone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(phone.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(actions.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     test('does not claim the live system is operational when both analytics requests fail', async () => {

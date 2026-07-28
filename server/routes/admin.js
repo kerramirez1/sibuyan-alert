@@ -27,33 +27,33 @@ import {
 
 const router = express.Router();
 
-// All admin routes require authentication and admin-level role (admin, municipal_admin, responder)
+// Operational routes are shared by municipal administrators and responders.
 router.use(protect);
-router.use(requireRole('admin', 'municipal_admin', 'responder'));
+router.use(requireRole('municipal_admin', 'responder'));
 
 // ============================================================
-// Dashboard — admin & municipal_admin ONLY (NOT responders)
+// Dashboard — municipal administrators only (not responders)
 // ============================================================
-router.get('/dashboard', requireRole('admin', 'municipal_admin'), getDashboardStats);
+router.get('/dashboard', requireRole('municipal_admin'), getDashboardStats);
 
 // ============================================================
-// User management — admin & municipal_admin ONLY (NOT responders)
+// User management — municipal administrators only (not responders)
 // ============================================================
-router.get('/users', requireRole('admin', 'municipal_admin'), getUsers);
-router.get('/users/:id', requireRole('admin', 'municipal_admin'), getUserById);
-router.put('/users/:id/verify', requireRole('admin', 'municipal_admin'), validateVerifyReporter, verifyReporter);
-router.delete('/users/:id', requireRole('admin', 'municipal_admin'), deleteUser);
+router.get('/users', requireRole('municipal_admin'), getUsers);
+router.get('/users/:id', requireRole('municipal_admin'), getUserById);
+router.put('/users/:id/verify', requireRole('municipal_admin'), validateVerifyReporter, verifyReporter);
+router.delete('/users/:id', requireRole('municipal_admin'), deleteUser);
 
 // ============================================================
-// Report management — accessible to all admin-level roles
+// Report queue — shared read access with capability-specific mutations below.
 // ============================================================
 router.get('/reports', getAllReports);
-router.put('/reports/:id/verify', requireRole('admin', 'municipal_admin'), validateVerifyReport, verifyReport);
+router.put('/reports/:id/verify', requireRole('municipal_admin'), validateVerifyReport, verifyReport);
 router.put('/reports/:id/respond', requireRole('responder'), validateRespondToReport, respondToReport);
 router.put('/reports/:id/resolve', requireRole('responder'), validateResolveReport, resolveReport);
-router.put('/reports/:id/transfer', requireRole('admin', 'municipal_admin'), validateTransferReport, transferReport);
+router.put('/reports/:id/transfer', requireRole('municipal_admin'), validateTransferReport, transferReport);
 router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
-router.delete('/reports/:id', requireRole('admin', 'municipal_admin'), deleteReport);
+router.delete('/reports/:id', requireRole('municipal_admin'), deleteReport);
 
 // ============================================================
 // Responder duty status — responders can toggle own status

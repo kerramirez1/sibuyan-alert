@@ -203,11 +203,9 @@ export const createReport = async (req, res) => {
                 responseEstimate,
             };
 
-            let reportAudience = io.to('role_admin');
             if (locationResult.municipalityName) {
-                reportAudience = reportAudience.to(`municipality_${locationResult.municipalityName}`);
+                io.to(`municipality_${locationResult.municipalityName}`).emit('newReport', newReportPayload);
             }
-            reportAudience.emit('newReport', newReportPayload);
 
             // Notify municipality-specific responder room using municipality NAME
             // (frontend joins rooms as `municipality_${user.assignedMunicipality}`)
@@ -239,24 +237,18 @@ export const createReport = async (req, res) => {
             }
         }
 
-        // Notify admins — include municipal_admin and responder roles (filtered by municipality)
+        // Notify the responsible municipal administrators.
         const categoryConfig = INCIDENT_CATEGORIES[finalCategory];
 
-        // Build query to find relevant admin users
+        // Build a municipality-scoped administrator query.
         const adminQuery = {
-            $or: [
-                // Super admins always get notified
-                { role: 'admin' },
-                // Municipal admins only for the matching municipality
-                ...(locationResult.municipalityName ? [
-                    { role: 'municipal_admin', assignedMunicipality: locationResult.municipalityName },
-                ] : []),
-            ]
+            role: 'municipal_admin',
+            assignedMunicipality: locationResult.municipalityName,
         };
 
         const admins = await User.find(adminQuery);
 
-        // Create in-app notifications for each admin/responder
+        // Create in-app notifications for each municipal administrator.
         for (const admin of admins) {
             await Notification.createAndSend(
                 {
@@ -395,7 +387,7 @@ export const getReports = async (req, res) => {
 /**
  * @desc    Get single report by ID
  * @route   GET /api/reports/:id
- * @access  Public (verified) / Private (pending - owner/admin only)
+ * @access  Public (published) / Private (owner or in-scope municipal administrator)
  */
 export const getReportById = async (req, res) => {
     try {
@@ -415,12 +407,16 @@ export const getReportById = async (req, res) => {
         const isOwner = Boolean(
             req.user && report.reporter?._id?.toString() === req.user._id.toString()
         );
-        const isAdmin = req.user?.role === 'admin';
+        const isMunicipalAdminInScope = Boolean(
+            req.user?.role === 'municipal_admin'
+            && req.user.assignedMunicipality
+            && report.municipalityName === req.user.assignedMunicipality
+        );
 
         // Match the public list visibility rules for individual report access.
         const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
         if (!publicViewableStatuses.includes(report.status)) {
-            if (!isOwner && !isAdmin) {
+            if (!isOwner && !isMunicipalAdminInScope) {
                 return res.status(403).json({
                     success: false,
                     message: 'Not authorized to view this report',
@@ -433,7 +429,7 @@ export const getReportById = async (req, res) => {
         await report.save();
 
         const responseData = report.toObject();
-        if (!isOwner && !isAdmin) {
+        if (!isOwner && !isMunicipalAdminInScope) {
             delete responseData.transferHistory;
             delete responseData.resolutionNotes;
             delete responseData.rejectionReason;
@@ -482,7 +478,7 @@ export const getMyReports = async (req, res) => {
 /**
  * @desc    Add a reporter update to an existing report
  * @route   POST /api/reports/:id/updates
- * @access  Private (report owner reporter / admin)
+ * @access  Private (report owner)
  */
 export const addReportUpdate = async (req, res) => {
     try {
@@ -510,16 +506,14 @@ export const addReportUpdate = async (req, res) => {
         }
 
         const isOwner = report.reporter?._id?.toString() === req.user._id.toString();
-        const isAdmin = ['admin', 'municipal_admin'].includes(req.user.role);
-
-        if (!isOwner && !isAdmin) {
+        if (!isOwner) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this report',
             });
         }
 
-        if (['resolved', 'rejected'].includes(report.status) && !isAdmin) {
+        if (['resolved', 'rejected'].includes(report.status)) {
             return res.status(400).json({
                 success: false,
                 message: 'This report is already closed and can no longer be updated',
@@ -557,22 +551,17 @@ export const addReportUpdate = async (req, res) => {
                 io.to(`user_${report.reporter._id}`).emit('reportUpdatedByReporter', payload);
             }
 
-            // Municipality responders/admin viewers
+            // Municipality responders and administrator viewers.
             if (report.municipalityName) {
                 io.to(`municipality_${report.municipalityName}`).emit('reportUpdatedByReporter', payload);
                 io.to(`municipality_${report.municipalityName}_responders`).emit('reportUpdatedByReporter', payload);
             }
         }
 
-        // Notify admins/responders (municipality-scoped + global admin)
+        // Notify municipality-scoped administrators and responders.
         const recipientsQuery = {
-            $or: [
-                { role: 'admin' },
-                ...(report.municipalityName ? [
-                    { role: 'municipal_admin', assignedMunicipality: report.municipalityName },
-                    { role: 'responder', assignedMunicipality: report.municipalityName },
-                ] : []),
-            ],
+            role: { $in: ['municipal_admin', 'responder'] },
+            assignedMunicipality: report.municipalityName,
         };
 
         const recipients = await User.find(recipientsQuery).select('_id');

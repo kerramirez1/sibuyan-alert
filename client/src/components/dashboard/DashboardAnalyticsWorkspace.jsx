@@ -20,7 +20,6 @@ import {
     HiOutlineClock,
     HiOutlineDownload,
     HiOutlineExclamation,
-    HiOutlineGlobe,
     HiOutlineLightningBolt,
     HiOutlineMap,
     HiOutlineTruck,
@@ -177,9 +176,6 @@ const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = fa
 const DashboardAnalyticsWorkspace = ({
     user,
     hasMunicipality,
-    canViewAllMunicipalities,
-    showAll,
-    setShowAll,
     selectedMonth,
     setSelectedMonth,
     reports,
@@ -304,18 +300,12 @@ const DashboardAnalyticsWorkspace = ({
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Operational analytics</p>
                         <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl">Incident overview</h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            {hasMunicipality && !showAll ? `${user?.assignedMunicipality} performance and incident trends.` : 'Performance and incident trends across Sibuyan Island.'}
+                            {hasMunicipality ? `${user?.assignedMunicipality} performance and incident trends.` : 'Performance and incident trends across Sibuyan Island.'}
                         </p>
                     </div>
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    {hasMunicipality && canViewAllMunicipalities && (
-                        <button type="button" onClick={() => setShowAll(!showAll)} className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 lg:w-auto lg:min-w-44 ${showAll ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}>
-                            <HiOutlineGlobe className="h-4 w-4" aria-hidden="true" />
-                            <span className="truncate">{showAll ? 'All Sibuyan' : user?.assignedMunicipality}</span>
-                        </button>
-                    )}
                     <div className="flex min-h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white p-1 lg:w-52">
                         <button type="button" onClick={() => setSelectedMonth((current) => subMonths(current, 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400" aria-label="Previous month">
                             <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -357,7 +347,7 @@ const DashboardAnalyticsWorkspace = ({
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2" aria-label="Operational breakdown">
-                {hasMunicipality && !showAll ? (
+                {hasMunicipality ? (
                     <>
                         <BreakdownCard
                             title="By barangay"

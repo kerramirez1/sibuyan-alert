@@ -37,16 +37,11 @@ export const requireVerifiedReporter = (req, res, next) => {
         });
     }
 
-    if (req.user.role !== 'reporter' && req.user.role !== 'admin') {
+    if (req.user.role !== 'reporter') {
         return res.status(403).json({
             success: false,
             message: 'Access denied - Reporters only',
         });
-    }
-
-    // Admins bypass verification check
-    if (req.user.role === 'admin') {
-        return next();
     }
 
     if (!req.user.isVerified) {
@@ -61,7 +56,7 @@ export const requireVerifiedReporter = (req, res, next) => {
 };
 
 /**
- * Require admin role (admin and municipal_admin only)
+ * Require the municipal administrator role.
  */
 export const requireAdmin = (req, res, next) => {
     if (!req.user) {
@@ -71,10 +66,10 @@ export const requireAdmin = (req, res, next) => {
         });
     }
 
-    if (!['admin', 'municipal_admin'].includes(req.user.role)) {
+    if (req.user.role !== 'municipal_admin') {
         return res.status(403).json({
             success: false,
-            message: 'Access denied - Admin privileges required',
+            message: 'Access denied - Municipal administrator privileges required',
         });
     }
 
@@ -82,7 +77,7 @@ export const requireAdmin = (req, res, next) => {
 };
 
 /**
- * Check if user owns the resource or is admin
+ * Check if the authenticated user owns the resource.
  */
 export const requireOwnerOrAdmin = (resourceUserIdField = 'reporter') => {
     return (req, res, next) => {
@@ -91,11 +86,6 @@ export const requireOwnerOrAdmin = (resourceUserIdField = 'reporter') => {
                 success: false,
                 message: 'Not authorized - Please login',
             });
-        }
-
-        // Admins can access anything
-        if (req.user.role === 'admin') {
-            return next();
         }
 
         // Check resource ownership (will be set by controllers)

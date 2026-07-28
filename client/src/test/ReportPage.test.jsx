@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-const { createReportMock, geocodeLocationMock, toastMock } = vi.hoisted(() => ({
+const { createReportMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
     createReportMock: vi.fn(),
     geocodeLocationMock: vi.fn(),
+    mapPropsSpy: vi.fn(),
     toastMock: {
         loading: vi.fn(),
         success: vi.fn(),
@@ -19,12 +20,24 @@ vi.mock('../services/api', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: toastMock }));
 
+vi.mock('../hooks/useGlobalHighRiskZones', () => ({
+    default: () => ({
+        zones: [
+            { _id: 'zone-cajidiocan', municipality: 'Cajidiocan' },
+            { _id: 'zone-magdiwang', municipality: 'Magdiwang' },
+        ],
+    }),
+}));
+
 vi.mock('../components/map/MapView', () => ({
-    default: ({ onLocationSelect }) => (
-        <button type="button" data-testid="location-map" onClick={() => onLocationSelect({ lat: 12.39261, lng: 122.67985 })}>
-            Pin test location
-        </button>
-    ),
+    default: (props) => {
+        mapPropsSpy(props);
+        return (
+            <button type="button" data-testid="location-map" onClick={() => props.onLocationSelect({ lat: 12.39261, lng: 122.67985 })}>
+                Pin test location
+            </button>
+        );
+    },
 }));
 
 import ReportPage from '../pages/ReportPage';
@@ -57,6 +70,7 @@ describe('ReportPage workflow', () => {
             },
         });
         Object.values(toastMock).forEach((mock) => mock.mockClear());
+        mapPropsSpy.mockClear();
         geolocation = {
             watchPosition: vi.fn((success) => {
                 watchPositionSuccess = success;
@@ -76,6 +90,10 @@ describe('ReportPage workflow', () => {
         expect(container.querySelectorAll('form')).toHaveLength(1);
         expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId('location-map')).toBeInTheDocument();
+        expect(mapPropsSpy.mock.lastCall[0].highRiskZones.map((zone) => zone.municipality)).toEqual([
+            'Cajidiocan',
+            'Magdiwang',
+        ]);
     });
 
     test('shows accessible feedback when required fields are missing', () => {

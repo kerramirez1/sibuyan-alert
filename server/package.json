@@ -13,6 +13,7 @@
         "import:barangay-boundaries": "node scripts/importSibuyanBarangayBoundaries.js",
         "reset:responders": "node seeds/seedResponders.js",
         "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
+        "migrate:remove-system-admins": "node scripts/removeSystemAdmins.js",
         "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
     },
     "dependencies": {
