@@ -14,6 +14,11 @@ import {
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import Modal from '../ui/Modal';
+import {
+    getMapCoordinates,
+    getVisibleMapReports,
+    groupReportsByMapLocation,
+} from '../../utils/mapReports';
 
 const STATUS_CONFIG = {
     pending: { label: 'Pending', badge: 'border-amber-200 bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
@@ -29,12 +34,6 @@ const ZONE_CONFIG = {
     fire_hazard: { label: 'Fire hazard', badge: 'border-orange-200 bg-orange-50 text-orange-700' },
     landslide_prone: { label: 'Landslide prone', badge: 'border-amber-200 bg-amber-50 text-amber-700' },
     flood_prone: { label: 'Flood prone', badge: 'border-blue-200 bg-blue-50 text-blue-700' },
-};
-
-const getCoordinates = (item) => {
-    const lat = Number(item?.coordinates?.lat ?? item?.location?.coordinates?.[1] ?? item?.lat);
-    const lng = Number(item?.coordinates?.lng ?? item?.location?.coordinates?.[0] ?? item?.lng);
-    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 };
 
 const formatDate = (value, pattern = 'MMM d, h:mm a') => {
@@ -68,7 +67,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate }) => {
         <div className="max-h-[65vh] divide-y divide-gray-200 overflow-y-auto">
             {reports.map((report) => {
                 const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
-                const coordinates = getCoordinates(report);
+                const coordinates = getMapCoordinates(report);
                 return (
                     <article key={report._id} className="flex flex-col gap-3 px-1 py-4 first:pt-1 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
@@ -118,7 +117,7 @@ const RiskZoneList = ({ zones, onLocate }) => {
                             <p className="mt-1 text-sm text-gray-600">{zone.description || zone.address || 'No description provided'}</p>
                             <p className="mt-1 text-xs text-gray-400">{zone.municipality || zone.municipalityName || 'Municipality unavailable'} · {zone.radius || 0} m radius</p>
                         </div>
-                        {getCoordinates(zone) && (
+                        {getMapCoordinates(zone) && (
                             <button
                                 type="button"
                                 onClick={() => onLocate(zone)}
@@ -196,11 +195,13 @@ const DashboardMapWorkspace = ({
                 ? 'Reporter map'
                 : 'Public safety map';
 
-    const respondingCount = reports.filter((report) => report.status === 'responding').length;
-    const transferredCount = reports.filter((report) => report.status === 'transferred').length;
-    const pendingCount = reports.filter((report) => report.status === 'pending').length;
-    const activeReports = reports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
-    const dispatchableCount = reports.filter((report) => ['verified', 'transferred'].includes(report.status)).length;
+    const activeReports = getVisibleMapReports(reports);
+    const allMappedReports = getVisibleMapReports(reports, { includePending: true });
+    const activeLocationCount = groupReportsByMapLocation(activeReports).length;
+    const respondingCount = activeReports.filter((report) => report.status === 'responding').length;
+    const transferredCount = activeReports.filter((report) => report.status === 'transferred').length;
+    const pendingCount = allMappedReports.filter((report) => report.status === 'pending').length;
+    const dispatchableCount = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status)).length;
 
     const metrics = isResponder
         ? [
@@ -224,21 +225,29 @@ const DashboardMapWorkspace = ({
                     { label: 'Trust points', value: roleStats?.trustPoints || 0, helper: 'Reporter standing', icon: HiOutlineShieldCheck },
                 ]
                 : [
-                { label: 'Active incidents', value: activeReports.length, helper: 'Visible map reports', icon: HiOutlineCheckCircle, onClick: () => setShowIncidentModal(true) },
+                {
+                    label: 'Active incidents',
+                    value: activeReports.length,
+                    helper: activeReports.length === activeLocationCount
+                        ? 'Visible map reports'
+                        : `Across ${activeLocationCount} map locations`,
+                    icon: HiOutlineCheckCircle,
+                    onClick: () => setShowIncidentModal(true),
+                },
                 { label: 'Active response', value: respondingCount, helper: 'Being handled now', icon: HiOutlineTruck },
                 { label: 'Transferred', value: transferredCount, helper: 'Forwarded to another area', icon: HiOutlineExclamation },
                 { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => setShowZoneModal(true) },
                 ];
 
     const locateReport = (report, closeModal) => {
-        const coordinates = getCoordinates(report);
+        const coordinates = getMapCoordinates(report);
         if (!coordinates) return;
         setSearchParams({ view: 'map', lat: coordinates.lat, lng: coordinates.lng, zoom: 17 });
         closeModal(false);
     };
 
     const locateZone = (zone) => {
-        const coordinates = getCoordinates(zone);
+        const coordinates = getMapCoordinates(zone);
         if (!coordinates) return;
         setSearchParams({ view: 'map', lat: coordinates.lat, lng: coordinates.lng, zoom: 16 });
         setShowZoneModal(false);
@@ -295,6 +304,11 @@ const DashboardMapWorkspace = ({
                     <div>
                         <h2 className="text-sm font-semibold text-gray-900">Live map</h2>
                         <p className="mt-0.5 text-xs text-gray-500">Map markers update automatically when report status changes.</p>
+                        {activeReports.length > activeLocationCount && (
+                            <p className="mt-1 text-[11px] font-medium text-gray-500">
+                                A numbered marker groups incidents reported at the same location.
+                            </p>
+                        )}
                     </div>
                     {(isResponder || isAdmin) && (
                         <div className="flex items-center gap-1 overflow-x-auto" aria-label="Map status filter">

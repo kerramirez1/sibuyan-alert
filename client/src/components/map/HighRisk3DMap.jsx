@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { installCompassOrientationToggle } from '../../utils/mapNavigation';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -105,7 +106,12 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             maxZoom: 17,
         });
 
-        mapInstance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+        const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
+        mapInstance.addControl(navigationControl, 'top-right');
+        const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
+            pitch: 55,
+            bearing: -15,
+        });
 
         mapInstance.on('load', () => {
             // Add the zones source
@@ -132,6 +138,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
         });
 
         return () => {
+            removeCompassToggle();
             mapInstance.remove();
             mapInstanceRef.current = null;
         };

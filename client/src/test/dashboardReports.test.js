@@ -1,7 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+    deduplicateDashboardReports,
     fetchAllAdminReportPages,
     mergeDashboardReport,
+    removeDashboardReport,
     updateDashboardReportStatus,
     upsertDashboardReport,
 } from '../utils/dashboardReports';
@@ -88,5 +90,24 @@ describe('dashboard report data synchronization', () => {
         expect(fetchPage).toHaveBeenNthCalledWith(1, { showAll: false, page: 1, limit: 2 });
         expect(fetchPage).toHaveBeenNthCalledWith(2, { showAll: false, page: 2, limit: 2 });
         expect(reports.map((report) => report._id)).toEqual(['report-1', 'report-2', 'report-3']);
+    });
+
+    test('normalizes report identities and removes stale duplicates during socket upserts', () => {
+        const reports = [
+            { _id: 42, status: 'verified', address: 'Old representation' },
+            { id: '42', status: 'verified', address: 'Duplicate representation' },
+            { _id: 'report-2', status: 'verified' },
+        ];
+
+        const updated = upsertDashboardReport(reports, {
+            id: '42',
+            status: 'transferred',
+            address: 'Current representation',
+        });
+
+        expect(updated).toHaveLength(2);
+        expect(updated[0]).toMatchObject({ _id: '42', status: 'transferred', address: 'Current representation' });
+        expect(removeDashboardReport(updated, 42)).toEqual([{ _id: 'report-2', status: 'verified' }]);
+        expect(deduplicateDashboardReports(reports)).toHaveLength(2);
     });
 });

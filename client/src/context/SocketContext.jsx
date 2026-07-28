@@ -109,8 +109,9 @@ export const SocketProvider = ({ children }) => {
             toast(`VERIFIED: ${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || alertData.municipalityName}`, {
                 duration: 8000,
                 style: {
-                    background: '#ef4444',
-                    color: '#fff',
+                    background: 'var(--danger)',
+                    color: '#ffffff',
+                    border: '1px solid color-mix(in srgb, var(--danger) 70%, white)',
                     fontWeight: 'bold',
                 },
             });
@@ -125,8 +126,9 @@ export const SocketProvider = ({ children }) => {
                 icon: 'i',
                 duration: 4500,
                 style: {
-                    background: '#e0f2fe',
-                    color: '#0c4a6e',
+                    background: 'var(--surface-elevated)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
                 },
             });
         });

@@ -1,7 +1,10 @@
-const getReportId = (report) => report?._id || report?.id || null;
+export const getDashboardReportId = (report) => {
+    const id = report?._id ?? report?.id;
+    return id === null || id === undefined ? null : String(id);
+};
 
 export const mergeDashboardReport = (existingReport, incomingReport) => {
-    const id = getReportId(incomingReport) || getReportId(existingReport);
+    const id = getDashboardReportId(incomingReport) || getDashboardReportId(existingReport);
     if (!id) return null;
 
     const existing = existingReport || {};
@@ -22,25 +25,44 @@ export const mergeDashboardReport = (existingReport, incomingReport) => {
 };
 
 export const upsertDashboardReport = (reports, incomingReport) => {
-    const id = getReportId(incomingReport);
+    const id = getDashboardReportId(incomingReport);
     if (!id) return reports;
 
-    const existingIndex = reports.findIndex((report) => getReportId(report) === id);
-    if (existingIndex === -1) {
+    const existingReport = reports.find((report) => getDashboardReportId(report) === id);
+    if (!existingReport) {
         const merged = mergeDashboardReport(null, incomingReport);
         return merged ? [merged, ...reports] : reports;
     }
 
-    return reports.map((report, index) => (
-        index === existingIndex ? mergeDashboardReport(report, incomingReport) : report
-    ));
+    const merged = mergeDashboardReport(existingReport, incomingReport);
+    return [merged, ...reports.filter((report) => getDashboardReportId(report) !== id)];
 };
 
 export const updateDashboardReportStatus = (reports, id, status) => {
     if (!id) return reports;
+    const normalizedId = String(id);
     return reports.map((report) => (
-        getReportId(report) === id ? { ...report, status } : report
+        getDashboardReportId(report) === normalizedId ? { ...report, status } : report
     ));
+};
+
+export const removeDashboardReport = (reports, id) => {
+    if (id === null || id === undefined) return reports;
+    const normalizedId = String(id);
+    return reports.filter((report) => getDashboardReportId(report) !== normalizedId);
+};
+
+export const deduplicateDashboardReports = (reports = []) => {
+    const reportsById = new Map();
+    const reportsWithoutId = [];
+
+    reports.forEach((report) => {
+        const id = getDashboardReportId(report);
+        if (id) reportsById.set(id, report);
+        else reportsWithoutId.push(report);
+    });
+
+    return [...reportsById.values(), ...reportsWithoutId];
 };
 
 export const fetchAllAdminReportPages = async (fetchPage, params = {}, pageSize = 250) => {
@@ -54,7 +76,7 @@ export const fetchAllAdminReportPages = async (fetchPage, params = {}, pageSize 
         const pageReports = Array.isArray(payload.reports) ? payload.reports : [];
 
         pageReports.forEach((report) => {
-            const id = getReportId(report);
+            const id = getDashboardReportId(report);
             if (id) reportsById.set(String(id), report);
         });
 

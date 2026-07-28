@@ -107,11 +107,11 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                 <div className="mt-4 h-56 w-full" role="img" aria-label={`Daily incident report trend for ${format(selectedMonth, 'MMMM yyyy')}`}>
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} dy={8} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} allowDecimals={false} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} dy={8} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} allowDecimals={false} />
                             <Tooltip content={<ChartTooltip />} />
-                            <Area type="monotone" dataKey="total" name="Reports" stroke="#2563eb" strokeWidth={2} fill="#eff6ff" activeDot={{ r: 4, strokeWidth: 0 }} />
+                            <Area type="monotone" dataKey="total" name="Reports" stroke="#3b82f6" strokeWidth={2} fill="var(--chart-fill)" activeDot={{ r: 4, strokeWidth: 0 }} />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
@@ -157,9 +157,9 @@ const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = fa
                 <div className="mt-4 w-full" style={{ height: chartHeight }} role="img" aria-label={`${title}: ${description}`}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} allowDecimals={false} />
-                            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#374151', fontSize: 11 }} width={labelWidth} />
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
+                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis-strong)', fontSize: 11 }} width={labelWidth} />
                             <Tooltip content={<ChartTooltip />} />
                             <Bar dataKey="count" name="Reports" radius={[0, 4, 4, 0]} barSize={16}>
                                 {data.map((entry, index) => <Cell key={entry.name} fill={colors ? MUNICIPALITY_COLORS[index % MUNICIPALITY_COLORS.length] : '#2563eb'} />)}

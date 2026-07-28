@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-const { createReportMock, toastMock } = vi.hoisted(() => ({
+const { createReportMock, geocodeLocationMock, toastMock } = vi.hoisted(() => ({
     createReportMock: vi.fn(),
+    geocodeLocationMock: vi.fn(),
     toastMock: {
         loading: vi.fn(),
         success: vi.fn(),
@@ -13,13 +14,17 @@ const { createReportMock, toastMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../services/api', () => ({
-    reportsAPI: { create: createReportMock },
+    reportsAPI: { create: createReportMock, geocodeLocation: geocodeLocationMock },
 }));
 
 vi.mock('react-hot-toast', () => ({ default: toastMock }));
 
 vi.mock('../components/map/MapView', () => ({
-    default: () => <div data-testid="location-map" />,
+    default: ({ onLocationSelect }) => (
+        <button type="button" data-testid="location-map" onClick={() => onLocationSelect({ lat: 12.39261, lng: 122.67985 })}>
+            Pin test location
+        </button>
+    ),
 }));
 
 import ReportPage from '../pages/ReportPage';
@@ -39,6 +44,16 @@ describe('ReportPage workflow', () => {
     beforeEach(() => {
         createReportMock.mockReset();
         createReportMock.mockResolvedValue({ data: { success: true } });
+        geocodeLocationMock.mockReset();
+        geocodeLocationMock.mockResolvedValue({
+            data: {
+                data: {
+                    address: 'Sibuyan Circumferential Road, Taguilos, Cajidiocan',
+                    barangay: { name: 'Taguilos', psgcCode: '1705903014' },
+                    barangayAssignment: 'matched',
+                },
+            },
+        });
         Object.values(toastMock).forEach((mock) => mock.mockClear());
         geolocation = {
             watchPosition: vi.fn(() => 7),
@@ -66,6 +81,37 @@ describe('ReportPage workflow', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(/complete the required location and incident-time fields/i);
         expect(screen.getByText('Accident time is required')).toBeInTheDocument();
         expect(createReportMock).not.toHaveBeenCalled();
+    });
+
+    test('replaces a prior barangay only with the current pin boundary result', async () => {
+        renderPage();
+
+        const barangayInput = screen.getByLabelText(/^barangay$/i);
+        fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByTestId('location-map'));
+
+        await waitFor(() => expect(barangayInput).toHaveValue('Taguilos'));
+        expect(geocodeLocationMock).toHaveBeenCalledWith(
+            { lat: 12.39261, lng: 122.67985 },
+            expect.objectContaining({ signal: expect.any(AbortSignal) })
+        );
+    });
+
+    test('clears a prior barangay when the current pin has no verified boundary', async () => {
+        geocodeLocationMock.mockResolvedValueOnce({
+            data: { data: { address: 'Sibuyan Circumferential Road, Cajidiocan', barangay: null, barangayAssignment: 'unmatched' } },
+        });
+        renderPage();
+
+        const barangayInput = screen.getByLabelText(/^barangay$/i);
+        fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByTestId('location-map'));
+
+        await waitFor(() => expect(barangayInput).toHaveValue(''));
+        expect(toastMock.error).toHaveBeenCalledWith(
+            expect.stringMatching(/barangay could not be verified/i),
+            expect.objectContaining({ duration: 5000 })
+        );
     });
 
     test('preserves the multipart report contract and redirects after submission', async () => {

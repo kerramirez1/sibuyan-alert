@@ -67,6 +67,16 @@ const reportSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        barangayPsgcCode: {
+            type: String,
+            trim: true,
+            index: true,
+        },
+        locationConfidence: {
+            type: String,
+            enum: ['boundary_matched', 'manual_confirmed', 'geocoder_suggested', 'legacy'],
+            default: 'legacy',
+        },
         coordinates: {
             lat: {
                 type: Number,
@@ -80,6 +90,29 @@ const reportSchema = new mongoose.Schema(
                 min: [-180, 'Longitude must be between -180 and 180'],
                 max: [180, 'Longitude must be between -180 and 180'],
             },
+        },
+        // Evidence describing how the reporter selected the incident point.
+        // It supports auditability without treating a client-side selection as verification.
+        locationCapture: {
+            source: {
+                type: String,
+                enum: ['gps', 'map_pin', 'search', 'address_geocoded', 'legacy'],
+                default: 'legacy',
+            },
+            accuracyMeters: {
+                type: Number,
+                min: [0, 'Location accuracy cannot be negative'],
+            },
+            capturedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+        // Legacy-readable source retained while new records use locationCapture.
+        locationSource: {
+            type: String,
+            enum: ['provided', 'geocoded', 'legacy'],
+            default: 'legacy',
         },
 
         // Municipality Assignment (auto-detected based on coordinates)
@@ -381,17 +414,26 @@ reportSchema.pre('save', async function (next) {
         console.warn(`⚠️ Report coordinates (${lat}, ${lng}) are outside Sibuyan Island bounds`);
     }
 
-    // Auto-assign municipality if not set
+    // Only assign when exactly one configured operational coverage box matches.
+    // Never silently route an ambiguous point to the nearest municipal center.
     if (!this.municipality && this.coordinates) {
         try {
             const Municipality = mongoose.model('Municipality');
-            const nearestMuni = await Municipality.findNearest(this.coordinates.lat, this.coordinates.lng);
-            if (nearestMuni) {
-                this.municipality = nearestMuni._id;
-                this.municipalityName = nearestMuni.name;
+            const matches = await Municipality.find({
+                isActive: true,
+                'bounds.minLat': { $lte: this.coordinates.lat },
+                'bounds.maxLat': { $gte: this.coordinates.lat },
+                'bounds.minLng': { $lte: this.coordinates.lng },
+                'bounds.maxLng': { $gte: this.coordinates.lng },
+            }).select('_id name');
+            if (matches.length === 1) {
+                this.municipality = matches[0]._id;
+                this.municipalityName = matches[0].name;
+            } else if (matches.length > 1) {
+                console.warn(`Report coordinates (${lat}, ${lng}) match multiple municipality coverage boxes; left unassigned.`);
             }
         } catch (error) {
-            console.warn('Could not auto-assign municipality:', error.message);
+            console.warn('Could not safely auto-assign municipality:', error.message);
         }
     }
 

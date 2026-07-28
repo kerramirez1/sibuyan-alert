@@ -10,13 +10,14 @@ import {
     getStats,
     getMunicipalities,
     getCategories,
+    searchLocations,
     geocodeLocation,
 } from '../controllers/reportController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport } from '../middleware/validate.js';
-import { reportCreationLimiter } from '../middleware/rateLimiter.js';
+import { locationLookupLimiter, reportCreationLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -26,7 +27,8 @@ router.get('/map-config', getMapConfig);
 router.get('/stats', getStats);  // ✅ Ordinary users CAN access aggregated stats
 router.get('/municipalities', getMunicipalities);  // ✅ Ordinary users CAN access
 router.get('/categories', getCategories);
-router.post('/geocode', geocodeLocation);
+router.get('/location-search', locationLookupLimiter, searchLocations);
+router.post('/geocode', locationLookupLimiter, geocodeLocation);
 
 // Public report listing for map visibility (verified/responding only by default)
 router.get('/', optionalAuth, getReports);
@@ -50,4 +52,3 @@ router.post('/:id/updates', protect, requireVerifiedReporter, addReportUpdate);
 router.get('/:id', optionalAuth, getReportById);
 
 export default router;
-

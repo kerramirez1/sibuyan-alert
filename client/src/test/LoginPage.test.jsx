@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { ThemeProvider } from '../context/ThemeContext';
 
 const mocks = vi.hoisted(() => ({
     login: vi.fn(),
@@ -14,13 +15,15 @@ import AuthLayout from '../components/layout/AuthLayout';
 import LoginPage from '../pages/LoginPage';
 
 const renderLogin = () => render(
-    <MemoryRouter initialEntries={['/login']}>
-        <Routes>
-            <Route element={<AuthLayout />}>
-                <Route path="/login" element={<LoginPage />} />
-            </Route>
-        </Routes>
-    </MemoryRouter>
+    <ThemeProvider>
+        <MemoryRouter initialEntries={['/login']}>
+            <Routes>
+                <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<LoginPage />} />
+                </Route>
+            </Routes>
+        </MemoryRouter>
+    </ThemeProvider>
 );
 
 describe('LoginPage system-accurate content', () => {

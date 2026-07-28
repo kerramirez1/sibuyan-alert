@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
+import { ThemeProvider } from '../context/ThemeContext';
 
 const mocks = vi.hoisted(() => ({
     logout: vi.fn(),
@@ -37,13 +38,15 @@ vi.mock('framer-motion', () => ({
 import MainLayout from '../components/layout/MainLayout';
 
 const renderLayout = (entry = '/accident-history') => render(
-    <MemoryRouter initialEntries={[entry]}>
-        <Routes>
-            <Route element={<MainLayout />}>
-                <Route path="*" element={<div>Page content</div>} />
-            </Route>
-        </Routes>
-    </MemoryRouter>
+    <ThemeProvider>
+        <MemoryRouter initialEntries={[entry]}>
+            <Routes>
+                <Route element={<MainLayout />}>
+                    <Route path="*" element={<div>Page content</div>} />
+                </Route>
+            </Routes>
+        </MemoryRouter>
+    </ThemeProvider>
 );
 
 describe('MainLayout responsive navigation', () => {
@@ -64,6 +67,7 @@ describe('MainLayout responsive navigation', () => {
         expect(reportsLink.querySelector('svg')).toBeInTheDocument();
         expect(reportsLink.querySelector('img')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-11', 'w-full');
+        expect(screen.getByRole('main')).toHaveClass('pt-3', 'sm:pt-4', 'lg:pt-5');
     });
 
     test('shows one clear active analytics destination on the administrative dashboard', () => {

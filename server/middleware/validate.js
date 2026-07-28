@@ -79,6 +79,12 @@ export const validateResetPassword = [
 // ===================== REPORT VALIDATORS =====================
 
 export const validateCreateReport = [
+    body().custom((_, { req }) => {
+        const hasLat = req.body.lat !== undefined && req.body.lat !== '';
+        const hasLng = req.body.lng !== undefined && req.body.lng !== '';
+        if (hasLat !== hasLng) throw new Error('Latitude and longitude must be provided together');
+        return true;
+    }),
     body('address')
         .custom((value, { req }) => {
             const trimmedVal = (value || '').trim();
@@ -95,6 +101,15 @@ export const validateCreateReport = [
     body('lng')
         .optional({ checkFalsy: true })
         .isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
+    body('locationSource')
+        .optional({ checkFalsy: true })
+        .isIn(['gps', 'map_pin', 'search', 'address_geocoded', 'legacy']).withMessage('Invalid location source'),
+    body('locationAccuracy')
+        .optional({ checkFalsy: true })
+        .isFloat({ min: 0, max: 100000 }).withMessage('Location accuracy must be between 0 and 100000 meters'),
+    body('locationCapturedAt')
+        .optional({ checkFalsy: true })
+        .isISO8601().withMessage('Location capture time must be a valid ISO date'),
     body('severity')
         .optional({ checkFalsy: true })
         .isIn(['minor', 'moderate', 'severe', 'critical']).withMessage('Invalid severity level'),

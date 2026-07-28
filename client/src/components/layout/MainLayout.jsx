@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { adminAPI } from '../../services/api';
 import NotificationBell from '../ui/NotificationBell';
+import ThemeToggle from '../ui/ThemeToggle';
 import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../../utils/assets';
 import {
@@ -24,10 +25,10 @@ import {
     HiOutlineUserAdd,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1';
+const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'bg-brand-50 font-semibold text-brand-800'
-    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950'}`;
+    ? 'bg-brand-50 font-semibold text-brand-800 dark:bg-brand-900/35 dark:text-brand-200'
+    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0';
 const SECTION_CLASS = 'mt-4 pt-1';
 const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400';
@@ -112,7 +113,7 @@ const MainLayout = () => {
 
     return (
         <>
-            <div className="flex h-screen min-h-0 bg-white supports-[height:100dvh]:h-dvh">
+            <div className="flex h-screen min-h-0 bg-white dark:bg-gray-950 supports-[height:100dvh]:h-dvh">
                 {/* Mobile Sidebar Overlay */}
                 <AnimatePresence>
                     {sidebarOpen && (
@@ -131,7 +132,7 @@ const MainLayout = () => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out dark:border-gray-800 dark:bg-gray-900 lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Logo */}
                     <div className="flex min-h-20 items-center px-4">
@@ -290,7 +291,7 @@ const MainLayout = () => {
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="mt-auto space-y-3 border-t border-gray-100 bg-white p-3">
+                    <div className="mt-auto space-y-3 border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
                         {/* Responder Duty Status */}
                         {isAuthenticated && user?.role === 'responder' && (
                             <div className="rounded-xl bg-gray-50 p-3">
@@ -396,9 +397,9 @@ const MainLayout = () => {
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white dark:bg-gray-950">
                     {/* Header */}
-                    <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-md sticky top-0 z-30">
+                    <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-md sticky top-0 z-30 dark:border-b dark:border-gray-800 dark:bg-gray-950/85">
                         <button
                             type="button"
                             onClick={() => setSidebarOpen(true)}
@@ -415,10 +416,11 @@ const MainLayout = () => {
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-brand-50 rounded-full text-xs font-medium text-brand-700">
                                 <span>v2.0.0</span>
                             </div>
+                            <ThemeToggle />
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link
@@ -433,7 +435,7 @@ const MainLayout = () => {
                     </header>
 
                     {/* Page Content Scrollable Area */}
-                    <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 sm:px-6 lg:px-8 custom-scrollbar">
+                    <main className="custom-scrollbar min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={location.pathname}

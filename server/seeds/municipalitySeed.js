@@ -107,12 +107,12 @@ export const seedMunicipalities = async () => {
                 update: {
                     $set: {
                         code: municipality.code,
+                        center: municipality.center,
+                        bounds: municipality.bounds,
                         barangays: municipality.barangays,
                         isActive: true,
                     },
                     $setOnInsert: {
-                        center: municipality.center,
-                        bounds: municipality.bounds,
                         emergencyContacts: municipality.emergencyContacts,
                         responseCapabilities: municipality.responseCapabilities,
                     },

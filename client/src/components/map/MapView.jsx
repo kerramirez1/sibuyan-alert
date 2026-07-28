@@ -5,9 +5,16 @@ import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
+import {
+    getMapCoordinates,
+    getVisibleMapReports,
+    groupReportsByMapLocation,
+} from '../../utils/mapReports';
+import { installCompassOrientationToggle } from '../../utils/mapNavigation';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
+const SIBUYAN_INTERACTION_BOUNDS = [[122.45, 12.30], [122.70, 12.55]];
 
 // Municipality centers for quick navigation
 const MUNICIPALITIES = {
@@ -158,11 +165,17 @@ const MapView = ({
             bearing: enable3D ? -17 : 0,
             antialias: true,
             attributionControl: false,
-            maxBounds: [[121.5, 11.5], [123.5, 13.5]], // Expanded Sibuyan area
+            // A report pin must stay within the same server-enforced Sibuyan envelope.
+            maxBounds: onLocationSelect ? SIBUYAN_INTERACTION_BOUNDS : [[121.5, 11.5], [123.5, 13.5]],
             maxZoom: 17,
         });
 
-        mapInstance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+        const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
+        mapInstance.addControl(navigationControl, 'top-right');
+        const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
+            pitch: enable3D ? 45 : 0,
+            bearing: enable3D ? -17 : 0,
+        });
 
         // Create popup
         popupRef.current = new maplibregl.Popup({
@@ -333,6 +346,7 @@ const MapView = ({
         });
 
         return () => {
+            removeCompassToggle();
             popupRef.current?.remove();
             mapInstance.remove();
             mapInstanceRef.current = null;
@@ -373,17 +387,8 @@ const MapView = ({
             return hasResponders || !!report.respondedBy;
         };
 
-        const getReportCoordinates = (report) => {
-            const lat = Number(report?.coordinates?.lat ?? report?.location?.coordinates?.[1] ?? report?.lat);
-            const lng = Number(report?.coordinates?.lng ?? report?.location?.coordinates?.[0] ?? report?.lng);
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-            return { lat, lng };
-        };
-
         // Filter reports
-        const displayReports = showPending
-            ? reports.filter((r) => ['pending', 'verified', 'transferred', 'responding'].includes(r.status))
-            : reports.filter((r) => ['verified', 'transferred', 'responding'].includes(r.status));
+        const displayReports = getVisibleMapReports(reports, { includePending: showPending });
 
         const categoryFilteredReports = filterCategory
             ? displayReports.filter(r => r.incidentCategory === filterCategory)
@@ -409,7 +414,7 @@ const MapView = ({
         // Generate report features
         const reportFeatures = filteredReports
             .map(report => {
-                const coords = getReportCoordinates(report);
+                const coords = getMapCoordinates(report);
                 if (!coords) return null;
                 return {
                     type: 'Feature',
@@ -460,13 +465,16 @@ const MapView = ({
         reportMarkersRef.current.forEach(marker => marker.remove());
         reportMarkersRef.current = [];
 
-        // Create HTML markers for reports (visible on top of 3D)
-        filteredReports
-            .forEach(report => {
-                const coords = getReportCoordinates(report);
-                if (!coords) return;
-                const isResponding = report.status === 'responding';
-                const isPending = report.status === 'pending';
+        // Co-located reports share one marker with a count badge so no incident is
+        // silently hidden underneath another marker at the same coordinates.
+        groupReportsByMapLocation(filteredReports)
+            .forEach(({ coordinates: coords, reports: groupedReports }) => {
+                const statusPriority = { responding: 4, transferred: 3, verified: 2, pending: 1 };
+                const report = [...groupedReports].sort(
+                    (left, right) => (statusPriority[right.status] || 0) - (statusPriority[left.status] || 0)
+                )[0];
+                const isResponding = groupedReports.some((item) => item.status === 'responding');
+                const isPending = groupedReports.every((item) => item.status === 'pending');
                 const canRespondToThisReport = canRespond && ['verified', 'transferred'].includes(report.status);
                 const canResolveThisReport = canResolve &&
                     report.status === 'responding' &&
@@ -497,7 +505,7 @@ const MapView = ({
                                 animation: responderPulse 1.8s ease-out infinite 0.9s;
                             "></div>
                         ` : ''}
-                        <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : isPending ? 'filter: drop-shadow(0 0 14px rgba(249,115,22,0.95));' : ''}">
+                         <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : isPending ? 'filter: drop-shadow(0 0 14px rgba(249,115,22,0.95));' : ''}">
                             <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${markerColor}"/>
                             ${isPending ? `
                                 <circle cx="12" cy="11.5" r="4.5" fill="none" stroke="white" stroke-width="1.5"/>
@@ -505,25 +513,58 @@ const MapView = ({
                             ` : `
                                 <circle cx="12" cy="12" r="5" fill="white"/>
                             `}
-                        </svg>
-                    </div>
-                `;
+                         </svg>
+                         ${groupedReports.length > 1 ? `
+                            <span style="
+                                position:absolute;
+                                right:-5px;
+                                top:-6px;
+                                min-width:20px;
+                                height:20px;
+                                padding:0 5px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                border-radius:9999px;
+                                border:2px solid white;
+                                background:#111827;
+                                color:white;
+                                font:700 11px/1 Inter,system-ui,sans-serif;
+                                box-shadow:0 2px 6px rgba(15,23,42,.35);
+                            ">${groupedReports.length}</span>
+                         ` : ''}
+                     </div>
+                 `;
                 el.style.cursor = 'pointer';
                 el.style.zIndex = isPending ? '40' : '30';
+                el.setAttribute('role', 'button');
+                el.setAttribute('tabindex', '0');
+                el.setAttribute(
+                    'aria-label',
+                    groupedReports.length > 1
+                        ? `${groupedReports.length} incidents at this location`
+                        : `${report.title || report.incidentType || 'Incident'} map marker`
+                );
 
                 const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([coords.lng, coords.lat])
                     .addTo(map);
 
                 // Open fixed modal instead of inline map popup
-                el.addEventListener('click', (e) => {
+                const openMarker = (e) => {
                     e.stopPropagation();
-                    setMapModal({
-                        type: 'report',
-                        data: report,
-                        canRespond: canRespondToThisReport,
-                        canResolve: canResolveThisReport,
-                    });
+                    if (groupedReports.length > 1) {
+                        setMapModal({ type: 'reportGroup', data: groupedReports });
+                        return;
+                    }
+                    setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport });
+                };
+                el.addEventListener('click', openMarker);
+                el.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openMarker(event);
+                    }
                 });
 
 
@@ -790,7 +831,11 @@ const MapView = ({
                     <div className={`w-full ${mapModal.type === 'zone' ? 'max-w-md' : 'max-w-lg'} bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden`}>
                         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                             <h3 className="text-2xl font-display font-bold text-gray-900 tracking-tight">
-                                {mapModal.type === 'zone' ? 'High Risk Zone Details' : 'Incident Details'}
+                                {mapModal.type === 'zone'
+                                    ? 'High Risk Zone Details'
+                                    : mapModal.type === 'reportGroup'
+                                        ? 'Incidents at this location'
+                                        : 'Incident Details'}
                             </h3>
                             <button
                                 onClick={() => setMapModal(null)}
@@ -840,6 +885,36 @@ const MapView = ({
                                         </button>
                                     )}
                                 </div>
+                            </div>
+                        )}
+
+                        {mapModal.type === 'reportGroup' && (
+                            <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto px-5 py-2">
+                                {mapModal.data.map((report) => (
+                                    <button
+                                        key={report._id || report.id}
+                                        type="button"
+                                        onClick={() => setMapModal({
+                                            type: 'report',
+                                            data: report,
+                                            canRespond: canRespond && ['verified', 'transferred'].includes(report.status),
+                                            canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
+                                        })}
+                                        className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="block truncate text-sm font-semibold text-gray-900">
+                                                {report.title || report.incidentType || 'Incident report'}
+                                            </span>
+                                            <span className="mt-1 block truncate text-xs text-gray-500">
+                                                {report.address || 'Location unavailable'}
+                                            </span>
+                                        </span>
+                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
+                                            {report.status}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
                         )}
 

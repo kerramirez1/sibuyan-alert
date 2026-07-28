@@ -5,40 +5,46 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <BrowserRouter>
-            <AuthProvider>
-                <SocketProvider>
-                    <App />
-                    <Toaster
+        <ThemeProvider>
+            <BrowserRouter>
+                <AuthProvider>
+                    <SocketProvider>
+                        <App />
+                        <Toaster
                         position="top-right"
                         toastOptions={{
                             duration: 4000,
+                            className: 'app-toast',
                             style: {
-                                background: '#1F2937',
-                                color: '#F9FAFB',
+                                background: 'var(--surface-elevated)',
+                                color: 'var(--text-primary)',
+                                border: '1px solid var(--border)',
                                 borderRadius: '12px',
                                 padding: '16px',
+                                boxShadow: 'var(--shadow-lg)',
                             },
                             success: {
                                 iconTheme: {
                                     primary: '#10B981',
-                                    secondary: '#F9FAFB',
+                                    secondary: 'var(--surface-elevated)',
                                 },
                             },
                             error: {
                                 iconTheme: {
                                     primary: '#EF4444',
-                                    secondary: '#F9FAFB',
+                                    secondary: 'var(--surface-elevated)',
                                 },
                             },
                         }}
-                    />
-                </SocketProvider>
-            </AuthProvider>
-        </BrowserRouter>
+                        />
+                    </SocketProvider>
+                </AuthProvider>
+            </BrowserRouter>
+        </ThemeProvider>
     </React.StrictMode>
 );

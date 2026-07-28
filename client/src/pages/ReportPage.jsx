@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import ReportLocationPanel from '../components/report/ReportLocationPanel';
 import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
+import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -36,6 +37,7 @@ const ReportPage = () => {
     const [geoLoading, setGeoLoading] = useState(false);
     const [locationStatus, setLocationStatus] = useState('idle');
     const [gpsAccuracy, setGpsAccuracy] = useState(null);
+    const [locationCapture, setLocationCapture] = useState(null);
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -55,6 +57,7 @@ const ReportPage = () => {
         const newErrors = {};
         if (!formData.incidentTime) newErrors.incidentTime = 'Accident time is required';
         if (!selectedLocation && !formData.address.trim()) newErrors.location = 'Please select a location on the map or enter an address';
+        if (locationStatus === 'confirming') newErrors.location = 'Confirm the GPS position or choose another location before submitting';
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) {
             toast.error('Please complete the required fields');
@@ -83,13 +86,15 @@ const ReportPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
+    const reverseGeocodeRequestRef = useRef(0);
+    const reverseGeocodeAbortRef = useRef(null);
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ' Sibuyan Island')}&addressdetails=1&limit=5`);
-            const data = await response.json();
+            const response = await reportsAPI.searchLocations(searchQuery.trim());
+            const data = response.data?.data || [];
             if (data.length === 0) {
                 toast.error('Location not found. Try a different keyword.');
             } else {
@@ -105,26 +110,16 @@ const ReportPage = () => {
     };
 
     const selectSearchResult = (result) => {
-        const lat = parseFloat(result.lat);
-        const lng = parseFloat(result.lon);
+        const lat = Number(result.lat);
+        const lng = Number(result.lng);
         const location = { lat, lng };
-        stopLocationDetection({ dismissToast: true });
-        setGeoLoading(false);
-        setSelectedLocation(location);
-        setFocusLocation({ ...location, zoom: 16 });
-        setLocationStatus('verified');
-        setGpsAccuracy(null);
-        setErrors((current) => ({ ...current, location: '' }));
-        if (!formData.address) {
-            setFormData(prev => ({
-                ...prev,
-                address: result.display_name.split(',')[0],
-                barangay: result.address?.village || result.address?.suburb || ''
-            }));
+        if (!isValidLocation(location)) {
+            toast.error('The selected search result has invalid coordinates.');
+            return;
         }
         setSearchResults([]);
         setSearchQuery('');
-        toast.success(`Moved to: ${result.display_name.split(',')[0]}`);
+        handleLocationSelect(location, 'search');
     };
 
     const watchIdRef = useRef(null);
@@ -149,33 +144,60 @@ const ReportPage = () => {
         }
     };
 
-    const handleLocationSelect = async (location) => {
+    const handleLocationSelect = async (location, source = 'map_pin') => {
+        if (!isValidLocation(location)) {
+            toast.error('Choose a valid point inside Sibuyan Island.');
+            return;
+        }
         stopLocationDetection({ dismissToast: true });
+        reverseGeocodeAbortRef.current?.abort();
+        const requestId = reverseGeocodeRequestRef.current + 1;
+        reverseGeocodeRequestRef.current = requestId;
+        const controller = new AbortController();
+        reverseGeocodeAbortRef.current = controller;
         setGeoLoading(false);
         setSelectedLocation(location);
+        setFocusLocation({ ...location, zoom: 16 });
         setErrors(prev => ({ ...prev, location: '' }));
-        setLocationStatus('verified');
+        setLocationStatus('selected');
         setGpsAccuracy(null);
+        setLocationCapture(buildLocationCapture(source));
+        // A new pin invalidates the previous place labels. Keeping them while
+        // the lookup is in flight can submit the last pin's barangay.
+        setFormData((previous) => ({
+            ...previous,
+            address: '',
+            barangay: '',
+        }));
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}&zoom=18&addressdetails=1`);
-            const data = await response.json();
-            if (data && data.address) {
-                const street = data.address.road || data.address.pedestrian || '';
-                const village = data.address.village || data.address.suburb || '';
-                const landmark = data.address.amenity || data.address.building || '';
-                let detectedAddress = street;
-                if (landmark) detectedAddress = landmark + (street ? `, ${street}` : '');
-                if (detectedAddress || village) {
-                    toast.success(`Pinned near: ${detectedAddress || village}`, { duration: 3000 });
-                    setFormData(prev => ({
-                        ...prev,
-                        address: detectedAddress || prev.address,
-                        barangay: village || prev.barangay
-                    }));
-                }
+            const response = await reportsAPI.geocodeLocation(
+                { lat: location.lat, lng: location.lng },
+                { signal: controller.signal }
+            );
+            if (reverseGeocodeRequestRef.current !== requestId) return;
+            const data = response.data?.data;
+            const detectedAddress = data?.address?.split(',').slice(0, 2).join(', ') || '';
+            const detectedBarangay = data?.barangay?.name || '';
+
+            setFormData((previous) => ({
+                ...previous,
+                address: detectedAddress,
+                // Only a boundary match may populate this field automatically.
+                barangay: detectedBarangay,
+            }));
+
+            if (detectedBarangay) {
+                toast.success(`Pinned in: ${detectedBarangay}`, { duration: 3000 });
+            } else if (detectedAddress) {
+                toast.error('Barangay could not be verified for this pin. Adjust the pin or enter it manually.', { duration: 5000 });
+            } else {
+                toast.error('Could not identify the selected location. Adjust the pin and try again.', { duration: 5000 });
             }
         } catch (e) {
-            console.warn('Reverse geocoding failed', e);
+            if (e.code !== 'ERR_CANCELED') {
+                console.warn('Reverse geocoding failed', e);
+                toast.error('Could not verify the barangay for this pin. Adjust the pin or enter it manually.', { duration: 5000 });
+            }
         }
     };
 
@@ -208,8 +230,17 @@ const ReportPage = () => {
                 toast.error('Could not determine location. Please search or pin manually.', { id: LOCATION_TOAST_ID });
                 setLocationStatus('idle');
             } else {
-                toast.success(`Location found (Accuracy: ${Math.round(bestAccuracy)}m)`, { id: LOCATION_TOAST_ID });
-                setLocationStatus('confirming');
+                const assessment = assessGpsAccuracy(bestAccuracy);
+                if (assessment.usable) {
+                    toast.success(assessment.message, { id: LOCATION_TOAST_ID });
+                    setLocationStatus('confirming');
+                } else {
+                    setSelectedLocation(null);
+                    setGpsAccuracy(null);
+                    setLocationCapture(null);
+                    toast.error(assessment.message, { id: LOCATION_TOAST_ID });
+                    setLocationStatus('idle');
+                }
             }
         }, 12000);
 
@@ -224,8 +255,9 @@ const ReportPage = () => {
                     setUserLocation(location);
                     setSelectedLocation(location);
                     setFocusLocation({ ...location, zoom: accuracy < 100 ? 17 : 14 });
+                    setLocationCapture(buildLocationCapture('gps', accuracy));
                     setErrors(prev => ({ ...prev, location: '' }));
-                    if (accuracy < 30) {
+                    if (accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
                         toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                         if (watchIdRef.current !== null) {
                             navigator.geolocation.clearWatch(watchIdRef.current);
@@ -277,9 +309,8 @@ const ReportPage = () => {
 
     const confirmLocation = () => {
         stopLocationDetection({ dismissToast: true });
-        setLocationStatus('verified');
-        setGpsAccuracy(null);
-        toast.success('Location verified!');
+        setLocationStatus('confirmed');
+        toast.success('GPS location confirmed.');
     };
 
     const retryLocation = () => {
@@ -288,12 +319,14 @@ const ReportPage = () => {
         setLocationStatus('idle');
         setSelectedLocation(null);
         setGpsAccuracy(null);
+        setLocationCapture(null);
     };
 
     useEffect(() => {
         detectLocation();
         return () => {
             stopLocationDetection({ dismissToast: true });
+            reverseGeocodeAbortRef.current?.abort();
         };
     }, []);
 
@@ -337,6 +370,11 @@ const ReportPage = () => {
             if (selectedLocation) {
                 submitData.append('lat', selectedLocation.lat);
                 submitData.append('lng', selectedLocation.lng);
+            }
+            if (locationCapture) {
+                submitData.append('locationSource', locationCapture.source);
+                if (locationCapture.accuracyMeters !== null) submitData.append('locationAccuracy', locationCapture.accuracyMeters);
+                submitData.append('locationCapturedAt', locationCapture.capturedAt);
             }
             if (formData.address) submitData.append('address', formData.address);
             if (formData.barangay) submitData.append('barangay', formData.barangay);

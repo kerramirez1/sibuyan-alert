@@ -6,10 +6,13 @@ import { reportsAPI, adminAPI, highRiskZonesAPI, analyticsAPI } from '../service
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
 import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
 import {
+    deduplicateDashboardReports,
     fetchAllAdminReportPages,
+    removeDashboardReport,
     updateDashboardReportStatus,
     upsertDashboardReport,
 } from '../utils/dashboardReports';
+import { getMapCoordinates } from '../utils/mapReports';
 import { format, isSameDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
 
 const STATUS_COLORS = {
@@ -99,9 +102,7 @@ const DashboardPage = () => {
     }, [isResponder, user]);
 
     const hasMapCoordinates = useCallback((report) => {
-        const lat = Number(report?.coordinates?.lat ?? report?.location?.coordinates?.[1] ?? report?.lat);
-        const lng = Number(report?.coordinates?.lng ?? report?.location?.coordinates?.[0] ?? report?.lng);
-        return Number.isFinite(lat) && Number.isFinite(lng);
+        return Boolean(getMapCoordinates(report));
     }, []);
 
     const responderPendingReports = useMemo(
@@ -190,7 +191,7 @@ const DashboardPage = () => {
                 // Fallback fetch
                 reportsAPI.getAll({ limit: 200, status: 'all' })
                     .then(res => {
-                        setReports(res.data.data.reports || []);
+                        setReports(deduplicateDashboardReports(res.data.data.reports || []));
                     })
                     .catch(handleReportLoadError)
                     .finally(() => setLoading(false));
@@ -207,7 +208,7 @@ const DashboardPage = () => {
             setLoading(true);
             reportsAPI.getAll({ limit: 200, status: 'all' })
                 .then(res => {
-                    setReports(res.data.data.reports || []);
+                    setReports(deduplicateDashboardReports(res.data.data.reports || []));
                 })
                 .catch(handleReportLoadError)
                 .finally(() => setLoading(false));
@@ -223,7 +224,7 @@ const DashboardPage = () => {
             setLoading(true);
             reportsAPI.getAll({ limit: 200, status: 'all' })
                 .then(res => {
-                    setReports(res.data.data.reports || []);
+                    setReports(deduplicateDashboardReports(res.data.data.reports || []));
                 })
                 .catch(handleReportLoadError)
                 .finally(() => setLoading(false));
@@ -301,8 +302,7 @@ const DashboardPage = () => {
             }));
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
-            // Remove the deleted report from local state
-            setReports(prev => prev.filter(r => r._id !== data.id));
+            setReports((previous) => removeDashboardReport(previous, data?.id ?? data?._id));
         });
         const unsub5 = subscribe('highRiskZoneCreated', (zone) => {
             if (!zone?._id) return;

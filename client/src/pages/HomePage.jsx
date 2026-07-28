@@ -7,14 +7,13 @@ import {
     HiOutlineShieldCheck,
     HiOutlineBell,
     HiOutlineArrowRight,
-    HiOutlineLocationMarker,
-    HiOutlineLightningBolt,
     HiOutlineChartBar,
     HiOutlineDocumentText,
     HiOutlineClipboardCheck,
+    HiOutlineLogin,
 } from 'react-icons/hi';
-import { reportsAPI, highRiskZonesAPI, analyticsAPI } from '../services/api';
-import Modal from '../components/ui/Modal';
+import { reportsAPI, analyticsAPI } from '../services/api';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 const getVerifiedPeriodLabel = (period) => {
     if (!period?.startAt) return 'Verified this month';
@@ -41,31 +40,9 @@ const HomePage = () => {
         { name: 'Magdiwang', code: 'MAG', barangays: [] },
         { name: 'San Fernando', code: 'SFN', barangays: [] },
     ]);
-    const [showHighRiskModal, setShowHighRiskModal] = useState(false);
-    const [highRiskZones, setHighRiskZones] = useState([]);
-    const [loadingHighRisk, setLoadingHighRisk] = useState(false);
-    const [highRiskError, setHighRiskError] = useState(false);
     const [publicStats, setPublicStats] = useState(null);
     const [publicStatsState, setPublicStatsState] = useState('loading');
     const refreshDebounceRef = useRef(null);
-
-    const fetchHighRiskZones = useCallback(async () => {
-        setLoadingHighRisk(true);
-        setHighRiskError(false);
-        try {
-            const response = await highRiskZonesAPI.getAll();
-            if (response.data.success) {
-                setHighRiskZones(response.data.data);
-            } else {
-                throw new Error('High-risk-zone response was unsuccessful');
-            }
-        } catch (e) {
-            console.error('Failed to fetch high risk zones:', e);
-            setHighRiskError(true);
-        } finally {
-            setLoadingHighRisk(false);
-        }
-    }, []);
 
     const fetchPublicStats = useCallback(async () => {
         setPublicStatsState((current) => current === 'ready' ? current : 'loading');
@@ -93,14 +70,11 @@ const HomePage = () => {
     }, []);
 
     useEffect(() => { fetchPublicStats(); }, [fetchPublicStats]);
-    useEffect(() => { if (showHighRiskModal) fetchHighRiskZones(); }, [showHighRiskModal, fetchHighRiskZones]);
-
     useEffect(() => {
         const debounce = () => {
             if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
             refreshDebounceRef.current = setTimeout(() => {
                 fetchPublicStats();
-                if (showHighRiskModal) fetchHighRiskZones();
             }, 400);
         };
         const subs = [
@@ -116,7 +90,7 @@ const HomePage = () => {
             if (refreshDebounceRef.current) { clearTimeout(refreshDebounceRef.current); refreshDebounceRef.current = null; }
             subs.forEach(u => u());
         };
-    }, [subscribe, fetchPublicStats, fetchHighRiskZones, showHighRiskModal]);
+    }, [subscribe, fetchPublicStats]);
 
     useEffect(() => {
         reportsAPI.getMunicipalities()
@@ -138,13 +112,6 @@ const HomePage = () => {
         'San Fernando': { src: '/icons/Sanfernando.logo.png', scale: 'scale-75' },
     };
 
-    const severityBadge = (s) => ({
-        critical: 'bg-red-50 text-red-600 border-red-200',
-        high: 'bg-orange-50 text-orange-600 border-orange-200',
-        medium: 'bg-amber-50 text-amber-700 border-amber-200',
-        low: 'bg-blue-50 text-blue-600 border-blue-200',
-    }[s] || 'bg-gray-50 text-gray-600 border-gray-200');
-
     const steps = [
         { n: '01', Icon: HiOutlineDocumentText, title: 'Reporter submits', desc: 'Verified residents file an incident — location, category, severity, and photos.' },
         { n: '02', Icon: HiOutlineClipboardCheck, title: 'Admin verifies', desc: 'Municipal administrators review and publish the report to active responders.' },
@@ -161,31 +128,49 @@ const HomePage = () => {
     const destPath = user?.role === 'reporter' ? '/my-reports' : '/dashboard';
 
     return (
-        <div className="min-h-screen bg-white text-gray-900 font-sans antialiased">
+        <div className="min-h-screen bg-white text-gray-900 font-sans antialiased dark:bg-gray-950 dark:text-gray-100">
 
             {/* ── Navbar ── */}
-            <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100/80">
-                <div className="max-w-6xl mx-auto px-5 sm:px-8 h-[60px] flex items-center justify-between">
-                    <Link to="/" className="flex items-center gap-2.5 group">
-                        <img src="/icons/Alert.png" alt="Sibuyan Alert" className="w-7 h-7 object-contain" />
-                        <span className="font-bold text-[15px] text-gray-900 tracking-tight">Sibuyan Alert</span>
+            <header className="fixed inset-x-0 top-0 z-50 border-b border-white/60 bg-white/75 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/75">
+                <div className="mx-auto flex h-[60px] max-w-7xl items-center justify-between gap-2 px-3 min-[360px]:px-4 sm:px-8">
+                    <Link to="/" className="group flex min-w-0 shrink items-center gap-2 sm:gap-2.5" aria-label="Sibuyan Alert home">
+                        <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
+                        <span className="hidden truncate text-sm font-bold tracking-tight text-gray-900 min-[360px]:inline sm:text-[15px]">
+                            Sibuyan <span className="hidden xs:inline">Alert</span>
+                        </span>
                     </Link>
-                    <nav className="flex items-center gap-1">
+                    <nav className="hidden items-center gap-7 lg:flex" aria-label="Landing page">
+                        <a href="#home" className="text-sm font-semibold text-emerald-800 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200">Home</a>
+                        <Link to="/dashboard?view=map" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">Live map</Link>
+                        <a href="#how-it-works" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">How it works</a>
+                    </nav>
+                    <nav className="flex shrink-0 items-center gap-1" aria-label="Account actions">
+                        <ThemeToggle className="!h-10 !min-h-10 !min-w-10 !border-0 !bg-transparent !px-2" />
                         {isAuthenticated ? (
                             <Link
                                 to={destPath}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 sm:px-4"
                             >
-                                {user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}
+                                <span className="hidden xs:inline">{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>
+                                <span className="xs:hidden">Open</span>
                                 <HiOutlineArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         ) : (
                             <>
-                                <Link to="/login" className="px-3.5 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-50">
-                                    Sign in
+                                <Link
+                                    to="/login"
+                                    aria-label="Sign in"
+                                    className="inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 xs:px-3"
+                                >
+                                    <HiOutlineLogin className="h-4 w-4 xs:hidden" aria-hidden="true" />
+                                    <span className="hidden xs:inline">Sign in</span>
                                 </Link>
-                                <Link to="/register" className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors ml-1">
-                                    Get started
+                                <Link
+                                    to="/register"
+                                    className="ml-0.5 inline-flex min-h-10 items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 sm:ml-1 sm:px-4"
+                                >
+                                    <span className="sm:hidden">Join</span>
+                                    <span className="hidden sm:inline">Get started</span>
                                 </Link>
                             </>
                         )}
@@ -193,13 +178,26 @@ const HomePage = () => {
                 </div>
             </header>
 
-            {/* Hero */}
-            <section className="overflow-hidden border-b border-gray-100 pt-[60px]">
-                <div className="grid lg:min-h-[660px] lg:grid-cols-[minmax(0,1fr)_minmax(420px,1fr)] xl:min-h-[700px]">
-                    <div className="flex w-full max-w-[640px] flex-col justify-center px-5 py-14 sm:px-8 sm:py-16 lg:ml-auto lg:px-8 lg:py-16 lg:pr-14 xl:pr-20">
-                        <div className={`mb-8 inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 ${publicStatsState === 'error' ? 'border-amber-200 bg-amber-50' : 'border-emerald-200/80 bg-emerald-50'}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${publicStatsState === 'error' ? 'bg-amber-500' : publicStatsState === 'loading' ? 'bg-gray-400' : 'bg-emerald-500'}`} />
-                            <span className={`text-xs font-medium ${publicStatsState === 'error' ? 'text-amber-800' : 'text-emerald-700'}`}>
+            {/* Full-bleed Mount Guiting-Guiting hero */}
+            <section id="home" className="relative isolate flex min-h-[100svh] overflow-hidden border-b border-gray-100 pt-[60px] dark:border-gray-800">
+                <img
+                    src="/images/sibuyan-hero.jpg"
+                    alt="Mountain ridges of Mount Guiting-Guiting overlooking Sibuyan Island"
+                    className="absolute inset-0 -z-20 h-full w-full object-cover object-[58%_55%]"
+                    {...{ fetchpriority: 'high' }}
+                    decoding="async"
+                />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-b from-white/50 via-white/25 to-white/80 dark:from-gray-950/60 dark:via-gray-950/45 dark:to-gray-950/85" />
+
+                <div className="mx-auto flex w-full max-w-7xl flex-col justify-between px-5 pb-5 pt-14 sm:px-8 sm:pb-7 sm:pt-20 md:pt-24 lg:pt-28">
+                    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center pb-10 text-center sm:pb-14">
+                        <div
+                            className={publicStatsState === 'error'
+                                ? 'mb-6 inline-flex items-center gap-2 rounded-full border border-amber-300/70 bg-white/75 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-amber-700/60 dark:bg-gray-900/70'
+                                : 'mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/70 bg-white/75 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-emerald-700/60 dark:bg-gray-900/70'}
+                        >
+                            <span className={publicStatsState === 'error' ? 'h-1.5 w-1.5 rounded-full bg-amber-500' : publicStatsState === 'loading' ? 'h-1.5 w-1.5 rounded-full bg-gray-400' : 'h-1.5 w-1.5 rounded-full bg-emerald-500'} />
+                            <span className={publicStatsState === 'error' ? 'text-xs font-semibold text-amber-800 dark:text-amber-300' : 'text-xs font-semibold text-emerald-800 dark:text-emerald-300'}>
                                 {publicStatsState === 'loading'
                                     ? 'Checking live system data'
                                     : publicStatsState === 'error'
@@ -208,97 +206,69 @@ const HomePage = () => {
                             </span>
                         </div>
 
-                        <h1 className="mb-6 text-4xl font-extrabold leading-[1.06] tracking-tight text-gray-900 xs:text-[2.6rem] sm:text-5xl lg:text-[3.25rem]">
-                            Accident reports,<br />
-                            <span className="text-emerald-700">verified &amp; mapped</span><br />
-                            in real time.
+                        <h1 className="max-w-4xl text-[2.55rem] font-extrabold leading-[1.02] tracking-[-0.04em] text-gray-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] xs:text-5xl sm:text-6xl lg:text-7xl dark:text-white dark:drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]">
+                            Accident reports,
+                            <span className="mt-1 block text-emerald-800 dark:text-emerald-300">verified &amp; mapped in real time.</span>
                         </h1>
 
-                        <p className="mb-10 max-w-[480px] text-[1.05rem] leading-relaxed text-gray-500">
-                            A community reporting system that connects Sibuyan residents, municipal administrators, and emergency responders in one operational view.
+                        <p className="mt-6 max-w-2xl text-base font-medium leading-relaxed text-gray-800 sm:text-lg dark:text-gray-200">
+                            A community reporting system connecting Sibuyan residents, municipal administrators, and emergency responders in one operational view.
                         </p>
 
-                        <div className="mb-8 flex flex-col gap-3 xs:flex-row xs:flex-wrap">
+                        <div className="mt-7 flex max-w-full flex-wrap items-center justify-center gap-2 sm:mt-8 sm:gap-3">
                             <Link
                                 to="/dashboard?view=map"
-                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                                className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:gap-2 sm:rounded-xl sm:px-6 sm:py-3 sm:text-sm"
                             >
-                                <HiOutlineMap className="h-4 w-4" />
+                                <HiOutlineMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 View live map
                             </Link>
                             {!isAuthenticated && (
                                 <Link
                                     to="/register"
-                                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                                    className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-white/80 bg-white/80 px-4 py-2 text-xs font-semibold text-gray-900 shadow-sm backdrop-blur-md transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:gap-2 sm:rounded-xl sm:px-6 sm:py-3 sm:text-sm dark:border-white/10 dark:bg-gray-900/75 dark:text-gray-100 dark:hover:bg-gray-900"
                                 >
                                     Become a reporter
-                                    <HiOutlineArrowRight className="h-3.5 w-3.5" />
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 </Link>
                             )}
                         </div>
 
-                        <figure className="relative -mx-5 mb-8 h-60 overflow-hidden sm:-mx-8 sm:h-80 lg:hidden">
-                            <img
-                                src="/images/sibuyan-hero.jpg"
-                                alt="Mountain ridges of Mount Guiting-Guiting overlooking Sibuyan Island"
-                                className="absolute inset-0 h-full w-full object-cover object-[60%_55%]"
-                                {...{ fetchpriority: 'high' }}
-                                decoding="async"
-                            />
-                            <figcaption className="absolute inset-x-0 bottom-0 bg-gray-950/75 px-5 py-3 text-xs font-medium text-white sm:px-8">
-                                Mt. Guiting-Guiting · Sibuyan Island, Romblon
-                            </figcaption>
-                        </figure>
-
-                        <div className="mb-12 flex flex-wrap items-center gap-x-4 gap-y-1.5 lg:mb-10">
-                            <span className="text-xs text-gray-400">Coordinated with</span>
+                        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+                            <span className="mr-1 text-xs font-medium text-gray-700 dark:text-gray-300">Coordinated with</span>
                             {['BFP', 'PNP', 'MDRRMO', 'SDH'].map(agency => (
-                                <span key={agency} className="rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">{agency}</span>
+                                <span key={agency} className="rounded-md border border-white/70 bg-white/70 px-2 py-1 text-[11px] font-bold text-gray-700 backdrop-blur-md dark:border-white/10 dark:bg-gray-900/65 dark:text-gray-200">{agency}</span>
                             ))}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-7 sm:gap-6">
-                            <div>
-                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">
-                                    {publicStatsState === 'loading' ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'}
-                                </div>
-                                <div className="mt-1 text-xs leading-snug text-gray-400">{verifiedPeriodLabel}</div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowHighRiskModal(true)}
-                                className="-m-2 rounded-lg p-2 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                                aria-haspopup="dialog"
-                            >
-                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">
-                                    {publicStatsState === 'loading' ? '…' : publicStats?.activeHighRiskZones ?? '—'}
-                                </div>
-                                <div className="mt-1 text-xs leading-snug text-gray-400">Active risk zones</div>
-                            </button>
-                            <div>
-                                <div className="text-[1.65rem] font-bold leading-tight text-gray-900 tabular-nums">{municipalities.length}</div>
-                                <div className="mt-1 text-xs leading-snug text-gray-400">Municipalities covered</div>
-                            </div>
                         </div>
                     </div>
 
-                    <figure className="relative hidden min-h-[660px] overflow-hidden lg:block xl:min-h-[700px]">
-                        <img
-                            src="/images/sibuyan-hero.jpg"
-                            alt="Mountain ridges of Mount Guiting-Guiting overlooking Sibuyan Island"
-                            className="absolute inset-0 h-full w-full object-cover object-[60%_55%]"
-                            {...{ fetchpriority: 'high' }}
-                            decoding="async"
-                        />
-                        <figcaption className="absolute bottom-5 right-5 rounded-md bg-gray-950/75 px-3 py-2 text-xs font-medium tracking-wide text-white">
-                            Mt. Guiting-Guiting · Sibuyan Island, Romblon
-                        </figcaption>
-                    </figure>
+                    <div className="relative mx-auto grid w-full max-w-4xl grid-cols-3 overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/75">
+                        <div className="px-3 py-4 text-center sm:px-6 sm:py-5">
+                            <div className="text-xl font-bold leading-tight text-gray-950 tabular-nums sm:text-2xl dark:text-white">
+                                {publicStatsState === 'loading' ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'}
+                            </div>
+                            <div className="mt-1 text-[10px] font-medium leading-snug text-gray-600 sm:text-xs dark:text-gray-300">{verifiedPeriodLabel}</div>
+                        </div>
+                        <div className="border-x border-gray-200/80 px-3 py-4 text-center sm:px-6 sm:py-5 dark:border-gray-700">
+                            <div className="text-xl font-bold leading-tight text-gray-950 tabular-nums sm:text-2xl dark:text-white">
+                                {publicStatsState === 'loading' ? '…' : publicStats?.activeHighRiskZones ?? '—'}
+                            </div>
+                            <div className="mt-1 text-[10px] font-medium leading-snug text-gray-600 sm:text-xs dark:text-gray-300">Active risk zones</div>
+                        </div>
+                        <div className="px-3 py-4 text-center sm:px-6 sm:py-5">
+                            <div className="text-xl font-bold leading-tight text-gray-950 tabular-nums sm:text-2xl dark:text-white">{municipalities.length}</div>
+                            <div className="mt-1 text-[10px] font-medium leading-snug text-gray-600 sm:text-xs dark:text-gray-300">Municipalities covered</div>
+                        </div>
+                    </div>
+
+                    <p className="mt-3 text-center text-[10px] font-medium text-gray-700/80 sm:text-right dark:text-gray-300/80">
+                        Mount Guiting-Guiting · Sibuyan Island, Romblon
+                    </p>
                 </div>
             </section>
 
             {/* ── How it works ── */}
-            <section className="py-24 px-5 sm:px-8 bg-[#fafafa] border-y border-gray-100">
+            <section id="how-it-works" className="scroll-mt-16 border-y border-gray-100 bg-gray-50 px-5 py-24 sm:px-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="mb-12">
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">How it works</p>
@@ -453,71 +423,6 @@ const HomePage = () => {
                 </div>
             </section>
 
-            {/* ── High Risk Zones Modal ── */}
-            <Modal isOpen={showHighRiskModal} onClose={() => setShowHighRiskModal(false)} title="Active High Risk Zones" size="lg">
-                {loadingHighRisk ? (
-                    <div className="flex justify-center items-center py-14">
-                        <div className="w-7 h-7 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-                    </div>
-                ) : highRiskError ? (
-                    <div className="py-14 text-center" role="alert">
-                        <HiOutlineShieldCheck className="mx-auto mb-3 h-9 w-9 text-gray-300" />
-                        <h3 className="mb-1 text-sm font-semibold text-gray-900">Unable to load risk zones</h3>
-                        <p className="mb-4 text-sm text-gray-500">Live risk-zone data is temporarily unavailable.</p>
-                        <button
-                            type="button"
-                            onClick={fetchHighRiskZones}
-                            className="min-h-11 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                        >
-                            Try again
-                        </button>
-                    </div>
-                ) : highRiskZones.length === 0 ? (
-                    <div className="text-center py-14">
-                        <HiOutlineShieldCheck className="w-9 h-9 text-gray-300 mx-auto mb-3" />
-                        <h3 className="font-semibold text-gray-900 mb-1 text-sm">No active zones</h3>
-                        <p className="text-sm text-gray-400">No high-risk zones are currently reported on Sibuyan Island.</p>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-gray-100">
-                        {highRiskZones.map((zone) => (
-                            <div key={zone._id} className="py-4 first:pt-0 last:pb-0">
-                                <div className="flex items-start gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${severityBadge(zone.severity)}`}>
-                                                {zone.severity}
-                                            </span>
-                                            <span className="text-xs text-gray-400">{zone.municipality}</span>
-                                        </div>
-                                        <h4 className="font-semibold text-gray-900 text-sm mb-1">{zone.name}</h4>
-                                        <p className="text-xs text-gray-500 leading-relaxed mb-2">{zone.description}</p>
-                                        <div className="flex gap-4 text-xs text-gray-400">
-                                            <span className="flex items-center gap-1">
-                                                <HiOutlineLightningBolt className="w-3 h-3" />
-                                                {zone.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <HiOutlineLocationMarker className="w-3 h-3" />
-                                                {zone.radius}m radius
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        <div className="pt-4">
-                            <Link
-                                to="/dashboard?view=map"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                            >
-                                <HiOutlineMap className="w-4 h-4" />
-                                View all zones on map
-                            </Link>
-                        </div>
-                    </div>
-                )}
-            </Modal>
 
             {/* ── Footer ── */}
             <footer className="border-t border-gray-100 pt-8 pb-7 px-5 sm:px-8">

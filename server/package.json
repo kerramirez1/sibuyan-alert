@@ -9,6 +9,8 @@
         "dev": "nodemon server.js",
         "seed": "node seeds/adminSeed.js",
         "seed:responders": "node seeds/seedResponders.js",
+        "download:barangay-boundaries": "node scripts/downloadSibuyanBarangayBoundaries.js",
+        "import:barangay-boundaries": "node scripts/importSibuyanBarangayBoundaries.js",
         "reset:responders": "node seeds/seedResponders.js",
         "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
         "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"

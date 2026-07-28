@@ -2,18 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Semantic application theme tokens. New components should prefer these variables. */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-hover: #f3f4f6;
+  --surface-muted: #f8fafc;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --accent: #15803d;
+  --accent-hover: #166534;
+  --accent-soft: #f0fdf4;
+  --accent-text: #166534;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --focus-ring: #16a34a;
+  --overlay: rgb(15 23 42 / 0.58);
+  --shadow-sm: 0 1px 3px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 16px 36px rgb(15 23 42 / 0.14);
+  --chart-grid: #e5e7eb;
+  --chart-axis: #6b7280;
+  --chart-axis-strong: #374151;
+  --chart-fill: #eff6ff;
+  --map-control: #ffffff;
+  --map-control-hover: #f3f4f6;
+}
+
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #111827;
+  --surface: #182231;
+  --surface-elevated: #1f2a3a;
+  --surface-hover: #263344;
+  --surface-muted: #151f2d;
+  --text-primary: #f3f4f6;
+  --text-secondary: #b7c0cd;
+  --text-muted: #8995a5;
+  --border: #334155;
+  --border-strong: #475569;
+  --accent: #4ade80;
+  --accent-hover: #86efac;
+  --accent-soft: rgb(22 101 52 / 0.26);
+  --accent-text: #86efac;
+  --danger: #f87171;
+  --danger-soft: rgb(127 29 29 / 0.3);
+  --warning: #fbbf24;
+  --warning-soft: rgb(120 53 15 / 0.3);
+  --success: #34d399;
+  --success-soft: rgb(6 78 59 / 0.34);
+  --focus-ring: #4ade80;
+  --overlay: rgb(2 6 23 / 0.76);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.28);
+  --shadow-lg: 0 18px 42px rgb(0 0 0 / 0.38);
+  --chart-grid: #334155;
+  --chart-axis: #94a3b8;
+  --chart-axis-strong: #cbd5e1;
+  --chart-fill: rgb(37 99 235 / 0.18);
+  --map-control: #1f2937;
+  --map-control-hover: #334155;
+}
+
 /* Custom Base Styles */
 @layer base {
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-primary);
   }
 
   body {
-    @apply bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900 min-h-screen;
-    @apply dark:bg-gradient-to-br dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 dark:text-gray-100;
-    background-attachment: fixed;
+    @apply min-h-screen;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--text-primary);
   }
 
   /* Custom Scrollbar - Premium Style */
@@ -735,6 +811,305 @@
   .maplibregl-ctrl-group {
     scale: 0.9;
     transform-origin: right bottom;
+  }
+}
+
+/*
+ * Legacy utility compatibility layer.
+ * The application predates semantic tokens and contains light-only Tailwind
+ * utilities. These exact-class overrides make those surfaces theme-aware
+ * without changing status colors, layout utilities, or business components.
+ */
+.dark .bg-white,
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80,
+.dark .bg-white\/70 {
+  background-color: var(--surface) !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: var(--surface-muted) !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: var(--surface-hover) !important;
+}
+
+.dark .bg-gray-200,
+.dark .bg-slate-200 {
+  background-color: var(--border) !important;
+}
+
+.dark .text-gray-950,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-gray-400,
+.dark .text-gray-300,
+.dark .text-slate-400,
+.dark .text-slate-300 {
+  color: var(--text-muted) !important;
+}
+
+.dark .border-gray-50,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+.dark .border-gray-300,
+.dark .border-slate-300 {
+  border-color: var(--border-strong) !important;
+}
+
+.dark .bg-brand-50,
+.dark .bg-brand-100 {
+  background-color: var(--accent-soft) !important;
+}
+
+.dark .text-brand-900,
+.dark .text-brand-800,
+.dark .text-brand-700,
+.dark .text-brand-600 {
+  color: var(--accent-text) !important;
+}
+
+.dark .border-brand-100,
+.dark .border-brand-200,
+.dark .border-brand-300 {
+  border-color: rgb(74 222 128 / 0.28) !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-50\/60 {
+  background-color: rgb(30 64 175 / 0.18) !important;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-green-50 {
+  background-color: var(--success-soft) !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-yellow-50,
+.dark .bg-orange-50 {
+  background-color: var(--warning-soft) !important;
+}
+
+.dark .bg-red-50,
+.dark .bg-rose-50 {
+  background-color: var(--danger-soft) !important;
+}
+
+.dark .bg-violet-50,
+.dark .bg-purple-50,
+.dark .bg-indigo-50 {
+  background-color: rgb(91 33 182 / 0.2) !important;
+}
+
+.dark .text-blue-950,
+.dark .text-blue-900,
+.dark .text-blue-800,
+.dark .text-blue-700 {
+  color: #93c5fd !important;
+}
+
+.dark .text-emerald-900,
+.dark .text-emerald-800,
+.dark .text-emerald-700,
+.dark .text-green-900,
+.dark .text-green-800,
+.dark .text-green-700 {
+  color: #6ee7b7 !important;
+}
+
+.dark .text-amber-900,
+.dark .text-amber-800,
+.dark .text-amber-700,
+.dark .text-orange-900,
+.dark .text-orange-800,
+.dark .text-orange-700 {
+  color: #fcd34d !important;
+}
+
+.dark .text-red-900,
+.dark .text-red-800,
+.dark .text-red-700,
+.dark .text-rose-900,
+.dark .text-rose-800,
+.dark .text-rose-700 {
+  color: #fca5a5 !important;
+}
+
+.dark .text-violet-900,
+.dark .text-violet-800,
+.dark .text-violet-700,
+.dark .text-purple-900,
+.dark .text-purple-800,
+.dark .text-purple-700,
+.dark .text-indigo-900,
+.dark .text-indigo-800,
+.dark .text-indigo-700 {
+  color: #c4b5fd !important;
+}
+
+.dark .border-blue-100,
+.dark .border-blue-200,
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-violet-100,
+.dark .border-violet-200,
+.dark .border-indigo-100,
+.dark .border-indigo-200 {
+  border-color: var(--border-strong) !important;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-white:hover,
+.dark .hover\:bg-slate-50:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+.dark .hover\:text-gray-900:hover,
+.dark .hover\:text-gray-950:hover,
+.dark .hover\:text-slate-900:hover {
+  color: var(--text-primary) !important;
+}
+
+.dark input:not([type='checkbox']):not([type='radio']),
+.dark textarea,
+.dark select {
+  color-scheme: dark;
+}
+
+.dark select option {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.dark .focus\:ring-offset-2:focus,
+.dark .focus-visible\:ring-offset-2:focus-visible {
+  --tw-ring-offset-color: var(--surface);
+}
+
+.theme-toggle {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Authentication uses a warmer green-neutral dark palette so its branded
+ * overview and form workspace read as one interface. Light mode is unchanged. */
+.dark .auth-shell {
+  --bg-primary: #0d1917;
+  --bg-secondary: #101e1b;
+  --surface: #152622;
+  --surface-elevated: #192c27;
+  --surface-hover: #203630;
+  --surface-muted: #101f1c;
+  --text-primary: #f1f5f3;
+  --text-secondary: #adbbb6;
+  --text-muted: #83958f;
+  --border: #30463f;
+  --border-strong: #405b52;
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 20px 44px rgb(0 0 0 / 0.4);
+  background: var(--bg-primary);
+}
+
+.dark .auth-overview {
+  background: #062b1b !important;
+  border-color: #1d4b38 !important;
+}
+
+.dark .auth-content {
+  background: var(--bg-primary) !important;
+}
+
+.dark .auth-content .shadow-xl,
+.dark .auth-content .shadow-2xl {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Map imagery remains unchanged; only operational chrome follows the theme. */
+.maplibregl-ctrl-group,
+.maplibregl-popup-content {
+  background: var(--map-control) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--map-control-hover) !important;
+}
+
+.dark .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.4);
+}
+
+.dark .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--map-control);
+}
+
+.dark .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--map-control);
+}
+
+.dark .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--map-control);
+}
+
+.dark .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--map-control);
+}
+
+.dark .maplibregl-popup-close-button {
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .theme-toggle {
+    transition: none !important;
   }
 }
 

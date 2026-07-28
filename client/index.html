@@ -33,8 +33,23 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#2563EB" />
+    <meta name="theme-color" content="#ffffff" />
+    <!-- Apply the saved/system theme before React and CSS paint to prevent flashing. -->
+    <script>
+        (function () {
+            var key = 'sibuyan-alert-theme';
+            var saved = null;
+            try { saved = localStorage.getItem(key); } catch (error) { /* storage unavailable */ }
+            var theme = saved === 'light' || saved === 'dark'
+                ? saved
+                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            var root = document.documentElement;
+            root.classList.toggle('dark', theme === 'dark');
+            root.dataset.theme = theme;
+            root.style.colorScheme = theme;
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#111827' : '#ffffff');
+        })();
+    </script>
 </head>
 
 <body class="font-sans antialiased">

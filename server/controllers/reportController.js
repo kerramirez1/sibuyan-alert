@@ -2,8 +2,9 @@ import Report from '../models/Report.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
-import { isWithinSibuyanBounds } from '../services/geocoding.js';
+import { isWithinSibuyanBounds, searchSibuyanLocations } from '../services/geocoding.js';
 import { processLocation, getResponseTimeEstimate } from '../services/locationService.js';
+import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS } from '../services/gridFsService.js';
@@ -41,6 +42,9 @@ export const createReport = async (req, res) => {
             severity,
             lat,
             lng,
+            locationSource,
+            locationAccuracy,
+            locationCapturedAt,
         } = req.body;
 
         // Parse casualties and affected area from form data
@@ -83,9 +87,14 @@ export const createReport = async (req, res) => {
         const locationResult = await processLocation({
             address,
             barangay,
-            lat: lat ? parseFloat(lat) : undefined,
-            lng: lng ? parseFloat(lng) : undefined,
+            lat: lat !== undefined && lat !== '' ? Number(lat) : undefined,
+            lng: lng !== undefined && lng !== '' ? Number(lng) : undefined,
         });
+
+        const capture = parseLocationCapture({ locationSource, locationAccuracy, locationCapturedAt });
+        if (!capture.valid) {
+            return res.status(400).json({ success: false, message: capture.message });
+        }
 
         if (!locationResult.success) {
             const errorMessage = locationResult.warnings.length > 0
@@ -107,12 +116,20 @@ export const createReport = async (req, res) => {
             });
         }
 
+        if (locationResult.municipalityAssignment !== 'matched') {
+            return res.status(400).json({
+                success: false,
+                message: 'The incident location could not be assigned safely to a municipality. Adjust the map pin or contact an administrator.',
+                warnings: locationResult.warnings,
+            });
+        }
+
         // Get response time estimate
         const responseEstimate = locationResult.municipalityName
             ? getResponseTimeEstimate(
                 locationResult.coordinates.lat,
                 locationResult.coordinates.lng,
-                locationResult.municipalityName
+                locationResult.municipality
             )
             : null;
 
@@ -136,7 +153,12 @@ export const createReport = async (req, res) => {
             incidentType: finalType,
             description,
             address: locationResult.address,
-            barangay: barangay || null,
+            // A polygon match always wins over a reverse-geocoder or typed suggestion.
+            barangay: locationResult.barangay || barangay || null,
+            barangayPsgcCode: locationResult.barangayPsgcCode || undefined,
+            locationConfidence: locationResult.barangayAssignment === 'matched'
+                ? 'boundary_matched'
+                : barangay ? 'manual_confirmed' : 'geocoder_suggested',
             coordinates: locationResult.coordinates,
             municipality: locationResult.municipalityId,
             municipalityName: locationResult.municipalityName,
@@ -150,6 +172,7 @@ export const createReport = async (req, res) => {
             status: 'pending',
             // Store location processing metadata
             locationSource: locationResult.source,
+            locationCapture: capture.value,
             responseEstimate: responseEstimate || undefined,
         });
 
@@ -745,6 +768,22 @@ export const getCategories = async (req, res) => {
     }
 };
 
+/** Search Sibuyan locations through the server-side geocoding gateway. */
+export const searchLocations = async (req, res) => {
+    try {
+        const query = String(req.query.q || '').trim();
+        if (query.length < 2 || query.length > 160) {
+            return res.status(400).json({ success: false, message: 'Enter 2 to 160 characters to search for a location.' });
+        }
+
+        const results = await searchSibuyanLocations(query);
+        return res.json({ success: true, data: results });
+    } catch (error) {
+        console.error('Location search error:', error);
+        return res.status(503).json({ success: false, message: 'Location search is temporarily unavailable.' });
+    }
+};
+
 /**
  * @desc    Geocode an address and determine municipality
  * @route   POST /api/reports/geocode
@@ -752,7 +791,7 @@ export const getCategories = async (req, res) => {
  * 
  * This endpoint demonstrates the automated location processing:
  * 1. Converts address to coordinates (geocoding)
- * 2. Determines nearest municipality for response
+ * 2. Determines a safe municipality assignment for response
  * 3. Calculates estimated response time
  */
 export const geocodeLocation = async (req, res) => {
@@ -770,8 +809,8 @@ export const geocodeLocation = async (req, res) => {
         const locationResult = await processLocation({
             address,
             barangay,
-            lat: lat !== undefined ? parseFloat(lat) : undefined,
-            lng: lng !== undefined ? parseFloat(lng) : undefined,
+            lat: lat !== undefined && lat !== '' ? Number(lat) : undefined,
+            lng: lng !== undefined && lng !== '' ? Number(lng) : undefined,
         });
 
         if (!locationResult.success) {
@@ -787,7 +826,7 @@ export const geocodeLocation = async (req, res) => {
             ? getResponseTimeEstimate(
                 locationResult.coordinates.lat,
                 locationResult.coordinates.lng,
-                locationResult.municipalityName
+                locationResult.municipality
             )
             : null;
 
@@ -802,12 +841,18 @@ export const geocodeLocation = async (req, res) => {
             data: {
                 coordinates: locationResult.coordinates,
                 address: locationResult.address,
+                addressDetails: locationResult.addressDetails,
+                barangay: locationResult.barangay
+                    ? { name: locationResult.barangay, psgcCode: locationResult.barangayPsgcCode }
+                    : null,
+                barangayAssignment: locationResult.barangayAssignment,
                 municipality: {
                     id: locationResult.municipalityId,
                     name: locationResult.municipalityName,
                 },
                 responseEstimate,
-                source: locationResult.source, // 'provided', 'local', 'geocoded', 'reverse_geocoded'
+                source: locationResult.source,
+                municipalityAssignment: locationResult.municipalityAssignment,
                 isWithinSibuyanBounds: isWithinBounds,
                 warnings: locationResult.warnings,
             },
@@ -834,6 +879,7 @@ export default {
     getStats,
     getMunicipalities,
     getCategories,
+    searchLocations,
     geocodeLocation,
 };
 

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HiOutlineHome, HiOutlineArrowLeft } from 'react-icons/hi';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 const NotFoundPage = () => {
     return (
         <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+            <ThemeToggle className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6" />
             {/* Enhanced Animated Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 -z-20" />
             <div className="absolute top-1/4 left-1/4 w-64 sm:w-[500px] h-64 sm:h-[500px] bg-gradient-to-br from-blue-300/40 to-indigo-300/40 rounded-full blur-3xl animate-pulse -z-10" />

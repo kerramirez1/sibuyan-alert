@@ -40,3 +40,15 @@ export const reportCreationLimiter = rateLimit({
         message: 'Too many reports submitted. Please try again shortly.',
     },
 });
+
+/** Public geocoding proxy limiter; protects the upstream Nominatim service. */
+export const locationLookupLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 12,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many location lookups. Please wait a moment and try again.',
+    },
+});

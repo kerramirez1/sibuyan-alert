@@ -107,4 +107,22 @@ describe('DashboardMapWorkspace permissions', () => {
         fireEvent.click(screen.getByRole('button', { name: /^incidents$/i }));
         expect(setShowIncidentModal).toHaveBeenCalledWith(true);
     });
+
+    test('explains when active incidents share fewer marker locations', () => {
+        const reports = [
+            { _id: 'verified-1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+            { _id: 'verified-2', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+            { _id: 'transferred-1', status: 'transferred', coordinates: { lat: 12.5, lng: 122.7 } },
+            { _id: 'responding-1', status: 'responding', coordinates: { lat: 12.6, lng: 122.8 } },
+        ];
+
+        renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+            reports,
+        }));
+
+        expect(screen.getByRole('button', { name: /Active incidents 4 Across 3 map locations/i })).toBeInTheDocument();
+    });
 });

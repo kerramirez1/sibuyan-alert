@@ -9,7 +9,8 @@ const STATUS_CONFIG = {
     idle: { label: 'Location required', badge: 'border-gray-200 bg-gray-50 text-gray-600', dot: 'bg-gray-400' },
     detecting: { label: 'Acquiring GPS', badge: 'border-blue-200 bg-blue-50 text-blue-700', dot: 'bg-blue-500' },
     confirming: { label: 'Confirm location', badge: 'border-amber-200 bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
-    verified: { label: 'Location verified', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
+    selected: { label: 'Map location selected', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
+    confirmed: { label: 'GPS location confirmed', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
 };
 
 const ReportLocationPanel = ({
@@ -67,7 +68,7 @@ const ReportLocationPanel = ({
                             <button type="button" onClick={detectLocation} disabled={geoLoading} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
                                 Use my location
                             </button>
-                        ) : locationStatus === 'verified' ? (
+                        ) : ['selected', 'confirmed'].includes(locationStatus) ? (
                             <button type="button" onClick={retryLocation} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-gray-400">Change</button>
                         ) : null}
                     </div>
@@ -98,13 +99,13 @@ const ReportLocationPanel = ({
                         <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                             {searchResults.map((result) => (
                                 <button
-                                    key={result.place_id || `${result.lat}-${result.lon}`}
+                                    key={result.placeId || `${result.lat}-${result.lng}`}
                                     type="button"
                                     onClick={() => selectSearchResult(result)}
                                     className="block w-full px-4 py-3 text-left hover:bg-gray-50"
                                 >
-                                    <span className="block truncate text-sm font-medium text-gray-900">{result.display_name.split(',')[0]}</span>
-                                    <span className="mt-0.5 block truncate text-xs text-gray-500">{result.display_name}</span>
+                                    <span className="block truncate text-sm font-medium text-gray-900">{result.displayName?.split(',')[0]}</span>
+                                    <span className="mt-0.5 block truncate text-xs text-gray-500">{result.displayName}</span>
                                 </button>
                             ))}
                             <button type="button" onClick={() => setSearchResults([])} className="w-full px-4 py-2.5 text-center text-xs font-medium text-gray-500 hover:bg-gray-50">Close results</button>
