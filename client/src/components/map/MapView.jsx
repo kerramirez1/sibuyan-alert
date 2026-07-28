@@ -11,6 +11,10 @@ import {
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { installCompassOrientationToggle } from '../../utils/mapNavigation';
+import {
+    createOperationalMapStyle,
+    PMTILES_SOURCE_ID,
+} from '../../config/mapProvider';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -74,9 +78,12 @@ const MapView = ({
     const reportMarkersRef = useRef([]);
     const zoneMarkersRef = useRef([]);
     const popupRef = useRef(null);
+    const streetLayersRef = useRef({ all: [], active: [], fallback: null });
+    const streetFallbackActivatedRef = useRef(false);
     const [mapReady, setMapReady] = useState(false);
     const [showMuniMenu, setShowMuniMenu] = useState(false);
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
+    const mapStyleRef = useRef(mapStyle);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
@@ -84,6 +91,10 @@ const MapView = ({
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
     }, [onLocationSelect]);
+
+    useEffect(() => {
+        mapStyleRef.current = mapStyle;
+    }, [mapStyle]);
 
     // Generate circle polygon for zones
     const generateCirclePolygon = useCallback((center, radiusKm, points = 64) => {
@@ -104,61 +115,17 @@ const MapView = ({
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current) return;
 
+        const provider = createOperationalMapStyle({ enableTerrain: enable3D });
+        streetLayersRef.current = {
+            all: provider.allStreetLayerIds,
+            active: provider.primaryStreetLayerIds,
+            fallback: provider.fallbackStreetLayerId,
+        };
+        streetFallbackActivatedRef.current = false;
+
         const mapInstance = new maplibregl.Map({
             container: mapContainerRef.current,
-            style: {
-                version: 8,
-                sources: {
-                    'esri-imagery': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256,
-                        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-                    },
-                    'esri-reference': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256
-                    },
-                    'osm-raster': {
-                        type: 'raster',
-                        tiles: [
-                            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: 'Â© OpenStreetMap Contributors'
-                    }
-                },
-                layers: [
-                    {
-                        id: 'esri-imagery-layer',
-                        type: 'raster',
-                        source: 'esri-imagery',
-                        layout: { visibility: 'visible' },
-                        paint: {}
-                    },
-                    {
-                        id: 'esri-reference-layer',
-                        type: 'raster',
-                        source: 'esri-reference',
-                        layout: { visibility: 'visible' },
-                        paint: {}
-                    },
-                    {
-                        id: 'osm-raster-layer',
-                        type: 'raster',
-                        source: 'osm-raster',
-                        layout: { visibility: 'none' },
-                        paint: {}
-                    }
-                ],
-            },
+            style: provider.style,
             center: SIBUYAN_CENTER,
             zoom: 11,
             pitch: enable3D ? 45 : 0,
@@ -172,9 +139,37 @@ const MapView = ({
 
         const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
         mapInstance.addControl(navigationControl, 'top-right');
+        mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
         const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
             pitch: enable3D ? 45 : 0,
             bearing: enable3D ? -17 : 0,
+        });
+
+        mapInstance.on('error', (event) => {
+            const sourceId = event?.sourceId || event?.source?.id;
+            if (sourceId !== PMTILES_SOURCE_ID || streetFallbackActivatedRef.current) return;
+
+            streetFallbackActivatedRef.current = true;
+            streetLayersRef.current.active = streetLayersRef.current.fallback
+                ? [streetLayersRef.current.fallback]
+                : [];
+
+            if (mapStyleRef.current === 'streets') {
+                streetLayersRef.current.all.forEach((layerId) => {
+                    if (mapInstance.getLayer(layerId)) {
+                        mapInstance.setLayoutProperty(layerId, 'visibility', 'none');
+                    }
+                });
+                streetLayersRef.current.active.forEach((layerId) => {
+                    if (mapInstance.getLayer(layerId)) {
+                        mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
+                    }
+                });
+            }
+
+            toast.error('Self-hosted street map is unavailable. Using the public fallback map.', {
+                id: 'street-map-fallback',
+            });
         });
 
         // Create popup
@@ -364,14 +359,15 @@ const MapView = ({
             }
         };
 
+        streetLayersRef.current.all.forEach((layerId) => setVisibility(layerId, false));
+
         if (mapStyle === 'satellite') {
             setVisibility('esri-imagery-layer', true);
             setVisibility('esri-reference-layer', true);
-            setVisibility('osm-raster-layer', false);
         } else {
             setVisibility('esri-imagery-layer', false);
             setVisibility('esri-reference-layer', false);
-            setVisibility('osm-raster-layer', true);
+            streetLayersRef.current.active.forEach((layerId) => setVisibility(layerId, true));
         }
     }, [mapStyle, mapReady]);
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { installCompassOrientationToggle } from '../../utils/mapNavigation';
+import { createOperationalMapStyle } from '../../config/mapProvider';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -62,42 +63,10 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current) return;
 
+        const provider = createOperationalMapStyle({ enableTerrain: true, includeStreet: false });
         const mapInstance = new maplibregl.Map({
             container: mapContainerRef.current,
-            style: {
-                version: 8,
-                sources: {
-                    'esri-imagery': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256,
-                        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-                    },
-                    'esri-reference': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256
-                    }
-                },
-                layers: [
-                    {
-                        id: 'esri-imagery-layer',
-                        type: 'raster',
-                        source: 'esri-imagery',
-                        paint: {}
-                    },
-                    {
-                        id: 'esri-reference-layer',
-                        type: 'raster',
-                        source: 'esri-reference',
-                        paint: {}
-                    }
-                ],
-            },
+            style: provider.style,
             center: SIBUYAN_CENTER,
             zoom: 11,
             pitch: 55,
