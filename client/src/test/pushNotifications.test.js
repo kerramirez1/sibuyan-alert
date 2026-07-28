@@ -98,4 +98,3 @@ describe('browser push subscription lifecycle', () => {
         expect(currentSubscription.unsubscribe).toHaveBeenCalledTimes(1);
     });
 });
-

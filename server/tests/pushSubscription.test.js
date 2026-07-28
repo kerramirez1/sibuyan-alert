@@ -37,4 +37,3 @@ describe('push subscription validation', () => {
         })).toThrow('p256dh');
     });
 });
-

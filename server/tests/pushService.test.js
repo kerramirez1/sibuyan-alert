@@ -70,4 +70,3 @@ describe('Web Push delivery', () => {
         expect(user.pushSubscription).toBeNull();
     });
 });
-
