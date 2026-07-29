@@ -20,6 +20,7 @@ import {
     getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
+import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../../utils/mapNavigation';
 
 const STATUS_CONFIG = {
     pending: { label: 'Pending', badge: 'border-amber-200 bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
@@ -190,51 +191,14 @@ const DashboardMapWorkspace = ({
 }) => {
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
-    const mapScrollTimerRef = useRef(null);
-    const mapScrollAnimationRef = useRef(null);
+    const mapScrollCleanupRef = useRef(null);
     const createFocusRequestId = () => {
         focusRequestSequenceRef.current += 1;
         return `${Date.now()}-${focusRequestSequenceRef.current}`;
     };
     const scrollMapIntoView = () => {
-        window.clearTimeout(mapScrollTimerRef.current);
-        window.cancelAnimationFrame(mapScrollAnimationRef.current);
-        mapScrollTimerRef.current = window.setTimeout(() => {
-            const mapSection = mapSectionRef.current;
-            const scrollContainer = mapSection?.closest('main');
-
-            if (!mapSection || !scrollContainer) {
-                mapSection?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-                return;
-            }
-
-            const startTop = scrollContainer.scrollTop;
-            const containerRect = scrollContainer.getBoundingClientRect();
-            const sectionRect = mapSection.getBoundingClientRect();
-            const unclampedTarget = startTop
-                + sectionRect.top
-                - containerRect.top
-                - (scrollContainer.clientHeight - sectionRect.height) / 2;
-            const maximumTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
-            const targetTop = Math.min(maximumTop, Math.max(0, unclampedTarget));
-            const distance = targetTop - startTop;
-            const startedAt = performance.now();
-            const scrollDuration = 1400;
-
-            const animateScroll = (timestamp) => {
-                const progress = Math.min(1, (timestamp - startedAt) / scrollDuration);
-                const easedProgress = progress < 0.5
-                    ? 4 * progress * progress * progress
-                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                scrollContainer.scrollTo({ top: startTop + distance * easedProgress });
-
-                if (progress < 1) {
-                    mapScrollAnimationRef.current = window.requestAnimationFrame(animateScroll);
-                }
-            };
-
-            mapScrollAnimationRef.current = window.requestAnimationFrame(animateScroll);
-        }, 250);
+        mapScrollCleanupRef.current?.();
+        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
     };
 
     const roleLabel = isResponder
@@ -299,11 +263,7 @@ const DashboardMapWorkspace = ({
             view: 'map',
             lat: coordinates.lat,
             lng: coordinates.lng,
-            zoom: 16,
-            pitch: 0,
-            bearing: 0,
-            delay: 900,
-            duration: 2200,
+            ...MAP_FOCUS_PRESETS.list,
             focus: createFocusRequestId(),
         });
         closeModal(false);
@@ -317,9 +277,7 @@ const DashboardMapWorkspace = ({
             view: 'map',
             lat: coordinates.lat,
             lng: coordinates.lng,
-            zoom: 16,
-            delay: 900,
-            duration: 2200,
+            ...MAP_FOCUS_PRESETS.list,
             focus: createFocusRequestId(),
         });
         setShowZoneModal(false);
@@ -368,10 +326,6 @@ const DashboardMapWorkspace = ({
                 </div>
             )}
 
-            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Map summary">
-                {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
-            </section>
-
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Live incident map">
                 <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -406,7 +360,7 @@ const DashboardMapWorkspace = ({
                     )}
                 </div>
 
-                <div className="relative h-[360px] sm:h-[480px] lg:h-[560px]">
+                <div className="relative aspect-square w-full sm:aspect-auto sm:h-[480px] lg:h-[560px]">
                     {loading && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80" aria-live="polite">
                             <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
@@ -429,6 +383,16 @@ const DashboardMapWorkspace = ({
                         canResolveReport={isResponder ? canCurrentResponderResolve : null}
                         onResolveReport={isResponder ? handleMapResolve : null}
                     />
+                </div>
+            </section>
+
+            <section className="space-y-3" aria-label="Map summary">
+                <div>
+                    <h2 className="text-sm font-semibold text-gray-900">Current overview</h2>
+                    <p className="mt-0.5 text-xs text-gray-500">Key incident and response totals for the current map view.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
                 </div>
             </section>
 

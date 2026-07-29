@@ -74,6 +74,29 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapProps.onResolveReport).toBeNull();
     });
 
+    test('uses the shared square mobile map frame for every dashboard role', () => {
+        renderWorkspace(createProps());
+
+        expect(screen.getByTestId('map-view').parentElement).toHaveClass(
+            'aspect-square',
+            'w-full',
+            'sm:aspect-auto',
+        );
+    });
+
+    test('keeps primary map actions above the map and moves the four-card summary below it', () => {
+        renderWorkspace(createProps());
+
+        const incidentsAction = screen.getByRole('button', { name: /^incidents$/i });
+        const riskZonesAction = screen.getByRole('button', { name: /^risk zones$/i });
+        const liveMap = screen.getByRole('region', { name: 'Live incident map' });
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+
+        expect(incidentsAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(riskZonesAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     test('enables claim and resolve actions only for responders', () => {
         const props = createProps({
             user: { _id: 'responder-1', role: 'responder', agency: 'BFP', assignedMunicipality: 'Magdiwang' },

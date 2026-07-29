@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { installCompassOrientationToggle } from '../../utils/mapNavigation';
+import {
+    installCompactAttribution,
+    installCompassOrientationToggle,
+    MAP_INTERACTION_OPTIONS,
+    scheduleMapFocus,
+} from '../../utils/mapNavigation';
 import { createOperationalMapStyle } from '../../config/mapProvider';
 import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 
@@ -73,6 +78,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             includeStreet: false,
         });
         const mapInstance = new maplibregl.Map({
+            ...MAP_INTERACTION_OPTIONS,
             container: mapContainerRef.current,
             style: provider.style,
             center: SIBUYAN_CENTER,
@@ -85,10 +91,15 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             fadeDuration: performanceProfile.fadeDuration,
             renderWorldCopies: false,
             maxZoom: 17,
+            attributionControl: false,
         });
 
         const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
         mapInstance.addControl(navigationControl, 'top-right');
+        const removeCompactAttribution = installCompactAttribution(
+            mapInstance,
+            new maplibregl.AttributionControl({ compact: true }),
+        );
         const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
             pitch: 55,
             bearing: -15,
@@ -120,6 +131,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
 
         return () => {
             removeCompassToggle();
+            removeCompactAttribution();
             mapInstance.remove();
             mapInstanceRef.current = null;
         };
@@ -138,20 +150,18 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
 
     // Handle focus location
     useEffect(() => {
-        if (!mapInstanceRef.current || !focusLocation) return;
+        if (!mapInstanceRef.current || !focusLocation || !mapReady) return undefined;
 
-        mapInstanceRef.current.flyTo({
-            center: [focusLocation.lng, focusLocation.lat],
-            zoom: focusLocation.zoom || 14,
+        return scheduleMapFocus(mapInstanceRef.current, focusLocation, {
+            zoom: 14,
             pitch: 55,
             bearing: -15,
-            essential: true,
             duration: performanceProfile.navigationDuration,
         });
-    }, [focusLocation, performanceProfile.navigationDuration]);
+    }, [focusLocation, mapReady, performanceProfile.navigationDuration]);
 
     return (
-        <div className={`relative ${className}`} style={{ minHeight: '500px', height: '100%' }}>
+        <div className={`relative aspect-square w-full sm:aspect-auto sm:min-h-[500px] ${className}`}>
             <div
                 ref={mapContainerRef}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}

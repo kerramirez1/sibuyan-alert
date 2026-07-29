@@ -199,7 +199,7 @@ const IncidentDetailsDrawer = ({
                                     Open full map
                                 </button>
                             </div>
-                            <div className="mt-3 h-56 overflow-hidden rounded-xl border border-gray-200">
+                            <div className="mt-3 aspect-square w-full overflow-hidden rounded-xl border border-gray-200 sm:aspect-auto sm:h-56">
                                 <MapView
                                     reports={[report]}
                                     showPending

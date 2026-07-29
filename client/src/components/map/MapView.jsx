@@ -7,10 +7,18 @@ import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
+    getMapCoordinates,
     getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
-import { installCompassOrientationToggle } from '../../utils/mapNavigation';
+import {
+    installCompassOrientationToggle,
+    installCompactAttribution,
+    isWithinSibuyanInteractionBounds,
+    MAP_FOCUS_PRESETS,
+    MAP_INTERACTION_OPTIONS,
+    scheduleMapFocus,
+} from '../../utils/mapNavigation';
 import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 import {
     OPERATIONAL_MAX_ZOOM,
@@ -20,7 +28,8 @@ import {
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
-const SIBUYAN_INTERACTION_BOUNDS = [[122.45, 12.30], [122.70, 12.55]];
+const SIBUYAN_CAMERA_BOUNDS = [[122.35, 12.20], [122.80, 12.65]];
+const GENERAL_CAMERA_BOUNDS = [[121.5, 11.5], [123.5, 13.5]];
 
 // Municipality centers for quick navigation
 const MUNICIPALITIES = {
@@ -84,9 +93,11 @@ const MapView = ({
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const selectedMarkerRef = useRef(null);
+    const selectedLocationRef = useRef(selectedLocation);
     const reportMarkersRef = useRef([]);
     const zoneMarkersRef = useRef([]);
     const popupRef = useRef(null);
+    const markerFocusCleanupRef = useRef(null);
     const streetLayersRef = useRef({ all: [], active: [], fallback: null });
     const streetZoomRangeRef = useRef({ min: 0, max: OPERATIONAL_MAX_ZOOM });
     const streetFallbackActivatedRef = useRef(false);
@@ -104,6 +115,10 @@ const MapView = ({
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
     }, [onLocationSelect]);
+
+    useEffect(() => {
+        selectedLocationRef.current = selectedLocation;
+    }, [selectedLocation]);
 
     useEffect(() => {
         mapStyleRef.current = mapStyle;
@@ -163,10 +178,11 @@ const MapView = ({
         streetFallbackActivatedRef.current = false;
 
         const mapInstance = new maplibregl.Map({
+            ...MAP_INTERACTION_OPTIONS,
             container: mapContainerRef.current,
             style: provider.style,
             center: SIBUYAN_CENTER,
-            zoom: 11,
+            zoom: performanceProfile.compactViewport ? 10 : 11,
             pitch: effective3D ? 45 : 0,
             bearing: effective3D ? -17 : 0,
             antialias: performanceProfile.antialias,
@@ -175,14 +191,18 @@ const MapView = ({
             fadeDuration: performanceProfile.fadeDuration,
             renderWorldCopies: false,
             attributionControl: false,
-            // A report pin must stay within the same server-enforced Sibuyan envelope.
-            maxBounds: onLocationSelect ? SIBUYAN_INTERACTION_BOUNDS : [[121.5, 11.5], [123.5, 13.5]],
+            // Camera padding lets a square mobile viewport show the whole island.
+            // Pin selection remains independently constrained below.
+            maxBounds: onLocationSelect ? SIBUYAN_CAMERA_BOUNDS : GENERAL_CAMERA_BOUNDS,
             maxZoom: OPERATIONAL_MAX_ZOOM,
         });
 
         const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
         mapInstance.addControl(navigationControl, 'top-right');
-        mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
+        const removeCompactAttribution = installCompactAttribution(
+            mapInstance,
+            new maplibregl.AttributionControl({ compact: true }),
+        );
         const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
             pitch: effective3D ? 45 : 0,
             bearing: effective3D ? -17 : 0,
@@ -296,7 +316,12 @@ const MapView = ({
             // selection and no duplicate WebGL hit layer is required.
             popupRef.current.remove();
             if (onLocationSelectRef.current) {
-                onLocationSelectRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+                const location = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+                if (!isWithinSibuyanInteractionBounds(location)) {
+                    toast.error('Choose a point within Sibuyan Island.', { id: 'sibuyan-map-bounds' });
+                    return;
+                }
+                onLocationSelectRef.current(location);
             }
         });
 
@@ -304,6 +329,8 @@ const MapView = ({
             mapInstance.off('movestart', pauseMarkerAnimations);
             mapInstance.off('moveend', resumeMarkerAnimations);
             removeCompassToggle();
+            removeCompactAttribution();
+            markerFocusCleanupRef.current?.();
             popupRef.current?.remove();
             mapInstance.remove();
             mapInstanceRef.current = null;
@@ -472,6 +499,11 @@ const MapView = ({
                 // Open fixed modal instead of inline map popup
                 const openMarker = (e) => {
                     e.stopPropagation();
+                    markerFocusCleanupRef.current?.();
+                    markerFocusCleanupRef.current = scheduleMapFocus(
+                        map,
+                        { ...coords, ...MAP_FOCUS_PRESETS.marker },
+                    );
                     if (groupedReports.length > 1) {
                         setMapModal({ type: 'reportGroup', data: groupedReports });
                         return;
@@ -505,6 +537,8 @@ const MapView = ({
 
         // Create unique HTML markers for high-risk zones (warning triangle style)
         highRiskZones.forEach(zone => {
+            const coordinates = getMapCoordinates(zone);
+            if (!coordinates) return;
             const color = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
 
             const el = document.createElement('div');
@@ -538,12 +572,17 @@ const MapView = ({
                 element: el,
                 anchor: 'bottom',
             })
-                .setLngLat([zone.coordinates.lng, zone.coordinates.lat])
-                .addTo(map);
+                    .setLngLat([coordinates.lng, coordinates.lat])
+                    .addTo(map);
 
             // Open fixed modal instead of inline map popup
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
+                markerFocusCleanupRef.current?.();
+                markerFocusCleanupRef.current = scheduleMapFocus(
+                    map,
+                    { ...coordinates, ...MAP_FOCUS_PRESETS.marker },
+                );
                 setMapModal({
                     type: 'zone',
                     data: zone,
@@ -588,8 +627,15 @@ const MapView = ({
 
                 selectedMarkerRef.current.on('dragend', () => {
                     const lngLat = selectedMarkerRef.current.getLngLat();
+                    const location = { lat: lngLat.lat, lng: lngLat.lng };
+                    if (!isWithinSibuyanInteractionBounds(location)) {
+                        const previous = selectedLocationRef.current;
+                        if (previous) selectedMarkerRef.current.setLngLat([previous.lng, previous.lat]);
+                        toast.error('Keep the incident pin within Sibuyan Island.', { id: 'sibuyan-map-bounds' });
+                        return;
+                    }
                     if (onLocationSelectRef.current) {
-                        onLocationSelectRef.current({ lat: lngLat.lat, lng: lngLat.lng });
+                        onLocationSelectRef.current(location);
                     }
                 });
             } else {
@@ -651,41 +697,12 @@ const MapView = ({
     useEffect(() => {
         if (!mapInstanceRef.current || !focusLocation || !mapReady) return;
 
-        const map = mapInstanceRef.current;
-        const requestedPitch = Number(focusLocation.pitch);
-        const requestedBearing = Number(focusLocation.bearing);
-        const requestedDelay = Number(focusLocation.delay);
-        const requestedDuration = Number(focusLocation.duration);
-        const delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : 0;
-        const duration = Number.isFinite(requestedDuration)
-            ? Math.max(0, requestedDuration)
-            : performanceProfile.navigationDuration;
-
-        // Stop an earlier locate transition immediately. Without this, rapid
-        // requests can compete for the same camera and make the last one snap.
-        map.stop();
-
-        const focusTimer = window.setTimeout(() => {
-            map.easeTo({
-                center: [focusLocation.lng, focusLocation.lat],
-                zoom: focusLocation.zoom || 16,
-                pitch: Number.isFinite(requestedPitch)
-                    ? requestedPitch
-                    : (effective3D ? 45 : 0),
-                bearing: Number.isFinite(requestedBearing)
-                    ? requestedBearing
-                    : (effective3D ? -17 : 0),
-                essential: true,
-                duration,
-                easing: (progress) => (
-                    progress < 0.5
-                        ? 4 * progress * progress * progress
-                        : 1 - Math.pow(-2 * progress + 2, 3) / 2
-                ),
-            });
-        }, delay);
-
-        return () => window.clearTimeout(focusTimer);
+        return scheduleMapFocus(mapInstanceRef.current, focusLocation, {
+            zoom: 16,
+            pitch: effective3D ? 45 : 0,
+            bearing: effective3D ? -17 : 0,
+            duration: performanceProfile.navigationDuration,
+        });
     }, [focusLocation, effective3D, mapReady, performanceProfile.navigationDuration]);
 
     // Navigation handlers
@@ -693,7 +710,7 @@ const MapView = ({
         if (mapInstanceRef.current) {
             mapInstanceRef.current.flyTo({
                 center: SIBUYAN_CENTER,
-                zoom: 11,
+                zoom: performanceProfile.compactViewport ? 10 : 11,
                 pitch: effective3D ? 45 : 0,
                 bearing: effective3D ? -17 : 0,
                 duration: performanceProfile.navigationDuration,

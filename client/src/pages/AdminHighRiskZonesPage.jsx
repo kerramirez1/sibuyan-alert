@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI } from '../services/api';
@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
+import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../utils/mapNavigation';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
@@ -49,6 +50,9 @@ const AdminHighRiskZonesPage = () => {
         municipality: user?.assignedMunicipality || MUNICIPALITIES[0],
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const mapSectionRef = useRef(null);
+    const mapScrollCleanupRef = useRef(null);
+    const focusRequestSequenceRef = useRef(0);
 
     const canManageZone = (zone) => (
         !user?.assignedMunicipality || zone?.municipality === user.assignedMunicipality
@@ -107,12 +111,24 @@ const AdminHighRiskZonesPage = () => {
         }
     };
 
-    const handleZoneClick = (zone) => {
+    const focusMapLocation = (location) => {
+        const lat = Number(location?.lat);
+        const lng = Number(location?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        focusRequestSequenceRef.current += 1;
         setFocusLocation({
-            lat: zone.coordinates.lat,
-            lng: zone.coordinates.lng,
-            zoom: 16,
+            lat,
+            lng,
+            ...MAP_FOCUS_PRESETS.list,
+            requestId: `${Date.now()}-${focusRequestSequenceRef.current}`,
         });
+        mapScrollCleanupRef.current?.();
+        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
+    };
+
+    const handleZoneClick = (zone) => {
+        focusMapLocation(zone?.coordinates);
     };
 
     const handleSubmit = async (e) => {
@@ -224,7 +240,7 @@ const AdminHighRiskZonesPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Map */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div ref={mapSectionRef} className="scroll-mt-20 bg-white rounded-2xl shadow-lg overflow-hidden">
                             <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between gap-4 items-center bg-gray-50">
                                 <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                                     <HiOutlineLocationMarker className="w-5 h-5 text-primary-600" />
@@ -263,7 +279,7 @@ const AdminHighRiskZonesPage = () => {
                                                     const lng = parseFloat(result.lon);
 
                                                     // Update Map View
-                                                    setFocusLocation({ lat, lng, zoom: 16 });
+                                                    focusMapLocation({ lat, lng });
 
                                                     // Select the location
                                                     handleLocationSelect({ lat, lng });
@@ -302,7 +318,7 @@ const AdminHighRiskZonesPage = () => {
                                     </form>
                                 </div>
                             </div>
-                            <div className="h-[500px]">
+                            <div className="aspect-square w-full sm:aspect-auto sm:h-[500px]">
                                 <MapView
                                     highRiskZones={zones}
                                     onLocationSelect={showForm ? handleLocationSelect : null}

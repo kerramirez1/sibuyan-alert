@@ -115,7 +115,7 @@ const ReportLocationPanel = ({
                 </div>
             </div>
 
-            <div className="h-[340px] min-h-0 overflow-hidden sm:h-[430px] lg:h-[500px]">
+            <div className="aspect-square w-full min-h-0 overflow-hidden sm:aspect-auto sm:h-[430px] lg:h-[500px]">
                 <MapView
                     highRiskZones={highRiskZones}
                     onLocationSelect={handleLocationSelect}

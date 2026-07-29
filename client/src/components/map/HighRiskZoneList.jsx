@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { highRiskZonesAPI } from '../../services/api';
 import {
@@ -6,6 +6,7 @@ import {
     HiOutlineLocationMarker,
     HiOutlineChevronRight,
 } from 'react-icons/hi';
+import { MAP_FOCUS_PRESETS } from '../../utils/mapNavigation';
 
 // Zone type colors
 const ZONE_COLORS = {
@@ -34,6 +35,7 @@ const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(isExpanded);
+    const focusRequestSequenceRef = useRef(0);
 
     useEffect(() => {
         const fetchZones = async () => {
@@ -55,10 +57,12 @@ const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
 
     const handleZoneClick = (zone) => {
         if (onZoneSelect) {
+            focusRequestSequenceRef.current += 1;
             onZoneSelect({
                 lat: zone.coordinates.lat,
                 lng: zone.coordinates.lng,
-                zoom: 16,
+                ...MAP_FOCUS_PRESETS.list,
+                requestId: `${Date.now()}-${focusRequestSequenceRef.current}`,
                 zone,
             });
         }

@@ -423,7 +423,7 @@ const DashboardAnalyticsWorkspace = ({
                         Open full map
                     </button>
                 </div>
-                <div className="h-[300px] sm:h-[360px] lg:h-[400px]">
+                <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
                     <MapView reports={dashboardReports} highRiskZones={highRiskZones} showPending enable3D className="h-full w-full" focusLocation={focusLocation} />
                 </div>
             </section>

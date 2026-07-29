@@ -95,7 +95,13 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(onOpenMap).toHaveBeenCalledTimes(1);
         expect(onOpenReports).toHaveBeenCalledTimes(1);
 
-        expect(screen.getByTestId('analytics-map').parentElement).toHaveClass('h-[300px]', 'sm:h-[360px]', 'lg:h-[400px]');
+        expect(screen.getByTestId('analytics-map').parentElement).toHaveClass(
+            'aspect-square',
+            'w-full',
+            'sm:aspect-auto',
+            'sm:h-[360px]',
+            'lg:h-[400px]',
+        );
         expect(screen.getByText(report.address)).toHaveClass('line-clamp-2');
         expect(screen.getByText('verified')).toHaveClass('bg-blue-50');
     });
