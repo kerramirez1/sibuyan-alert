@@ -51,11 +51,21 @@ const DashboardPage = () => {
         const lat = searchParams.get('lat');
         const lng = searchParams.get('lng');
         const zoom = searchParams.get('zoom');
+        const pitch = searchParams.get('pitch');
+        const bearing = searchParams.get('bearing');
+        const delay = searchParams.get('delay');
+        const duration = searchParams.get('duration');
+        const requestId = searchParams.get('focus');
         if (lat && lng) {
             return {
                 lat: parseFloat(lat),
                 lng: parseFloat(lng),
-                zoom: parseInt(zoom) || 16
+                zoom: parseInt(zoom) || 16,
+                pitch: pitch === null ? undefined : Number(pitch),
+                bearing: bearing === null ? undefined : Number(bearing),
+                delay: delay === null ? undefined : Number(delay),
+                duration: duration === null ? undefined : Number(duration),
+                requestId,
             };
         }
         return null;

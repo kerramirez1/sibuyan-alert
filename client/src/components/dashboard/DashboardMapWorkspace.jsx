@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Link } from '../../router';
 import { format } from 'date-fns';
 import {
@@ -187,6 +188,55 @@ const DashboardMapWorkspace = ({
     showMapResolvedModal,
     setShowMapResolvedModal,
 }) => {
+    const focusRequestSequenceRef = useRef(0);
+    const mapSectionRef = useRef(null);
+    const mapScrollTimerRef = useRef(null);
+    const mapScrollAnimationRef = useRef(null);
+    const createFocusRequestId = () => {
+        focusRequestSequenceRef.current += 1;
+        return `${Date.now()}-${focusRequestSequenceRef.current}`;
+    };
+    const scrollMapIntoView = () => {
+        window.clearTimeout(mapScrollTimerRef.current);
+        window.cancelAnimationFrame(mapScrollAnimationRef.current);
+        mapScrollTimerRef.current = window.setTimeout(() => {
+            const mapSection = mapSectionRef.current;
+            const scrollContainer = mapSection?.closest('main');
+
+            if (!mapSection || !scrollContainer) {
+                mapSection?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            const startTop = scrollContainer.scrollTop;
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const sectionRect = mapSection.getBoundingClientRect();
+            const unclampedTarget = startTop
+                + sectionRect.top
+                - containerRect.top
+                - (scrollContainer.clientHeight - sectionRect.height) / 2;
+            const maximumTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+            const targetTop = Math.min(maximumTop, Math.max(0, unclampedTarget));
+            const distance = targetTop - startTop;
+            const startedAt = performance.now();
+            const scrollDuration = 1400;
+
+            const animateScroll = (timestamp) => {
+                const progress = Math.min(1, (timestamp - startedAt) / scrollDuration);
+                const easedProgress = progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                scrollContainer.scrollTo({ top: startTop + distance * easedProgress });
+
+                if (progress < 1) {
+                    mapScrollAnimationRef.current = window.requestAnimationFrame(animateScroll);
+                }
+            };
+
+            mapScrollAnimationRef.current = window.requestAnimationFrame(animateScroll);
+        }, 250);
+    };
+
     const roleLabel = isResponder
         ? `${user?.agency || 'Responder'} operations`
         : isAdmin
@@ -242,15 +292,38 @@ const DashboardMapWorkspace = ({
     const locateReport = (report, closeModal) => {
         const coordinates = getMapCoordinates(report);
         if (!coordinates) return;
-        setSearchParams({ view: 'map', lat: coordinates.lat, lng: coordinates.lng, zoom: 17 });
+        // A top-down camera keeps the incident pin visually aligned with its
+        // stored coordinates. The previous pitched, maximum-zoom view made the
+        // pin appear offset and removed useful street-level context.
+        setSearchParams({
+            view: 'map',
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            zoom: 16,
+            pitch: 0,
+            bearing: 0,
+            delay: 900,
+            duration: 2200,
+            focus: createFocusRequestId(),
+        });
         closeModal(false);
+        scrollMapIntoView();
     };
 
     const locateZone = (zone) => {
         const coordinates = getMapCoordinates(zone);
         if (!coordinates) return;
-        setSearchParams({ view: 'map', lat: coordinates.lat, lng: coordinates.lng, zoom: 16 });
+        setSearchParams({
+            view: 'map',
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            zoom: 16,
+            delay: 900,
+            duration: 2200,
+            focus: createFocusRequestId(),
+        });
         setShowZoneModal(false);
+        scrollMapIntoView();
     };
 
     return (
@@ -299,7 +372,7 @@ const DashboardMapWorkspace = ({
                 {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Live incident map">
                 <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="text-sm font-semibold text-gray-900">Live map</h2>

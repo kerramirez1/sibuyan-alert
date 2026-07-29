@@ -652,14 +652,40 @@ const MapView = ({
         if (!mapInstanceRef.current || !focusLocation || !mapReady) return;
 
         const map = mapInstanceRef.current;
-        map.flyTo({
-            center: [focusLocation.lng, focusLocation.lat],
-            zoom: focusLocation.zoom || 16,
-            pitch: effective3D ? 45 : 0,
-            bearing: effective3D ? -17 : 0,
-            essential: true,
-            duration: performanceProfile.navigationDuration,
-        });
+        const requestedPitch = Number(focusLocation.pitch);
+        const requestedBearing = Number(focusLocation.bearing);
+        const requestedDelay = Number(focusLocation.delay);
+        const requestedDuration = Number(focusLocation.duration);
+        const delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : 0;
+        const duration = Number.isFinite(requestedDuration)
+            ? Math.max(0, requestedDuration)
+            : performanceProfile.navigationDuration;
+
+        // Stop an earlier locate transition immediately. Without this, rapid
+        // requests can compete for the same camera and make the last one snap.
+        map.stop();
+
+        const focusTimer = window.setTimeout(() => {
+            map.easeTo({
+                center: [focusLocation.lng, focusLocation.lat],
+                zoom: focusLocation.zoom || 16,
+                pitch: Number.isFinite(requestedPitch)
+                    ? requestedPitch
+                    : (effective3D ? 45 : 0),
+                bearing: Number.isFinite(requestedBearing)
+                    ? requestedBearing
+                    : (effective3D ? -17 : 0),
+                essential: true,
+                duration,
+                easing: (progress) => (
+                    progress < 0.5
+                        ? 4 * progress * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2
+                ),
+            });
+        }, delay);
+
+        return () => window.clearTimeout(focusTimer);
     }, [focusLocation, effective3D, mapReady, performanceProfile.navigationDuration]);
 
     // Navigation handlers
@@ -954,4 +980,3 @@ const MapView = ({
 };
 
 export default MapView;
-

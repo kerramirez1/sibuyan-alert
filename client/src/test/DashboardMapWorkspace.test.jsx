@@ -125,4 +125,72 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(screen.getByRole('button', { name: /Active incidents 4 Across 3 map locations/i })).toBeInTheDocument();
     });
+
+    test('locates an incident with an accurate top-down camera', () => {
+        vi.useFakeTimers();
+        const setSearchParams = vi.fn();
+        const setShowIncidentModal = vi.fn();
+        const scrollIntoView = vi.fn();
+        HTMLElement.prototype.scrollIntoView = scrollIntoView;
+        const report = {
+            _id: 'verified-1',
+            status: 'verified',
+            incidentType: 'motorcycle',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+            createdAt: new Date().toISOString(),
+        };
+
+        renderWorkspace(createProps({
+            reports: [report],
+            showIncidentModal: true,
+            setSearchParams,
+            setShowIncidentModal,
+        }));
+
+        fireEvent.click(screen.getByRole('button', { name: /^locate$/i }));
+
+        expect(setSearchParams).toHaveBeenCalledWith({
+            view: 'map',
+            lat: 12.4044,
+            lng: 122.6897,
+            zoom: 16,
+            pitch: 0,
+            bearing: 0,
+            delay: 900,
+            duration: 2200,
+            focus: expect.stringMatching(/^\d+-1$/),
+        });
+        expect(setShowIncidentModal).toHaveBeenCalledWith(false);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(250);
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        vi.useRealTimers();
+    });
+
+    test('creates a new focus request for repeated locate clicks', () => {
+        const setSearchParams = vi.fn();
+        const setShowIncidentModal = vi.fn();
+        const report = {
+            _id: 'verified-1',
+            status: 'verified',
+            incidentType: 'motorcycle',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+            createdAt: new Date().toISOString(),
+        };
+
+        renderWorkspace(createProps({
+            reports: [report],
+            showIncidentModal: true,
+            setSearchParams,
+            setShowIncidentModal,
+        }));
+
+        const locateButton = screen.getByRole('button', { name: /^locate$/i });
+        fireEvent.click(locateButton);
+        fireEvent.click(locateButton);
+
+        const firstFocus = setSearchParams.mock.calls[0][0].focus;
+        const secondFocus = setSearchParams.mock.calls[1][0].focus;
+        expect(firstFocus).not.toBe(secondFocus);
+    });
 });
