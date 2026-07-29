@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from '../router';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import toast from 'react-hot-toast';
 import { HiOutlineLockClosed, HiOutlineCheckCircle, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 
@@ -27,8 +28,8 @@ const ResetPasswordPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (formData.password.length < 6) {
-            toast.error('Password must be at least 6 characters');
+        if (!isPasswordPolicyCompliant(formData.password)) {
+            toast.error(PASSWORD_POLICY_MESSAGE);
             return;
         }
 
@@ -60,7 +61,7 @@ const ResetPasswordPage = () => {
     };
 
     const passwordChecks = [
-        { label: 'At least 6 characters', met: formData.password.length >= 6 },
+        { label: '12+ characters, within bcrypt limit', met: isPasswordPolicyCompliant(formData.password) },
         { label: 'Passwords match', met: formData.password === formData.confirmPassword && formData.password !== '' },
     ];
 
@@ -111,10 +112,11 @@ const ResetPasswordPage = () => {
                                             name="password"
                                             value={formData.password}
                                             onChange={handleChange}
-                                            placeholder="At least 6 characters"
+                                            placeholder="At least 12 characters"
                                             className="w-full px-3 sm:px-4 pr-12 py-2.5 sm:py-3.5 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
                                             required
-                                            minLength={6}
+                                            minLength={12}
+                                            maxLength={72}
                                         />
                                         <button
                                             type="button"
@@ -140,6 +142,8 @@ const ResetPasswordPage = () => {
                                             placeholder="Re-enter your password"
                                             className="w-full px-3 sm:px-4 pr-12 py-2.5 sm:py-3.5 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
                                             required
+                                            minLength={12}
+                                            maxLength={72}
                                         />
                                         <button
                                             type="button"

@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { resolveSocketOrigin } from '../utils/runtimeUrl';
+import { refreshAuthSession } from '../services/api';
 
 const SocketContext = createContext(null);
 
@@ -36,7 +37,8 @@ export const SocketProvider = ({ children }) => {
             autoConnect: true,
             reconnection: true,
             reconnectionAttempts: 5,
-            reconnectionDelay: 1000
+            reconnectionDelay: 1000,
+            withCredentials: true,
         });
 
         socketInstance.on('connect', () => {
@@ -64,17 +66,27 @@ export const SocketProvider = ({ children }) => {
         const userId = user?._id || user?.id;
         if (socket && isAuthenticated && userId) {
             const authenticateSocket = () => {
-                const token = localStorage.getItem('token');
-                socket.emit('join', { token });
+                socket.emit('join');
+            };
+
+            const handleAuthError = async () => {
+                try {
+                    await refreshAuthSession();
+                    if (socket.connected) authenticateSocket();
+                } catch {
+                    setConnected(false);
+                }
             };
 
             // Socket.IO rooms are cleared on disconnect, so authenticate on the
             // initial connection and every successful reconnect.
             socket.on('connect', authenticateSocket);
+            socket.on('authError', handleAuthError);
             if (socket.connected) authenticateSocket();
 
             return () => {
                 socket.off('connect', authenticateSocket);
+                socket.off('authError', handleAuthError);
                 socket.emit('leave');
             };
         }

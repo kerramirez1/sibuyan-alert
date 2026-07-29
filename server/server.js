@@ -3,7 +3,6 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from './models/User.js';
 
@@ -15,8 +14,11 @@ import connectDB from './config/db.js';
 import { configureProductionClient } from './config/clientApp.js';
 import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
-import { protect } from './middleware/auth.js';
+import { authenticateAccessToken, protect } from './middleware/auth.js';
 import { requireRole } from './middleware/roleCheck.js';
+import { csrfProtection } from './middleware/csrf.js';
+import { ACCESS_COOKIE_NAME } from './config/authConfig.js';
+import { getCookieValue } from './services/authSessionService.js';
 
 // Import seeds
 import { seedMunicipalities } from './seeds/municipalitySeed.js';
@@ -79,6 +81,22 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=()');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+});
+app.use(csrfProtection);
+app.use('/api/auth', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Pragma', 'no-cache');
+    next();
+});
 
 app.get('/api/health', (req, res) => {
     const databaseConnected = mongoose.connection.readyState === 1;
@@ -101,16 +119,10 @@ app.use('/api/analytics', analyticsRoutes);
 // --- Online Users Tracking ---
 const onlineUsers = new Map(); // socketId -> { userId, name, role, assignedMunicipality, agency, avatar, connectedAt }
 
-const authenticateSocketToken = async (token) => {
-    if (!token) return null;
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('name role assignedMunicipality agency avatar isOnDuty');
-        return user && user.role !== 'admin' ? user : null;
-    } catch {
-        return null;
-    }
+const authenticateSocketRequest = async (socket) => {
+    const token = getCookieValue(socket.handshake.headers.cookie, ACCESS_COOKIE_NAME);
+    const identity = await authenticateAccessToken(token);
+    return identity?.user || null;
 };
 
 // API endpoint: Get online users (for admin dashboard)
@@ -179,8 +191,8 @@ app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'resp
 io.on('connection', (socket) => {
     const getAuthenticatedUser = () => socket.data.user || null;
     // Join user-specific room and track online status
-    socket.on('join', async (payload) => {
-        const userData = await authenticateSocketToken(payload?.token);
+    socket.on('join', async () => {
+        const userData = await authenticateSocketRequest(socket);
 
         if (!userData) {
             socket.emit('authError', { message: 'Invalid or missing socket token' });

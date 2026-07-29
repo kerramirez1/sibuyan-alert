@@ -2,17 +2,38 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
+    withCredentials: true,
+    xsrfCookieName: 'sibuyan_csrf',
+    xsrfHeaderName: 'X-CSRF-Token',
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Request interceptor - add auth token
+const readCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const prefix = `${name}=`;
+    const cookie = document.cookie
+        .split(';')
+        .map((entry) => entry.trim())
+        .find((entry) => entry.startsWith(prefix));
+    return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+};
+
+// Axios handles this automatically for same-origin requests. Setting the
+// header explicitly also supports the separate Vite origin used in local dev.
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        const method = (config.method || 'get').toLowerCase();
+        if (!['get', 'head', 'options'].includes(method)) {
+            const csrfToken = readCookie('sibuyan_csrf');
+            if (csrfToken) {
+                if (typeof config.headers?.set === 'function') {
+                    config.headers.set('X-CSRF-Token', csrfToken);
+                } else {
+                    config.headers = { ...config.headers, 'X-CSRF-Token': csrfToken };
+                }
+            }
         }
         return config;
     },
@@ -21,15 +42,58 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor - handle errors
+let refreshPromise = null;
+
+export const refreshAuthSession = () => {
+    if (!refreshPromise) {
+        const requestRefresh = async () => {
+            const retryDelays = [100, 250, 500];
+            for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+                try {
+                    return await api.post('/auth/refresh', null, { _skipAuthRefresh: true });
+                } catch (error) {
+                    if (error.response?.data?.code !== 'SESSION_ROTATING' || attempt === retryDelays.length) {
+                        throw error;
+                    }
+                    await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+                }
+            }
+            return null;
+        };
+
+        refreshPromise = requestRefresh()
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+    return refreshPromise;
+};
+
+const isPublicAuthRequest = (url = '') => [
+    '/auth/login',
+    '/auth/register',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+].some((path) => url.startsWith(path));
+
+// Rotate the refresh credential once when an access JWT expires, then retry
+// all queued requests without exposing either credential to JavaScript.
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Token expired or invalid
-            localStorage.removeItem('token');
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login?expired=true';
+    async (error) => {
+        const originalRequest = error.config || {};
+        const shouldRefresh = error.response?.status === 401
+            && !originalRequest._retry
+            && !originalRequest._skipAuthRefresh
+            && !isPublicAuthRequest(originalRequest.url);
+
+        if (shouldRefresh) {
+            originalRequest._retry = true;
+            try {
+                await refreshAuthSession();
+                return api(originalRequest);
+            } catch {
+                window.dispatchEvent(new CustomEvent('auth:session-expired'));
             }
         }
         return Promise.reject(error);
@@ -54,6 +118,8 @@ export const authAPI = {
         headers: { 'Content-Type': 'multipart/form-data' },
     }),
     getMe: () => api.get('/auth/me'),
+    logout: () => api.post('/auth/logout', null, { _skipAuthRefresh: true }),
+    logoutAll: () => api.post('/auth/logout-all'),
     updateProfile: (data) => {
         // Check if data is FormData (for avatar upload) or regular object
         const isFormData = data instanceof FormData;

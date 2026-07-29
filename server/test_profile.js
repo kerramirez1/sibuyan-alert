@@ -1,7 +1,31 @@
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 
 dotenv.config();
+
+const cookies = new Map();
+
+const captureCookies = (response) => {
+    const setCookieHeaders = response.headers.getSetCookie?.() || [];
+    setCookieHeaders.forEach((header) => {
+        const [pair] = header.split(';');
+        const separator = pair.indexOf('=');
+        if (separator > 0) cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+    });
+};
+
+const authenticatedFetch = async (url, options = {}) => {
+    const headers = new Headers(options.headers || {});
+    if (cookies.size > 0) {
+        headers.set('Cookie', [...cookies].map(([name, value]) => `${name}=${value}`).join('; '));
+    }
+    const csrfToken = cookies.get('sibuyan_csrf');
+    if (csrfToken && !['GET', 'HEAD'].includes(options.method || 'GET')) {
+        headers.set('X-CSRF-Token', decodeURIComponent(csrfToken));
+    }
+    const response = await fetch(url, { ...options, headers });
+    captureCookies(response);
+    return response;
+};
 
 const testProfileUpdate = async () => {
     try {
@@ -15,7 +39,7 @@ const testProfileUpdate = async () => {
         }
 
         console.log('Logging in...');
-        const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+        const loginResponse = await authenticatedFetch('http://localhost:5000/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: currentPassword }),
@@ -27,15 +51,13 @@ const testProfileUpdate = async () => {
             return;
         }
 
-        const token = loginData.data.token;
         console.log('Login successful:', loginData.data.user.email);
 
         console.log('Test 1: Updating name...');
-        const updateResponse1 = await fetch('http://localhost:5000/api/auth/me', {
+        const updateResponse1 = await authenticatedFetch('http://localhost:5000/api/auth/me', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
                 name: `${loginData.data.user.name} (Updated)`,
@@ -50,11 +72,10 @@ const testProfileUpdate = async () => {
         console.log('Name updated:', updateData1.data.name);
 
         console.log('Test 2: Updating password...');
-        const updateResponse2 = await fetch('http://localhost:5000/api/auth/me', {
+        const updateResponse2 = await authenticatedFetch('http://localhost:5000/api/auth/me', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
                 currentPassword,
@@ -70,7 +91,7 @@ const testProfileUpdate = async () => {
         console.log('Password updated.');
 
         console.log('Verifying new password...');
-        const loginResponse2 = await fetch('http://localhost:5000/api/auth/login', {
+        const loginResponse2 = await authenticatedFetch('http://localhost:5000/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: newPassword }),
@@ -84,11 +105,10 @@ const testProfileUpdate = async () => {
         console.log('New password verified.');
 
         console.log('Resetting password back...');
-        const resetResponse = await fetch('http://localhost:5000/api/auth/me', {
+        const resetResponse = await authenticatedFetch('http://localhost:5000/api/auth/me', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
                 currentPassword: newPassword,
@@ -110,4 +130,3 @@ const testProfileUpdate = async () => {
 };
 
 testProfileUpdate();
-

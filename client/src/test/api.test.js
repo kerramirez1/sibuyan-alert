@@ -56,8 +56,33 @@ describe('API service', () => {
         expect(typeof authAPI.register).toBe('function');
         expect(typeof authAPI.getMe).toBe('function');
         expect(typeof authAPI.updateProfile).toBe('function');
+        expect(typeof authAPI.logout).toBe('function');
+        expect(typeof authAPI.logoutAll).toBe('function');
         expect(typeof authAPI.savePushSubscription).toBe('function');
         expect(typeof authAPI.resubmitId).toBe('function');
+    });
+
+    test('uses HttpOnly cookie sessions instead of localStorage bearer tokens', async () => {
+        const apiModule = await import('../services/api');
+        localStorage.setItem('token', 'legacy-token-that-must-not-be-used');
+        const requestInterceptor = apiModule.default._requestInterceptors[0].onFulfilled;
+        const headers = { set: vi.fn() };
+
+        const config = requestInterceptor({ method: 'get', headers });
+
+        expect(config.headers.Authorization).toBeUndefined();
+        expect(headers.set).not.toHaveBeenCalledWith('Authorization', expect.anything());
+    });
+
+    test('adds the double-submit CSRF header to mutation requests', async () => {
+        const apiModule = await import('../services/api');
+        document.cookie = 'sibuyan_csrf=test-csrf-token; path=/';
+        const requestInterceptor = apiModule.default._requestInterceptors[0].onFulfilled;
+        const headers = { set: vi.fn() };
+
+        requestInterceptor({ method: 'post', headers });
+
+        expect(headers.set).toHaveBeenCalledWith('X-CSRF-Token', 'test-csrf-token');
     });
 
     test('reportsAPI has all expected methods', async () => {

@@ -29,6 +29,19 @@ describe('production runtime configuration', () => {
         })).not.toThrow();
     });
 
+    test('rejects unsafe access-token and session lifetimes', () => {
+        const base = {
+            NODE_ENV: 'production',
+            MONGODB_URI: 'mongodb+srv://example.invalid/database',
+            JWT_SECRET: 'a-strong-test-secret-with-32-characters',
+            CLIENT_URL: 'https://sibuyan-alert.example',
+        };
+        expect(() => validateRuntimeConfig({ ...base, JWT_ACCESS_TTL_MINUTES: '60' }))
+            .toThrow('JWT_ACCESS_TTL_MINUTES');
+        expect(() => validateRuntimeConfig({ ...base, AUTH_SESSION_TTL_DAYS: '90' }))
+            .toThrow('AUTH_SESSION_TTL_DAYS');
+    });
+
     test('rejects partial Web Push configuration', () => {
         expect(() => validateRuntimeConfig({
             NODE_ENV: 'production',

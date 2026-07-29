@@ -11,7 +11,7 @@ const createApp = () => {
 
 const validRegistration = {
     email: 'reporter@example.com',
-    password: 'secret123',
+    password: 'a-long-test-password',
     name: 'Test Reporter',
     municipality: 'Cajidiocan',
     barangay: 'Gutivan',

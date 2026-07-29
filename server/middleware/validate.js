@@ -3,6 +3,7 @@ import {
     isValidSibuyanAddress,
     SIBUYAN_MUNICIPALITY_NAMES,
 } from '../config/sibuyanLocations.js';
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 
 /**
  * Middleware to check validation results and return errors if any.
@@ -42,7 +43,7 @@ export const validateRegister = [
         .isEmail().withMessage('Please enter a valid email'),
     body('password')
         .notEmpty().withMessage('Password is required')
-        .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+        .custom(isPasswordPolicyCompliant).withMessage(PASSWORD_POLICY_MESSAGE),
     body('name')
         .trim()
         .notEmpty().withMessage('Name is required')
@@ -72,7 +73,7 @@ export const validateResetPassword = [
         .notEmpty().withMessage('Reset token is required'),
     body('password')
         .notEmpty().withMessage('Password is required')
-        .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+        .custom(isPasswordPolicyCompliant).withMessage(PASSWORD_POLICY_MESSAGE),
     handleValidationErrors,
 ];
 

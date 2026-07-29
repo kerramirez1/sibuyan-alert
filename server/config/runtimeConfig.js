@@ -32,6 +32,18 @@ export const validateRuntimeConfig = (env = process.env) => {
         throw new Error('CLIENT_URL must be an absolute HTTP(S) URL in production');
     }
 
+    const boundedIntegerSettings = [
+        ['JWT_ACCESS_TTL_MINUTES', 5, 30],
+        ['AUTH_SESSION_TTL_DAYS', 1, 30],
+    ];
+    for (const [name, minimum, maximum] of boundedIntegerSettings) {
+        if (!env[name]) continue;
+        const value = Number(env[name]);
+        if (!Number.isInteger(value) || value < minimum || value > maximum) {
+            throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+        }
+    }
+
     const hasAnyWebPushConfig = WEB_PUSH_VARIABLES.some((name) => env[name]?.trim());
     if (!hasAnyWebPushConfig) return;
 

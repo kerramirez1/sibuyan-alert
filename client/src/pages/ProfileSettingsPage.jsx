@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../utils/assets';
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX, HiOutlineBell } from 'react-icons/hi';
 
 const ProfileSettingsPage = () => {
@@ -160,14 +161,15 @@ const ProfileSettingsPage = () => {
         setShowPhotoMenu(prev => !prev);
     };
 
-    const hasPasswordInput = Boolean(
-        formData.currentPassword || formData.newPassword || formData.confirmPassword
-    );
+    const emailChanged = formData.email.trim().toLowerCase()
+        !== (user?.email || '').trim().toLowerCase();
+    const passwordChangeRequested = Boolean(formData.newPassword || formData.confirmPassword);
+    const hasPasswordInput = Boolean(formData.currentPassword || passwordChangeRequested);
 
     const hasChanges = Boolean(
         formData.avatar ||
         formData.name.trim() !== (user?.name || '').trim() ||
-        formData.email.trim().toLowerCase() !== (user?.email || '').trim().toLowerCase() ||
+        emailChanged ||
         hasPasswordInput
     );
 
@@ -179,14 +181,14 @@ const ProfileSettingsPage = () => {
             return;
         }
 
-        if (hasPasswordInput) {
+        if (passwordChangeRequested) {
             if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
                 toast.error('Fill in current, new, and confirm password fields');
                 return;
             }
 
-            if (formData.newPassword.length < 6) {
-                toast.error('Password must be at least 6 characters');
+            if (!isPasswordPolicyCompliant(formData.newPassword)) {
+                toast.error(PASSWORD_POLICY_MESSAGE);
                 return;
             }
 
@@ -194,6 +196,11 @@ const ProfileSettingsPage = () => {
                 toast.error('New passwords do not match');
                 return;
             }
+        }
+
+        if (emailChanged && !formData.currentPassword) {
+            toast.error('Enter your current password to change your email address');
+            return;
         }
 
         setLoading(true);
@@ -209,8 +216,10 @@ const ProfileSettingsPage = () => {
             if (trimmedEmail !== (user?.email || '').trim().toLowerCase()) {
                 data.append('email', trimmedEmail);
             }
-            if (hasPasswordInput) {
+            if (emailChanged || passwordChangeRequested) {
                 data.append('currentPassword', formData.currentPassword);
+            }
+            if (passwordChangeRequested) {
                 data.append('newPassword', formData.newPassword);
             }
             if (formData.avatar) {
@@ -295,6 +304,7 @@ const ProfileSettingsPage = () => {
                     onChange={handleChange}
                     className="w-full px-3 sm:px-4 pr-12 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
                     placeholder={placeholder}
+                    maxLength={72}
                 />
                 <button
                     type="button"
@@ -624,7 +634,7 @@ const ProfileSettingsPage = () => {
                                     value={formData.newPassword}
                                     show={showNewPassword}
                                     onToggle={() => setShowNewPassword(prev => !prev)}
-                                    placeholder="At least 6 characters"
+                                    placeholder="At least 12 characters"
                                 />
                                 <PasswordField
                                     label="Confirm Password"

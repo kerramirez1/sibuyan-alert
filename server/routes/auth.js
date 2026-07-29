@@ -10,6 +10,9 @@ import {
     resubmitIdDocument,
     forgotPassword,
     resetPassword,
+    refreshSession,
+    logout,
+    logoutAll,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 import { uploadIdDocument, uploadAvatar, handleMulterError, validateUploadContent } from '../middleware/upload.js';
@@ -28,10 +31,13 @@ router.post('/register', authLimiter, uploadIdDocument, handleMulterError, valid
 router.post('/login', authLimiter, validateLogin, login);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password/:token', authLimiter, validateResetPassword, resetPassword);
+router.post('/refresh', authLimiter, refreshSession);
+router.post('/logout', logout);
 
 
 // Protected routes
 router.get('/me', protect, getMe);
+router.post('/logout-all', protect, logoutAll);
 router.put('/me', protect, uploadAvatar, handleMulterError, validateUploadContent, updateProfile);
 router.post('/push-subscription', protect, pushSubscriptionLimiter, savePushSubscription);
 router.delete('/push-subscription', protect, pushSubscriptionLimiter, deletePushSubscription);

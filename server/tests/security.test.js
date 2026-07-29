@@ -1,6 +1,7 @@
 import { describe, expect, test, vi as jest } from 'vitest';
 import { requireAdmin as requireAdminRoleCheck } from '../middleware/roleCheck.js';
 import { extractTokenFromCookieHeader } from '../middleware/auth.js';
+import { ACCESS_COOKIE_NAME } from '../config/authConfig.js';
 import User from '../models/User.js';
 
 const createRes = () => {
@@ -56,7 +57,7 @@ describe('security middleware', () => {
 
 describe('cookie token extraction', () => {
     test('extracts token from cookie header', () => {
-        const token = extractTokenFromCookieHeader('foo=bar; token=abc123; theme=light');
+        const token = extractTokenFromCookieHeader(`foo=bar; ${ACCESS_COOKIE_NAME}=abc123; theme=light`);
         expect(token).toBe('abc123');
     });
 

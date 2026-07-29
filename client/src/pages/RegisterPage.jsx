@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '../router';
 import { useAuth } from '../context/AuthContext';
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { reportsAPI } from '../services/api';
 import {
     HiOutlineArrowLeft,
@@ -167,7 +168,7 @@ const RegisterPage = () => {
             if (!formData.email) nextErrors.email = 'Enter your email address.';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) nextErrors.email = 'Enter a valid email address.';
             if (!formData.password) nextErrors.password = 'Create a password.';
-            else if (formData.password.length < 6) nextErrors.password = 'Use at least 6 characters.';
+            else if (!isPasswordPolicyCompliant(formData.password)) nextErrors.password = PASSWORD_POLICY_MESSAGE;
             if (!formData.confirmPassword) nextErrors.confirmPassword = 'Confirm your password.';
             else if (formData.password !== formData.confirmPassword) nextErrors.confirmPassword = 'Passwords do not match.';
             if (!formData.municipality) nextErrors.municipality = 'Select your municipality.';
@@ -336,12 +337,12 @@ const RegisterPage = () => {
                             <div>
                                 <label htmlFor="register-password" className="mb-1.5 block text-sm font-semibold text-gray-800">Password</label>
                                 <div className={`flex min-h-12 items-center overflow-hidden rounded-xl border bg-white transition focus-within:ring-2 ${errors.password ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-brand-100'}`}>
-                                    <input id="register-password" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-gray-400" type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} placeholder="At least 6 characters" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : 'password-hint'} />
+                                    <input id="register-password" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-gray-400" type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} placeholder="At least 12 characters" minLength={12} maxLength={72} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : 'password-hint'} />
                                     <button type="button" onClick={() => setShowPassword((current) => !current)} className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                         {showPassword ? <HiOutlineEyeOff className="h-5 w-5" aria-hidden="true" /> : <HiOutlineEye className="h-5 w-5" aria-hidden="true" />}
                                     </button>
                                 </div>
-                                {!errors.password && <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Use at least 6 characters.</p>}
+                                {!errors.password && <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Use a unique password with at least 12 characters.</p>}
                                 <FieldError id="password-error">{errors.password}</FieldError>
                             </div>
 

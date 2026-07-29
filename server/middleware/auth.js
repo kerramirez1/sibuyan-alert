@@ -1,22 +1,21 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import { ACCESS_COOKIE_NAME } from '../config/authConfig.js';
+import {
+    getCookieValue,
+    getRequestCookie,
+    resolveAccessIdentity,
+} from '../services/authSessionService.js';
 
 export const extractTokenFromCookieHeader = (cookieHeader) => {
-    if (!cookieHeader || typeof cookieHeader !== 'string') {
+    return getCookieValue(cookieHeader, ACCESS_COOKIE_NAME);
+};
+
+export const authenticateAccessToken = async (token) => {
+    if (!token) return null;
+    try {
+        return await resolveAccessIdentity(token);
+    } catch {
         return null;
     }
-
-    const tokenCookie = cookieHeader
-        .split(';')
-        .map((cookie) => cookie.trim())
-        .find((cookie) => cookie.startsWith('token='));
-
-    if (!tokenCookie) {
-        return null;
-    }
-
-    const rawValue = tokenCookie.slice('token='.length);
-    return rawValue ? decodeURIComponent(rawValue) : null;
 };
 
 /**
@@ -24,20 +23,7 @@ export const extractTokenFromCookieHeader = (cookieHeader) => {
  */
 export const protect = async (req, res, next) => {
     try {
-        let token;
-
-        // Get token from Authorization header
-        if (
-            req.headers.authorization &&
-            req.headers.authorization.startsWith('Bearer')
-        ) {
-            token = req.headers.authorization.split(' ')[1];
-        }
-
-        // Check for token in cookies (for OAuth flow)
-        if (!token) {
-            token = req.cookies?.token || extractTokenFromCookieHeader(req.headers.cookie);
-        }
+        const token = getRequestCookie(req, ACCESS_COOKIE_NAME);
 
         // No token found
         if (!token) {
@@ -48,30 +34,18 @@ export const protect = async (req, res, next) => {
         }
 
         try {
-            // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Get user from token
-            const user = await User.findById(decoded.id);
-
-            if (!user) {
+            const identity = await resolveAccessIdentity(token);
+            if (!identity) {
                 return res.status(401).json({
                     success: false,
-                    message: 'Not authorized - User not found',
-                });
-            }
-
-            // Legacy system-administrator accounts were retired. Reject them
-            // even before the one-time data migration has been run.
-            if (user.role === 'admin') {
-                return res.status(403).json({
-                    success: false,
-                    message: 'This account role is no longer supported',
+                    message: 'Session is no longer valid - Please login again',
+                    code: 'SESSION_INVALID',
                 });
             }
 
             // Attach user to request
-            req.user = user;
+            req.user = identity.user;
+            req.authSession = identity.session;
             next();
         } catch (error) {
             if (error.name === 'TokenExpiredError') {
@@ -82,7 +56,8 @@ export const protect = async (req, res, next) => {
             }
             return res.status(401).json({
                 success: false,
-                message: 'Not authorized - Invalid token',
+                message: 'Not authorized - Invalid session',
+                code: 'SESSION_INVALID',
             });
         }
     } catch (error) {
@@ -99,25 +74,14 @@ export const protect = async (req, res, next) => {
  */
 export const optionalAuth = async (req, res, next) => {
     try {
-        let token;
-
-        if (
-            req.headers.authorization &&
-            req.headers.authorization.startsWith('Bearer')
-        ) {
-            token = req.headers.authorization.split(' ')[1];
-        }
-
-        if (!token) {
-            token = req.cookies?.token || extractTokenFromCookieHeader(req.headers.cookie);
-        }
+        const token = getRequestCookie(req, ACCESS_COOKIE_NAME);
 
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                const user = await User.findById(decoded.id);
-                if (user && user.role !== 'admin') {
-                    req.user = user;
+                const identity = await resolveAccessIdentity(token);
+                if (identity) {
+                    req.user = identity.user;
+                    req.authSession = identity.session;
                 }
             } catch {
                 // Token invalid, but that's okay for optional auth
@@ -128,15 +92,6 @@ export const optionalAuth = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-};
-
-/**
- * Generate JWT token
- */
-export const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    });
 };
 
 /**
@@ -266,7 +221,7 @@ export const validateMunicipalityAccess = (reportMunicipality) => {
 export default {
     protect,
     optionalAuth,
-    generateToken,
+    authenticateAccessToken,
     requireAdmin,
     requireMunicipalAdmin,
     requireResponder,

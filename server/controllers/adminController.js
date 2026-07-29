@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Report from '../models/Report.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
+import AuthSession from '../models/AuthSession.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushToUser, pushTemplates } from '../services/pushService.js';
 import {
@@ -728,6 +729,8 @@ export const deleteUser = async (req, res) => {
         await Report.deleteMany({ reporter: user._id });
 
         // 3. Delete the user
+        await AuthSession.deleteMany({ user: user._id });
+        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
         await user.deleteOne();
 
         // 4. Remove GridFS files after database references are gone.

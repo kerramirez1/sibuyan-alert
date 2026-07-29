@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { PASSWORD_MAX_UTF8_BYTES } from '../utils/passwordPolicy.js';
 
 const userSchema = new mongoose.Schema(
     {
@@ -13,7 +14,11 @@ const userSchema = new mongoose.Schema(
         },
         password: {
             type: String,
-            minlength: [6, 'Password must be at least 6 characters'],
+            minlength: [12, 'Password must be at least 12 characters'],
+            validate: {
+                validator: (value) => !value || Buffer.byteLength(value, 'utf8') <= PASSWORD_MAX_UTF8_BYTES,
+                message: 'Password exceeds the bcrypt 72-byte input limit',
+            },
             select: false, // Don't return password by default
         },
         name: {

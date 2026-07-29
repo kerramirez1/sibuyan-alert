@@ -30,18 +30,16 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const prevVerificationStatusRef = useRef(null);
 
-    // Check for existing token on mount
+    // Restore the server-managed HttpOnly session on mount.
     useEffect(() => {
         const initAuth = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    const response = await api.get('/auth/me');
-                    setUser(response.data.data);
-                } catch (error) {
-                    console.error('Auth init error:', error);
-                    localStorage.removeItem('token');
-                }
+            // Remove credentials left by the previous localStorage-based auth flow.
+            localStorage.removeItem('token');
+            try {
+                const response = await api.get('/auth/me');
+                setUser(response.data.data);
+            } catch {
+                setUser(null);
             }
             setLoading(false);
         };
@@ -98,9 +96,7 @@ export const AuthProvider = ({ children }) => {
     const login = useCallback(async (email, password) => {
         try {
             const response = await api.post('/auth/login', { email, password });
-            const { user, token } = response.data.data;
-
-            localStorage.setItem('token', token);
+            const { user } = response.data.data;
             setUser(user);
 
             toast.success(`Welcome back, ${user.name}!`);
@@ -127,9 +123,7 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/register', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            const { user, token } = response.data.data;
-
-            localStorage.setItem('token', token);
+            const { user } = response.data.data;
             setUser(user);
 
             toast.success('Registration successful! Your account is pending verification.');
@@ -146,12 +140,22 @@ export const AuthProvider = ({ children }) => {
 
 
     // Logout
-    const logout = useCallback(() => {
-        localStorage.removeItem('token');
+    const logout = useCallback(async () => {
+        try {
+            await api.post('/auth/logout', null, { _skipAuthRefresh: true });
+        } catch {
+            // Local state must still be cleared when the network is unavailable.
+        }
         setUser(null);
         toast.success('Logged out successfully');
         navigate('/');
     }, [navigate]);
+
+    useEffect(() => {
+        const handleExpiredSession = () => setUser(null);
+        window.addEventListener('auth:session-expired', handleExpiredSession);
+        return () => window.removeEventListener('auth:session-expired', handleExpiredSession);
+    }, []);
 
     // Update user profile
     const updateProfile = useCallback(async (data) => {

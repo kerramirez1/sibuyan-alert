@@ -1,6 +1,13 @@
 import User from '../models/User.js';
 import mongoose from 'mongoose';
-import { generateToken } from '../middleware/auth.js';
+import {
+    clearAuthCookies,
+    issueSession,
+    revokeAllUserSessions,
+    revokeRequestSession,
+    rotateSession,
+    setPrivateNoStore,
+} from '../services/authSessionService.js';
 import {
     deleteGridFsFileByUrl,
     deleteGridFsFilesByUrls,
@@ -13,6 +20,7 @@ import {
     PushSubscriptionValidationError,
 } from '../utils/pushSubscription.js';
 import { sendPushToUser } from '../services/pushService.js';
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 
 /**
  * @desc    Register a new reporter (with ID upload)
@@ -92,8 +100,8 @@ export const register = async (req, res) => {
         });
         userCreated = true;
 
-        // Generate token
-        const token = generateToken(user._id);
+        await revokeRequestSession(req);
+        await issueSession({ req, res, userId: user._id });
 
         res.status(201).json({
             success: true,
@@ -110,7 +118,6 @@ export const register = async (req, res) => {
                     isVerified: user.isVerified,
                     verificationStatus: user.verificationStatus,
                 },
-                token,
             },
         });
     } catch (error) {
@@ -182,8 +189,8 @@ export const login = async (req, res) => {
         user.lastLogin = new Date();
         await user.save();
 
-        // Generate token
-        const token = generateToken(user._id);
+        await revokeRequestSession(req);
+        await issueSession({ req, res, userId: user._id });
 
         res.json({
             success: true,
@@ -203,7 +210,6 @@ export const login = async (req, res) => {
                     isVerified: user.isVerified,
                     verificationStatus: user.verificationStatus,
                 },
-                token,
             },
         });
     } catch (error) {
@@ -267,32 +273,17 @@ export const updateProfile = async (req, res) => {
         const { name, email, currentPassword, newPassword, notificationPreferences } = req.body;
 
         const user = await User.findById(req.user._id).select('+password');
+        const normalizedEmail = email?.toLowerCase().trim();
+        const emailChanged = Boolean(normalizedEmail && normalizedEmail !== user.email);
+        const credentialsChanged = Boolean(emailChanged || newPassword);
 
-        // Update name
-        if (name) user.name = name;
-
-        // Update email (with uniqueness check)
-        if (email && email !== user.email) {
-            const emailExists = await User.findOne({ email: email.toLowerCase() });
-            if (emailExists) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email already in use by another account',
-                });
-            }
-            user.email = email.toLowerCase();
-        }
-
-        // Update password (requires current password verification)
-        if (newPassword) {
+        if (credentialsChanged) {
             if (!currentPassword) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Current password is required to set a new password',
+                    message: 'Current password is required to change login credentials',
                 });
             }
-
-            // Verify current password
             const isMatch = await user.comparePassword(currentPassword);
             if (!isMatch) {
                 return res.status(401).json({
@@ -300,7 +291,31 @@ export const updateProfile = async (req, res) => {
                     message: 'Current password is incorrect',
                 });
             }
+        }
 
+        // Update name
+        if (name) user.name = name;
+
+        // Update email (with uniqueness check)
+        if (emailChanged) {
+            const emailExists = await User.findOne({ email: normalizedEmail });
+            if (emailExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email already in use by another account',
+                });
+            }
+            user.email = normalizedEmail;
+        }
+
+        // Update password (requires current password verification)
+        if (newPassword) {
+            if (!isPasswordPolicyCompliant(newPassword)) {
+                return res.status(400).json({
+                    success: false,
+                    message: PASSWORD_POLICY_MESSAGE,
+                });
+            }
             // Set new password (will be hashed by pre-save hook)
             user.password = newPassword;
         }
@@ -330,6 +345,12 @@ export const updateProfile = async (req, res) => {
         // Save user (role is protected - cannot be changed via this endpoint)
         await user.save();
         profileSaved = true;
+
+        if (credentialsChanged) {
+            await revokeAllUserSessions(user._id, 'credential_change');
+            await issueSession({ req, res, userId: user._id });
+            req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
+        }
 
         if (uploadedAvatarUrl && previousAvatar) {
             try {
@@ -622,10 +643,10 @@ export const resetPassword = async (req, res) => {
         const { token } = req.params;
         const { password } = req.body;
 
-        if (!password || password.length < 6) {
+        if (!isPasswordPolicyCompliant(password)) {
             return res.status(400).json({
                 success: false,
-                message: 'Password must be at least 6 characters',
+                message: PASSWORD_POLICY_MESSAGE,
             });
         }
 
@@ -651,6 +672,8 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordToken = null;
         user.resetPasswordExpires = null;
         await user.save();
+        await revokeAllUserSessions(user._id, 'credential_change');
+        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
 
         res.json({
             success: true,
@@ -665,6 +688,63 @@ export const resetPassword = async (req, res) => {
     }
 };
 
+/** Rotate the one-time refresh credential and issue a new access session. */
+export const refreshSession = async (req, res) => {
+    try {
+        const rotation = await rotateSession({ req, res });
+        if (rotation?.status === 'rotation_in_progress') {
+            return res.status(409).json({
+                success: false,
+                message: 'Session rotation is already in progress',
+                code: 'SESSION_ROTATING',
+            });
+        }
+        if (!rotation?.user) {
+            clearAuthCookies(res);
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired - Please login again',
+                code: 'SESSION_EXPIRED',
+            });
+        }
+
+        setPrivateNoStore(res);
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Session refresh error:', error);
+        clearAuthCookies(res);
+        return res.status(401).json({
+            success: false,
+            message: 'Session could not be refreshed',
+            code: 'SESSION_REFRESH_FAILED',
+        });
+    }
+};
+
+/** Revoke the current browser session and remove all authentication cookies. */
+export const logout = async (req, res) => {
+    try {
+        const session = await revokeRequestSession(req);
+        if (session?.user) {
+            req.app.get('io')?.in(`user_${session.user}`).disconnectSockets(true);
+        }
+    } catch (error) {
+        console.error('Session logout error:', error);
+    } finally {
+        clearAuthCookies(res);
+    }
+
+    return res.json({ success: true, message: 'Logged out successfully' });
+};
+
+/** Revoke every browser/device session owned by the authenticated user. */
+export const logoutAll = async (req, res) => {
+    await revokeAllUserSessions(req.user._id, 'logout_all');
+    req.app.get('io')?.in(`user_${req.user._id}`).disconnectSockets(true);
+    clearAuthCookies(res);
+    return res.json({ success: true, message: 'All sessions have been signed out' });
+};
+
 export default {
     register,
     login,
@@ -674,4 +754,7 @@ export default {
     resubmitIdDocument,
     forgotPassword,
     resetPassword,
+    refreshSession,
+    logout,
+    logoutAll,
 };
