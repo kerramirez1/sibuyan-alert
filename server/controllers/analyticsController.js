@@ -149,7 +149,13 @@ export const getAdminAnalytics = async (req, res) => {
 export const getResponderAnalytics = async (req, res) => {
     try {
         const responder = req.user;
-        const filter = responder.assignedMunicipality ? { municipalityName: responder.assignedMunicipality } : {};
+        if (!responder.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this responder',
+            });
+        }
+        const filter = { municipalityName: responder.assignedMunicipality };
 
         const [
             activeIncidents,

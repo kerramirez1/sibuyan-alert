@@ -34,11 +34,13 @@ jest.mock('../services/socketService.js', () => ({
     broadcastVerifiedReportToResponders: jest.fn(),
     broadcastReportVerified: jest.fn(),
     broadcastReportRejected: jest.fn(),
+    broadcastReportResolved: jest.fn(),
 }));
 
 // Now import the controller and the mocked Report model
 const { resolveReport } = await import('../controllers/adminController.js');
 const { default: Report } = await import('../models/Report.js');
+const { broadcastReportResolved } = await import('../services/socketService.js');
 
 const createRes = () => {
     const res = {};
@@ -149,6 +151,12 @@ describe('resolveReport controller', () => {
         expect(mockReport.status).toBe('resolved');
         expect(mockReport.resolvedBy).toBe('user1');
         expect(mockReport.save).toHaveBeenCalled();
+        expect(broadcastReportResolved).toHaveBeenCalledWith(
+            expect.anything(),
+            mockReport,
+            req.user,
+            'MDRRMO'
+        );
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 success: true,

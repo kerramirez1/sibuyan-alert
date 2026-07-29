@@ -83,6 +83,14 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
                 status: 'resolved',
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
+            });
+        });
+
+        const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
+            patchReport(data?.id, {
+                status: 'resolved',
+                resolvedBy: data?.resolvedBy,
+                resolvedAt: data?.resolvedAt,
                 resolutionNotes: data?.resolutionNotes,
             });
         });
@@ -140,6 +148,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         return () => {
             unsubRespond();
             unsubResolve();
+            unsubResolutionDetails();
             unsubVerify();
             unsubReject();
             unsubDelete();

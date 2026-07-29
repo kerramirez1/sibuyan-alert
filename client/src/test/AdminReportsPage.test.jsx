@@ -222,6 +222,11 @@ describe('AdminReportsPage operational queue', () => {
         act(() => {
             mocks.callbacks.reportResolved({
                 id: 'report-1',
+                resolvedBy: { agency: 'PNP' },
+                resolvedAt: '2026-07-17T08:30:00.000Z',
+            });
+            mocks.callbacks.reportResolutionDetails({
+                id: 'report-1',
                 resolvedBy: { _id: 'responder-1', name: 'Response Unit', agency: 'PNP' },
                 resolvedAt: '2026-07-17T08:30:00.000Z',
                 resolutionNotes: 'Road cleared',
@@ -242,6 +247,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(Object.keys(mocks.callbacks)).toEqual(expect.arrayContaining([
             'reportResponded',
             'reportResolved',
+            'reportResolutionDetails',
             'reportVerified',
             'reportRejectedUpdate',
             'reportDeleted',

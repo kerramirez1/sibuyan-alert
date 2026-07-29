@@ -1,6 +1,7 @@
 import { describe, expect, test, vi as jest } from 'vitest';
 import {
     broadcastMultiUnitResponse,
+    broadcastReportResolved,
     broadcastReportVerified,
     broadcastReportTransfer,
     broadcastTransferAcknowledged,
@@ -17,6 +18,7 @@ const createIo = () => {
         emit: jest.fn(),
         to: jest.fn(() => roomOperator),
         roomEmit,
+        roomTo: roomOperator.to,
     };
 };
 
@@ -95,6 +97,48 @@ describe('socket report lifecycle events', () => {
         }));
     });
 
+    test('keeps resolution notes and responder identity out of public events', () => {
+        const io = createIo();
+        const resolvedAt = new Date('2026-07-17T10:30:00Z');
+        const report = {
+            _id: 'report1',
+            municipalityName: 'Cajidiocan',
+            reporter: { _id: 'reporter1' },
+            resolvedAt,
+            resolutionNotes: 'Private operational notes',
+        };
+        const responder = {
+            _id: 'responder1',
+            name: 'Cajidiocan Responder',
+            agency: 'MDRRMO',
+        };
+
+        broadcastReportResolved(io, report, responder, 'MDRRMO');
+
+        const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportResolved')[1];
+        expect(publicPayload).toEqual(expect.objectContaining({
+            id: 'report1',
+            status: 'resolved',
+            municipalityName: 'Cajidiocan',
+            resolvedAt,
+            resolvedBy: { agency: 'MDRRMO', agencyLabel: 'MDRRMO' },
+        }));
+        expect(publicPayload).not.toHaveProperty('resolutionNotes');
+        expect(publicPayload.resolvedBy).not.toHaveProperty('_id');
+        expect(publicPayload.resolvedBy).not.toHaveProperty('name');
+
+        expect(io.to).toHaveBeenCalledWith('user_reporter1');
+        expect(io.to).toHaveBeenCalledWith('municipality_Cajidiocan');
+        expect(io.roomEmit).toHaveBeenCalledWith(
+            'reportResolutionDetails',
+            expect.objectContaining({
+                id: 'report1',
+                resolutionNotes: 'Private operational notes',
+                resolvedBy: expect.objectContaining({ _id: 'responder1' }),
+            })
+        );
+    });
+
     test('broadcasts a public-safe transferred marker payload', () => {
         const io = createIo();
         const report = {
@@ -140,6 +184,8 @@ describe('socket report lifecycle events', () => {
         };
         const transfer = {
             _id: 'transfer1',
+            fromMunicipalityName: 'Magdiwang',
+            toMunicipalityName: 'Cajidiocan',
             acknowledgedAt: new Date('2026-07-17T10:15:00Z'),
         };
         const municipalAdmin = {
@@ -151,7 +197,10 @@ describe('socket report lifecycle events', () => {
 
         broadcastTransferAcknowledged(io, report, transfer, municipalAdmin);
 
-        expect(io.emit).toHaveBeenCalledWith('reportTransferAcknowledged', {
+        expect(io.emit).not.toHaveBeenCalledWith('reportTransferAcknowledged', expect.anything());
+        expect(io.to).toHaveBeenCalledWith('municipality_Magdiwang');
+        expect(io.roomTo).toHaveBeenCalledWith('municipality_Cajidiocan');
+        expect(io.roomEmit).toHaveBeenCalledWith('reportTransferAcknowledged', {
             id: 'report1',
             status: 'responding',
             municipalityName: 'Cajidiocan',

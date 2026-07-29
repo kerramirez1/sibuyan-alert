@@ -4,7 +4,12 @@ import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushToUser, pushTemplates } from '../services/pushService.js';
-import { broadcastVerifiedReportToResponders, broadcastReportVerified, broadcastReportRejected } from '../services/socketService.js';
+import {
+    broadcastReportRejected,
+    broadcastReportResolved,
+    broadcastReportVerified,
+    broadcastVerifiedReportToResponders,
+} from '../services/socketService.js';
 import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1180,21 +1185,7 @@ export const resolveReport = async (req, res) => {
         const io = req.app.get('io');
         const agencyLabel = responder.agency === 'LGU' ? 'MDRRMO' : responder.agency;
 
-        if (io) {
-            // Notify ALL clients that this report is now resolved
-            io.emit('reportResolved', {
-                id: report._id,
-                resolvedBy: {
-                    _id: responder._id,
-                    name: responder.name,
-                    agency: responder.agency,
-                    agencyLabel,
-                },
-                resolvedAt: report.resolvedAt,
-                resolutionNotes: report.resolutionNotes,
-                status: 'resolved',
-            });
-        }
+        broadcastReportResolved(io, report, responder, agencyLabel);
 
         // Notification delivery is best-effort and must not turn a successful
         // state transition into an API error.

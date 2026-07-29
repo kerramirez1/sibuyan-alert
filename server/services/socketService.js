@@ -235,13 +235,53 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
 };
 
 /**
+ * Broadcast a public-safe resolution state and send operational details only
+ * to the report owner and the currently responsible municipality.
+ */
+export const broadcastReportResolved = (io, report, responder, agencyLabel) => {
+    if (!io) return;
+
+    const publicPayload = {
+        id: report._id,
+        status: 'resolved',
+        municipalityName: report.municipalityName,
+        resolvedAt: report.resolvedAt,
+        resolvedBy: {
+            agency: responder.agency,
+            agencyLabel,
+        },
+    };
+
+    io.emit('reportResolved', publicPayload);
+
+    const privatePayload = {
+        ...publicPayload,
+        resolvedBy: {
+            _id: responder._id,
+            name: responder.name,
+            agency: responder.agency,
+            agencyLabel,
+        },
+        resolutionNotes: report.resolutionNotes || '',
+    };
+    const reporterId = report.reporter?._id || report.reporter;
+
+    if (reporterId) {
+        io.to(`user_${reporterId}`).emit('reportResolutionDetails', privatePayload);
+    }
+    if (report.municipalityName) {
+        io.to(`municipality_${report.municipalityName}`).emit('reportResolutionDetails', privatePayload);
+    }
+};
+
+/**
  * Broadcast a non-blocking acknowledgment of the latest municipality transfer.
  * The report lifecycle and responder eligibility remain unchanged.
  */
 export const broadcastTransferAcknowledged = (io, report, transfer, municipalAdmin) => {
     if (!io) return;
 
-    io.emit('reportTransferAcknowledged', {
+    const payload = {
         id: report._id,
         status: report.status,
         municipalityName: report.municipalityName,
@@ -253,7 +293,22 @@ export const broadcastTransferAcknowledged = (io, report, transfer, municipalAdm
             role: municipalAdmin.role,
             assignedMunicipality: municipalAdmin.assignedMunicipality,
         },
+    };
+
+    // Acknowledgment identity and transfer history are operational data. Send
+    // them only to the source and target municipality rooms, never globally.
+    const rooms = new Set([
+        transfer.fromMunicipalityName,
+        transfer.toMunicipalityName,
+        report.municipalityName,
+    ].filter(Boolean).map((municipality) => `municipality_${municipality}`));
+
+    if (rooms.size === 0) return;
+    let scopedOperator = io;
+    rooms.forEach((room) => {
+        scopedOperator = scopedOperator.to(room);
     });
+    scopedOperator.emit('reportTransferAcknowledged', payload);
 };
 
 export default {
@@ -261,6 +316,7 @@ export default {
     broadcastMultiUnitResponse,
     broadcastReportVerified,
     broadcastReportRejected,
+    broadcastReportResolved,
     broadcastReportTransfer,
     broadcastTransferAcknowledged,
     joinResponderRoom,

@@ -160,6 +160,13 @@ function MyReportsPage() {
                 status: 'resolved',
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
+            });
+        });
+        const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
+            updateReport(data?.id, {
+                status: 'resolved',
+                resolvedBy: data?.resolvedBy,
+                resolvedAt: data?.resolvedAt,
                 resolutionNotes: data?.resolutionNotes,
             });
         });
@@ -183,6 +190,7 @@ function MyReportsPage() {
         return () => {
             unsubRespond();
             unsubResolve();
+            unsubResolutionDetails();
             unsubVerify();
             unsubReject();
             unsubTransfer();
