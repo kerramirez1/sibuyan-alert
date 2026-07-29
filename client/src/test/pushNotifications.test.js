@@ -78,6 +78,29 @@ describe('browser push subscription lifecycle', () => {
         expect(result).toEqual({ status: 'subscribed', subscription: jsonSubscription });
     });
 
+    test('replaces a subscription created with a previous VAPID key', async () => {
+        permission = 'granted';
+        currentSubscription = {
+            options: {
+                applicationServerKey: Uint8Array.from([9, 9, 9, 9]).buffer,
+            },
+            unsubscribe: vi.fn(async () => true),
+            toJSON: () => ({ ...jsonSubscription, endpoint: 'https://push.example.test/old' }),
+        };
+
+        await expect(subscribeToPush({ requestPermission: false })).resolves.toEqual({
+            status: 'subscribed',
+            subscription: jsonSubscription,
+        });
+
+        expect(currentSubscription.unsubscribe).toHaveBeenCalledTimes(1);
+        expect(registration.pushManager.subscribe).toHaveBeenCalledTimes(1);
+        expect(registration.pushManager.subscribe).toHaveBeenCalledWith(expect.objectContaining({
+            userVisibleOnly: true,
+            applicationServerKey: expect.any(Uint8Array),
+        }));
+    });
+
     test('reports and removes an existing local subscription', async () => {
         currentSubscription = {
             endpoint: jsonSubscription.endpoint,
