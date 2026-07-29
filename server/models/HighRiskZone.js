@@ -19,7 +19,7 @@ const highRiskZoneSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['landslide_prone', 'accident_prone', 'other'],
+            enum: ['landslide_prone', 'accident_prone', 'fire_risk', 'other'],
             required: true,
         },
         coordinates: {
@@ -48,6 +48,12 @@ const highRiskZoneSchema = new mongoose.Schema(
             enum: ['Cajidiocan', 'Magdiwang', 'San Fernando'],
             required: [true, 'Municipality is required'],
         },
+        barangay: {
+            type: String,
+            trim: true,
+            maxlength: [100, 'Barangay cannot exceed 100 characters'],
+            default: null,
+        },
         isActive: {
             type: Boolean,
             default: true,
@@ -66,6 +72,7 @@ const highRiskZoneSchema = new mongoose.Schema(
 // Index for geospatial queries
 highRiskZoneSchema.index({ 'coordinates.lat': 1, 'coordinates.lng': 1 });
 highRiskZoneSchema.index({ municipality: 1 });
+highRiskZoneSchema.index({ municipality: 1, barangay: 1 });
 highRiskZoneSchema.index({ isActive: 1 });
 
 const HighRiskZone = mongoose.model('HighRiskZone', highRiskZoneSchema);

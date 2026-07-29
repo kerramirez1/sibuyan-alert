@@ -749,7 +749,7 @@ const MapView = ({
         setMapModal(null);
         mapInstanceRef.current.flyTo({
             center: [lng, lat],
-            zoom: 17,
+            zoom: OPERATIONAL_MAX_ZOOM,
             pitch: effective3D ? 45 : 0,
             bearing: effective3D ? -17 : 0,
             essential: true,

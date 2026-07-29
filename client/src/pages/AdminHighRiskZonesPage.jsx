@@ -1,13 +1,17 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { highRiskZonesAPI } from '../services/api';
+import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../utils/mapNavigation';
+import {
+    applyRiskZoneLocationAutofill,
+    buildRiskZoneLocationAutofill,
+} from '../utils/riskZoneLocation';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
@@ -50,66 +54,138 @@ const AdminHighRiskZonesPage = () => {
         municipality: user?.assignedMunicipality || MUNICIPALITIES[0],
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const focusRequestSequenceRef = useRef(0);
+    const locationRequestRef = useRef(0);
+    const locationAbortRef = useRef(null);
+    const searchRequestRef = useRef(0);
+    const searchAbortRef = useRef(null);
 
     const canManageZone = (zone) => (
         !user?.assignedMunicipality || zone?.municipality === user.assignedMunicipality
     );
 
     const handleLocationSelect = async (location) => {
-        setSelectedLocation(location);
+        const lat = Number(location?.lat);
+        const lng = Number(location?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            toast.error('Choose a valid point inside Sibuyan Island.');
+            return false;
+        }
 
-        // Reverse Geocoding
+        locationAbortRef.current?.abort();
+        const requestId = locationRequestRef.current + 1;
+        locationRequestRef.current = requestId;
+        const controller = new AbortController();
+        locationAbortRef.current = controller;
+        setIsResolvingLocation(true);
+        setSelectedLocation(null);
+
         try {
-            toast.loading('Fetching precise address...', { id: 'geocoding' });
-            // Request detailed address structure
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}&zoom=18&addressdetails=1`
+            toast.loading('Verifying barangay boundary...', { id: 'geocoding' });
+            const response = await reportsAPI.geocodeLocation(
+                { lat, lng },
+                { signal: controller.signal }
             );
-            const data = await response.json();
+            if (locationRequestRef.current !== requestId) return false;
 
-            if (data && data.address) {
-                const addr = data.address;
-
-                // Construct address with strict priority for rural areas
-                // 1. Most specific: Building/Feature -> Road -> Village/Hamlet (Barangay/Sitio)
-                const specificName = addr.amenity || addr.building || addr.tourism || addr.leisure || addr.shop;
-                const road = addr.road || addr.street || addr.pedestrian;
-                const localArea = addr.village || addr.hamlet || addr.neighbourhood || addr.suburb || addr.quarter;
-                const townCity = addr.town || addr.municipality || addr.city;
-
-                // Build the name: Start with the most specific part available
-                let finalName = '';
-
-                if (specificName) {
-                    finalName = specificName + (localArea ? `, ${localArea}` : '');
-                } else if (localArea) {
-                    finalName = localArea + (road ? ` near ${road}` : '');
-                } else if (road) {
-                    finalName = road;
-                } else {
-                    finalName = townCity || data.display_name.split(',')[0];
-                }
-
-                // Clean up any double commas or trimming issues
-                finalName = finalName.replace(/,\s*$/, '').trim();
-
-                setFormData(prev => ({
-                    ...prev,
-                    name: finalName,
-                    description: prev.description || data.display_name
-                }));
-                toast.success('Address detected (You can edit this)', { id: 'geocoding' });
-            } else {
-                toast.dismiss('geocoding');
+            const resolved = buildRiskZoneLocationAutofill(response.data?.data);
+            if (!resolved.valid) {
+                toast.error(resolved.message, { id: 'geocoding', duration: 5000 });
+                return false;
             }
+
+            const detected = resolved.value;
+            if (
+                user?.assignedMunicipality
+                && detected.municipality !== user.assignedMunicipality
+            ) {
+                toast.error(
+                    `This point is in ${detected.municipality}. Choose a location inside ${user.assignedMunicipality}.`,
+                    { id: 'geocoding', duration: 5000 }
+                );
+                return false;
+            }
+
+            setSelectedLocation(detected.coordinates);
+            // A new pin represents a new geographic context. Always replace all
+            // location-derived fields so stale labels from the previous point
+            // can never be submitted with the latest coordinates.
+            setFormData((previous) => applyRiskZoneLocationAutofill(previous, detected));
+            toast.success(`Location verified in ${detected.barangay}`, { id: 'geocoding' });
+            return true;
         } catch (error) {
-            console.error('Geocoding error:', error);
-            toast.error('Could not fetch address', { id: 'geocoding' });
+            const isCanceled = error?.code === 'ERR_CANCELED'
+                || error?.name === 'CanceledError'
+                || error?.name === 'AbortError';
+            if (!isCanceled) {
+                console.error('Geocoding error:', error);
+                toast.error(
+                    error.response?.data?.message || 'Could not verify the selected location',
+                    { id: 'geocoding', duration: 5000 }
+                );
+            }
+            return false;
+        } finally {
+            if (locationRequestRef.current === requestId) {
+                locationAbortRef.current = null;
+                setIsResolvingLocation(false);
+            }
         }
     };
+
+    const handleLocationSearch = async (event) => {
+        event.preventDefault();
+        const query = String(new FormData(event.currentTarget).get('search') || '').trim();
+        if (!query) return;
+
+        searchAbortRef.current?.abort();
+        const requestId = searchRequestRef.current + 1;
+        searchRequestRef.current = requestId;
+        const controller = new AbortController();
+        searchAbortRef.current = controller;
+        setIsSearching(true);
+
+        try {
+            toast.loading('Searching Sibuyan locations...', { id: 'search' });
+            const response = await reportsAPI.searchLocations(query, { signal: controller.signal });
+            if (searchRequestRef.current !== requestId) return;
+
+            const result = response.data?.data?.[0];
+            if (!result) {
+                toast.error('Location not found. Try a different landmark or spelling.', { id: 'search' });
+                return;
+            }
+
+            const location = { lat: Number(result.lat), lng: Number(result.lng) };
+            focusMapLocation(location);
+            const verified = await handleLocationSelect(location);
+            if (verified) toast.success('Location found and verified', { id: 'search' });
+            else toast.dismiss('search');
+        } catch (error) {
+            const isCanceled = error?.code === 'ERR_CANCELED'
+                || error?.name === 'CanceledError'
+                || error?.name === 'AbortError';
+            if (!isCanceled) {
+                console.error('Location search error:', error);
+                toast.error(error.response?.data?.message || 'Location search failed', { id: 'search' });
+            }
+        } finally {
+            if (searchRequestRef.current === requestId) {
+                searchAbortRef.current = null;
+                setIsSearching(false);
+            }
+        }
+    };
+
+    useEffect(() => () => {
+        locationAbortRef.current?.abort();
+        searchAbortRef.current?.abort();
+        mapScrollCleanupRef.current?.();
+    }, []);
 
     const focusMapLocation = (location) => {
         const lat = Number(location?.lat);
@@ -133,6 +209,11 @@ const AdminHighRiskZonesPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isResolvingLocation) {
+            toast.error('Please wait while the barangay boundary is being verified.');
+            return;
+        }
 
         if (!selectedLocation && !editingZone) {
             toast.error('Please select a location on the map');
@@ -201,6 +282,14 @@ const AdminHighRiskZonesPage = () => {
     };
 
     const resetForm = () => {
+        locationAbortRef.current?.abort();
+        locationRequestRef.current += 1;
+        searchAbortRef.current?.abort();
+        searchRequestRef.current += 1;
+        toast.dismiss('geocoding');
+        toast.dismiss('search');
+        setIsResolvingLocation(false);
+        setIsSearching(false);
         setShowForm(false);
         setEditingZone(null);
         setSelectedLocation(null);
@@ -249,60 +338,7 @@ const AdminHighRiskZonesPage = () => {
 
                                 {/* Location Search Bar */}
                                 <div className="relative w-full md:w-80">
-                                    <form
-                                        onSubmit={async (e) => {
-                                            e.preventDefault();
-                                            const query = e.target.search.value;
-                                            if (!query) return;
-
-                                            const searchLocation = async (q) => {
-                                                const response = await fetch(
-                                                    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`
-                                                );
-                                                return await response.json();
-                                            };
-
-                                            try {
-                                                toast.loading('Searching...', { id: 'search' });
-
-                                                // Strategy 1: Try with "Romblon" as suffix (Province level is safer than Island)
-                                                let results = await searchLocation(query + ', Romblon');
-
-                                                // Strategy 2: If no result, try just the query itself (maybe user typed full address)
-                                                if (!results || results.length === 0) {
-                                                    results = await searchLocation(query);
-                                                }
-
-                                                if (results && results.length > 0) {
-                                                    const result = results[0];
-                                                    const lat = parseFloat(result.lat);
-                                                    const lng = parseFloat(result.lon);
-
-                                                    // Update Map View
-                                                    focusMapLocation({ lat, lng });
-
-                                                    // Select the location
-                                                    handleLocationSelect({ lat, lng });
-
-                                                    // Override with search result name
-                                                    if (showForm) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            name: result.name || query,
-                                                        }));
-                                                    }
-
-                                                    toast.success('Location found!', { id: 'search' });
-                                                } else {
-                                                    toast.error('Location not found. Try spelling it differently.', { id: 'search' });
-                                                }
-                                            } catch (err) {
-                                                console.error(err);
-                                                toast.error('Search failed', { id: 'search' });
-                                            }
-                                        }}
-                                        className="flex"
-                                    >
+                                    <form onSubmit={handleLocationSearch} className="flex">
                                         <input
                                             type="text"
                                             name="search"
@@ -311,9 +347,10 @@ const AdminHighRiskZonesPage = () => {
                                         />
                                         <button
                                             type="submit"
+                                            disabled={isSearching}
                                             className="px-4 py-2 bg-primary-600 text-white rounded-r-lg hover:bg-primary-700 text-sm font-medium"
                                         >
-                                            Search
+                                            {isSearching ? 'Searching...' : 'Search'}
                                         </button>
                                     </form>
                                 </div>
@@ -467,7 +504,7 @@ const AdminHighRiskZonesPage = () => {
                                                 type="submit"
                                                 variant="primary"
                                                 loading={isSubmitting}
-                                                disabled={!selectedLocation && !editingZone}
+                                                disabled={isResolvingLocation || (!selectedLocation && !editingZone)}
                                                 className="flex-1"
                                             >
                                                 {editingZone ? 'Update Zone' : 'Create Zone'}

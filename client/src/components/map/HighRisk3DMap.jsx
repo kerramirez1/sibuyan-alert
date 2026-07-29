@@ -8,7 +8,10 @@ import {
     MAP_INTERACTION_OPTIONS,
     scheduleMapFocus,
 } from '../../utils/mapNavigation';
-import { createOperationalMapStyle } from '../../config/mapProvider';
+import {
+    createOperationalMapStyle,
+    OPERATIONAL_MAX_ZOOM,
+} from '../../config/mapProvider';
 import { getMapPerformanceProfile } from '../../utils/mapPerformance';
 
 // Sibuyan Island bounds and center
@@ -90,7 +93,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             maxTileCacheSize: performanceProfile.maxTileCacheSize,
             fadeDuration: performanceProfile.fadeDuration,
             renderWorldCopies: false,
-            maxZoom: 17,
+            maxZoom: OPERATIONAL_MAX_ZOOM,
             attributionControl: false,
         });
 

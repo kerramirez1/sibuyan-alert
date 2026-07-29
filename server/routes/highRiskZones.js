@@ -3,6 +3,7 @@ import HighRiskZone from '../models/HighRiskZone.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { sortHighRiskZonesBySeverity } from '../utils/highRiskZones.js';
+import { resolveRiskZoneJurisdiction } from '../services/riskZoneJurisdictionService.js';
 
 const router = express.Router();
 
@@ -52,9 +53,6 @@ router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
             });
         }
 
-        // Municipal administrators can only create zones in their jurisdiction.
-        const targetMunicipality = admin.assignedMunicipality;
-
         if (municipality && municipality !== admin.assignedMunicipality) {
             return res.status(403).json({
                 success: false,
@@ -62,10 +60,14 @@ router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
             });
         }
 
-        if (!targetMunicipality) {
-            return res.status(400).json({
+        const jurisdiction = await resolveRiskZoneJurisdiction(
+            coordinates,
+            admin.assignedMunicipality
+        );
+        if (!jurisdiction.valid) {
+            return res.status(jurisdiction.statusCode).json({
                 success: false,
-                message: 'Municipality is required',
+                message: jurisdiction.message,
             });
         }
 
@@ -73,10 +75,11 @@ router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
             name,
             description,
             type,
-            coordinates,
+            coordinates: jurisdiction.value.coordinates,
             radius: radius || 100,
             severity: severity || 'medium',
-            municipality: targetMunicipality,
+            municipality: jurisdiction.value.municipality,
+            barangay: jurisdiction.value.barangay,
             createdBy: admin._id,
         });
 
@@ -93,9 +96,10 @@ router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
         });
     } catch (error) {
         console.error('Create high-risk zone error:', error);
-        res.status(500).json({
+        const isValidationError = error?.name === 'ValidationError';
+        res.status(isValidationError ? 400 : 500).json({
             success: false,
-            message: 'Failed to create high-risk zone',
+            message: isValidationError ? error.message : 'Failed to create high-risk zone',
         });
     }
 });
@@ -130,7 +134,21 @@ router.put('/:id', protect, requireRole('municipal_admin'), async (req, res) => 
         if (name) zone.name = name;
         if (description !== undefined) zone.description = description;
         if (type) zone.type = type;
-        if (coordinates) zone.coordinates = coordinates;
+        if (coordinates) {
+            const jurisdiction = await resolveRiskZoneJurisdiction(
+                coordinates,
+                admin.assignedMunicipality
+            );
+            if (!jurisdiction.valid) {
+                return res.status(jurisdiction.statusCode).json({
+                    success: false,
+                    message: jurisdiction.message,
+                });
+            }
+            zone.coordinates = jurisdiction.value.coordinates;
+            zone.municipality = jurisdiction.value.municipality;
+            zone.barangay = jurisdiction.value.barangay;
+        }
         if (radius) zone.radius = radius;
         if (severity) zone.severity = severity;
         if (isActive !== undefined) zone.isActive = isActive;
@@ -149,9 +167,10 @@ router.put('/:id', protect, requireRole('municipal_admin'), async (req, res) => 
         });
     } catch (error) {
         console.error('Update high-risk zone error:', error);
-        res.status(500).json({
+        const isValidationError = error?.name === 'ValidationError';
+        res.status(isValidationError ? 400 : 500).json({
             success: false,
-            message: 'Failed to update high-risk zone',
+            message: isValidationError ? error.message : 'Failed to update high-risk zone',
         });
     }
 });

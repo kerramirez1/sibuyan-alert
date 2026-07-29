@@ -93,7 +93,9 @@ export const getSibuyanBounds = () => ({
     bounds: { southwest: { lat: 12.30, lng: 122.45 }, northeast: { lat: 12.55, lng: 122.70 } },
     defaultZoom: 12,
     minZoom: 10,
-    maxZoom: 18,
+    // Keep API consumers within the highest imagery level with complete
+    // operational coverage across Sibuyan Island.
+    maxZoom: 16,
 });
 
 export default { geocodeAddress, searchSibuyanLocations, reverseGeocode, isWithinSibuyanBounds, getSibuyanBounds };

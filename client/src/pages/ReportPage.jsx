@@ -7,6 +7,7 @@ import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
+import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -272,7 +273,10 @@ const ReportPage = () => {
                     bestLocation = location;
                     setUserLocation(location);
                     setSelectedLocation(location);
-                    setFocusLocation({ ...location, zoom: accuracy < 100 ? 17 : 14 });
+                    setFocusLocation({
+                        ...location,
+                        zoom: accuracy < 100 ? OPERATIONAL_MAX_ZOOM : 14,
+                    });
                     setLocationCapture(buildLocationCapture('gps', accuracy));
                     setErrors(prev => ({ ...prev, location: '' }));
                     if (accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {

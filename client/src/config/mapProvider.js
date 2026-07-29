@@ -6,7 +6,9 @@ export const PMTILES_SOURCE_ID = 'sibuyan-pmtiles';
 export const STREET_FALLBACK_SOURCE_ID = 'osm-street-fallback';
 export const STREET_FALLBACK_LAYER_ID = 'osm-street-fallback-layer';
 export const TERRAIN_SOURCE_ID = 'sibuyan-terrain';
-export const OPERATIONAL_MAX_ZOOM = 17;
+// Level 17 is intentionally excluded because the production imagery coverage
+// is incomplete there for parts of Sibuyan Island.
+export const OPERATIONAL_MAX_ZOOM = 16;
 
 const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const ESRI_REFERENCE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';

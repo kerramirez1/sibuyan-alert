@@ -7,6 +7,7 @@ vi.mock('maplibre-gl', () => ({
 import {
     createOperationalMapStyle,
     inspectPmtilesArchive,
+    OPERATIONAL_MAX_ZOOM,
     PMTILES_SOURCE_ID,
     prepareOperationalMapStyle,
     STREET_FALLBACK_LAYER_ID,
@@ -46,6 +47,13 @@ const createRangeResponse = (bytes, status = 206) => ({
 });
 
 describe('map provider configuration', () => {
+    test('caps every operational map below the incomplete imagery level', () => {
+        const result = createOperationalMapStyle({ pmtilesUrl: '', terrainTilesUrl: '' });
+
+        expect(OPERATIONAL_MAX_ZOOM).toBe(16);
+        expect(result.streetMaxZoom).toBe(OPERATIONAL_MAX_ZOOM);
+    });
+
     test('builds a self-hosted PMTiles street source with a public fallback', () => {
         const result = createOperationalMapStyle({
             pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
