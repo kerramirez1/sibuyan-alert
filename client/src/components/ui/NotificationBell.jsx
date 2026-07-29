@@ -6,6 +6,11 @@ import { useAuth } from '../../context/AuthContext';
 import { notificationsAPI } from '../../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
+    buildNotificationTarget,
+    getReportUpdateMeta,
+    shouldDeferNotificationRead,
+} from '../../utils/notificationNavigation';
+import {
     HiOutlineBell,
     HiOutlineCheck,
     HiOutlineExclamation,
@@ -138,51 +143,11 @@ const NotificationBell = () => {
     };
 
     const handleNotificationClick = async (notification) => {
-        if (!notification.isRead) {
-            markAsRead(notification._id);
-        }
+        const deferRead = shouldDeferNotificationRead(notification, user?.role);
+        if (!notification.isRead && !deferRead) await markAsRead(notification._id);
         setIsOpen(false);
-
-        switch (notification.type) {
-            case 'new_report':
-                navigate('/admin/reports');
-                break;
-            case 'report_verified':
-                // Responders go to admin reports page; reporters go to my-reports
-                if (user?.role === 'responder') {
-                    navigate('/admin/reports?view=dispatch-queue');
-                } else {
-                    navigate('/my-reports');
-                }
-                break;
-            case 'report_rejected':
-                navigate('/my-reports');
-                break;
-            case 'report_responding':
-                if (['municipal_admin', 'responder'].includes(user?.role)) {
-                    navigate('/admin/reports');
-                } else {
-                    navigate('/my-reports');
-                }
-                break;
-            case 'report_update':
-                if (['municipal_admin', 'responder'].includes(user?.role)) {
-                    navigate('/admin/reports');
-                } else {
-                    navigate('/my-reports');
-                }
-                break;
-            case 'reporter_verified':
-            case 'reporter_rejected':
-                navigate('/');
-                break;
-            case 'report_transferred':
-            case 'report_transfer_acknowledged':
-                navigate('/admin/reports');
-                break;
-            default:
-                break;
-        }
+        const target = buildNotificationTarget(notification, user?.role);
+        if (target) navigate(target);
     };
 
     const markAllAsRead = async () => {
@@ -195,8 +160,8 @@ const NotificationBell = () => {
         }
     };
 
-    const getNotificationIcon = (type) => {
-        switch (type) {
+    const getNotificationIcon = (notification) => {
+        switch (notification.type) {
             case 'reporter_verified':
             case 'report_verified':
                 return <HiOutlineCheckCircle className="w-5 h-5 text-success-500" />;
@@ -205,8 +170,12 @@ const NotificationBell = () => {
                 return <HiOutlineXCircle className="w-5 h-5 text-danger-500" />;
             case 'report_responding':
                 return <HiOutlineExclamation className="w-5 h-5 text-blue-500" />;
-            case 'report_update':
-                return <HiOutlineDocumentText className="w-5 h-5 text-blue-500" />;
+            case 'report_update': {
+                const updateMeta = getReportUpdateMeta(notification);
+                if (updateMeta.priority === 'urgent') return <HiOutlineExclamation className="h-5 w-5 text-red-500" />;
+                if (updateMeta.priority === 'review') return <HiOutlineExclamation className="h-5 w-5 text-amber-500" />;
+                return <HiOutlineDocumentText className="h-5 w-5 text-indigo-500" />;
+            }
             case 'new_report':
                 return <HiOutlineExclamation className="w-5 h-5 text-accent-500" />;
             case 'report_transferred':
@@ -311,12 +280,13 @@ const NotificationBell = () => {
                             ) : (
                                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
                                     {filteredNotifications.map((notification) => (
-                                        <motion.div
+                                        <motion.button
+                                            type="button"
                                             key={notification._id}
                                             layout
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className={`px-4 py-4 hover:bg-white dark:hover:bg-gray-700 transition-all cursor-pointer relative group ${!notification.isRead
+                                            className={`relative w-full px-4 py-4 text-left transition-all hover:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 dark:hover:bg-gray-700 ${!notification.isRead
                                                 ? 'bg-white dark:bg-gray-800'
                                                 : 'bg-gray-50/50 dark:bg-gray-900/50 opacity-75 hover:opacity-100'
                                                 }`}
@@ -329,7 +299,7 @@ const NotificationBell = () => {
                                             <div className="flex gap-3">
                                                 <div className={`flex-shrink-0 mt-1 w-9 h-9 rounded-full flex items-center justify-center ${!notification.isRead ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-500'
                                                     }`}>
-                                                    {getNotificationIcon(notification.type)}
+                                                    {getNotificationIcon(notification)}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex justify-between items-start gap-2">
@@ -347,7 +317,7 @@ const NotificationBell = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                        </motion.div>
+                                        </motion.button>
                                     ))}
                                 </div>
                             )}

@@ -1,312 +1,292 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import {
+    HiOutlineArrowRight,
+    HiOutlineBell,
+    HiOutlineCheck,
+    HiOutlineCheckCircle,
+    HiOutlineDocumentText,
+    HiOutlineExclamation,
+    HiOutlineInbox,
+    HiOutlineLocationMarker,
+    HiOutlineRefresh,
+    HiOutlineSwitchHorizontal,
+    HiOutlineXCircle,
+} from 'react-icons/hi';
 import { useNavigate } from '../router';
-import { motion, AnimatePresence } from 'framer-motion';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
 import {
-    HiOutlineCheck,
-    HiOutlineCheckCircle,
-    HiOutlineXCircle,
-    HiOutlineExclamation,
-    HiOutlineDocumentText,
-    HiOutlineInbox,
-    HiOutlineBell,
-    HiOutlineSwitchHorizontal,
-} from 'react-icons/hi';
+    buildNotificationTarget,
+    getReportUpdateMeta,
+    isPriorityReporterUpdate,
+    shouldDeferNotificationRead,
+} from '../utils/notificationNavigation';
+
+const FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'unread', label: 'Unread' },
+    { key: 'updates', label: 'Reporter updates' },
+    { key: 'priority', label: 'Priority' },
+];
+
+const UPDATE_TONE_STYLES = {
+    red: 'border-red-200 bg-red-50 text-red-800',
+    amber: 'border-amber-200 bg-amber-50 text-amber-800',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+};
+
+const getNotificationVisual = (notification) => {
+    switch (notification.type) {
+        case 'reporter_verified':
+        case 'report_verified':
+            return { icon: HiOutlineCheckCircle, iconClass: 'bg-emerald-50 text-emerald-600' };
+        case 'reporter_rejected':
+        case 'report_rejected':
+            return { icon: HiOutlineXCircle, iconClass: 'bg-red-50 text-red-600' };
+        case 'report_responding':
+            return { icon: HiOutlineExclamation, iconClass: 'bg-blue-50 text-blue-600' };
+        case 'report_update': {
+            const meta = getReportUpdateMeta(notification);
+            if (meta.priority === 'urgent') return { icon: HiOutlineExclamation, iconClass: 'bg-red-50 text-red-600' };
+            if (meta.priority === 'review') return { icon: HiOutlineExclamation, iconClass: 'bg-amber-50 text-amber-600' };
+            return { icon: HiOutlineDocumentText, iconClass: 'bg-indigo-50 text-indigo-600' };
+        }
+        case 'report_transferred':
+        case 'report_transfer_acknowledged':
+            return { icon: HiOutlineSwitchHorizontal, iconClass: 'bg-violet-50 text-violet-600' };
+        case 'new_report':
+            return { icon: HiOutlineExclamation, iconClass: 'bg-amber-50 text-amber-600' };
+        default:
+            return { icon: HiOutlineBell, iconClass: 'bg-gray-100 text-gray-600' };
+    }
+};
+
+const getNotificationId = (notification) => notification?._id || notification?.id;
+const getNotificationDate = (value) => {
+    const date = value ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+};
 
 const NotificationsPage = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('all');
-    const { setUnreadCount, socket } = useSocket();
+    const [error, setError] = useState('');
+    const [activeFilter, setActiveFilter] = useState('all');
+    const { setUnreadCount, subscribe } = useSocket();
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
-
-    useEffect(() => {
-        if (!socket) return;
-        const handleNewNotification = (notification) => {
-            setNotifications(prev => [notification, ...prev]);
-        };
-        socket.on('notification', handleNewNotification);
-        return () => socket.off('notification', handleNewNotification);
-    }, [socket]);
-
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
             const response = await notificationsAPI.getAll({ limit: 50 });
-            setNotifications(response.data.data.notifications);
-        } catch (error) {
-            console.error('Failed to fetch notifications:', error);
+            const data = response.data?.data || {};
+            setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+            if (Number.isFinite(data.unreadCount)) setUnreadCount(data.unreadCount);
+        } catch (requestError) {
+            console.error('Failed to fetch notifications:', requestError);
+            setError('Notifications could not be loaded. Check your connection and try again.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [setUnreadCount]);
 
-    const markAsRead = async (id) => {
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications]);
+
+    useEffect(() => subscribe('notification', (notification) => {
+        const incomingId = getNotificationId(notification);
+        setNotifications((current) => (
+            current.some((item) => getNotificationId(item) === incomingId)
+                ? current
+                : [notification, ...current]
+        ));
+    }), [subscribe]);
+
+    const markAsRead = useCallback(async (id) => {
+        if (!id) return false;
         try {
-            await notificationsAPI.markAsRead(id);
-            setNotifications((prev) =>
-                prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
-            );
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-        } catch (error) {
-            console.error('Failed to mark as read:', error);
+            const response = await notificationsAPI.markAsRead(id);
+            setNotifications((current) => current.map((notification) => (
+                getNotificationId(notification) === id ? { ...notification, isRead: true } : notification
+            )));
+            const authoritativeCount = response.data?.data?.unreadCount;
+            if (Number.isFinite(authoritativeCount)) setUnreadCount(authoritativeCount);
+            return true;
+        } catch (requestError) {
+            console.error('Failed to mark notification as read:', requestError);
+            return false;
         }
-    };
+    }, [setUnreadCount]);
 
     const markAllAsRead = async () => {
         try {
             await notificationsAPI.markAllAsRead();
-            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+            setNotifications((current) => current.map((notification) => ({ ...notification, isRead: true })));
             setUnreadCount(0);
-        } catch (error) {
-            console.error('Failed to mark all as read:', error);
+        } catch (requestError) {
+            console.error('Failed to mark all notifications as read:', requestError);
+            setError('Notifications could not be marked as read. Please try again.');
         }
     };
 
     const handleNotificationClick = async (notification) => {
-        if (!notification.isRead) {
-            markAsRead(notification._id);
-        }
-
-        switch (notification.type) {
-            case 'new_report':
-                navigate('/admin/reports');
-                break;
-            case 'report_verified':
-                if (user?.role === 'responder') {
-                    navigate('/admin/reports?view=dispatch-queue');
-                    break;
-                }
-                navigate('/my-reports');
-                break;
-            case 'report_rejected':
-                navigate('/my-reports');
-                break;
-            case 'report_responding':
-                if (['municipal_admin', 'responder'].includes(user?.role)) {
-                    navigate('/admin/reports');
-                } else {
-                    navigate('/my-reports');
-                }
-                break;
-            case 'report_update':
-                if (['municipal_admin', 'responder'].includes(user?.role)) {
-                    navigate('/admin/reports');
-                } else {
-                    navigate('/my-reports');
-                }
-                break;
-            case 'report_transferred':
-            case 'report_transfer_acknowledged':
-                navigate('/admin/reports');
-                break;
-            case 'reporter_verified':
-            case 'reporter_rejected':
-                navigate('/');
-                break;
-            default:
-                break;
-        }
+        const deferRead = shouldDeferNotificationRead(notification, user?.role);
+        const notificationId = getNotificationId(notification);
+        if (!notification.isRead && !deferRead) await markAsRead(notificationId);
+        const target = buildNotificationTarget(notification, user?.role);
+        if (target) navigate(target);
     };
 
-    const getNotificationStyle = (type) => {
-        switch (type) {
-            case 'reporter_verified':
-            case 'report_verified':
-                return { icon: HiOutlineCheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50', ring: 'ring-emerald-100' };
-            case 'reporter_rejected':
-            case 'report_rejected':
-                return { icon: HiOutlineXCircle, color: 'text-red-500', bg: 'bg-red-50', ring: 'ring-red-100' };
-            case 'report_responding':
-                return { icon: HiOutlineExclamation, color: 'text-blue-500', bg: 'bg-blue-50', ring: 'ring-blue-100' };
-            case 'report_update':
-                return { icon: HiOutlineDocumentText, color: 'text-indigo-500', bg: 'bg-indigo-50', ring: 'ring-indigo-100' };
-            case 'report_transferred':
-            case 'report_transfer_acknowledged':
-                return { icon: HiOutlineSwitchHorizontal, color: 'text-violet-500', bg: 'bg-violet-50', ring: 'ring-violet-100' };
-            case 'new_report':
-                return { icon: HiOutlineExclamation, color: 'text-amber-500', bg: 'bg-amber-50', ring: 'ring-amber-100' };
-            default:
-                return { icon: HiOutlineBell, color: 'text-gray-500', bg: 'bg-gray-50', ring: 'ring-gray-100' };
-        }
-    };
+    const counts = useMemo(() => ({
+        all: notifications.length,
+        unread: notifications.filter((notification) => !notification.isRead).length,
+        updates: notifications.filter((notification) => notification.type === 'report_update').length,
+        priority: notifications.filter(isPriorityReporterUpdate).length,
+    }), [notifications]);
 
-    const filteredNotifications = notifications.filter(n =>
-        activeTab === 'all' ? true : !n.isRead
-    );
-
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const filteredNotifications = useMemo(() => notifications.filter((notification) => {
+        if (activeFilter === 'unread') return !notification.isRead;
+        if (activeFilter === 'updates') return notification.type === 'report_update';
+        if (activeFilter === 'priority') return isPriorityReporterUpdate(notification);
+        return true;
+    }), [activeFilter, notifications]);
 
     return (
-        <div className="max-w-4xl mx-auto px-1 sm:px-0">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                {/* Header */}
-                <div className="mb-5 sm:mb-7">
-                    <div className="flex items-start sm:items-center justify-between gap-3 mb-4">
-                        <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-                            <div className="relative group">
-                                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                                    <HiOutlineBell className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                                </div>
-                                {unreadCount > 0 && (
-                                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg ring-2 ring-white animate-pulse">
-                                        {unreadCount > 9 ? '9+' : unreadCount}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="min-w-0">
-                                <h1 className="text-2xl sm:text-3xl font-display font-bold bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-700 bg-clip-text text-transparent">
-                                    Notifications
-                                </h1>
-                                <p className="text-gray-500 text-sm sm:text-base mt-0.5 leading-snug">
-                                    Stay updated with latest activity
-                                </p>
-                            </div>
-                        </div>
-
-                        {unreadCount > 0 && (
-                            <button
-                                onClick={markAllAsRead}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-50 text-indigo-600 text-[11px] sm:text-xs font-bold rounded-lg sm:rounded-xl hover:bg-indigo-100 transition-all active:scale-95"
-                            >
-                                <HiOutlineCheck className="w-3.5 h-3.5" />
-                                <span className="hidden xs:inline">Mark all read</span>
-                                <span className="xs:hidden">Read all</span>
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Tab Bar */}
-                    <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-                        {[
-                            { key: 'all', label: 'All', count: notifications.length },
-                            { key: 'unread', label: 'Unread', count: unreadCount },
-                        ].map((tab) => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab === tab.key
-                                    ? 'bg-white text-gray-900 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                {tab.label}
-                                {tab.count > 0 && (
-                                    <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.key
-                                        ? 'bg-indigo-100 text-indigo-600'
-                                        : 'bg-gray-200 text-gray-500'
-                                        }`}>
-                                        {tab.count}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+        <div className="mx-auto w-full max-w-5xl space-y-5">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
+                        <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Operational inbox</p>
+                        <h1 className="text-2xl font-bold text-gray-950 sm:text-3xl">Notifications</h1>
+                        <p className="mt-1 text-sm text-gray-500">Review report activity and open the exact incident that needs attention.</p>
                     </div>
                 </div>
+                <div className="flex w-full gap-2 sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={() => fetchNotifications()}
+                        disabled={loading}
+                        className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none"
+                    >
+                        <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                        Refresh
+                    </button>
+                    {counts.unread > 0 && (
+                        <button
+                            type="button"
+                            onClick={markAllAsRead}
+                            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 sm:flex-none"
+                        >
+                            <HiOutlineCheck className="h-4 w-4" aria-hidden="true" />
+                            Mark all read
+                        </button>
+                    )}
+                </div>
+            </header>
 
-                {/* Content */}
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center h-64 gap-4">
-                        <div className="relative">
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse flex items-center justify-center shadow-lg shadow-blue-500/30">
-                                <HiOutlineBell className="w-8 h-8 text-white" />
-                            </div>
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-ping opacity-20" />
-                        </div>
-                        <p className="text-sm text-gray-500 font-medium animate-pulse">Loading notifications...</p>
+            <nav className="flex gap-2 overflow-x-auto rounded-xl border border-gray-200 bg-white p-2 hide-scrollbar" aria-label="Notification filters">
+                {FILTERS.map((filter) => {
+                    const active = activeFilter === filter.key;
+                    return (
+                        <button
+                            key={filter.key}
+                            type="button"
+                            onClick={() => setActiveFilter(filter.key)}
+                            aria-pressed={active}
+                            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${active ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+                        >
+                            {filter.label}
+                            <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${active ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                {counts[filter.key]}
+                            </span>
+                        </button>
+                    );
+                })}
+            </nav>
+
+            {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+                    <p className="text-sm font-semibold text-red-800">{error}</p>
+                </div>
+            )}
+
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Notification inbox">
+                {loading && notifications.length === 0 ? (
+                    <div className="p-10 text-center" role="status">
+                        <div className="spinner mx-auto" />
+                        <p className="mt-3 text-sm text-gray-500">Loading notifications…</p>
                     </div>
                 ) : filteredNotifications.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="relative overflow-hidden bg-white rounded-2xl border border-gray-200 p-10 sm:p-14 text-center shadow-sm"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-indigo-50/30" />
-                        <div className="relative z-10">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
-                                <HiOutlineInbox className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300" />
-                            </div>
-                            <h3 className="text-lg sm:text-xl font-display font-bold text-gray-900 mb-2">
-                                {activeTab === 'unread' ? 'All caught up!' : 'No notifications yet'}
-                            </h3>
-                            <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                                {activeTab === 'unread'
-                                    ? "You've read all your notifications. Great job!"
-                                    : 'New alerts and updates will appear here.'}
-                            </p>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <div className="space-y-2 sm:space-y-2.5">
-                        <AnimatePresence mode="popLayout">
-                            {filteredNotifications.map((notification, index) => {
-                                const style = getNotificationStyle(notification.type);
-                                const Icon = style.icon;
-
-                                return (
-                                    <motion.div
-                                        key={notification._id}
-                                        layout
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        transition={{ delay: Math.min(index * 0.02, 0.2), duration: 0.25 }}
-                                        className={`group relative bg-white rounded-xl sm:rounded-2xl border overflow-hidden cursor-pointer transition-all duration-300 ${!notification.isRead
-                                            ? 'border-indigo-200 shadow-md hover:shadow-lg ring-1 ring-indigo-100'
-                                            : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
-                                            }`}
-                                        onClick={() => handleNotificationClick(notification)}
-                                    >
-                                        {/* Unread accent */}
-                                        {!notification.isRead && (
-                                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-                                        )}
-
-                                        <div className="p-3 sm:p-4 flex items-start gap-3 sm:gap-4">
-                                            {/* Icon */}
-                                            <div className={`shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ring-1 ${style.ring} flex items-center justify-center transition-transform duration-300 group-hover:scale-105`}>
-                                                <Icon className={`w-5 h-5 sm:w-5.5 sm:h-5.5 ${style.color}`} />
-                                            </div>
-
-                                            {/* Content */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-2 mb-0.5">
-                                                    <h4 className={`text-sm sm:text-[15px] font-bold leading-snug ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                                                        {notification.title}
-                                                    </h4>
-                                                    <span className="shrink-0 text-[9px] sm:text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                                                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                                    </span>
-                                                </div>
-                                                <p className={`text-xs sm:text-sm leading-relaxed line-clamp-2 ${!notification.isRead ? 'text-gray-700' : 'text-gray-500'}`}>
-                                                    {notification.message}
-                                                </p>
-                                            </div>
-
-                                            {/* Unread dot on mobile */}
-                                            {!notification.isRead && (
-                                                <div className="sm:hidden shrink-0 w-2 h-2 rounded-full bg-indigo-500 mt-2 animate-pulse" />
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </AnimatePresence>
+                    <div className="px-5 py-14 text-center">
+                        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+                            <HiOutlineInbox className="h-6 w-6" aria-hidden="true" />
+                        </span>
+                        <h2 className="mt-4 text-base font-semibold text-gray-900">No notifications in this view</h2>
+                        <p className="mt-1 text-sm text-gray-500">New report activity will appear here.</p>
                     </div>
+                ) : (
+                    <ul className="divide-y divide-gray-200">
+                        {filteredNotifications.map((notification) => {
+                            const visual = getNotificationVisual(notification);
+                            const Icon = visual.icon;
+                            const updateMeta = notification.type === 'report_update' ? getReportUpdateMeta(notification) : null;
+                            const notificationId = getNotificationId(notification);
+                            const createdAt = getNotificationDate(notification.createdAt);
+                            return (
+                                <li key={notificationId}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleNotificationClick(notification)}
+                                        className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 px-4 py-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 sm:px-5 ${notification.isRead ? 'bg-white hover:bg-gray-50' : 'bg-brand-50/40 hover:bg-brand-50/70'}`}
+                                    >
+                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${visual.iconClass}`}>
+                                            <Icon className="h-5 w-5" aria-hidden="true" />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="flex flex-wrap items-center gap-2">
+                                                <span className="text-sm font-semibold text-gray-950">{notification.title}</span>
+                                                {!notification.isRead && <span className="h-2 w-2 rounded-full bg-brand-500" aria-label="Unread" />}
+                                                {updateMeta && (
+                                                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${UPDATE_TONE_STYLES[updateMeta.tone]}`}>
+                                                        {updateMeta.priority === 'urgent'
+                                                            ? 'Urgent'
+                                                            : updateMeta.priority === 'review' ? 'Review needed' : updateMeta.label}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span className="mt-1 block line-clamp-2 text-sm leading-5 text-gray-600">
+                                                {notification.data?.updatePreview || notification.message}
+                                            </span>
+                                            <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                {notification.data?.address && (
+                                                    <span className="inline-flex min-w-0 items-center gap-1">
+                                                        <HiOutlineLocationMarker className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                        <span className="max-w-64 truncate">{notification.data.address}</span>
+                                                    </span>
+                                                )}
+                                                <time dateTime={createdAt?.toISOString()}>
+                                                    {createdAt ? formatDistanceToNow(createdAt, { addSuffix: true }) : 'Time unavailable'}
+                                                </time>
+                                                {notification.type === 'report_update' && <span className="font-semibold text-brand-700">Open incident</span>}
+                                            </span>
+                                        </span>
+                                        <HiOutlineArrowRight className="mt-3 h-4 w-4 shrink-0 text-gray-400 transition group-hover:translate-x-0.5 group-hover:text-gray-700" aria-hidden="true" />
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )}
-            </motion.div>
+            </section>
         </div>
     );
 };

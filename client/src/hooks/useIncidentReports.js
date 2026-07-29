@@ -6,7 +6,7 @@ const getErrorMessage = (error) => (
     error?.response?.data?.message || 'Unable to load incident reports. Please try again.'
 );
 
-const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = '' }) => {
+const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = '', focusedReportId = '' }) => {
     const validInitialStatus = INCIDENT_LIFECYCLE.includes(initialStatus) ? initialStatus : '';
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState(null);
@@ -22,20 +22,27 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         setError('');
 
         try {
-            const params = {
-                ...(!isDispatchQueueView && status ? { status } : {}),
-                ...(appliedSearch ? { search: appliedSearch } : {}),
-            };
+            const params = focusedReportId
+                ? { reportId: focusedReportId }
+                : {
+                    ...(!isDispatchQueueView && status ? { status } : {}),
+                    ...(appliedSearch ? { search: appliedSearch } : {}),
+                };
             const response = await adminAPI.getReports(params);
             const data = response.data?.data || {};
-            setReports(Array.isArray(data.reports) ? data.reports : []);
+            const nextReports = Array.isArray(data.reports) ? data.reports : [];
+            setReports(nextReports);
+            if (focusedReportId) {
+                const focusedReport = nextReports.find((report) => report._id === focusedReportId);
+                setSelectedReport(focusedReport || null);
+            }
             setStats(data.stats || null);
         } catch (requestError) {
             setError(getErrorMessage(requestError));
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [appliedSearch, isDispatchQueueView, status]);
+    }, [appliedSearch, focusedReportId, isDispatchQueueView, status]);
 
     useEffect(() => {
         fetchReports();
@@ -142,7 +149,11 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
 
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
             if (!data?.id || !data?.report?.reportUpdates) return;
-            patchReport(data.id, { reportUpdates: data.report.reportUpdates });
+            patchReport(data.id, {
+                reportUpdates: data.report.reportUpdates,
+                latestReporterUpdate: data.update || null,
+                hasUnreadReporterUpdate: true,
+            });
         });
 
         return () => {
@@ -186,6 +197,21 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         setStatus('');
     }, []);
 
+    const inspectReport = useCallback((report) => {
+        if (!report?._id) return;
+        const inspectedReport = {
+            ...report,
+            hasUnreadReporterUpdate: false,
+            highlightedReporterUpdateId: report.hasUnreadReporterUpdate
+                ? report.latestReporterUpdate?._id
+                : report.highlightedReporterUpdateId,
+        };
+        setReports((current) => current.map((item) => (
+            item._id === report._id ? { ...item, hasUnreadReporterUpdate: false } : item
+        )));
+        setSelectedReport(inspectedReport);
+    }, []);
+
     return {
         reports,
         visibleReports,
@@ -201,6 +227,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         clearFilters,
         selectedReport,
         setSelectedReport,
+        inspectReport,
         patchReport,
         removeReport,
         refreshReports: fetchReports,

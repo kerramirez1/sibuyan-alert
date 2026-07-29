@@ -63,9 +63,11 @@ export const markAsRead = async (req, res) => {
             });
         }
 
-        notification.isRead = true;
-        notification.readAt = new Date();
-        await notification.save();
+        if (!notification.isRead) {
+            notification.isRead = true;
+            notification.readAt = new Date();
+            await notification.save();
+        }
 
         const unreadCount = await Notification.getUnreadCount(req.user._id);
 

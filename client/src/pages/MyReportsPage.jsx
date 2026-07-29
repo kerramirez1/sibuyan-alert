@@ -6,6 +6,7 @@ import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineBadgeCheck,
     HiOutlineChartBar,
+    HiOutlineChatAlt2,
     HiOutlineCheckCircle,
     HiOutlineChevronDown,
     HiOutlineClipboardList,
@@ -15,7 +16,6 @@ import {
     HiOutlineFilter,
     HiOutlineLightningBolt,
     HiOutlineLocationMarker,
-    HiOutlinePaperAirplane,
     HiOutlinePhotograph,
     HiOutlinePlus,
     HiOutlineShieldCheck,
@@ -25,6 +25,8 @@ import {
 import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import ImageViewer from '../components/ui/ImageViewer';
+import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
+import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 
 const STATUS_CONFIG = {
     pending: {
@@ -115,8 +117,8 @@ function MyReportsPage() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerImage, setViewerImage] = useState(null);
-    const [updateDrafts, setUpdateDrafts] = useState({});
-    const [updateTagDrafts, setUpdateTagDrafts] = useState({});
+    const [updateDialogReportId, setUpdateDialogReportId] = useState(null);
+    const [highlightedUpdates, setHighlightedUpdates] = useState({});
     const [submittingUpdateId, setSubmittingUpdateId] = useState(null);
     const { subscribe } = useSocket();
 
@@ -186,6 +188,13 @@ function MyReportsPage() {
             if (!data?.id) return;
             setReports((current) => current.filter((report) => report._id !== data.id));
         });
+        const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
+            if (!data?.id || !Array.isArray(data?.report?.reportUpdates)) return;
+            updateReport(data.id, {
+                reportUpdates: data.report.reportUpdates,
+                status: data.report.status || data.status,
+            });
+        });
 
         return () => {
             unsubRespond();
@@ -195,24 +204,39 @@ function MyReportsPage() {
             unsubReject();
             unsubTransfer();
             unsubDelete();
+            unsubReporterUpdate();
         };
     }, [subscribe]);
 
-    const handleSubmitUpdate = async (reportId) => {
-        const message = (updateDrafts[reportId] || '').trim();
-        const tag = updateTagDrafts[reportId] || 'general';
-        if (message.length < 5) {
-            toast.error('Please enter at least 5 characters');
-            return;
-        }
-
+    const handleSubmitUpdate = async (reportId, update) => {
         setSubmittingUpdateId(reportId);
         try {
-            await reportsAPI.addUpdate(reportId, { message, tag });
-            toast.success('Update sent');
-            setUpdateDrafts((current) => ({ ...current, [reportId]: '' }));
+            const response = await reportsAPI.addUpdate(reportId, update);
+            const responseData = response.data?.data || {};
+            const serverReport = responseData.report;
+            const latestUpdate = responseData.latestUpdate;
+
+            setReports((current) => current.map((report) => (
+                report._id === reportId
+                    ? {
+                        ...report,
+                        ...serverReport,
+                        reportUpdates: serverReport?.reportUpdates
+                            || (latestUpdate ? [...(report.reportUpdates || []), latestUpdate] : report.reportUpdates),
+                    }
+                    : report
+            )));
+            if (latestUpdate?._id) {
+                setHighlightedUpdates((current) => ({ ...current, [reportId]: latestUpdate._id }));
+            }
+            setSelectedReportId(reportId);
+            toast.success('Situation update sent');
+            return { success: true, latestUpdate };
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to send update');
+            return {
+                success: false,
+                message: error.response?.data?.message || 'The update could not be sent. Check your connection and try again.',
+            };
         } finally {
             setSubmittingUpdateId(null);
         }
@@ -490,50 +514,30 @@ function MyReportsPage() {
                                                 </aside>
                                             </div>
 
-                                            {!isClosed && (
-                                                <div className="mt-5 rounded-lg border border-gray-200 bg-white p-4">
-                                                    <div className="mb-3">
-                                                        <h4 className="text-sm font-semibold text-gray-900">Send additional information</h4>
-                                                        <p className="mt-0.5 text-xs text-gray-500">Share a short situation update with the review and response team.</p>
+                                            <section className="mt-5 rounded-xl border border-gray-200 bg-white p-4" aria-labelledby={`activity-heading-${report._id}`}>
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div>
+                                                        <h4 id={`activity-heading-${report._id}`} className="text-sm font-semibold text-gray-900">Report activity</h4>
+                                                        <p className="mt-0.5 text-xs text-gray-500">Updates and response milestones for this incident.</p>
                                                     </div>
-                                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                                        <select
-                                                            value={updateTagDrafts[report._id] || 'general'}
-                                                            onChange={(event) => setUpdateTagDrafts((current) => ({ ...current, [report._id]: event.target.value }))}
-                                                            className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400 sm:w-40"
-                                                        >
-                                                            <option value="general">General</option>
-                                                            <option value="transported">Transported</option>
-                                                            <option value="stabilized">Stabilized</option>
-                                                            <option value="need_help">Need help</option>
-                                                            <option value="false_alarm">False alarm</option>
-                                                            <option value="other">Other</option>
-                                                        </select>
-                                                        <input
-                                                            value={updateDrafts[report._id] || ''}
-                                                            onChange={(event) => setUpdateDrafts((current) => ({ ...current, [report._id]: event.target.value }))}
-                                                            onKeyDown={(event) => {
-                                                                if (event.key === 'Enter' && !event.shiftKey) {
-                                                                    event.preventDefault();
-                                                                    handleSubmitUpdate(report._id);
-                                                                }
-                                                            }}
-                                                            placeholder="Describe the current situation"
-                                                            maxLength={500}
-                                                            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-400"
-                                                        />
+                                                    {!isClosed ? (
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleSubmitUpdate(report._id)}
-                                                            disabled={submittingUpdateId === report._id}
-                                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            onClick={() => setUpdateDialogReportId(report._id)}
+                                                            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:w-auto"
                                                         >
-                                                            <HiOutlinePaperAirplane className="h-4 w-4 rotate-90" />
-                                                            {submittingUpdateId === report._id ? 'Sending…' : 'Send update'}
+                                                            <HiOutlineChatAlt2 className="h-4 w-4" aria-hidden="true" />
+                                                            Send situation update
                                                         </button>
-                                                    </div>
+                                                    ) : (
+                                                        <span className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600">Updates closed</span>
+                                                    )}
                                                 </div>
-                                            )}
+                                                <ReportActivityTimeline
+                                                    report={report}
+                                                    highlightedUpdateId={highlightedUpdates[report._id]}
+                                                />
+                                            </section>
                                         </div>
                                     )}
                                 </article>
@@ -543,6 +547,13 @@ function MyReportsPage() {
                 )}
             </section>
 
+            <SituationUpdateDialog
+                isOpen={Boolean(updateDialogReportId)}
+                report={reports.find((report) => report._id === updateDialogReportId) || null}
+                submitting={submittingUpdateId === updateDialogReportId}
+                onClose={() => setUpdateDialogReportId(null)}
+                onSubmit={(update) => handleSubmitUpdate(updateDialogReportId, update)}
+            />
             <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageSrc={viewerImage} />
         </div>
     );

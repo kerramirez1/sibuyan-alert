@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Report from '../models/Report.js';
 import Municipality from '../models/Municipality.js';
@@ -362,7 +363,8 @@ export const getAllReports = async (req, res) => {
             limit = 20,
             search,
             startDate,
-            endDate
+            endDate,
+            reportId,
         } = req.query;
 
         const safeSearch = sanitizeSearch(search);
@@ -384,6 +386,16 @@ export const getAllReports = async (req, res) => {
             ],
         };
         query.$and = [scopeClause];
+
+        if (reportId) {
+            if (!mongoose.isValidObjectId(reportId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid incident report identifier',
+                });
+            }
+            query._id = reportId;
+        }
 
         // Responders can see pending + active lifecycle reports (but not rejected)
         if (admin.role === 'responder') {

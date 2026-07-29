@@ -18,6 +18,7 @@ import {
     INCIDENT_STATUS,
     SEVERITY_STYLES,
 } from './incidentReportConfig';
+import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 
 const formatRelativeTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -165,8 +166,13 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
     );
 };
 
-const IncidentSummary = ({ report }) => (
-    <div className="min-w-0">
+const IncidentSummary = ({ report }) => {
+    const latestUpdate = report.latestReporterUpdate
+        || (Array.isArray(report.reportUpdates) ? report.reportUpdates[report.reportUpdates.length - 1] : null);
+    const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate.tag) : null;
+
+    return (
+        <div className="min-w-0">
         <div className="flex items-start gap-2">
             <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
             <div className="min-w-0">
@@ -182,8 +188,15 @@ const IncidentSummary = ({ report }) => (
                 {report.incidentType || report.incidentCategory || report.accidentType || 'Incident'}
             </span>
         </div>
-    </div>
-);
+        {report.hasUnreadReporterUpdate && updateMeta && (
+            <div className="ml-6 mt-2 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-2">
+                <p className="text-[11px] font-bold text-brand-800">New reporter update · {updateMeta.label}</p>
+                {latestUpdate?.message && <p className="mt-0.5 line-clamp-1 text-xs text-brand-700">{latestUpdate.message}</p>}
+            </div>
+        )}
+        </div>
+    );
+};
 
 const ResponderSummary = ({ report }) => {
     const responder = report.respondedBy;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from '../router';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -10,28 +10,58 @@ import IncidentDetailsDrawer from '../components/adminReports/IncidentDetailsDra
 import IncidentActionDialogs from '../components/adminReports/IncidentActionDialogs';
 import ImageViewer from '../components/ui/ImageViewer';
 import { getCoordinates } from '../components/adminReports/incidentReportConfig';
+import { notificationsAPI } from '../services/api';
+import { normalizeNotificationId } from '../utils/notificationNavigation';
 
 const AdminReportsPage = () => {
     const { user } = useAuth();
-    const { subscribe } = useSocket();
+    const { subscribe, setUnreadCount } = useSocket();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [viewerImage, setViewerImage] = useState(null);
+    const markedNotificationRef = useRef(new Set());
     const isDispatchQueueView = searchParams.get('view') === 'dispatch-queue';
     const initialStatus = searchParams.get('status') || '';
+    const focusedReportId = normalizeNotificationId(searchParams.get('report'));
+    const notificationId = normalizeNotificationId(searchParams.get('notification'));
+    const highlightedUpdateId = normalizeNotificationId(searchParams.get('update'));
+    const openedFromNotification = searchParams.get('source') === 'notification';
 
     const reportState = useIncidentReports({
         subscribe,
         isDispatchQueueView,
         initialStatus,
+        focusedReportId,
     });
+
+    useEffect(() => {
+        if (!notificationId || !focusedReportId || reportState.selectedReport?._id !== focusedReportId) return;
+        if (markedNotificationRef.current.has(notificationId)) return;
+        markedNotificationRef.current.add(notificationId);
+
+        notificationsAPI.markAsRead(notificationId)
+            .then((response) => {
+                const unreadCount = response.data?.data?.unreadCount;
+                if (Number.isFinite(unreadCount)) setUnreadCount(unreadCount);
+            })
+            .catch((error) => {
+                markedNotificationRef.current.delete(notificationId);
+                console.error('Failed to mark opened incident notification as read:', error);
+            });
+    }, [focusedReportId, notificationId, reportState.selectedReport?._id, setUnreadCount]);
 
     const closeDetails = useCallback((reportId) => {
         const targetReportId = typeof reportId === 'string' ? reportId : null;
         reportState.setSelectedReport((current) => (
             !targetReportId || current?._id === targetReportId ? null : current
         ));
-    }, [reportState.setSelectedReport]);
+        if (focusedReportId && (!targetReportId || targetReportId === focusedReportId)) {
+            const nextParams = new URLSearchParams(searchParams);
+            ['report', 'source', 'notification', 'update'].forEach((key) => nextParams.delete(key));
+            const nextQuery = nextParams.toString();
+            navigate(`/admin/reports${nextQuery ? `?${nextQuery}` : ''}`, { replace: true });
+        }
+    }, [focusedReportId, navigate, reportState.setSelectedReport, searchParams]);
 
     const actions = useIncidentActions({
         user,
@@ -98,7 +128,7 @@ const AdminReportsPage = () => {
                 onRetry={() => reportState.refreshReports()}
                 user={user}
                 actions={queueActions}
-                onInspect={reportState.setSelectedReport}
+                onInspect={reportState.inspectReport}
                 isDispatchQueueView={isDispatchQueueView}
             />
 
@@ -109,6 +139,8 @@ const AdminReportsPage = () => {
                 onClose={closeDetails}
                 onOpenMap={openMap}
                 onViewImage={openImage}
+                highlightedUpdateId={highlightedUpdateId}
+                openedFromNotification={openedFromNotification}
             />
 
             <IncidentActionDialogs

@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
     acknowledgeTransfer: vi.fn(),
     deleteReport: vi.fn(),
     getMunicipalities: vi.fn(),
+    markNotificationAsRead: vi.fn(),
+    setUnreadCount: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
 }));
 
@@ -29,6 +31,7 @@ vi.mock('../context/SocketContext', () => ({
             mocks.unsubscribers[event] = unsubscribe;
             return unsubscribe;
         },
+        setUnreadCount: mocks.setUnreadCount,
     }),
 }));
 
@@ -43,6 +46,7 @@ vi.mock('../services/api', () => ({
         deleteReport: mocks.deleteReport,
     },
     reportsAPI: { getMunicipalities: mocks.getMunicipalities },
+    notificationsAPI: { markAsRead: mocks.markNotificationAsRead },
 }));
 
 vi.mock('react-hot-toast', () => ({ default: mocks.toast }));
@@ -117,6 +121,8 @@ describe('AdminReportsPage operational queue', () => {
             mocks.acknowledgeTransfer,
             mocks.deleteReport,
             mocks.getMunicipalities,
+            mocks.markNotificationAsRead,
+            mocks.setUnreadCount,
         ].forEach((mock) => mock.mockReset());
         mocks.getReports.mockResolvedValue(apiResponse([createReport()]));
         mocks.verifyReport.mockResolvedValue({ data: { data: { status: 'verified' } } });
@@ -126,6 +132,7 @@ describe('AdminReportsPage operational queue', () => {
         mocks.acknowledgeTransfer.mockResolvedValue({ data: { message: 'Transfer acknowledged', data: { status: 'transferred' } } });
         mocks.deleteReport.mockResolvedValue({ data: { success: true } });
         mocks.getMunicipalities.mockResolvedValue({ data: { data: [] } });
+        mocks.markNotificationAsRead.mockResolvedValue({ data: { data: { unreadCount: 2 } } });
     });
 
     test('shows administrator review controls without responder-only actions', async () => {
@@ -149,6 +156,62 @@ describe('AdminReportsPage operational queue', () => {
             .find((button) => !button.hasAttribute('aria-label'));
         expect(mobileVerifyButton).toHaveClass('w-full', 'min-h-11');
         expect(mobileVerifyButton.parentElement.className).toContain('auto-fit');
+    });
+
+    test('opens the exact scoped incident from an update notification before marking it read', async () => {
+        const reportId = '64b100000000000000000001';
+        const updateId = '64b100000000000000000002';
+        const notificationId = '64b100000000000000000003';
+        const updateMessage = 'The patient needs another medical response unit.';
+        mocks.getReports.mockResolvedValue(apiResponse([createReport({
+            _id: reportId,
+            status: 'verified',
+            reportUpdates: [{
+                _id: updateId,
+                tag: 'need_help',
+                message: updateMessage,
+                createdAt: '2026-07-17T08:20:00.000Z',
+                author: { name: 'Field Reporter' },
+            }],
+        })]));
+
+        renderPage(`/admin/reports?report=${reportId}&source=notification&notification=${notificationId}&update=${updateId}`);
+
+        expect(await screen.findByRole('dialog', { name: 'Poblacion coastal road' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Urgent help requested' })).toBeInTheDocument();
+        expect(screen.getAllByText(updateMessage).length).toBeGreaterThan(0);
+        expect(mocks.getReports).toHaveBeenCalledWith({ reportId });
+        await waitFor(() => expect(mocks.markNotificationAsRead).toHaveBeenCalledWith(notificationId));
+        expect(mocks.setUnreadCount).toHaveBeenCalledWith(2);
+        expect(screen.queryByRole('button', { name: /respond to incident/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /resolve incident/i })).not.toBeInTheDocument();
+    });
+
+    test('highlights a real-time reporter update in the queue and incident drawer', async () => {
+        mocks.getReports.mockResolvedValue(apiResponse([createReport({ status: 'verified', reportUpdates: [] })]));
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+        const liveUpdate = {
+            _id: '64b100000000000000000005',
+            tag: 'transported',
+            message: 'The patient has been transported to SDH.',
+            createdAt: '2026-07-17T08:25:00.000Z',
+            author: { name: 'Field Reporter' },
+        };
+
+        act(() => {
+            mocks.callbacks.reportUpdatedByReporter({
+                id: 'report-1',
+                status: 'verified',
+                update: liveUpdate,
+                report: { status: 'verified', reportUpdates: [liveUpdate] },
+            });
+        });
+
+        expect(screen.getAllByText(/New reporter update/).length).toBeGreaterThan(0);
+        fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
+        expect(screen.getByRole('heading', { name: 'Patient transported' })).toBeInTheDocument();
+        expect(screen.getAllByText(liveUpdate.message).length).toBeGreaterThan(0);
     });
 
     test('closes the incident details drawer from its exit button', async () => {

@@ -15,6 +15,14 @@ import {
     getIncidentDate,
     SEVERITY_STYLES,
 } from './incidentReportConfig';
+import { getReportUpdateMeta } from '../../utils/notificationNavigation';
+
+const UPDATE_ALERT_STYLES = {
+    red: 'border-red-200 bg-red-50 text-red-950',
+    amber: 'border-amber-200 bg-amber-50 text-amber-950',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-950',
+};
 
 const formatDate = (value, pattern = 'PPpp') => {
     if (!value) return 'Unavailable';
@@ -29,7 +37,16 @@ const DetailItem = ({ label, children }) => (
     </div>
 );
 
-const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onViewImage }) => {
+const IncidentDetailsDrawer = ({
+    report,
+    user,
+    actions,
+    onClose,
+    onOpenMap,
+    onViewImage,
+    highlightedUpdateId = '',
+    openedFromNotification = false,
+}) => {
     const closeButtonRef = useRef(null);
     const coordinates = getCoordinates(report);
 
@@ -49,6 +66,13 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
     const updates = Array.isArray(report.reportUpdates)
         ? [...report.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         : [];
+    const effectiveHighlightedUpdateId = highlightedUpdateId || report.highlightedReporterUpdateId || '';
+    const highlightedUpdate = updates.find((update) => String(update._id) === effectiveHighlightedUpdateId)
+        || (report.hasUnreadReporterUpdate ? (report.latestReporterUpdate || updates[0]) : null)
+        || (openedFromNotification ? updates[0] : null);
+    const highlightedUpdateMeta = highlightedUpdate ? getReportUpdateMeta(highlightedUpdate.tag) : null;
+    const highlightedUpdateDate = highlightedUpdate?.createdAt ? new Date(highlightedUpdate.createdAt) : null;
+    const hasValidHighlightedUpdateDate = highlightedUpdateDate && !Number.isNaN(highlightedUpdateDate.getTime());
     const transfers = Array.isArray(report.transferHistory)
         ? [...report.transferHistory].reverse()
         : [];
@@ -82,6 +106,29 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+                    {highlightedUpdate && highlightedUpdateMeta && (
+                        <section
+                            className={`mb-5 rounded-xl border p-4 ${UPDATE_ALERT_STYLES[highlightedUpdateMeta.tone]}`}
+                            aria-labelledby="latest-reporter-update-heading"
+                        >
+                            <div className="flex flex-col gap-1 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between min-[420px]:gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wider opacity-75">Latest reporter update</p>
+                                    <h3 id="latest-reporter-update-heading" className="mt-1 text-sm font-bold">{highlightedUpdateMeta.label}</h3>
+                                </div>
+                                {hasValidHighlightedUpdateDate && (
+                                    <time dateTime={highlightedUpdateDate.toISOString()} className="shrink-0 text-xs opacity-75">
+                                        {formatDistanceToNow(highlightedUpdateDate, { addSuffix: true })}
+                                    </time>
+                                )}
+                            </div>
+                            <p className="mt-3 whitespace-pre-wrap text-sm leading-6">{highlightedUpdate.message}</p>
+                            <p className="mt-3 border-t border-current/15 pt-2 text-xs font-medium opacity-75">
+                                Reporter-provided information. Review it with the incident record before taking an administrative action.
+                            </p>
+                        </section>
+                    )}
+
                     <section aria-labelledby="incident-overview-heading">
                         <h3 id="incident-overview-heading" className="text-sm font-bold text-gray-900">Incident overview</h3>
                         <dl className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
@@ -184,7 +231,10 @@ const IncidentDetailsDrawer = ({ report, user, actions, onClose, onOpenMap, onVi
                             <h3 id="incident-updates-heading" className="text-sm font-bold text-gray-900">Reporter updates</h3>
                             <ol className="mt-3 space-y-2">
                                 {updates.map((item, index) => (
-                                    <li key={`${item.createdAt || 'update'}-${index}`} className="rounded-xl border border-gray-200 p-3">
+                                    <li
+                                        key={`${item.createdAt || 'update'}-${index}`}
+                                        className={`rounded-xl border border-gray-200 p-3 ${effectiveHighlightedUpdateId && String(item._id) === effectiveHighlightedUpdateId ? 'bg-brand-50 ring-2 ring-brand-500/20' : ''}`}
+                                    >
                                         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                                             <span className="font-semibold text-gray-800">{item.author?.name || 'Reporter'}</span>
                                             {item.tag && <span className="rounded-full bg-gray-100 px-2 py-0.5 capitalize">{item.tag.replace('_', ' ')}</span>}

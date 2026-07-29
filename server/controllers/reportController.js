@@ -565,23 +565,29 @@ export const addReportUpdate = async (req, res) => {
         };
 
         const recipients = await User.find(recipientsQuery).select('_id');
-        for (const recipient of recipients) {
-            if (recipient._id.toString() === req.user._id.toString()) continue;
-            await Notification.createAndSend(
+        const updatePreview = normalizedMessage.slice(0, 160);
+        await Promise.all(recipients
+            .filter((recipient) => recipient._id.toString() !== req.user._id.toString())
+            .map((recipient) => Notification.createAndSend(
                 {
                     recipient: recipient._id,
                     type: 'report_update',
-                    title: 'Reporter Update Received',
-                    message: `${req.user.name || 'Reporter'} updated incident at ${report.address}`,
+                    title: REPORT_UPDATE_NOTIFICATION_TITLES[normalizedTag] || REPORT_UPDATE_NOTIFICATION_TITLES.other,
+                    message: `${req.user.name || 'Reporter'}: ${updatePreview}`,
                     data: {
                         reportId: report._id,
+                        updateId: latestUpdate._id,
                         tag: normalizedTag,
                         municipality: report.municipalityName || null,
+                        reporterName: req.user.name || 'Reporter',
+                        address: report.address || null,
+                        updatePreview,
+                        reportStatus: report.status,
+                        updateCreatedAt: latestUpdate.createdAt,
                     },
                 },
                 io
-            );
-        }
+            )));
 
         res.status(201).json({
             success: true,
@@ -771,6 +777,15 @@ export const searchLocations = async (req, res) => {
         console.error('Location search error:', error);
         return res.status(503).json({ success: false, message: 'Location search is temporarily unavailable.' });
     }
+};
+
+const REPORT_UPDATE_NOTIFICATION_TITLES = {
+    general: 'Situation update received',
+    transported: 'Patient transport update',
+    stabilized: 'Patient condition update',
+    need_help: 'Urgent help requested',
+    false_alarm: 'Possible false alarm reported',
+    other: 'Reporter update received',
 };
 
 /**
