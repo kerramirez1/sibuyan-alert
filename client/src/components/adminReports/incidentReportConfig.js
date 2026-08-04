@@ -51,6 +51,18 @@ export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];
+export const RESPONDER_QUEUE_VIEWS = Object.freeze({
+    available: 'dispatch-queue',
+    active: 'active-responses',
+    history: 'response-history',
+    all: '',
+});
+
+export const getResponderViewFromQuery = (value) => {
+    const match = Object.entries(RESPONDER_QUEUE_VIEWS)
+        .find(([, queryValue]) => queryValue && queryValue === value);
+    return match?.[0] || 'all';
+};
 
 export const getAgencyLabel = (agency) => {
     const labels = {
@@ -89,7 +101,9 @@ export const isAssignedResponder = (user, report) => {
 export const isWithinResponderScope = (user, report) => {
     if (user?.role !== 'responder') return false;
     if (!user.assignedMunicipality) return true;
-    return report?.municipalityName === user.assignedMunicipality;
+    const assignedMunicipality = user.assignedMunicipality.trim().toLocaleLowerCase();
+    const reportMunicipality = report?.municipalityName?.trim().toLocaleLowerCase();
+    return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
 };
 
 export const getIncidentCapabilities = (user, report) => {

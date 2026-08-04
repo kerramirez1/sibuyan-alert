@@ -86,4 +86,53 @@ describe('municipality-scoped incident notification deep links', () => {
         }));
         expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
+
+    test('filters the available responder queue before pagination and excludes reporter contact data', async () => {
+        const queryChain = {
+            populate: vi.fn(),
+            sort: vi.fn(),
+            limit: vi.fn(),
+            skip: vi.fn().mockResolvedValue([]),
+        };
+        queryChain.populate.mockReturnValue(queryChain);
+        queryChain.sort.mockReturnValue(queryChain);
+        queryChain.limit.mockReturnValue(queryChain);
+        Report.find.mockReturnValue(queryChain);
+        Report.countDocuments.mockResolvedValue(0);
+        const request = {
+            query: { responderView: 'available', page: '2', limit: '500' },
+            user: {
+                _id: '64b100000000000000000099',
+                role: 'responder',
+                assignedMunicipality: 'Magdiwang',
+            },
+        };
+        const response = createResponse();
+
+        await getAllReports(request, response);
+
+        expect(Report.find).toHaveBeenCalledWith(expect.objectContaining({
+            $and: expect.arrayContaining([
+                {
+                    $or: [
+                        { municipalityName: 'Magdiwang' },
+                        { originalMunicipalityName: 'Magdiwang' },
+                    ],
+                },
+                {
+                    $or: [
+                        { status: 'transferred' },
+                        {
+                            status: 'verified',
+                            respondedBy: null,
+                            'responders.0': { $exists: false },
+                        },
+                    ],
+                },
+            ]),
+        }));
+        expect(queryChain.populate).toHaveBeenCalledWith('reporter', 'name isVerified');
+        expect(queryChain.limit).toHaveBeenCalledWith(100);
+        expect(queryChain.skip).toHaveBeenCalledWith(100);
+    });
 });

@@ -206,7 +206,6 @@ export const login = async (req, res) => {
                     avatar: user.avatar,
                     address: user.address,
                     barangay: user.barangay,
-                    isOnDuty: user.isOnDuty !== false,
                     isVerified: user.isVerified,
                     verificationStatus: user.verificationStatus,
                 },
@@ -244,7 +243,6 @@ export const getMe = async (req, res) => {
                 avatar: user.avatar,
                 address: user.address,
                 barangay: user.barangay,
-                isOnDuty: user.isOnDuty !== false,
                 isVerified: user.isVerified,
                 verificationStatus: user.verificationStatus,
                 notificationPreferences: user.notificationPreferences,
@@ -372,7 +370,6 @@ export const updateProfile = async (req, res) => {
                 responderUnit: user.responderUnit,
                 assignedMunicipality: user.assignedMunicipality,
                 avatar: user.avatar,
-                isOnDuty: user.isOnDuty !== false,
                 notificationPreferences: user.notificationPreferences,
             },
         });

@@ -3,7 +3,6 @@ import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
@@ -25,6 +24,7 @@ import {
     PMTILES_SOURCE_ID,
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
+import MapIncidentDetails from './MapIncidentDetails';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -89,6 +89,7 @@ const MapView = ({
     canResolve = false,
     canResolveReport = null,
     onResolveReport = null,
+    viewerRole = 'guest',
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -810,46 +811,16 @@ const MapView = ({
                         </div>
 
                         {mapModal.type === 'report' && (
-                            <div className="px-5 py-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className={`text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${getStatusBadgeClass(mapModal.data.status)}`}>
-                                        {mapModal.data.status}
-                                    </span>
-                                </div>
-                                <h4 className="text-xl font-display font-bold text-gray-900">
-                                    {mapModal.data.title || mapModal.data.incidentType || 'Incident Report'}
-                                </h4>
-                                <p className="text-gray-600 mt-2 text-sm leading-relaxed line-clamp-2">{mapModal.data.address || 'Unknown location'}</p>
-                                <p className="text-gray-500 mt-1 text-sm">{mapModal.data.incidentTime ? formatDistanceToNow(new Date(mapModal.data.incidentTime), { addSuffix: true }) : 'Recently'}</p>
-                                <p className="text-gray-700 mt-3 text-sm leading-relaxed line-clamp-3">{mapModal.data.description || 'No description provided.'}</p>
-
-                                <div className="flex items-center gap-3 mt-5">
-                                    <button
-                                        onClick={() => handleLocateModalItem(mapModal.data)}
-                                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
-                                    >
-                                        Locate
-                                    </button>
-                                    {mapModal.canRespond && (
-                                        <button
-                                            onClick={() => handleRespondFromModal(mapModal.data)}
-                                            disabled={actionLoading}
-                                            className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold hover:from-emerald-700 hover:to-emerald-600 transition-colors disabled:opacity-60"
-                                        >
-                                            {actionLoading ? 'Please wait...' : 'Respond'}
-                                        </button>
-                                    )}
-                                    {mapModal.canResolve && (
-                                        <button
-                                            onClick={() => handleResolveFromModal(mapModal.data)}
-                                            disabled={actionLoading}
-                                            className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold hover:from-blue-700 hover:to-blue-600 transition-colors disabled:opacity-60"
-                                        >
-                                            {actionLoading ? 'Please wait...' : 'Resolve'}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                            <MapIncidentDetails
+                                report={mapModal.data}
+                                viewerRole={viewerRole}
+                                canRespond={mapModal.canRespond}
+                                canResolve={mapModal.canResolve}
+                                actionLoading={actionLoading}
+                                onLocate={handleLocateModalItem}
+                                onRespond={handleRespondFromModal}
+                                onResolve={handleResolveFromModal}
+                            />
                         )}
 
                         {mapModal.type === 'reportGroup' && (

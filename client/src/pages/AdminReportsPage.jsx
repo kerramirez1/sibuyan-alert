@@ -9,7 +9,11 @@ import IncidentQueue from '../components/adminReports/IncidentQueue';
 import IncidentDetailsDrawer from '../components/adminReports/IncidentDetailsDrawer';
 import IncidentActionDialogs from '../components/adminReports/IncidentActionDialogs';
 import ImageViewer from '../components/ui/ImageViewer';
-import { getCoordinates } from '../components/adminReports/incidentReportConfig';
+import {
+    getCoordinates,
+    getResponderViewFromQuery,
+    RESPONDER_QUEUE_VIEWS,
+} from '../components/adminReports/incidentReportConfig';
 import { notificationsAPI } from '../services/api';
 import { normalizeNotificationId } from '../utils/notificationNavigation';
 
@@ -20,7 +24,9 @@ const AdminReportsPage = () => {
     const [searchParams] = useSearchParams();
     const [viewerImage, setViewerImage] = useState(null);
     const markedNotificationRef = useRef(new Set());
-    const isDispatchQueueView = searchParams.get('view') === 'dispatch-queue';
+    const responderView = user?.role === 'responder'
+        ? getResponderViewFromQuery(searchParams.get('view'))
+        : 'all';
     const initialStatus = searchParams.get('status') || '';
     const focusedReportId = normalizeNotificationId(searchParams.get('report'));
     const notificationId = normalizeNotificationId(searchParams.get('notification'));
@@ -29,7 +35,7 @@ const AdminReportsPage = () => {
 
     const reportState = useIncidentReports({
         subscribe,
-        isDispatchQueueView,
+        responderView,
         initialStatus,
         focusedReportId,
     });
@@ -63,12 +69,31 @@ const AdminReportsPage = () => {
         }
     }, [focusedReportId, navigate, reportState.setSelectedReport, searchParams]);
 
+    const openResponderReport = useCallback((view, report) => {
+        if (user?.role !== 'responder' || !report?._id) return;
+        const params = new URLSearchParams({
+            view: RESPONDER_QUEUE_VIEWS[view],
+            report: String(report._id),
+        });
+        navigate(`/admin/reports?${params.toString()}`);
+    }, [navigate, user?.role]);
+    const handleResponseStarted = useCallback(
+        (report) => openResponderReport('active', report),
+        [openResponderReport],
+    );
+    const handleIncidentResolved = useCallback(
+        (report) => openResponderReport('history', report),
+        [openResponderReport],
+    );
+
     const actions = useIncidentActions({
         user,
         patchReport: reportState.patchReport,
         removeReport: reportState.removeReport,
         refreshReports: reportState.refreshReports,
         closeDetails,
+        onResponseStarted: handleResponseStarted,
+        onIncidentResolved: handleIncidentResolved,
     });
 
     const queueActions = useMemo(() => ({
@@ -97,8 +122,26 @@ const AdminReportsPage = () => {
         const coordinates = getCoordinates(report);
         if (!coordinates) return;
         reportState.setSelectedReport(null);
-        navigate(`/dashboard?view=map&lat=${coordinates.lat}&lng=${coordinates.lng}&zoom=16`);
-    }, [navigate, reportState.setSelectedReport]);
+        const params = new URLSearchParams({
+            view: 'map',
+            lat: String(coordinates.lat),
+            lng: String(coordinates.lng),
+            zoom: '16',
+            pitch: '0',
+            bearing: '0',
+            delay: '500',
+            duration: '1600',
+            focus: `${report._id}-${Date.now()}`,
+            report: String(report._id),
+            returnView: RESPONDER_QUEUE_VIEWS[responderView] || '',
+        });
+        navigate(`/dashboard?${params.toString()}`);
+    }, [navigate, reportState.setSelectedReport, responderView]);
+
+    const changeResponderView = useCallback((view) => {
+        const queryValue = RESPONDER_QUEUE_VIEWS[view];
+        navigate(`/admin/reports${queryValue ? `?view=${queryValue}` : ''}`);
+    }, [navigate]);
 
     const openImage = useCallback((image) => setViewerImage(image), []);
 
@@ -107,9 +150,10 @@ const AdminReportsPage = () => {
             <IncidentQueueControls
                 role={user?.role}
                 municipality={user?.assignedMunicipality}
-                isDispatchQueueView={isDispatchQueueView}
+                responderView={responderView}
+                onResponderViewChange={changeResponderView}
                 stats={reportState.stats}
-                resultCount={reportState.visibleReports.length}
+                resultCount={reportState.pagination.total}
                 status={reportState.status}
                 setStatus={reportState.setStatus}
                 searchDraft={reportState.searchDraft}
@@ -129,7 +173,9 @@ const AdminReportsPage = () => {
                 user={user}
                 actions={queueActions}
                 onInspect={reportState.inspectReport}
-                isDispatchQueueView={isDispatchQueueView}
+                responderView={responderView}
+                pagination={reportState.pagination}
+                onPageChange={reportState.setPage}
             />
 
             <IncidentDetailsDrawer

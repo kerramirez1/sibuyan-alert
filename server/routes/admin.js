@@ -10,7 +10,6 @@ import {
     deleteReport,
     deleteUser,
     getDashboardStats,
-    updateMyDutyStatus,
     transferReport,
     acknowledgeTransfer,
 } from '../controllers/adminController.js';
@@ -54,10 +53,5 @@ router.put('/reports/:id/resolve', requireRole('responder'), validateResolveRepo
 router.put('/reports/:id/transfer', requireRole('municipal_admin'), validateTransferReport, transferReport);
 router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
 router.delete('/reports/:id', requireRole('municipal_admin'), deleteReport);
-
-// ============================================================
-// Responder duty status — responders can toggle own status
-// ============================================================
-router.put('/responders/me/duty-status', requireRole('responder'), updateMyDutyStatus);
 
 export default router;

@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from '../../router';
 import { format } from 'date-fns';
 import {
     HiOutlineBadgeCheck,
+    HiOutlineArrowLeft,
     HiOutlineCheckCircle,
     HiOutlineClock,
     HiOutlineExclamation,
@@ -172,6 +173,8 @@ const DashboardMapWorkspace = ({
     highRiskZones,
     roleStats,
     focusLocation,
+    focusedReport,
+    onReturnToReport,
     responderMapFilter,
     setResponderMapFilter,
     canCurrentResponderResolve,
@@ -201,6 +204,13 @@ const DashboardMapWorkspace = ({
         mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
     };
 
+    useEffect(() => {
+        if (!focusLocation?.requestId) return undefined;
+        mapScrollCleanupRef.current?.();
+        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current, { delay: 180 });
+        return () => mapScrollCleanupRef.current?.();
+    }, [focusLocation?.requestId]);
+
     const roleLabel = isResponder
         ? `${user?.agency || 'Responder'} operations`
         : isAdmin
@@ -221,7 +231,7 @@ const DashboardMapWorkspace = ({
         ? [
             { label: 'Awaiting response', value: pendingReports.length, helper: 'Unassigned or transferred', icon: HiOutlineClock, onClick: () => { setResponderMapFilter('pending'); setShowMapPendingModal(true); } },
             { label: 'Active response', value: respondingReports.length, helper: 'Assigned incidents', icon: HiOutlineTruck, onClick: () => { setResponderMapFilter('responding'); setShowMapRespondingModal(true); } },
-            { label: 'Resolved today', value: resolvedTodayReports.length, helper: 'Closed by your view', icon: HiOutlineBadgeCheck, onClick: () => setShowMapResolvedModal(true) },
+            { label: 'Resolved today', value: resolvedTodayReports.length, helper: 'Incidents you handled', icon: HiOutlineBadgeCheck, onClick: () => setShowMapResolvedModal(true) },
             { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => setShowZoneModal(true) },
         ]
         : isAdmin
@@ -326,6 +336,25 @@ const DashboardMapWorkspace = ({
                 </div>
             )}
 
+            {focusedReport && (
+                <section className="flex flex-col gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Focused incident context">
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Focused incident</p>
+                        <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">{focusedReport.address || 'Selected incident'}</p>
+                    </div>
+                    {onReturnToReport && (
+                        <button
+                            type="button"
+                            onClick={onReturnToReport}
+                            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 text-sm font-semibold text-brand-800 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
+                            Back to incident
+                        </button>
+                    )}
+                </section>
+            )}
+
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Live incident map">
                 <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -382,6 +411,7 @@ const DashboardMapWorkspace = ({
                         canResolve={isResponder}
                         canResolveReport={isResponder ? canCurrentResponderResolve : null}
                         onResolveReport={isResponder ? handleMapResolve : null}
+                        viewerRole={user?.role || 'guest'}
                     />
                 </div>
             </section>

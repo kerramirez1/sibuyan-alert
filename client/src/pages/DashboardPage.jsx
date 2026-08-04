@@ -14,6 +14,11 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getMapCoordinates } from '../utils/mapReports';
+import {
+    getManilaCalendarDateKey,
+    getMillisecondsUntilNextManilaDay,
+    getResolvedTodayReports,
+} from '../utils/reportResolution';
 import { format, isSameDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
 
 const STATUS_COLORS = {
@@ -40,6 +45,7 @@ const DashboardPage = () => {
     const [showMapRespondingModal, setShowMapRespondingModal] = useState(false);
     const [showMapResolvedModal, setShowMapResolvedModal] = useState(false);
     const [responderMapFilter, setResponderMapFilter] = useState('all');
+    const [operationsDateKey, setOperationsDateKey] = useState(getManilaCalendarDateKey);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const historySectionRef = useRef(null);
@@ -83,6 +89,18 @@ const DashboardPage = () => {
         if (!activeMunicipality) return reports;
         return reports.filter((r) => r.municipalityName === activeMunicipality);
     }, [reports, activeMunicipality]);
+    const focusedMapReportId = searchParams.get('report') || '';
+    const focusedMapReport = useMemo(
+        () => dashboardReports.find((report) => String(report._id) === focusedMapReportId) || null,
+        [dashboardReports, focusedMapReportId],
+    );
+    const returnToFocusedReport = useCallback(() => {
+        if (!focusedMapReportId) return;
+        const params = new URLSearchParams({ report: focusedMapReportId });
+        const returnView = searchParams.get('returnView');
+        if (returnView) params.set('view', returnView);
+        navigate(`/admin/reports?${params.toString()}`);
+    }, [focusedMapReportId, navigate, searchParams]);
 
     const isReportAssigned = useCallback((report) => {
         if (!report) return false;
@@ -124,15 +142,27 @@ const DashboardPage = () => {
     );
 
     const computedResolvedTodayReports = useMemo(() => {
-        const today = new Date().toDateString();
-        return dashboardReports.filter(r => {
-            if (r.status !== 'resolved') return false;
-            const rDate = new Date(r.resolvedAt || r.updatedAt || r.createdAt).toDateString();
-            if (rDate !== today) return false;
-            if (isAdmin) return true;
-            return r.resolvedBy?._id === user?._id || r.resolvedBy === user?._id;
+        return getResolvedTodayReports(dashboardReports, {
+            currentUser: user,
+            includeAll: isAdmin,
         });
-    }, [isAdmin, dashboardReports, user]);
+    }, [isAdmin, dashboardReports, user, operationsDateKey]);
+
+    useEffect(() => {
+        let midnightTimer;
+
+        const scheduleDayRollover = () => {
+            const delay = getMillisecondsUntilNextManilaDay();
+            if (delay === null) return;
+            midnightTimer = window.setTimeout(() => {
+                setOperationsDateKey(getManilaCalendarDateKey());
+                scheduleDayRollover();
+            }, delay + 250);
+        };
+
+        scheduleDayRollover();
+        return () => window.clearTimeout(midnightTimer);
+    }, []);
 
     const handleMapRespond = useCallback(async (report) => {
         if (!isResponder || !report?._id) {
@@ -150,29 +180,22 @@ const DashboardPage = () => {
 
             const refreshedReports = await fetchAllAdminReportPages(adminAPI.getReports);
             setReports(refreshedReports);
+            navigate(`/admin/reports?view=active-responses&report=${encodeURIComponent(report._id)}`);
 
             return { ok: true, message: response.data?.message || 'Now responding to incident' };
         } catch (error) {
             return { ok: false, message: error.response?.data?.message || 'Failed to respond to incident' };
         }
-    }, [isResponder, user]);
+    }, [isResponder, navigate, user]);
 
     const handleMapResolve = useCallback(async (report) => {
         if (!isResponder || !report?._id) {
             return { ok: false, message: 'Responder action only' };
         }
 
-        try {
-            const response = await adminAPI.resolveReport(report._id, { resolutionNotes: 'Resolved via map popup' });
-
-            const refreshedReports = await fetchAllAdminReportPages(adminAPI.getReports);
-            setReports(refreshedReports);
-
-            return { ok: true, message: response.data?.message || 'Incident resolved successfully' };
-        } catch (error) {
-            return { ok: false, message: error.response?.data?.message || 'Failed to resolve incident' };
-        }
-    }, [isResponder]);
+        navigate(`/admin/reports?view=active-responses&report=${encodeURIComponent(report._id)}`);
+        return { ok: true, message: 'Review the incident details before confirming resolution.' };
+    }, [isResponder, navigate]);
 
     // Reporters use the shared map workspace without responder-only controls.
 
@@ -306,6 +329,13 @@ const DashboardPage = () => {
                 status: 'resolved',
             }));
         });
+        const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
+            setReports((previous) => upsertDashboardReport(previous, {
+                ...data,
+                _id: data.id,
+                status: 'resolved',
+            }));
+        });
         const unsub4 = subscribe('reportDeleted', (data) => {
             setReports((previous) => removeDashboardReport(previous, data?.id ?? data?._id));
         });
@@ -328,6 +358,7 @@ const DashboardPage = () => {
             unsub1();
             unsub2();
             unsub3();
+            unsubResolutionDetails();
             unsub4();
             unsub8();
             unsub9();
@@ -479,6 +510,8 @@ const DashboardPage = () => {
                 highRiskZones={highRiskZones}
                 roleStats={roleStats}
                 focusLocation={focusLocation}
+                focusedReport={focusedMapReport}
+                onReturnToReport={focusedMapReportId ? returnToFocusedReport : null}
                 responderMapFilter={responderMapFilter}
                 setResponderMapFilter={setResponderMapFilter}
                 canCurrentResponderResolve={canCurrentResponderResolve}

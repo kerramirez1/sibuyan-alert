@@ -9,10 +9,30 @@ import {
     INCIDENT_STATUS,
 } from './incidentReportConfig';
 
+const RESPONDER_VIEW_COPY = {
+    available: {
+        title: 'Available incidents',
+        description: 'Verified and transferred incidents available for response.',
+    },
+    active: {
+        title: 'My active responses',
+        description: 'Incidents currently assigned to your response unit.',
+    },
+    history: {
+        title: 'Response history',
+        description: 'Resolved incidents handled by your response unit.',
+    },
+    all: {
+        title: 'Incident reports',
+        description: 'Municipality-scoped incident records available to responders.',
+    },
+};
+
 const IncidentQueueControls = ({
     role,
     municipality,
-    isDispatchQueueView,
+    responderView,
+    onResponderViewChange,
     stats,
     resultCount,
     status,
@@ -26,7 +46,9 @@ const IncidentQueueControls = ({
     loading,
 }) => {
     const isAdmin = ADMIN_ROLES.includes(role);
-    const hasFilters = Boolean(status || appliedSearch);
+    const isResponder = role === 'responder';
+    const activeResponderView = RESPONDER_VIEW_COPY[responderView] || RESPONDER_VIEW_COPY.all;
+    const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
 
     return (
         <>
@@ -36,11 +58,11 @@ const IncidentQueueControls = ({
                         {role === 'responder' ? 'Responder operations' : 'Incident management'}
                     </p>
                     <h1 className="mt-1 text-2xl font-bold text-gray-950">
-                        {isDispatchQueueView ? 'Dispatch queue' : 'Incident reports'}
+                        {isResponder ? activeResponderView.title : 'Incident reports'}
                     </h1>
                     <p className="mt-1 text-sm text-gray-600">
-                        {isDispatchQueueView
-                            ? 'Verified and transferred incidents available for response.'
+                        {isResponder
+                            ? activeResponderView.description
                             : `${resultCount} incident${resultCount === 1 ? '' : 's'} loaded${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
@@ -64,6 +86,30 @@ const IncidentQueueControls = ({
                     </button>
                 </div>
             </header>
+
+            {isResponder && (
+                <nav className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-white p-2 sm:flex" aria-label="Responder incident views">
+                    {[
+                        { value: 'available', label: 'Available' },
+                        { value: 'active', label: 'My active' },
+                        { value: 'history', label: 'History' },
+                        { value: 'all', label: 'All incidents' },
+                    ].map((view) => {
+                        const active = responderView === view.value;
+                        return (
+                            <button
+                                key={view.value}
+                                type="button"
+                                aria-current={active ? 'page' : undefined}
+                                onClick={() => onResponderViewChange(view.value)}
+                                className={`min-h-11 min-w-0 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${active ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+                            >
+                                {view.label}
+                            </button>
+                        );
+                    })}
+                </nav>
+            )}
 
             <section aria-label="Incident filters" className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
                 <form
@@ -103,8 +149,12 @@ const IncidentQueueControls = ({
                 </form>
 
                 <div className="mt-3 border-t border-gray-100 pt-3">
-                    {isDispatchQueueView ? (
-                        <p className="text-sm font-medium text-blue-800">Showing verified unassigned and transferred incidents.</p>
+                    {isResponder && responderView !== 'all' ? (
+                        <p className="text-sm font-medium text-blue-800">
+                            {responderView === 'available' && 'Showing verified unassigned and transferred incidents.'}
+                            {responderView === 'active' && 'Showing incidents assigned to your responder account.'}
+                            {responderView === 'history' && 'Showing incidents resolved by your response unit.'}
+                        </p>
                     ) : (
                         <div className="flex flex-wrap gap-2" aria-label="Filter by status">
                             <button

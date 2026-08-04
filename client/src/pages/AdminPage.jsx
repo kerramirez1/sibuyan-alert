@@ -20,12 +20,11 @@ const ReportLogoIcon = ({ className = 'w-6 h-6' }) => (
 );
 
 const AdminPage = () => {
-    const { user, updateUser } = useAuth();
+    const { user } = useAuth();
     const { subscribe } = useSocket();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [onlineUsers, setOnlineUsers] = useState([]);
-    const [dutyUpdating, setDutyUpdating] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -88,20 +87,6 @@ const AdminPage = () => {
         }
     };
 
-    const handleToggleDutyStatus = async () => {
-        if (!user || user.role !== 'responder') return;
-        setDutyUpdating(true);
-        try {
-            const response = await adminAPI.updateMyDutyStatus({ isOnDuty: !(user.isOnDuty !== false) });
-            updateUser({ ...user, isOnDuty: response.data.data.isOnDuty });
-            fetchOnlineUsers();
-        } catch (error) {
-            console.error('Failed to update duty status:', error);
-        } finally {
-            setDutyUpdating(false);
-        }
-    };
-
     // Responders don't have access to dashboard stats - redirect to reports
     if (user?.role === 'responder') {
         return (
@@ -120,21 +105,11 @@ const AdminPage = () => {
                                 Coordinate emergency response and manage incident reports.
                             </p>
                         </div>
-                        <button
-                            onClick={handleToggleDutyStatus}
-                            disabled={dutyUpdating}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${user?.isOnDuty !== false
-                                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                                } ${dutyUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {dutyUpdating ? 'Updating...' : user?.isOnDuty !== false ? 'On Duty' : 'Off Duty'}
-                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                         <Link
-                            to="/admin/reports"
+                            to="/admin/reports?view=dispatch-queue"
                             className="card-hover block ring-2 ring-brand-500 ring-offset-2"
                         >
                             <div className="flex items-start justify-between">
@@ -200,12 +175,6 @@ const AdminPage = () => {
                                                     }`}>
                                                     {activeUser.role === 'municipal_admin' ? 'mun. admin' : activeUser.role}
                                                 </span>
-                                                {activeUser.role === 'responder' && (
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${activeUser.isOnDuty !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-700'
-                                                        }`}>
-                                                        {activeUser.isOnDuty !== false ? 'On Duty' : 'Off Duty'}
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -366,12 +335,6 @@ const AdminPage = () => {
                                             </span>
                                             {activeUser.assignedMunicipality && (
                                                 <span className="text-[10px] text-gray-400 font-medium">{activeUser.assignedMunicipality}</span>
-                                            )}
-                                            {activeUser.role === 'responder' && (
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${activeUser.isOnDuty !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-700'
-                                                    }`}>
-                                                    {activeUser.isOnDuty !== false ? 'On Duty' : 'Off Duty'}
-                                                </span>
                                             )}
                                         </div>
                                     </div>

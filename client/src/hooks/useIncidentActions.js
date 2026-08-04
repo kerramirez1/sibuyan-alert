@@ -15,6 +15,8 @@ const useIncidentActions = ({
     removeReport,
     refreshReports,
     closeDetails,
+    onResponseStarted,
+    onIncidentResolved,
 }) => {
     const [reviewDialog, setReviewDialog] = useState(closedReview);
     const [resolveDialog, setResolveDialog] = useState(closedResolve);
@@ -72,7 +74,11 @@ const useIncidentActions = ({
             patchReport(report._id, { ...response.data?.data, status: 'responding' });
             toast.success(response.data?.message || 'Response started');
             setUnitDialog({ open: false, report: null });
-            await refreshReports({ silent: true });
+            if (onResponseStarted) {
+                onResponseStarted({ ...report, ...response.data?.data, status: 'responding' });
+            } else {
+                await refreshReports({ silent: true });
+            }
         } catch (error) {
             toast.error(getApiError(error, 'Failed to respond to report'), {
                 duration: error?.response?.status === 409 ? 5000 : 3000,
@@ -81,7 +87,7 @@ const useIncidentActions = ({
         } finally {
             setRespondLoadingId(null);
         }
-    }, [patchReport, refreshReports, user]);
+    }, [onResponseStarted, patchReport, refreshReports, user]);
 
     const openRespond = useCallback((report) => {
         if (!getIncidentCapabilities(user, report).canRespond) {
@@ -126,13 +132,17 @@ const useIncidentActions = ({
             });
             toast.success(response.data?.message || 'Incident resolved');
             setResolveDialog(closedResolve);
-            await refreshReports({ silent: true });
+            if (onIncidentResolved) {
+                onIncidentResolved({ ...report, ...response.data?.data, status: 'resolved', resolutionNotes });
+            } else {
+                await refreshReports({ silent: true });
+            }
         } catch (error) {
             toast.error(getApiError(error, 'Failed to resolve report'));
         } finally {
             setResolveLoading(false);
         }
-    }, [patchReport, refreshReports, resolveDialog, user]);
+    }, [onIncidentResolved, patchReport, refreshReports, resolveDialog, user]);
 
     const openTransfer = useCallback(async (report) => {
         if (!getIncidentCapabilities(user, report).canTransfer) {

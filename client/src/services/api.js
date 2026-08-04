@@ -168,7 +168,6 @@ export const adminAPI = {
     deleteReport: (id) => api.delete(`/admin/reports/${id}`),
     deleteUser: (id) => api.delete(`/admin/users/${id}`),
     getOnlineUsers: (params) => api.get('/admin/online-users', { params }),
-    updateMyDutyStatus: (data) => api.put('/admin/responders/me/duty-status', data),
 };
 
 // High Risk Zones API
@@ -195,4 +194,3 @@ export const analyticsAPI = {
     getReporter: (params) => api.get('/analytics/reporter', { params }),
     getPublic: () => api.get('/analytics/public'),
 };
-

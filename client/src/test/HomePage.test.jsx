@@ -1,7 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { ThemeProvider } from '../context/ThemeContext';
 
 const mocks = vi.hoisted(() => ({
     getPublic: vi.fn(),
@@ -29,11 +28,9 @@ vi.mock('../services/api', () => ({
 import HomePage from '../pages/HomePage';
 
 const renderPage = () => render(
-    <ThemeProvider>
-        <MemoryRouter>
-            <HomePage />
-        </MemoryRouter>
-    </ThemeProvider>
+    <MemoryRouter>
+        <HomePage />
+    </MemoryRouter>
 );
 
 describe('HomePage operational landing page', () => {

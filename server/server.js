@@ -4,7 +4,6 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import User from './models/User.js';
 
 // Load environment variables
 dotenv.config();
@@ -164,19 +163,10 @@ app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'resp
     }
 
     try {
-        const userIds = uniqueUsers.map((u) => u.userId);
-        const dutyRows = await User.find({ _id: { $in: userIds } }).select('_id isOnDuty');
-        const dutyMap = new Map(dutyRows.map((row) => [row._id.toString(), row.isOnDuty]));
-
-        const enrichedUsers = uniqueUsers.map((u) => ({
-            ...u,
-            isOnDuty: dutyMap.has(u.userId) ? dutyMap.get(u.userId) !== false : true,
-        }));
-
         res.json({
             success: true,
-            data: enrichedUsers,
-            total: enrichedUsers.length,
+            data: uniqueUsers,
+            total: uniqueUsers.length,
         });
     } catch (error) {
         console.error('Failed to load online users:', error);
@@ -228,7 +218,6 @@ io.on('connection', (socket) => {
             assignedMunicipality: userData.assignedMunicipality,
             agency: userData.agency,
             avatar: userData.avatar,
-            isOnDuty: userData.isOnDuty !== false,
             connectedAt: new Date(),
         };
         onlineUsers.set(socket.id, userInfo);

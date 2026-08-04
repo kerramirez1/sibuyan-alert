@@ -46,11 +46,6 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-        // Responder availability status
-        isOnDuty: {
-            type: Boolean,
-            default: true,
-        },
         googleId: {
             type: String,
             unique: true,
@@ -189,7 +184,6 @@ userSchema.virtual('profile').get(function () {
         barangay: this.barangay,
         address: this.address,
         avatar: this.avatar,
-        isOnDuty: this.isOnDuty,
         isVerified: this.isVerified,
         verificationStatus: this.verificationStatus,
     };

@@ -48,16 +48,40 @@ const IncidentDetailsDrawer = ({
     openedFromNotification = false,
 }) => {
     const closeButtonRef = useRef(null);
+    const drawerRef = useRef(null);
+    const previouslyFocusedRef = useRef(null);
     const coordinates = getCoordinates(report);
 
     useEffect(() => {
         if (!report) return undefined;
+        previouslyFocusedRef.current = document.activeElement;
+        const previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
         closeButtonRef.current?.focus();
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') onClose();
+            if (event.key !== 'Tab') return;
+
+            const focusable = drawerRef.current?.querySelectorAll(
+                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            );
+            if (!focusable?.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = previousBodyOverflow;
+            previouslyFocusedRef.current?.focus?.();
+        };
     }, [onClose, report]);
 
     if (!report) return null;
@@ -79,12 +103,12 @@ const IncidentDetailsDrawer = ({
 
     return (
         <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby="incident-details-title">
-            <button type="button" className="absolute inset-0 bg-gray-950/45" onClick={() => onClose()} aria-label="Close incident details" />
-            <aside className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-xl">
+            <button type="button" tabIndex={-1} className="absolute inset-0 bg-gray-950/45" onClick={() => onClose()} aria-label="Close incident details" />
+            <aside ref={drawerRef} className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-xl">
                 <header className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6">
                     <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Incident record</p>
-                        <h2 id="incident-details-title" className="mt-1 truncate text-lg font-bold text-gray-950">
+                        <h2 id="incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-bold text-gray-950">
                             {report.address || 'Incident details'}
                         </h2>
                         <div className="mt-2 flex flex-wrap items-center gap-2">

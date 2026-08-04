@@ -48,6 +48,27 @@ describe('dashboard report data synchronization', () => {
         expect(updated[0]).toMatchObject({ _id: 'report-1', status: 'rejected' });
     });
 
+    test('preserves private resolver identity when a public socket update omits it', () => {
+        const existing = {
+            _id: 'report-1',
+            status: 'responding',
+            resolvedBy: { _id: 'responder-1', name: 'Assigned Responder' },
+        };
+
+        const merged = mergeDashboardReport(existing, {
+            id: 'report-1',
+            status: 'resolved',
+            resolvedBy: { agency: 'MDRRMO' },
+            resolvedAt: '2026-08-04T01:00:00.000Z',
+        });
+
+        expect(merged.resolvedBy).toEqual(existing.resolvedBy);
+        expect(merged).toMatchObject({
+            status: 'resolved',
+            resolvedAt: '2026-08-04T01:00:00.000Z',
+        });
+    });
+
     test('merges verified payloads into existing records instead of replacing complete data', () => {
         const reports = [{
             _id: 'report-1',

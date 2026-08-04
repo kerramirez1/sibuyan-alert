@@ -51,8 +51,8 @@ const initialReport = {
     responders: [],
 };
 
-const renderPage = () => render(
-    <MemoryRouter initialEntries={['/my-reports']}>
+const renderPage = (entry = '/my-reports') => render(
+    <MemoryRouter initialEntries={[entry]}>
         <MyReportsPage />
     </MemoryRouter>
 );
@@ -71,6 +71,13 @@ describe('reporter situation update flow', () => {
         mocks.toast.success.mockReset();
         mocks.toast.error.mockReset();
         mocks.getMyReports.mockResolvedValue({ data: { data: [initialReport] } });
+    });
+
+    test('opens the requested owned report from a protected map deep link', async () => {
+        renderPage('/my-reports?report=report-1');
+
+        expect(await screen.findByRole('button', { name: 'Send situation update' })).toBeInTheDocument();
+        expect(screen.getByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
     });
 
     test('confirms a sensitive update and immediately adds the server result to activity', async () => {

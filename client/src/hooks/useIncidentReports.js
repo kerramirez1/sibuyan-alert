@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI } from '../services/api';
-import { hasResponderAssigned, INCIDENT_LIFECYCLE } from '../components/adminReports/incidentReportConfig';
+import { INCIDENT_LIFECYCLE } from '../components/adminReports/incidentReportConfig';
 
 const getErrorMessage = (error) => (
     error?.response?.data?.message || 'Unable to load incident reports. Please try again.'
 );
 
-const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = '', focusedReportId = '' }) => {
+const EMPTY_PAGINATION = Object.freeze({ page: 1, limit: 20, total: 0, pages: 0 });
+
+const useIncidentReports = ({ subscribe, responderView = 'all', initialStatus = '', focusedReportId = '' }) => {
     const validInitialStatus = INCIDENT_LIFECYCLE.includes(initialStatus) ? initialStatus : '';
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [status, setStatus] = useState(isDispatchQueueView ? '' : validInitialStatus);
+    const [status, setStatusState] = useState(responderView === 'all' ? validInitialStatus : '');
     const [searchDraft, setSearchDraft] = useState('');
     const [appliedSearch, setAppliedSearch] = useState('');
     const [selectedReport, setSelectedReport] = useState(null);
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState(EMPTY_PAGINATION);
 
     const fetchReports = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoading(true);
@@ -25,7 +29,10 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
             const params = focusedReportId
                 ? { reportId: focusedReportId }
                 : {
-                    ...(!isDispatchQueueView && status ? { status } : {}),
+                    page,
+                    limit: 20,
+                    ...(responderView !== 'all' ? { responderView } : {}),
+                    ...(responderView === 'all' && status ? { status } : {}),
                     ...(appliedSearch ? { search: appliedSearch } : {}),
                 };
             const response = await adminAPI.getReports(params);
@@ -37,12 +44,17 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
                 setSelectedReport(focusedReport || null);
             }
             setStats(data.stats || null);
+            setPagination(data.pagination || {
+                ...EMPTY_PAGINATION,
+                total: nextReports.length,
+                pages: nextReports.length > 0 ? 1 : 0,
+            });
         } catch (requestError) {
             setError(getErrorMessage(requestError));
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [appliedSearch, focusedReportId, isDispatchQueueView, status]);
+    }, [appliedSearch, focusedReportId, page, responderView, status]);
 
     useEffect(() => {
         fetchReports();
@@ -83,6 +95,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
                 responders: data?.responders || report.responders,
                 responderAgency: report.responderAgency || data?.respondedBy?.agency,
             }));
+            refreshRef.current({ silent: true });
         });
 
         const unsubResolve = subscribe('reportResolved', (data) => {
@@ -91,6 +104,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
             });
+            refreshRef.current({ silent: true });
         });
 
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
@@ -104,6 +118,7 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
 
         const unsubVerify = subscribe('reportVerified', (data) => {
             patchReport(data?.id, { ...data, status: 'verified' });
+            refreshRef.current({ silent: true });
         });
 
         const unsubReject = subscribe('reportRejectedUpdate', (data) => {
@@ -170,17 +185,16 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
     }, [patchReport, removeReport, subscribe]);
 
     useEffect(() => {
-        if (isDispatchQueueView && status) setStatus('');
-    }, [isDispatchQueueView, status]);
+        setPage(1);
+        if (responderView !== 'all') setStatusState('');
+    }, [responderView]);
 
-    const visibleReports = useMemo(() => (
-        isDispatchQueueView
-            ? reports.filter((report) => (
-                report.status === 'transferred'
-                || (report.status === 'verified' && !hasResponderAssigned(report))
-            ))
-            : reports
-    ), [isDispatchQueueView, reports]);
+    const visibleReports = useMemo(() => reports, [reports]);
+
+    const setStatus = useCallback((nextStatus) => {
+        setPage(1);
+        setStatusState(nextStatus);
+    }, []);
 
     const applySearch = useCallback(() => {
         const nextSearch = searchDraft.trim();
@@ -188,13 +202,15 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
             fetchReports();
             return;
         }
+        setPage(1);
         setAppliedSearch(nextSearch);
     }, [appliedSearch, fetchReports, searchDraft]);
 
     const clearFilters = useCallback(() => {
         setSearchDraft('');
         setAppliedSearch('');
-        setStatus('');
+        setStatusState('');
+        setPage(1);
     }, []);
 
     const inspectReport = useCallback((report) => {
@@ -216,6 +232,9 @@ const useIncidentReports = ({ subscribe, isDispatchQueueView, initialStatus = ''
         reports,
         visibleReports,
         stats,
+        pagination,
+        page,
+        setPage,
         loading,
         error,
         status,

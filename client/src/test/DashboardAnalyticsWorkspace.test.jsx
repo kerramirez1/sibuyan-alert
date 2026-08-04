@@ -20,7 +20,7 @@ vi.mock('../components/map/MapView', () => ({
 
 import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
 
-const selectedMonth = new Date(2026, 6, 1);
+const selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 const report = {
     _id: 'report-1',
     address: 'E. Aguinaldo Street, Poblacion, Cambajao, Sugod, Cajidiocan, Romblon, Mimaropa, Philippines',

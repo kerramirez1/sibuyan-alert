@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from '../router';
+import { Link, useSearchParams } from '../router';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../utils/assets';
@@ -120,7 +120,9 @@ function MyReportsPage() {
     const [updateDialogReportId, setUpdateDialogReportId] = useState(null);
     const [highlightedUpdates, setHighlightedUpdates] = useState({});
     const [submittingUpdateId, setSubmittingUpdateId] = useState(null);
+    const [searchParams] = useSearchParams();
     const { subscribe } = useSocket();
+    const requestedReportId = searchParams.get('report');
 
     const fetchReports = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -138,6 +140,12 @@ function MyReportsPage() {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
+    useEffect(() => {
+        if (!requestedReportId || !reports.some((report) => String(report._id) === requestedReportId)) return;
+        setFilterStatus('all');
+        setSelectedReportId(requestedReportId);
+    }, [reports, requestedReportId]);
 
     useEffect(() => {
         const updateReport = (id, changes) => {

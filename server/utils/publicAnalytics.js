@@ -35,3 +35,31 @@ export const getPhilippineCalendarMonthRange = (now = new Date()) => {
     };
 };
 
+/**
+ * Return an inclusive-exclusive Philippine calendar-day range in UTC.
+ * This remains stable on UTC-hosted platforms such as Heroku.
+ */
+export const getPhilippineCalendarDayRange = (now = new Date()) => {
+    const instant = now instanceof Date ? now : new Date(now);
+
+    if (Number.isNaN(instant.getTime())) {
+        throw new TypeError('A valid date is required to calculate the analytics period');
+    }
+
+    const offsetMs = PHILIPPINES_UTC_OFFSET_MINUTES * 60 * 1000;
+    const philippineDate = new Date(instant.getTime() + offsetMs);
+    const year = philippineDate.getUTCFullYear();
+    const zeroBasedMonth = philippineDate.getUTCMonth();
+    const day = philippineDate.getUTCDate();
+    const startAt = new Date(Date.UTC(year, zeroBasedMonth, day) - offsetMs);
+    const endAt = new Date(Date.UTC(year, zeroBasedMonth, day + 1) - offsetMs);
+
+    return {
+        startAt,
+        endAt,
+        timezone: PHILIPPINES_TIMEZONE,
+        year,
+        month: zeroBasedMonth + 1,
+        day,
+    };
+};

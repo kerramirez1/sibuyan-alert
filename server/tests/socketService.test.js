@@ -38,15 +38,16 @@ describe('socket report lifecycle events', () => {
 
         broadcastMultiUnitResponse(io, report, responder, 'BFP - Magdiwang', 'BFP');
 
-        expect(io.emit).toHaveBeenCalledWith(
-            'reportResponded',
-            expect.objectContaining({
-                id: 'report1',
-                status: 'responding',
-                municipalityName: 'Magdiwang',
-                respondedBy: expect.objectContaining({ _id: 'responder1', agency: 'BFP' }),
-            })
-        );
+        const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportResponded')[1];
+        expect(publicPayload).toEqual(expect.objectContaining({
+            id: 'report1',
+            status: 'responding',
+            municipalityName: 'Magdiwang',
+            respondedBy: { agency: 'BFP' },
+            respondingAgencies: ['BFP'],
+        }));
+        expect(JSON.stringify(publicPayload)).not.toContain('responder1');
+        expect(JSON.stringify(publicPayload)).not.toContain('BFP Responder');
     });
 
     test('keeps the first response timestamp and responder when another unit joins', () => {
@@ -73,7 +74,9 @@ describe('socket report lifecycle events', () => {
 
         const payload = io.emit.mock.calls.find(([event]) => event === 'reportResponded')[1];
         expect(payload.respondedAt).toBe(firstRespondedAt);
-        expect(payload.respondedBy).toEqual({ _id: 'responder1' });
+        expect(payload.respondedBy).toEqual({ agency: 'PNP' });
+        expect(JSON.stringify(payload)).not.toContain('responder1');
+        expect(JSON.stringify(payload)).not.toContain('responder2');
     });
 
     test('includes canonical analytics fields in verified report events', () => {

@@ -47,21 +47,50 @@ const buildReportUpdateTarget = (notification, role) => {
     return `/admin/reports?${params.toString()}`;
 };
 
+const buildOperationalReportTarget = (notification, view = '') => {
+    const reportId = normalizeNotificationId(notification?.data?.reportId);
+    if (!reportId) return view ? `/admin/reports?view=${view}` : '/admin/reports';
+
+    const params = new URLSearchParams({
+        report: reportId,
+        source: 'notification',
+    });
+    if (view) params.set('view', view);
+    const notificationId = normalizeNotificationId(notification?._id || notification?.id);
+    if (notificationId) params.set('notification', notificationId);
+    return `/admin/reports?${params.toString()}`;
+};
+
 export const buildNotificationTarget = (notification, role) => {
     switch (notification?.type) {
         case 'new_report':
-            return '/admin/reports';
+            return isOperationalNotificationRecipient(role)
+                ? buildOperationalReportTarget(notification)
+                : null;
         case 'report_verified':
-            return role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/my-reports';
+            return role === 'responder'
+                ? buildOperationalReportTarget(notification, 'dispatch-queue')
+                : '/my-reports';
         case 'report_rejected':
             return '/my-reports';
         case 'report_responding':
-            return isOperationalNotificationRecipient(role) ? '/admin/reports' : '/my-reports';
+            return isOperationalNotificationRecipient(role)
+                ? buildOperationalReportTarget(notification, role === 'responder' ? 'active-responses' : '')
+                : '/my-reports';
+        case 'report_resolved':
+            return role === 'responder'
+                ? buildOperationalReportTarget(notification, 'response-history')
+                : role === 'municipal_admin'
+                    ? buildOperationalReportTarget(notification)
+                    : '/my-reports';
         case 'report_update':
             return buildReportUpdateTarget(notification, role);
         case 'report_transferred':
+            return role === 'responder'
+                ? buildOperationalReportTarget(notification, 'dispatch-queue')
+                : buildOperationalReportTarget(notification);
         case 'report_transfer_acknowledged':
-            return '/admin/reports';
+            return buildOperationalReportTarget(notification);
         case 'reporter_verified':
         case 'reporter_rejected':
             return '/';

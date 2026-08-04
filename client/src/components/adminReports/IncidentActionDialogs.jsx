@@ -169,7 +169,7 @@ const IncidentActionDialogs = ({ actions, municipality }) => {
                 isOpen={actions.unitDialog.open}
                 onClose={actions.closeUnit}
                 onSelect={actions.selectUnit}
-                municipality={municipality || 'Cajidiocan'}
+                municipality={municipality || ''}
             />
         </>
     );

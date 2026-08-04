@@ -9,6 +9,7 @@ export const mergeDashboardReport = (existingReport, incomingReport) => {
 
     const existing = existingReport || {};
     const incoming = incomingReport || {};
+    const incomingResolverId = incoming.resolvedBy?._id ?? incoming.resolvedBy?.id;
 
     return {
         ...existing,
@@ -21,6 +22,9 @@ export const mergeDashboardReport = (existingReport, incomingReport) => {
             || null,
         respondedAt: existing.respondedAt || incoming.respondedAt || null,
         respondedBy: existing.respondedBy || incoming.respondedBy || null,
+        resolvedBy: incomingResolverId
+            ? incoming.resolvedBy
+            : existing.resolvedBy || incoming.resolvedBy || null,
     };
 };
 

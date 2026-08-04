@@ -69,7 +69,9 @@ const ResponderUnitModal = ({ isOpen, onClose, onSelect, municipality }) => {
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Select responding unit" size="lg">
             <p className="text-sm text-gray-600">
-                Choose the {municipality} unit that will respond to this incident.
+                {municipality
+                    ? `Choose the ${municipality} unit that will respond to this incident.`
+                    : 'A municipality assignment is required before selecting a response unit.'}
             </p>
 
             {units.length === 0 ? (

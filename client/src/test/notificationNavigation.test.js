@@ -43,4 +43,18 @@ describe('notification navigation policy', () => {
             priority: 'urgent',
         }));
     });
+
+    test('opens responder lifecycle notifications in the exact operational queue', () => {
+        const baseNotification = { _id: notificationId, data: { reportId } };
+
+        expect(buildNotificationTarget({ ...baseNotification, type: 'report_verified' }, 'responder')).toBe(
+            `/admin/reports?report=${reportId}&source=notification&view=dispatch-queue&notification=${notificationId}`
+        );
+        expect(buildNotificationTarget({ ...baseNotification, type: 'report_responding' }, 'responder')).toBe(
+            `/admin/reports?report=${reportId}&source=notification&view=active-responses&notification=${notificationId}`
+        );
+        expect(buildNotificationTarget({ ...baseNotification, type: 'report_resolved' }, 'responder')).toBe(
+            `/admin/reports?report=${reportId}&source=notification&view=response-history&notification=${notificationId}`
+        );
+    });
 });

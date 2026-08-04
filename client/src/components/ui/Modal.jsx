@@ -13,6 +13,8 @@ const Modal = ({
     const titleId = useId();
     const closeButtonRef = useRef(null);
     const onCloseRef = useRef(onClose);
+    const contentRef = useRef(null);
+    const previouslyFocusedRef = useRef(null);
     const sizes = {
         sm: 'max-w-sm',
         md: 'max-w-md',
@@ -28,12 +30,38 @@ const Modal = ({
 
     useEffect(() => {
         if (!isOpen) return undefined;
-        closeButtonRef.current?.focus();
+        previouslyFocusedRef.current = document.activeElement;
+        const previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        (closeButtonRef.current || contentRef.current)?.focus();
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') onCloseRef.current();
+            if (event.key !== 'Tab') return;
+
+            const focusable = contentRef.current?.querySelectorAll(
+                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            );
+            if (!focusable?.length) {
+                event.preventDefault();
+                contentRef.current?.focus();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = previousBodyOverflow;
+            previouslyFocusedRef.current?.focus?.();
+        };
     }, [isOpen]);
 
     return (
@@ -42,6 +70,8 @@ const Modal = ({
                 <div className="modal-overlay">
                     {/* Backdrop */}
                     <motion.div
+                        ref={contentRef}
+                        tabIndex={-1}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}

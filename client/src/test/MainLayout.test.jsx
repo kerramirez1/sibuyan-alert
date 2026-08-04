@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
 import { describe, expect, test, vi } from 'vitest';
-import { ThemeProvider } from '../context/ThemeContext';
 
 const mocks = vi.hoisted(() => ({
     logout: vi.fn(),
@@ -38,13 +37,11 @@ vi.mock('framer-motion', () => ({
 import MainLayout from '../components/layout/MainLayout';
 
 const renderLayout = (entry = '/accident-history') => render(
-    <ThemeProvider>
-        <MemoryRouter initialEntries={[entry]}>
-            <Routes>
-                <Route element={<MainLayout><div>Page content</div></MainLayout>} />
-            </Routes>
-        </MemoryRouter>
-    </ThemeProvider>
+    <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+            <Route element={<MainLayout><div>Page content</div></MainLayout>} />
+        </Routes>
+    </MemoryRouter>
 );
 
 describe('MainLayout responsive navigation', () => {

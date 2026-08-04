@@ -34,20 +34,15 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <meta name="theme-color" content="#ffffff" />
-    <!-- Apply the saved/system theme before React and CSS paint to prevent flashing. -->
+    <meta name="color-scheme" content="light" />
+    <!-- Remove the retired theme preference before paint so existing users return to light mode. -->
     <script>
         (function () {
-            var key = 'sibuyan-alert-theme';
-            var saved = null;
-            try { saved = localStorage.getItem(key); } catch (error) { /* storage unavailable */ }
-            var theme = saved === 'light' || saved === 'dark'
-                ? saved
-                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             var root = document.documentElement;
-            root.classList.toggle('dark', theme === 'dark');
-            root.dataset.theme = theme;
-            root.style.colorScheme = theme;
-            document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#111827' : '#ffffff');
+            try { localStorage.removeItem('sibuyan-alert-theme'); } catch (error) { /* storage unavailable */ }
+            root.classList.remove('dark');
+            delete root.dataset.theme;
+            root.style.colorScheme = 'light';
         })();
     </script>
 </head>

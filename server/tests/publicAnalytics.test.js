@@ -21,6 +21,7 @@ jest.mock('../models/HighRiskZone.js', () => ({
 
 const { getPublicAnalytics } = await import('../controllers/analyticsController.js');
 const {
+    getPhilippineCalendarDayRange,
     getPhilippineCalendarMonthRange,
     PUBLIC_REPORT_STATUSES,
 } = await import('../utils/publicAnalytics.js');
@@ -32,6 +33,15 @@ afterEach(() => {
 });
 
 describe('public homepage analytics', () => {
+    test('calculates Philippine calendar-day boundaries in UTC', () => {
+        const augustFourth = getPhilippineCalendarDayRange(new Date('2026-08-04T00:30:00.000Z'));
+
+        expect(augustFourth.startAt.toISOString()).toBe('2026-08-03T16:00:00.000Z');
+        expect(augustFourth.endAt.toISOString()).toBe('2026-08-04T16:00:00.000Z');
+        expect(augustFourth.timezone).toBe('Asia/Manila');
+        expect(augustFourth.day).toBe(4);
+    });
+
     test('calculates Philippine calendar-month boundaries in UTC', () => {
         const july = getPhilippineCalendarMonthRange(new Date('2026-07-31T15:59:59.000Z'));
         expect(july.startAt.toISOString()).toBe('2026-06-30T16:00:00.000Z');

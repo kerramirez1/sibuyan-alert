@@ -4,7 +4,6 @@ import {
     HiOutlineUserGroup,
     HiOutlineShieldCheck,
 } from 'react-icons/hi';
-import ThemeToggle from '../ui/ThemeToggle';
 
 const features = [
     {
@@ -115,7 +114,6 @@ const AuthLayout = ({ children }) => (
         </aside>
 
         <main className="auth-content relative flex min-h-dvh w-full items-center justify-center bg-gray-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-            <ThemeToggle className="absolute right-4 top-4 sm:right-6 sm:top-6" />
             <div className="w-full max-w-[440px]">
                 {children}
             </div>

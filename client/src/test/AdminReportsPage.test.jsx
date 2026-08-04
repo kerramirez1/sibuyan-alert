@@ -87,11 +87,12 @@ const createReport = (overrides = {}) => ({
     ...overrides,
 });
 
-const apiResponse = (reports) => ({
+const apiResponse = (reports, pagination = null) => ({
     data: {
         data: {
             reports,
             stats: { pending: 1, verified: 1, responding: 1, resolved: 1 },
+            ...(pagination ? { pagination } : {}),
         },
     },
 });
@@ -325,7 +326,7 @@ describe('AdminReportsPage operational queue', () => {
         });
     });
 
-    test('keeps the dispatch queue limited to unassigned verified and transferred incidents', async () => {
+    test('requests the server-filtered available responder queue', async () => {
         mocks.user = {
             _id: 'responder-1',
             role: 'responder',
@@ -333,23 +334,78 @@ describe('AdminReportsPage operational queue', () => {
         };
         mocks.getReports.mockResolvedValue(apiResponse([
             createReport({ _id: 'verified-open', address: 'Open verified incident', status: 'verified' }),
-            createReport({
-                _id: 'verified-assigned',
-                address: 'Assigned verified incident',
-                status: 'verified',
-                respondedBy: { _id: 'responder-2', name: 'Other Unit' },
-            }),
             createReport({ _id: 'transferred-open', address: 'Transferred open incident', status: 'transferred' }),
-            createReport({ _id: 'pending-review', address: 'Pending review incident', status: 'pending' }),
         ]));
 
         renderPage('/admin/reports?view=dispatch-queue');
 
         await screen.findAllByText('Open verified incident');
         expect(screen.getAllByText('Transferred open incident')).not.toHaveLength(0);
-        expect(screen.queryByText('Assigned verified incident')).not.toBeInTheDocument();
-        expect(screen.queryByText('Pending review incident')).not.toBeInTheDocument();
-        expect(mocks.getReports).toHaveBeenCalledWith({});
+        expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20, responderView: 'available' });
+    });
+
+    test('switches between responder work queues through URL-backed server views', async () => {
+        mocks.user = {
+            _id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([]));
+
+        renderPage('/admin/reports?view=dispatch-queue');
+        expect(await screen.findByRole('heading', { name: 'Available incidents' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'My active' }));
+
+        expect(await screen.findByRole('heading', { name: 'My active responses' })).toBeInTheDocument();
+        await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({
+            page: 1,
+            limit: 20,
+            responderView: 'active',
+        }));
+    });
+
+    test('moves a newly accepted incident into My active and keeps its details open', async () => {
+        const reportId = '64b100000000000000000011';
+        mocks.user = {
+            _id: 'responder-1',
+            role: 'responder',
+            agency: 'PNP',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        const availableReport = createReport({ _id: reportId, status: 'verified' });
+        const activeReport = createReport({
+            _id: reportId,
+            status: 'responding',
+            respondedBy: { _id: 'responder-1', name: 'Response Unit', agency: 'PNP' },
+            responders: [{ user: 'responder-1', unitName: 'PNP - Cajidiocan', unitType: 'PNP' }],
+        });
+        mocks.getReports
+            .mockResolvedValueOnce(apiResponse([availableReport]))
+            .mockResolvedValue(apiResponse([activeReport]));
+        mocks.respondToReport.mockResolvedValue({
+            data: { message: 'Response started', data: activeReport },
+        });
+
+        renderPage('/admin/reports?view=dispatch-queue');
+        await screen.findAllByText('Poblacion coastal road');
+        fireEvent.click(screen.getAllByRole('button', { name: 'Respond to incident' })[0]);
+
+        await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ reportId }));
+        expect(await screen.findByRole('heading', { name: 'My active responses' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Poblacion coastal road' })).toBeInTheDocument();
+    });
+
+    test('renders responsive pagination and requests the selected page', async () => {
+        mocks.getReports.mockResolvedValue(apiResponse(
+            [createReport()],
+            { page: 1, limit: 20, total: 25, pages: 2 },
+        ));
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+        await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ page: 2, limit: 20 }));
     });
 
     test('preserves administrator verification confirmation and API transition', async () => {

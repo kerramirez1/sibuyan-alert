@@ -109,6 +109,5 @@ describe('API service', () => {
         expect(typeof adminAPI.transferReport).toBe('function');
         expect(typeof adminAPI.deleteReport).toBe('function');
         expect(typeof adminAPI.deleteUser).toBe('function');
-        expect(typeof adminAPI.updateMyDutyStatus).toBe('function');
     });
 });

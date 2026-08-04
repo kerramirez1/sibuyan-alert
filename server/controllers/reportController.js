@@ -1,4 +1,5 @@
 import Report from '../models/Report.js';
+import { toPublicReport } from '../utils/publicReport.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
@@ -354,19 +355,43 @@ export const getReports = async (req, res) => {
         }
 
         const reports = await Report.find(query)
-            .select('-transferHistory -resolutionNotes')
-            .populate('reporter', 'name avatar')
+            .select([
+                '_id',
+                'reporter',
+                'incidentCategory',
+                'incidentType',
+                'title',
+                'description',
+                'address',
+                'barangay',
+                'municipality',
+                'municipalityName',
+                'coordinates',
+                'incidentTime',
+                'status',
+                'severity',
+                'fireInvolved',
+                'casualties',
+                'responders.unitType',
+                'responderAgency',
+                'verifiedAt',
+                'respondedAt',
+                'resolvedAt',
+                'createdAt',
+                'updatedAt',
+            ].join(' '))
             .populate('municipality', 'name code')
             .sort({ incidentTime: -1 })
             .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit));
+            .skip((parseInt(page) - 1) * parseInt(limit))
+            .lean();
 
         const total = await Report.countDocuments(query);
 
         res.json({
             success: true,
             data: {
-                reports,
+                reports: reports.map((report) => toPublicReport(report, { viewerId: req.user?._id })),
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -428,12 +453,9 @@ export const getReportById = async (req, res) => {
         report.viewCount += 1;
         await report.save();
 
-        const responseData = report.toObject();
-        if (!isOwner && !isMunicipalAdminInScope) {
-            delete responseData.transferHistory;
-            delete responseData.resolutionNotes;
-            delete responseData.rejectionReason;
-        }
+        const responseData = isOwner || isMunicipalAdminInScope
+            ? report.toObject()
+            : toPublicReport(report, { viewerId: req.user?._id });
 
         res.json({
             success: true,
@@ -888,4 +910,3 @@ export default {
     searchLocations,
     geocodeLocation,
 };
-

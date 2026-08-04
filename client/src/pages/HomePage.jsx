@@ -4,7 +4,6 @@ import { HiOutlineArrowRight, HiOutlineLogin } from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { analyticsAPI, reportsAPI } from '../services/api';
-import ThemeToggle from '../components/ui/ThemeToggle';
 import LandingHero from '../components/home/LandingHero';
 import HowItWorks from '../components/landing/HowItWorks';
 import Features from '../components/landing/Features';
@@ -119,7 +118,6 @@ const HomePage = () => {
                     </nav>
 
                     <nav className="flex shrink-0 items-center gap-1" aria-label="Account actions">
-                        <ThemeToggle className="!h-10 !min-h-10 !min-w-10 !border-0 !bg-transparent !px-2" />
                         {isAuthenticated ? (
                             <Link to={destination} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-gray-950 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600">
                                 <span className="hidden xs:inline">{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>

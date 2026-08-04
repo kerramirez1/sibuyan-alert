@@ -59,21 +59,13 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
     }
 
     const firstResponderEntry = report.responders?.[0];
-    const firstResponderId = report.respondedBy?._id
-        || report.respondedBy
-        || firstResponderEntry?.user?._id
-        || firstResponderEntry?.user
-        || responder._id;
-    const isCurrentResponderFirst = firstResponderId?.toString() === responder._id?.toString();
     const firstRespondedAt = report.respondedAt
         || firstResponderEntry?.respondedAt
         || new Date();
 
-    const responseData = {
+    const publicResponseData = {
         reportId: report._id,
         responder: {
-            _id: responder._id,
-            name: responder.name,
             unitName,
             unitType,
         },
@@ -81,34 +73,40 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
         totalResponders: report.responders ? report.responders.length : 1,
     };
 
-    // Broadcast to all clients (public update)
-    io.emit('multiUnitResponse', responseData);
+    // Public events expose the responding agency, never responder identities or
+    // the report's internal responder assignments.
+    io.emit('multiUnitResponse', publicResponseData);
     io.emit('reportResponded', {
         id: report._id,
         status: 'responding',
         municipalityName: report.municipalityName,
-        respondedBy: isCurrentResponderFirst
-            ? {
-                _id: responder._id,
-                name: responder.name,
-                agency: responder.agency,
-                unitName,
-                unitType,
-            }
-            : { _id: firstResponderId },
+        respondedBy: { agency: unitType },
+        respondingAgencies: [...new Set((report.responders || [])
+            .map((entry) => entry.unitType)
+            .filter(Boolean)
+            .concat(unitType))],
         respondedAt: firstRespondedAt,
-        responders: report.responders || [],
+        totalResponders: publicResponseData.totalResponders,
     });
 
-    // Also broadcast to municipality-specific room (use municipalityName to match frontend rooms)
+    // Authenticated municipality rooms may receive the operator identity needed
+    // for dispatch coordination.
     if (report.municipalityName) {
-        io.to(`municipality_${report.municipalityName}`).emit('localUnitResponse', responseData);
+        io.to(`municipality_${report.municipalityName}`).emit('localUnitResponse', {
+            ...publicResponseData,
+            responder: {
+                _id: responder._id,
+                name: responder.name,
+                unitName,
+                unitType,
+            },
+        });
     }
 
     console.log(`🚑 Multi-unit response broadcasted:`, {
         reportId: report._id,
         unit: `${unitType} - ${unitName}`,
-        totalResponders: responseData.totalResponders,
+        totalResponders: publicResponseData.totalResponders,
     });
 };
 
@@ -125,6 +123,7 @@ export const broadcastReportVerified = (io, report) => {
         incidentCategory: report.incidentCategory,
         incidentType: report.incidentType,
         title: report.title,
+        description: report.description,
         address: report.address,
         municipalityName: report.municipalityName,
         coordinates: report.coordinates,
@@ -135,6 +134,7 @@ export const broadcastReportVerified = (io, report) => {
         severity: report.severity,
         priority: report.priority,
         casualties: report.casualties,
+        fireInvolved: Boolean(report.fireInvolved),
     });
 
     // Notify municipality-specific channel (use municipalityName to match frontend rooms)

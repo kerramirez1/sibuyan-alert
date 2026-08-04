@@ -210,7 +210,18 @@ const ResponderSummary = ({ report }) => {
     );
 };
 
-const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInspect, isDispatchQueueView }) => {
+const IncidentQueue = ({
+    reports,
+    loading,
+    error,
+    onRetry,
+    user,
+    actions,
+    onInspect,
+    responderView,
+    pagination,
+    onPageChange,
+}) => {
     if (loading) {
         return (
             <div className="rounded-xl border border-gray-200 bg-white p-8 text-center" role="status">
@@ -233,14 +244,17 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
     }
 
     if (reports.length === 0) {
+        const responderEmptyCopy = {
+            available: ['No incidents are waiting for dispatch', 'New verified or transferred incidents will appear here.'],
+            active: ['You have no active responses', 'Start a response from the Available tab when an eligible incident needs your unit.'],
+            history: ['No response history yet', 'Incidents resolved by your response unit will appear here.'],
+        };
+        const emptyCopy = responderEmptyCopy[responderView]
+            || ['No incident reports found', 'Adjust the status or search filters and try again.'];
         return (
             <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
-                <p className="font-semibold text-gray-900">
-                    {isDispatchQueueView ? 'No incidents are waiting for dispatch' : 'No incident reports found'}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                    {isDispatchQueueView ? 'New verified or transferred incidents will appear here.' : 'Adjust the status or search filters and try again.'}
-                </p>
+                <p className="font-semibold text-gray-900">{emptyCopy[0]}</p>
+                <p className="mt-1 text-sm text-gray-500">{emptyCopy[1]}</p>
             </div>
         );
     }
@@ -320,6 +334,33 @@ const IncidentQueue = ({ reports, loading, error, onRetry, user, actions, onInsp
                     </tbody>
                 </table>
             </div>
+
+            {pagination?.pages > 1 && (
+                <nav className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Incident queue pages">
+                    <p className="text-center text-xs text-gray-500 sm:text-left">
+                        Page <strong className="text-gray-800">{pagination.page}</strong> of {pagination.pages}
+                        <span aria-hidden="true"> · </span>{pagination.total} incidents
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(pagination.page - 1)}
+                            disabled={pagination.page <= 1}
+                            className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(pagination.page + 1)}
+                            disabled={pagination.page >= pagination.pages}
+                            className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </nav>
+            )}
         </section>
     );
 };

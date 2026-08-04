@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Link, useLocation } from '../../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { adminAPI } from '../../services/api';
 import NotificationBell from '../ui/NotificationBell';
-import ThemeToggle from '../ui/ThemeToggle';
-import toast from 'react-hot-toast';
 import { resolveAssetUrl } from '../../utils/assets';
 import {
     HiOutlineHome,
@@ -18,9 +15,7 @@ import {
     HiOutlineX,
     HiOutlineLogin,
     HiOutlineGlobe,
-    HiOutlineStatusOnline,
     HiOutlineClock,
-    HiOutlineArrowRight,
     HiOutlineChevronRight,
     HiOutlineUserAdd,
 } from 'react-icons/hi';
@@ -44,9 +39,8 @@ const getAccountContext = (user) => {
 };
 
 const MainLayout = ({ children }) => {
-    const { user, logout, canSubmitReports, isAuthenticated, updateUser } = useAuth();
+    const { user, logout, canSubmitReports, isAuthenticated } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [dutyUpdating, setDutyUpdating] = useState(false);
     const location = useLocation();
     const currentView = new URLSearchParams(location.search).get('view');
 
@@ -76,7 +70,11 @@ const MainLayout = ({ children }) => {
             roles: ['municipal_admin'],
         },
         { name: 'Users', href: '/admin/users', icon: HiOutlineUsers },
-        { name: 'Incident Reports', href: '/admin/reports', icon: HiOutlineClipboardList },
+        {
+            name: user?.role === 'responder' ? 'Response Queue' : 'Incident Reports',
+            href: user?.role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/admin/reports',
+            icon: HiOutlineClipboardList,
+        },
         { name: 'Risk Zones', href: '/admin/zones', icon: HiOutlineLocationMarker, roles: ['municipal_admin'] },
     ];
 
@@ -99,28 +97,6 @@ const MainLayout = ({ children }) => {
             return false;
         })
         : [];
-
-    const handleToggleDutyStatus = async () => {
-        if (!user || user.role !== 'responder') return;
-
-        setDutyUpdating(true);
-        try {
-            const nextValue = !(user.isOnDuty !== false);
-            const response = await adminAPI.updateMyDutyStatus({ isOnDuty: nextValue });
-            updateUser({
-                ...user,
-                isOnDuty: response.data.data.isOnDuty,
-            });
-            toast.success(response.data.message || 'Duty status updated');
-        } catch (error) {
-            const message = error.response?.data?.message || 'Failed to update duty status';
-            toast.error(message);
-        } finally {
-            setDutyUpdating(false);
-        }
-    };
-
-
 
     return (
         <>
@@ -279,7 +255,7 @@ const MainLayout = ({ children }) => {
                                             key={item.name}
                                             to={item.href}
                                             className={({ isActive }) => {
-                                                const isIncidentReportsItem = item.href === '/admin/reports';
+                                                const isIncidentReportsItem = item.href.startsWith('/admin/reports');
                                                 const isHighRiskZonesItem = item.href === '/admin/zones';
                                                 const adminItemActive = isIncidentReportsItem
                                                     ? location.pathname === '/admin/reports'
@@ -303,32 +279,6 @@ const MainLayout = ({ children }) => {
 
                     {/* Bottom Section */}
                     <div className="mt-auto space-y-3 border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
-                        {/* Responder Duty Status */}
-                        {isAuthenticated && user?.role === 'responder' && (
-                            <div className="rounded-xl bg-gray-50 p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs font-bold text-brand-900">Duty Status</p>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${user?.isOnDuty !== false
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-gray-200 text-gray-700'
-                                        }`}>
-                                        {user?.isOnDuty !== false ? 'On Duty' : 'Off Duty'}
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={handleToggleDutyStatus}
-                                    disabled={dutyUpdating}
-                                    className={`flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${user?.isOnDuty !== false
-                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                                        } ${dutyUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                >
-                                    <HiOutlineStatusOnline className="w-3.5 h-3.5" />
-                                    {dutyUpdating ? 'Updating...' : user?.isOnDuty !== false ? 'Set Off Duty' : 'Set On Duty'}
-                                </button>
-                            </div>
-                        )}
-
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
                             <div className="space-y-2">
@@ -387,9 +337,8 @@ const MainLayout = ({ children }) => {
                                             onClick={() => setSidebarOpen(false)}
                                             className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                                         >
-                                            <HiOutlineLogin className="w-4 h-4" />
+                                            <HiOutlineLogin className="h-4 w-4" aria-hidden="true" />
                                             Sign In
-                                            <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
                                         </Link>
                                     </div>
                                 </div>
@@ -431,7 +380,6 @@ const MainLayout = ({ children }) => {
                             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-brand-50 rounded-full text-xs font-medium text-brand-700">
                                 <span>v2.0.0</span>
                             </div>
-                            <ThemeToggle />
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link

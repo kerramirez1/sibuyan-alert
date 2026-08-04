@@ -351,8 +351,8 @@ export const verifyReporter = async (req, res) => {
 /**
  * @desc    Get all reports (including pending)
  * @route   GET /api/admin/reports
- * @access  Private (admin only)
- * @note    Municipal admins only see reports in their jurisdiction
+ * @access  Private (municipal administrators and responders)
+ * @note    Results are municipality-scoped and role-filtered
  */
 export const getAllReports = async (req, res) => {
     try {
@@ -365,7 +365,15 @@ export const getAllReports = async (req, res) => {
             startDate,
             endDate,
             reportId,
+            responderView,
         } = req.query;
+
+        const parsedPage = Number.parseInt(page, 10);
+        const parsedLimit = Number.parseInt(limit, 10);
+        const safePage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+        const safeLimit = Number.isFinite(parsedLimit)
+            ? Math.min(Math.max(parsedLimit, 1), 100)
+            : 20;
 
         const safeSearch = sanitizeSearch(search);
         const query = {};
@@ -397,10 +405,41 @@ export const getAllReports = async (req, res) => {
             query._id = reportId;
         }
 
-        // Responders can see pending + active lifecycle reports (but not rejected)
+        // Responder views are filtered on the server so actionable incidents are
+        // never lost behind an unrelated first page of report history.
         if (admin.role === 'responder') {
             const responderVisibleStatuses = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
-            if (status && responderVisibleStatuses.includes(status)) {
+            const responderId = admin._id;
+
+            if (!reportId && responderView === 'available') {
+                query.$and.push({
+                    $or: [
+                        { status: 'transferred' },
+                        {
+                            status: 'verified',
+                            respondedBy: null,
+                            'responders.0': { $exists: false },
+                        },
+                    ],
+                });
+            } else if (!reportId && responderView === 'active') {
+                query.status = 'responding';
+                query.$and.push({
+                    $or: [
+                        { respondedBy: responderId },
+                        { 'responders.user': responderId },
+                    ],
+                });
+            } else if (!reportId && responderView === 'history') {
+                query.status = 'resolved';
+                query.$and.push({
+                    $or: [
+                        { respondedBy: responderId },
+                        { 'responders.user': responderId },
+                        { resolvedBy: responderId },
+                    ],
+                });
+            } else if (status && responderVisibleStatuses.includes(status)) {
                 query.status = status;
             } else {
                 query.status = { $in: responderVisibleStatuses };
@@ -429,8 +468,11 @@ export const getAllReports = async (req, res) => {
             if (endDate) query.incidentTime.$lte = new Date(endDate);
         }
 
+        const reporterProjection = admin.role === 'responder'
+            ? 'name isVerified'
+            : 'name email avatar isVerified';
         const reports = await Report.find(query)
-            .populate('reporter', 'name email avatar isVerified')
+            .populate('reporter', reporterProjection)
             .populate('verifiedBy', 'name')
             .populate('respondedBy', 'name email agency assignedMunicipality')
             .populate('resolvedBy', 'name email agency assignedMunicipality')
@@ -438,9 +480,9 @@ export const getAllReports = async (req, res) => {
             .populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality')
             .populate('reportUpdates.author', 'name role agency')
             .populate('municipality', 'name code')
-            .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit));
+            .sort({ incidentTime: -1, createdAt: -1 })
+            .limit(safeLimit)
+            .skip((safePage - 1) * safeLimit);
 
         const total = await Report.countDocuments(query);
 
@@ -462,10 +504,10 @@ export const getAllReports = async (req, res) => {
             data: {
                 reports,
                 pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: safePage,
+                    limit: safeLimit,
                     total,
-                    pages: Math.ceil(total / parseInt(limit)),
+                    pages: Math.ceil(total / safeLimit),
                 },
                 stats: {
                     pending,
@@ -855,81 +897,6 @@ export const getDashboardStats = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get dashboard statistics',
-        });
-    }
-};
-
-/**
- * @desc    Update my responder duty status (on duty / off duty)
- * @route   PUT /api/admin/responders/me/duty-status
- * @access  Private (responder only)
- */
-export const updateMyDutyStatus = async (req, res) => {
-    try {
-        if (req.user.role !== 'responder') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only responder accounts can change duty status',
-            });
-        }
-
-        const { isOnDuty } = req.body;
-        if (typeof isOnDuty !== 'boolean') {
-            return res.status(400).json({
-                success: false,
-                message: 'isOnDuty must be a boolean value',
-            });
-        }
-
-        const user = await User.findById(req.user._id);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
-        }
-
-        user.isOnDuty = isOnDuty;
-        await user.save();
-
-        const io = req.app.get('io');
-        if (io) {
-            const payload = {
-                userId: user._id.toString(),
-                name: user.name,
-                role: user.role,
-                assignedMunicipality: user.assignedMunicipality,
-                agency: user.agency,
-                isOnDuty: user.isOnDuty,
-            };
-
-            io.to(`user_${user._id}`).emit('dutyStatusUpdated', payload);
-            if (user.assignedMunicipality) {
-                io.to(`municipality_${user.assignedMunicipality}`).emit('userDutyStatusChanged', payload);
-            }
-            io.emit('onlineUsersUpdate', {
-                onlineCount: null,
-                dutyStatusChanged: true,
-                userId: user._id.toString(),
-            });
-        }
-
-        res.json({
-            success: true,
-            message: isOnDuty ? 'You are now ON DUTY' : 'You are now OFF DUTY',
-            data: {
-                id: user._id,
-                isOnDuty: user.isOnDuty,
-                role: user.role,
-                assignedMunicipality: user.assignedMunicipality,
-                agency: user.agency,
-            },
-        });
-    } catch (error) {
-        console.error('Update duty status error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update duty status',
         });
     }
 };
@@ -1483,7 +1450,6 @@ export default {
     deleteReport,
     deleteUser,
     getDashboardStats,
-    updateMyDutyStatus,
     transferReport,
     acknowledgeTransfer,
 };

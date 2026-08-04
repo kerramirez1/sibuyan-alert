@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
 import {
+    getPhilippineCalendarDayRange,
     getPhilippineCalendarMonthRange,
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
@@ -42,7 +43,6 @@ export const getAdminAnalytics = async (req, res) => {
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
-        const responderScopeFilter = { _id: { $in: scopedUserIds }, role: 'responder' };
 
         const [
             totalUsers,
@@ -54,7 +54,6 @@ export const getAdminAnalytics = async (req, res) => {
             reportsThisWeek,
             reportsThisMonth,
             reportsByMunicipality,
-            reporterStats,
             recentReports,
             recentUsers,
             reportsByDay,
@@ -71,10 +70,6 @@ export const getAdminAnalytics = async (req, res) => {
             Report.aggregate([
                 { $match: reportFilter },
                 { $group: { _id: '$municipalityName', count: { $sum: 1 } } },
-            ]),
-            User.aggregate([
-                { $match: responderScopeFilter },
-                { $group: { _id: '$isOnDuty', count: { $sum: 1 } } }
             ]),
             Report.find(reportFilter).sort({ createdAt: -1 }).limit(5).populate('reporter', 'name'),
             User.find(userScopeFilter).sort({ createdAt: -1 }).limit(5).select('name email role createdAt'),
@@ -98,11 +93,6 @@ export const getAdminAnalytics = async (req, res) => {
             ]),
         ]);
 
-        const assignedResponderCounts = {
-            online: reporterStats.find(r => r._id === true)?.count || 0,
-            offline: reporterStats.find(r => r._id === false)?.count || 0,
-        };
-
         res.json({
             success: true,
             data: {
@@ -110,8 +100,6 @@ export const getAdminAnalytics = async (req, res) => {
                     total: totalUsers,
                     reporters: totalReporters,
                     pendingVerifications,
-                    respondersOnline: assignedResponderCounts.online,
-                    respondersOffline: assignedResponderCounts.offline,
                 },
                 reports: {
                     total: totalReports,
@@ -156,6 +144,7 @@ export const getResponderAnalytics = async (req, res) => {
             });
         }
         const filter = { municipalityName: responder.assignedMunicipality };
+        const { startAt, endAt } = getPhilippineCalendarDayRange();
 
         const [
             activeIncidents,
@@ -165,8 +154,12 @@ export const getResponderAnalytics = async (req, res) => {
             Report.countDocuments({
                 ...filter,
                 status: 'resolved',
-                'responders.user': responder._id,
-                resolvedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+                resolvedAt: { $gte: startAt, $lt: endAt },
+                $or: [
+                    { resolvedBy: responder._id },
+                    { respondedBy: responder._id },
+                    { 'responders.user': responder._id },
+                ],
             }),
         ]);
 
