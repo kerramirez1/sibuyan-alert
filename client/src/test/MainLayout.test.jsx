@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     logout: vi.fn(),
+    isAuthenticated: true,
     user: {
         _id: 'admin-1',
         name: 'Cajidiocan Municipal Admin',
@@ -17,7 +18,7 @@ vi.mock('../context/AuthContext', () => ({
         user: mocks.user,
         logout: mocks.logout,
         canSubmitReports: () => false,
-        isAuthenticated: true,
+        isAuthenticated: mocks.isAuthenticated,
         updateUser: vi.fn(),
     }),
 }));
@@ -45,6 +46,16 @@ const renderLayout = (entry = '/accident-history') => render(
 );
 
 describe('MainLayout responsive navigation', () => {
+    beforeEach(() => {
+        mocks.isAuthenticated = true;
+        mocks.user = {
+            _id: 'admin-1',
+            name: 'Cajidiocan Municipal Admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+    });
+
     test('uses consistent navigation styling and a readable municipal account label', () => {
         renderLayout();
 
@@ -88,5 +99,17 @@ describe('MainLayout responsive navigation', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Close navigation menu' })[0]);
         expect(sidebar).toHaveClass('-translate-x-full');
+    });
+
+    test('shows a guest-only active incidents destination with one clear active state', () => {
+        mocks.isAuthenticated = false;
+        mocks.user = null;
+        renderLayout('/dashboard?view=map&panel=incidents');
+
+        const activeIncidentsLink = screen.getByRole('link', { name: 'Active Incidents' });
+        expect(activeIncidentsLink).toHaveAttribute('href', '/dashboard?view=map&panel=incidents');
+        expect(activeIncidentsLink).toHaveClass('bg-brand-50', 'text-brand-800');
+        expect(screen.getByRole('link', { name: 'Map' })).not.toHaveClass('bg-brand-50');
+        expect(screen.queryByRole('link', { name: 'Incident Reports' })).not.toBeInTheDocument();
     });
 });

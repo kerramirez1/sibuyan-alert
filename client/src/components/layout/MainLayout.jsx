@@ -42,7 +42,9 @@ const MainLayout = ({ children }) => {
     const { user, logout, canSubmitReports, isAuthenticated } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
-    const currentView = new URLSearchParams(location.search).get('view');
+    const currentSearchParams = new URLSearchParams(location.search);
+    const currentView = currentSearchParams.get('view');
+    const currentPanel = currentSearchParams.get('panel');
 
     useEffect(() => {
         const previousBodyOverflow = document.body.style.overflow;
@@ -195,16 +197,33 @@ const MainLayout = ({ children }) => {
                                     <NavLink
                                         to="/dashboard?view=map"
                                         className={() => {
-                                            const isMapActive = location.pathname === '/dashboard' && currentView === 'map';
+                                             const isMapActive = location.pathname === '/dashboard'
+                                                 && currentView === 'map'
+                                                 && !currentPanel;
                                             return getNavLinkClass(isMapActive);
                                         }}
                                         onClick={() => setSidebarOpen(false)}
                                     >
                                         <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">Map</span>
-                                    </NavLink>
+                                     </NavLink>
 
-                                    <NavLink
+                                    {!isAuthenticated && (
+                                        <NavLink
+                                            to="/dashboard?view=map&panel=incidents"
+                                            className={() => getNavLinkClass(
+                                                location.pathname === '/dashboard'
+                                                && currentView === 'map'
+                                                && currentPanel === 'incidents'
+                                            )}
+                                            onClick={() => setSidebarOpen(false)}
+                                        >
+                                            <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
+                                            <span className="truncate">Active Incidents</span>
+                                        </NavLink>
+                                    )}
+
+                                     <NavLink
                                         to="/accident-history"
                                         className={({ isActive }) => getNavLinkClass(isActive)}
                                         onClick={() => setSidebarOpen(false)}
@@ -377,9 +396,6 @@ const MainLayout = ({ children }) => {
                         </div>
 
                         <div className="flex items-center gap-2 sm:gap-4">
-                            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-brand-50 rounded-full text-xs font-medium text-brand-700">
-                                <span>v2.0.0</span>
-                            </div>
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link

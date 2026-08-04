@@ -131,6 +131,43 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(setShowIncidentModal).toHaveBeenCalledWith(true);
     });
 
+    test('opens the same sanitized incident description from the guest active-incidents list', () => {
+        const report = {
+            _id: 'verified-guest-1',
+            status: 'verified',
+            title: 'Accident at J. Rizal Street',
+            description: 'One lane is temporarily obstructed.',
+            incidentType: 'vehicular',
+            severity: 'moderate',
+            address: 'J. Rizal Street',
+            barangay: 'Poblacion',
+            municipalityName: 'Cajidiocan',
+            coordinates: { lat: 12.4, lng: 122.6 },
+            incidentTime: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+        };
+
+        renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+            reports: [report],
+            showIncidentModal: true,
+        }));
+
+        expect(screen.getByText(report.description)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'View details' }));
+
+        expect(screen.getByRole('dialog', { name: 'Incident details' })).toBeInTheDocument();
+        expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
+        expect(screen.getByText(report.description)).toBeInTheDocument();
+        expect(screen.getByText(/Personal identities, evidence, and internal coordination details are not displayed/i)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to active incidents' }));
+        expect(screen.getByRole('dialog', { name: 'Active incidents' })).toBeInTheDocument();
+    });
+
     test('explains when active incidents share fewer marker locations', () => {
         const reports = [
             { _id: 'verified-1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },

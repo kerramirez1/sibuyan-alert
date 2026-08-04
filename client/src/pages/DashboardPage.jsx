@@ -528,6 +528,7 @@ const DashboardPage = () => {
                 setShowMapRespondingModal={setShowMapRespondingModal}
                 showMapResolvedModal={showMapResolvedModal}
                 setShowMapResolvedModal={setShowMapResolvedModal}
+                activePanel={panelView}
             />
         );
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '../../router';
 import { format } from 'date-fns';
 import {
@@ -15,6 +15,7 @@ import {
     HiOutlineTruck,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import MapIncidentDetails from '../map/MapIncidentDetails';
 import Modal from '../ui/Modal';
 import {
     getMapCoordinates,
@@ -61,7 +62,7 @@ const EmptyState = ({ title, description }) => (
     </div>
 );
 
-const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate }) => {
+const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, onInspect }) => {
     if (!reports.length) {
         return <EmptyState title={emptyTitle} description={emptyDescription} />;
     }
@@ -82,18 +83,34 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate }) => {
                                 </span>
                             </div>
                             <p className="mt-1 truncate text-sm text-gray-600">{report.address || report.barangay || report.municipalityName || 'Location unavailable'}</p>
+                            {onInspect && (
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">
+                                    {report.description?.trim() || 'No additional public details were provided.'}
+                                </p>
+                            )}
                             <p className="mt-1 text-xs text-gray-400">{report.municipalityName || 'Municipality unavailable'} · {formatDate(report.resolvedAt || report.createdAt)}</p>
                         </div>
-                        {coordinates && onLocate && (
-                            <button
-                                type="button"
-                                onClick={() => onLocate(report)}
-                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:text-gray-900"
-                            >
-                                <HiOutlineLocationMarker className="h-4 w-4" />
-                                Locate
-                            </button>
-                        )}
+                        <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                            {onInspect && (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(report)}
+                                    className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none"
+                                >
+                                    View details
+                                </button>
+                            )}
+                            {coordinates && onLocate && (
+                                <button
+                                    type="button"
+                                    onClick={() => onLocate(report)}
+                                    className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:flex-none"
+                                >
+                                    <HiOutlineLocationMarker className="h-4 w-4" aria-hidden="true" />
+                                    Locate
+                                </button>
+                            )}
+                        </div>
                     </article>
                 );
             })}
@@ -191,10 +208,12 @@ const DashboardMapWorkspace = ({
     setShowMapRespondingModal,
     showMapResolvedModal,
     setShowMapResolvedModal,
+    activePanel,
 }) => {
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
+    const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
     const createFocusRequestId = () => {
         focusRequestSequenceRef.current += 1;
         return `${Date.now()}-${focusRequestSequenceRef.current}`;
@@ -220,6 +239,9 @@ const DashboardMapWorkspace = ({
                 : 'Public safety map';
 
     const activeReports = getVisibleMapReports(reports);
+    const selectedActiveIncident = activeReports.find(
+        (report) => String(report._id || report.id) === selectedActiveIncidentId,
+    ) || null;
     const allMappedReports = getVisibleMapReports(reports, { includePending: true });
     const activeLocationCount = groupReportsByMapLocation(activeReports).length;
     const respondingCount = activeReports.filter((report) => report.status === 'responding').length;
@@ -292,6 +314,17 @@ const DashboardMapWorkspace = ({
         });
         setShowZoneModal(false);
         scrollMapIntoView();
+    };
+
+    const closeActiveIncidents = () => {
+        setSelectedActiveIncidentId('');
+        setShowIncidentModal(false);
+        if (activePanel === 'incidents') setSearchParams({ view: 'map' });
+    };
+
+    const locateActiveIncident = (report) => {
+        setSelectedActiveIncidentId('');
+        locateReport(report, setShowIncidentModal);
     };
 
     return (
@@ -443,13 +476,36 @@ const DashboardMapWorkspace = ({
                 <RiskZoneList zones={highRiskZones} onLocate={locateZone} />
             </Modal>
 
-            <Modal isOpen={showIncidentModal} onClose={() => setShowIncidentModal(false)} title="Active incidents">
-                <IncidentList
-                    reports={activeReports}
-                    emptyTitle="No active incidents"
-                    emptyDescription="There are no verified, transferred, or responding incidents on the map."
-                    onLocate={(report) => locateReport(report, setShowIncidentModal)}
-                />
+            <Modal
+                isOpen={showIncidentModal}
+                onClose={closeActiveIncidents}
+                title={selectedActiveIncident ? 'Incident details' : 'Active incidents'}
+            >
+                {selectedActiveIncident ? (
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedActiveIncidentId('')}
+                            className="mx-4 mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:mx-5"
+                        >
+                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
+                            Back to active incidents
+                        </button>
+                        <MapIncidentDetails
+                            report={selectedActiveIncident}
+                            viewerRole={user?.role || 'guest'}
+                            onLocate={locateActiveIncident}
+                        />
+                    </div>
+                ) : (
+                    <IncidentList
+                        reports={activeReports}
+                        emptyTitle="No active incidents"
+                        emptyDescription="There are no verified, transferred, or responding incidents on the map."
+                        onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
+                        onLocate={locateActiveIncident}
+                    />
+                )}
             </Modal>
 
             <Modal
