@@ -11,6 +11,7 @@ import {
     HiOutlineChevronDown,
     HiOutlineClipboardList,
     HiOutlineClock,
+    HiOutlineExclamation,
     HiOutlineExclamationCircle,
     HiOutlineEye,
     HiOutlineFilter,
@@ -308,9 +309,9 @@ function MyReportsPage() {
 
                 <Link
                     to="/report"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(220,38,38,0.75)] transition-all hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
-                    <HiOutlinePlus className="h-4 w-4" />
+                    <HiOutlineExclamation className="h-4 w-4" />
                     Submit report
                 </Link>
             </header>
@@ -377,8 +378,8 @@ function MyReportsPage() {
                         </div>
                         <h3 className="mt-4 text-base font-semibold text-gray-900">No reports submitted</h3>
                         <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">Your incident reports will appear here after submission.</p>
-                        <Link to="/report" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-                            <HiOutlinePlus className="h-4 w-4" />
+                        <Link to="/report" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(220,38,38,0.75)] transition-all hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">
+                            <HiOutlineExclamation className="h-4 w-4" />
                             Submit your first report
                         </Link>
                     </div>

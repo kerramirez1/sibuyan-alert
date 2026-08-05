@@ -4,71 +4,107 @@
 
 /* Semantic application theme tokens. New components should prefer these variables. */
 :root {
-  --bg-primary: #f8fafc;
+  /* Backgrounds */
+  --bg-primary: #f6fbf8;        /* near-white with faint green breath */
   --bg-secondary: #ffffff;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
-  --surface-hover: #f3f4f6;
-  --surface-muted: #f8fafc;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-  --accent: #15803d;
-  --accent-hover: #166534;
-  --accent-soft: #f0fdf4;
-  --accent-text: #166534;
+  --surface-hover: #eef7f2;     /* very subtle green hover */
+  --surface-muted: #f2f9f5;
+
+  /* Typography */
+  --text-primary: #0f1f1a;      /* dark with green tint, not pure #111827 */
+  --text-secondary: #516b62;    /* green-tinted gray */
+  --text-muted: #7a9a8e;
+
+  /* Borders */
+  --border: #d0e8dc;            /* very subtle green border */
+  --border-strong: #b4d4c8;
+
+  /* Brand / Accent = emerald-600 */
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-soft: #ecfdf5;
+  --accent-text: #047857;
+
+  /* Semantic status */
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --warning: #d97706;
   --warning-soft: #fffbeb;
   --success: #059669;
   --success-soft: #ecfdf5;
-  --focus-ring: #16a34a;
-  --overlay: rgb(15 23 42 / 0.58);
-  --shadow-sm: 0 1px 3px rgb(15 23 42 / 0.08);
-  --shadow-lg: 0 16px 36px rgb(15 23 42 / 0.14);
-  --chart-grid: #e5e7eb;
-  --chart-axis: #6b7280;
-  --chart-axis-strong: #374151;
-  --chart-fill: #eff6ff;
+
+  /* Focus */
+  --focus-ring: #059669;
+
+  /* Overlays & shadows */
+  --overlay: rgb(9 23 17 / 0.55);
+  --shadow-sm: 0 1px 3px rgb(9 23 17 / 0.07);
+  --shadow-lg: 0 16px 36px rgb(9 23 17 / 0.12);
+
+  /* Chart */
+  --chart-grid: #d0e8dc;
+  --chart-axis: #516b62;
+  --chart-axis-strong: #2a4d3a;
+  --chart-fill: #ecfdf5;
+
+  /* Map controls */
   --map-control: #ffffff;
-  --map-control-hover: #f3f4f6;
+  --map-control-hover: #eef7f2;
 }
 
 .dark {
-  --bg-primary: #0f172a;
-  --bg-secondary: #111827;
-  --surface: #182231;
-  --surface-elevated: #1f2a3a;
-  --surface-hover: #263344;
-  --surface-muted: #151f2d;
-  --text-primary: #f3f4f6;
-  --text-secondary: #b7c0cd;
-  --text-muted: #8995a5;
-  --border: #334155;
-  --border-strong: #475569;
-  --accent: #4ade80;
-  --accent-hover: #86efac;
-  --accent-soft: rgb(22 101 52 / 0.26);
-  --accent-text: #86efac;
+  /* Backgrounds — deep forest green, not blue-navy.
+     The auth shell already uses this palette (#0d1917); we extend it
+     to the entire authenticated app so the UI feels like one system. */
+  --bg-primary: #091711;
+  --bg-secondary: #0e1f18;
+  --surface: #112219;
+  --surface-elevated: #162c21;
+  --surface-hover: #1d3628;
+  --surface-muted: #0e1f18;
+
+  /* Typography — warm green-white, not cool slate */
+  --text-primary: #e8f5ee;
+  --text-secondary: #8bafa1;
+  --text-muted: #567a6d;
+
+  /* Borders */
+  --border: #1c3428;
+  --border-strong: #264a38;
+
+  /* Brand / Accent */
+  --accent: #34d399;            /* emerald-400 in dark */
+  --accent-hover: #6ee7b7;
+  --accent-soft: rgb(5 150 105 / 0.22);
+  --accent-text: #6ee7b7;
+
+  /* Semantic status */
   --danger: #f87171;
   --danger-soft: rgb(127 29 29 / 0.3);
   --warning: #fbbf24;
   --warning-soft: rgb(120 53 15 / 0.3);
   --success: #34d399;
-  --success-soft: rgb(6 78 59 / 0.34);
-  --focus-ring: #4ade80;
-  --overlay: rgb(2 6 23 / 0.76);
-  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.28);
-  --shadow-lg: 0 18px 42px rgb(0 0 0 / 0.38);
-  --chart-grid: #334155;
-  --chart-axis: #94a3b8;
-  --chart-axis-strong: #cbd5e1;
-  --chart-fill: rgb(37 99 235 / 0.18);
-  --map-control: #1f2937;
-  --map-control-hover: #334155;
+  --success-soft: rgb(5 150 105 / 0.28);
+
+  /* Focus */
+  --focus-ring: #34d399;
+
+  /* Overlays & shadows */
+  --overlay: rgb(4 10 7 / 0.78);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 18px 42px rgb(0 0 0 / 0.4);
+
+  /* Chart */
+  --chart-grid: #1c3428;
+  --chart-axis: #567a6d;
+  --chart-axis-strong: #8bafa1;
+  --chart-fill: rgb(5 150 105 / 0.15);
+
+  /* Map controls */
+  --map-control: #112219;
+  --map-control-hover: #1d3628;
 }
 
 /* Custom Base Styles */
@@ -193,13 +229,13 @@
 
   .btn-primary {
     @apply btn text-white;
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .btn-primary:hover {
-    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
     @apply focus:ring-primary-500;
   }
 
@@ -289,7 +325,7 @@
   }
 
   .input:focus {
-    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15), 0 2px 8px rgba(0, 0, 0, 0.06);
     transform: translateY(-1px);
   }
 
@@ -358,7 +394,7 @@
   }
 
   .map-marker-verified {
-    @apply map-marker bg-danger-600 text-white;
+    @apply map-marker bg-emerald-600 text-white;
     @apply border-2 border-white;
   }
 
@@ -388,7 +424,7 @@
     transform: translateY(-50%);
     width: 3px;
     height: 0;
-    background: linear-gradient(to bottom, #3B82F6, #2563EB);
+    background: linear-gradient(to bottom, #10b981, #059669);
     border-radius: 0 3px 3px 0;
     transition: height 0.3s ease;
   }
@@ -399,10 +435,10 @@
 
   .nav-link-active {
     @apply nav-link;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
     @apply text-primary-600 dark:text-primary-400;
     @apply font-semibold;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.1);
   }
 
   .nav-link-active::before {
@@ -687,8 +723,8 @@
 /* Enhanced Loading Spinner */
 .spinner {
   @apply w-10 h-10 rounded-full;
-  border: 3px solid rgba(59, 130, 246, 0.2);
-  border-top-color: #3B82F6;
+  border: 3px solid rgba(16, 185, 129, 0.2);
+  border-top-color: #059669;
   animation: spin 0.8s linear infinite;
 }
 
@@ -771,9 +807,9 @@
 }
 
 /* Colored Card Variants */
-.card-blue:hover {
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
-  border-color: rgba(59, 130, 246, 0.2);
+.card-emerald:hover {
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(16, 185, 129, 0.2);
 }
 
 .card-emerald:hover {
@@ -819,6 +855,8 @@
  * utilities. These exact-class overrides make those surfaces theme-aware
  * without changing status colors, layout utilities, or business components.
  */
+/* Dark mode background overrides — maps legacy Tailwind light-mode bg-*
+ * classes to the new deep-green surface tokens. */
 .dark .bg-white,
 .dark .bg-white\/95,
 .dark .bg-white\/90,
@@ -840,6 +878,11 @@
 .dark .bg-gray-200,
 .dark .bg-slate-200 {
   background-color: var(--border) !important;
+}
+
+/* gray-950 used in landing page hero footer and Coverage section */
+.dark .bg-gray-950 {
+  background-color: var(--bg-primary) !important;
 }
 
 .dark .text-gray-950,

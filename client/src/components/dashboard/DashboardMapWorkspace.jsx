@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from '../../router';
+
 import { format } from 'date-fns';
 import {
     HiOutlineBadgeCheck,
@@ -10,7 +10,6 @@ import {
     HiOutlineLightningBolt,
     HiOutlineLocationMarker,
     HiOutlineMap,
-    HiOutlinePlus,
     HiOutlineShieldCheck,
     HiOutlineTruck,
 } from 'react-icons/hi';
@@ -329,15 +328,15 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white dark:bg-emerald-950 dark:text-emerald-300 dark:border dark:border-emerald-800/40">
                         <HiOutlineMap className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{roleLabel}</p>
-                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl">Incident map</h1>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{roleLabel}</p>
+                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">Incident map</h1>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
                             {isResponder
                                 ? `Monitor and respond to incidents in ${user?.assignedMunicipality || 'your assigned area'}.`
                                 : 'View verified incidents, active responses, and high-risk zones across Sibuyan Island.'}
@@ -345,21 +344,34 @@ const DashboardMapWorkspace = ({
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setShowIncidentModal(true)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-400 sm:flex-none">
-                        <HiOutlineExclamation className="h-4 w-4" />
-                        Incidents
+                <div className="flex shrink-0 flex-wrap items-center gap-2.5 sm:self-center">
+                    <button
+                        type="button"
+                        onClick={() => setShowIncidentModal(true)}
+                        className="group inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200/80 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-red-300 hover:bg-red-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:flex-none dark:border-red-900/40 dark:bg-[#112219] dark:text-gray-200 dark:hover:bg-red-950/30"
+                    >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors group-hover:bg-red-200/70 dark:bg-red-900/40 dark:text-red-400">
+                            <HiOutlineExclamation className="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                        <span>Incidents</span>
+                        <span className="ml-0.5 rounded-md bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/40 dark:text-red-300">
+                            {activeReports.length}
+                        </span>
                     </button>
-                    <button type="button" onClick={() => setShowZoneModal(true)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-400 sm:flex-none">
-                        <HiOutlineLightningBolt className="h-4 w-4" />
-                        Risk zones
+
+                    <button
+                        type="button"
+                        onClick={() => setShowZoneModal(true)}
+                        className="group inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-amber-200/80 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-amber-300 hover:bg-amber-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:flex-none dark:border-amber-900/40 dark:bg-[#112219] dark:text-gray-200 dark:hover:bg-amber-950/30"
+                    >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors group-hover:bg-amber-200/70 dark:bg-amber-900/40 dark:text-amber-400">
+                            <HiOutlineLightningBolt className="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                        <span>Risk zones</span>
+                        <span className="ml-0.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300">
+                            {highRiskZones.length}
+                        </span>
                     </button>
-                    {isReporter && (
-                        <Link to="/report" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 sm:w-auto">
-                            <HiOutlinePlus className="h-4 w-4" />
-                            Submit report
-                        </Link>
-                    )}
                 </div>
             </header>
 

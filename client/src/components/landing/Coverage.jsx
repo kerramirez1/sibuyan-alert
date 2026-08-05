@@ -1,6 +1,12 @@
-import { Link } from '../../router';
-import { HiOutlineArrowRight, HiOutlineShieldCheck } from 'react-icons/hi';
-import { useAuth } from '../../context/AuthContext';
+import { HiOutlineShieldCheck, HiOutlineLocationMarker, HiOutlineUserCircle, HiOutlineRefresh, HiOutlineLockClosed } from 'react-icons/hi';
+
+const TRUST_ITEMS = [
+    { Icon: HiOutlineShieldCheck, text: 'Municipal administrator review before public visibility' },
+    { Icon: HiOutlineLocationMarker, text: 'GPS-based incident location with barangay verification' },
+    { Icon: HiOutlineUserCircle, text: 'Reporter identity verified before account approval' },
+    { Icon: HiOutlineRefresh, text: 'Real-time status updates across the full lifecycle' },
+    { Icon: HiOutlineLockClosed, text: 'Secure, role-based access for each user type' },
+];
 
 const logoConfig = {
     Cajidiocan: { src: '/icons/Cajidiocan.logo.png', scale: 'scale-150' },
@@ -10,9 +16,7 @@ const logoConfig = {
 
 const fallbackBarangayCount = (name) => name === 'Cajidiocan' ? 14 : name === 'Magdiwang' ? 9 : 12;
 
-const Coverage = ({ municipalities, userRole }) => {
-    const { isAuthenticated } = useAuth();
-    const destination = userRole === 'reporter' ? '/my-reports' : '/dashboard';
+const Coverage = ({ municipalities }) => {
     const totalBarangays = municipalities.reduce(
         (total, municipality) => total + (municipality.barangays?.length || fallbackBarangayCount(municipality.name)),
         0
@@ -61,19 +65,31 @@ const Coverage = ({ municipalities, userRole }) => {
                     </div>
                 </div>
 
-                <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-2xl sm:p-8 lg:sticky lg:top-24">
-                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">{isAuthenticated ? 'Your account' : 'Community access'}</p>
-                    <h3 className="mt-5 text-2xl font-black text-white">{isAuthenticated ? 'Continue to your workspace.' : 'Help keep Sibuyan informed.'}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-emerald-50/60">
-                        {isAuthenticated
-                            ? 'Open your role-appropriate workspace to review reports, maps, alerts, and response activity.'
-                            : 'Create a verified reporter account to submit accurate incident details and monitor your reports.'}
+                {/* ── Trust + disclaimer block ─────────────────────────────── */}
+                <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 sm:p-8 lg:sticky lg:top-24">
+                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">System guarantees</p>
+                    <h3 className="mt-4 text-xl font-black text-white">Built for accountability.</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-emerald-50/60">
+                        Every incident record passes through a structured review and response chain before public visibility.
                     </p>
-                    <Link to={isAuthenticated ? destination : '/register'} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-950 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071b13]">
-                        {isAuthenticated ? 'Open workspace' : 'Become a reporter'}
-                        <HiOutlineArrowRight className="h-4 w-4" />
-                    </Link>
-                    {!isAuthenticated && <p className="mt-4 text-center text-xs text-emerald-50/45">Already registered? <Link to="/login" className="font-bold text-emerald-300 hover:text-emerald-200">Sign in</Link></p>}
+
+                    <ul className="mt-6 space-y-3.5" role="list">
+                        {TRUST_ITEMS.map(({ Icon, text }) => (
+                            <li key={text} className="flex items-start gap-3">
+                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400">
+                                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                                </span>
+                                <span className="text-sm leading-snug text-emerald-50/70">{text}</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="mt-7 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
+                        <p className="text-xs leading-relaxed text-amber-200/80">
+                            <strong className="font-bold text-amber-300">Emergency notice:</strong>{' '}
+                            Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
+                        </p>
+                    </div>
                 </aside>
             </div>
         </section>
