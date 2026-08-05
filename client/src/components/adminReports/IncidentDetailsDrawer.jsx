@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
+    HiOutlineExclamationCircle,
     HiOutlineExternalLink,
     HiOutlineLocationMarker,
-    HiOutlinePhotograph,
+    HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
-import { resolveAssetUrl } from '../../utils/assets';
+import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import { IncidentActionButtons, IncidentStatusBadge } from './IncidentQueue';
 import {
     getAgencyLabel,
@@ -44,6 +45,10 @@ const IncidentDetailsDrawer = ({
     onClose,
     onOpenMap,
     onViewImage,
+    detailLoading = false,
+    detailError = '',
+    detailRestricted = false,
+    onRetryDetails,
     highlightedUpdateId = '',
     openedFromNotification = false,
 }) => {
@@ -130,6 +135,31 @@ const IncidentDetailsDrawer = ({
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+                    {detailLoading && (
+                        <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800" role="status">
+                            Loading the protected operational record...
+                        </div>
+                    )}
+
+                    {detailError && (
+                        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                            <span className="flex items-start gap-2">
+                                <HiOutlineExclamationCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                                {detailError}
+                            </span>
+                            {!detailRestricted && (
+                                <button
+                                    type="button"
+                                    onClick={onRetryDetails}
+                                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-red-100"
+                                >
+                                    <HiOutlineRefresh className="h-4 w-4" aria-hidden="true" />
+                                    Retry
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {highlightedUpdate && highlightedUpdateMeta && (
                         <section
                             className={`mb-5 rounded-xl border p-4 ${UPDATE_ALERT_STYLES[highlightedUpdateMeta.tone]}`}
@@ -271,24 +301,11 @@ const IncidentDetailsDrawer = ({
                         </section>
                     )}
 
-                    {report.images?.length > 0 && (
+                    {report.detailCompleteness === 'full' && (
                         <section className="mt-5" aria-labelledby="incident-photos-heading">
-                            <h3 id="incident-photos-heading" className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                                <HiOutlinePhotograph className="h-4 w-4" aria-hidden="true" />
-                                Evidence photos
-                            </h3>
-                            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                {report.images.map((image, index) => (
-                                    <button
-                                        key={`${image}-${index}`}
-                                        type="button"
-                                        onClick={() => onViewImage(resolveAssetUrl(image))}
-                                        className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                        aria-label={`View evidence photo ${index + 1}`}
-                                    >
-                                        <img src={resolveAssetUrl(image)} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover" />
-                                    </button>
-                                ))}
+                            <h3 id="incident-photos-heading" className="text-sm font-bold text-gray-900">Evidence photos ({report.images?.length || 0})</h3>
+                            <div className="mt-3">
+                                <ProtectedEvidenceGallery images={report.images || []} onViewImage={onViewImage} />
                             </div>
                         </section>
                     )}

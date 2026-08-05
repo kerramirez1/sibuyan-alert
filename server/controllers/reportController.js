@@ -1,4 +1,5 @@
 import Report from '../models/Report.js';
+import mongoose from 'mongoose';
 import { toPublicReport } from '../utils/publicReport.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
@@ -136,12 +137,16 @@ export const createReport = async (req, res) => {
 
 
 
-        // Persist validated evidence in MongoDB GridFS only after location validation succeeds.
+        const reportId = new mongoose.Types.ObjectId();
+
+        // Evidence is private by default. Its report id lets the delivery layer
+        // re-check current role, assignment, and municipal scope on every read.
         if (req.files?.length) {
             const storedImages = await uploadFilesToGridFS(req.files, {
                 category: 'report_evidence',
-                visibility: 'public',
+                visibility: 'private',
                 ownerId: req.user._id,
+                resourceId: reportId,
                 municipalityName: locationResult.municipalityName,
             });
             uploadedImageUrls = storedImages.map(({ url }) => url);
@@ -149,6 +154,7 @@ export const createReport = async (req, res) => {
 
         // Create the report with processed location data
         report = await Report.create({
+            _id: reportId,
             reporter: req.user._id,
             incidentCategory: finalCategory,
             incidentType: finalType,

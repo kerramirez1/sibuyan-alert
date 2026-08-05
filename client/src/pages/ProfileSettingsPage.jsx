@@ -3,7 +3,7 @@ import { useNavigate } from '../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX, HiOutlineBell } from 'react-icons/hi';

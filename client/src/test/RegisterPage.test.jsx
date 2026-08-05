@@ -104,4 +104,25 @@ describe('RegisterPage location reference and responsive form', () => {
         await waitFor(() => expect(screen.getByLabelText('Municipality')).not.toBeDisabled());
         expect(mocks.getMunicipalities).toHaveBeenCalledTimes(2);
     });
+
+    test('offers separate image-only camera and device inputs for the ID photo', async () => {
+        renderRegister();
+        await screen.findByLabelText('Municipality');
+
+        fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Juan Dela Cruz' } });
+        fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'juan@example.com' } });
+        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
+        fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByRole('button', { name: /Continue to identification/i }));
+
+        expect(screen.getByRole('heading', { name: 'Upload your ID' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Take a photo/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Choose from device/i })).toBeInTheDocument();
+        expect(screen.getByLabelText('Take an ID photo')).toHaveAttribute('capture', 'environment');
+        expect(screen.getByLabelText('Take an ID photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+        expect(screen.getByLabelText('Choose an ID photo from device')).not.toHaveAttribute('capture');
+        expect(screen.getByText(/never shown on public reports/i)).toBeInTheDocument();
+    });
 });

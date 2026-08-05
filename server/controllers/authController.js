@@ -23,7 +23,7 @@ import { sendPushToUser } from '../services/pushService.js';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 
 /**
- * @desc    Register a new reporter (with ID upload)
+ * @desc    Register a new reporter with private ID-photo verification
  * @route   POST /api/auth/register
  * @access  Public
  */
@@ -49,7 +49,7 @@ export const register = async (req, res) => {
         if (!idDocumentFile) {
             return res.status(400).json({
                 success: false,
-                message: 'ID document is required for reporter registration',
+                message: 'An ID photo is required for reporter registration',
             });
         }
 
@@ -97,6 +97,11 @@ export const register = async (req, res) => {
             selfiePhoto: storedSelfie?.url || null,
             isVerified: false,
             verificationStatus: 'pending',
+            verificationHistory: [{
+                action: 'id_submitted',
+                actor: userId,
+                at: new Date(),
+            }],
         });
         userCreated = true;
 
@@ -128,7 +133,6 @@ export const register = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Registration failed',
-            error: error.message,
         });
     }
 };
@@ -498,7 +502,7 @@ export const testPushSubscription = async (req, res) => {
 };
 
 /**
- * @desc    Resubmit ID document for verification
+ * @desc    Resubmit an ID photo for verification
  * @route   POST /api/auth/resubmit-id
  * @access  Private (reporters only)
  */
@@ -507,12 +511,12 @@ export const resubmitIdDocument = async (req, res) => {
     let profileSaved = false;
 
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('+verificationHistory');
 
         if (user.role !== 'reporter') {
             return res.status(400).json({
                 success: false,
-                message: 'Only reporters can submit ID documents',
+                message: 'Only reporters can submit ID photos',
             });
         }
 
@@ -527,7 +531,7 @@ export const resubmitIdDocument = async (req, res) => {
         if (!idDocumentFile) {
             return res.status(400).json({
                 success: false,
-                message: 'Please upload an ID document',
+                message: 'Please upload an ID photo',
             });
         }
 
@@ -556,6 +560,7 @@ export const resubmitIdDocument = async (req, res) => {
         }
         user.verificationStatus = 'pending';
         user.verificationFeedback = null;
+        user.recordVerificationEvent({ action: 'id_resubmitted', actor: user._id });
         await user.save();
         profileSaved = true;
 
@@ -563,7 +568,7 @@ export const resubmitIdDocument = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'ID document resubmitted. Your verification is pending review.',
+            message: 'ID photo resubmitted. Your verification is pending review.',
             data: {
                 verificationStatus: user.verificationStatus,
             },
@@ -575,7 +580,7 @@ export const resubmitIdDocument = async (req, res) => {
         console.error('Resubmit ID error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to resubmit ID document',
+            message: 'Failed to resubmit ID photo',
         });
     }
 };

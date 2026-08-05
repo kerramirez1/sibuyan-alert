@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { resolveSocketOrigin } from '../utils/runtimeUrl';
 import { refreshAuthSession } from '../services/api';
 
@@ -22,6 +22,7 @@ export const SocketProvider = ({ children }) => {
     const [connected, setConnected] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const receivedNotificationIdsRef = useRef(new Set());
     const { user, isAuthenticated } = useAuth();
 
     // Initialize socket connection
@@ -100,29 +101,14 @@ export const SocketProvider = ({ children }) => {
         // a DB notification via Notification.createAndSend which emits the 'notification'
         // socket event. Handling both caused duplicate notifications and toasts.
 
-        // RESPONDER-SPECIFIC: Auto-alert when a report is verified in their municipality
-        // This uses the municipality responder room which is reliably joined
-        socket.on('reportVerifiedAlert', (alertData) => {
+        const currentUserId = String(user?._id || user?.id || '');
+
+        // RESPONDER-SPECIFIC: Auto-alert when a report is verified in their municipality.
+        const handleReportVerifiedAlert = (alertData) => {
             if (user?.role !== 'responder') return;
 
-            const notification = {
-                _id: `alert_${Date.now()}`,
-                type: 'report_verified',
-                title: 'New Verified Incident!',
-                message: `${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || 'Unknown Location'}`,
-                isRead: false,
-                createdAt: new Date(),
-                data: {
-                    reportId: alertData.id,
-                    severity: alertData.severity,
-                }
-            };
-
-            setNotifications((prev) => [notification, ...prev]);
-            setUnreadCount((prev) => prev + 1);
-
             toast(`VERIFIED: ${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || alertData.municipalityName}`, {
-                duration: 8000,
+                dedupeKey: `report-verified:${alertData.id || alertData._id || 'unknown'}`,
                 style: {
                     background: 'var(--danger)',
                     color: '#ffffff',
@@ -130,90 +116,82 @@ export const SocketProvider = ({ children }) => {
                     fontWeight: 'bold',
                 },
             });
-        });
+        };
 
-        // RESPONDER-SPECIFIC: Alert when a NEW report is submitted in their municipality
-        socket.on('newReportAlert', (alertData) => {
+        // RESPONDER-SPECIFIC: Alert when a NEW report is submitted in their municipality.
+        const handleNewReportAlert = (alertData) => {
             // Soft hint only for responder accounts; no unread badge increment for unverified reports.
             if (user?.role !== 'responder') return;
 
             toast(`Incoming unverified report: ${alertData.incidentType || alertData.category} at ${alertData.address || alertData.municipalityName}`, {
+                dedupeKey: `new-report:${alertData.id || alertData._id || 'unknown'}`,
                 icon: 'i',
-                duration: 4500,
                 style: {
                     background: 'var(--surface-elevated)',
                     color: 'var(--text-primary)',
                     border: '1px solid var(--border)',
                 },
             });
-        });
+        };
 
-        // Multi-unit response notification
-        socket.on('multiUnitResponse', (data) => {
-            toast(`${data.responder?.unitType} ${data.responder?.unitName} is responding`, {
-                duration: 5000,
+        // Only other response units need a toast. The acting responder already
+        // receives the API success confirmation for the same action.
+        const handleLocalUnitResponse = (data) => {
+            if (user?.role !== 'responder') return;
+            const actorId = String(data.responder?._id || '');
+            if (actorId && actorId === currentUserId) return;
+
+            const reportId = String(data.reportId || 'unknown');
+            const unitLabel = data.responder?.unitName || data.responder?.unitType || 'Another response unit';
+            toast(`${unitLabel} is responding`, {
+                dedupeKey: `unit-response:${reportId}:${actorId || unitLabel}`,
             });
-        });
+        };
 
-        // Report verified (visible to all)
-        socket.on('reportVerified', (report) => {
-            toast.success(`New accident report verified at ${report.address}`, {
-                duration: 5000,
-            });
-        });
+        // Public resolution events update the map. Only scoped operational users
+        // other than the actor need a toast announcement.
+        const handleResolutionDetails = (data) => {
+            if (!['municipal_admin', 'responder'].includes(user?.role)) return;
+            const actorId = String(data.resolvedBy?._id || '');
+            if (actorId && actorId === currentUserId) return;
 
-        // Report rejected (personal notification)
-        socket.on('reportRejected', (data) => {
-            toast.error(`Your report was not verified: ${data.reason || 'No reason provided'}`, {
-                duration: 6000,
-            });
-        });
-
-        // Report resolved
-        socket.on('reportResolved', (data) => {
+            const reportId = String(data.id || data.reportId || 'unknown');
             const label = data.resolvedBy?.agencyLabel || data.resolvedBy?.agency || 'Responder';
             toast.success(`Report resolved by ${label}`, {
-                duration: 5000,
+                dedupeKey: `report-resolved:${reportId}`,
             });
-        });
+        };
 
-        // Report transferred
-        socket.on('reportTransferred', (data) => {
-            toast(`Incident transferred from ${data.fromMunicipality} to ${data.toMunicipality}`, {
-                duration: 6000,
-                icon: '🔄',
-            });
-        });
+        // Personal notification (from Notification.createAndSend). Persisted ids
+        // are deduplicated so reconnects cannot increment the badge twice.
+        const handleNotification = (notification) => {
+            const rawNotificationId = getNotificationId(notification);
+            const notificationId = rawNotificationId ? String(rawNotificationId) : '';
+            if (notificationId && receivedNotificationIdsRef.current.has(notificationId)) return;
+            if (notificationId) receivedNotificationIdsRef.current.add(notificationId);
 
-        // Personal notification (from Notification.createAndSend)
-        socket.on('notification', (notification) => {
-            // Skip report_verified here for responders — already handled by reportVerifiedAlert
-            // This prevents double-counting in the notification badge
-            if (notification.type === 'report_verified' && notification.title?.includes('Verified Incident')) {
-                return;
-            }
+            setNotifications((previous) => [notification, ...previous]);
+            setUnreadCount((previous) => previous + 1);
 
-            setNotifications((prev) => [notification, ...prev]);
-            setUnreadCount((prev) => prev + 1);
+            // The municipality-scoped alert already announced this to responders.
+            // Retain the real database notification for the bell without a second toast.
+            if (user?.role === 'responder' && notification.type === 'report_verified') return;
 
-            // Show toast based on type
-            const toastOptions = { duration: 5000 };
+            const reportId = String(notification.data?.reportId || 'none');
+            const toastOptions = {
+                dedupeKey: `notification:${notificationId || `${notification.type}:${reportId}`}`,
+            };
             switch (notification.type) {
                 case 'reporter_verified':
+                case 'report_verified':
+                case 'report_transfer_acknowledged':
+                case 'report_responding':
+                case 'report_resolved':
                     toast.success(notification.message, toastOptions);
                     break;
                 case 'reporter_rejected':
-                    toast.error(notification.message, toastOptions);
-                    break;
-                case 'report_verified':
-                case 'report_transfer_acknowledged':
-                    toast.success(notification.message, toastOptions);
-                    break;
                 case 'report_rejected':
                     toast.error(notification.message, toastOptions);
-                    break;
-                case 'new_report':
-                    toast(notification.message, toastOptions);
                     break;
                 case 'report_update':
                     toast(notification.message, { ...toastOptions, icon: 'i' });
@@ -221,20 +199,22 @@ export const SocketProvider = ({ children }) => {
                 default:
                     toast(notification.message, toastOptions);
             }
-        });
+        };
+
+        socket.on('reportVerifiedAlert', handleReportVerifiedAlert);
+        socket.on('newReportAlert', handleNewReportAlert);
+        socket.on('localUnitResponse', handleLocalUnitResponse);
+        socket.on('reportResolutionDetails', handleResolutionDetails);
+        socket.on('notification', handleNotification);
 
         return () => {
-            socket.off('newReport');
-            socket.off('newReportAlert');
-            socket.off('reportVerifiedAlert');
-            socket.off('multiUnitResponse');
-            socket.off('reportVerified');
-            socket.off('reportRejected');
-            socket.off('reportResolved');
-            socket.off('reportTransferred');
-            socket.off('notification');
+            socket.off('reportVerifiedAlert', handleReportVerifiedAlert);
+            socket.off('newReportAlert', handleNewReportAlert);
+            socket.off('localUnitResponse', handleLocalUnitResponse);
+            socket.off('reportResolutionDetails', handleResolutionDetails);
+            socket.off('notification', handleNotification);
         };
-    }, [socket, user?.role]);
+    }, [socket, user?._id, user?.id, user?.role]);
 
     // Emit event
     const emit = useCallback((event, data) => {

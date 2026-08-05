@@ -4,7 +4,7 @@ import { adminAPI, filesAPI } from '../services/api';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineSearch,

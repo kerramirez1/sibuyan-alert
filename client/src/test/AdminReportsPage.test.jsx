@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     callbacks: {},
     unsubscribers: {},
     getReports: vi.fn(),
+    getReportById: vi.fn(),
     verifyReport: vi.fn(),
     respondToReport: vi.fn(),
     resolveReport: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock('../context/SocketContext', () => ({
 vi.mock('../services/api', () => ({
     adminAPI: {
         getReports: mocks.getReports,
+        getReportById: mocks.getReportById,
         verifyReport: mocks.verifyReport,
         respondToReport: mocks.respondToReport,
         resolveReport: mocks.resolveReport,
@@ -115,6 +117,7 @@ describe('AdminReportsPage operational queue', () => {
         Object.values(mocks.toast).forEach((mock) => mock.mockReset());
         [
             mocks.getReports,
+            mocks.getReportById,
             mocks.verifyReport,
             mocks.respondToReport,
             mocks.resolveReport,
@@ -126,6 +129,17 @@ describe('AdminReportsPage operational queue', () => {
             mocks.setUnreadCount,
         ].forEach((mock) => mock.mockReset());
         mocks.getReports.mockResolvedValue(apiResponse([createReport()]));
+        mocks.getReportById.mockImplementation((id) => Promise.resolve({
+            data: {
+                data: {
+                    ...createReport({ _id: id }),
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                },
+            },
+        }));
         mocks.verifyReport.mockResolvedValue({ data: { data: { status: 'verified' } } });
         mocks.respondToReport.mockResolvedValue({ data: { message: 'Response started', data: { status: 'responding' } } });
         mocks.resolveReport.mockResolvedValue({ data: { message: 'Incident resolved', data: { status: 'resolved' } } });
@@ -175,6 +189,24 @@ describe('AdminReportsPage operational queue', () => {
                 author: { name: 'Field Reporter' },
             }],
         })]));
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: createReport({
+                    _id: reportId,
+                    status: 'verified',
+                    reportUpdates: [{
+                        _id: updateId,
+                        tag: 'need_help',
+                        message: updateMessage,
+                        createdAt: '2026-07-17T08:20:00.000Z',
+                        author: { name: 'Field Reporter' },
+                    }],
+                    transferHistory: [],
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                }),
+            },
+        });
 
         renderPage(`/admin/reports?report=${reportId}&source=notification&notification=${notificationId}&update=${updateId}`);
 
@@ -463,7 +495,10 @@ describe('AdminReportsPage operational queue', () => {
 
         await waitFor(() => expect(mocks.acknowledgeTransfer).toHaveBeenCalledWith('report-1'));
         expect(await screen.findAllByText('Transfer acknowledged')).not.toHaveLength(0);
-        expect(mocks.toast.success).toHaveBeenCalledWith('Transfer acknowledged successfully');
+        expect(mocks.toast.success).toHaveBeenCalledWith(
+            'Transfer acknowledged successfully',
+            expect.objectContaining({ id: 'app-notification', duration: 3000 }),
+        );
     });
 
     test('does not expose acknowledgment to an administrator outside the target municipality', async () => {

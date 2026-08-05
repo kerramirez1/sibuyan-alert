@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { adminAPI, reportsAPI } from '../services/api';
 import { getIncidentCapabilities } from '../components/adminReports/incidentReportConfig';
 
@@ -80,9 +80,7 @@ const useIncidentActions = ({
                 await refreshReports({ silent: true });
             }
         } catch (error) {
-            toast.error(getApiError(error, 'Failed to respond to report'), {
-                duration: error?.response?.status === 409 ? 5000 : 3000,
-            });
+            toast.error(getApiError(error, 'Failed to respond to report'));
             if (error?.response?.status === 409) await refreshReports({ silent: true });
         } finally {
             setRespondLoadingId(null);

@@ -1,11 +1,21 @@
 import mongoose from 'mongoose';
 import { findGridFsFile, getGridFsBucket, sanitizeFilename } from '../services/gridFsService.js';
+import Report from '../models/Report.js';
+import { canViewReportEvidence } from '../utils/reportAccess.js';
 
-export const canReadFile = (file, user) => {
+export const canReadFile = async (file, user, { findReportById = Report.findById.bind(Report) } = {}) => {
     if (file.metadata?.visibility !== 'private') return true;
     if (!user) return false;
     const ownerId = file.metadata?.ownerId?.toString();
     if (ownerId && ownerId === user._id.toString()) return true;
+
+    if (file.metadata?.category === 'report_evidence') {
+        const reportId = file.metadata?.resourceId;
+        if (!reportId) return false;
+
+        const report = await findReportById(reportId);
+        return Boolean(report && canViewReportEvidence(user, report));
+    }
 
     return user.role === 'municipal_admin'
         && Boolean(user.assignedMunicipality)
@@ -28,7 +38,7 @@ export const streamFile = async (req, res) => {
             return res.status(404).json({ success: false, message: 'File not found' });
         }
 
-        if (!canReadFile(file, req.user)) {
+        if (!await canReadFile(file, req.user)) {
             return res.status(req.user ? 403 : 401).json({
                 success: false,
                 message: req.user ? 'Not authorized to access this file' : 'Authentication required',

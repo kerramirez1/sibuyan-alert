@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from '../router';
 import api from '../services/api';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import {
     getPushState,
     subscribeToPush,

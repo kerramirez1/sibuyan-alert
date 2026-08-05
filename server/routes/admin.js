@@ -4,6 +4,7 @@ import {
     getUserById,
     verifyReporter,
     getAllReports,
+    getOperationalReportById,
     verifyReport,
     respondToReport,
     resolveReport,
@@ -47,6 +48,7 @@ router.delete('/users/:id', requireRole('municipal_admin'), deleteUser);
 // Report queue — shared read access with capability-specific mutations below.
 // ============================================================
 router.get('/reports', getAllReports);
+router.get('/reports/:id', getOperationalReportById);
 router.put('/reports/:id/verify', requireRole('municipal_admin'), validateVerifyReport, verifyReport);
 router.put('/reports/:id/respond', requireRole('responder'), validateRespondToReport, respondToReport);
 router.put('/reports/:id/resolve', requireRole('responder'), validateResolveReport, resolveReport);

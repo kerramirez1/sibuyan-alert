@@ -103,6 +103,7 @@ describe('API service', () => {
         expect(typeof adminAPI.getUsers).toBe('function');
         expect(typeof adminAPI.verifyReporter).toBe('function');
         expect(typeof adminAPI.getReports).toBe('function');
+        expect(typeof adminAPI.getReportById).toBe('function');
         expect(typeof adminAPI.verifyReport).toBe('function');
         expect(typeof adminAPI.respondToReport).toBe('function');
         expect(typeof adminAPI.resolveReport).toBe('function');

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import useIncidentReports from '../hooks/useIncidentReports';
 import useIncidentActions from '../hooks/useIncidentActions';
+import useOperationalIncidentDetails from '../hooks/useOperationalIncidentDetails';
 import IncidentQueueControls from '../components/adminReports/IncidentQueueControls';
 import IncidentQueue from '../components/adminReports/IncidentQueue';
 import IncidentDetailsDrawer from '../components/adminReports/IncidentDetailsDrawer';
@@ -39,6 +40,7 @@ const AdminReportsPage = () => {
         initialStatus,
         focusedReportId,
     });
+    const detailState = useOperationalIncidentDetails(reportState.selectedReport, user?.role);
 
     useEffect(() => {
         if (!notificationId || !focusedReportId || reportState.selectedReport?._id !== focusedReportId) return;
@@ -179,12 +181,16 @@ const AdminReportsPage = () => {
             />
 
             <IncidentDetailsDrawer
-                report={reportState.selectedReport}
+                report={detailState.report}
                 user={user}
                 actions={queueActions}
                 onClose={closeDetails}
                 onOpenMap={openMap}
                 onViewImage={openImage}
+                detailLoading={detailState.loading}
+                detailError={detailState.error}
+                detailRestricted={detailState.restricted}
+                onRetryDetails={detailState.retry}
                 highlightedUpdateId={highlightedUpdateId}
                 openedFromNotification={openedFromNotification}
             />

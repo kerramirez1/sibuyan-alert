@@ -3,6 +3,7 @@ import { Link } from '../router';
 import { useAuth } from '../context/AuthContext';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { reportsAPI } from '../services/api';
+import { ID_IMAGE_ACCEPT, prepareIdentityImage } from '../utils/identityImage';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
@@ -11,7 +12,6 @@ import {
     HiOutlineCloudUpload,
     HiOutlineEye,
     HiOutlineEyeOff,
-    HiOutlineIdentification,
     HiOutlineLocationMarker,
     HiOutlineMail,
     HiOutlineRefresh,
@@ -30,6 +30,7 @@ const FieldError = ({ id, children }) => children ? (
 const RegisterPage = () => {
     const { register } = useAuth();
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
@@ -47,6 +48,8 @@ const RegisterPage = () => {
     const [locationsError, setLocationsError] = useState('');
     const [idFile, setIdFile] = useState(null);
     const [idPreview, setIdPreview] = useState(null);
+    const [idSource, setIdSource] = useState(null);
+    const [idPreparing, setIdPreparing] = useState(false);
     const [selfieBlob, setSelfieBlob] = useState(null);
     const [selfiePreview, setSelfiePreview] = useState(null);
     const [cameraActive, setCameraActive] = useState(false);
@@ -209,30 +212,42 @@ const RegisterPage = () => {
         setStep((current) => Math.max(1, current - 1));
     };
 
-    const handleFileChange = (event) => {
-        const file = event.target.files?.[0];
+    const handleFileChange = async (event, source) => {
+        const input = event.currentTarget;
+        const file = input.files?.[0];
         if (!file) return;
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-        if (!allowedTypes.includes(file.type)) {
-            setErrors((current) => ({ ...current, idDocument: 'Use a JPG, PNG, WebP, or PDF file.' }));
-            return;
+        setIdPreparing(true);
+        setErrors((current) => ({ ...current, idDocument: '', form: '' }));
+        try {
+            const prepared = await prepareIdentityImage(file);
+            if (idPreview) URL.revokeObjectURL(idPreview);
+            setIdFile(prepared.file);
+            setIdPreview(URL.createObjectURL(prepared.file));
+            setIdSource(source);
+        } catch (error) {
+            input.value = '';
+            setErrors((current) => ({
+                ...current,
+                idDocument: error.message || 'The ID photo could not be prepared.',
+            }));
+        } finally {
+            setIdPreparing(false);
         }
-        if (file.size > 10 * 1024 * 1024) {
-            setErrors((current) => ({ ...current, idDocument: 'The file must be 10 MB or smaller.' }));
-            return;
-        }
-
-        if (idPreview) URL.revokeObjectURL(idPreview);
-        setIdFile(file);
-        setIdPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
-        setErrors((current) => ({ ...current, idDocument: '' }));
     };
 
     const removeFile = () => {
         if (idPreview) URL.revokeObjectURL(idPreview);
         setIdFile(null);
         setIdPreview(null);
+        setIdSource(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
+        if (cameraInputRef.current) cameraInputRef.current.value = '';
+    };
+
+    const openIdPicker = (inputRef) => {
+        if (!inputRef.current) return;
+        inputRef.current.value = '';
+        inputRef.current.click();
     };
 
     const handleSubmit = async (event) => {
@@ -399,36 +414,65 @@ const RegisterPage = () => {
                 {step === 2 && (
                     <section aria-labelledby="id-step-title" className="space-y-5">
                         <div>
-                            <h2 id="id-step-title" className="text-lg font-semibold text-gray-950">Identification document</h2>
-                            <p className="mt-1 text-sm leading-5 text-gray-500">Upload a clear government-issued or school ID for administrator review.</p>
+                            <h2 id="id-step-title" className="text-lg font-semibold text-gray-950">Upload your ID</h2>
+                            <p className="mt-1 text-sm leading-5 text-gray-500">Take or upload a clear photo of a valid government-issued or school ID.</p>
                         </div>
 
                         {!idFile ? (
-                            <button type="button" onClick={() => fileInputRef.current?.click()} className={`flex min-h-56 w-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${errors.idDocument ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-gray-50 hover:border-brand-400 hover:bg-brand-50/40'}`}>
-                                <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
-                                    <HiOutlineCloudUpload className="h-6 w-6" aria-hidden="true" />
-                                </span>
-                                <span className="text-sm font-semibold text-gray-900">Choose an ID file</span>
-                                <span className="mt-1 text-xs text-gray-500">JPG, PNG, WebP, or PDF · up to 10 MB</span>
-                            </button>
-                        ) : (
-                            <div className="flex items-center gap-4 rounded-2xl border border-brand-200 bg-brand-50/40 p-4">
-                                {idPreview ? <img src={idPreview} alt="Selected identification preview" className="h-16 w-16 shrink-0 rounded-xl border border-gray-200 object-cover" /> : (
-                                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white text-gray-500 ring-1 ring-gray-200"><HiOutlineIdentification className="h-7 w-7" /></span>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold text-gray-900">{idFile.name}</p>
-                                    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-700"><HiOutlineCheck className="h-4 w-4" /> Ready to upload</p>
+                            <div className={`rounded-2xl border border-dashed p-4 ${errors.idDocument ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-brand-200 bg-white p-4 text-center text-gray-900 hover:border-brand-400 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-100 text-brand-700"><HiOutlineCamera className="h-6 w-6" aria-hidden="true" /></span>
+                                        <span className="text-sm font-semibold">Take a photo</span>
+                                        <span className="mt-1 text-xs text-gray-500">Use your rear camera</span>
+                                    </button>
+                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center text-gray-900 hover:border-brand-400 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-700"><HiOutlineCloudUpload className="h-6 w-6" aria-hidden="true" /></span>
+                                        <span className="text-sm font-semibold">Choose from device</span>
+                                        <span className="mt-1 text-xs text-gray-500">Select an existing photo</span>
+                                    </button>
                                 </div>
-                                <button type="button" onClick={removeFile} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Remove selected identification file"><HiOutlineX className="h-5 w-5" /></button>
+                                <p className="mt-3 text-center text-xs text-gray-500">JPG, PNG, or WebP · maximum 5 MB</p>
+                                {idPreparing && <p className="mt-2 text-center text-xs font-medium text-brand-700" role="status">Preparing your ID photo…</p>}
+                            </div>
+                        ) : (
+                            <div className="overflow-hidden rounded-2xl border border-brand-200 bg-brand-50/40">
+                                <div className="aspect-[8/5] bg-gray-100 p-3 sm:p-4">
+                                    <img src={idPreview} alt="Selected identification preview" className="h-full w-full rounded-xl object-contain" />
+                                </div>
+                                <div className="flex flex-col gap-3 border-t border-brand-200 p-4 sm:flex-row sm:items-center">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-gray-900">{idFile.name}</p>
+                                        <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-700"><HiOutlineCheck className="h-4 w-4" /> Ready for secure upload</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                                        <button type="button" onClick={() => openIdPicker(idSource === 'camera' ? cameraInputRef : fileInputRef)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                                            <HiOutlineRefresh className="h-4 w-4" aria-hidden="true" /> {idSource === 'camera' ? 'Retake' : 'Replace'}
+                                        </button>
+                                        <button type="button" onClick={removeFile} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+                                            <HiOutlineX className="h-4 w-4" aria-hidden="true" /> Remove
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
-                        <input ref={fileInputRef} type="file" className="sr-only" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleFileChange} />
+                        <input ref={cameraInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} capture="environment" onChange={(event) => handleFileChange(event, 'camera')} aria-label="Take an ID photo" />
+                        <input ref={fileInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} onChange={(event) => handleFileChange(event, 'device')} aria-label="Choose an ID photo from device" />
                         <FieldError id="id-document-error">{errors.idDocument}</FieldError>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-sm font-semibold text-gray-900">Before you continue</p>
+                            <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
+                                {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
+                                    <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
+                                ))}
+                            </ul>
+                            <p className="mt-3 flex gap-2 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
+                        </div>
 
                         <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button type="button" onClick={handleBack} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">Back</button>
-                            <button type="button" onClick={handleNext} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">Continue <HiOutlineArrowRight className="h-5 w-5" /></button>
+                            <button type="button" onClick={handleNext} disabled={idPreparing} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">Continue <HiOutlineArrowRight className="h-5 w-5" /></button>
                         </div>
                     </section>
                 )}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '../router';
 import { reportsAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import ReportLocationPanel from '../components/report/ReportLocationPanel';
 import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
@@ -126,16 +126,16 @@ const ReportPage = () => {
             }));
 
             if (detectedBarangay) {
-                toast.success(`${successPrefix}: ${detectedBarangay}`, { duration: 3000 });
+                toast.success(`${successPrefix}: ${detectedBarangay}`);
             } else if (detectedAddress) {
-                toast.error('Barangay could not be verified for this location. Adjust the pin or enter it manually.', { duration: 5000 });
+                toast.error('Barangay could not be verified for this location. Adjust the pin or enter it manually.');
             } else {
-                toast.error('Could not identify the selected location. Adjust the pin and try again.', { duration: 5000 });
+                toast.error('Could not identify the selected location. Adjust the pin and try again.');
             }
         } catch (error) {
             if (error?.code !== 'ERR_CANCELED' && error?.name !== 'CanceledError' && error?.name !== 'AbortError') {
                 console.warn('Reverse geocoding failed', error);
-                toast.error('Could not verify the barangay for this location. Adjust the pin or enter it manually.', { duration: 5000 });
+                toast.error('Could not verify the barangay for this location. Adjust the pin or enter it manually.');
             }
         } finally {
             if (reverseGeocodeRequestRef.current === requestId) {

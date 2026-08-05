@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from '../router';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { HiOutlineLockClosed, HiOutlineCheckCircle, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 
 const ResetPasswordPage = () => {

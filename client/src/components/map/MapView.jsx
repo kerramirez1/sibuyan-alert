@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
+import toast from '../../utils/appToast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
     getMapCoordinates,

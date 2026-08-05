@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineArchive,

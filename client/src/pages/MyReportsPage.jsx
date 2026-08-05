@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from '../router';
 import { format, formatDistanceToNow } from 'date-fns';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineBadgeCheck,

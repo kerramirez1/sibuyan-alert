@@ -13,6 +13,7 @@
         "import:barangay-boundaries": "node scripts/importSibuyanBarangayBoundaries.js",
         "reset:responders": "node seeds/seedResponders.js",
         "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
+        "migrate:harden-report-evidence": "node scripts/hardenReportEvidencePrivacy.js",
         "migrate:remove-system-admins": "node scripts/removeSystemAdmins.js",
         "lint": "oxlint . --deny-warnings --ignore-pattern coverage --ignore-pattern data",
         "test": "vitest run"

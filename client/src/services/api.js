@@ -108,7 +108,7 @@ const toApiFilePath = (value) => {
 };
 
 export const filesAPI = {
-    getProtected: (url) => api.get(toApiFilePath(url), { responseType: 'blob' }),
+    getProtected: (url, config = {}) => api.get(toApiFilePath(url), { ...config, responseType: 'blob' }),
 };
 
 // Auth API
@@ -160,6 +160,7 @@ export const adminAPI = {
     getUserById: (id) => api.get(`/admin/users/${id}`),
     verifyReporter: (id, data) => api.put(`/admin/users/${id}/verify`, data),
     getReports: (params) => api.get('/admin/reports', { params }),
+    getReportById: (id, config = {}) => api.get(`/admin/reports/${id}`, config),
     verifyReport: (id, data) => api.put(`/admin/reports/${id}/verify`, data),
     respondToReport: (id, data) => api.put(`/admin/reports/${id}/respond`, data),
     resolveReport: (id, data) => api.put(`/admin/reports/${id}/resolve`, data),

@@ -7,7 +7,9 @@ import {
     HiOutlineShieldCheck,
 } from 'react-icons/hi';
 import { Link } from '../../router';
+import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
 import { getIncidentDetailViewModel } from '../../utils/incidentDetails';
+import OperationalIncidentSections from './OperationalIncidentSections';
 
 const STATUS_STYLES = {
     verified: 'border-blue-200 bg-blue-50 text-blue-700',
@@ -46,8 +48,14 @@ const MapIncidentDetails = ({
     onRespond,
     onResolve,
 }) => {
-    const details = getIncidentDetailViewModel(report);
+    const operational = useOperationalIncidentDetails(report, viewerRole);
+    const displayedReport = operational.report || report;
+    const details = getIncidentDetailViewModel(displayedReport);
     const ownsReport = viewerRole === 'reporter' && details.isOwnedByCurrentUser;
+    const showOperationalDetails = operational.isOperationalViewer
+        && displayedReport?.detailAccess === 'operational'
+        && displayedReport?.detailCompleteness === 'full'
+        && !operational.restricted;
 
     return (
         <div className="max-h-[min(72vh,42rem)] overflow-y-auto px-4 py-4 sm:px-5">
@@ -71,6 +79,23 @@ const MapIncidentDetails = ({
                 <span>{details.location}</span>
             </div>
 
+            {operational.loading && (
+                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800" role="status">
+                    Loading protected operational details...
+                </div>
+            )}
+
+            {operational.error && (
+                <div className="mt-4 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                    <span>{operational.error}</span>
+                    {!operational.restricted && (
+                        <button type="button" onClick={operational.retry} className="min-h-10 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-red-100">
+                            Retry
+                        </button>
+                    )}
+                </div>
+            )}
+
             <dl className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                     <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Incident time</dt>
@@ -84,12 +109,14 @@ const MapIncidentDetails = ({
                 </div>
             </dl>
 
-            <section className="mt-4" aria-labelledby="public-description-heading">
-                <h5 id="public-description-heading" className="text-xs font-semibold uppercase tracking-wider text-gray-500">Public description</h5>
+            <section className="mt-4" aria-labelledby="incident-description-heading">
+                <h5 id="incident-description-heading" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {showOperationalDetails ? 'Operational description' : 'Public description'}
+                </h5>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700">{details.description}</p>
             </section>
 
-            {details.safetyIndicators.length > 0 && (
+            {!showOperationalDetails && details.safetyIndicators.length > 0 && (
                 <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3" aria-labelledby="safety-indicators-heading">
                     <h5 id="safety-indicators-heading" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-800">
                         <HiOutlineExclamationCircle className="h-4 w-4" aria-hidden="true" />
@@ -103,7 +130,7 @@ const MapIncidentDetails = ({
                 </section>
             )}
 
-            {details.respondingAgencies.length > 0 && (
+            {!showOperationalDetails && details.respondingAgencies.length > 0 && (
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-gray-200 p-3">
                     <HiOutlineClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
                     <div>
@@ -113,18 +140,22 @@ const MapIncidentDetails = ({
                 </div>
             )}
 
-            <div className="mt-4 flex items-start gap-2 border-t border-gray-200 pt-4 text-xs leading-5 text-gray-500">
-                <HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
-                <p>
-                    This is verified public safety information. Personal identities, evidence, and internal coordination details are not displayed here.
-                    {details.updatedAt ? ` Last updated ${formatRelativeDate(details.updatedAt)}.` : ''}
-                </p>
-            </div>
+            {showOperationalDetails ? (
+                <OperationalIncidentSections report={displayedReport} />
+            ) : (
+                <div className="mt-4 flex items-start gap-2 border-t border-gray-200 pt-4 text-xs leading-5 text-gray-500">
+                    <HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+                    <p>
+                        This is verified public safety information. Personal identities, evidence, and internal coordination details are not displayed here.
+                        {details.updatedAt ? ` Last updated ${formatRelativeDate(details.updatedAt)}.` : ''}
+                    </p>
+                </div>
+            )}
 
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
                     type="button"
-                    onClick={() => onLocate?.(report)}
+                    onClick={() => onLocate?.(displayedReport)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                     <HiOutlineLocationMarker className="h-4 w-4" aria-hidden="true" />
@@ -144,7 +175,7 @@ const MapIncidentDetails = ({
                 {canRespond && (
                     <button
                         type="button"
-                        onClick={() => onRespond?.(report)}
+                        onClick={() => onRespond?.(displayedReport)}
                         disabled={actionLoading}
                         className="min-h-11 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -155,7 +186,7 @@ const MapIncidentDetails = ({
                 {canResolve && (
                     <button
                         type="button"
-                        onClick={() => onResolve?.(report)}
+                        onClick={() => onResolve?.(displayedReport)}
                         disabled={actionLoading}
                         className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -168,4 +199,3 @@ const MapIncidentDetails = ({
 };
 
 export default MapIncidentDetails;
-

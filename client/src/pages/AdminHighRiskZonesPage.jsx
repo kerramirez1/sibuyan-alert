@@ -5,7 +5,7 @@ import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import toast from 'react-hot-toast';
+import toast from '../utils/appToast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../utils/mapNavigation';
 import {
@@ -94,7 +94,7 @@ const AdminHighRiskZonesPage = () => {
 
             const resolved = buildRiskZoneLocationAutofill(response.data?.data);
             if (!resolved.valid) {
-                toast.error(resolved.message, { id: 'geocoding', duration: 5000 });
+                toast.error(resolved.message, { id: 'geocoding' });
                 return false;
             }
 
@@ -105,7 +105,7 @@ const AdminHighRiskZonesPage = () => {
             ) {
                 toast.error(
                     `This point is in ${detected.municipality}. Choose a location inside ${user.assignedMunicipality}.`,
-                    { id: 'geocoding', duration: 5000 }
+                    { id: 'geocoding' }
                 );
                 return false;
             }
@@ -125,7 +125,7 @@ const AdminHighRiskZonesPage = () => {
                 console.error('Geocoding error:', error);
                 toast.error(
                     error.response?.data?.message || 'Could not verify the selected location',
-                    { id: 'geocoding', duration: 5000 }
+                    { id: 'geocoding' }
                 );
             }
             return false;

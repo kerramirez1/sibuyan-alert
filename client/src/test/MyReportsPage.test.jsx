@@ -117,7 +117,10 @@ describe('reporter situation update flow', () => {
         });
         expect(await screen.findByText(latestUpdate.message)).toBeInTheDocument();
         expect(screen.getByText('Sent successfully')).toBeInTheDocument();
-        expect(mocks.toast.success).toHaveBeenCalledWith('Situation update sent');
+        expect(mocks.toast.success).toHaveBeenCalledWith(
+            'Situation update sent',
+            expect.objectContaining({ id: 'app-notification', duration: 3000 }),
+        );
         expect(screen.queryByRole('dialog', { name: 'Send situation update' })).not.toBeInTheDocument();
     });
 

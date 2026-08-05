@@ -13,6 +13,12 @@ import {
     broadcastVerifiedReportToResponders,
 } from '../services/socketService.js';
 import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
+import {
+    canViewOperationalReport,
+    canViewReporterContact,
+    isMunicipalAdminInReportScope,
+} from '../utils/reportAccess.js';
+import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -243,7 +249,7 @@ export const verifyReporter = async (req, res) => {
             });
         }
 
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(req.params.id).select('+verificationHistory');
 
         if (!user) {
             return res.status(404).json({
@@ -279,7 +285,13 @@ export const verifyReporter = async (req, res) => {
         user.isVerified = status === 'approved';
         user.verifiedBy = req.user._id;
         user.verifiedAt = new Date();
-        if (feedback) user.verificationFeedback = feedback;
+        const normalizedFeedback = feedback?.trim() || null;
+        user.verificationFeedback = normalizedFeedback;
+        user.recordVerificationEvent({
+            action: status,
+            actor: req.user._id,
+            feedback: normalizedFeedback,
+        });
 
         await user.save();
 
@@ -408,7 +420,7 @@ export const getAllReports = async (req, res) => {
         // Responder views are filtered on the server so actionable incidents are
         // never lost behind an unrelated first page of report history.
         if (admin.role === 'responder') {
-            const responderVisibleStatuses = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
+            const responderVisibleStatuses = ['verified', 'transferred', 'responding', 'resolved'];
             const responderId = admin._id;
 
             if (!reportId && responderView === 'available') {
@@ -502,7 +514,7 @@ export const getAllReports = async (req, res) => {
         res.json({
             success: true,
             data: {
-                reports,
+                reports: reports.map(toOperationalReportSummary),
                 pagination: {
                     page: safePage,
                     limit: safeLimit,
@@ -526,6 +538,60 @@ export const getAllReports = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get reports',
+        });
+    }
+};
+
+/**
+ * @desc    Get a protected operational incident record
+ * @route   GET /api/admin/reports/:id
+ * @access  Private (in-scope municipal administrators and eligible responders)
+ */
+export const getOperationalReportById = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid incident report identifier',
+            });
+        }
+
+        const report = await Report.findById(req.params.id)
+            .populate('reporter', 'name email avatar isVerified')
+            .populate('verifiedBy', 'name')
+            .populate('respondedBy', 'name email agency assignedMunicipality')
+            .populate('resolvedBy', 'name email agency assignedMunicipality')
+            .populate('responders.user', 'name agency assignedMunicipality')
+            .populate('transferHistory.transferredBy', 'name role assignedMunicipality')
+            .populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality')
+            .populate('reportUpdates.author', 'name role agency')
+            .populate('municipality', 'name code');
+
+        if (!report) {
+            return res.status(404).json({ success: false, message: 'Report not found' });
+        }
+
+        if (!canViewOperationalReport(req.user, report)) {
+            return res.status(403).json({
+                success: false,
+                message: req.user.role === 'responder'
+                    ? 'Operational details are available only for verified in-scope incidents or incidents assigned to you'
+                    : 'Not authorized to view this incident record',
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: toOperationalReport(report, {
+                includeReporterContact: canViewReporterContact(req.user, report),
+                includeAdministrative: isMunicipalAdminInReportScope(req.user, report),
+            }),
+        });
+    } catch (error) {
+        console.error('Get operational report error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to load operational incident details',
         });
     }
 };
@@ -1444,6 +1510,7 @@ export default {
     getUserById,
     verifyReporter,
     getAllReports,
+    getOperationalReportById,
     verifyReport,
     respondToReport,
     resolveReport,

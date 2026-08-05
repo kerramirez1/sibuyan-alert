@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 import MapIncidentDetails from '../components/map/MapIncidentDetails';
+
+const mocks = vi.hoisted(() => ({ getReportById: vi.fn() }));
+
+vi.mock('../services/api', () => ({
+    adminAPI: { getReportById: mocks.getReportById },
+    filesAPI: { getProtected: vi.fn() },
+}));
 
 const report = {
     _id: 'report-1',
@@ -30,6 +37,25 @@ const renderDetails = (props = {}) => render(
 );
 
 describe('MapIncidentDetails', () => {
+    beforeEach(() => {
+        mocks.getReportById.mockReset();
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...report,
+                    reporter: { name: 'Private Reporter', isVerified: true },
+                    images: [],
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    locationCapture: { source: 'map_pin', accuracyMeters: 12 },
+                    reportUpdates: [],
+                    transferHistory: [],
+                    responders: [],
+                },
+            },
+        });
+    });
+
     test('renders a useful sanitized public incident summary for guests', () => {
         const onLocate = vi.fn();
         renderDetails({ onLocate });
@@ -59,10 +85,29 @@ describe('MapIncidentDetails', () => {
 
     test('keeps responder actions capability-based', () => {
         const onRespond = vi.fn();
-        renderDetails({ viewerRole: 'responder', canRespond: true, onRespond });
+        const fullReport = { ...report, detailAccess: 'operational', detailCompleteness: 'full' };
+        renderDetails({ report: fullReport, viewerRole: 'responder', canRespond: true, onRespond });
 
         fireEvent.click(screen.getByRole('button', { name: /respond to incident/i }));
-        expect(onRespond).toHaveBeenCalledWith(report);
+        expect(onRespond).toHaveBeenCalledWith(fullReport);
         expect(screen.queryByRole('button', { name: /review resolution/i })).not.toBeInTheDocument();
+    });
+
+    test('loads protected operational details for eligible responders', async () => {
+        renderDetails({ viewerRole: 'responder' });
+
+        expect(await screen.findByRole('heading', { name: 'Operational details' })).toBeInTheDocument();
+        expect(screen.getByText('Private Reporter')).toBeInTheDocument();
+        expect(screen.getByText(/Contact details become available after you join/i)).toBeInTheDocument();
+        expect(mocks.getReportById).toHaveBeenCalledWith('report-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    });
+
+    test('falls back to public-safe content when operational access is denied', async () => {
+        mocks.getReportById.mockRejectedValue({ response: { status: 403 } });
+        renderDetails({ viewerRole: 'responder' });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/protected operational details are unavailable/i);
+        expect(screen.getByText(/Personal identities, evidence, and internal coordination details are not displayed/i)).toBeInTheDocument();
+        expect(screen.queryByText('Private Reporter')).not.toBeInTheDocument();
     });
 });
