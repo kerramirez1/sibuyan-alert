@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     getMunicipalities: vi.fn(),
     register: vi.fn(),
+    prepareIdentityImage: vi.fn(),
+    prepareVerificationImage: vi.fn(),
 }));
 
 vi.mock('../services/api', () => ({
@@ -13,6 +15,12 @@ vi.mock('../services/api', () => ({
 
 vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({ register: mocks.register }),
+}));
+
+vi.mock('../utils/identityImage', () => ({
+    ID_IMAGE_ACCEPT: 'image/jpeg,image/png,image/webp',
+    prepareIdentityImage: mocks.prepareIdentityImage,
+    prepareVerificationImage: mocks.prepareVerificationImage,
 }));
 
 import RegisterPage from '../pages/RegisterPage';
@@ -41,8 +49,12 @@ const renderRegister = () => render(
 describe('RegisterPage location reference and responsive form', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        if (!URL.createObjectURL) URL.createObjectURL = vi.fn(() => 'blob:preview');
+        if (!URL.revokeObjectURL) URL.revokeObjectURL = vi.fn();
         mocks.getMunicipalities.mockResolvedValue({ data: { data: officialLocations } });
         mocks.register.mockResolvedValue({ success: true });
+        mocks.prepareIdentityImage.mockImplementation(async (file) => ({ file }));
+        mocks.prepareVerificationImage.mockImplementation(async (file) => ({ file }));
     });
 
     test('loads barangays from the backend and shows only the selected municipality records', async () => {
@@ -124,5 +136,39 @@ describe('RegisterPage location reference and responsive form', () => {
         expect(screen.getByLabelText('Take an ID photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
         expect(screen.getByLabelText('Choose an ID photo from device')).not.toHaveAttribute('capture');
         expect(screen.getByText(/never shown on public reports/i)).toBeInTheDocument();
+    });
+
+    test('requires explicit selfie confirmation before enabling final submission', async () => {
+        renderRegister();
+        await screen.findByLabelText('Municipality');
+
+        fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Juan Dela Cruz' } });
+        fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'juan@example.com' } });
+        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
+        fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByRole('button', { name: /Continue to identification/i }));
+
+        const idPhoto = new File(['id'], 'id.jpg', { type: 'image/jpeg' });
+        fireEvent.change(screen.getByLabelText('Choose an ID photo from device'), { target: { files: [idPhoto] } });
+        await screen.findByAltText('Selected identification preview');
+        fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+
+        expect(screen.getByRole('heading', { name: /Take a verification selfie/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Confirm your selfie to continue/i })).toBeDisabled();
+
+        const selfie = new File(['selfie'], 'selfie.jpg', { type: 'image/jpeg' });
+        fireEvent.change(screen.getByLabelText('Choose a verification selfie from device'), { target: { files: [selfie] } });
+        await screen.findByAltText('Verification selfie preview');
+        expect(screen.getByRole('button', { name: /Confirm your selfie to continue/i })).toBeDisabled();
+
+        const usePhoto = screen.getByRole('button', { name: /Use this photo/i });
+        await waitFor(() => expect(usePhoto).toHaveFocus());
+        fireEvent.click(usePhoto);
+        const submit = screen.getByRole('button', { name: /Submit for review/i });
+        expect(submit).toBeEnabled();
+        await waitFor(() => expect(submit).toHaveFocus());
+        expect(screen.getByText(/manual identity comparison/i)).toBeInTheDocument();
     });
 });

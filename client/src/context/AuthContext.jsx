@@ -126,8 +126,7 @@ export const AuthProvider = ({ children }) => {
             const { user } = response.data.data;
             setUser(user);
 
-            toast.success('Registration successful! Your account is pending verification.');
-            navigate('/dashboard');
+            navigate('/registration-submitted');
 
             return { success: true };
         } catch (error) {

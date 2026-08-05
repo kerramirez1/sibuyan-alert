@@ -15,7 +15,13 @@ import {
     logoutAll,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
-import { uploadIdDocument, uploadAvatar, handleMulterError, validateUploadContent } from '../middleware/upload.js';
+import {
+    uploadIdDocument,
+    uploadAvatar,
+    handleMulterError,
+    validateUploadContent,
+    requireRegistrationVerificationImages,
+} from '../middleware/upload.js';
 import {
     validateLogin,
     validateRegister,
@@ -27,7 +33,7 @@ import { authLimiter, passwordResetLimiter, pushSubscriptionLimiter } from '../m
 const router = express.Router();
 
 // Public routes (with validation + rate limiting)
-router.post('/register', authLimiter, uploadIdDocument, handleMulterError, validateUploadContent, validateRegister, register);
+router.post('/register', authLimiter, uploadIdDocument, handleMulterError, validateUploadContent, requireRegistrationVerificationImages, validateRegister, register);
 router.post('/login', authLimiter, validateLogin, login);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password/:token', authLimiter, validateResetPassword, resetPassword);

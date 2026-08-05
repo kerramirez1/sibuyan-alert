@@ -52,6 +52,12 @@ export const register = async (req, res) => {
                 message: 'An ID photo is required for reporter registration',
             });
         }
+        if (!selfiePhotoFile) {
+            return res.status(400).json({
+                success: false,
+                message: 'A verification selfie is required for reporter registration',
+            });
+        }
 
         if (!isValidSibuyanAddress(municipality, barangay)) {
             return res.status(400).json({

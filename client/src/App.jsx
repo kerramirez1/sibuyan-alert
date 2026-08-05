@@ -11,6 +11,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RegistrationSubmittedPage from './pages/RegistrationSubmittedPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -56,6 +57,11 @@ function App() {
                 <Route path="/register" element={(
                     <AuthLayout>
                         {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <RegisterPage />}
+                    </AuthLayout>
+                )} />
+                <Route path="/registration-submitted" element={(
+                    <AuthLayout>
+                        {isAuthenticated ? <RegistrationSubmittedPage /> : <Navigate to="/login" />}
                     </AuthLayout>
                 )} />
                 <Route path="/forgot-password" element={<AuthLayout><ForgotPasswordPage /></AuthLayout>} />

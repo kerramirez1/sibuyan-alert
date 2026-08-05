@@ -8,13 +8,15 @@ const MAX_OUTPUT_EDGE = 2400;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const JPEG_QUALITY = 0.92;
 
-export const validateIdentityImageFile = (file) => {
-    if (!file) return 'Choose or take a photo of your ID.';
+const validateVerificationImageFile = (file, subject) => {
+    if (!file) return `Choose or take a photo of your ${subject}.`;
     if (!ID_IMAGE_TYPES.has(file.type)) return 'Use a JPG, PNG, or WebP image.';
     if (file.size <= 0) return 'The selected image is empty.';
-    if (file.size > MAX_ID_IMAGE_BYTES) return 'The ID photo must be 5 MB or smaller.';
+    if (file.size > MAX_ID_IMAGE_BYTES) return `The ${subject} photo must be 5 MB or smaller.`;
     return '';
 };
+
+export const validateIdentityImageFile = (file) => validateVerificationImageFile(file, 'ID');
 
 const loadImage = (file) => new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
@@ -38,23 +40,28 @@ const toBlob = (canvas) => new Promise((resolve, reject) => {
     );
 });
 
-const buildOutputName = (originalName = 'identification') => {
+const buildOutputName = (originalName = 'verification-photo', fallbackName = 'verification-photo') => {
     const baseName = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 80);
-    return `${baseName || 'identification'}.jpg`;
+    return `${baseName || fallbackName}.jpg`;
 };
 
 /**
  * Normalizes camera orientation and caps very large photos before upload.
  * The server remains the source of truth for content and dimension validation.
  */
-export const prepareIdentityImage = async (sourceFile) => {
-    const validationError = validateIdentityImageFile(sourceFile);
+export const prepareVerificationImage = async (sourceFile, {
+    subject = 'verification',
+    fallbackName = 'verification-photo',
+} = {}) => {
+    const validationError = validateVerificationImageFile(sourceFile, subject);
     if (validationError) throw new Error(validationError);
 
     const image = await loadImage(sourceFile);
     const width = image.naturalWidth;
     const height = image.naturalHeight;
-    if (width < MIN_ID_IMAGE_WIDTH || height < MIN_ID_IMAGE_HEIGHT) {
+    const shortEdge = Math.min(width, height);
+    const longEdge = Math.max(width, height);
+    if (shortEdge < MIN_ID_IMAGE_HEIGHT || longEdge < MIN_ID_IMAGE_WIDTH) {
         throw new Error(`Use a clearer photo at least ${MIN_ID_IMAGE_WIDTH} × ${MIN_ID_IMAGE_HEIGHT} pixels.`);
     }
     if (width * height > MAX_IMAGE_PIXELS) {
@@ -80,7 +87,7 @@ export const prepareIdentityImage = async (sourceFile) => {
     }
 
     return {
-        file: new File([blob], buildOutputName(sourceFile.name), {
+        file: new File([blob], buildOutputName(sourceFile.name, fallbackName), {
             type: 'image/jpeg',
             lastModified: Date.now(),
         }),
@@ -88,3 +95,8 @@ export const prepareIdentityImage = async (sourceFile) => {
         height: outputHeight,
     };
 };
+
+export const prepareIdentityImage = (sourceFile) => prepareVerificationImage(sourceFile, {
+    subject: 'ID',
+    fallbackName: 'identification',
+});

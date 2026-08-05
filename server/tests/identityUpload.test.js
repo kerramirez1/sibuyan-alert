@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import User from '../models/User.js';
 import {
     handleMulterError,
+    requireRegistrationVerificationImages,
     uploadIdDocument,
     validateUploadContent,
 } from '../middleware/upload.js';
@@ -23,6 +24,19 @@ const createUploadApp = () => {
         uploadIdDocument,
         handleMulterError,
         validateUploadContent,
+        (req, res) => res.status(204).end(),
+    );
+    return app;
+};
+
+const createRegistrationUploadApp = () => {
+    const app = express();
+    app.post(
+        '/identity',
+        uploadIdDocument,
+        handleMulterError,
+        validateUploadContent,
+        requireRegistrationVerificationImages,
         (req, res) => res.status(204).end(),
     );
     return app;
@@ -62,6 +76,29 @@ describe('identity upload boundary', () => {
 
         expect(response.status).toBe(400);
         expect(response.body.message).toMatch(/maximum 5 MB/);
+    });
+
+    test('requires both the ID photo and verification selfie at registration', async () => {
+        const missingSelfie = await request(createRegistrationUploadApp())
+            .post('/identity')
+            .attach('idDocument', createPngHeader(), {
+                filename: 'school-id.png',
+                contentType: 'image/png',
+            });
+        expect(missingSelfie.status).toBe(400);
+        expect(missingSelfie.body.message).toMatch(/verification selfie is required/i);
+
+        const complete = await request(createRegistrationUploadApp())
+            .post('/identity')
+            .attach('idDocument', createPngHeader(), {
+                filename: 'school-id.png',
+                contentType: 'image/png',
+            })
+            .attach('selfiePhoto', createPngHeader(750, 1200), {
+                filename: 'selfie.png',
+                contentType: 'image/png',
+            });
+        expect(complete.status).toBe(204);
     });
 });
 

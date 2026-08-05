@@ -139,6 +139,16 @@ export const validateUploadContent = (req, res, next) => {
     return next();
 };
 
+export const requireRegistrationVerificationImages = (req, res, next) => {
+    if (!req.files?.idDocument?.[0]) {
+        return res.status(400).json({ success: false, message: 'An ID photo is required' });
+    }
+    if (!req.files?.selfiePhoto?.[0]) {
+        return res.status(400).json({ success: false, message: 'A verification selfie is required' });
+    }
+    return next();
+};
+
 export const uploadIdDocument = multer({
     storage: memoryStorage,
     limits: { fileSize: 5 * 1024 * 1024, files: 2 },
@@ -196,4 +206,5 @@ export default {
     uploadAvatar,
     handleMulterError,
     validateUploadContent,
+    requireRegistrationVerificationImages,
 };
