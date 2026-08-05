@@ -18,7 +18,6 @@ import {
     HiOutlineLightningBolt,
     HiOutlineLocationMarker,
     HiOutlinePhotograph,
-    HiOutlinePlus,
     HiOutlineShieldCheck,
     HiOutlineSwitchHorizontal,
     HiOutlineXCircle,
@@ -287,10 +286,10 @@ function MyReportsPage() {
     }
 
     const metricCards = [
-        { label: 'Total reports', value: stats.total, helper: 'All submissions', icon: HiOutlineChartBar },
-        { label: 'Pending review', value: stats.pending, helper: 'Waiting for verification', icon: HiOutlineClock },
-        { label: 'Active cases', value: stats.active, helper: 'Verified or in response', icon: HiOutlineLightningBolt },
-        { label: 'Resolved', value: stats.resolved, helper: 'Closed incidents', icon: HiOutlineBadgeCheck },
+        { label: 'Total reports', value: stats.total, helper: 'All submissions', icon: HiOutlineChartBar, accent: 'border-emerald-500 text-emerald-600' },
+        { label: 'Pending review', value: stats.pending, helper: 'Waiting for verification', icon: HiOutlineClock, accent: 'border-amber-500 text-amber-600' },
+        { label: 'Active cases', value: stats.active, helper: 'Verified or in response', icon: HiOutlineLightningBolt, accent: 'border-blue-500 text-blue-600' },
+        { label: 'Resolved', value: stats.resolved, helper: 'Closed incidents', icon: HiOutlineBadgeCheck, accent: 'border-violet-500 text-violet-600' },
     ];
 
     return (
@@ -317,11 +316,11 @@ function MyReportsPage() {
             </header>
 
             <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Report summary">
-                {metricCards.map(({ label, value, helper, icon: Icon }) => (
-                    <div key={label} className="rounded-xl border border-gray-200 bg-white p-4">
+                {metricCards.map(({ label, value, helper, icon: Icon, accent }) => (
+                    <div key={label} className={`rounded-xl border border-gray-200 bg-white p-4 border-l-4 ${accent.split(' ')[0]}`}>
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-xs font-medium text-gray-500">{label}</p>
-                            <Icon className="h-4 w-4 text-gray-400" />
+                            <Icon className={`h-4 w-4 ${accent.split(' ')[1]}`} />
                         </div>
                         <p className="mt-3 text-2xl font-bold text-gray-900">{value}</p>
                         <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
@@ -329,9 +328,9 @@ function MyReportsPage() {
                 ))}
             </section>
 
-            {reports.length > 0 && (
-                <section className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4" aria-label="Report filters">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Submitted reports">
+                {reports.length > 0 && (
+                    <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-200 p-3 sm:p-4 hide-scrollbar">
                         <div className="mr-1 inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500">
                             <HiOutlineFilter className="h-4 w-4" />
                             Status
@@ -357,10 +356,7 @@ function MyReportsPage() {
                             );
                         })}
                     </div>
-                </section>
-            )}
-
-            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Submitted reports">
+                )}
                 <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5">
                     <div>
                         <h2 className="text-sm font-semibold text-gray-900">Submitted incidents</h2>
@@ -368,7 +364,6 @@ function MyReportsPage() {
                             {filteredReports.length} {filteredReports.length === 1 ? 'record' : 'records'} shown
                         </p>
                     </div>
-                    <span className="hidden text-xs text-gray-400 sm:block">Select a report to view details</span>
                 </div>
 
                 {reports.length === 0 ? (

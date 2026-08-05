@@ -411,20 +411,33 @@ const RegisterPage = () => {
                 </p>
             </header>
 
-            <ol className="mb-5 grid grid-cols-3 gap-2" aria-label="Registration progress">
+            <p className="sr-only" aria-live="polite">{`Step ${step} of ${STEP_LABELS.length}: ${STEP_LABELS[step - 1]}`}</p>
+            <ol className="mb-5 grid grid-cols-3 gap-x-2" aria-label="Registration progress">
                 {STEP_LABELS.map((label, index) => {
                     const number = index + 1;
                     const complete = step > number;
                     const active = step === number;
                     return (
-                        <li key={label} aria-current={active ? 'step' : undefined}>
-                            <div className={`h-1 rounded-full ${step >= number ? 'bg-brand-600' : 'bg-gray-200'}`} />
-                            <div className="mt-2 flex items-center gap-2">
-                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${complete || active ? 'bg-brand-100 text-brand-800' : 'bg-gray-100 text-gray-500'}`}>
+                        <li key={label} aria-current={active ? 'step' : undefined} className="flex flex-col gap-2">
+                            <div className="flex items-center">
+                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ${
+                                    complete
+                                        ? 'bg-brand-600 text-white ring-brand-600'
+                                        : active
+                                            ? 'bg-white text-brand-700 ring-brand-600'
+                                            : 'bg-white text-gray-400 ring-gray-200'
+                                }`}>
                                     {complete ? <HiOutlineCheck className="h-3.5 w-3.5" aria-hidden="true" /> : number}
                                 </span>
-                                <span className={`hidden text-xs font-semibold min-[380px]:block ${active ? 'text-gray-900' : 'text-gray-500'}`}>{label}</span>
+                                <div className={`ml-1.5 h-0.5 flex-1 rounded-full ${
+                                    number < STEP_LABELS.length
+                                        ? (step > number ? 'bg-brand-600' : 'bg-gray-200')
+                                        : 'bg-transparent'
+                                }`} aria-hidden="true" />
                             </div>
+                            <span className={`hidden text-xs font-semibold min-[380px]:block ${
+                                active ? 'text-gray-900' : complete ? 'text-brand-700' : 'text-gray-400'
+                            }`}>{label}</span>
                         </li>
                     );
                 })}
@@ -465,7 +478,7 @@ const RegisterPage = () => {
                                         {showPassword ? <HiOutlineEyeOff className="h-5 w-5" aria-hidden="true" /> : <HiOutlineEye className="h-5 w-5" aria-hidden="true" />}
                                     </button>
                                 </div>
-                                {!errors.password && <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Use a unique password with at least 12 characters.</p>}
+                                <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Use a unique password with at least 12 characters.</p>
                                 <FieldError id="password-error">{errors.password}</FieldError>
                             </div>
 
@@ -481,7 +494,7 @@ const RegisterPage = () => {
                             </div>
                         </div>
 
-                        <fieldset>
+                        <fieldset className="border-t border-gray-100 pt-4 mt-2">
                             <legend className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
                                 <HiOutlineLocationMarker className="h-4 w-4 text-brand-600" aria-hidden="true" />
                                 Home address
@@ -526,6 +539,16 @@ const RegisterPage = () => {
                             <p className="mt-1 text-sm leading-5 text-gray-500">Take or upload a clear photo of a valid government-issued or school ID.</p>
                         </div>
 
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <p className="text-sm font-semibold text-gray-900">Before you continue</p>
+                            <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
+                                {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
+                                    <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
+                                ))}
+                            </ul>
+                            <p className="mt-3 flex gap-2 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
+                        </div>
+
                         {!idFile ? (
                             <div className={`rounded-2xl border border-dashed p-4 ${errors.idDocument ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -567,16 +590,6 @@ const RegisterPage = () => {
                         <input ref={cameraInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} capture="environment" onChange={(event) => handleFileChange(event, 'camera')} aria-label="Take an ID photo" />
                         <input ref={fileInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} onChange={(event) => handleFileChange(event, 'device')} aria-label="Choose an ID photo from device" />
                         <FieldError id="id-document-error">{errors.idDocument}</FieldError>
-
-                        <div className="rounded-xl border border-gray-200 bg-white p-4">
-                            <p className="text-sm font-semibold text-gray-900">Before you continue</p>
-                            <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
-                                {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
-                                    <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
-                                ))}
-                            </ul>
-                            <p className="mt-3 flex gap-2 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
-                        </div>
 
                         <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button type="button" onClick={handleBack} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">Back</button>

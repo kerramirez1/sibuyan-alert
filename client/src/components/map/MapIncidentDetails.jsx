@@ -11,20 +11,22 @@ import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDet
 import { getIncidentDetailViewModel } from '../../utils/incidentDetails';
 import OperationalIncidentSections from './OperationalIncidentSections';
 
-const STATUS_STYLES = {
-    verified: 'border-blue-200 bg-blue-50 text-blue-700',
-    transferred: 'border-violet-200 bg-violet-50 text-violet-700',
-    responding: 'border-red-200 bg-red-50 text-red-700',
-    resolved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    pending: 'border-amber-200 bg-amber-50 text-amber-700',
+const STATUS_CONFIG = {
+    verified:    { dot: 'bg-blue-500',    style: 'border-blue-200 bg-blue-50 text-blue-700' },
+    transferred: { dot: 'bg-violet-500',  style: 'border-violet-200 bg-violet-50 text-violet-700' },
+    responding:  { dot: 'bg-red-500',     style: 'border-red-200 bg-red-50 text-red-700' },
+    resolved:    { dot: 'bg-emerald-500', style: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    pending:     { dot: 'bg-amber-500',   style: 'border-amber-200 bg-amber-50 text-amber-700' },
 };
 
 const SEVERITY_STYLES = {
-    minor: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    minor:    'border-emerald-200 bg-emerald-50 text-emerald-700',
     moderate: 'border-amber-200 bg-amber-50 text-amber-700',
-    severe: 'border-orange-200 bg-orange-50 text-orange-700',
+    severe:   'border-orange-200 bg-orange-50 text-orange-700',
     critical: 'border-red-200 bg-red-50 text-red-700',
 };
+
+const BADGE_BASE = 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
@@ -57,27 +59,39 @@ const MapIncidentDetails = ({
         && displayedReport?.detailCompleteness === 'full'
         && !operational.restricted;
 
+    const statusCfg = STATUS_CONFIG[details.status] || STATUS_CONFIG.verified;
+
     return (
-        <div className="max-h-[min(72vh,42rem)] overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${STATUS_STYLES[details.status] || STATUS_STYLES.verified}`}>
-                    {details.status}
+                <span className={`${BADGE_BASE} ${statusCfg.style}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                    <span className="capitalize">{details.status}</span>
                 </span>
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize ${SEVERITY_STYLES[details.severity] || SEVERITY_STYLES.moderate}`}>
-                    {details.severity} severity
+                <span className={`${BADGE_BASE} ${SEVERITY_STYLES[details.severity] || SEVERITY_STYLES.moderate}`}>
+                    <span className="capitalize">{details.severity}</span> severity
                 </span>
-                <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-600">
+                <span className={`${BADGE_BASE} border-gray-200 bg-gray-50 text-gray-600`}>
                     {details.typeLabel}
                 </span>
             </div>
 
-            <h4 className="mt-4 font-display text-xl font-bold tracking-tight text-gray-950 sm:text-2xl">
+            <h4 className="mt-3 text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
                 {details.title}
             </h4>
-            <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-gray-600">
-                <HiOutlineLocationMarker className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+            <div className="mt-1.5 flex items-start gap-2 text-sm leading-6 text-gray-600">
+                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
                 <span>{details.location}</span>
             </div>
+
+            <button
+                type="button"
+                onClick={() => onLocate?.(displayedReport)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+            >
+                <HiOutlineLocationMarker className="h-3.5 w-3.5" aria-hidden="true" />
+                View on map
+            </button>
 
             {operational.loading && (
                 <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800" role="status">
@@ -96,24 +110,29 @@ const MapIncidentDetails = ({
                 </div>
             )}
 
-            <dl className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <dl className="mt-4 grid grid-cols-2 divide-x divide-gray-200 rounded-xl border border-gray-200 bg-gray-50 items-start">
+                <div className="p-3">
                     <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Incident time</dt>
                     <dd className="mt-1 text-sm font-semibold text-gray-900">{formatDate(details.incidentTime)}</dd>
-                    {formatRelativeDate(details.incidentTime) && <dd className="mt-0.5 text-xs text-gray-500">{formatRelativeDate(details.incidentTime)}</dd>}
+                    {formatRelativeDate(details.incidentTime) && (
+                        <dd className="mt-0.5 text-xs text-gray-500">{formatRelativeDate(details.incidentTime)}</dd>
+                    )}
                 </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="p-3">
                     <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Barangay / municipality</dt>
                     <dd className="mt-1 text-sm font-semibold text-gray-900">{details.barangay}</dd>
                     <dd className="mt-0.5 text-xs text-gray-500">{details.municipality}</dd>
                 </div>
             </dl>
 
-            <section className="mt-4" aria-labelledby="incident-description-heading">
+            <section className="relative mt-4" aria-labelledby="incident-description-heading">
                 <h5 id="incident-description-heading" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                     {showOperationalDetails ? 'Operational description' : 'Public description'}
                 </h5>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700">{details.description}</p>
+                <div className="relative mt-2 max-h-24 overflow-hidden">
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{details.description}</p>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent" aria-hidden="true" />
+                </div>
             </section>
 
             {!showOperationalDetails && details.safetyIndicators.length > 0 && (
@@ -153,15 +172,6 @@ const MapIncidentDetails = ({
             )}
 
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                    type="button"
-                    onClick={() => onLocate?.(displayedReport)}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                >
-                    <HiOutlineLocationMarker className="h-4 w-4" aria-hidden="true" />
-                    View incident on map
-                </button>
-
                 {ownsReport && details.id && (
                     <Link
                         to={`/my-reports?report=${encodeURIComponent(details.id)}`}

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../context/AuthContext', () => ({
-    useAuth: () => ({ isAuthenticated: false, user: null }),
+    useAuth: () => ({ isAuthenticated: false, user: null, canSubmitReports: () => false }),
 }));
 
 vi.mock('../context/SocketContext', () => ({
@@ -69,17 +69,19 @@ describe('HomePage operational landing page', () => {
     test('shows responsive hero actions and keeps the risk-zone metric non-interactive', async () => {
         renderPage();
 
+        expect(await screen.findByText('Verified in Jul 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
         const mapAction = screen.getByRole('link', { name: 'View live map' });
-        const [reporterAction] = screen.getAllByRole('link', { name: 'Become a reporter' });
+        const reportAction = screen.getByRole('link', { name: 'Report an Incident' });
+        const registrationAction = screen.getByRole('link', { name: 'Register as a reporter' });
         expect(mapAction).toHaveAttribute('href', '/dashboard?view=map');
-        expect(reporterAction).toHaveAttribute('href', '/register');
-        expect(mapAction).toHaveClass('min-h-10', 'sm:min-h-12');
-        expect(reporterAction).toHaveClass('min-h-10', 'sm:min-h-12');
+        expect(reportAction).toHaveAttribute('href', '/login');
+        expect(registrationAction).toHaveAttribute('href', '/register');
+        expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');
+        expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(mapAction).not.toHaveClass('flex-1');
-        expect(reporterAction).not.toHaveClass('flex-1');
-        expect(screen.getAllByAltText(/Mountain ridges of Mount Guiting-Guiting/i)).toHaveLength(1);
-        expect(await screen.findByText('Verified in Jul 2026')).toBeInTheDocument();
+        expect(reportAction).not.toHaveClass('flex-1');
+        expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
         expect(screen.getByText('Municipalities covered')).toBeInTheDocument();
         expect(screen.getByText('14 barangays')).toBeInTheDocument();
         expect(screen.getByText('12 barangays')).toBeInTheDocument();
@@ -88,15 +90,15 @@ describe('HomePage operational landing page', () => {
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();
 
         const copy = screen.getByTestId('landing-hero-copy');
-        const phone = screen.getByTestId('landing-phone-preview');
-        const staticMapPreview = phone.querySelector('img[src="/images/map.png"]');
+        const mapPreview = screen.getByTestId('sibuyan-island-map');
+        const staticMapPreview = mapPreview.querySelector('img[src="/icons/Municipality.png"]');
         const actions = screen.getByTestId('landing-hero-actions');
         const benefits = screen.getByTestId('landing-hero-benefits');
         const metrics = screen.getByTestId('landing-hero-metrics');
-        expect(copy.compareDocumentPosition(phone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(copy.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(staticMapPreview).toBeInTheDocument();
-        expect(phone.querySelector('.maplibregl-map')).not.toBeInTheDocument();
-        expect(phone.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(mapPreview.querySelector('.maplibregl-map')).not.toBeInTheDocument();
+        expect(mapPreview.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(actions.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });

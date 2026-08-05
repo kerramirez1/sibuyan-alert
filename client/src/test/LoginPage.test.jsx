@@ -43,7 +43,7 @@ describe('LoginPage system-accurate content', () => {
         expect(screen.getByRole('button', { name: 'Sign in' })).toHaveClass('min-h-12', 'bg-brand-700');
         expect(screen.getByRole('link', { name: /Register as a reporter/i })).toHaveAttribute('href', '/register');
         expect(screen.getByRole('link', { name: /View public incident map/i })).toHaveAttribute('href', '/dashboard?view=map');
-        expect(screen.getByText(/Administrator approval is required before reporting/i)).toBeInTheDocument();
+        expect(screen.getByText(/Submit incident reports once approved/i)).toBeInTheDocument();
         expect(screen.getByText(/no sign-in required/i)).toBeInTheDocument();
 
         expect(screen.queryByText(/disaster warnings/i)).not.toBeInTheDocument();

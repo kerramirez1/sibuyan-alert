@@ -47,8 +47,7 @@ export const getIncidentDetailViewModel = (report = {}) => {
         municipality: municipality || 'Not specified',
         incidentTime: report.incidentTime || report.createdAt || null,
         updatedAt: report.updatedAt || report.verifiedAt || null,
-        description: report.description?.trim()
-            || 'No additional public details were provided. Refer to the incident type, severity, and verified location above.',
+        description: report.description?.trim() || 'No description provided.',
         respondingAgencies,
         safetyIndicators,
         isOwnedByCurrentUser: Boolean(report.isOwnedByCurrentUser),

@@ -22,7 +22,7 @@ import {
 
 const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'bg-brand-50 font-semibold text-brand-800 dark:bg-brand-900/35 dark:text-brand-200'
+    ? 'bg-brand-50 font-semibold text-brand-800 ring-1 ring-inset ring-brand-100 dark:bg-brand-900/35 dark:text-brand-200 dark:ring-brand-800/40'
     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0';
 const SECTION_CLASS = 'mt-4 pt-1';
@@ -137,7 +137,7 @@ const MainLayout = ({ children }) => {
                                 <span className="block whitespace-nowrap text-[17px] font-black tracking-tight text-brand-900 sm:text-lg">
                                     Accident<span className="text-brand-600">Alert</span>
                                 </span>
-                                <span className="mt-1 block whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em] text-brand-700/65 sm:text-[11px]">
+                                <span className="mt-1 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-600/40 sm:text-[10px]">
                                     &amp; Mapping System
                                 </span>
                             </span>
@@ -153,7 +153,7 @@ const MainLayout = ({ children }) => {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-2">
+                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4 pt-2">
                         {/* Quick Links - always visible */}
                         {(() => {
                             // Smart Home redirect based on role
@@ -183,7 +183,7 @@ const MainLayout = ({ children }) => {
                                     : 'Home';
 
                             return (
-                                <div className="space-y-1">
+                                <div className="space-y-0.5">
                                     <NavLink
                                         to={homeHref}
                                         end={!isAuthenticated}
@@ -237,7 +237,7 @@ const MainLayout = ({ children }) => {
 
                         {/* Authenticated Nav Items */}
                         {isAuthenticated && filteredNav.length > 0 && (
-                            <div className={`${SECTION_CLASS} space-y-1`}>
+                            <div className={`${SECTION_CLASS} space-y-0.5`}>
                                 <h3 className={SECTION_HEADING_CLASS}>
                                     Reporting Tools
                                 </h3>
@@ -268,7 +268,7 @@ const MainLayout = ({ children }) => {
                                 <h3 className={SECTION_HEADING_CLASS}>
                                     Operations
                                 </h3>
-                                <div className="space-y-1">
+                                <div className="space-y-0.5">
                                     {filteredAdminNav.map((item) => (
                                         <NavLink
                                             key={item.name}
@@ -336,40 +336,34 @@ const MainLayout = ({ children }) => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                <div className="rounded-xl border border-brand-100 bg-white p-4">
-                                    <div>
-                                        <div className="mb-3 flex items-center gap-2.5">
-                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
-                                                <HiOutlineGlobe className="h-5 w-5 text-brand-700" aria-hidden="true" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-semibold leading-tight text-brand-900">Guest mode</p>
-                                                <p className="text-[11px] text-brand-600">Limited access</p>
-                                            </div>
-                                        </div>
-                                        <p className="mb-3.5 text-xs leading-relaxed text-gray-600">
-                                            Sign in to submit reports, track incidents, and coordinate with responders.
-                                        </p>
-                                        <Link
-                                            to="/login"
-                                            onClick={() => setSidebarOpen(false)}
-                                            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-                                        >
-                                            <HiOutlineLogin className="h-4 w-4" aria-hidden="true" />
-                                            Sign In
-                                        </Link>
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                                <div className="mb-3 flex items-center gap-2">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
+                                        <HiOutlineGlobe className="h-4 w-4 text-brand-600" aria-hidden="true" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">Guest mode</p>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400">Sign in for full access</p>
                                     </div>
                                 </div>
-
-                                <Link
-                                    to="/register"
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-brand-200 bg-white px-3 py-2.5 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                >
-                                    <HiOutlineUserAdd className="w-4 h-4" />
-                                    Become a Reporter
-                                </Link>
+                                <div className="space-y-2">
+                                    <Link
+                                        to="/login"
+                                        onClick={() => setSidebarOpen(false)}
+                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                                    >
+                                        <HiOutlineLogin className="h-4 w-4" aria-hidden="true" />
+                                        Sign In
+                                    </Link>
+                                    <Link
+                                        to="/register"
+                                        onClick={() => setSidebarOpen(false)}
+                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                    >
+                                        <HiOutlineUserAdd className="h-4 w-4" aria-hidden="true" />
+                                        Become a Reporter
+                                    </Link>
+                                </div>
                             </div>
                         )}
                     </div>

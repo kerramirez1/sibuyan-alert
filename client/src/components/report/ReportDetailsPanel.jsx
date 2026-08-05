@@ -1,6 +1,5 @@
 import {
     HiOutlineClock,
-    HiOutlineDocumentText,
     HiOutlineExclamation,
     HiOutlineFire,
     HiOutlinePhotograph,

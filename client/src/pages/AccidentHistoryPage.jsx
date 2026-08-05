@@ -24,11 +24,19 @@ import { useAuth } from '../context/AuthContext';
 import ImageViewer from '../components/ui/ImageViewer';
 
 const SEVERITY_CONFIG = {
-    minor: { label: 'Minor', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    moderate: { label: 'Moderate', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-    severe: { label: 'Severe', dot: 'bg-red-500', badge: 'bg-red-50 text-red-700 border-red-200' },
-    critical: { label: 'Critical', dot: 'bg-red-700', badge: 'bg-red-100 text-red-800 border-red-300' },
+    minor:    { label: 'Minor',    dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    moderate: { label: 'Moderate', dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+    severe:   { label: 'Severe',   dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200' },
+    critical: { label: 'Critical', dot: 'bg-red-700',     badge: 'bg-red-100 text-red-800 border-red-300' },
 };
+
+// Per-card accent: left border color + icon color
+const METRIC_ACCENT = [
+    { border: 'border-l-emerald-400', icon: 'text-emerald-500' },
+    { border: 'border-l-blue-400',    icon: 'text-blue-500' },
+    { border: 'border-l-violet-400',  icon: 'text-violet-500' },
+    { border: 'border-l-amber-400',   icon: 'text-amber-500' },
+];
 
 const INCIDENT_TYPE_LABELS = {
     vehicular: 'Vehicular Collision',
@@ -201,10 +209,10 @@ const AccidentHistoryPage = () => {
                     </div>
                 </div>
 
-                <div className={`inline-flex self-start items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${canViewFullDetails
+                <div className={`inline-flex self-start items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold select-none ${canViewFullDetails
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-gray-200 bg-white text-gray-600'
-                }`}>
+                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                }`} aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}>
                     {canViewFullDetails
                         ? <HiOutlineShieldCheck className="w-4 h-4" />
                         : <HiOutlineEye className="w-4 h-4" />}
@@ -213,82 +221,87 @@ const AccidentHistoryPage = () => {
             </header>
 
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="History summary">
-                {metricCards.map(({ label, value, helper, icon: Icon, text }) => (
-                    <div key={label} className="rounded-xl border border-gray-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-medium text-gray-500">{label}</p>
-                            <Icon className="w-4 h-4 text-gray-400" />
+                {metricCards.map(({ label, value, helper, icon: Icon, text }, index) => {
+                    const accent = METRIC_ACCENT[index];
+                    return (
+                        <div key={label} className={`rounded-xl border border-gray-200 border-l-4 bg-white p-4 ${accent.border}`}>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs font-medium text-gray-500">{label}</p>
+                                <Icon className={`w-4 h-4 ${accent.icon}`} />
+                            </div>
+                            <p className={`mt-3 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
+                            <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
                         </div>
-                        <p className={`mt-3 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
-                        <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+                    );
+                })}
+            </section>
+
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Resolved accident records">
+                {/* Filters */}
+                <div className="p-4">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
+                        <label className="relative block">
+                            <span className="sr-only">Search accident history</span>
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="search"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder="Search location, barangay, or incident type"
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-100"
+                            />
+                        </label>
+
+                        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                            <option value="all">All dates</option>
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 3 months</option>
+                            <option value="365">Last year</option>
+                        </select>
+
+                        <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                            <option value="all">All severities</option>
+                            <option value="minor">Minor</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="severe">Severe</option>
+                            <option value="critical">Critical</option>
+                        </select>
+
+                        <select value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                            <option value="all">All municipalities</option>
+                            {municipalities.map((municipality) => (
+                                <option key={municipality} value={municipality}>{municipality}</option>
+                            ))}
+                        </select>
                     </div>
-                ))}
-            </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4" aria-label="History filters">
-                <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
-                    <label className="relative block">
-                        <span className="sr-only">Search accident history</span>
-                        <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="search"
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Search location, barangay, or incident type"
-                            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-100"
-                        />
-                    </label>
-
-                    <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
-                        <option value="all">All dates</option>
-                        <option value="7">Last 7 days</option>
-                        <option value="30">Last 30 days</option>
-                        <option value="90">Last 3 months</option>
-                        <option value="365">Last year</option>
-                    </select>
-
-                    <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
-                        <option value="all">All severities</option>
-                        <option value="minor">Minor</option>
-                        <option value="moderate">Moderate</option>
-                        <option value="severe">Severe</option>
-                        <option value="critical">Critical</option>
-                    </select>
-
-                    <select value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
-                        <option value="all">All municipalities</option>
-                        {municipalities.map((municipality) => (
-                            <option key={municipality} value={municipality}>{municipality}</option>
-                        ))}
-                    </select>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                        <p className="text-xs text-gray-500">
+                            Showing <span className="font-semibold text-gray-800">{filteredReports.length}</span> of {reports.length} records
+                        </p>
+                        {hasFilters && (
+                            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900">
+                                <HiOutlineX className="w-4 h-4" /> Clear filters
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                    <p className="text-xs text-gray-500">
-                        Showing <span className="font-semibold text-gray-800">{filteredReports.length}</span> of {reports.length} records
-                    </p>
-                    {hasFilters && (
-                        <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900">
-                            <HiOutlineX className="w-4 h-4" /> Clear filters
-                        </button>
-                    )}
-                </div>
-            </section>
-
-            {filteredReports.length === 0 ? (
-                <section className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-                    <HiOutlineArchive className="mx-auto w-8 h-8 text-gray-300" />
-                    <h2 className="mt-3 text-base font-semibold text-gray-900">No records found</h2>
-                    <p className="mt-1 text-sm text-gray-500">Try changing or clearing the current filters.</p>
-                    {hasFilters && (
-                        <button type="button" onClick={clearFilters} className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
-                            Clear filters
-                        </button>
-                    )}
-                </section>
-            ) : (
-                <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Resolved accident records">
-                    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {filteredReports.length === 0 ? (
+                    <div className="border-t border-gray-100 px-6 py-14 text-center">
+                        <HiOutlineArchive className="mx-auto w-8 h-8 text-gray-300" />
+                        <h2 className="mt-3 text-base font-semibold text-gray-900">No records found</h2>
+                        <p className="mt-1 text-sm text-gray-500">Try changing or clearing the current filters.</p>
+                        {hasFilters && (
+                            <button type="button" onClick={clearFilters} className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-t border-b border-gray-200 bg-gray-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
                         <span>Incident</span>
                         <span>Municipality</span>
                         <span>Resolved</span>
@@ -310,15 +323,22 @@ const AccidentHistoryPage = () => {
                                         type="button"
                                         onClick={() => setExpandedId(isExpanded ? null : report._id)}
                                         aria-expanded={isExpanded}
+                                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
                                         className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 md:grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] md:items-center md:gap-4 md:px-5"
                                     >
                                         <div className="flex min-w-0 items-start gap-3">
-                                            <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${severity.dot} shrink-0`} />
+                                            <span
+                                                className={`mt-1.5 h-2.5 w-2.5 rounded-full ${severity.dot} shrink-0`}
+                                                title={`${severity.label} severity`}
+                                                aria-label={`${severity.label} severity indicator`}
+                                            />
                                             <div className="min-w-0">
                                                 <p className="truncate text-sm font-semibold text-gray-900">
                                                     {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
                                                 </p>
-                                                <p className="mt-1 truncate text-xs text-gray-500">{report.address || 'Location not provided'}</p>
+                                                <p className="mt-1 truncate text-xs text-gray-500">
+                                                    {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
+                                                </p>
                                                 <p className="mt-1 text-[11px] text-gray-400 md:hidden">Incident {formatDate(incidentDate)}</p>
                                             </div>
                                         </div>
@@ -426,8 +446,9 @@ const AccidentHistoryPage = () => {
                             );
                         })}
                     </div>
-                </section>
-            )}
+                    </>
+                )}
+            </section>
 
             <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageSrc={viewerImage} />
         </div>

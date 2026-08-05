@@ -92,6 +92,9 @@ describe('DashboardMapWorkspace permissions', () => {
         const liveMap = screen.getByRole('region', { name: 'Live incident map' });
         const summary = screen.getByRole('region', { name: 'Map summary' });
 
+        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-2', 'lg:flex');
+        expect(incidentsAction).toHaveClass('w-full', 'min-w-0', 'lg:w-auto');
+        expect(riskZonesAction).toHaveClass('w-full', 'min-w-0', 'lg:w-auto');
         expect(incidentsAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(riskZonesAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

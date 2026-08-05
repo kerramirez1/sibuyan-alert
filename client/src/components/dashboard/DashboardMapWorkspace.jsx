@@ -10,12 +10,15 @@ import {
     HiOutlineLightningBolt,
     HiOutlineLocationMarker,
     HiOutlineMap,
+    HiOutlinePlus,
     HiOutlineShieldCheck,
     HiOutlineTruck,
 } from 'react-icons/hi';
+import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
 import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 import {
     getMapCoordinates,
     getVisibleMapReports,
@@ -153,6 +156,23 @@ const RiskZoneList = ({ zones, onLocate }) => {
     );
 };
 
+const MapActionButton = ({ onClick, icon: Icon, iconClassName, label, count, countClassName }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className="group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition-colors hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 lg:w-auto lg:shrink-0"
+    >
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${iconClassName}`}>
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 whitespace-nowrap text-left">{label}</span>
+        <span aria-hidden="true" className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-bold ${countClassName}`}>
+            {count}
+        </span>
+    </button>
+);
+
 const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
     const content = (
         <>
@@ -166,7 +186,11 @@ const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
     );
 
     return onClick ? (
-        <button type="button" onClick={onClick} className="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+        <button
+            type="button"
+            onClick={onClick}
+            className="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-gray-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+        >
             {content}
         </button>
     ) : (
@@ -236,6 +260,12 @@ const DashboardMapWorkspace = ({
             : isReporter
                 ? 'Reporter map'
                 : 'Public safety map';
+
+    const pageTitle = isResponder
+        ? `${user?.assignedMunicipality || 'Area'} incident map`
+        : isAdmin
+            ? 'Administrative map'
+            : 'Incident map';
 
     const activeReports = getVisibleMapReports(reports);
     const selectedActiveIncident = activeReports.find(
@@ -328,50 +358,49 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white dark:bg-emerald-950 dark:text-emerald-300 dark:border dark:border-emerald-800/40">
                         <HiOutlineMap className="h-5 w-5" />
                     </div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{roleLabel}</p>
-                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">Incident map</h1>
+                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">{pageTitle}</h1>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
                             {isResponder
                                 ? `Monitor and respond to incidents in ${user?.assignedMunicipality || 'your assigned area'}.`
-                                : 'View verified incidents, active responses, and high-risk zones across Sibuyan Island.'}
+                                : 'Verified incidents and high-risk zones across Sibuyan Island.'}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center gap-2.5 sm:self-center">
-                    <button
-                        type="button"
+                <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-nowrap lg:items-center lg:self-center">
+                    <MapActionButton
                         onClick={() => setShowIncidentModal(true)}
-                        className="group inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200/80 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-red-300 hover:bg-red-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:flex-none dark:border-red-900/40 dark:bg-[#112219] dark:text-gray-200 dark:hover:bg-red-950/30"
-                    >
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors group-hover:bg-red-200/70 dark:bg-red-900/40 dark:text-red-400">
-                            <HiOutlineExclamation className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                        <span>Incidents</span>
-                        <span className="ml-0.5 rounded-md bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/40 dark:text-red-300">
-                            {activeReports.length}
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
+                        icon={HiOutlineExclamation}
+                        iconClassName="bg-red-100 text-red-600 group-hover:bg-red-200/70 dark:bg-red-900/40 dark:text-red-400"
+                        label="Incidents"
+                        count={activeReports.length}
+                        countClassName="bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-900/40 dark:text-red-300"
+                    />
+                    <MapActionButton
                         onClick={() => setShowZoneModal(true)}
-                        className="group inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-amber-200/80 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-amber-300 hover:bg-amber-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:flex-none dark:border-amber-900/40 dark:bg-[#112219] dark:text-gray-200 dark:hover:bg-amber-950/30"
-                    >
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors group-hover:bg-amber-200/70 dark:bg-amber-900/40 dark:text-amber-400">
-                            <HiOutlineLightningBolt className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                        <span>Risk zones</span>
-                        <span className="ml-0.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300">
-                            {highRiskZones.length}
-                        </span>
-                    </button>
+                        icon={HiOutlineLightningBolt}
+                        iconClassName="bg-amber-100 text-amber-600 group-hover:bg-amber-200/70 dark:bg-amber-900/40 dark:text-amber-400"
+                        label="Risk zones"
+                        count={highRiskZones.length}
+                        countClassName="bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300"
+                    />
+                    {isReporter && (
+                        <Button
+                            as={Link}
+                            to="/report"
+                            icon={HiOutlinePlus}
+                            className="col-span-2 w-full lg:w-auto"
+                        >
+                            Submit report
+                        </Button>
+                    )}
                 </div>
             </header>
 
@@ -388,14 +417,13 @@ const DashboardMapWorkspace = ({
                         <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">{focusedReport.address || 'Selected incident'}</p>
                     </div>
                     {onReturnToReport && (
-                        <button
-                            type="button"
+                        <Button
                             onClick={onReturnToReport}
-                            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 text-sm font-semibold text-brand-800 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            variant="secondary"
+                            icon={HiOutlineArrowLeft}
                         >
-                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                             Back to incident
-                        </button>
+                        </Button>
                     )}
                 </section>
             )}
@@ -477,9 +505,9 @@ const DashboardMapWorkspace = ({
                         <h2 className="text-sm font-semibold text-gray-900">Report incidents in your community</h2>
                         <p className="mt-1 text-sm text-gray-500">Create and verify a reporter account to submit incident reports.</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Link to="/login" className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:border-gray-400">Sign in</Link>
-                        <Link to="/register" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">Register</Link>
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                        <Button as={Link} to="/login" variant="secondary">Sign in</Button>
+                        <Button as={Link} to="/register">Register</Button>
                     </div>
                 </section>
             )}
@@ -495,14 +523,15 @@ const DashboardMapWorkspace = ({
             >
                 {selectedActiveIncident ? (
                     <div>
-                        <button
-                            type="button"
+                        <Button
                             onClick={() => setSelectedActiveIncidentId('')}
-                            className="mx-4 mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:mx-5"
+                            variant="ghost"
+                            size="sm"
+                            icon={HiOutlineArrowLeft}
+                            className="mx-4 mt-3 sm:mx-5"
                         >
-                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                             Back to active incidents
-                        </button>
+                        </Button>
                         <MapIncidentDetails
                             report={selectedActiveIncident}
                             viewerRole={user?.role || 'guest'}

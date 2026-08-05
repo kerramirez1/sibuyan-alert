@@ -169,7 +169,7 @@ const LandingHero = ({
                         {reportCta.show && (
                             reportCta.disabled ? (
                                 <div
-                                    className="group relative inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-200 px-4 py-2 text-xs font-bold text-red-400 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:bg-red-900/30 dark:text-red-500"
+                                    className="group relative inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-200 px-5 py-2.5 text-xs font-bold text-red-400 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:bg-red-900/30 dark:text-red-500"
                                     aria-disabled="true"
                                     title={reportCta.reason}
                                 >
@@ -186,7 +186,7 @@ const LandingHero = ({
                                 <Link
                                     to={reportCta.to}
                                     id="hero-report-cta"
-                                    className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-[0_12px_28px_-14px_rgba(185,28,28,0.75)] transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm"
+                                    className="inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-5 py-2.5 text-xs font-bold text-white shadow-[0_12px_28px_-14px_rgba(185,28,28,0.75)] transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm"
                                 >
                                     <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     Report an Incident
@@ -197,7 +197,7 @@ const LandingHero = ({
                         {/* ── Secondary CTA: View live map ────────────────────────────────── */}
                         <Link
                             to="/dashboard?view=map"
-                            className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#d0e8dc] bg-white px-4 py-2 text-xs font-bold text-gray-900 shadow-sm transition-colors hover:bg-[#eef7f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:border-[#264a38] dark:bg-[#162c21] dark:text-white dark:hover:bg-[#1d3628]"
+                            className="inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#d0e8dc] bg-white px-5 py-2.5 text-xs font-bold text-gray-900 shadow-sm transition-colors hover:bg-[#eef7f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:border-[#264a38] dark:bg-[#162c21] dark:text-white dark:hover:bg-[#1d3628]"
                         >
                             <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                             View live map

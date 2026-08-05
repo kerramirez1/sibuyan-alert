@@ -64,7 +64,7 @@ const LoginPage = () => {
 
     return (
         <div className="w-full">
-            <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
+            <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 {/* Mobile Logo */}
                 <div className="mb-7 flex items-center gap-3 lg:hidden">
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
@@ -239,7 +239,7 @@ const LoginPage = () => {
                 {/* Secondary Actions */}
                 <div className="my-6 flex items-center gap-3" aria-hidden="true">
                     <span className="h-px flex-1 bg-gray-200" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">Other options</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">or</span>
                     <span className="h-px flex-1 bg-gray-200" />
                 </div>
                 <div className="space-y-2.5">
@@ -255,27 +255,23 @@ const LoginPage = () => {
                                 Register as a reporter
                             </h3>
                             <p className="text-xs text-gray-600">
-                                Administrator approval is required before reporting
+                                Submit incident reports once approved
                             </p>
                         </div>
                         <HiOutlineArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
                     </Link>
 
-                    <Link
-                        to="/dashboard?view=map"
-                        className="group flex min-h-[68px] w-full items-center gap-3 rounded-xl border border-gray-200 p-3.5 transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                    >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                            <HiOutlineGlobe className="h-5 w-5 text-gray-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm text-gray-900">
-                                View public incident map
-                            </h3>
-                            <p className="text-xs text-gray-600">Published incidents and risk zones · no sign-in required</p>
-                        </div>
-                        <HiOutlineArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
-                    </Link>
+                    <div className="flex items-center justify-center pt-1">
+                        <Link
+                            to="/dashboard?view=map"
+                            className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 rounded"
+                        >
+                            <HiOutlineGlobe className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <span>View public incident map</span>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-xs text-gray-400">no sign-in required</span>
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>

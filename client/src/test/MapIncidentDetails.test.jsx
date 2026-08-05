@@ -61,7 +61,7 @@ describe('MapIncidentDetails', () => {
         renderDetails({ onLocate });
 
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
-        expect(screen.getByText(/No additional public details were provided/i)).toBeInTheDocument();
+        expect(screen.getByText(/No description provided/i)).toBeInTheDocument();
         expect(screen.getByText('2 injured')).toBeInTheDocument();
         expect(screen.getByText('Fire or explosion involved')).toBeInTheDocument();
         expect(screen.getByText('MDRRMO')).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('MapIncidentDetails', () => {
         expect(screen.queryByText('Private notes')).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /view incident on map/i }));
+        fireEvent.click(screen.getByRole('button', { name: /view on map/i }));
         expect(onLocate).toHaveBeenCalledWith(report);
     });
 
