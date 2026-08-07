@@ -11,10 +11,6 @@ vi.mock('../components/map/MapView', () => ({
     },
 }));
 
-vi.mock('../components/ui/Modal', () => ({
-    default: ({ isOpen, title, children }) => isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
-}));
-
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
 
 const createProps = (overrides = {}) => ({
@@ -135,6 +131,7 @@ describe('DashboardMapWorkspace permissions', () => {
     });
 
     test('opens the same sanitized incident description from the guest active-incidents list', () => {
+        const setShowIncidentModal = vi.fn();
         const report = {
             _id: 'verified-guest-1',
             status: 'verified',
@@ -156,19 +153,22 @@ describe('DashboardMapWorkspace permissions', () => {
             isReporter: false,
             reports: [report],
             showIncidentModal: true,
+            setShowIncidentModal,
         }));
 
         expect(screen.getByText(report.description)).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Active incidents' })).toHaveClass('sm:max-w-2xl');
         fireEvent.click(screen.getByRole('button', { name: 'View details' }));
 
-        expect(screen.getByRole('dialog', { name: 'Incident details' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Incident details' })).toHaveClass('sm:max-w-2xl');
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
         expect(screen.getByText(report.description)).toBeInTheDocument();
         expect(screen.getByText(/Personal identities, evidence, and internal coordination details are not displayed/i)).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Back to active incidents' })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Back to active incidents' }));
-        expect(screen.getByRole('dialog', { name: 'Active incidents' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Close incident panel' }));
+        expect(setShowIncidentModal).toHaveBeenCalledWith(false);
     });
 
     test('explains when active incidents share fewer marker locations', () => {

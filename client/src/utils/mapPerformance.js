@@ -27,8 +27,7 @@ export const getMapPerformanceProfile = (overrides = {}) => {
     return {
         compactViewport,
         resourceConstrained,
-        terrainEnabled: !saveData,
-        terrainMaxZoom: resourceConstrained ? 12 : compactViewport ? 13 : 14,
+        cameraPitchEnabled: !saveData,
         antialias: !compactViewport && !resourceConstrained,
         pixelRatio: resourceConstrained
             ? 1
@@ -37,6 +36,7 @@ export const getMapPerformanceProfile = (overrides = {}) => {
         fadeDuration: reducedMotion || resourceConstrained ? 0 : 150,
         markerAnimations: !reducedMotion && !resourceConstrained,
         navigationDuration: reducedMotion ? 0 : resourceConstrained ? 450 : 800,
+        riskZonePolygonPoints: resourceConstrained ? 20 : compactViewport ? 28 : 48,
     };
 };
 

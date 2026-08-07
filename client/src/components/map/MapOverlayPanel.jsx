@@ -1,0 +1,116 @@
+import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { HiOutlineX } from 'react-icons/hi';
+
+const FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+const MapOverlayPanel = ({
+    title,
+    onClose,
+    children,
+    size = 'md',
+}) => {
+    const titleId = useId();
+    const panelRef = useRef(null);
+    const closeButtonRef = useRef(null);
+    const previousFocusRef = useRef(null);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    useEffect(() => {
+        previousFocusRef.current = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        closeButtonRef.current?.focus();
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                onCloseRef.current?.();
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+            const focusable = Array.from(panelRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) || []);
+            if (!focusable.length) {
+                event.preventDefault();
+                panelRef.current?.focus();
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = previousOverflow;
+            previousFocusRef.current?.focus?.();
+        };
+    }, []);
+
+    useEffect(() => {
+        closeButtonRef.current?.focus();
+    }, [title]);
+
+    const widthClass = size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-2 backdrop-blur-sm sm:p-4"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) onCloseRef.current?.();
+            }}
+        >
+            <section
+                ref={panelRef}
+                tabIndex={-1}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className={`relative flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:rounded-2xl ${widthClass}`}
+            >
+                <header className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
+                    <h2 id={titleId} className="min-w-0 truncate text-lg font-display font-bold text-gray-950 sm:text-xl">
+                        {title}
+                    </h2>
+                    <button
+                        ref={closeButtonRef}
+                        type="button"
+                        onClick={() => onCloseRef.current?.()}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                        aria-label="Close incident panel"
+                    >
+                        <HiOutlineX className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                </header>
+
+                <div data-testid="map-overlay-scroll-region" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                    {children}
+                </div>
+            </section>
+        </div>,
+        document.body,
+    );
+};
+
+export default MapOverlayPanel;

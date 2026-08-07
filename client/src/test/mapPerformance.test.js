@@ -13,11 +13,11 @@ describe('map performance profile', () => {
         });
 
         expect(profile).toMatchObject({
-            terrainEnabled: true,
-            terrainMaxZoom: 14,
+            cameraPitchEnabled: true,
             antialias: true,
             pixelRatio: 2,
             markerAnimations: true,
+            riskZonePolygonPoints: 48,
         });
     });
 
@@ -33,16 +33,16 @@ describe('map performance profile', () => {
 
         expect(profile).toMatchObject({
             resourceConstrained: true,
-            terrainEnabled: true,
-            terrainMaxZoom: 12,
+            cameraPitchEnabled: true,
             antialias: false,
             pixelRatio: 1,
             markerAnimations: false,
             maxTileCacheSize: 24,
+            riskZonePolygonPoints: 20,
         });
     });
 
-    test('respects data saver by avoiding terrain', () => {
+    test('respects data saver by reducing resource usage', () => {
         const profile = getMapPerformanceProfile({
             viewportWidth: 1280,
             devicePixelRatio: 2,
@@ -52,7 +52,12 @@ describe('map performance profile', () => {
             reducedMotion: false,
         });
 
-        expect(profile.terrainEnabled).toBe(false);
+        expect(profile).toMatchObject({
+            resourceConstrained: true,
+            cameraPitchEnabled: false,
+            pixelRatio: 1,
+            maxTileCacheSize: 24,
+        });
     });
 
     test('respects reduced motion for markers and camera transitions', () => {

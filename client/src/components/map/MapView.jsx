@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion } from 'framer-motion';
 import toast from '../../utils/appToast';
-import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineX, HiOutlineOfficeBuilding } from 'react-icons/hi';
+import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
     getMapCoordinates,
     getVisibleMapReports,
@@ -25,6 +25,9 @@ import {
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
 import MapIncidentDetails from './MapIncidentDetails';
+import MapOverlayPanel from './MapOverlayPanel';
+import MapLegend from './MapLegend';
+import { MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -43,18 +46,11 @@ const INCIDENT_COLORS = {
     accident: '#3B82F6',
 };
 
-const STATUS_MARKER_COLORS = {
-    pending: '#F97316',
-    verified: '#2563EB',
-    transferred: '#7C3AED',
-    responding: '#EF4444',
-};
-
-// Zone colors
 const ZONE_COLORS = {
-    landslide_prone: '#EF4444',
-    accident_prone: '#EF4444',
-    other: '#EF4444',
+    landslide_prone: MAP_RISK_ZONE_CONFIG.markerColor,
+    accident_prone: MAP_RISK_ZONE_CONFIG.markerColor,
+    fire_risk: MAP_RISK_ZONE_CONFIG.markerColor,
+    other: MAP_RISK_ZONE_CONFIG.markerColor,
 };
 
 const SEVERITY_CONFIG = {
@@ -64,8 +60,7 @@ const SEVERITY_CONFIG = {
     low: 'bg-emerald-100 text-emerald-700',
 };
 
-// MapLibre fades HTML markers to 20% when terrain considers them occluded.
-// Operational incident and hazard pins must remain visible regardless of pitch.
+// Operational incident and hazard pins remain fully visible over the imagery.
 const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacity: 1,
     opacityWhenCovered: 1,
@@ -111,7 +106,35 @@ const MapView = ({
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
     const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
-    const effective3D = enable3D && performanceProfile.terrainEnabled;
+    const effective3D = enable3D && performanceProfile.cameraPitchEnabled;
+    const filteredReports = useMemo(() => {
+        const displayReports = getVisibleMapReports(reports, { includePending: showPending });
+        const categoryFilteredReports = filterCategory
+            ? displayReports.filter((report) => report.incidentCategory === filterCategory)
+            : displayReports;
+        const isReportAssigned = (report) => (
+            (Array.isArray(report?.responders) && report.responders.length > 0)
+            || Boolean(report?.respondedBy)
+        );
+
+        if (filterStatus === 'pending') {
+            return categoryFilteredReports.filter((report) => (
+                report.status === 'transferred'
+                || (['pending', 'verified'].includes(report.status) && !isReportAssigned(report))
+            ));
+        }
+        if (filterStatus === 'responding') {
+            return categoryFilteredReports.filter((report) => (
+                report.status === 'responding'
+                || (report.status === 'pending' && isReportAssigned(report))
+            ));
+        }
+        return categoryFilteredReports;
+    }, [filterCategory, filterStatus, reports, showPending]);
+    const hasGroupedReports = useMemo(
+        () => groupReportsByMapLocation(filteredReports).some((group) => group.reports.length > 1),
+        [filteredReports],
+    );
 
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
@@ -128,11 +151,7 @@ const MapView = ({
     useEffect(() => {
         let active = true;
 
-        prepareOperationalMapStyle({
-            enableTerrain: effective3D,
-            enableHillshade: false,
-            terrainMaxZoom: performanceProfile.terrainMaxZoom,
-        }).then((provider) => {
+        prepareOperationalMapStyle().then((provider) => {
             if (!active) return;
             setMapProvider(provider);
             if (provider.pmtilesError) {
@@ -145,7 +164,7 @@ const MapView = ({
         return () => {
             active = false;
         };
-    }, [effective3D, performanceProfile.terrainMaxZoom]);
+    }, []);
 
     // Generate circle polygon for zones
     const generateCirclePolygon = useCallback((center, radiusKm, points = 64) => {
@@ -373,34 +392,9 @@ const MapView = ({
 
         const map = mapInstanceRef.current;
 
-        const isReportAssigned = (report) => {
-            if (!report) return false;
-            const hasResponders = Array.isArray(report.responders) && report.responders.length > 0;
-            return hasResponders || !!report.respondedBy;
-        };
-
-        // Filter reports
-        const displayReports = getVisibleMapReports(reports, { includePending: showPending });
-
-        const categoryFilteredReports = filterCategory
-            ? displayReports.filter(r => r.incidentCategory === filterCategory)
-            : displayReports;
-
-        const filteredReports = filterStatus === 'pending'
-            ? categoryFilteredReports.filter((r) =>
-                r.status === 'transferred' ||
-                (['pending', 'verified'].includes(r.status) && !isReportAssigned(r))
-            )
-            : filterStatus === 'responding'
-                ? categoryFilteredReports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r)))
-                : categoryFilteredReports;
-
         const getReportMarkerColor = (report) => {
-            if (report.status === 'pending') return STATUS_MARKER_COLORS.pending;
-            if (report.status === 'transferred') return STATUS_MARKER_COLORS.transferred;
-            if (report.status === 'responding') return STATUS_MARKER_COLORS.responding;
-            if (report.status === 'verified') return STATUS_MARKER_COLORS.verified;
-            return INCIDENT_COLORS[report.incidentCategory] || STATUS_MARKER_COLORS.verified;
+            if (MAP_STATUS_CONFIG[report.status]) return MAP_STATUS_CONFIG[report.status].markerColor;
+            return INCIDENT_COLORS[report.incidentCategory] || MAP_STATUS_CONFIG.verified.markerColor;
         };
 
         // Clear existing report markers
@@ -523,10 +517,9 @@ const MapView = ({
                 reportMarkersRef.current.push(marker);
             });
 
-    }, [reports, showPending, filterCategory, filterStatus, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations]);
+    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations]);
 
-    // Risk zones use one focused HTML pin in the operational map. Radius and 3D
-    // polygon visualization remain available in the dedicated risk-zone editor.
+    // Risk zones use focused HTML pins so the imagery remains unobstructed.
     useEffect(() => {
         if (!mapReady || !mapInstanceRef.current) return;
 
@@ -733,12 +726,7 @@ const MapView = ({
     };
 
     const getStatusBadgeClass = (status) => {
-        if (status === 'responding') return 'bg-red-100 text-red-700';
-        if (status === 'verified') return 'bg-blue-100 text-blue-700';
-        if (status === 'transferred') return 'bg-purple-100 text-purple-700';
-        if (status === 'pending') return 'bg-amber-100 text-amber-700';
-        if (status === 'resolved') return 'bg-gray-100 text-gray-700';
-        return 'bg-gray-100 text-gray-700';
+        return MAP_STATUS_CONFIG[status]?.badge || 'border-gray-200 bg-gray-50 text-gray-700';
     };
 
     const handleLocateModalItem = (item) => {
@@ -792,23 +780,15 @@ const MapView = ({
             />
 
             {mapModal && (
-                <div className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className={`w-full ${mapModal.type === 'zone' ? 'max-w-md' : 'max-w-lg'} bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden`}>
-                        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                            <h3 className="text-2xl font-display font-bold text-gray-900 tracking-tight">
-                                {mapModal.type === 'zone'
-                                    ? 'High Risk Zone Details'
-                                    : mapModal.type === 'reportGroup'
-                                        ? 'Incidents at this location'
-                                        : 'Incident Details'}
-                            </h3>
-                            <button
-                                onClick={() => setMapModal(null)}
-                                className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-                            >
-                                <HiOutlineX className="w-5 h-5 text-gray-500" />
-                            </button>
-                        </div>
+                <MapOverlayPanel
+                    title={mapModal.type === 'zone'
+                        ? 'High-risk zone details'
+                        : mapModal.type === 'reportGroup'
+                            ? 'Incidents at this location'
+                            : 'Incident details'}
+                    onClose={() => setMapModal(null)}
+                    size={mapModal.type === 'zone' ? 'md' : 'lg'}
+                >
 
                         {mapModal.type === 'report' && (
                             <MapIncidentDetails
@@ -824,7 +804,7 @@ const MapView = ({
                         )}
 
                         {mapModal.type === 'reportGroup' && (
-                            <div className="max-h-[65vh] divide-y divide-gray-100 overflow-y-auto px-5 py-2">
+                            <div className="divide-y divide-gray-100 px-4 py-2 sm:px-5">
                                 {mapModal.data.map((report) => (
                                     <button
                                         key={report._id || report.id}
@@ -845,7 +825,7 @@ const MapView = ({
                                                 {report.address || 'Location unavailable'}
                                             </span>
                                         </span>
-                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
+                                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
                                             {report.status}
                                         </span>
                                     </button>
@@ -894,8 +874,7 @@ const MapView = ({
                                 </a>
                             </div>
                         )}
-                    </div>
-                </div>
+                </MapOverlayPanel>
             )}
 
             {/* Controls */}
@@ -944,25 +923,11 @@ const MapView = ({
                 </button>
             </div>
 
-            {/* Legend - Horizontal Top Bar */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl px-2 py-1.5 sm:px-4 sm:py-2.5 shadow-lg border border-gray-100 pointer-events-auto whitespace-nowrap">
-                <div className="flex items-center gap-2 sm:gap-5">
-                    <div className="flex items-center gap-1">
-                        <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[7px] border-b-red-500 sm:border-l-[5px] sm:border-r-[5px] sm:border-b-[9px]" />
-                        <span className="text-[9px] sm:text-[11px] font-semibold text-gray-600"><span className="hidden sm:inline">High Risk </span>Zone</span>
-                    </div>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-500" />
-                        <span className="text-[9px] sm:text-[11px] font-semibold text-gray-600">Pending</span>
-                    </div>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-500" />
-                        <span className="text-[9px] sm:text-[11px] font-semibold text-gray-600">Verified</span>
-                    </div>
-                </div>
-            </div>
+            <MapLegend
+                showPending={showPending}
+                filterStatus={filterStatus}
+                hasGroupedReports={hasGroupedReports}
+            />
         </div>
     );
 };

@@ -12,7 +12,6 @@ import {
     prepareOperationalMapStyle,
     STREET_FALLBACK_LAYER_ID,
     STREET_FALLBACK_SOURCE_ID,
-    TERRAIN_SOURCE_ID,
     toPmtilesProtocolUrl,
 } from '../config/mapProvider';
 
@@ -48,7 +47,7 @@ const createRangeResponse = (bytes, status = 206) => ({
 
 describe('map provider configuration', () => {
     test('caps every operational map below the incomplete imagery level', () => {
-        const result = createOperationalMapStyle({ pmtilesUrl: '', terrainTilesUrl: '' });
+        const result = createOperationalMapStyle({ pmtilesUrl: '' });
 
         expect(OPERATIONAL_MAX_ZOOM).toBe(16);
         expect(result.streetMaxZoom).toBe(OPERATIONAL_MAX_ZOOM);
@@ -57,7 +56,6 @@ describe('map provider configuration', () => {
     test('builds a self-hosted PMTiles street source with a public fallback', () => {
         const result = createOperationalMapStyle({
             pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
-            terrainTilesUrl: '',
         });
 
         expect(result.hasSelfHostedStreetMap).toBe(true);
@@ -72,28 +70,11 @@ describe('map provider configuration', () => {
     });
 
     test('uses the policy-compliant OSM endpoint when PMTiles is not configured', () => {
-        const result = createOperationalMapStyle({ pmtilesUrl: '', terrainTilesUrl: '' });
+        const result = createOperationalMapStyle({ pmtilesUrl: '' });
 
         expect(result.hasSelfHostedStreetMap).toBe(false);
         expect(result.primaryStreetLayerIds).toEqual([STREET_FALLBACK_LAYER_ID]);
         expect(result.style.sources).not.toHaveProperty(PMTILES_SOURCE_ID);
-    });
-
-    test('configures true terrain from a Terrarium DEM source', () => {
-        const result = createOperationalMapStyle({
-            pmtilesUrl: '',
-            terrainTilesUrl: 'https://terrain.example.gov/{z}/{x}/{y}.png',
-            enableTerrain: true,
-            terrainMaxZoom: 13,
-        });
-
-        expect(result.style.sources[TERRAIN_SOURCE_ID]).toMatchObject({
-            type: 'raster-dem',
-            encoding: 'terrarium',
-            maxzoom: 13,
-        });
-        expect(result.style.terrain).toEqual({ source: TERRAIN_SOURCE_ID, exaggeration: 1 });
-        expect(result.style.layers).not.toContainEqual(expect.objectContaining({ id: 'terrain-hillshade' }));
     });
 
     test('rejects non-http map archive protocols', () => {
@@ -128,7 +109,6 @@ describe('map provider configuration', () => {
         try {
             const provider = await prepareOperationalMapStyle({
                 pmtilesUrl: 'https://maps.example.gov/no-range.pmtiles',
-                terrainTilesUrl: '',
             });
 
             expect(provider.hasSelfHostedStreetMap).toBe(false);
@@ -143,7 +123,6 @@ describe('map provider configuration', () => {
     test('uses the archive maximum zoom for the PMTiles street source', () => {
         const result = createOperationalMapStyle({
             pmtilesUrl: 'https://maps.example.gov/zoom-14.pmtiles',
-            terrainTilesUrl: '',
             pmtilesInspection: { minZoom: 2, maxZoom: 14 },
         });
 

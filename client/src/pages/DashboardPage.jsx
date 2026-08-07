@@ -14,21 +14,14 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getMapCoordinates } from '../utils/mapReports';
+import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
 import {
     getManilaCalendarDateKey,
     getMillisecondsUntilNextManilaDay,
     getResolvedTodayReports,
 } from '../utils/reportResolution';
-import { format, isSameDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
-
-const STATUS_COLORS = {
-    pending: '#f59e0b',
-    verified: '#3b82f6',
-    transferred: '#7c3aed',
-    responding: '#4f46e5',
-    resolved: '#10b981',
-    rejected: '#ef4444',
-};
+import { parseISO, differenceInMinutes, isSameMonth } from 'date-fns';
 
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
@@ -380,21 +373,10 @@ const DashboardPage = () => {
     // ===== COMPUTED DATA =====
 
     const chartData = useMemo(() => {
-        const data = [];
-        const start = startOfMonth(selectedMonth);
-        const end = isSameMonth(selectedMonth, new Date()) ? new Date() : endOfMonth(selectedMonth);
-        const interval = eachDayOfInterval({ start, end });
-
-        interval.forEach(date => {
-            const dayReports = monthFilteredReports.filter(r => isSameDay(parseISO(r.createdAt), date));
-            data.push({
-                date: format(date, 'd'),
-                fullDate: format(date, 'MMM d, yyyy'),
-                accidents: dayReports.filter(r => r.incidentCategory === 'accident').length,
-                total: dayReports.length,
-            });
+        return buildDailyIncidentTrend({
+            reports: monthFilteredReports,
+            selectedMonth,
         });
-        return data;
     }, [monthFilteredReports, selectedMonth]);
 
     // Status breakdown
@@ -403,7 +385,11 @@ const DashboardPage = () => {
         monthFilteredReports.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
         return Object.entries(counts)
             .filter(([, v]) => v > 0)
-            .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value, color: STATUS_COLORS[name] }));
+            .map(([name, value]) => ({
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                value,
+                color: MAP_STATUS_CONFIG[name].markerColor,
+            }));
     }, [monthFilteredReports]);
 
 

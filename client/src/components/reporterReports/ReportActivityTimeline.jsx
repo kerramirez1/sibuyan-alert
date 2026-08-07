@@ -7,6 +7,7 @@ import {
     HiOutlineLocationMarker,
     HiOutlineSwitchHorizontal,
 } from 'react-icons/hi';
+import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 const UPDATE_LABELS = {
     general: 'Situation changed',
@@ -19,10 +20,10 @@ const UPDATE_LABELS = {
 
 const TYPE_CONFIG = {
     submitted: { icon: HiOutlineClipboardList, iconClass: 'bg-gray-100 text-gray-600' },
-    verified: { icon: HiOutlineCheckCircle, iconClass: 'bg-blue-50 text-blue-600' },
-    transferred: { icon: HiOutlineSwitchHorizontal, iconClass: 'bg-violet-50 text-violet-600' },
-    responding: { icon: HiOutlineLightningBolt, iconClass: 'bg-indigo-50 text-indigo-600' },
-    resolved: { icon: HiOutlineBadgeCheck, iconClass: 'bg-emerald-50 text-emerald-600' },
+    verified: { icon: HiOutlineCheckCircle, iconClass: MAP_STATUS_CONFIG.verified.iconTone },
+    transferred: { icon: HiOutlineSwitchHorizontal, iconClass: MAP_STATUS_CONFIG.transferred.iconTone },
+    responding: { icon: HiOutlineLightningBolt, iconClass: MAP_STATUS_CONFIG.responding.iconTone },
+    resolved: { icon: HiOutlineBadgeCheck, iconClass: MAP_STATUS_CONFIG.resolved.iconTone },
     reporter_update: { icon: HiOutlineLocationMarker, iconClass: 'bg-brand-50 text-brand-700' },
 };
 

@@ -123,6 +123,7 @@ export const toOperationalReport = (
         ...buildCore(source),
         reporter: pickPerson(source.reporter, { includeEmail: includeReporterContact }),
         images: Array.isArray(source.images) ? source.images : [],
+        evidenceCount: Array.isArray(source.images) ? source.images.length : 0,
         verifiedBy: pickPerson(source.verifiedBy),
         respondedBy: pickPerson(source.respondedBy),
         resolvedBy: pickPerson(source.resolvedBy),

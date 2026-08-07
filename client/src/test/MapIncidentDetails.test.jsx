@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 import MapIncidentDetails from '../components/map/MapIncidentDetails';
 
-const mocks = vi.hoisted(() => ({ getReportById: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    getReportById: vi.fn(),
+    getOwnerReportById: vi.fn(),
+    getProtected: vi.fn(),
+}));
 
 vi.mock('../services/api', () => ({
     adminAPI: { getReportById: mocks.getReportById },
-    filesAPI: { getProtected: vi.fn() },
+    reportsAPI: { getById: mocks.getOwnerReportById },
+    filesAPI: { getProtected: mocks.getProtected },
 }));
 
 const report = {
@@ -39,6 +44,8 @@ const renderDetails = (props = {}) => render(
 describe('MapIncidentDetails', () => {
     beforeEach(() => {
         mocks.getReportById.mockReset();
+        mocks.getOwnerReportById.mockReset();
+        mocks.getProtected.mockReset();
         mocks.getReportById.mockResolvedValue({
             data: {
                 data: {
@@ -51,6 +58,14 @@ describe('MapIncidentDetails', () => {
                     reportUpdates: [],
                     transferHistory: [],
                     responders: [],
+                },
+            },
+        });
+        mocks.getOwnerReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...report,
+                    evidenceCount: 1,
                 },
             },
         });
@@ -73,7 +88,7 @@ describe('MapIncidentDetails', () => {
         expect(onLocate).toHaveBeenCalledWith(report);
     });
 
-    test('shows the protected full-report action only to the report owner', () => {
+    test('shows the protected full-report action and owner evidence only to the report owner', async () => {
         renderDetails({
             viewerRole: 'reporter',
             report: { ...report, isOwnedByCurrentUser: true },
@@ -81,6 +96,10 @@ describe('MapIncidentDetails', () => {
 
         expect(screen.getByRole('link', { name: /open my full report/i }))
             .toHaveAttribute('href', '/my-reports?report=report-1');
+        expect(await screen.findByRole('heading', { name: 'Your evidence photos (1)' })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/private-evidence.jpg');
+        expect(mocks.getOwnerReportById).toHaveBeenCalledWith('report-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(mocks.getReportById).not.toHaveBeenCalled();
     });
 
     test('keeps responder actions capability-based', () => {
@@ -96,10 +115,85 @@ describe('MapIncidentDetails', () => {
     test('loads protected operational details for eligible responders', async () => {
         renderDetails({ viewerRole: 'responder' });
 
-        expect(await screen.findByRole('heading', { name: 'Operational details' })).toBeInTheDocument();
+        const operationalHeading = await screen.findByRole('heading', { name: 'Operational details' });
+        expect(operationalHeading.closest('details')).toHaveAttribute('open');
         expect(screen.getByText('Private Reporter')).toBeInTheDocument();
         expect(screen.getByText(/Contact details become available after you join/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Reporter information' }).closest('details')).not.toHaveAttribute('open');
+        expect(screen.getByRole('heading', { name: 'Evidence photos (0)' })).toBeInTheDocument();
+        expect(screen.getByText('No evidence photos were submitted.')).toBeInTheDocument();
         expect(mocks.getReportById).toHaveBeenCalledWith('report-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    });
+
+    test('renders evidence returned by the protected operational endpoint', async () => {
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...report,
+                    evidenceCount: 1,
+                    images: ['/operational-evidence.jpg'],
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                    responders: [],
+                },
+            },
+        });
+
+        renderDetails({ viewerRole: 'municipal_admin' });
+
+        expect(await screen.findByRole('heading', { name: 'Evidence photos (1)' })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/operational-evidence.jpg');
+    });
+
+    test('shows a recoverable warning when evidence metadata and secure references disagree', async () => {
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...report,
+                    evidenceCount: 1,
+                    images: [],
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                    responders: [],
+                },
+            },
+        });
+
+        renderDetails({
+            viewerRole: 'responder',
+            report: { ...report, images: undefined, evidenceCount: 1, detailCompleteness: 'summary' },
+        });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/evidence references are temporarily unavailable/i);
+        expect(screen.getByRole('button', { name: 'Retry evidence' })).toBeInTheDocument();
+    });
+
+    test('summarizes empty impact data instead of rendering six zero-value cards', async () => {
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...report,
+                    casualties: { injured: 0, fatalities: 0, missing: 0 },
+                    affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
+                    reporter: { name: 'Private Reporter', isVerified: true },
+                    images: [],
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                    responders: [],
+                },
+            },
+        });
+
+        renderDetails({ viewerRole: 'responder' });
+
+        expect(await screen.findByText('No casualties or affected-area impacts recorded')).toBeInTheDocument();
+        expect(screen.queryByText('Households affected')).not.toBeInTheDocument();
     });
 
     test('falls back to public-safe content when operational access is denied', async () => {

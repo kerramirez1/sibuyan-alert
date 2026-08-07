@@ -140,7 +140,7 @@ export const authAPI = {
 // Reports API
 export const reportsAPI = {
     getAll: (params) => api.get('/reports', { params }),
-    getById: (id) => api.get(`/reports/${id}`),
+    getById: (id, config = {}) => api.get(`/reports/${id}`, config),
     getMyReports: () => api.get('/reports/my-reports'),
     addUpdate: (id, data) => api.post(`/reports/${id}/updates`, data),
     getMapConfig: () => api.get('/reports/map-config'),

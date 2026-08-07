@@ -1,11 +1,12 @@
+import { useId } from 'react';
 import { format, formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import {
-    Area,
-    AreaChart,
     Bar,
     BarChart,
     CartesianGrid,
     Cell,
+    Line,
+    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -26,16 +27,12 @@ import {
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import { buildCsvDocument } from '../../utils/csvExport';
+import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 const MUNICIPALITY_COLORS = ['#2563eb', '#f97316', '#16a34a', '#dc2626', '#7c3aed'];
-const STATUS_STYLES = {
-    pending: 'border-amber-200 bg-amber-50 text-amber-700',
-    verified: 'border-blue-200 bg-blue-50 text-blue-700',
-    transferred: 'border-violet-200 bg-violet-50 text-violet-700',
-    responding: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-    resolved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    rejected: 'border-red-200 bg-red-50 text-red-700',
-};
+const TREND_SERIES = Object.freeze({
+    daily: Object.freeze({ label: 'Daily reports' }),
+});
 
 const formatActivityTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -51,7 +48,7 @@ const ChartTooltip = ({ active, payload, label }) => {
             <p className="mb-2 font-semibold text-gray-700">{payload[0].payload.fullDate || label}</p>
             {payload.map((entry) => (
                 <div key={entry.dataKey} className="flex items-center justify-between gap-4 py-0.5">
-                    <span className="capitalize text-gray-500">{entry.dataKey}</span>
+                    <span className="text-gray-500">{entry.name || entry.dataKey}</span>
                     <span className="font-semibold text-gray-900">{entry.value}</span>
                 </div>
             ))}
@@ -79,41 +76,78 @@ const EmptyChart = ({ message = 'No data for the selected period', detail }) => 
 
 const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
     const activeDays = chartData.filter((day) => day.total > 0);
+    const summaryId = useId();
+    const hasTrendData = activeDays.length > 0;
+    const reportLabel = `${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`;
+    const activeDaySummary = activeDays
+        .map((day) => `${day.fullDate}: ${day.total}`)
+        .join(', ');
 
     return (
         <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 lg:col-span-2">
             <h2 className="text-sm font-semibold text-gray-900">Incident trend</h2>
             <p className="mt-0.5 text-xs text-gray-500">Daily reports for {format(selectedMonth, 'MMMM yyyy')}</p>
 
-            {reportCount === 0 ? (
+            {!hasTrendData ? (
                 <div className="mt-4">
-                    <EmptyChart message="No reports in this period" detail="Choose another month or expand the municipality scope." />
-                </div>
-            ) : reportCount <= 2 ? (
-                <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4" role="status">
-                    <p className="text-sm font-semibold text-blue-950">
-                        {reportCount} {reportCount === 1 ? 'report' : 'reports'} recorded
-                    </p>
-                    <div className="mt-3 space-y-2">
-                        {activeDays.map((day) => (
-                            <div key={day.fullDate} className="flex items-center justify-between gap-4 text-sm">
-                                <span className="text-blue-800">{day.fullDate}</span>
-                                <span className="font-semibold text-blue-950">{day.total}</span>
-                            </div>
-                        ))}
-                    </div>
+                    <EmptyChart
+                        message={reportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
+                        detail={reportCount === 0
+                            ? 'Choose another month.'
+                            : 'Some reports could not be plotted because their timestamps are missing or invalid.'}
+                    />
                 </div>
             ) : (
-                <div className="mt-4 h-56 w-full" role="img" aria-label={`Daily incident report trend for ${format(selectedMonth, 'MMMM yyyy')}`}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} dy={8} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} allowDecimals={false} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Area type="monotone" dataKey="total" name="Reports" stroke="#3b82f6" strokeWidth={2} fill="var(--chart-fill)" activeDot={{ r: 4, strokeWidth: 0 }} />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                <div className="mt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[11px] text-gray-500" aria-hidden="true">
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="h-0.5 w-5 rounded-full bg-blue-700" />
+                            {TREND_SERIES.daily.label}
+                        </span>
+                        <span>{reportLabel} recorded</span>
+                    </div>
+                    <p id={summaryId} className="sr-only">
+                        {reportLabel} recorded. Reports by active day: {activeDaySummary}.
+                    </p>
+                    <div
+                        className="mt-3 h-52 min-w-0 w-full sm:h-56"
+                        role="img"
+                        aria-label={`Daily incident report trend for ${format(selectedMonth, 'MMMM yyyy')}`}
+                        aria-describedby={summaryId}
+                    >
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
+                                <XAxis
+                                    dataKey="date"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
+                                    interval="preserveStartEnd"
+                                    minTickGap={32}
+                                    dy={8}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
+                                    allowDecimals={false}
+                                    width={30}
+                                />
+                                <Tooltip content={<ChartTooltip />} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="total"
+                                    name={TREND_SERIES.daily.label}
+                                    stroke="#1D4ED8"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
+                                    isAnimationActive={false}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             )}
         </div>
@@ -454,7 +488,7 @@ const DashboardAnalyticsWorkspace = ({
                                             {formatActivityTime(report.updatedAt || report.createdAt)}
                                         </p>
                                     </div>
-                                    <span className={`w-fit rounded-md border px-2.5 py-1 text-xs font-semibold capitalize ${STATUS_STYLES[status] || 'border-gray-200 bg-gray-50 text-gray-600'}`}>{status}</span>
+                                    <span className={`w-fit rounded-md border px-2.5 py-1 text-xs font-semibold capitalize ${MAP_STATUS_CONFIG[status]?.badge || 'border-gray-200 bg-gray-50 text-gray-600'}`}>{status}</span>
                                 </article>
                             );
                         })}

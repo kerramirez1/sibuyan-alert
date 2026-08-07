@@ -1,3 +1,5 @@
+import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+
 export const INCIDENT_LIFECYCLE = [
     'pending',
     'verified',
@@ -7,38 +9,13 @@ export const INCIDENT_LIFECYCLE = [
     'rejected',
 ];
 
-export const INCIDENT_STATUS = {
-    pending: {
-        label: 'Pending',
-        className: 'border-amber-200 bg-amber-50 text-amber-800',
-        dotClassName: 'bg-amber-500',
-    },
-    verified: {
-        label: 'Verified',
-        className: 'border-blue-200 bg-blue-50 text-blue-800',
-        dotClassName: 'bg-blue-500',
-    },
-    transferred: {
-        label: 'Transferred',
-        className: 'border-violet-200 bg-violet-50 text-violet-800',
-        dotClassName: 'bg-violet-500',
-    },
-    responding: {
-        label: 'Responding',
-        className: 'border-indigo-200 bg-indigo-50 text-indigo-800',
-        dotClassName: 'bg-indigo-500',
-    },
-    resolved: {
-        label: 'Resolved',
-        className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        dotClassName: 'bg-emerald-500',
-    },
-    rejected: {
-        label: 'Rejected',
-        className: 'border-red-200 bg-red-50 text-red-800',
-        dotClassName: 'bg-red-500',
-    },
-};
+export const INCIDENT_STATUS = Object.freeze(Object.fromEntries(
+    INCIDENT_LIFECYCLE.map((status) => [status, Object.freeze({
+        label: MAP_STATUS_CONFIG[status].label,
+        className: MAP_STATUS_CONFIG[status].badge,
+        dotClassName: MAP_STATUS_CONFIG[status].dot,
+    })]),
+));
 
 export const SEVERITY_STYLES = {
     critical: 'border-red-300 bg-red-50 text-red-800',

@@ -88,6 +88,7 @@ describe('operational report DTOs', () => {
     test('returns allowlisted full details and conditionally exposes contact and admin-only reasons', () => {
         const responderView = toOperationalReport(verifiedReport);
         expect(responderView.detailCompleteness).toBe('full');
+        expect(responderView.evidenceCount).toBe(1);
         expect(responderView.images).toHaveLength(1);
         expect(responderView.reportUpdates).toHaveLength(1);
         expect(responderView.reporter.email).toBeUndefined();

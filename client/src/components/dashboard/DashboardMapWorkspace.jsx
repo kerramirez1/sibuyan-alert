@@ -17,7 +17,7 @@ import {
 import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
-import Modal from '../ui/Modal';
+import MapOverlayPanel from '../map/MapOverlayPanel';
 import Button from '../ui/Button';
 import {
     getMapCoordinates,
@@ -25,15 +25,10 @@ import {
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../../utils/mapNavigation';
+import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
-const STATUS_CONFIG = {
-    pending: { label: 'Pending', badge: 'border-amber-200 bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
-    verified: { label: 'Verified', badge: 'border-blue-200 bg-blue-50 text-blue-700', dot: 'bg-blue-500' },
-    transferred: { label: 'Transferred', badge: 'border-violet-200 bg-violet-50 text-violet-700', dot: 'bg-violet-500' },
-    responding: { label: 'Responding', badge: 'border-indigo-200 bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },
-    resolved: { label: 'Resolved', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
-    rejected: { label: 'Rejected', badge: 'border-red-200 bg-red-50 text-red-700', dot: 'bg-red-500' },
-};
+const STATUS_CONFIG = MAP_STATUS_CONFIG;
+const INCIDENT_PANEL_SIZE = 'lg';
 
 const ZONE_CONFIG = {
     accident_prone: { label: 'Accident prone', badge: 'border-red-200 bg-red-50 text-red-700' },
@@ -70,7 +65,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, onInspe
     }
 
     return (
-        <div className="max-h-[65vh] divide-y divide-gray-200 overflow-y-auto">
+        <div className="divide-y divide-gray-200">
             {reports.map((report) => {
                 const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
                 const coordinates = getMapCoordinates(report);
@@ -126,7 +121,7 @@ const RiskZoneList = ({ zones, onLocate }) => {
     }
 
     return (
-        <div className="max-h-[65vh] divide-y divide-gray-200 overflow-y-auto">
+        <div className="divide-y divide-gray-200">
             {zones.map((zone) => {
                 const config = ZONE_CONFIG[zone.type] || { label: 'Risk zone', badge: 'border-gray-200 bg-gray-50 text-gray-700' };
                 return (
@@ -474,7 +469,6 @@ const DashboardMapWorkspace = ({
                     <MapView
                         reports={reports}
                         highRiskZones={highRiskZones}
-                        enable3D
                         className="h-full w-full"
                         focusLocation={focusLocation}
                         showPending={isResponder || isAdmin}
@@ -485,6 +479,7 @@ const DashboardMapWorkspace = ({
                         canResolveReport={isResponder ? canCurrentResponderResolve : null}
                         onResolveReport={isResponder ? handleMapResolve : null}
                         viewerRole={user?.role || 'guest'}
+                        enable3D
                     />
                 </div>
             </section>
@@ -512,76 +507,89 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <Modal isOpen={showZoneModal} onClose={() => setShowZoneModal(false)} title="High-risk zones">
-                <RiskZoneList zones={highRiskZones} onLocate={locateZone} />
-            </Modal>
+            {showZoneModal && (
+                <MapOverlayPanel onClose={() => setShowZoneModal(false)} title="High-risk zones">
+                    <div className="px-4 py-2 sm:px-5">
+                        <RiskZoneList zones={highRiskZones} onLocate={locateZone} />
+                    </div>
+                </MapOverlayPanel>
+            )}
 
-            <Modal
-                isOpen={showIncidentModal}
-                onClose={closeActiveIncidents}
-                title={selectedActiveIncident ? 'Incident details' : 'Active incidents'}
-            >
-                {selectedActiveIncident ? (
-                    <div>
-                        <Button
-                            onClick={() => setSelectedActiveIncidentId('')}
-                            variant="ghost"
-                            size="sm"
-                            icon={HiOutlineArrowLeft}
-                            className="mx-4 mt-3 sm:mx-5"
-                        >
-                            Back to active incidents
-                        </Button>
+            {showIncidentModal && (
+                <MapOverlayPanel
+                    onClose={closeActiveIncidents}
+                    title={selectedActiveIncident ? 'Incident details' : 'Active incidents'}
+                    size={INCIDENT_PANEL_SIZE}
+                >
+                    {selectedActiveIncident ? (
                         <MapIncidentDetails
                             report={selectedActiveIncident}
                             viewerRole={user?.role || 'guest'}
                             onLocate={locateActiveIncident}
                         />
+                    ) : (
+                        <div className="px-4 py-2 sm:px-5">
+                            <IncidentList
+                                reports={activeReports}
+                                emptyTitle="No active incidents"
+                                emptyDescription="There are no verified, transferred, or responding incidents on the map."
+                                onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
+                                onLocate={locateActiveIncident}
+                            />
+                        </div>
+                    )}
+                </MapOverlayPanel>
+            )}
+
+            {showMapPendingModal && (
+                <MapOverlayPanel
+                    onClose={() => { setShowMapPendingModal(false); setResponderMapFilter('all'); }}
+                    title="Awaiting response"
+                    size={INCIDENT_PANEL_SIZE}
+                >
+                    <div className="px-4 py-2 sm:px-5">
+                        <IncidentList
+                            reports={pendingReports}
+                            emptyTitle="No incidents awaiting response"
+                            emptyDescription="All visible incidents are assigned or already resolved."
+                            onLocate={(report) => locateReport(report, setShowMapPendingModal)}
+                        />
                     </div>
-                ) : (
-                    <IncidentList
-                        reports={activeReports}
-                        emptyTitle="No active incidents"
-                        emptyDescription="There are no verified, transferred, or responding incidents on the map."
-                        onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
-                        onLocate={locateActiveIncident}
-                    />
-                )}
-            </Modal>
+                </MapOverlayPanel>
+            )}
 
-            <Modal
-                isOpen={showMapPendingModal}
-                onClose={() => { setShowMapPendingModal(false); setResponderMapFilter('all'); }}
-                title="Awaiting response"
-            >
-                <IncidentList
-                    reports={pendingReports}
-                    emptyTitle="No incidents awaiting response"
-                    emptyDescription="All visible incidents are assigned or already resolved."
-                    onLocate={(report) => locateReport(report, setShowMapPendingModal)}
-                />
-            </Modal>
+            {showMapRespondingModal && (
+                <MapOverlayPanel
+                    onClose={() => { setShowMapRespondingModal(false); setResponderMapFilter('all'); }}
+                    title="Active responses"
+                    size={INCIDENT_PANEL_SIZE}
+                >
+                    <div className="px-4 py-2 sm:px-5">
+                        <IncidentList
+                            reports={respondingReports}
+                            emptyTitle="No active responses"
+                            emptyDescription="No incidents are currently assigned or in responding state."
+                            onLocate={(report) => locateReport(report, setShowMapRespondingModal)}
+                        />
+                    </div>
+                </MapOverlayPanel>
+            )}
 
-            <Modal
-                isOpen={showMapRespondingModal}
-                onClose={() => { setShowMapRespondingModal(false); setResponderMapFilter('all'); }}
-                title="Active responses"
-            >
-                <IncidentList
-                    reports={respondingReports}
-                    emptyTitle="No active responses"
-                    emptyDescription="No incidents are currently assigned or in responding state."
-                    onLocate={(report) => locateReport(report, setShowMapRespondingModal)}
-                />
-            </Modal>
-
-            <Modal isOpen={showMapResolvedModal} onClose={() => setShowMapResolvedModal(false)} title="Resolved today">
-                <IncidentList
-                    reports={resolvedTodayReports}
-                    emptyTitle="No incidents resolved today"
-                    emptyDescription="No resolved incidents are available for the current view."
-                />
-            </Modal>
+            {showMapResolvedModal && (
+                <MapOverlayPanel
+                    onClose={() => setShowMapResolvedModal(false)}
+                    title="Resolved today"
+                    size={INCIDENT_PANEL_SIZE}
+                >
+                    <div className="px-4 py-2 sm:px-5">
+                        <IncidentList
+                            reports={resolvedTodayReports}
+                            emptyTitle="No incidents resolved today"
+                            emptyDescription="No resolved incidents are available for the current view."
+                        />
+                    </div>
+                </MapOverlayPanel>
+            )}
         </div>
     );
 };

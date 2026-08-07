@@ -24,46 +24,41 @@ import {
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ImageViewer from '../components/ui/ImageViewer';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 
 const STATUS_CONFIG = {
     pending: {
+        ...MAP_STATUS_CONFIG.pending,
         label: 'Pending review',
         icon: HiOutlineClock,
-        badge: 'border-amber-200 bg-amber-50 text-amber-700',
-        dot: 'bg-amber-500',
     },
     verified: {
+        ...MAP_STATUS_CONFIG.verified,
         label: 'Verified',
         icon: HiOutlineCheckCircle,
-        badge: 'border-blue-200 bg-blue-50 text-blue-700',
-        dot: 'bg-blue-500',
     },
     transferred: {
+        ...MAP_STATUS_CONFIG.transferred,
         label: 'Transferred',
         icon: HiOutlineSwitchHorizontal,
-        badge: 'border-violet-200 bg-violet-50 text-violet-700',
-        dot: 'bg-violet-500',
     },
     responding: {
+        ...MAP_STATUS_CONFIG.responding,
         label: 'Response active',
         icon: HiOutlineLightningBolt,
-        badge: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-        dot: 'bg-indigo-500',
     },
     resolved: {
+        ...MAP_STATUS_CONFIG.resolved,
         label: 'Resolved',
         icon: HiOutlineBadgeCheck,
-        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        dot: 'bg-emerald-500',
     },
     rejected: {
+        ...MAP_STATUS_CONFIG.rejected,
         label: 'Rejected',
         icon: HiOutlineXCircle,
-        badge: 'border-red-200 bg-red-50 text-red-700',
-        dot: 'bg-red-500',
     },
 };
 

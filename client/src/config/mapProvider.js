@@ -5,7 +5,6 @@ import { bytesToHeader, PMTiles, Protocol, TileType } from 'pmtiles';
 export const PMTILES_SOURCE_ID = 'sibuyan-pmtiles';
 export const STREET_FALLBACK_SOURCE_ID = 'osm-street-fallback';
 export const STREET_FALLBACK_LAYER_ID = 'osm-street-fallback-layer';
-export const TERRAIN_SOURCE_ID = 'sibuyan-terrain';
 // Level 17 is intentionally excluded because the production imagery coverage
 // is incomplete there for parts of Sibuyan Island.
 export const OPERATIONAL_MAX_ZOOM = 16;
@@ -13,12 +12,10 @@ export const OPERATIONAL_MAX_ZOOM = 16;
 const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const ESRI_REFERENCE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
 const OSM_FALLBACK_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const DEFAULT_TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const PROTOMAPS_GLYPHS_URL = 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf';
 const PROTOMAPS_SPRITE_URL = 'https://protomaps.github.io/basemaps-assets/sprites/v4/light';
 
 const configuredPmtilesUrl = String(import.meta.env.VITE_PMTILES_URL || '').trim();
-const configuredTerrainUrl = String(import.meta.env.VITE_TERRAIN_TILES_URL || DEFAULT_TERRAIN_URL).trim();
 const PMTILES_HEADER_RANGE = 'bytes=0-16383';
 const MIN_PMTILES_HEADER_BYTES = 127;
 const SIBUYAN_BOUNDS = {
@@ -163,19 +160,11 @@ const createPmtilesStreetLayers = (sourceId, dark) => (
 );
 
 export const createOperationalMapStyle = ({
-    enableTerrain = true,
-    enableHillshade = false,
-    terrainMaxZoom = 14,
     includeStreet = true,
     dark = false,
     pmtilesUrl = configuredPmtilesUrl,
-    terrainTilesUrl = configuredTerrainUrl,
     pmtilesInspection = null,
 } = {}) => {
-    const normalizedTerrainMaxZoom = Math.min(
-        15,
-        Math.max(0, Number.isFinite(Number(terrainMaxZoom)) ? Number(terrainMaxZoom) : 14)
-    );
     let normalizedPmtilesUrl = '';
     try {
         normalizedPmtilesUrl = includeStreet ? toPmtilesProtocolUrl(pmtilesUrl) : '';
@@ -207,28 +196,6 @@ export const createOperationalMapStyle = ({
             layout: { visibility: 'visible' },
         },
     ];
-
-    if (enableTerrain && terrainTilesUrl) {
-        sources[TERRAIN_SOURCE_ID] = {
-            type: 'raster-dem',
-            tiles: [terrainTilesUrl],
-            tileSize: 256,
-            maxzoom: normalizedTerrainMaxZoom,
-            encoding: 'terrarium',
-            attribution: 'Elevation data &copy; Mapzen contributors',
-        };
-        if (enableHillshade) {
-            mapLayers.push({
-                id: 'terrain-hillshade',
-                type: 'hillshade',
-                source: TERRAIN_SOURCE_ID,
-                paint: {
-                    'hillshade-exaggeration': 0.28,
-                    'hillshade-shadow-color': '#334155',
-                },
-            });
-        }
-    }
 
     const primaryStreetLayerIds = [];
     const allStreetLayerIds = [];
@@ -290,9 +257,6 @@ export const createOperationalMapStyle = ({
                 : {}),
             sources,
             layers: mapLayers,
-            ...(enableTerrain && sources[TERRAIN_SOURCE_ID]
-                ? { terrain: { source: TERRAIN_SOURCE_ID, exaggeration: 1 } }
-                : {}),
         },
         hasSelfHostedStreetMap: Boolean(normalizedPmtilesUrl),
         primaryStreetLayerIds,
@@ -333,7 +297,6 @@ export const prepareOperationalMapStyle = async (options = {}) => {
 export const getMapProviderStatus = () => ({
     pmtilesConfigured: Boolean(configuredPmtilesUrl),
     pmtilesUrl: configuredPmtilesUrl,
-    terrainConfigured: Boolean(configuredTerrainUrl),
 });
 
 export default createOperationalMapStyle;

@@ -1,6 +1,7 @@
 import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineClock,
+    HiOutlineChevronDown,
     HiOutlineDocumentText,
     HiOutlineLocationMarker,
     HiOutlineMail,
@@ -11,11 +12,17 @@ import {
     HiOutlineUser,
 } from 'react-icons/hi';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
+import Button from '../ui/Button';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? 'Not available' : format(date, 'MMM d, yyyy, h:mm a');
+};
+
+const toPositiveNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : 0;
 };
 
 const Detail = ({ label, value }) => (
@@ -25,17 +32,25 @@ const Detail = ({ label, value }) => (
     </div>
 );
 
-const Section = ({ id, icon: Icon, title, children }) => (
-    <section className="mt-5 border-t border-gray-200 pt-5" aria-labelledby={id}>
-        <h5 id={id} className="flex items-center gap-2 text-sm font-bold text-gray-900">
-            <Icon className="h-4 w-4 text-brand-600" aria-hidden="true" />
-            {title}
-        </h5>
-        <div className="mt-3">{children}</div>
-    </section>
+const DisclosureSection = ({ id, icon: Icon, title, summary, defaultOpen = false, children }) => (
+    <details className="group overflow-hidden rounded-xl border border-gray-200 bg-white" open={defaultOpen || undefined}>
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
+            <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                    <h5 id={id} className="text-sm font-bold text-gray-900">{title}</h5>
+                    {summary && <span className="mt-0.5 block text-xs leading-5 text-gray-500">{summary}</span>}
+                </span>
+            </span>
+            <HiOutlineChevronDown className="h-5 w-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="border-t border-gray-200 px-4 py-4" aria-labelledby={id}>{children}</div>
+    </details>
 );
 
-const OperationalIncidentSections = ({ report }) => {
+const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
     const casualties = report.casualties || {};
     const affectedArea = report.affectedArea || {};
     const updates = Array.isArray(report.reportUpdates)
@@ -43,54 +58,121 @@ const OperationalIncidentSections = ({ report }) => {
         : [];
     const responders = Array.isArray(report.responders) ? report.responders : [];
     const transfers = Array.isArray(report.transferHistory) ? [...report.transferHistory].reverse() : [];
+    const images = Array.isArray(report.images) ? report.images : [];
+    const declaredEvidenceCount = Number(report.evidenceCount);
+    const evidenceCount = Math.max(
+        Number.isFinite(declaredEvidenceCount) && declaredEvidenceCount > 0 ? Math.floor(declaredEvidenceCount) : 0,
+        images.length,
+    );
     const accuracy = Number(report.locationCapture?.accuracyMeters);
-    const reporterContactVisible = Boolean(report.reporter?.email);
+    const coordinatesAvailable = Number.isFinite(Number(report.coordinates?.lat))
+        && Number.isFinite(Number(report.coordinates?.lng));
+
+    const impactDetails = [
+        { label: 'Injured', value: toPositiveNumber(casualties.injured), unit: 'injured' },
+        { label: 'Fatalities', value: toPositiveNumber(casualties.fatalities), unit: 'fatalities' },
+        { label: 'Missing', value: toPositiveNumber(casualties.missing), unit: 'missing' },
+        { label: 'Households affected', value: toPositiveNumber(affectedArea.householdsAffected), unit: 'households affected' },
+        { label: 'Evacuees', value: toPositiveNumber(affectedArea.evacuees), unit: 'evacuees' },
+        { label: 'Affected radius', value: toPositiveNumber(affectedArea.radius), unit: 'm radius' },
+    ].filter((detail) => detail.value > 0);
+    const impactSummary = impactDetails.length
+        ? impactDetails.map((detail) => `${detail.value} ${detail.unit}`).join(' · ')
+        : 'No casualties or affected-area impacts recorded';
+    const responseSummary = responders.length
+        ? `${responders.length} response unit${responders.length === 1 ? '' : 's'} recorded`
+        : report.respondedBy
+            ? 'One assigned response unit'
+            : 'No response unit assigned';
 
     return (
-        <>
-            <Section id="operational-facts-heading" icon={HiOutlineDocumentText} title="Operational details">
-                <dl className="grid grid-cols-2 gap-2">
+        <div className="mt-5 space-y-3" aria-label="Protected operational information">
+            <DisclosureSection
+                id="operational-facts-heading"
+                icon={HiOutlineDocumentText}
+                title="Operational details"
+                summary="Priority, reporting time, and incident conditions"
+                defaultOpen
+            >
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Detail label="Priority" value={report.priority} />
                     <Detail label="Reported" value={formatDate(report.reportedAt || report.createdAt)} />
+                    <Detail label="Incident time" value={formatDate(report.incidentTime)} />
                     <Detail label="Fire involved" value={report.fireInvolved ? (report.fireType?.replaceAll('_', ' ') || 'Yes') : 'No'} />
-                    <Detail label="Location source" value={report.locationCapture?.source?.replaceAll('_', ' ') || report.locationConfidence?.replaceAll('_', ' ')} />
-                    <Detail label="GPS accuracy" value={Number.isFinite(accuracy) ? `${Math.round(accuracy)} meters` : 'Not recorded'} />
-                    <Detail label="Coordinates" value={Number.isFinite(Number(report.coordinates?.lat)) && Number.isFinite(Number(report.coordinates?.lng)) ? `${Number(report.coordinates.lat).toFixed(6)}, ${Number(report.coordinates.lng).toFixed(6)}` : 'Not available'} />
                 </dl>
-            </Section>
+            </DisclosureSection>
 
-            <Section id="casualty-details-heading" icon={HiOutlineShieldCheck} title="Casualties and affected area">
-                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    <Detail label="Injured" value={String(Number(casualties.injured) || 0)} />
-                    <Detail label="Fatalities" value={String(Number(casualties.fatalities) || 0)} />
-                    <Detail label="Missing" value={String(Number(casualties.missing) || 0)} />
-                    <Detail label="Households affected" value={String(Number(affectedArea.householdsAffected) || 0)} />
-                    <Detail label="Evacuees" value={String(Number(affectedArea.evacuees) || 0)} />
-                    <Detail label="Affected radius" value={Number(affectedArea.radius) > 0 ? `${affectedArea.radius} meters` : 'Not recorded'} />
-                </dl>
-            </Section>
+            <DisclosureSection
+                id="casualty-details-heading"
+                icon={HiOutlineShieldCheck}
+                title="Casualties and affected area"
+                summary={impactSummary}
+                defaultOpen={impactDetails.length > 0}
+            >
+                {impactDetails.length ? (
+                    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {impactDetails.map((detail) => (
+                            <Detail
+                                key={detail.label}
+                                label={detail.label}
+                                value={detail.label === 'Affected radius' ? `${detail.value} meters` : String(detail.value)}
+                            />
+                        ))}
+                    </dl>
+                ) : (
+                    <p className="text-sm leading-6 text-gray-600">No casualties or affected-area impacts were recorded for this incident.</p>
+                )}
+            </DisclosureSection>
 
-            <Section id="evidence-heading" icon={HiOutlinePhotograph} title={`Evidence photos (${report.images?.length || 0})`}>
-                <ProtectedEvidenceGallery images={report.images || []} />
-            </Section>
+            <DisclosureSection
+                id="evidence-heading"
+                icon={HiOutlinePhotograph}
+                title={`Evidence photos (${evidenceCount})`}
+                summary="Protected images submitted with this report"
+                defaultOpen={evidenceCount > 0}
+            >
+                {evidenceCount > images.length ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="alert">
+                        <p className="text-sm font-semibold text-amber-900">Evidence references are temporarily unavailable.</p>
+                        <p className="mt-1 text-xs leading-5 text-amber-800">The incident record indicates {evidenceCount} protected photo{evidenceCount === 1 ? '' : 's'}, but the secure image references were not returned.</p>
+                        {onRetryEvidence && (
+                            <Button className="mt-3" variant="secondary" size="sm" onClick={onRetryEvidence}>
+                                Retry evidence
+                            </Button>
+                        )}
+                    </div>
+                ) : (
+                    <ProtectedEvidenceGallery images={images} />
+                )}
+            </DisclosureSection>
 
-            <Section id="reporter-contact-heading" icon={HiOutlineUser} title="Reporter information">
+            <DisclosureSection
+                id="reporter-contact-heading"
+                icon={HiOutlineUser}
+                title="Reporter information"
+                summary={report.reporter?.isVerified ? 'Verified reporter account' : 'Identity verification not confirmed'}
+            >
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p className="text-sm font-semibold text-gray-900">{report.reporter?.name || 'Reporter name unavailable'}</p>
-                    <p className="mt-1 text-xs text-gray-500">{report.reporter?.isVerified ? 'Verified reporter account' : 'Account verification not confirmed'}</p>
-                    {reporterContactVisible ? (
-                        <a href={`mailto:${report.reporter.email}`} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-                            <HiOutlineMail className="h-4 w-4" aria-hidden="true" />
+                    {report.reporter?.email ? (
+                        <a href={`mailto:${report.reporter.email}`} className="mt-3 inline-flex min-h-10 max-w-full items-center gap-2 break-all rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                            <HiOutlineMail className="h-4 w-4 shrink-0" aria-hidden="true" />
                             {report.reporter.email}
                         </a>
                     ) : (
                         <p className="mt-3 text-xs leading-5 text-gray-500">Contact details become available after you join the response.</p>
                     )}
                 </div>
-            </Section>
+            </DisclosureSection>
 
-            <Section id="situation-updates-heading" icon={HiOutlineClock} title={`Situation updates (${updates.length})`}>
-                {updates.length ? (
+            {updates.length > 0 && (
+                <DisclosureSection
+                    id="situation-updates-heading"
+                    icon={HiOutlineClock}
+                    title={`Situation updates (${updates.length})`}
+                    summary="Latest reporter and field updates"
+                    defaultOpen
+                >
                     <ol className="space-y-2">
                         {updates.map((update, index) => (
                             <li key={update.id || `${update.createdAt}-${index}`} className="rounded-xl border border-gray-200 p-3">
@@ -103,16 +185,25 @@ const OperationalIncidentSections = ({ report }) => {
                             </li>
                         ))}
                     </ol>
-                ) : <p className="text-sm text-gray-500">No situation updates have been submitted.</p>}
-            </Section>
+                </DisclosureSection>
+            )}
 
-            <Section id="response-team-heading" icon={HiOutlineTruck} title="Response coordination">
+            <DisclosureSection
+                id="response-team-heading"
+                icon={HiOutlineTruck}
+                title="Response coordination"
+                summary={responseSummary}
+                defaultOpen={responders.length > 0 || Boolean(report.respondedBy)}
+            >
                 {responders.length || report.respondedBy ? (
                     <div className="space-y-2">
                         {responders.map((responder, index) => (
                             <div key={responder.id || `${responder.unitName}-${index}`} className="rounded-xl border border-blue-200 bg-blue-50 p-3">
                                 <p className="text-sm font-semibold text-blue-950">{responder.unitName || responder.user?.name || 'Response unit'}</p>
-                                <p className="mt-1 text-xs text-blue-700">{responder.unitType || responder.user?.agency || 'Responder'}{responder.respondedAt ? ` · Joined ${formatDate(responder.respondedAt)}` : ''}</p>
+                                <p className="mt-1 text-xs text-blue-700">
+                                    {responder.unitType || responder.user?.agency || 'Responder'}
+                                    {responder.respondedAt ? ` · Joined ${formatDate(responder.respondedAt)}` : ''}
+                                </p>
                                 {responder.notes && <p className="mt-2 text-sm text-blue-900">{responder.notes}</p>}
                             </div>
                         ))}
@@ -122,11 +213,18 @@ const OperationalIncidentSections = ({ report }) => {
                             </div>
                         )}
                     </div>
-                ) : <p className="text-sm text-gray-500">No response unit is assigned yet.</p>}
-            </Section>
+                ) : (
+                    <p className="text-sm text-gray-500">No response unit is assigned yet.</p>
+                )}
+            </DisclosureSection>
 
             {transfers.length > 0 && (
-                <Section id="transfer-history-heading" icon={HiOutlineSwitchHorizontal} title="Transfer history">
+                <DisclosureSection
+                    id="transfer-history-heading"
+                    icon={HiOutlineSwitchHorizontal}
+                    title="Transfer history"
+                    summary={`${transfers.length} transfer record${transfers.length === 1 ? '' : 's'}`}
+                >
                     <ol className="space-y-2">
                         {transfers.map((transfer, index) => (
                             <li key={transfer.id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50 p-3">
@@ -136,24 +234,45 @@ const OperationalIncidentSections = ({ report }) => {
                             </li>
                         ))}
                     </ol>
-                </Section>
+                </DisclosureSection>
             )}
 
             {report.status === 'resolved' && (
-                <Section id="resolution-heading" icon={HiOutlineShieldCheck} title="Resolution record">
+                <DisclosureSection
+                    id="resolution-heading"
+                    icon={HiOutlineShieldCheck}
+                    title="Resolution record"
+                    summary={`Resolved ${formatDate(report.resolvedAt)}`}
+                    defaultOpen
+                >
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                         <p className="text-sm font-semibold text-emerald-950">Resolved {formatDate(report.resolvedAt)}</p>
                         <p className="mt-1 text-xs text-emerald-700">{report.resolvedBy?.name || 'Authorized responder'}</p>
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-900">{report.resolutionNotes || 'No resolution notes were recorded.'}</p>
                     </div>
-                </Section>
+                </DisclosureSection>
             )}
 
-            <div className="mt-5 flex items-start gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-xs leading-5 text-brand-900">
-                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <DisclosureSection
+                id="location-verification-heading"
+                icon={HiOutlineLocationMarker}
+                title="Location verification"
+                summary={coordinatesAvailable ? 'Coordinates and capture quality available' : 'Limited capture metadata'}
+            >
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Detail label="Location source" value={report.locationCapture?.source?.replaceAll('_', ' ') || report.locationConfidence?.replaceAll('_', ' ')} />
+                    <Detail label="GPS accuracy" value={Number.isFinite(accuracy) ? `${Math.round(accuracy)} meters` : 'Not recorded'} />
+                    <div className="sm:col-span-2">
+                        <Detail label="Coordinates" value={coordinatesAvailable ? `${Number(report.coordinates.lat).toFixed(6)}, ${Number(report.coordinates.lng).toFixed(6)}` : 'Not available'} />
+                    </div>
+                </dl>
+            </DisclosureSection>
+
+            <div className="flex items-start gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-xs leading-5 text-brand-900">
+                <HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 Restricted operational record. Use this information only for authorized incident response and coordination.
             </div>
-        </>
+        </div>
     );
 };
 

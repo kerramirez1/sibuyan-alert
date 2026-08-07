@@ -3,9 +3,9 @@ import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('recharts', () => ({
     ResponsiveContainer: ({ children }) => <div>{children}</div>,
-    AreaChart: ({ children }) => <div>{children}</div>,
+    LineChart: ({ children }) => <div data-testid="incident-line-chart">{children}</div>,
     BarChart: ({ children }) => <div>{children}</div>,
-    Area: () => null,
+    Line: ({ name }) => <div>{name}</div>,
     Bar: ({ children }) => <div>{children}</div>,
     CartesianGrid: () => null,
     Cell: () => null,
@@ -52,8 +52,8 @@ const baseProps = {
         responseSampleCount: 0,
     },
     chartData: [
-        { date: '16', fullDate: 'July 16', total: 0 },
-        { date: '17', fullDate: 'July 17', total: 1 },
+        { date: 'Jul 16', fullDate: 'Jul 16, 2026', total: 0 },
+        { date: 'Jul 17', fullDate: 'Jul 17, 2026', total: 1 },
     ],
     statusData: [{ name: 'Verified', value: 1, color: '#3b82f6' }],
     municipalityBarData: [{ name: 'Cajidiocan', count: 1 }],
@@ -82,7 +82,8 @@ describe('DashboardAnalyticsWorkspace', () => {
             'lg:flex',
             'lg:flex-wrap'
         );
-        expect(screen.getByText('1 report recorded')).toBeInTheDocument();
+        expect(screen.getByTestId('incident-line-chart')).toBeInTheDocument();
+        expect(screen.getAllByText('Daily reports')).not.toHaveLength(0);
         expect(screen.getByText('1 · 100%')).toBeInTheDocument();
         expect(screen.getByText('No responded incidents')).toBeInTheDocument();
 
@@ -119,5 +120,20 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(screen.queryByRole('heading', { name: 'By incident type' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
+    });
+
+    test('keeps a dedicated empty state when the selected period has no reports', () => {
+        render(
+            <DashboardAnalyticsWorkspace
+                {...baseProps}
+                reports={[]}
+                chartData={baseProps.chartData.map((day) => ({ ...day, total: 0 }))}
+            />
+        );
+
+        expect(screen.getByText('No reports in this period')).toBeInTheDocument();
+        expect(screen.getByText('Choose another month.')).toBeInTheDocument();
+        expect(screen.queryByText(/expand the municipality scope/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('incident-line-chart')).not.toBeInTheDocument();
     });
 });

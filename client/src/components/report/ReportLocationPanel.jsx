@@ -121,8 +121,8 @@ const ReportLocationPanel = ({
                     onLocationSelect={handleLocationSelect}
                     selectedLocation={selectedLocation}
                     userLocation={userLocation}
-                    focusLocation={focusLocation}
                     enable3D
+                    focusLocation={focusLocation}
                     gpsAccuracy={gpsAccuracy}
                     className="h-full w-full"
                 />
