@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toApiFilePath } from '../utils/assets';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -101,11 +102,6 @@ api.interceptors.response.use(
 );
 
 export default api;
-
-const toApiFilePath = (value) => {
-    const path = /^https?:\/\//i.test(value) ? new URL(value).pathname : value;
-    return path.startsWith('/api/') ? path.slice('/api'.length) : path;
-};
 
 export const filesAPI = {
     getProtected: (url, config = {}) => api.get(toApiFilePath(url), { ...config, responseType: 'blob' }),

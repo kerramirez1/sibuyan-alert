@@ -78,7 +78,7 @@ const HowItWorks = () => (
                 {steps.map(({ n, Icon, title, desc }, index) => (
                     <div key={n} className={`relative p-7 sm:p-8 lg:p-10 ${index > 0 ? 'border-t border-gray-200 dark:border-white/10 sm:border-t-0 sm:border-l' : ''}`}>
                         <div className="mb-6 flex items-center justify-between">
-                            <span className="text-3xl font-black leading-none tracking-tight text-gray-100 dark:text-white/10">{n}</span>
+                            <span className="text-3xl font-black leading-none tracking-tight text-gray-300 dark:text-gray-600">{n}</span>
                             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                                 <Icon className="h-4 w-4" />
                             </span>

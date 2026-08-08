@@ -136,8 +136,6 @@ export const AuthProvider = ({ children }) => {
         }
     }, [navigate]);
 
-
-
     // Logout
     const logout = useCallback(async () => {
         try {

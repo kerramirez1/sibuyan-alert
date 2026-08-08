@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from './router';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import './index.css';
@@ -10,10 +11,11 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
-            <AuthProvider>
-                <SocketProvider>
-                    <App />
-                    <Toaster
+            <ErrorBoundary>
+                <AuthProvider>
+                    <SocketProvider>
+                        <App />
+                        <Toaster
                         position="top-right"
                         toastOptions={{
                             duration: 3000,
@@ -42,6 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     />
                 </SocketProvider>
             </AuthProvider>
+        </ErrorBoundary>
         </BrowserRouter>
     </React.StrictMode>
 );

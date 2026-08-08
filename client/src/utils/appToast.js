@@ -47,10 +47,7 @@ const appToast = (message, options) => show('default', message, options);
 
 appToast.success = (message, options) => show('success', message, options);
 appToast.error = (message, options) => show('error', message, options);
-appToast.loading = (message, options = {}) => hotToast.loading(
-    message,
-    normalizeOptions(options),
-);
+appToast.loading = (message, options = {}) => show('loading', message, options);
 appToast.dismiss = () => hotToast.dismiss(APP_TOAST_ID);
 appToast.remove = () => hotToast.remove(APP_TOAST_ID);
 
