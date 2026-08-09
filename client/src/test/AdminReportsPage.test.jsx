@@ -258,9 +258,9 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.queryByRole('dialog', { name: 'Poblacion coastal road' })).not.toBeInTheDocument();
     });
 
-    test('shows only eligible responder actions and requires assignment to resolve', async () => {
+    test('shows resolve instead of join for an assigned responder using API-normalized IDs', async () => {
         mocks.user = {
-            _id: 'responder-1',
+            id: 'responder-1',
             role: 'responder',
             agency: 'PNP',
             assignedMunicipality: 'Cajidiocan',
@@ -268,8 +268,34 @@ describe('AdminReportsPage operational queue', () => {
         mocks.getReports.mockResolvedValue(apiResponse([
             createReport({
                 status: 'responding',
-                respondedBy: { _id: 'responder-1', name: 'Assigned Officer', agency: 'PNP' },
-                responders: [{ user: 'responder-1', unitName: 'PNP Patrol 01', unitType: 'PNP' }],
+                respondedBy: { id: 'responder-1', name: 'Assigned Officer', agency: 'PNP' },
+                responders: [{ user: { id: 'responder-1', name: 'Assigned Officer' }, unitName: 'PNP Patrol 01', unitType: 'PNP' }],
+            }),
+        ]));
+
+        renderPage();
+
+        await screen.findAllByText('Poblacion coastal road');
+        expect(screen.queryByRole('button', { name: 'Join response' })).not.toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Resolve incident' })).not.toHaveLength(0);
+        expect(screen.queryByRole('button', { name: 'Verify report' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Reject report' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Transfer report' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Delete report' })).not.toBeInTheDocument();
+    });
+
+    test('offers join without resolve when another responder owns the active incident', async () => {
+        mocks.user = {
+            id: 'responder-2',
+            role: 'responder',
+            agency: 'MDRRMO',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                status: 'responding',
+                respondedBy: { id: 'responder-1', name: 'Assigned Officer', agency: 'PNP' },
+                responders: [{ user: { id: 'responder-1', name: 'Assigned Officer' }, unitName: 'PNP Patrol 01', unitType: 'PNP' }],
             }),
         ]));
 
@@ -277,11 +303,7 @@ describe('AdminReportsPage operational queue', () => {
 
         await screen.findAllByText('Poblacion coastal road');
         expect(screen.getAllByRole('button', { name: 'Join response' })).not.toHaveLength(0);
-        expect(screen.getAllByRole('button', { name: 'Resolve incident' })).not.toHaveLength(0);
-        expect(screen.queryByRole('button', { name: 'Verify report' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Reject report' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Transfer report' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Delete report' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
 
     test('applies lifecycle socket updates and unsubscribes on unmount', async () => {
