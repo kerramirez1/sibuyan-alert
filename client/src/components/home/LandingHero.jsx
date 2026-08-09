@@ -133,97 +133,84 @@ const LandingHero = ({
 
 
             <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-7 sm:px-8 sm:py-9 lg:min-h-[calc(100svh-60px)] lg:px-10 lg:py-12 xl:px-14">
-                <div className="grid flex-1 grid-cols-[minmax(0,1fr)_clamp(130px,36vw,200px)] grid-rows-[auto_auto_auto] items-center gap-x-3.5 gap-y-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] sm:gap-x-8 sm:gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,1fr)_minmax(270px,0.88fr)] lg:grid-rows-[auto_auto] lg:gap-x-10 lg:gap-y-8 xl:gap-x-14">
-                    <div data-testid="landing-hero-copy" className="col-start-1 row-start-1 min-w-0 overflow-hidden text-left lg:self-end">
-                        <div className={`mb-2.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 shadow-sm sm:mb-4 sm:gap-2 sm:px-3 sm:py-1.5 ${publicStatsState === 'error'
-                            ? 'border-amber-300/70 bg-white/75 text-amber-800 dark:border-amber-700/60 dark:bg-gray-900/70 dark:text-amber-300'
-                            : 'border-emerald-300/70 bg-white/75 text-emerald-800 dark:border-emerald-700/60 dark:bg-gray-900/70 dark:text-emerald-300'}`}
-                        >
-                            <span className={`h-1.5 w-1.5 rounded-full ${publicStatsState === 'error' ? 'bg-amber-500' : isLoading ? 'bg-gray-400' : 'bg-emerald-500'}`} />
-                            <span className="text-[9px] font-semibold sm:text-xs">
-                                {isLoading
-                                    ? 'Checking live system data'
-                                    : publicStatsState === 'error'
-                                        ? 'Live data temporarily unavailable'
-                                        : 'Live across Sibuyan Island'}
-                            </span>
-                        </div>
-
-                        <p className="mb-2 hidden text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800 sm:block dark:text-emerald-300">Island-wide incident coordination</p>
+                <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-3.5 gap-y-5 sm:gap-x-8 sm:gap-y-6 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
+                    <div className="contents lg:flex lg:min-w-0 lg:flex-[1.1] lg:flex-col lg:items-start">
+                    <div data-testid="landing-hero-copy" className="order-1 flex min-w-0 flex-1 self-stretch flex-col justify-between overflow-visible text-left lg:order-none lg:w-full lg:flex-none">
+                        <p data-testid="landing-hero-eyebrow" className="mb-6 whitespace-nowrap text-[clamp(6px,1.9vw,9px)] font-bold uppercase tracking-[0.08em] text-emerald-800 min-[400px]:tracking-[0.12em] sm:mb-7 sm:text-[11px] sm:tracking-[0.2em] lg:mb-2 dark:text-emerald-300">
+                            Island-wide incident coordination
+                        </p>
                         <h1 className="text-[2rem] font-black leading-[0.96] tracking-[-0.055em] text-gray-950 min-[430px]:text-4xl sm:text-5xl lg:text-[4.5rem] xl:text-[5.25rem] dark:text-white">
                             Report.
                             <span className="block text-emerald-700 dark:text-emerald-300">Verify.</span>
                             <span className="block">Respond.</span>
                         </h1>
-                        <p className="mt-3.5 max-w-xl text-[11px] font-medium leading-relaxed text-gray-700 min-[430px]:text-xs sm:mt-5 sm:text-base lg:text-lg dark:text-gray-200">
-                            One operational platform for Sibuyan residents, municipal administrators, and emergency responders—from the first report to field resolution.
-                        </p>
                     </div>
 
-                    <div className="relative z-10 col-start-2 row-start-1 min-w-0 self-center lg:row-span-2 lg:self-start lg:pt-10">
-                        <SibuyanIslandMap />
-                    </div>
+                    <p data-testid="landing-hero-description" className="order-3 basis-full text-[11px] font-medium leading-relaxed text-gray-700 min-[430px]:text-xs sm:text-base lg:order-none lg:mt-5 lg:max-w-xl lg:basis-auto lg:text-lg dark:text-gray-200">
+                        One operational platform for Sibuyan residents, municipal administrators, and emergency responders—from the first report to field resolution.
+                    </p>
 
-                    <div data-testid="landing-hero-actions" className="col-span-2 row-start-2 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start sm:gap-3 lg:col-span-1 lg:col-start-1 lg:self-start">
-                        {/* ── Primary CTA: Report an Incident ──────────────────────────────── */}
-                        {reportCta.show && (
-                            reportCta.disabled ? (
-                                <div
-                                    className="group relative inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-200 px-5 py-2.5 text-xs font-bold text-red-400 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:bg-red-900/30 dark:text-red-500"
-                                    aria-disabled="true"
-                                    title={reportCta.reason}
-                                >
-                                    <HiOutlineClock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    Report an Incident
-                                    <span
-                                        role="tooltip"
-                                        className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-1.5 text-center text-[11px] font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+                    <div data-testid="landing-hero-actions" className="order-4 flex w-full max-w-[410px] basis-full flex-col sm:w-auto sm:max-w-none lg:order-none lg:mt-8 lg:basis-auto">
+                        <div data-testid="landing-hero-primary-actions" className="flex w-full flex-nowrap items-center gap-2 sm:w-auto sm:gap-3">
+                            {/* ── Primary CTA: Report an Incident ──────────────────────────────── */}
+                            {reportCta.show && (
+                                reportCta.disabled ? (
+                                    <div
+                                        className="group relative inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-red-200 px-2 py-2.5 text-[10px] font-bold text-red-400 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-red-900/30 dark:text-red-500"
+                                        aria-disabled="true"
+                                        title={reportCta.reason}
                                     >
-                                        {reportCta.reason}
-                                    </span>
-                                </div>
-                            ) : (
-                                <Link
-                                    to={reportCta.to}
-                                    id="hero-report-cta"
-                                    className="inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-5 py-2.5 text-xs font-bold text-white shadow-[0_12px_28px_-14px_rgba(185,28,28,0.75)] transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm"
-                                >
-                                    <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    Report an Incident
-                                </Link>
-                            )
-                        )}
+                                        <HiOutlineClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        Report an Incident
+                                        <span
+                                            role="tooltip"
+                                            className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-1.5 text-center text-[11px] font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+                                        >
+                                            {reportCta.reason}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <Link
+                                        to={reportCta.to}
+                                        id="hero-report-cta"
+                                        className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(185,28,28,0.75)] transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
+                                    >
+                                        <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        Report an Incident
+                                    </Link>
+                                )
+                            )}
 
-                        {/* ── Secondary CTA: View live map ────────────────────────────────── */}
-                        <Link
-                            to="/dashboard?view=map"
-                            className="inline-flex min-h-11 min-w-[185px] sm:min-w-[195px] items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#d0e8dc] bg-white px-5 py-2.5 text-xs font-bold text-gray-900 shadow-sm transition-colors hover:bg-[#eef7f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-h-12 sm:px-6 sm:py-3 sm:text-sm dark:border-[#264a38] dark:bg-[#162c21] dark:text-white dark:hover:bg-[#1d3628]"
-                        >
-                            <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            View live map
-                        </Link>
+                            {/* ── Secondary CTA: View live map ────────────────────────────────── */}
+                            <Link
+                                to="/dashboard?view=map"
+                                className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-700 bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(4,120,87,0.7)] transition-colors hover:border-emerald-800 hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:border-emerald-600 dark:bg-emerald-600 dark:hover:border-emerald-500 dark:hover:bg-emerald-500"
+                            >
+                                <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                View live map
+                            </Link>
+                        </div>
 
                         {/* ── Tertiary: Register prompt (unauthenticated only) ───────────── */}
                         {!isAuthenticated && (
-                            <div className="hidden basis-full pt-1 text-center sm:block lg:text-left">
-                                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                                    New to Sibuyan Alert?{' '}
-                                    <Link
+                            <div className="hidden pt-3 text-[11px] font-semibold text-gray-500 sm:block dark:text-gray-400">
+                                New to Sibuyan Alert?{' '}
+                                <Link
                                         to="/register"
                                         className="font-bold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
-                                    >
-                                        Register as a reporter
-                                    </Link>
-                                </span>
+                                >
+                                    Register as a reporter
+                                </Link>
                             </div>
                         )}
-
-                        <div className="hidden basis-full pt-2 text-center sm:block lg:text-left">
-                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Coordinated with BFP · PNP · MDRRMO · SDH</span>
-                        </div>
+                    </div>
                     </div>
 
-                    <div data-testid="landing-hero-benefits" className="col-span-2 row-start-3 grid grid-cols-2 gap-2 lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:grid-cols-1 lg:gap-2.5 lg:self-start lg:pt-10">
+                    <div data-testid="landing-hero-map" className="relative z-10 order-2 w-[clamp(130px,36vw,200px)] shrink-0 self-stretch sm:w-[clamp(220px,34vw,360px)] lg:order-none lg:w-auto lg:min-w-0 lg:flex-1 lg:self-start">
+                        <SibuyanIslandMap />
+                    </div>
+
+                    <div data-testid="landing-hero-benefits" className="order-5 grid basis-full grid-cols-2 gap-2 lg:order-none lg:w-[clamp(270px,25vw,360px)] lg:basis-auto lg:flex-none lg:grid-cols-1 lg:gap-2.5 lg:self-start">
                         {benefits.map(({ Icon, title, description }) => (
                             <div key={title} className="flex min-w-0 items-center gap-2 rounded-xl border border-[#d0e8dc] bg-white p-2 shadow-[0_8px_24px_-16px_rgba(9,23,17,0.4)] sm:items-start sm:gap-3 sm:rounded-2xl sm:p-3.5 dark:border-[#1c3428] dark:bg-[#112219]">
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 sm:h-10 sm:w-10 sm:rounded-xl dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/10">

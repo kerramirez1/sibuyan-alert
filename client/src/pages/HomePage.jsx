@@ -6,8 +6,8 @@ import { useSocket } from '../context/SocketContext';
 import { analyticsAPI, reportsAPI } from '../services/api';
 import LandingHero from '../components/home/LandingHero';
 import HowItWorks from '../components/landing/HowItWorks';
-import Features from '../components/landing/Features';
 import Coverage from '../components/landing/Coverage';
+import LegalDocumentModal from '../components/landing/LegalDocumentModal';
 
 const DEFAULT_MUNICIPALITIES = [
     { name: 'Cajidiocan', code: 'CAJ', barangays: [] },
@@ -37,6 +37,7 @@ const HomePage = () => {
     const [municipalities, setMunicipalities] = useState(DEFAULT_MUNICIPALITIES);
     const [publicStats, setPublicStats] = useState(null);
     const [publicStatsState, setPublicStatsState] = useState('loading');
+    const [activeLegalDocument, setActiveLegalDocument] = useState(null);
     const refreshDebounceRef = useRef(null);
 
     const fetchPublicStats = useCallback(async () => {
@@ -174,18 +175,20 @@ const HomePage = () => {
                     municipalityCount={municipalities.length}
                 />
                 <HowItWorks />
-                <Features />
                 <Coverage municipalities={municipalities} userRole={user?.role} />
             </main>
 
             <footer className="border-t border-gray-100 bg-white px-5 pb-8 pt-12 dark:border-white/10 dark:bg-gray-950 sm:px-8">
                 <div className="mx-auto max-w-6xl">
 
-                    {/* ── Three-column footer grid ───────────────────────────── */}
-                    <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
+                    {/* Brand spans the mobile row; navigation and legal links stay side by side. */}
+                    <div
+                        data-testid="landing-footer-grid"
+                        className="grid grid-cols-2 gap-x-6 gap-y-10 sm:gap-x-10 lg:grid-cols-[1.6fr_1fr_1fr]"
+                    >
 
                         {/* Col 1 — Brand + mission */}
-                        <div>
+                        <div className="col-span-2 lg:col-span-1">
                             <div className="mb-4 flex items-center gap-2.5">
                                 <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
                                 <span className="text-base font-black tracking-tight text-gray-950 dark:text-white">
@@ -201,7 +204,7 @@ const HomePage = () => {
                         </div>
 
                         {/* Col 2 — Quick links */}
-                        <div>
+                        <div className="min-w-0">
                             <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Navigate</p>
                             <nav aria-label="Footer navigation">
                                 <ul className="space-y-2.5">
@@ -237,25 +240,24 @@ const HomePage = () => {
                         </div>
 
                         {/* Col 3 — Legal + project info */}
-                        <div>
+                        <div className="min-w-0">
                             <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Legal</p>
                             <ul className="space-y-2.5">
                                 {[
-                                    'Privacy Policy',
-                                    'Terms of Use',
-                                    'Data Privacy Notice',
-                                ].map((item) => (
-                                    <li key={item}>
-                                        {/* Placeholder links — replace with actual routes when documents are ready */}
-                                        <span className="cursor-default text-sm text-gray-400 dark:text-gray-600">
-                                            {item}
-                                        </span>
+                                    { label: 'Privacy Policy', documentType: 'privacy' },
+                                    { label: 'Terms of Use', documentType: 'terms' },
+                                ].map(({ label, documentType }) => (
+                                    <li key={documentType}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveLegalDocument(documentType)}
+                                            className="rounded text-left text-sm text-gray-500 transition-colors hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-gray-400 dark:hover:text-white dark:focus-visible:ring-offset-gray-950"
+                                        >
+                                            {label}
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
-                            <p className="mt-5 text-xs text-gray-400 dark:text-gray-600">
-                                Data handled in compliance with RA 10173 (Data Privacy Act of 2012).
-                            </p>
                         </div>
                     </div>
 
@@ -272,6 +274,12 @@ const HomePage = () => {
 
                 </div>
             </footer>
+
+            <LegalDocumentModal
+                documentType={activeLegalDocument}
+                isOpen={Boolean(activeLegalDocument)}
+                onClose={() => setActiveLegalDocument(null)}
+            />
         </div>
     );
 };

@@ -28,37 +28,22 @@ const LIFECYCLE_STAGES = [
     {
         status: 'reported',
         label: 'Reported',
-        bg: 'bg-gray-100 dark:bg-gray-800',
-        text: 'text-gray-600 dark:text-gray-300',
-        dot: 'bg-gray-400 dark:bg-gray-500',
     },
     {
         status: 'under_verification',
         label: 'Under Verification',
-        bg: 'bg-amber-50 dark:bg-amber-900/30',
-        text: 'text-amber-700 dark:text-amber-300',
-        dot: 'bg-amber-500',
     },
     {
         status: 'verified',
         label: 'Verified',
-        bg: 'bg-emerald-50 dark:bg-emerald-900/30',
-        text: 'text-emerald-700 dark:text-emerald-300',
-        dot: 'bg-emerald-500',
     },
     {
         status: 'responding',
         label: 'Responding',
-        bg: 'bg-blue-50 dark:bg-blue-900/30',
-        text: 'text-blue-700 dark:text-blue-300',
-        dot: 'bg-blue-500',
     },
     {
         status: 'resolved',
         label: 'Resolved',
-        bg: 'bg-green-50 dark:bg-green-900/30',
-        text: 'text-green-700 dark:text-green-300',
-        dot: 'bg-green-500',
     },
 ];
 
@@ -103,27 +88,32 @@ const HowItWorks = () => (
                  Shows all 5 status transitions so the panel can see this is a
                  complete lifecycle system, not a simple form submission app. */}
             <div className="mt-8 sm:mt-10">
-                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
                     Full incident lifecycle
                 </p>
+                <p id="incident-lifecycle-scroll-hint" className="sr-only">
+                    Scroll horizontally to view every incident status stage.
+                </p>
                 <div
-                    className="flex flex-wrap items-center gap-x-1.5 gap-y-2"
+                    className="flex flex-nowrap items-center gap-x-1.5 overflow-x-auto overscroll-x-contain pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     role="list"
                     aria-label="Incident status stages in order"
+                    aria-describedby="incident-lifecycle-scroll-hint"
+                    tabIndex={0}
                 >
                     {LIFECYCLE_STAGES.map((stage, index) => (
-                        <div key={stage.status} className="flex items-center gap-1.5">
+                        <div key={stage.status} className="flex shrink-0 items-center gap-1.5">
                             <span
                                 role="listitem"
-                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold leading-none ${stage.bg} ${stage.text}`}
+                                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold leading-none text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300"
                             >
-                                <span className={`h-1.5 w-1.5 rounded-full ${stage.dot}`} aria-hidden="true" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                                 {stage.label}
                             </span>
                             {index < LIFECYCLE_STAGES.length - 1 && (
                                 <HiOutlineArrowNarrowRight
                                     aria-hidden="true"
-                                    className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600"
+                                    className="h-3.5 w-3.5 shrink-0 text-emerald-300 dark:text-emerald-700"
                                 />
                             )}
                         </div>

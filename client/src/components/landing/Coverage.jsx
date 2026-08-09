@@ -2,7 +2,7 @@ import { HiOutlineShieldCheck, HiOutlineLocationMarker, HiOutlineUserCircle, HiO
 
 const TRUST_ITEMS = [
     { Icon: HiOutlineShieldCheck, text: 'Municipal administrator review before public visibility' },
-    { Icon: HiOutlineLocationMarker, text: 'GPS-based incident location with barangay verification' },
+    { Icon: HiOutlineLocationMarker, text: 'GPS-based incident location' },
     { Icon: HiOutlineUserCircle, text: 'Reporter identity verified before account approval' },
     { Icon: HiOutlineRefresh, text: 'Real-time status updates across the full lifecycle' },
     { Icon: HiOutlineLockClosed, text: 'Secure, role-based access for each user type' },
@@ -84,9 +84,9 @@ const Coverage = ({ municipalities }) => {
                         ))}
                     </ul>
 
-                    <div className="mt-7 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-                        <p className="text-xs leading-relaxed text-amber-200/80">
-                            <strong className="font-bold text-amber-300">Emergency notice:</strong>{' '}
+                    <div className="mt-7 rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
+                        <p className="text-xs leading-relaxed text-emerald-100/80">
+                            <strong className="font-bold text-emerald-300">Emergency notice:</strong>{' '}
                             Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
                         </p>
                     </div>

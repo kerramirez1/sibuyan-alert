@@ -70,17 +70,18 @@ const Modal = ({
                 <div className="modal-overlay">
                     {/* Backdrop */}
                     <motion.div
-                        ref={contentRef}
-                        tabIndex={-1}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="absolute inset-0"
                         onClick={onClose}
+                        aria-hidden="true"
                     />
 
                     {/* Modal Content */}
                     <motion.div
+                        ref={contentRef}
+                        tabIndex={-1}
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -100,6 +101,7 @@ const Modal = ({
                                 )}
                                 {showCloseButton && (
                                     <button
+                                        type="button"
                                         ref={closeButtonRef}
                                         onClick={onClose}
                                         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"

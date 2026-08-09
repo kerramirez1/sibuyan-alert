@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -79,12 +79,32 @@ describe('HomePage operational landing page', () => {
         expect(registrationAction).toHaveAttribute('href', '/register');
         expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
-        expect(mapAction).not.toHaveClass('flex-1');
-        expect(reportAction).not.toHaveClass('flex-1');
+        expect(mapAction).toHaveClass('border-emerald-700', 'bg-emerald-700', 'text-white', 'hover:bg-emerald-800');
+        expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
+        expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
         expect(screen.getByText('Municipalities covered')).toBeInTheDocument();
         expect(screen.getByText('14 barangays')).toBeInTheDocument();
         expect(screen.getByText('12 barangays')).toBeInTheDocument();
+        expect(screen.getByText('GPS-based incident location')).toBeInTheDocument();
+        expect(screen.queryByText('GPS-based incident location with barangay verification')).not.toBeInTheDocument();
+        const emergencyNoticeLabel = screen.getByText('Emergency notice:');
+        expect(emergencyNoticeLabel).toHaveClass('text-emerald-300');
+        expect(emergencyNoticeLabel.closest('div')).toHaveClass('border-emerald-400/25', 'bg-emerald-500/10');
+        expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Built around real municipal workflows.' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Data Privacy Notice')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Data handled in compliance with RA 10173/i)).not.toBeInTheDocument();
+
+        const lifecycle = screen.getByRole('list', { name: 'Incident status stages in order' });
+        expect(lifecycle).toHaveClass('flex-nowrap', 'overflow-x-auto', 'overscroll-x-contain');
+        expect(lifecycle).toHaveAttribute('tabindex', '0');
+        const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
+        expect(lifecycleStages).toHaveLength(5);
+        lifecycleStages.forEach((stage) => {
+            expect(stage).toHaveClass('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
+        });
 
         expect(screen.getAllByText('Active risk zones').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();
@@ -92,27 +112,82 @@ describe('HomePage operational landing page', () => {
         const copy = screen.getByTestId('landing-hero-copy');
         const mapPreview = screen.getByTestId('sibuyan-island-map');
         const staticMapPreview = mapPreview.querySelector('img[src="/icons/Municipality.png"]');
+        const heroLayout = screen.getByTestId('landing-hero-layout');
+        const mapContainer = screen.getByTestId('landing-hero-map');
+        const eyebrow = screen.getByTestId('landing-hero-eyebrow');
+        const description = screen.getByTestId('landing-hero-description');
         const actions = screen.getByTestId('landing-hero-actions');
+        const primaryActions = screen.getByTestId('landing-hero-primary-actions');
+        const footerGrid = screen.getByTestId('landing-footer-grid');
+        expect(heroLayout).toHaveClass('flex', 'flex-wrap', 'items-stretch', 'lg:flex-nowrap');
+        expect(copy).toHaveClass('self-stretch', 'flex-col', 'justify-between');
+        expect(mapContainer).toHaveClass('self-stretch', 'lg:self-start');
+        expect(mapContainer).not.toHaveClass('lg:pt-10');
+        expect(eyebrow).toHaveTextContent('Island-wide incident coordination');
+        expect(eyebrow).toHaveClass('whitespace-nowrap', 'text-[clamp(6px,1.9vw,9px)]', 'sm:text-[11px]', 'lg:mb-2');
+        expect(eyebrow).not.toHaveClass('hidden');
+        expect(copy).toContainElement(eyebrow);
+        expect(description).toHaveClass('order-3', 'basis-full', 'lg:basis-auto');
+        expect(actions).toHaveClass('order-4', 'basis-full', 'flex-col', 'lg:basis-auto');
+        expect(primaryActions).toHaveClass('w-full', 'flex-nowrap', 'items-center');
+        expect(footerGrid).toHaveClass('grid-cols-2', 'lg:grid-cols-[1.6fr_1fr_1fr]');
+        expect(screen.getByText('Navigate').parentElement).toHaveClass('min-w-0');
+        expect(screen.getByText('Legal').parentElement).toHaveClass('min-w-0');
         const benefits = screen.getByTestId('landing-hero-benefits');
+        expect(benefits).toHaveClass('lg:self-start');
+        expect(benefits).not.toHaveClass('lg:pt-10');
         const metrics = screen.getByTestId('landing-hero-metrics');
         expect(copy.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(staticMapPreview).toBeInTheDocument();
         expect(mapPreview.querySelector('.maplibregl-map')).not.toBeInTheDocument();
-        expect(mapPreview.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(actions.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(actions.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    test('does not claim the live system is operational when both analytics requests fail', async () => {
+    test('uses safe metric fallbacks when public analytics are unavailable', async () => {
         mocks.getPublic.mockRejectedValueOnce(new Error('Unavailable'));
         mocks.getStats.mockRejectedValueOnce(new Error('Unavailable'));
 
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Live data temporarily unavailable')).toBeInTheDocument();
+            expect(screen.getAllByText('—')).toHaveLength(2);
         });
+        expect(screen.queryByText('Live data temporarily unavailable')).not.toBeInTheDocument();
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(mocks.getStats).not.toHaveBeenCalled();
+    });
+
+    test('opens accessible privacy and terms modals from the footer', async () => {
+        renderPage();
+
+        const privacyTrigger = screen.getByRole('button', { name: 'Privacy Policy' });
+        privacyTrigger.focus();
+        fireEvent.click(privacyTrigger);
+
+        const privacyDialog = screen.getByRole('dialog', { name: 'Privacy Policy' });
+        expect(within(privacyDialog).getByText('2. Personal data we process')).toBeInTheDocument();
+        expect(within(privacyDialog).getByRole('link', {
+            name: /National Privacy Commission: Data Subject Rights/i,
+        })).toHaveAttribute('href', 'https://privacy.gov.ph/data-subject-rights/');
+        expect(document.body.style.overflow).toBe('hidden');
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog', { name: 'Privacy Policy' })).not.toBeInTheDocument();
+        });
+        expect(document.body.style.overflow).toBe('');
+        expect(privacyTrigger).toHaveFocus();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Terms of Use' }));
+        const termsDialog = screen.getByRole('dialog', { name: 'Terms of Use' });
+        expect(within(termsDialog).getByText('4. Prohibited conduct')).toBeInTheDocument();
+        expect(within(termsDialog).getByText('12. Governing law and contact')).toBeInTheDocument();
+
+        fireEvent.click(within(termsDialog).getByRole('button', { name: 'Close modal' }));
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog', { name: 'Terms of Use' })).not.toBeInTheDocument();
+        });
     });
 });
