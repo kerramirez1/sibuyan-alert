@@ -18,6 +18,7 @@ import { requireRole } from './middleware/roleCheck.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { ACCESS_COOKIE_NAME } from './config/authConfig.js';
 import { getCookieValue } from './services/authSessionService.js';
+import { getOperationalOnlineUsers } from './utils/onlineOperationalUsers.js';
 
 // Import seeds
 import { seedMunicipalities } from './seeds/municipalitySeed.js';
@@ -145,24 +146,8 @@ app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'resp
 
     const municipality = assignedMunicipality;
 
-    const users = Array.from(onlineUsers.values());
-
-    // Filter by municipality if specified
-    const filtered = municipality
-        ? users.filter(u => u.assignedMunicipality === municipality)
-        : users;
-
-    // Deduplicate by userId (a user might have multiple tabs/sockets)
-    const uniqueUsers = [];
-    const seen = new Set();
-    for (const u of filtered) {
-        if (!seen.has(u.userId)) {
-            seen.add(u.userId);
-            uniqueUsers.push(u);
-        }
-    }
-
     try {
+        const uniqueUsers = getOperationalOnlineUsers(Array.from(onlineUsers.values()), municipality);
         res.json({
             success: true,
             data: uniqueUsers,
@@ -393,5 +378,4 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
-
 

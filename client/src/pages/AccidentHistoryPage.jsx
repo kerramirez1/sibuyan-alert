@@ -22,6 +22,8 @@ import { adminAPI, reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import ImageViewer from '../components/ui/ImageViewer';
+import { useSearchParams } from '../router';
+import { isSameManilaCalendarDay } from '../utils/reportResolution';
 
 const SEVERITY_CONFIG = {
     minor:    { label: 'Minor',    dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -39,6 +41,10 @@ const INCIDENT_TYPE_LABELS = {
     mechanical: 'Mechanical Failure',
     other: 'Other Incident',
 };
+
+const normalizeDateFilter = (value) => (
+    ['today', '7', '30'].includes(value) ? value : 'all'
+);
 
 const formatDate = (value, pattern = 'MMM d, yyyy') => {
     if (!value) return 'Not available';
@@ -65,10 +71,12 @@ const getCoordinates = (report) => {
 const AccidentHistoryPage = () => {
     const { user, isAuthenticated } = useAuth();
     const { subscribe } = useSocket();
+    const [searchParams] = useSearchParams();
+    const requestedDateFilter = searchParams.get('date');
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [dateFilter, setDateFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState(() => normalizeDateFilter(requestedDateFilter));
     const [severityFilter, setSeverityFilter] = useState('all');
     const [municipalityFilter, setMunicipalityFilter] = useState('all');
     const [expandedId, setExpandedId] = useState(null);
@@ -100,6 +108,10 @@ const AccidentHistoryPage = () => {
     }, [fetchReports]);
 
     useEffect(() => {
+        setDateFilter(normalizeDateFilter(requestedDateFilter));
+    }, [requestedDateFilter]);
+
+    useEffect(() => {
         const unsubscribeResolved = subscribe('reportResolved', () => fetchReports(true));
         const unsubscribeDeleted = subscribe('reportDeleted', (data) => {
             if (!data?.id) return;
@@ -117,7 +129,9 @@ const AccidentHistoryPage = () => {
 
     const filteredReports = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        const cutoff = dateFilter === 'all' ? null : subDays(new Date(), Number(dateFilter));
+        const cutoff = ['7', '30'].includes(dateFilter)
+            ? subDays(new Date(), Number(dateFilter))
+            : null;
 
         return reports
             .filter((report) => {
@@ -131,7 +145,9 @@ const AccidentHistoryPage = () => {
                     ].filter(Boolean).join(' ').toLowerCase();
                     if (!searchable.includes(query)) return false;
                 }
-                if (cutoff && !isAfter(new Date(report.resolvedAt || report.createdAt), cutoff)) return false;
+                const resolvedDate = report.resolvedAt || report.createdAt;
+                if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
+                if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
                 if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
                 if (municipalityFilter !== 'all' && report.municipalityName !== municipalityFilter) return false;
                 return true;
@@ -243,6 +259,7 @@ const AccidentHistoryPage = () => {
 
                         <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
                             <option value="all">All dates</option>
+                            <option value="today">Today</option>
                             <option value="7">Last 7 days</option>
                             <option value="30">Last 30 days</option>
                             <option value="90">Last 3 months</option>

@@ -424,6 +424,7 @@ export const getAllReports = async (req, res) => {
             const responderId = admin._id;
 
             if (!reportId && responderView === 'available') {
+                query.municipalityName = scopedMunicipality;
                 query.$and.push({
                     $or: [
                         { status: 'transferred' },
@@ -434,6 +435,9 @@ export const getAllReports = async (req, res) => {
                         },
                     ],
                 });
+            } else if (!reportId && responderView === 'municipalActive') {
+                query.municipalityName = scopedMunicipality;
+                query.status = { $in: ['verified', 'transferred', 'responding'] };
             } else if (!reportId && responderView === 'active') {
                 query.status = 'responding';
                 query.$and.push({

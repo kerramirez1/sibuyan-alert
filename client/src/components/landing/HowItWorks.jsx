@@ -28,22 +28,27 @@ const LIFECYCLE_STAGES = [
     {
         status: 'reported',
         label: 'Reported',
+        dot: 'bg-slate-400 dark:bg-slate-500',
     },
     {
         status: 'under_verification',
         label: 'Under Verification',
+        dot: 'bg-amber-500',
     },
     {
         status: 'verified',
         label: 'Verified',
+        dot: 'bg-blue-500',
     },
     {
         status: 'responding',
         label: 'Responding',
+        dot: 'bg-cyan-500',
     },
     {
         status: 'resolved',
         label: 'Resolved',
+        dot: 'bg-emerald-500',
     },
 ];
 
@@ -105,15 +110,15 @@ const HowItWorks = () => (
                         <div key={stage.status} className="flex shrink-0 items-center gap-1.5">
                             <span
                                 role="listitem"
-                                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold leading-none text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold leading-none text-gray-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                <span className={`h-1.5 w-1.5 rounded-full ${stage.dot}`} aria-hidden="true" />
                                 {stage.label}
                             </span>
                             {index < LIFECYCLE_STAGES.length - 1 && (
                                 <HiOutlineArrowNarrowRight
                                     aria-hidden="true"
-                                    className="h-3.5 w-3.5 shrink-0 text-emerald-300 dark:text-emerald-700"
+                                    className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600"
                                 />
                             )}
                         </div>

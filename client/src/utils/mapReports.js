@@ -44,6 +44,43 @@ export const getVisibleMapReports = (reports = [], { includePending = false } = 
     return [...reportsById.values(), ...reportsWithoutId];
 };
 
+const hasAssignedResponder = (report) => (
+    (Array.isArray(report?.responders) && report.responders.length > 0)
+    || Boolean(report?.respondedBy)
+);
+
+export const getFilteredMapReports = (reports = [], {
+    includePending = false,
+    category = null,
+    statusFilter = null,
+    filterMode = 'public',
+} = {}) => {
+    const visibleReports = getVisibleMapReports(reports, { includePending });
+    const categoryFilteredReports = category
+        ? visibleReports.filter((report) => report.incidentCategory === category)
+        : visibleReports;
+
+    if (statusFilter === 'pending') {
+        if (filterMode === 'review') {
+            return categoryFilteredReports.filter((report) => report.status === 'pending');
+        }
+
+        return categoryFilteredReports.filter((report) => (
+            report.status === 'transferred'
+            || (['pending', 'verified'].includes(report.status) && !hasAssignedResponder(report))
+        ));
+    }
+
+    if (statusFilter === 'responding') {
+        return categoryFilteredReports.filter((report) => (
+            report.status === 'responding'
+            || (filterMode === 'response' && report.status === 'pending' && hasAssignedResponder(report))
+        ));
+    }
+
+    return categoryFilteredReports;
+};
+
 export const groupReportsByMapLocation = (reports = [], precision = 5) => {
     const groups = new Map();
 

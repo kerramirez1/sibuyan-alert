@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
 import { motion } from 'framer-motion';
 import { adminAPI, analyticsAPI } from '../services/api';
@@ -14,180 +14,163 @@ import {
     HiOutlineTrendingUp,
     HiOutlineLocationMarker,
 } from 'react-icons/hi';
+import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
 const ReportLogoIcon = ({ className = 'w-6 h-6' }) => (
     <img src="/icons/report.logo.png" alt="Report icon" className={`${className} object-contain`} />
 );
 
+const getRequestErrorMessage = (error, fallback) => (
+    error?.response?.data?.message || error?.message || fallback
+);
+
 const AdminPage = () => {
     const { user } = useAuth();
     const { subscribe } = useSocket();
+    const userId = user?.id || user?._id;
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [dashboardError, setDashboardError] = useState('');
     const [onlineUsers, setOnlineUsers] = useState([]);
+    const [onlineUsersLoading, setOnlineUsersLoading] = useState(true);
+    const [onlineUsersError, setOnlineUsersError] = useState('');
+    const dashboardRequestIdRef = useRef(0);
+    const onlineUsersRequestIdRef = useRef(0);
+    const dashboardRefreshTimerRef = useRef(null);
+    const onlineUsersRefreshTimerRef = useRef(null);
 
-    useEffect(() => {
-        if (!user) return;
-
-        if (user.role === 'responder') {
-            fetchOnlineUsers();
-            return;
-        }
-
-        fetchDashboardStats();
-        fetchOnlineUsers();
-    }, [user?.role, user?.assignedMunicipality]);
-
-    // Fetch online users
-    const fetchOnlineUsers = async () => {
+    const fetchOnlineUsers = useCallback(async ({ showLoading = false } = {}) => {
+        if (!user?.assignedMunicipality) return;
+        const requestId = ++onlineUsersRequestIdRef.current;
+        if (showLoading) setOnlineUsersLoading(true);
+        setOnlineUsersError('');
         try {
-            const params = user?.assignedMunicipality ? { municipality: user.assignedMunicipality } : {};
+            const params = { municipality: user.assignedMunicipality };
             const response = await adminAPI.getOnlineUsers(params);
-            setOnlineUsers(response.data.data || []);
+            const nextUsers = response.data?.data;
+            if (!Array.isArray(nextUsers)) {
+                throw new Error('The operational presence response was invalid.');
+            }
+            if (requestId === onlineUsersRequestIdRef.current) {
+                setOnlineUsers(nextUsers);
+            }
         } catch (error) {
             console.error('Failed to fetch online users:', error);
+            if (requestId === onlineUsersRequestIdRef.current) {
+                setOnlineUsersError(getRequestErrorMessage(
+                    error,
+                    'Unable to load operational presence. Please try again.',
+                ));
+            }
+        } finally {
+            if (requestId === onlineUsersRequestIdRef.current) {
+                setOnlineUsersLoading(false);
+            }
         }
-    };
+    }, [user?.assignedMunicipality]);
 
-    // Re-fetch dashboard stats when a report is deleted, verified, responded, or resolved
-    useEffect(() => {
-        const unsub1 = subscribe('reportDeleted', () => {
-            fetchDashboardStats();
-        });
-        const unsub2 = subscribe('reportVerified', () => {
-            fetchDashboardStats();
-        });
-        const unsub3 = subscribe('reportResponded', () => {
-            fetchDashboardStats();
-        });
-        const unsub4 = subscribe('reportResolved', () => {
-            fetchDashboardStats();
-        });
-        const unsub8 = subscribe('reportUpdatedByReporter', () => {
-            fetchDashboardStats();
-        });
-        const unsub5 = subscribe('userOnline', () => { fetchOnlineUsers(); });
-        const unsub6 = subscribe('userOffline', () => { fetchOnlineUsers(); });
-        const unsub7 = subscribe('onlineUsersUpdate', () => { fetchOnlineUsers(); });
-        return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); };
-    }, [subscribe]);
-
-    const fetchDashboardStats = async () => {
-        if (user?.role === 'responder') {
-            return;
-        }
+    const fetchDashboardStats = useCallback(async ({ showLoading = false } = {}) => {
+        if (!user?.role) return;
+        const requestId = ++dashboardRequestIdRef.current;
+        if (showLoading) setLoading(true);
+        setDashboardError('');
 
         try {
-            const response = await analyticsAPI.getAdmin();
-            setStats(response.data.data);
+            const response = user.role === 'responder'
+                ? await analyticsAPI.getResponder()
+                : await analyticsAPI.getAdmin();
+            const nextStats = response.data?.data;
+            if (!nextStats || typeof nextStats !== 'object' || Array.isArray(nextStats)) {
+                throw new Error('The dashboard analytics response was invalid.');
+            }
+            if (requestId === dashboardRequestIdRef.current) {
+                setStats(nextStats);
+            }
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
+            if (requestId === dashboardRequestIdRef.current) {
+                setDashboardError(getRequestErrorMessage(
+                    error,
+                    'Unable to load dashboard analytics. Please try again.',
+                ));
+            }
         } finally {
-            setLoading(false);
+            if (requestId === dashboardRequestIdRef.current) {
+                setLoading(false);
+            }
         }
-    };
+    }, [user?.role]);
 
-    // Responders don't have access to dashboard stats - redirect to reports
+    useEffect(() => {
+        if (!userId) return undefined;
+        setStats(null);
+        setOnlineUsers([]);
+        fetchDashboardStats({ showLoading: true });
+        fetchOnlineUsers({ showLoading: true });
+
+        return () => {
+            dashboardRequestIdRef.current += 1;
+            onlineUsersRequestIdRef.current += 1;
+        };
+    }, [fetchDashboardStats, fetchOnlineUsers, userId]);
+
+    const scheduleDashboardRefresh = useCallback(() => {
+        window.clearTimeout(dashboardRefreshTimerRef.current);
+        dashboardRefreshTimerRef.current = window.setTimeout(() => {
+            fetchDashboardStats();
+        }, 150);
+    }, [fetchDashboardStats]);
+
+    const scheduleOnlineUsersRefresh = useCallback(() => {
+        window.clearTimeout(onlineUsersRefreshTimerRef.current);
+        onlineUsersRefreshTimerRef.current = window.setTimeout(() => {
+            fetchOnlineUsers();
+        }, 150);
+    }, [fetchOnlineUsers]);
+
+    useEffect(() => {
+        const dashboardEvents = [
+            'reportDeleted',
+            'reportVerified',
+            'reportResponded',
+            'reportResolved',
+            'reportUpdatedByReporter',
+            'reportTransferred',
+            'highRiskZoneCreated',
+            'highRiskZoneUpdated',
+            'highRiskZoneDeleted',
+        ];
+        const onlineUserEvents = ['userOnline', 'userOffline', 'onlineUsersUpdate'];
+        const unsubscribers = [
+            ...dashboardEvents.map((eventName) => subscribe(eventName, scheduleDashboardRefresh)),
+            ...onlineUserEvents.map((eventName) => subscribe(eventName, scheduleOnlineUsersRefresh)),
+        ];
+
+        return () => {
+            unsubscribers.forEach((unsubscribe) => unsubscribe());
+            window.clearTimeout(dashboardRefreshTimerRef.current);
+            window.clearTimeout(onlineUsersRefreshTimerRef.current);
+        };
+    }, [scheduleDashboardRefresh, scheduleOnlineUsersRefresh, subscribe]);
+
+    // Specialized Responder Operations Hub
     if (user?.role === 'responder') {
         return (
-            <div>
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <div>
-                            <h1 className="text-2xl font-display font-bold text-gray-900 mb-2">
-                                Responder Dashboard
-                                {user?.assignedMunicipality && <span className="text-gray-500 text-lg font-normal"> · {user.assignedMunicipality}</span>}
-                            </h1>
-                            <p className="text-gray-600">
-                                Coordinate emergency response and manage incident reports.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                        <Link
-                            to="/admin/reports?view=dispatch-queue"
-                            className="card-hover block ring-2 ring-brand-500 ring-offset-2"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="stat-icon bg-gradient-to-br from-primary-500 to-primary-700">
-                                    <ReportLogoIcon className="w-5 h-5" />
-                                </div>
-                                <span className="px-2 py-0.5 bg-brand-100 text-brand-700 text-xs font-semibold rounded-full">
-                                    View & Respond
-                                </span>
-                            </div>
-                            <p className="text-xl font-bold text-gray-900 mt-4 mb-1">
-                                Incident Reports
-                            </p>
-                            <p className="text-sm text-gray-500">View, respond to, and resolve incident reports</p>
-                        </Link>
-                        <Link
-                            to="/dashboard?view=map"
-                            className="card-hover block"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="stat-icon bg-gradient-to-br from-success-500 to-success-700">
-                                    <HiOutlineLocationMarker className="w-6 h-6" />
-                                </div>
-                            </div>
-                            <p className="text-xl font-bold text-gray-900 mt-4 mb-1">
-                                Safety Awareness Map
-                            </p>
-                            <p className="text-sm text-gray-500">View incidents and high-risk zones on the map</p>
-                        </Link>
-                    </div>
-
-                    {/* Active Now — Responder View */}
-                    {onlineUsers.length > 0 && (
-                        <div className="card">
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                                <h2 className="text-lg font-semibold text-gray-900">Active Now</h2>
-                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
-                                    {onlineUsers.length} online
-                                </span>
-                            </div>
-                            <div className="space-y-2">
-                                {onlineUsers.map((activeUser) => (
-                                    <div
-                                        key={activeUser.userId}
-                                        className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-100"
-                                    >
-                                        <div className="relative">
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm ${activeUser.role === 'responder' ? 'bg-gradient-to-br from-orange-500 to-orange-700' :
-                                                activeUser.role === 'municipal_admin' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
-                                                    'bg-gradient-to-br from-gray-400 to-gray-600'
-                                                }`}>
-                                                {activeUser.name?.charAt(0).toUpperCase() || '?'}
-                                            </div>
-                                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">{activeUser.name}</p>
-                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${activeUser.role === 'responder' ? 'bg-orange-100 text-orange-700' :
-                                                    activeUser.role === 'municipal_admin' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-gray-100 text-gray-600'
-                                                    }`}>
-                                                    {activeUser.role === 'municipal_admin' ? 'mun. admin' : activeUser.role}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </motion.div>
-            </div>
+            <ResponderDashboardWorkspace
+                user={user}
+                stats={stats}
+                onlineUsers={onlineUsers}
+                loading={loading}
+                error={dashboardError}
+                onRetry={() => fetchDashboardStats({ showLoading: true })}
+                onlineUsersLoading={onlineUsersLoading}
+                onlineUsersError={onlineUsersError}
+                onRetryOnlineUsers={() => fetchOnlineUsers({ showLoading: true })}
+            />
         );
     }
 
-    if (loading) {
+    if (loading && !stats) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="spinner" />
@@ -198,14 +181,14 @@ const AdminPage = () => {
     const statCards = [
         {
             title: 'Total Users',
-            value: stats?.users.total || 0,
+            value: stats?.users?.total || 0,
             icon: HiOutlineUsers,
             color: 'from-primary-500 to-primary-700',
             link: '/admin/users',
         },
         {
             title: 'Pending Verifications',
-            value: stats?.users.pendingVerifications || 0,
+            value: stats?.users?.pendingVerifications || 0,
             icon: HiOutlineClock,
             color: 'from-accent-500 to-accent-700',
             link: '/admin/users?status=pending',
@@ -213,14 +196,14 @@ const AdminPage = () => {
         },
         {
             title: 'Total Reports',
-            value: stats?.reports.total || 0,
+            value: stats?.reports?.total || 0,
             iconSrc: '/icons/report.logo.png',
             color: 'from-success-500 to-success-700',
             link: '/admin/reports',
         },
         {
             title: 'Pending Reports',
-            value: stats?.reports.pending || 0,
+            value: stats?.reports?.pending || 0,
             icon: HiOutlineExclamation,
             color: 'from-danger-500 to-danger-700',
             link: '/admin/reports?status=pending',

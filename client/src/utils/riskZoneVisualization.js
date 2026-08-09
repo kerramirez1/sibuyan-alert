@@ -1,14 +1,17 @@
 import { getMapCoordinates } from './mapReports';
+import { MAP_RISK_ZONE_CONFIG } from '../config/mapVisuals';
 
 export const RISK_ZONE_SOURCE_ID = 'risk-zones-visualization';
 export const RISK_ZONE_EXTRUSION_LAYER_ID = 'risk-zones-extrusion';
+export const RISK_ZONE_FILL_LAYER_ID = 'risk-zones-fill';
+export const RISK_ZONE_OUTLINE_LAYER_ID = 'risk-zones-outline';
 export const RISK_ZONE_MIN_ZOOM = 9;
 
 export const RISK_ZONE_COLORS = Object.freeze({
-    landslide_prone: '#F59E0B',
-    accident_prone: '#EF4444',
-    fire_risk: '#EA580C',
-    other: '#6B7280',
+    landslide_prone: MAP_RISK_ZONE_CONFIG.markerColor,
+    accident_prone: MAP_RISK_ZONE_CONFIG.markerColor,
+    fire_risk: MAP_RISK_ZONE_CONFIG.markerColor,
+    other: MAP_RISK_ZONE_CONFIG.markerColor,
 });
 
 const SEVERITY_HEIGHTS_METERS = Object.freeze({
@@ -74,6 +77,24 @@ export const createRiskZoneCircle = (coordinates, radiusMeters, points = 32) => 
 
     ring.push([...ring[0]]);
     return ring;
+};
+
+/** Returns bounds for the zone's real radius so camera focus preserves the full hazard area. */
+export const getRiskZoneBounds = (zone, { points = 32 } = {}) => {
+    const coordinates = getMapCoordinates(zone);
+    const radiusMeters = Number(zone?.radius);
+    if (!coordinates || !Number.isFinite(radiusMeters) || radiusMeters <= 0) return null;
+
+    const ring = createRiskZoneCircle(coordinates, radiusMeters, points);
+    if (!ring?.length) return null;
+
+    return ring.reduce((bounds, [lng, lat]) => ([
+        [Math.min(bounds[0][0], lng), Math.min(bounds[0][1], lat)],
+        [Math.max(bounds[1][0], lng), Math.max(bounds[1][1], lat)],
+    ]), [
+        [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+        [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+    ]);
 };
 
 export const buildRiskZoneFeatureCollection = (zones = [], { points = 32 } = {}) => {

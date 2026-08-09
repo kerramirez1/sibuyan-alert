@@ -33,6 +33,14 @@ describe('MapLegend', () => {
         expect(screen.getByText('Multiple incidents')).toBeInTheDocument();
     });
 
+    test('shows only pending incidents for the administrator review filter', () => {
+        render(<MapLegend showPending filterStatus="pending" filterMode="review" />);
+
+        expect(screen.getByText('Pending')).toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+    });
+
     test('opens and closes the accessible mobile legend popover', () => {
         render(<MapLegend showPending />);
         const trigger = screen.getByRole('button', { name: 'Map legend' });

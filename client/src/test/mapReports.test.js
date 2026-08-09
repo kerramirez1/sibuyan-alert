@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+    getFilteredMapReports,
     getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../utils/mapReports';
@@ -30,5 +31,34 @@ describe('map report visibility', () => {
         expect(groups).toHaveLength(3);
         expect(groups.map((group) => group.reports.length)).toEqual([2, 1, 1]);
         expect(groups.reduce((total, group) => total + group.reports.length, 0)).toBe(4);
+    });
+
+    test('separates administrator review filtering from responder dispatch filtering', () => {
+        const coordinates = { lat: 12.4, lng: 122.6 };
+        const reports = [
+            { _id: 'pending', status: 'pending', coordinates },
+            { _id: 'assigned-pending', status: 'pending', coordinates, responders: [{ user: 'responder-1' }] },
+            { _id: 'verified', status: 'verified', coordinates },
+            { _id: 'transferred', status: 'transferred', coordinates },
+            { _id: 'responding', status: 'responding', coordinates },
+        ];
+
+        expect(getFilteredMapReports(reports, {
+            includePending: true,
+            statusFilter: 'pending',
+            filterMode: 'review',
+        }).map((report) => report._id)).toEqual(['pending', 'assigned-pending']);
+
+        expect(getFilteredMapReports(reports, {
+            includePending: true,
+            statusFilter: 'pending',
+            filterMode: 'response',
+        }).map((report) => report._id)).toEqual(['pending', 'verified', 'transferred']);
+
+        expect(getFilteredMapReports(reports, {
+            includePending: true,
+            statusFilter: 'responding',
+            filterMode: 'response',
+        }).map((report) => report._id)).toEqual(['assigned-pending', 'responding']);
     });
 });

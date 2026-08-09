@@ -125,21 +125,16 @@ const MainLayout = ({ children }) => {
                 >
                     {/* Logo */}
                     <div className="flex min-h-20 items-center px-4">
-                        <NavLink to="/" className="group flex min-w-0 items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <NavLink to="/" className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Sibuyan Alert home">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 p-1">
                                 <img
                                     src="/icons/Alert.png"
-                                    alt="Sibuyan Alert Logo"
-                                    className="w-full h-full object-contain"
+                                    alt=""
+                                    className="h-full w-full object-contain"
                                 />
                             </div>
-                            <span className="min-w-0 font-display leading-none">
-                                <span className="block whitespace-nowrap text-[17px] font-black tracking-tight text-brand-900 sm:text-lg">
-                                    Accident<span className="text-brand-600">Alert</span>
-                                </span>
-                                <span className="mt-1 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-600/40 sm:text-[10px]">
-                                    &amp; Mapping System
-                                </span>
+                            <span className="truncate text-base font-black tracking-tight text-gray-950 sm:text-lg">
+                                Sibuyan <span className="text-emerald-700">Alert</span>
                             </span>
                         </NavLink>
                         <button

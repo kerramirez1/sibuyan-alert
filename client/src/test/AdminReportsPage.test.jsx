@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from '../router';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -99,9 +99,15 @@ const apiResponse = (reports, pagination = null) => ({
     },
 });
 
+const LocationProbe = () => {
+    const location = useLocation();
+    return <span data-testid="current-location" aria-hidden="true">{location.pathname}{location.search}</span>;
+};
+
 const renderPage = (entry = '/admin/reports') => render(
     <MemoryRouter initialEntries={[entry]}>
         <AdminReportsPage />
+        <LocationProbe />
     </MemoryRouter>
 );
 
@@ -302,7 +308,7 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
 
         await screen.findAllByText('Poblacion coastal road');
-        expect(screen.getAllByRole('button', { name: 'Join response' })).not.toHaveLength(0);
+        expect(screen.getAllByRole('button', { name: 'Join response' })[0]).toHaveClass('bg-gray-900');
         expect(screen.queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
 
@@ -398,6 +404,239 @@ describe('AdminReportsPage operational queue', () => {
         expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20, responderView: 'available' });
     });
 
+    test('renders responder incidents as one severity-first operational list', async () => {
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            agency: 'MDRRMO',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                _id: 'active-critical',
+                address: 'Near Cambijang bridge',
+                severity: 'critical',
+                status: 'responding',
+                respondedBy: { id: 'responder-1', name: 'Rescue Lead', agency: 'MDRRMO' },
+                responders: [{ user: { id: 'responder-1', name: 'Rescue Lead' }, unitName: 'MDRRMO Rescue 1', unitType: 'MDRRMO' }],
+            }),
+            createReport({
+                _id: 'resolved-moderate',
+                address: 'Cajidiocan public market',
+                severity: 'moderate',
+                status: 'resolved',
+                respondedBy: { id: 'responder-1', name: 'Rescue Lead', agency: 'MDRRMO' },
+            }),
+        ]));
+
+        renderPage();
+
+        const list = await screen.findByRole('list', { name: 'Responder incident list' });
+        expect(list).toHaveClass('divide-y', 'border-y');
+        expect(screen.queryByTestId('incident-table')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Operational totals')).toHaveTextContent('3 incidents');
+        expect(screen.getByText('critical')).toHaveClass('text-red-700');
+        expect(screen.getByText('MDRRMO Rescue 1')).toBeInTheDocument();
+
+        const activeRow = screen.getByText('Near Cambijang bridge').closest('li');
+        const resolvedRow = screen.getByText('Cajidiocan public market').closest('li');
+        const respondingStatus = within(activeRow).getByText('Responding');
+        const resolvedStatus = within(resolvedRow).getByText('Resolved');
+        expect(respondingStatus).toHaveClass('text-gray-600');
+        expect(respondingStatus).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
+        expect(resolvedStatus).toHaveClass('text-gray-600');
+        expect(resolvedStatus).not.toHaveClass('bg-green-50', 'text-green-700');
+        expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('border-gray-300', 'bg-white', 'text-gray-700');
+        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('min-h-11', 'text-gray-700');
+        expect(within(resolvedRow).getByRole('button', { name: 'Inspect report' })).toBeInTheDocument();
+        expect(within(resolvedRow).queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
+    });
+
+    test('opens responder details as a compact non-modal inspector and marks the source row', async () => {
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            agency: 'MDRRMO',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                _id: 'active-critical',
+                address: 'Near Cambijang bridge',
+                barangay: 'Cambijang',
+                severity: 'critical',
+                status: 'responding',
+                detailCompleteness: 'full',
+                respondedBy: { id: 'responder-1', name: 'Rescue Lead', agency: 'MDRRMO' },
+                responders: [{ user: { id: 'responder-1' }, unitName: 'MDRRMO Rescue 1', unitType: 'MDRRMO' }],
+            }),
+        ]));
+
+        renderPage();
+
+        const sourceRow = (await screen.findByText('Near Cambijang bridge')).closest('article');
+        fireEvent.click(within(sourceRow).getByRole('button', { name: 'Inspect report' }));
+
+        const inspector = screen.getByTestId('responder-incident-inspector');
+        expect(inspector).toHaveAttribute('role', 'dialog');
+        expect(inspector).toHaveAttribute('aria-modal', 'false');
+        expect(inspector).toHaveClass('md:w-[30rem]', 'md:max-w-[calc(100vw-2rem)]');
+        expect(inspector).toHaveClass('min-h-0', 'overflow-hidden');
+        expect(inspector).not.toHaveClass('max-w-2xl');
+        expect(inspector.parentElement).toBe(document.body);
+        const panelBody = within(inspector).getByTestId('incident-panel-scroll-body');
+        expect(panelBody.parentElement).toBe(inspector);
+        expect(panelBody).toHaveClass('min-h-0', 'flex-1', 'overflow-x-hidden', 'overflow-y-auto');
+        expect(panelBody.scrollTop).toBe(0);
+        expect(sourceRow).toHaveAttribute('data-selected', 'true');
+        expect(sourceRow).toHaveClass('border-gray-400', 'bg-gray-50');
+        expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-expanded', 'true');
+        expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-controls', 'responder-incident-inspector');
+        const openFullMap = within(inspector).getByRole('button', { name: 'Open full map' });
+        expect(openFullMap).toBeInTheDocument();
+        expect(within(inspector).queryByTestId('incident-map')).not.toBeInTheDocument();
+        expect(document.body.style.overflow).toBe('');
+
+        fireEvent.click(openFullMap);
+        await waitFor(() => expect(screen.getByTestId('current-location')).toHaveTextContent(
+            '/dashboard?view=map&report=active-critical',
+        ));
+        expect(screen.getByTestId('current-location')).not.toHaveTextContent('lat=');
+        expect(screen.getByTestId('current-location')).not.toHaveTextContent('duration=');
+    });
+
+    test('resets the panel body scroll when switching incidents and restores focus after Escape', async () => {
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            agency: 'MDRRMO',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                _id: 'first-report',
+                address: 'Cambijang bridge approach',
+                status: 'verified',
+                detailCompleteness: 'full',
+            }),
+            createReport({
+                _id: 'second-report',
+                address: 'Poblacion coastal junction',
+                status: 'verified',
+                detailCompleteness: 'full',
+            }),
+            createReport({
+                _id: 'third-report',
+                address: 'Lumbang Este roadside',
+                status: 'verified',
+                detailCompleteness: 'full',
+            }),
+        ]));
+
+        renderPage();
+
+        const firstRow = (await screen.findByText('Cambijang bridge approach')).closest('article');
+        const secondRow = screen.getByText('Poblacion coastal junction').closest('article');
+        const thirdRow = screen.getByText('Lumbang Este roadside').closest('article');
+        fireEvent.click(within(firstRow).getByRole('button', { name: 'Inspect report' }));
+        expect(await screen.findByRole('dialog', { name: 'Cambijang bridge approach' })).toBeInTheDocument();
+        const panelBody = screen.getByTestId('incident-panel-scroll-body');
+        panelBody.scrollTop = 360;
+
+        const secondInspectButton = within(secondRow).getByRole('button', { name: 'Inspect report' });
+        secondInspectButton.focus();
+        fireEvent.click(secondInspectButton);
+
+        expect(await screen.findByRole('dialog', { name: 'Poblacion coastal junction' })).toBeInTheDocument();
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(screen.getByTestId('incident-panel-scroll-body')).toBe(panelBody);
+        expect(panelBody.scrollTop).toBe(0);
+        expect(firstRow).toHaveAttribute('data-selected', 'false');
+        expect(secondRow).toHaveAttribute('data-selected', 'true');
+
+        panelBody.scrollTop = 240;
+        const thirdInspectButton = within(thirdRow).getByRole('button', { name: 'Inspect report' });
+        thirdInspectButton.focus();
+        fireEvent.click(thirdInspectButton);
+
+        expect(await screen.findByRole('dialog', { name: 'Lumbang Este roadside' })).toBeInTheDocument();
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(panelBody.scrollTop).toBe(0);
+        expect(secondRow).toHaveAttribute('data-selected', 'false');
+        expect(thirdRow).toHaveAttribute('data-selected', 'true');
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByTestId('responder-incident-inspector')).not.toBeInTheDocument());
+        expect(thirdInspectButton).toHaveFocus();
+
+        fireEvent.click(within(firstRow).getByRole('button', { name: 'Inspect report' }));
+        expect(await screen.findByRole('dialog', { name: 'Cambijang bridge approach' })).toBeInTheDocument();
+        expect(screen.getByTestId('incident-panel-scroll-body').scrollTop).toBe(0);
+    });
+
+    test('keeps responder status, search, clear, and refresh behavior server-backed', async () => {
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([createReport({ status: 'responding' })]));
+
+        renderPage();
+        await screen.findByRole('list', { name: 'Responder incident list' });
+        expect(screen.getByText(/Last updated/)).toBeInTheDocument();
+        ['All statuses', 'Verified', 'Transferred', 'Responding', 'Resolved'].forEach((label) => {
+            expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+        });
+        expect(screen.queryByRole('button', { name: 'Pending' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Responding' }));
+        expect(screen.getByRole('button', { name: 'Responding' })).toHaveClass('bg-gray-100', 'text-gray-900');
+        expect(screen.getByRole('button', { name: 'Responding' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
+        await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20, status: 'responding' }));
+
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Search incidents' }), {
+            target: { value: 'Cambijang' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+        await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({
+            page: 1,
+            limit: 20,
+            status: 'responding',
+            search: 'Cambijang',
+        }));
+
+        const callsBeforeRefresh = mocks.getReports.mock.calls.length;
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+        await waitFor(() => expect(mocks.getReports).toHaveBeenCalledTimes(callsBeforeRefresh + 1));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20 }));
+    });
+
+    test('ignores a stale pending status query that responders are not authorized to filter', async () => {
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({ status: 'responding' }),
+            createReport({ _id: 'resolved-report', status: 'resolved' }),
+        ]));
+
+        renderPage('/admin/reports?status=pending');
+
+        const incidentList = await screen.findByRole('list', { name: 'Responder incident list' });
+        expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20 });
+        expect(screen.getByRole('button', { name: 'All statuses' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.queryByRole('button', { name: 'Pending' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
+        expect(within(incidentList).getByText('Responding')).toBeInTheDocument();
+        expect(within(incidentList).getByText('Resolved')).toBeInTheDocument();
+    });
+
     test('switches between responder work queues through URL-backed server views', async () => {
         mocks.user = {
             _id: 'responder-1',
@@ -407,10 +646,20 @@ describe('AdminReportsPage operational queue', () => {
         mocks.getReports.mockResolvedValue(apiResponse([]));
 
         renderPage('/admin/reports?view=dispatch-queue');
-        expect(await screen.findByRole('heading', { name: 'Available incidents' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Available' })).toHaveAttribute('aria-current', 'page');
+        fireEvent.click(screen.getByRole('button', { name: 'Municipal active' }));
+
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Municipal active' })).toHaveAttribute('aria-current', 'page'));
+        await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({
+            page: 1,
+            limit: 20,
+            responderView: 'municipalActive',
+        }));
+
         fireEvent.click(screen.getByRole('button', { name: 'My active' }));
 
-        expect(await screen.findByRole('heading', { name: 'My active responses' })).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole('button', { name: 'My active' })).toHaveAttribute('aria-current', 'page'));
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({
             page: 1,
             limit: 20,
@@ -445,7 +694,7 @@ describe('AdminReportsPage operational queue', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Respond to incident' })[0]);
 
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ reportId }));
-        expect(await screen.findByRole('heading', { name: 'My active responses' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'My active' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('dialog', { name: 'Poblacion coastal road' })).toBeInTheDocument();
     });
 

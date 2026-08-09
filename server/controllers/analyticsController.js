@@ -7,6 +7,9 @@ import {
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
 
+const RESPONDER_ACTIVE_STATUSES = ['verified', 'transferred', 'responding'];
+const RESPONDER_PRIORITY_ZONE_SEVERITIES = ['critical', 'high'];
+
 const getMunicipalityScopedUserIds = async (municipalityName) => {
     const [assignedUsers, reporterIdsFromReports] = await Promise.all([
         User.find({ assignedMunicipality: municipalityName }).select('_id'),
@@ -148,9 +151,26 @@ export const getResponderAnalytics = async (req, res) => {
 
         const [
             activeIncidents,
+            availableIncidents,
             myResolvedToday,
+            myActiveDeployments,
+            resolvedToday,
+            activeRiskZones,
+            reportsByBarangay,
+            criticalHighRiskZones,
         ] = await Promise.all([
-            Report.countDocuments({ ...filter, status: { $in: ['pending', 'responding', 'verified'] } }),
+            Report.countDocuments({ ...filter, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
+            Report.countDocuments({
+                ...filter,
+                $or: [
+                    { status: 'transferred' },
+                    {
+                        status: 'verified',
+                        respondedBy: null,
+                        'responders.0': { $exists: false },
+                    },
+                ],
+            }),
             Report.countDocuments({
                 ...filter,
                 status: 'resolved',
@@ -161,13 +181,63 @@ export const getResponderAnalytics = async (req, res) => {
                     { 'responders.user': responder._id },
                 ],
             }),
+            Report.countDocuments({
+                ...filter,
+                status: 'responding',
+                $or: [
+                    { respondedBy: responder._id },
+                    { 'responders.user': responder._id },
+                ],
+            }),
+            Report.countDocuments({
+                ...filter,
+                status: 'resolved',
+                resolvedAt: { $gte: startAt, $lt: endAt },
+            }),
+            HighRiskZone.countDocuments({
+                municipality: responder.assignedMunicipality,
+                isActive: true,
+            }),
+            Report.aggregate([
+                { $match: { ...filter, status: { $in: ['verified', 'resolved', 'responding'] }, barangay: { $nin: [null, ''] } } },
+                {
+                    $group: {
+                        _id: '$barangay',
+                        count: { $sum: 1 },
+                        injured: { $sum: '$casualties.injured' },
+                        fatalities: { $sum: '$casualties.fatalities' },
+                    },
+                },
+                { $sort: { count: -1 } },
+            ]),
+            HighRiskZone.find({
+                municipality: responder.assignedMunicipality,
+                isActive: true,
+                severity: { $in: RESPONDER_PRIORITY_ZONE_SEVERITIES },
+            })
+                // With the filtered values, ascending lexical order places
+                // critical before high; creation time breaks ties.
+                .sort({ severity: 1, createdAt: -1 })
+                .limit(5)
+                .select('name description type severity barangay radius coordinates'),
         ]);
 
         res.json({
             success: true,
             data: {
                 activeIncidents,
+                availableIncidents,
                 myResolvedToday,
+                myActiveDeployments,
+                resolvedToday,
+                activeRiskZones,
+                reportsByBarangay: (reportsByBarangay || []).map((item) => ({
+                    barangay: item._id,
+                    count: item.count,
+                    injured: item.injured || 0,
+                    fatalities: item.fatalities || 0,
+                })),
+                criticalHighRiskZones: criticalHighRiskZones || [],
             },
         });
     } catch (error) {

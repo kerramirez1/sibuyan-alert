@@ -104,8 +104,13 @@ describe('HomePage operational landing page', () => {
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
         lifecycleStages.forEach((stage) => {
-            expect(stage).toHaveClass('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
+            expect(stage).toHaveClass('border-gray-200', 'bg-white', 'text-gray-700');
         });
+        expect(lifecycleStages[0].querySelector('span')).toHaveClass('bg-slate-400');
+        expect(lifecycleStages[1].querySelector('span')).toHaveClass('bg-amber-500');
+        expect(lifecycleStages[2].querySelector('span')).toHaveClass('bg-blue-500');
+        expect(lifecycleStages[3].querySelector('span')).toHaveClass('bg-cyan-500');
+        expect(lifecycleStages[4].querySelector('span')).toHaveClass('bg-emerald-500');
 
         expect(screen.getAllByText('Active risk zones').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();

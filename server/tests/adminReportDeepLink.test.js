@@ -112,6 +112,7 @@ describe('municipality-scoped incident notification deep links', () => {
         await getAllReports(request, response);
 
         expect(Report.find).toHaveBeenCalledWith(expect.objectContaining({
+            municipalityName: 'Magdiwang',
             $and: expect.arrayContaining([
                 {
                     $or: [
@@ -134,5 +135,41 @@ describe('municipality-scoped incident notification deep links', () => {
         expect(queryChain.populate).toHaveBeenCalledWith('reporter', 'name isVerified');
         expect(queryChain.limit).toHaveBeenCalledWith(100);
         expect(queryChain.skip).toHaveBeenCalledWith(100);
+    });
+
+    test('filters the municipal active responder view to active lifecycle statuses', async () => {
+        const queryChain = {
+            populate: vi.fn(),
+            sort: vi.fn(),
+            limit: vi.fn(),
+            skip: vi.fn().mockResolvedValue([]),
+        };
+        queryChain.populate.mockReturnValue(queryChain);
+        queryChain.sort.mockReturnValue(queryChain);
+        queryChain.limit.mockReturnValue(queryChain);
+        Report.find.mockReturnValue(queryChain);
+        Report.countDocuments.mockResolvedValue(0);
+        const request = {
+            query: { responderView: 'municipalActive' },
+            user: {
+                _id: '64b100000000000000000099',
+                role: 'responder',
+                assignedMunicipality: 'Magdiwang',
+            },
+        };
+        const response = createResponse();
+
+        await getAllReports(request, response);
+
+        expect(Report.find).toHaveBeenCalledWith(expect.objectContaining({
+            municipalityName: 'Magdiwang',
+            status: { $in: ['verified', 'transferred', 'responding'] },
+            $and: [{
+                $or: [
+                    { municipalityName: 'Magdiwang' },
+                    { originalMunicipalityName: 'Magdiwang' },
+                ],
+            }],
+        }));
     });
 });

@@ -621,9 +621,46 @@
   animation-play-state: paused !important;
 }
 
+@keyframes zoneMarkerSelected {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(15, 118, 110, 0));
+  }
+
+  35% {
+    filter: drop-shadow(0 0 7px rgba(15, 118, 110, 0.75));
+  }
+
+  100% {
+    filter: drop-shadow(0 0 0 rgba(15, 118, 110, 0));
+  }
+}
+
+.zone-marker--selected {
+  animation: zoneMarkerSelected 1.2s ease-out 1;
+  outline: 2px solid rgba(15, 118, 110, 0.8);
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
+.report-marker,
+.zone-marker {
+  border-radius: 9999px;
+}
+
+.report-marker:focus-visible,
+.zone-marker:focus-visible,
+.map-marker--selected {
+  outline: 2px solid rgba(15, 118, 110, 0.9);
+  outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .maplibregl-map [data-map-pulse] {
     animation: none !important;
+  }
+
+  .zone-marker--selected {
+    animation: none;
   }
 }
 
@@ -905,11 +942,21 @@
   }
 }
 
-/* MapLibre Controls Responsiveness */
+/* Shared MapLibre navigation controls retain comfortable touch targets. */
+.maplibregl-ctrl-group button {
+  width: 40px;
+  height: 40px;
+}
+
+.maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
 @media (max-width: 640px) {
-  .maplibregl-ctrl-group {
-    scale: 0.9;
-    transform-origin: right bottom;
+  .maplibregl-ctrl-group button {
+    width: 44px;
+    height: 44px;
   }
 }
 

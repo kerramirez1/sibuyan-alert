@@ -1,15 +1,30 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../models/User.js', () => ({ default: {} }));
-vi.mock('../models/HighRiskZone.js', () => ({ default: {} }));
+vi.mock('../models/HighRiskZone.js', () => ({
+    default: {
+        countDocuments: vi.fn().mockResolvedValue(0),
+        find: vi.fn(() => ({
+            sort: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                    select: vi.fn().mockResolvedValue([]),
+                })),
+            })),
+        })),
+    },
+}));
 vi.mock('../models/Report.js', () => ({
     default: {
         countDocuments: vi.fn(),
+        aggregate: vi.fn().mockResolvedValue([]),
     },
 }));
 
 const { getResponderAnalytics } = await import('../controllers/analyticsController.js');
 const { default: Report } = await import('../models/Report.js');
+const { default: HighRiskZone } = await import('../models/HighRiskZone.js');
+
+let highRiskZoneSort;
 
 const createResponse = () => {
     const response = {};
@@ -22,6 +37,16 @@ describe('responder analytics municipality authorization', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         Report.countDocuments.mockResolvedValue(0);
+        Report.aggregate.mockResolvedValue([]);
+        HighRiskZone.countDocuments.mockResolvedValue(0);
+        highRiskZoneSort = vi.fn(() => ({
+            limit: vi.fn(() => ({
+                select: vi.fn().mockResolvedValue([]),
+            })),
+        }));
+        HighRiskZone.find.mockReturnValue({
+            sort: highRiskZoneSort,
+        });
     });
 
     afterEach(() => {
@@ -57,11 +82,34 @@ describe('responder analytics municipality authorization', () => {
         await getResponderAnalytics(request, response);
 
         expect(response.status).not.toHaveBeenCalled();
-        expect(Report.countDocuments).toHaveBeenCalledTimes(2);
+        expect(Report.countDocuments).toHaveBeenCalledTimes(5);
         Report.countDocuments.mock.calls.forEach(([query]) => {
             expect(query).toEqual(expect.objectContaining({ municipalityName: 'Magdiwang' }));
         });
+        expect(Report.countDocuments.mock.calls[0][0]).toEqual(expect.objectContaining({
+            status: { $in: ['verified', 'transferred', 'responding'] },
+        }));
         expect(Report.countDocuments.mock.calls[1][0]).toEqual(expect.objectContaining({
+            $or: [
+                { status: 'transferred' },
+                {
+                    status: 'verified',
+                    respondedBy: null,
+                    'responders.0': { $exists: false },
+                },
+            ],
+        }));
+        expect(HighRiskZone.countDocuments).toHaveBeenCalledWith(expect.objectContaining({
+            municipality: 'Magdiwang',
+            isActive: true,
+        }));
+        expect(HighRiskZone.find).toHaveBeenCalledWith(expect.objectContaining({
+            municipality: 'Magdiwang',
+            isActive: true,
+            severity: { $in: ['critical', 'high'] },
+        }));
+        expect(highRiskZoneSort).toHaveBeenCalledWith({ severity: 1, createdAt: -1 });
+        expect(Report.countDocuments.mock.calls[2][0]).toEqual(expect.objectContaining({
             status: 'resolved',
             resolvedAt: {
                 $gte: new Date('2026-08-03T16:00:00.000Z'),

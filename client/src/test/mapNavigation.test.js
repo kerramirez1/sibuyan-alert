@@ -1,8 +1,10 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+    focusExistingMapEntity,
     installCompassOrientationToggle,
     installCompactAttribution,
     isWithinSibuyanInteractionBounds,
+    MAP_FOCUS_CONFIG,
     MAP_FOCUS_PRESETS,
     MAP_INTERACTION_OPTIONS,
     scheduleMapFocus,
@@ -77,9 +79,18 @@ describe('installCompassOrientationToggle', () => {
 });
 
 describe('scheduleMapFocus', () => {
-    test('applies the shared delayed camera transition', () => {
-        vi.useFakeTimers();
-        const map = { stop: vi.fn(), easeTo: vi.fn() };
+    const createPointMap = () => ({
+        resize: vi.fn(),
+        stop: vi.fn(),
+        flyTo: vi.fn(),
+        jumpTo: vi.fn(),
+        once: vi.fn(),
+        off: vi.fn(),
+        isMoving: vi.fn(() => true),
+    });
+
+    test('applies the shared native camera transition without an artificial wait', () => {
+        const map = createPointMap();
 
         scheduleMapFocus(map, {
             lat: 12.4044,
@@ -88,31 +99,170 @@ describe('scheduleMapFocus', () => {
         });
 
         expect(map.stop).toHaveBeenCalledOnce();
-        expect(map.easeTo).not.toHaveBeenCalled();
-        vi.advanceTimersByTime(MAP_FOCUS_PRESETS.list.delay);
-        expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.resize).toHaveBeenCalledOnce();
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
             zoom: 16,
             pitch: 0,
             bearing: 0,
-            duration: 2200,
+            duration: MAP_FOCUS_CONFIG.duration,
         }));
-        vi.useRealTimers();
     });
 
-    test('cancels a superseded focus request before it moves the camera', () => {
-        vi.useFakeTimers();
-        const map = { stop: vi.fn(), easeTo: vi.fn() };
-        const cancel = scheduleMapFocus(map, {
+    test('does not allow legacy per-component timing overrides', () => {
+        const map = createPointMap();
+        scheduleMapFocus(map, {
             lat: 12.4044,
             lng: 122.6897,
-            ...MAP_FOCUS_PRESETS.list,
+            delay: 50,
+            duration: 600,
         });
 
-        cancel();
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+            duration: MAP_FOCUS_CONFIG.duration,
+        }));
+    });
+
+    test('keeps point coordinates at true center instead of applying panel padding', () => {
+        const map = createPointMap();
+
+        scheduleMapFocus(map, {
+            lat: 12.4044,
+            lng: 122.6897,
+            padding: { top: 16, right: 320, bottom: 16, left: 16 },
+        });
+
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.6897, 12.4044],
+        }));
+        expect(map.flyTo.mock.calls[0][0]).not.toHaveProperty('padding');
+    });
+
+    test('removes camera delay and duration for reduced-motion users', () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+        const map = createPointMap();
+
+        scheduleMapFocus(map, {
+            lat: 12.4044,
+            lng: 122.6897,
+            delay: 900,
+            duration: 2200,
+        });
         vi.runAllTimers();
-        expect(map.easeTo).not.toHaveBeenCalled();
+
+        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.6897, 12.4044],
+        }));
+        expect(map.flyTo).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
         vi.useRealTimers();
+    });
+});
+
+describe('focusExistingMapEntity', () => {
+    const createLocateMap = () => {
+        const handlers = new Map();
+        return {
+            handlers,
+            map: {
+                resize: vi.fn(),
+                stop: vi.fn(),
+                flyTo: vi.fn(),
+                fitBounds: vi.fn(),
+                jumpTo: vi.fn(),
+                isMoving: vi.fn(() => true),
+                once: vi.fn((eventName, handler) => handlers.set(eventName, handler)),
+                off: vi.fn((eventName, handler) => {
+                    if (handlers.get(eventName) === handler) handlers.delete(eventName);
+                }),
+            },
+        };
+    };
+
+    test('flies the mounted map from its current camera and completes on moveend', () => {
+        const { handlers, map } = createLocateMap();
+        const onComplete = vi.fn();
+
+        focusExistingMapEntity(map, {
+            type: 'incident',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+        }, { reducedMotion: false, onComplete });
+
+        expect(map.resize).toHaveBeenCalledOnce();
+        expect(map.stop).toHaveBeenCalledOnce();
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.6897, 12.4044],
+            zoom: 16,
+            duration: MAP_FOCUS_CONFIG.duration,
+            curve: MAP_FOCUS_CONFIG.curve,
+        }));
+        expect(map.jumpTo).not.toHaveBeenCalled();
+        expect(onComplete).not.toHaveBeenCalled();
+
+        handlers.get('moveend')();
+        expect(onComplete).toHaveBeenCalledOnce();
+    });
+
+    test('fits the whole risk-zone geometry instead of applying a point-only zoom', () => {
+        const { handlers, map } = createLocateMap();
+        const bounds = [[122.68, 12.39], [122.70, 12.42]];
+        const onComplete = vi.fn();
+
+        focusExistingMapEntity(map, {
+            type: 'risk-zone',
+            coordinates: { lat: 12.405, lng: 122.69 },
+            bounds,
+        }, { padding: 48, reducedMotion: false, onComplete });
+
+        expect(map.fitBounds).toHaveBeenCalledWith(bounds, expect.objectContaining({
+            padding: 48,
+            maxZoom: 16,
+            duration: MAP_FOCUS_CONFIG.duration,
+        }));
+        expect(map.flyTo).not.toHaveBeenCalled();
+        handlers.get('moveend')();
+        expect(onComplete).toHaveBeenCalledOnce();
+    });
+
+    test('lets the latest focus replace an in-progress request', () => {
+        const { handlers, map } = createLocateMap();
+        const firstComplete = vi.fn();
+        const latestComplete = vi.fn();
+
+        const cancelFirst = focusExistingMapEntity(map, {
+            type: 'incident',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+        }, { reducedMotion: false, onComplete: firstComplete });
+        cancelFirst();
+        focusExistingMapEntity(map, {
+            type: 'incident',
+            coordinates: { lat: 12.367, lng: 122.684 },
+        }, { reducedMotion: false, onComplete: latestComplete });
+
+        expect(map.stop).toHaveBeenCalledTimes(2);
+        expect(map.flyTo).toHaveBeenLastCalledWith(expect.objectContaining({
+            center: [122.684, 12.367],
+        }));
+        handlers.get('moveend')();
+        expect(firstComplete).not.toHaveBeenCalled();
+        expect(latestComplete).toHaveBeenCalledOnce();
+    });
+
+    test('uses an immediate in-place move for reduced-motion users', () => {
+        const { map } = createLocateMap();
+        const onComplete = vi.fn();
+
+        focusExistingMapEntity(map, {
+            type: 'incident',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+        }, { reducedMotion: true, onComplete });
+
+        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.6897, 12.4044],
+        }));
+        expect(map.flyTo).not.toHaveBeenCalled();
+        expect(onComplete).toHaveBeenCalledOnce();
     });
 });
 

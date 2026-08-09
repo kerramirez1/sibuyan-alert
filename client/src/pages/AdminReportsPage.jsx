@@ -36,6 +36,7 @@ const AdminReportsPage = () => {
 
     const reportState = useIncidentReports({
         subscribe,
+        role: user?.role,
         responderView,
         initialStatus,
         focusedReportId,
@@ -126,17 +127,10 @@ const AdminReportsPage = () => {
         reportState.setSelectedReport(null);
         const params = new URLSearchParams({
             view: 'map',
-            lat: String(coordinates.lat),
-            lng: String(coordinates.lng),
-            zoom: '16',
-            pitch: '0',
-            bearing: '0',
-            delay: '500',
-            duration: '1600',
-            focus: `${report._id}-${Date.now()}`,
             report: String(report._id),
-            returnView: RESPONDER_QUEUE_VIEWS[responderView] || '',
         });
+        const returnView = RESPONDER_QUEUE_VIEWS[responderView];
+        if (returnView) params.set('returnView', returnView);
         navigate(`/dashboard?${params.toString()}`);
     }, [navigate, reportState.setSelectedReport, responderView]);
 
@@ -156,6 +150,7 @@ const AdminReportsPage = () => {
                 onResponderViewChange={changeResponderView}
                 stats={reportState.stats}
                 resultCount={reportState.pagination.total}
+                lastUpdatedAt={reportState.lastUpdatedAt}
                 status={reportState.status}
                 setStatus={reportState.setStatus}
                 searchDraft={reportState.searchDraft}
@@ -178,6 +173,7 @@ const AdminReportsPage = () => {
                 responderView={responderView}
                 pagination={reportState.pagination}
                 onPageChange={reportState.setPage}
+                selectedReportId={reportState.selectedReport?._id}
             />
 
             <IncidentDetailsDrawer

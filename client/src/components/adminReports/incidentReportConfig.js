@@ -25,12 +25,21 @@ export const SEVERITY_STYLES = {
     minor: 'border-emerald-200 bg-emerald-50 text-emerald-800',
 };
 
+export const SEVERITY_INDICATOR_STYLES = Object.freeze({
+    critical: Object.freeze({ dot: 'bg-red-600', text: 'text-red-700 dark:text-red-400' }),
+    severe: Object.freeze({ dot: 'bg-orange-600', text: 'text-orange-700 dark:text-orange-400' }),
+    moderate: Object.freeze({ dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400' }),
+    minor: Object.freeze({ dot: 'bg-emerald-600', text: 'text-emerald-700 dark:text-emerald-400' }),
+});
+
 export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
+export const RESPONDER_VISIBLE_STATUSES = ['verified', 'transferred', 'responding', 'resolved'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const RESPONDER_QUEUE_VIEWS = Object.freeze({
     available: 'dispatch-queue',
+    municipalActive: 'active-incidents',
     active: 'active-responses',
     history: 'response-history',
     all: '',
@@ -116,7 +125,9 @@ export const getIncidentCapabilities = (user, report) => {
 export const getRoleStatuses = (role) => (
     ADMIN_ROLES.includes(role)
         ? INCIDENT_LIFECYCLE
-        : INCIDENT_LIFECYCLE.filter((status) => status !== 'rejected')
+        : role === 'responder'
+            ? RESPONDER_VISIBLE_STATUSES
+            : INCIDENT_LIFECYCLE.filter((status) => status !== 'rejected')
 );
 
 export const getIncidentDate = (report) => report?.incidentTime || report?.accidentTime;

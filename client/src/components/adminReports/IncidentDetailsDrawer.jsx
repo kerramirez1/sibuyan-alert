@@ -10,6 +10,7 @@ import {
 import MapView from '../map/MapView';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import { IncidentActionButtons, IncidentStatusBadge } from './IncidentQueue';
+import ResponderIncidentInspector from './ResponderIncidentInspector';
 import {
     getAgencyLabel,
     getCoordinates,
@@ -38,7 +39,7 @@ const DetailItem = ({ label, children }) => (
     </div>
 );
 
-const IncidentDetailsDrawer = ({
+const AdministrativeIncidentDetailsDrawer = ({
     report,
     user,
     actions,
@@ -257,6 +258,8 @@ const IncidentDetailsDrawer = ({
                                 <MapView
                                     reports={[report]}
                                     showPending
+                                    filterMode={user?.role === 'municipal_admin' ? 'review' : 'response'}
+                                    viewerRole={user?.role || 'guest'}
                                     focusLocation={{ ...coordinates, zoom: 16 }}
                                     className="h-full w-full"
                                 />
@@ -324,5 +327,11 @@ const IncidentDetailsDrawer = ({
         </div>
     );
 };
+
+const IncidentDetailsDrawer = (props) => (
+    props.user?.role === 'responder'
+        ? <ResponderIncidentInspector {...props} />
+        : <AdministrativeIncidentDetailsDrawer {...props} />
+);
 
 export default IncidentDetailsDrawer;

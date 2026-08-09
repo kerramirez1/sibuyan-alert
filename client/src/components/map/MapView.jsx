@@ -7,18 +7,27 @@ import toast from '../../utils/appToast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {
     getMapCoordinates,
-    getVisibleMapReports,
+    getFilteredMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import {
     installCompassOrientationToggle,
     installCompactAttribution,
     isWithinSibuyanInteractionBounds,
-    MAP_FOCUS_PRESETS,
+    focusExistingMapEntity,
+    MAP_FOCUS_CONFIG,
     MAP_INTERACTION_OPTIONS,
     scheduleMapFocus,
 } from '../../utils/mapNavigation';
 import { getMapPerformanceProfile } from '../../utils/mapPerformance';
+import {
+    buildRiskZoneFeatureCollection,
+    getRiskZoneBounds,
+    RISK_ZONE_FILL_LAYER_ID,
+    RISK_ZONE_MIN_ZOOM,
+    RISK_ZONE_OUTLINE_LAYER_ID,
+    RISK_ZONE_SOURCE_ID,
+} from '../../utils/riskZoneVisualization';
 import {
     OPERATIONAL_MAX_ZOOM,
     PMTILES_SOURCE_ID,
@@ -27,7 +36,7 @@ import {
 import MapIncidentDetails from './MapIncidentDetails';
 import MapOverlayPanel from './MapOverlayPanel';
 import MapLegend from './MapLegend';
-import { MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapRiskTypeConfig, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -66,15 +75,33 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
+const MAP_TOOL_BUTTON_CLASS = 'flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors duration-150 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white';
+
+const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
+    <button
+        type="button"
+        aria-label={label}
+        title={label}
+        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? 'text-brand-700 dark:text-emerald-400' : ''}`}
+        {...props}
+    >
+        <Icon className="h-5 w-5" aria-hidden="true" />
+    </button>
+);
+
 const MapView = ({
     reports = [],
     highRiskZones = [],
+    locateRequest = null,
+    externalContextPanelOpen = false,
+    onEntityInspectorOpen = null,
     showPending = false,
     onLocationSelect = null,
     selectedLocation = null,
     className = '',
     filterCategory = null,
     filterStatus = null,
+    filterMode = 'public',
     focusLocation = null,
     enable3D = true,
     gpsAccuracy = null,
@@ -85,6 +112,7 @@ const MapView = ({
     canResolveReport = null,
     onResolveReport = null,
     viewerRole = 'guest',
+    showDataState = false,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -92,6 +120,7 @@ const MapView = ({
     const selectedLocationRef = useRef(selectedLocation);
     const reportMarkersRef = useRef([]);
     const zoneMarkersRef = useRef([]);
+    const selectedOperationalMarkerRef = useRef(null);
     const popupRef = useRef(null);
     const markerFocusCleanupRef = useRef(null);
     const streetLayersRef = useRef({ all: [], active: [], fallback: null });
@@ -105,32 +134,30 @@ const MapView = ({
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
+    const onEntityInspectorOpenRef = useRef(onEntityInspectorOpen);
+    const municipalityMenuRef = useRef(null);
     const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
+    const effectiveLocateRequest = useMemo(() => {
+        if (locateRequest?.entity) return locateRequest;
+        const entity = focusLocation?.entity || focusLocation?.zone;
+        if (!entity) return null;
+
+        return {
+            type: focusLocation.type || 'risk-zone',
+            id: String(focusLocation.entityId || entity._id || entity.id || ''),
+            entity,
+            requestId: focusLocation.requestId,
+        };
+    }, [focusLocation, locateRequest]);
     const effective3D = enable3D && performanceProfile.cameraPitchEnabled;
     const filteredReports = useMemo(() => {
-        const displayReports = getVisibleMapReports(reports, { includePending: showPending });
-        const categoryFilteredReports = filterCategory
-            ? displayReports.filter((report) => report.incidentCategory === filterCategory)
-            : displayReports;
-        const isReportAssigned = (report) => (
-            (Array.isArray(report?.responders) && report.responders.length > 0)
-            || Boolean(report?.respondedBy)
-        );
-
-        if (filterStatus === 'pending') {
-            return categoryFilteredReports.filter((report) => (
-                report.status === 'transferred'
-                || (['pending', 'verified'].includes(report.status) && !isReportAssigned(report))
-            ));
-        }
-        if (filterStatus === 'responding') {
-            return categoryFilteredReports.filter((report) => (
-                report.status === 'responding'
-                || (report.status === 'pending' && isReportAssigned(report))
-            ));
-        }
-        return categoryFilteredReports;
-    }, [filterCategory, filterStatus, reports, showPending]);
+        return getFilteredMapReports(reports, {
+            includePending: showPending,
+            category: filterCategory,
+            statusFilter: filterStatus,
+            filterMode,
+        });
+    }, [filterCategory, filterMode, filterStatus, reports, showPending]);
     const hasGroupedReports = useMemo(
         () => groupReportsByMapLocation(filteredReports).some((group) => group.reports.length > 1),
         [filteredReports],
@@ -141,12 +168,49 @@ const MapView = ({
     }, [onLocationSelect]);
 
     useEffect(() => {
+        onEntityInspectorOpenRef.current = onEntityInspectorOpen;
+    }, [onEntityInspectorOpen]);
+
+    useEffect(() => {
         selectedLocationRef.current = selectedLocation;
     }, [selectedLocation]);
 
     useEffect(() => {
         mapStyleRef.current = mapStyle;
     }, [mapStyle]);
+
+    useEffect(() => {
+        if (!showMuniMenu) return undefined;
+
+        const handlePointerDown = (event) => {
+            if (!municipalityMenuRef.current?.contains(event.target)) setShowMuniMenu(false);
+        };
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') setShowMuniMenu(false);
+        };
+
+        document.addEventListener('pointerdown', handlePointerDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showMuniMenu]);
+
+    const selectOperationalMarker = useCallback((element) => {
+        selectedOperationalMarkerRef.current?.classList.remove('map-marker--selected');
+        selectedOperationalMarkerRef.current = element || null;
+        element?.classList.add('map-marker--selected');
+    }, []);
+
+    const closeMapSelection = useCallback(() => {
+        selectOperationalMarker(null);
+        setMapModal(null);
+    }, [selectOperationalMarker]);
+
+    useEffect(() => {
+        if (externalContextPanelOpen) closeMapSelection();
+    }, [closeMapSelection, externalContextPanelOpen]);
 
     useEffect(() => {
         let active = true;
@@ -274,6 +338,32 @@ const MapView = ({
         });
 
         mapInstance.on('load', () => {
+            mapInstance.addSource(RISK_ZONE_SOURCE_ID, {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] },
+            });
+            mapInstance.addLayer({
+                id: RISK_ZONE_FILL_LAYER_ID,
+                type: 'fill',
+                source: RISK_ZONE_SOURCE_ID,
+                minzoom: RISK_ZONE_MIN_ZOOM,
+                paint: {
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': 0.16,
+                },
+            });
+            mapInstance.addLayer({
+                id: RISK_ZONE_OUTLINE_LAYER_ID,
+                type: 'line',
+                source: RISK_ZONE_SOURCE_ID,
+                minzoom: RISK_ZONE_MIN_ZOOM,
+                paint: {
+                    'line-color': ['get', 'color'],
+                    'line-width': 2,
+                    'line-opacity': 0.8,
+                },
+            });
+
             // Add user location layer (Blue Dot)
             mapInstance.addSource('user-location', {
                 type: 'geojson',
@@ -335,6 +425,7 @@ const MapView = ({
             // propagation themselves. A canvas click therefore always means map
             // selection and no duplicate WebGL hit layer is required.
             popupRef.current.remove();
+            closeMapSelection();
             if (onLocationSelectRef.current) {
                 const location = { lat: e.lngLat.lat, lng: e.lngLat.lng };
                 if (!isWithinSibuyanInteractionBounds(location)) {
@@ -355,7 +446,7 @@ const MapView = ({
             mapInstance.remove();
             mapInstanceRef.current = null;
         };
-    }, [effective3D, mapProvider, performanceProfile]);
+    }, [closeMapSelection, effective3D, mapProvider, performanceProfile]);
 
     // Handle map style switching
     useEffect(() => {
@@ -386,6 +477,18 @@ const MapView = ({
         }
     }, [mapStyle, mapReady]);
 
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const zonesWithRealCoverage = highRiskZones.filter((zone) => (
+            Number.isFinite(Number(zone?.radius)) && Number(zone.radius) > 0
+        ));
+        const source = mapInstanceRef.current.getSource(RISK_ZONE_SOURCE_ID);
+        source?.setData(buildRiskZoneFeatureCollection(zonesWithRealCoverage, {
+            points: performanceProfile.riskZonePolygonPoints,
+        }));
+    }, [highRiskZones, mapReady, performanceProfile.riskZonePolygonPoints]);
+
     // Update data layers
     useEffect(() => {
         if (!mapReady || !mapInstanceRef.current) return;
@@ -398,8 +501,11 @@ const MapView = ({
         };
 
         // Clear existing report markers
-        reportMarkersRef.current.forEach(marker => marker.remove());
+        reportMarkersRef.current.forEach(({ marker }) => marker.remove());
         reportMarkersRef.current = [];
+        if (selectedOperationalMarkerRef.current?.classList.contains('report-marker')) {
+            selectedOperationalMarkerRef.current = null;
+        }
 
         // Co-located reports share one marker with a count badge so no incident is
         // silently hidden underneath another marker at the same coordinates.
@@ -494,11 +600,17 @@ const MapView = ({
                 // Open fixed modal instead of inline map popup
                 const openMarker = (e) => {
                     e.stopPropagation();
+                    onEntityInspectorOpenRef.current?.();
+                    selectOperationalMarker(el);
                     markerFocusCleanupRef.current?.();
-                    markerFocusCleanupRef.current = scheduleMapFocus(
-                        map,
-                        { ...coords, ...MAP_FOCUS_PRESETS.marker },
-                    );
+                    markerFocusCleanupRef.current = focusExistingMapEntity(map, {
+                        type: 'incident',
+                        coordinates: coords,
+                    }, {
+                        duration: performanceProfile.navigationDuration === 0
+                            ? 0
+                            : MAP_FOCUS_CONFIG.duration,
+                    });
                     if (groupedReports.length > 1) {
                         setMapModal({ type: 'reportGroup', data: groupedReports });
                         return;
@@ -514,10 +626,14 @@ const MapView = ({
                 });
 
 
-                reportMarkersRef.current.push(marker);
+                reportMarkersRef.current.push({
+                    ids: groupedReports.map((item) => String(item._id ?? item.id ?? '')).filter(Boolean),
+                    marker,
+                    element: el,
+                });
             });
 
-    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations]);
+    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations, selectOperationalMarker]);
 
     // Risk zones use focused HTML pins so the imagery remains unobstructed.
     useEffect(() => {
@@ -526,8 +642,11 @@ const MapView = ({
         const map = mapInstanceRef.current;
 
         // Clear existing zone markers
-        zoneMarkersRef.current.forEach(marker => marker.remove());
+        zoneMarkersRef.current.forEach(({ marker }) => marker.remove());
         zoneMarkersRef.current = [];
+        if (selectedOperationalMarkerRef.current?.classList.contains('zone-marker')) {
+            selectedOperationalMarkerRef.current = null;
+        }
 
         // Create unique HTML markers for high-risk zones (warning triangle style)
         highRiskZones.forEach(zone => {
@@ -560,6 +679,9 @@ const MapView = ({
             `;
             el.style.cursor = 'pointer';
             el.title = zone.name;
+            el.setAttribute('role', 'button');
+            el.setAttribute('tabindex', '0');
+            el.setAttribute('aria-label', `${zone.name || 'Risk zone'} map marker`);
 
             const marker = new maplibregl.Marker({
                 ...OPERATIONAL_MARKER_VISIBILITY,
@@ -570,24 +692,84 @@ const MapView = ({
                     .addTo(map);
 
             // Open fixed modal instead of inline map popup
-            el.addEventListener('click', (e) => {
+            const openMarker = (e) => {
                 e.stopPropagation();
+                onEntityInspectorOpenRef.current?.();
+                selectOperationalMarker(el);
                 markerFocusCleanupRef.current?.();
-                markerFocusCleanupRef.current = scheduleMapFocus(
-                    map,
-                    { ...coordinates, ...MAP_FOCUS_PRESETS.marker },
-                );
+                markerFocusCleanupRef.current = focusExistingMapEntity(map, {
+                    type: 'risk-zone',
+                    coordinates,
+                    bounds: getRiskZoneBounds(zone, {
+                        points: performanceProfile.riskZonePolygonPoints,
+                    }),
+                }, {
+                    duration: performanceProfile.navigationDuration === 0
+                        ? 0
+                        : MAP_FOCUS_CONFIG.duration,
+                    padding: performanceProfile.compactViewport
+                        ? MAP_FOCUS_CONFIG.riskZonePadding.compact
+                        : MAP_FOCUS_CONFIG.riskZonePadding.default,
+                });
                 setMapModal({
                     type: 'zone',
                     data: zone,
                 });
+            };
+            el.addEventListener('click', openMarker);
+            el.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openMarker(event);
+                }
             });
 
 
-            zoneMarkersRef.current.push(marker);
+            zoneMarkersRef.current.push({
+                id: String(zone._id ?? zone.id ?? ''),
+                marker,
+                element: el,
+            });
         });
 
-    }, [highRiskZones, mapReady]);
+    }, [highRiskZones, mapReady, performanceProfile, selectOperationalMarker]);
+
+    // Entity-based in-page and deep-link requests share one MapLibre camera path.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current || !effectiveLocateRequest?.entity) return undefined;
+
+        const map = mapInstanceRef.current;
+        const coordinates = getMapCoordinates(effectiveLocateRequest.entity);
+        if (!coordinates) return undefined;
+
+        const entityId = String(effectiveLocateRequest.id || '');
+        const revealLocatedEntity = () => {
+            const markerEntry = effectiveLocateRequest.type === 'risk-zone'
+                ? zoneMarkersRef.current.find(({ id }) => id === entityId)
+                : reportMarkersRef.current.find(({ ids }) => ids.includes(entityId));
+            if (markerEntry) selectOperationalMarker(markerEntry.element);
+        };
+
+        selectOperationalMarker(null);
+        const bounds = effectiveLocateRequest.type === 'risk-zone'
+            ? getRiskZoneBounds(effectiveLocateRequest.entity, {
+                points: performanceProfile.riskZonePolygonPoints,
+            })
+            : null;
+
+        return focusExistingMapEntity(map, {
+            type: effectiveLocateRequest.type,
+            coordinates,
+            bounds,
+        }, {
+            duration: performanceProfile.navigationDuration === 0 ? 0 : MAP_FOCUS_CONFIG.duration,
+            padding: performanceProfile.compactViewport
+                ? MAP_FOCUS_CONFIG.riskZonePadding.compact
+                : MAP_FOCUS_CONFIG.riskZonePadding.default,
+            zoom: MAP_FOCUS_CONFIG.pointZoom,
+            onComplete: revealLocatedEntity,
+        });
+    }, [effectiveLocateRequest, mapReady, performanceProfile, selectOperationalMarker]);
 
     // The draggable selected pin has its own update path. Moving it must not
     // recreate operational incident or high-risk-zone markers.
@@ -690,15 +872,15 @@ const MapView = ({
 
     // Handle focus location updates (for dynamic changes)
     useEffect(() => {
-        if (!mapInstanceRef.current || !focusLocation || !mapReady) return;
+        if (!mapInstanceRef.current || !focusLocation || !mapReady || effectiveLocateRequest) return undefined;
 
         return scheduleMapFocus(mapInstanceRef.current, focusLocation, {
-            zoom: 16,
-            pitch: effective3D ? 45 : 0,
-            bearing: effective3D ? -17 : 0,
-            duration: performanceProfile.navigationDuration,
+            zoom: MAP_FOCUS_CONFIG.pointZoom,
+            duration: performanceProfile.navigationDuration === 0
+                ? 0
+                : MAP_FOCUS_CONFIG.duration,
         });
-    }, [focusLocation, effective3D, mapReady, performanceProfile.navigationDuration]);
+    }, [effectiveLocateRequest, focusLocation, mapReady, performanceProfile.navigationDuration]);
 
     // Navigation handlers
     const recenterMap = () => {
@@ -730,30 +912,13 @@ const MapView = ({
         return MAP_STATUS_CONFIG[status]?.badge || 'border-gray-200 bg-gray-50 text-gray-700';
     };
 
-    const handleLocateModalItem = (item) => {
-        const coords = item?.coordinates;
-        if (!coords || !mapInstanceRef.current) return;
-        const lat = Number(coords.lat);
-        const lng = Number(coords.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-        setMapModal(null);
-        mapInstanceRef.current.flyTo({
-            center: [lng, lat],
-            zoom: OPERATIONAL_MAX_ZOOM,
-            pitch: effective3D ? 45 : 0,
-            bearing: effective3D ? -17 : 0,
-            essential: true,
-            duration: performanceProfile.navigationDuration,
-        });
-    };
-
     const handleRespondFromModal = async (report) => {
         if (!onRespondToReport) return;
         setActionLoading(true);
         const result = await onRespondToReport(report);
         if (result?.ok) {
             toast.success(result.message || 'Responder assigned');
-            setMapModal(null);
+            closeMapSelection();
         } else {
             toast.error(result?.message || 'Failed to respond');
         }
@@ -766,19 +931,35 @@ const MapView = ({
         const result = await onResolveReport(report);
         if (result?.ok) {
             toast.success(result.message || 'Incident resolved');
-            setMapModal(null);
+            closeMapSelection();
         } else {
             toast.error(result?.message || 'Failed to resolve');
         }
         setActionLoading(false);
     };
 
+    const selectedZoneCoordinates = mapModal?.type === 'zone'
+        ? getMapCoordinates(mapModal.data)
+        : null;
+
     return (
-        <div className={`relative isolate min-h-0 overflow-hidden rounded-2xl ${className}`}>
+        <div className={`relative isolate min-h-0 overflow-hidden rounded-lg ${className}`}>
             <div
                 ref={mapContainerRef}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
+
+            {!mapReady && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-100 text-sm font-medium text-gray-600 dark:bg-gray-900 dark:text-gray-300" role="status">
+                    Preparing map&hellip;
+                </div>
+            )}
+
+            {mapReady && showDataState && filteredReports.length === 0 && (
+                <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[calc(100%-5rem)] rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
+                    {filterStatus ? 'No incidents match the selected filter.' : 'No active incidents are currently visible.'}
+                </div>
+            )}
 
             {mapModal && (
                 <MapOverlayPanel
@@ -787,8 +968,10 @@ const MapView = ({
                         : mapModal.type === 'reportGroup'
                             ? 'Incidents at this location'
                             : 'Incident details'}
-                    onClose={() => setMapModal(null)}
+                    onClose={closeMapSelection}
+                    closeLabel={mapModal.type === 'zone' ? 'Close risk zone details' : 'Close incident details'}
                     size={mapModal.type === 'zone' ? 'md' : 'lg'}
+                    presentation="contextual"
                 >
 
                         {mapModal.type === 'report' && (
@@ -798,7 +981,6 @@ const MapView = ({
                                 canRespond={mapModal.canRespond}
                                 canResolve={mapModal.canResolve}
                                 actionLoading={actionLoading}
-                                onLocate={handleLocateModalItem}
                                 onRespond={handleRespondFromModal}
                                 onResolve={handleResolveFromModal}
                             />
@@ -835,79 +1017,70 @@ const MapView = ({
                         )}
 
                         {mapModal.type === 'zone' && (
-                            <div className="px-5 py-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className={`text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${SEVERITY_CONFIG[mapModal.data.severity] || SEVERITY_CONFIG.low}`}>
-                                        {mapModal.data.severity}
+                            <div className="px-4 py-4 sm:px-5">
+                                <div className="mb-3 flex flex-wrap items-center gap-2">
+                                    <span className={`rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wider ${SEVERITY_CONFIG[mapModal.data.severity] || SEVERITY_CONFIG.low}`}>
+                                        {mapModal.data.severity || 'Low'}
                                     </span>
-                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{mapModal.data.municipality}</span>
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{mapModal.data.municipality || mapModal.data.municipalityName || 'Sibuyan Island'}</span>
                                 </div>
-                                <h4 className="text-xl font-display font-bold text-gray-900">{mapModal.data.name}</h4>
-                                <p className="text-gray-700 mt-3 text-sm leading-relaxed line-clamp-3">{mapModal.data.description || 'No description provided.'}</p>
-                                <div className="grid grid-cols-2 gap-3 mt-4">
-                                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Type</p>
-                                        <p className="text-sm font-semibold text-gray-900 mt-1">{mapModal.data.type?.replace(/_/g, ' ') || 'N/A'}</p>
+                                <h4 className="text-xl font-display font-bold text-gray-950 dark:text-white">{mapModal.data.name || 'High-risk zone'}</h4>
+                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{mapModal.data.description || 'No description provided.'}</p>
+                                <dl className="mt-4 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                                    <div className="flex items-center justify-between gap-4 py-3">
+                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Hazard type</dt>
+                                        <dd className="text-right text-sm font-semibold text-gray-900 dark:text-white">{getMapRiskTypeConfig(mapModal.data.type).label}</dd>
                                     </div>
-                                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Radius</p>
-                                        <p className="text-sm font-semibold text-gray-900 mt-1">{mapModal.data.radius}m</p>
+                                    <div className="flex items-center justify-between gap-4 py-3">
+                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Coverage</dt>
+                                        <dd className="text-right text-sm font-semibold text-gray-900 dark:text-white">{Number.isFinite(Number(mapModal.data.radius)) ? `${Number(mapModal.data.radius)} m radius` : 'Not specified'}</dd>
                                     </div>
-                                </div>
-                                {mapModal.data.coordinates?.lat && mapModal.data.coordinates?.lng && (
-                                    <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-100">
-                                        <iframe
-                                            title={`Zone preview map - ${mapModal.data.name || 'High Risk Zone'}`}
-                                            src={`https://maps.google.com/maps?q=${mapModal.data.coordinates.lat},${mapModal.data.coordinates.lng}&z=15&output=embed`}
-                                            className="w-full h-32"
-                                            loading="lazy"
-                                            referrerPolicy="no-referrer-when-downgrade"
-                                        />
-                                    </div>
+                                </dl>
+                                {selectedZoneCoordinates && (
+                                    <a
+                                        href={`https://www.google.com/maps?q=${selectedZoneCoordinates.lat},${selectedZoneCoordinates.lng}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
+                                    >
+                                        Open in Google Maps
+                                    </a>
                                 )}
-                                <a
-                                    href={`https://www.google.com/maps?q=${mapModal.data.coordinates?.lat},${mapModal.data.coordinates?.lng}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full mt-5 px-4 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white font-bold hover:from-red-700 hover:to-rose-600 transition-colors block text-center"
-                                >
-                                    Locate on Map
-                                </a>
                             </div>
                         )}
                 </MapOverlayPanel>
             )}
 
             {/* Controls */}
-            <div className="mobile-sidebar-hide absolute bottom-6 right-3 sm:bottom-4 sm:right-4 z-20 flex flex-col gap-2 pointer-events-auto">
-                {/* Map Style Toggle Button */}
-                <button
+            <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-3 right-3 z-20 flex flex-col gap-2 sm:bottom-4 sm:right-4" role="group" aria-label="Map tools">
+                <MapToolButton
+                    label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
+                    icon={HiOutlineMap}
+                    active={mapStyle === 'streets'}
                     onClick={() => setMapStyle(prev => prev === 'satellite' ? 'streets' : 'satellite')}
-                    className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-100"
-                    title={mapStyle === 'satellite' ? "Switch to Street Map" : "Switch to Satellite"}
-                >
-                    <HiOutlineMap className={`w-4 h-4 sm:w-5 sm:h-5 ${mapStyle === 'streets' ? 'text-blue-600' : 'text-gray-600'}`} />
-                </button>
+                    aria-pressed={mapStyle === 'streets'}
+                />
 
-                <div className="relative">
-                    <button
+                <div ref={municipalityMenuRef} className="relative">
+                    <MapToolButton
+                        label="Choose municipality"
+                        icon={HiOutlineOfficeBuilding}
                         onClick={() => setShowMuniMenu(!showMuniMenu)}
-                        className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-100"
-                        title="Go to Municipality"
-                    >
-                        <HiOutlineOfficeBuilding className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                    </button>
+                        aria-expanded={showMuniMenu}
+                        aria-controls="municipality-map-menu"
+                    />
                     {showMuniMenu && (
                         <motion.div
+                            id="municipality-map-menu"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="absolute bottom-12 right-0 bg-white rounded-xl shadow-lg p-2 min-w-[150px] border border-gray-100"
+                            className="absolute bottom-12 right-0 min-w-[170px] rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
                         >
                             {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
                                 <button
                                     key={key}
                                     onClick={() => goToMunicipality(muni.center)}
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="min-h-10 w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     {muni.name}
                                 </button>
@@ -915,18 +1088,17 @@ const MapView = ({
                         </motion.div>
                     )}
                 </div>
-                <button
+                <MapToolButton
+                    label="Reset map view"
+                    icon={HiOutlineLocationMarker}
                     onClick={recenterMap}
-                    className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-100"
-                    title="Center on Sibuyan"
-                >
-                    <HiOutlineLocationMarker className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                </button>
+                />
             </div>
 
             <MapLegend
                 showPending={showPending}
                 filterStatus={filterStatus}
+                filterMode={filterMode}
                 hasGroupedReports={hasGroupedReports}
             />
         </div>

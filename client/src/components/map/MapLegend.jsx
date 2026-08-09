@@ -80,12 +80,12 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false })
     </div>
 );
 
-const MapLegend = ({ showPending = false, filterStatus = null, hasGroupedReports = false }) => {
+const MapLegend = ({ showPending = false, filterStatus = null, filterMode = 'public', hasGroupedReports = false }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const popoverId = useId();
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
-    const statusKeys = getMapLegendStatusKeys({ showPending, filterStatus });
+    const statusKeys = getMapLegendStatusKeys({ showPending, filterStatus, filterMode });
 
     useEffect(() => {
         if (!mobileOpen) return undefined;
@@ -109,7 +109,7 @@ const MapLegend = ({ showPending = false, filterStatus = null, hasGroupedReports
 
     useEffect(() => {
         setMobileOpen(false);
-    }, [filterStatus, showPending]);
+    }, [filterMode, filterStatus, showPending]);
 
     return (
         <>

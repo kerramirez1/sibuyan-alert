@@ -28,20 +28,34 @@ export const MAP_INTERACTION_OPTIONS = Object.freeze({
     cooperativeGestures: false,
 });
 
+export const MAP_FOCUS_CONFIG = Object.freeze({
+    duration: 3000,
+    pointZoom: 16,
+    bearing: 0,
+    pitch: 0,
+    curve: 1.2,
+    riskZonePadding: Object.freeze({
+        compact: 24,
+        default: 48,
+    }),
+});
+
+// Preserve the existing preset API for coordinate-driven map inputs while
+// keeping every standard focus action on one camera configuration.
 export const MAP_FOCUS_PRESETS = Object.freeze({
     list: Object.freeze({
-        zoom: 16,
-        pitch: 0,
-        bearing: 0,
-        delay: 900,
-        duration: 2200,
+        zoom: MAP_FOCUS_CONFIG.pointZoom,
+        pitch: MAP_FOCUS_CONFIG.pitch,
+        bearing: MAP_FOCUS_CONFIG.bearing,
+        delay: 0,
+        duration: MAP_FOCUS_CONFIG.duration,
     }),
     marker: Object.freeze({
-        zoom: 16,
-        pitch: 0,
-        bearing: 0,
+        zoom: MAP_FOCUS_CONFIG.pointZoom,
+        pitch: MAP_FOCUS_CONFIG.pitch,
+        bearing: MAP_FOCUS_CONFIG.bearing,
         delay: 0,
-        duration: 1400,
+        duration: MAP_FOCUS_CONFIG.duration,
     }),
 });
 
@@ -61,9 +75,98 @@ export const mapFocusEasing = (progress) => (
         : 1 - Math.pow(-2 * progress + 2, 3) / 2
 );
 
+const hasValidBounds = (bounds) => (
+    Array.isArray(bounds)
+    && bounds.length === 2
+    && bounds.every((corner) => (
+        Array.isArray(corner)
+        && corner.length === 2
+        && corner.every((value) => Number.isFinite(Number(value)))
+    ))
+);
+
 /**
- * Schedules one interruptible, deterministic camera transition. Callers should
- * invoke the returned cleanup before scheduling a replacement or unmounting.
+ * Moves the already-mounted map from its current camera to an entity.
+ * The returned cleanup detaches only this request's completion listener so a
+ * later Locate action can safely replace an in-progress flight.
+ */
+export const focusExistingMapEntity = (map, entityFocus, options = {}) => {
+    if (!map || !entityFocus) return () => {};
+
+    const lat = Number(entityFocus.coordinates?.lat);
+    const lng = Number(entityFocus.coordinates?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => {};
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => {};
+
+    const prefersReducedMotion = options.reducedMotion
+        ?? globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    const duration = prefersReducedMotion
+        ? 0
+        : Math.max(0, asFiniteNumber(options.duration, MAP_FOCUS_CONFIG.duration));
+    const zoom = asFiniteNumber(options.zoom, MAP_FOCUS_CONFIG.pointZoom);
+    const riskZonePadding = Math.max(0, asFiniteNumber(
+        options.padding,
+        MAP_FOCUS_CONFIG.riskZonePadding.default,
+    ));
+    let completed = false;
+
+    const complete = () => {
+        if (completed) return;
+        completed = true;
+        map.off?.('moveend', complete);
+        options.onComplete?.();
+    };
+
+    // Resize first so MapLibre calculates the center from the current viewport,
+    // including after a caller has collapsed a contextual panel.
+    map.resize?.();
+    map.stop?.();
+
+    if (entityFocus.type === 'risk-zone' && hasValidBounds(entityFocus.bounds) && map.fitBounds) {
+        if (duration > 0) map.once?.('moveend', complete);
+        map.fitBounds(entityFocus.bounds, {
+            padding: riskZonePadding,
+            maxZoom: zoom,
+            bearing: MAP_FOCUS_CONFIG.bearing,
+            pitch: MAP_FOCUS_CONFIG.pitch,
+            duration,
+            essential: true,
+            easing: mapFocusEasing,
+        });
+        if (duration === 0 || map.isMoving?.() === false) complete();
+        return () => map.off?.('moveend', complete);
+    }
+
+    if (duration === 0) {
+        map.jumpTo?.({
+            center: [lng, lat],
+            zoom,
+            bearing: MAP_FOCUS_CONFIG.bearing,
+            pitch: MAP_FOCUS_CONFIG.pitch,
+        });
+        complete();
+        return () => {};
+    }
+
+    map.once?.('moveend', complete);
+    map.flyTo?.({
+        center: [lng, lat],
+        zoom,
+        bearing: MAP_FOCUS_CONFIG.bearing,
+        pitch: MAP_FOCUS_CONFIG.pitch,
+        curve: MAP_FOCUS_CONFIG.curve,
+        duration,
+        essential: true,
+        easing: mapFocusEasing,
+    });
+    if (map.isMoving?.() === false) complete();
+
+    return () => map.off?.('moveend', complete);
+};
+
+/**
+ * Compatibility entry point for coordinate-driven map focus. It delegates to
+ * the same native flyTo lifecycle used by incident and risk-zone Locate flows.
  */
 export const scheduleMapFocus = (map, location, fallback = {}) => {
     if (!map || !location) return () => {};
@@ -73,26 +176,20 @@ export const scheduleMapFocus = (map, location, fallback = {}) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => {};
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => {};
 
-    const zoom = asFiniteNumber(location.zoom, asFiniteNumber(fallback.zoom, 16));
-    const pitch = asFiniteNumber(location.pitch, asFiniteNumber(fallback.pitch, 0));
-    const bearing = asFiniteNumber(location.bearing, asFiniteNumber(fallback.bearing, 0));
-    const delay = Math.max(0, asFiniteNumber(location.delay, asFiniteNumber(fallback.delay, 0)));
-    const duration = Math.max(0, asFiniteNumber(location.duration, asFiniteNumber(fallback.duration, 800)));
+    const prefersReducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    const options = {
+        zoom: asFiniteNumber(
+            location.zoom,
+            asFiniteNumber(fallback.zoom, MAP_FOCUS_CONFIG.pointZoom),
+        ),
+        duration: MAP_FOCUS_CONFIG.duration,
+        reducedMotion: prefersReducedMotion,
+    };
 
-    map.stop?.();
-    const timer = globalThis.setTimeout(() => {
-        map.easeTo({
-            center: [lng, lat],
-            zoom,
-            pitch,
-            bearing,
-            essential: true,
-            duration,
-            easing: mapFocusEasing,
-        });
-    }, delay);
-
-    return () => globalThis.clearTimeout(timer);
+    return focusExistingMapEntity(map, {
+        type: 'point',
+        coordinates: { lat, lng },
+    }, options);
 };
 
 /** Smoothly centers an element inside the application's nearest scroll area. */

@@ -458,7 +458,17 @@ const DashboardAnalyticsWorkspace = ({
                     </button>
                 </div>
                 <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
-                    <MapView reports={dashboardReports} highRiskZones={highRiskZones} showPending enable3D className="h-full w-full" focusLocation={focusLocation} />
+                    <MapView
+                        reports={dashboardReports}
+                        highRiskZones={highRiskZones}
+                        showPending
+                        filterMode="review"
+                        viewerRole={user?.role || 'guest'}
+                        showDataState
+                        enable3D
+                        className="h-full w-full"
+                        focusLocation={focusLocation}
+                    />
                 </div>
             </section>
 

@@ -187,7 +187,7 @@ const AdminHighRiskZonesPage = () => {
         mapScrollCleanupRef.current?.();
     }, []);
 
-    const focusMapLocation = (location) => {
+    const focusMapLocation = (location, entity = null) => {
         const lat = Number(location?.lat);
         const lng = Number(location?.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -198,13 +198,18 @@ const AdminHighRiskZonesPage = () => {
             lng,
             ...MAP_FOCUS_PRESETS.list,
             requestId: `${Date.now()}-${focusRequestSequenceRef.current}`,
+            ...(entity ? {
+                type: 'risk-zone',
+                entityId: String(entity._id || entity.id || ''),
+                entity,
+            } : {}),
         });
         mapScrollCleanupRef.current?.();
         mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
     };
 
     const handleZoneClick = (zone) => {
-        focusMapLocation(zone?.coordinates);
+        focusMapLocation(zone?.coordinates, zone);
     };
 
     const handleSubmit = async (e) => {

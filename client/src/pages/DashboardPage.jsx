@@ -14,6 +14,7 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getMapCoordinates } from '../utils/mapReports';
+import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
 import {
@@ -32,8 +33,7 @@ const DashboardPage = () => {
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe } = useSocket();
-    const [showZoneModal, setShowZoneModal] = useState(false);
-    const [showIncidentModal, setShowIncidentModal] = useState(false);
+    const [mapSummaryPanel, setMapSummaryPanel] = useState('');
     const [showMapPendingModal, setShowMapPendingModal] = useState(false);
     const [showMapRespondingModal, setShowMapRespondingModal] = useState(false);
     const [showMapResolvedModal, setShowMapResolvedModal] = useState(false);
@@ -86,6 +86,11 @@ const DashboardPage = () => {
     const focusedMapReport = useMemo(
         () => dashboardReports.find((report) => String(report._id) === focusedMapReportId) || null,
         [dashboardReports, focusedMapReportId],
+    );
+    const focusedRiskZoneId = normalizeRiskZoneId(searchParams.get('riskZone'));
+    const focusedRiskZone = useMemo(
+        () => findRiskZoneById(highRiskZones, focusedRiskZoneId),
+        [highRiskZones, focusedRiskZoneId],
     );
     const returnToFocusedReport = useCallback(() => {
         if (!focusedMapReportId) return;
@@ -360,10 +365,10 @@ const DashboardPage = () => {
 
     useEffect(() => {
         if (panelView === 'incidents') {
-            setShowIncidentModal(true);
+            setMapSummaryPanel('incidents');
         }
         if (panelView === 'zones') {
-            setShowZoneModal(true);
+            setMapSummaryPanel('zones');
         }
         if (panelView === 'history' && historySectionRef.current) {
             historySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -497,6 +502,7 @@ const DashboardPage = () => {
                 roleStats={roleStats}
                 focusLocation={focusLocation}
                 focusedReport={focusedMapReport}
+                focusedRiskZone={focusedRiskZone}
                 onReturnToReport={focusedMapReportId ? returnToFocusedReport : null}
                 responderMapFilter={responderMapFilter}
                 setResponderMapFilter={setResponderMapFilter}
@@ -504,10 +510,8 @@ const DashboardPage = () => {
                 handleMapRespond={handleMapRespond}
                 handleMapResolve={handleMapResolve}
                 setSearchParams={setSearchParams}
-                showZoneModal={showZoneModal}
-                setShowZoneModal={setShowZoneModal}
-                showIncidentModal={showIncidentModal}
-                setShowIncidentModal={setShowIncidentModal}
+                mapSummaryPanel={mapSummaryPanel}
+                setMapSummaryPanel={setMapSummaryPanel}
                 showMapPendingModal={showMapPendingModal}
                 setShowMapPendingModal={setShowMapPendingModal}
                 showMapRespondingModal={showMapRespondingModal}

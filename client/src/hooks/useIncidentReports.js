@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI } from '../services/api';
-import { INCIDENT_LIFECYCLE } from '../components/adminReports/incidentReportConfig';
+import { getRoleStatuses } from '../components/adminReports/incidentReportConfig';
 
 const getErrorMessage = (error) => (
     error?.response?.data?.message || 'Unable to load incident reports. Please try again.'
@@ -8,8 +8,8 @@ const getErrorMessage = (error) => (
 
 const EMPTY_PAGINATION = Object.freeze({ page: 1, limit: 20, total: 0, pages: 0 });
 
-const useIncidentReports = ({ subscribe, responderView = 'all', initialStatus = '', focusedReportId = '' }) => {
-    const validInitialStatus = INCIDENT_LIFECYCLE.includes(initialStatus) ? initialStatus : '';
+const useIncidentReports = ({ subscribe, role, responderView = 'all', initialStatus = '', focusedReportId = '' }) => {
+    const validInitialStatus = getRoleStatuses(role).includes(initialStatus) ? initialStatus : '';
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -20,6 +20,13 @@ const useIncidentReports = ({ subscribe, responderView = 'all', initialStatus = 
     const [selectedReport, setSelectedReport] = useState(null);
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState(EMPTY_PAGINATION);
+    const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+
+    useEffect(() => {
+        if (!status || getRoleStatuses(role).includes(status)) return;
+        setStatusState('');
+        setPage(1);
+    }, [role, status]);
 
     const fetchReports = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoading(true);
@@ -49,6 +56,7 @@ const useIncidentReports = ({ subscribe, responderView = 'all', initialStatus = 
                 total: nextReports.length,
                 pages: nextReports.length > 0 ? 1 : 0,
             });
+            setLastUpdatedAt(Date.now());
         } catch (requestError) {
             setError(getErrorMessage(requestError));
         } finally {
@@ -233,6 +241,7 @@ const useIncidentReports = ({ subscribe, responderView = 'all', initialStatus = 
         visibleReports,
         stats,
         pagination,
+        lastUpdatedAt,
         page,
         setPage,
         loading,

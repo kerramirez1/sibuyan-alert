@@ -66,16 +66,13 @@ const LoginPage = () => {
         <div className="w-full">
             <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 {/* Mobile Logo */}
-                <div className="mb-7 flex items-center gap-3 lg:hidden">
+                <div className="mb-7 flex items-center gap-2.5 lg:hidden">
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
                         <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
                     </div>
-                    <div>
-                        <p className="font-display text-lg font-bold leading-none text-gray-900">
-                            Sibuyan <span className="text-brand-600">Alert</span>
-                        </p>
-                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">Accident Alert &amp; Mapping</p>
-                    </div>
+                    <span className="text-lg font-black tracking-tight text-gray-900">
+                        Sibuyan <span className="text-emerald-700">Alert</span>
+                    </span>
                 </div>
 
                 {/* Header */}

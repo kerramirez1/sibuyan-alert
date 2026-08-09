@@ -68,4 +68,40 @@ describe('MapOverlayPanel', () => {
         expect(initialClose).not.toHaveBeenCalled();
         expect(latestClose).toHaveBeenCalledTimes(1);
     });
+
+    test('renders a non-blocking contextual panel inside its map container', () => {
+        const { container } = render(
+            <div className="relative">
+                <MapOverlayPanel
+                    id="map-context-panel"
+                    title="Risk-zone details"
+                    description="1 monitored zone"
+                    closeLabel="Close risk zones panel"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Mapped hazard</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'Risk-zone details' });
+        expect(dialog).toHaveAttribute('id', 'map-context-panel');
+        expect(dialog).toHaveAccessibleDescription('1 monitored zone');
+        expect(dialog).toHaveClass('pointer-events-auto', 'sm:max-h-full', 'sm:w-[min(24rem,42%)]');
+        expect(dialog).not.toHaveClass('sm:h-full', 'sm:max-h-none');
+        expect(dialog.parentElement).toHaveClass('items-end', 'sm:items-start');
+        expect(dialog.parentElement).not.toHaveClass('sm:items-stretch');
+        expect(dialog.parentElement).toBe(container.firstElementChild?.firstElementChild);
+        expect(screen.getByRole('button', { name: 'Close risk zones panel' })).toBeInTheDocument();
+        expect(document.body.style.overflow).toBe('');
+
+        const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
+        expect(scrollRegion).toHaveClass('overflow-y-auto');
+        expect(scrollRegion).not.toHaveClass('overscroll-contain', 'overscroll-none');
+
+        const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 });
+        scrollRegion.dispatchEvent(wheelEvent);
+        expect(wheelEvent.defaultPrevented).toBe(false);
+    });
 });

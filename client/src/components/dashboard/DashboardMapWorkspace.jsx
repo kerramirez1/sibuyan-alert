@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { format } from 'date-fns';
 import {
     HiOutlineBadgeCheck,
     HiOutlineArrowLeft,
+    HiOutlineArrowRight,
     HiOutlineCheckCircle,
     HiOutlineClock,
     HiOutlineExclamation,
     HiOutlineLightningBolt,
-    HiOutlineLocationMarker,
     HiOutlineMap,
     HiOutlinePlus,
     HiOutlineShieldCheck,
@@ -24,18 +24,19 @@ import {
     getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
-import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../../utils/mapNavigation';
-import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { scheduleElementScroll } from '../../utils/mapNavigation';
+import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapExperience } from '../../config/mapExperience';
 
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
 const INCIDENT_PANEL_SIZE = 'lg';
-
-const ZONE_CONFIG = {
-    accident_prone: { label: 'Accident prone', badge: 'border-red-200 bg-red-50 text-red-700' },
-    fire_hazard: { label: 'Fire hazard', badge: 'border-orange-200 bg-orange-50 text-orange-700' },
-    landslide_prone: { label: 'Landslide prone', badge: 'border-amber-200 bg-amber-50 text-amber-700' },
-    flood_prone: { label: 'Flood prone', badge: 'border-blue-200 bg-blue-50 text-blue-700' },
-};
+const MAP_SUMMARY_PANEL_ID = 'dashboard-map-summary-panel';
+const METRIC_DIVIDER_CLASSES = [
+    '',
+    'border-l border-gray-200 dark:border-gray-800',
+    'border-t border-gray-200 dark:border-gray-800 lg:border-l lg:border-t-0',
+    'border-l border-t border-gray-200 dark:border-gray-800 lg:border-t-0',
+];
 
 const formatDate = (value, pattern = 'MMM d, h:mm a') => {
     if (!value) return 'Date unavailable';
@@ -65,34 +66,28 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, onInspe
     }
 
     return (
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {reports.map((report) => {
                 const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
                 const coordinates = getMapCoordinates(report);
+                const location = report.address || report.title || report.barangay || report.municipalityName || 'Location unavailable';
                 return (
-                    <article key={report._id} className="flex flex-col gap-3 px-1 py-4 first:pt-1 sm:flex-row sm:items-center sm:justify-between">
+                    <article key={report._id || report.id} className="px-4 py-4 sm:px-5">
                         <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="text-sm font-semibold text-gray-900">{formatIncidentType(report)}</h4>
-                                <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold ${status.badge}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-                                    {status.label}
-                                </span>
-                            </div>
-                            <p className="mt-1 truncate text-sm text-gray-600">{report.address || report.barangay || report.municipalityName || 'Location unavailable'}</p>
-                            {onInspect && (
-                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">
-                                    {report.description?.trim() || 'No additional public details were provided.'}
-                                </p>
-                            )}
-                            <p className="mt-1 text-xs text-gray-400">{report.municipalityName || 'Municipality unavailable'} · {formatDate(report.resolvedAt || report.createdAt)}</p>
+                            <h3 className="text-sm font-semibold leading-5 text-gray-950 dark:text-white">{location}</h3>
+                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                                {formatIncidentType(report)} <span aria-hidden="true">·</span> {status.label}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                {report.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
+                            </p>
                         </div>
-                        <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <div className="mt-3 flex min-h-10 items-center justify-between gap-3 border-t border-gray-100 pt-2.5 dark:border-gray-800">
                             {onInspect && (
                                 <button
                                     type="button"
                                     onClick={() => onInspect(report)}
-                                    className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none"
+                                    className="inline-flex min-h-10 items-center rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
                                 >
                                     View details
                                 </button>
@@ -101,10 +96,10 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, onInspe
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:flex-none"
+                                    className="ml-auto inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
                                 >
-                                    <HiOutlineLocationMarker className="h-4 w-4" aria-hidden="true" />
                                     Locate
+                                    <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             )}
                         </div>
@@ -121,28 +116,30 @@ const RiskZoneList = ({ zones, onLocate }) => {
     }
 
     return (
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {zones.map((zone) => {
-                const config = ZONE_CONFIG[zone.type] || { label: 'Risk zone', badge: 'border-gray-200 bg-gray-50 text-gray-700' };
+                const config = getMapRiskTypeConfig(zone.type);
                 return (
-                    <article key={zone._id} className="flex flex-col gap-3 px-1 py-4 first:pt-1 sm:flex-row sm:items-center sm:justify-between">
+                    <article key={zone._id || zone.id} className="px-4 py-4 sm:px-5">
                         <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="text-sm font-semibold text-gray-900">{zone.name || 'Unnamed zone'}</h4>
-                                <span className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${config.badge}`}>{config.label}</span>
-                            </div>
-                            <p className="mt-1 text-sm text-gray-600">{zone.description || zone.address || 'No description provided'}</p>
-                            <p className="mt-1 text-xs text-gray-400">{zone.municipality || zone.municipalityName || 'Municipality unavailable'} · {zone.radius || 0} m radius</p>
+                            <h3 className="text-sm font-semibold leading-5 text-gray-950 dark:text-white">{zone.name || 'Unnamed zone'}</h3>
+                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">{config.label}</p>
+                            <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-300">{zone.address || zone.description || 'Address unavailable'}</p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                {zone.municipality || zone.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
+                            </p>
                         </div>
                         {getMapCoordinates(zone) && (
-                            <button
-                                type="button"
-                                onClick={() => onLocate(zone)}
-                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-200 hover:text-gray-900"
-                            >
-                                <HiOutlineLocationMarker className="h-4 w-4" />
-                                Locate
-                            </button>
+                            <div className="mt-3 flex min-h-10 items-center justify-end border-t border-gray-100 pt-2.5 dark:border-gray-800">
+                                <button
+                                    type="button"
+                                    onClick={() => onLocate(zone)}
+                                    className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
+                                >
+                                    Locate
+                                    <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                            </div>
                         )}
                     </article>
                 );
@@ -151,32 +148,36 @@ const RiskZoneList = ({ zones, onLocate }) => {
     );
 };
 
-const MapActionButton = ({ onClick, icon: Icon, iconClassName, label, count, countClassName }) => (
+const MapActionButton = ({ onClick, icon: Icon, label, count, selected = false }) => (
     <button
         type="button"
         onClick={onClick}
         aria-label={label}
-        className="group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent bg-gray-100 px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 active:scale-[0.97] dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 lg:w-auto lg:shrink-0"
+        aria-pressed={selected}
+        aria-expanded={selected}
+        aria-controls={MAP_SUMMARY_PANEL_ID}
+        className={`group inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold text-gray-800 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-100 lg:w-auto lg:shrink-0 ${selected
+            ? 'border-gray-400 bg-gray-100 dark:border-gray-600 dark:bg-gray-800'
+            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800'
+        }`}
     >
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${iconClassName}`}>
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-        </span>
+        <Icon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
         <span className="min-w-0 flex-1 whitespace-nowrap text-left">{label}</span>
-        <span aria-hidden="true" className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-bold ${countClassName}`}>
+        <span aria-hidden="true" className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-bold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
             {count}
         </span>
     </button>
 );
 
-const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
+const MetricStripItem = ({ label, value, helper, icon: Icon, onClick, dividerClass }) => {
     const content = (
         <>
             <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-gray-500">{label}</p>
-                <Icon className="h-4 w-4 text-gray-400" />
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+                <Icon className="h-4 w-4 text-gray-400" aria-hidden="true" />
             </div>
-            <p className="mt-3 text-2xl font-bold text-gray-900">{value}</p>
-            <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+            <p className="mt-2 text-xl font-bold text-gray-950 dark:text-white">{value}</p>
+            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{helper}</p>
         </>
     );
 
@@ -184,12 +185,12 @@ const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
         <button
             type="button"
             onClick={onClick}
-            className="rounded-xl border border-transparent bg-gray-100 p-4 text-left shadow-sm transition hover:bg-gray-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className={`min-w-0 px-3 py-3 text-left transition-colors duration-150 hover:bg-gray-50 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 dark:hover:bg-gray-800/60 sm:px-4 ${dividerClass}`}
         >
             {content}
         </button>
     ) : (
-        <div className="rounded-xl border border-transparent bg-gray-100 p-4 shadow-sm">{content}</div>
+        <div className={`min-w-0 px-3 py-3 sm:px-4 ${dividerClass}`}>{content}</div>
     );
 };
 
@@ -209,6 +210,7 @@ const DashboardMapWorkspace = ({
     roleStats,
     focusLocation,
     focusedReport,
+    focusedRiskZone,
     onReturnToReport,
     responderMapFilter,
     setResponderMapFilter,
@@ -216,10 +218,8 @@ const DashboardMapWorkspace = ({
     handleMapRespond,
     handleMapResolve,
     setSearchParams,
-    showZoneModal,
-    setShowZoneModal,
-    showIncidentModal,
-    setShowIncidentModal,
+    mapSummaryPanel,
+    setMapSummaryPanel,
     showMapPendingModal,
     setShowMapPendingModal,
     showMapRespondingModal,
@@ -232,35 +232,55 @@ const DashboardMapWorkspace = ({
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
+    const [mapLocateRequest, setMapLocateRequest] = useState(null);
     const createFocusRequestId = () => {
         focusRequestSequenceRef.current += 1;
         return `${Date.now()}-${focusRequestSequenceRef.current}`;
     };
-    const scrollMapIntoView = () => {
-        mapScrollCleanupRef.current?.();
-        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
-    };
+    const focusedReportId = focusedReport?._id ?? focusedReport?.id;
+    const focusedRiskZoneId = focusedRiskZone?._id ?? focusedRiskZone?.id;
+    const externalFocusId = focusedReportId
+        ? `incident:${focusedReportId}`
+        : focusedRiskZoneId
+            ? `risk-zone:${focusedRiskZoneId}`
+            : focusLocation?.requestId || '';
+
+    const deepLinkedLocateRequest = useMemo(() => {
+        if (focusedReportId && focusedReport) {
+            return {
+                type: 'incident',
+                id: String(focusedReportId),
+                entity: focusedReport,
+                requestId: `incident:${focusedReportId}`,
+            };
+        }
+        if (focusedRiskZoneId && focusedRiskZone) {
+            return {
+                type: 'risk-zone',
+                id: String(focusedRiskZoneId),
+                entity: focusedRiskZone,
+                requestId: `risk-zone:${focusedRiskZoneId}`,
+            };
+        }
+        return null;
+    }, [focusedReport, focusedReportId, focusedRiskZone, focusedRiskZoneId]);
 
     useEffect(() => {
-        if (!focusLocation?.requestId) return undefined;
+        if (!externalFocusId) return undefined;
         mapScrollCleanupRef.current?.();
         mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current, { delay: 180 });
         return () => mapScrollCleanupRef.current?.();
-    }, [focusLocation?.requestId]);
+    }, [externalFocusId]);
 
-    const roleLabel = isResponder
-        ? `${user?.agency || 'Responder'} operations`
-        : isAdmin
-            ? 'Administrative map'
-            : isReporter
-                ? 'Reporter map'
-                : 'Public safety map';
+    useEffect(() => {
+        if (focusedReportId || focusedRiskZoneId) setMapLocateRequest(null);
+    }, [focusedReportId, focusedRiskZoneId]);
 
-    const pageTitle = isResponder
-        ? `${user?.assignedMunicipality || 'Area'} incident map`
-        : isAdmin
-            ? 'Administrative map'
-            : 'Incident map';
+    const mapExperience = getMapExperience({
+        role: user?.role,
+        agency: user?.agency,
+        municipality: user?.assignedMunicipality,
+    });
 
     const activeReports = getVisibleMapReports(reports);
     const selectedActiveIncident = activeReports.find(
@@ -273,17 +293,34 @@ const DashboardMapWorkspace = ({
     const pendingCount = allMappedReports.filter((report) => report.status === 'pending').length;
     const dispatchableCount = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status)).length;
 
+    const closeMapSummaryPanel = useCallback((options = {}) => {
+        setSelectedActiveIncidentId('');
+        setMapSummaryPanel('');
+        if (!options.preserveNavigation && ['incidents', 'zones'].includes(activePanel)) {
+            setSearchParams({ view: 'map' });
+        }
+    }, [activePanel, setMapSummaryPanel, setSearchParams]);
+
+    const openMapSummaryPanel = useCallback((panel) => {
+        setSelectedActiveIncidentId('');
+        setMapSummaryPanel(panel);
+    }, [setMapSummaryPanel]);
+
+    const handleMapInspectorOpen = useCallback(() => {
+        closeMapSummaryPanel();
+    }, [closeMapSummaryPanel]);
+
     const metrics = isResponder
         ? [
             { label: 'Awaiting response', value: pendingReports.length, helper: 'Unassigned or transferred', icon: HiOutlineClock, onClick: () => { setResponderMapFilter('pending'); setShowMapPendingModal(true); } },
             { label: 'Active response', value: respondingReports.length, helper: 'Assigned incidents', icon: HiOutlineTruck, onClick: () => { setResponderMapFilter('responding'); setShowMapRespondingModal(true); } },
             { label: 'Resolved today', value: resolvedTodayReports.length, helper: 'Incidents you handled', icon: HiOutlineBadgeCheck, onClick: () => setShowMapResolvedModal(true) },
-            { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => setShowZoneModal(true) },
+            { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => openMapSummaryPanel('zones') },
         ]
         : isAdmin
             ? [
                 { label: 'Pending', value: pendingCount, helper: 'Awaiting review', icon: HiOutlineClock },
-                { label: 'Verified / transferred', value: dispatchableCount, helper: 'Available for dispatch', icon: HiOutlineCheckCircle, onClick: () => setShowIncidentModal(true) },
+                { label: 'Verified / transferred', value: dispatchableCount, helper: 'Available for dispatch', icon: HiOutlineCheckCircle, onClick: () => openMapSummaryPanel('incidents') },
                 { label: 'Responding', value: respondingCount, helper: 'Active field response', icon: HiOutlineTruck, onClick: () => setShowMapRespondingModal(true) },
                 { label: 'Resolved today', value: resolvedTodayReports.length, helper: 'Closed incidents', icon: HiOutlineBadgeCheck, onClick: () => setShowMapResolvedModal(true) },
             ]
@@ -302,11 +339,11 @@ const DashboardMapWorkspace = ({
                         ? 'Visible map reports'
                         : `Across ${activeLocationCount} map locations`,
                     icon: HiOutlineCheckCircle,
-                    onClick: () => setShowIncidentModal(true),
+                    onClick: () => openMapSummaryPanel('incidents'),
                 },
                 { label: 'Active response', value: respondingCount, helper: 'Being handled now', icon: HiOutlineTruck },
                 { label: 'Transferred', value: transferredCount, helper: 'Forwarded to another area', icon: HiOutlineExclamation },
-                { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => setShowZoneModal(true) },
+                { label: 'Risk zones', value: highRiskZones.length, helper: 'Mapped hazards', icon: HiOutlineLightningBolt, onClick: () => openMapSummaryPanel('zones') },
                 ];
 
     const locateReport = (report, closeModal) => {
@@ -315,78 +352,60 @@ const DashboardMapWorkspace = ({
         // A top-down camera keeps the incident pin visually aligned with its
         // stored coordinates. The previous pitched, maximum-zoom view made the
         // pin appear offset and removed useful street-level context.
-        setSearchParams({
-            view: 'map',
-            lat: coordinates.lat,
-            lng: coordinates.lng,
-            ...MAP_FOCUS_PRESETS.list,
-            focus: createFocusRequestId(),
+        closeModal?.();
+        setMapLocateRequest({
+            type: 'incident',
+            id: String(report._id || report.id),
+            entity: report,
+            requestId: createFocusRequestId(),
         });
-        closeModal(false);
-        scrollMapIntoView();
     };
 
     const locateZone = (zone) => {
         const coordinates = getMapCoordinates(zone);
         if (!coordinates) return;
-        setSearchParams({
-            view: 'map',
-            lat: coordinates.lat,
-            lng: coordinates.lng,
-            ...MAP_FOCUS_PRESETS.list,
-            focus: createFocusRequestId(),
+        closeMapSummaryPanel({ preserveNavigation: true });
+        setMapLocateRequest({
+            type: 'risk-zone',
+            id: String(zone._id || zone.id),
+            entity: zone,
+            requestId: createFocusRequestId(),
         });
-        setShowZoneModal(false);
-        scrollMapIntoView();
-    };
-
-    const closeActiveIncidents = () => {
-        setSelectedActiveIncidentId('');
-        setShowIncidentModal(false);
-        if (activePanel === 'incidents') setSearchParams({ view: 'map' });
     };
 
     const locateActiveIncident = (report) => {
         setSelectedActiveIncidentId('');
-        locateReport(report, setShowIncidentModal);
+        locateReport(report, () => closeMapSummaryPanel({ preserveNavigation: true }));
     };
 
     return (
-        <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
+        <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white dark:bg-emerald-950 dark:text-emerald-300 dark:border dark:border-emerald-800/40">
-                        <HiOutlineMap className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{roleLabel}</p>
-                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">{pageTitle}</h1>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
-                            {isResponder
-                                ? `Monitor and respond to incidents in ${user?.assignedMunicipality || 'your assigned area'}.`
-                                : 'Verified incidents and high-risk zones across Sibuyan Island.'}
-                        </p>
-                    </div>
+                <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <HiOutlineMap className="h-3.5 w-3.5" aria-hidden="true" />
+                        {mapExperience.eyebrow}
+                    </p>
+                    <h1 className="mt-1 text-2xl font-display font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">{mapExperience.title}</h1>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-300">{mapExperience.description}</p>
                 </div>
 
                 <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-nowrap lg:items-center lg:self-center">
                     <MapActionButton
-                        onClick={() => setShowIncidentModal(true)}
+                        onClick={() => openMapSummaryPanel('incidents')}
                         icon={HiOutlineExclamation}
-                        iconClassName="bg-red-100 text-red-600 group-hover:bg-red-200/70 dark:bg-red-900/40 dark:text-red-400"
                         label="Incidents"
                         count={activeReports.length}
-                        countClassName="bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-900/40 dark:text-red-300"
+                        selected={mapSummaryPanel === 'incidents'}
                     />
                     <MapActionButton
-                        onClick={() => setShowZoneModal(true)}
+                        onClick={() => openMapSummaryPanel('zones')}
                         icon={HiOutlineLightningBolt}
-                        iconClassName="bg-amber-100 text-amber-600 group-hover:bg-amber-200/70 dark:bg-amber-900/40 dark:text-amber-400"
                         label="Risk zones"
                         count={highRiskZones.length}
-                        countClassName="bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300"
+                        selected={mapSummaryPanel === 'zones'}
                     />
-                    {isReporter && (
+                    {mapExperience.showSubmitReport && (
                         <Button
                             as={Link}
                             to="/report"
@@ -423,7 +442,7 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 sm:rounded-lg sm:border" aria-label="Live incident map">
                 <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="text-sm font-semibold text-gray-900">Live map</h2>
@@ -434,20 +453,16 @@ const DashboardMapWorkspace = ({
                             </p>
                         )}
                     </div>
-                    {(isResponder || isAdmin) && (
-                        <div className="flex items-center gap-1 overflow-x-auto" aria-label="Map status filter">
-                            {[
-                                { value: 'all', label: 'All active' },
-                                { value: 'pending', label: 'Awaiting' },
-                                { value: 'responding', label: 'Responding' },
-                            ].map((filter) => (
+                    {mapExperience.filters.length > 0 && (
+                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800" aria-label="Map status filter">
+                            {mapExperience.filters.map((filter) => (
                                 <button
                                     key={filter.value}
                                     type="button"
                                     onClick={() => setResponderMapFilter(filter.value)}
-                                    className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition ${responderMapFilter === filter.value
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                    className={`min-h-9 shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
+                                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                                        : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                     }`}
                                 >
                                     {filter.label}
@@ -469,28 +484,77 @@ const DashboardMapWorkspace = ({
                     <MapView
                         reports={reports}
                         highRiskZones={highRiskZones}
+                        locateRequest={mapLocateRequest || deepLinkedLocateRequest}
+                        externalContextPanelOpen={Boolean(mapSummaryPanel)}
+                        onEntityInspectorOpen={handleMapInspectorOpen}
                         className="h-full w-full"
                         focusLocation={focusLocation}
-                        showPending={isResponder || isAdmin}
-                        filterStatus={(isResponder || isAdmin) ? responderMapFilter : null}
-                        canRespond={isResponder}
-                        onRespondToReport={isResponder ? handleMapRespond : null}
-                        canResolve={isResponder}
-                        canResolveReport={isResponder ? canCurrentResponderResolve : null}
-                        onResolveReport={isResponder ? handleMapResolve : null}
+                        showPending={mapExperience.showPendingReports}
+                        filterStatus={mapExperience.filters.length > 0 ? responderMapFilter : null}
+                        filterMode={mapExperience.filterMode}
+                        canRespond={mapExperience.canRespond}
+                        onRespondToReport={mapExperience.canRespond ? handleMapRespond : null}
+                        canResolve={mapExperience.canResolve}
+                        canResolveReport={mapExperience.canResolve ? canCurrentResponderResolve : null}
+                        onResolveReport={mapExperience.canResolve ? handleMapResolve : null}
                         viewerRole={user?.role || 'guest'}
+                        showDataState
                         enable3D
                     />
+                    {mapSummaryPanel && (
+                        <MapOverlayPanel
+                            id={MAP_SUMMARY_PANEL_ID}
+                            title={selectedActiveIncident
+                                ? 'Incident details'
+                                : mapSummaryPanel === 'incidents'
+                                    ? 'Active incidents'
+                                    : 'High-risk zones'}
+                            description={selectedActiveIncident
+                                ? undefined
+                                : mapSummaryPanel === 'incidents'
+                                    ? `${activeReports.length} currently active`
+                                    : `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`}
+                            onClose={closeMapSummaryPanel}
+                            closeLabel={mapSummaryPanel === 'zones' ? 'Close risk zones panel' : 'Close incidents panel'}
+                            presentation="contextual"
+                        >
+                            {mapSummaryPanel === 'incidents' && selectedActiveIncident && (
+                                <MapIncidentDetails
+                                    report={selectedActiveIncident}
+                                    viewerRole={user?.role || 'guest'}
+                                    onLocate={locateActiveIncident}
+                                />
+                            )}
+                            {mapSummaryPanel === 'incidents' && !selectedActiveIncident && (
+                                <IncidentList
+                                    reports={activeReports}
+                                    emptyTitle="No active incidents"
+                                    emptyDescription="There are no verified, transferred, or responding incidents on the map."
+                                    onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
+                                    onLocate={locateActiveIncident}
+                                />
+                            )}
+                            {mapSummaryPanel === 'zones' && (
+                                <RiskZoneList zones={highRiskZones} onLocate={locateZone} />
+                            )}
+                        </MapOverlayPanel>
+                    )}
                 </div>
             </section>
 
-            <section className="space-y-3" aria-label="Map summary">
+            <section className="space-y-2" aria-label="Map summary">
                 <div>
                     <h2 className="text-sm font-semibold text-gray-900">Current overview</h2>
                     <p className="mt-0.5 text-xs text-gray-500">Key incident and response totals for the current map view.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
+                <div className="grid grid-cols-2 overflow-hidden border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-4">
+                    {metrics.map((metric, index) => (
+                        <MetricStripItem
+                            key={metric.label}
+                            {...metric}
+                            dividerClass={METRIC_DIVIDER_CLASSES[index]}
+                        />
+                    ))}
                 </div>
             </section>
 
@@ -507,54 +571,18 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            {showZoneModal && (
-                <MapOverlayPanel onClose={() => setShowZoneModal(false)} title="High-risk zones">
-                    <div className="px-4 py-2 sm:px-5">
-                        <RiskZoneList zones={highRiskZones} onLocate={locateZone} />
-                    </div>
-                </MapOverlayPanel>
-            )}
-
-            {showIncidentModal && (
-                <MapOverlayPanel
-                    onClose={closeActiveIncidents}
-                    title={selectedActiveIncident ? 'Incident details' : 'Active incidents'}
-                    size={INCIDENT_PANEL_SIZE}
-                >
-                    {selectedActiveIncident ? (
-                        <MapIncidentDetails
-                            report={selectedActiveIncident}
-                            viewerRole={user?.role || 'guest'}
-                            onLocate={locateActiveIncident}
-                        />
-                    ) : (
-                        <div className="px-4 py-2 sm:px-5">
-                            <IncidentList
-                                reports={activeReports}
-                                emptyTitle="No active incidents"
-                                emptyDescription="There are no verified, transferred, or responding incidents on the map."
-                                onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
-                                onLocate={locateActiveIncident}
-                            />
-                        </div>
-                    )}
-                </MapOverlayPanel>
-            )}
-
             {showMapPendingModal && (
                 <MapOverlayPanel
                     onClose={() => { setShowMapPendingModal(false); setResponderMapFilter('all'); }}
                     title="Awaiting response"
                     size={INCIDENT_PANEL_SIZE}
                 >
-                    <div className="px-4 py-2 sm:px-5">
-                        <IncidentList
-                            reports={pendingReports}
-                            emptyTitle="No incidents awaiting response"
-                            emptyDescription="All visible incidents are assigned or already resolved."
-                            onLocate={(report) => locateReport(report, setShowMapPendingModal)}
-                        />
-                    </div>
+                    <IncidentList
+                        reports={pendingReports}
+                        emptyTitle="No incidents awaiting response"
+                        emptyDescription="All visible incidents are assigned or already resolved."
+                        onLocate={(report) => locateReport(report, () => setShowMapPendingModal(false))}
+                    />
                 </MapOverlayPanel>
             )}
 
@@ -564,14 +592,12 @@ const DashboardMapWorkspace = ({
                     title="Active responses"
                     size={INCIDENT_PANEL_SIZE}
                 >
-                    <div className="px-4 py-2 sm:px-5">
-                        <IncidentList
-                            reports={respondingReports}
-                            emptyTitle="No active responses"
-                            emptyDescription="No incidents are currently assigned or in responding state."
-                            onLocate={(report) => locateReport(report, setShowMapRespondingModal)}
-                        />
-                    </div>
+                    <IncidentList
+                        reports={respondingReports}
+                        emptyTitle="No active responses"
+                        emptyDescription="No incidents are currently assigned or in responding state."
+                        onLocate={(report) => locateReport(report, () => setShowMapRespondingModal(false))}
+                    />
                 </MapOverlayPanel>
             )}
 
@@ -581,13 +607,11 @@ const DashboardMapWorkspace = ({
                     title="Resolved today"
                     size={INCIDENT_PANEL_SIZE}
                 >
-                    <div className="px-4 py-2 sm:px-5">
-                        <IncidentList
-                            reports={resolvedTodayReports}
-                            emptyTitle="No incidents resolved today"
-                            emptyDescription="No resolved incidents are available for the current view."
-                        />
-                    </div>
+                    <IncidentList
+                        reports={resolvedTodayReports}
+                        emptyTitle="No incidents resolved today"
+                        emptyDescription="No resolved incidents are available for the current view."
+                    />
                 </MapOverlayPanel>
             )}
         </div>

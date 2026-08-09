@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
     buildRiskZoneFeatureCollection,
     createRiskZoneCircle,
+    getRiskZoneBounds,
     RISK_ZONE_COLORS,
 } from '../utils/riskZoneVisualization';
 
@@ -55,5 +56,19 @@ describe('risk-zone visualization', () => {
         expect(createRiskZoneCircle(coordinates, 100, 2)).toHaveLength(17);
         expect(createRiskZoneCircle(coordinates, 100, 500)).toHaveLength(65);
         expect(createRiskZoneCircle({ lat: 120, lng: 122.55 }, 100, 32)).toBeNull();
+    });
+
+    test('derives camera bounds from the real zone center and radius', () => {
+        const zone = {
+            radius: 100,
+            coordinates: { lat: 12.4, lng: 122.55 },
+        };
+        const bounds = getRiskZoneBounds(zone, { points: 20 });
+
+        expect(bounds[0][0]).toBeLessThan(zone.coordinates.lng);
+        expect(bounds[0][1]).toBeLessThan(zone.coordinates.lat);
+        expect(bounds[1][0]).toBeGreaterThan(zone.coordinates.lng);
+        expect(bounds[1][1]).toBeGreaterThan(zone.coordinates.lat);
+        expect(getRiskZoneBounds({ ...zone, radius: null })).toBeNull();
     });
 });

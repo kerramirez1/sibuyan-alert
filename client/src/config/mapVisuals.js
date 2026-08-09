@@ -54,6 +54,17 @@ export const MAP_RISK_ZONE_CONFIG = Object.freeze({
     markerColor: '#DC2626',
 });
 
+export const MAP_RISK_TYPE_CONFIG = Object.freeze({
+    accident_prone: Object.freeze({ label: 'Accident prone', badge: 'border-red-200 bg-red-50 text-red-700' }),
+    landslide_prone: Object.freeze({ label: 'Landslide prone', badge: 'border-amber-200 bg-amber-50 text-amber-700' }),
+    fire_risk: Object.freeze({ label: 'Fire hazard', badge: 'border-orange-200 bg-orange-50 text-orange-700' }),
+    other: Object.freeze({ label: 'Hazard zone', badge: 'border-gray-200 bg-gray-50 text-gray-700' }),
+});
+
+export const getMapRiskTypeConfig = (type) => (
+    MAP_RISK_TYPE_CONFIG[type] || MAP_RISK_TYPE_CONFIG.other
+);
+
 export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
     'pending',
     'verified',
@@ -61,8 +72,10 @@ export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
     'responding',
 ]);
 
-export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null } = {}) => {
-    if (filterStatus === 'pending') return ['pending', 'verified', 'transferred'];
+export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null, filterMode = 'public' } = {}) => {
+    if (filterStatus === 'pending') {
+        return filterMode === 'review' ? ['pending'] : ['pending', 'verified', 'transferred'];
+    }
     if (filterStatus === 'responding') return showPending
         ? ['pending', 'responding']
         : ['responding'];
