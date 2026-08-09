@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -473,7 +473,7 @@ const MapView = ({
                      </div>
                  `;
                 el.style.cursor = 'pointer';
-                el.style.zIndex = isPending ? '40' : '30';
+                el.style.zIndex = isPending ? '2' : '1';
                 el.setAttribute('role', 'button');
                 el.setAttribute('tabindex', '0');
                 el.setAttribute(
@@ -537,7 +537,7 @@ const MapView = ({
 
             const el = document.createElement('div');
             el.className = 'zone-marker';
-            el.style.zIndex = '10';
+            el.style.zIndex = '1';
             el.innerHTML = `
                 <div style="position:relative; width:32px; height:32px; display:flex; align-items:center; justify-content:center;">
                     <div style="
@@ -609,6 +609,7 @@ const MapView = ({
                     </svg>
                 `;
                 el.style.cursor = 'pointer';
+                el.style.zIndex = '3';
 
                 selectedMarkerRef.current = new maplibregl.Marker({
                     ...OPERATIONAL_MARKER_VISIBILITY,
@@ -773,7 +774,7 @@ const MapView = ({
     };
 
     return (
-        <div className={`relative min-h-0 overflow-hidden rounded-2xl ${className}`}>
+        <div className={`relative isolate min-h-0 overflow-hidden rounded-2xl ${className}`}>
             <div
                 ref={mapContainerRef}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}

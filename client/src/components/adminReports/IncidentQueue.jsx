@@ -224,19 +224,19 @@ const IncidentQueue = ({
 }) => {
     if (loading) {
         return (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center" role="status">
+            <div className="rounded-xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900" role="status">
                 <div className="spinner mx-auto" />
-                <p className="mt-3 text-sm text-gray-600">Loading incident reports…</p>
+                <p className="mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Loading incident reports…</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center" role="alert">
-                <p className="font-semibold text-red-900">Incident queue unavailable</p>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
-                <button type="button" onClick={onRetry} className="mt-4 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800 hover:bg-red-100">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20" role="alert">
+                <p className="font-semibold text-red-900 dark:text-red-300">Incident queue unavailable</p>
+                <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>
+                <button type="button" onClick={onRetry} className="mt-4 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800 hover:bg-red-100 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700">
                     Try again
                 </button>
             </div>
@@ -252,9 +252,9 @@ const IncidentQueue = ({
         const emptyCopy = responderEmptyCopy[responderView]
             || ['No incident reports found', 'Adjust the status or search filters and try again.'];
         return (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
-                <p className="font-semibold text-gray-900">{emptyCopy[0]}</p>
-                <p className="mt-1 text-sm text-gray-500">{emptyCopy[1]}</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-900">
+                <p className="font-semibold text-gray-900 dark:text-white">{emptyCopy[0]}</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{emptyCopy[1]}</p>
             </div>
         );
     }
@@ -263,7 +263,7 @@ const IncidentQueue = ({
         <section aria-label="Incident queue">
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:hidden">
                 {reports.map((report) => (
-                    <article key={report._id} className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+                    <article key={report._id} className="min-w-0 rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700 sm:p-5">
                         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <IncidentSummary report={report} />
                             <div className="shrink-0 sm:max-w-40 sm:text-right">
@@ -271,17 +271,17 @@ const IncidentQueue = ({
                                 <TransferAcknowledgmentState report={report} />
                             </div>
                         </div>
-                        <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-x-4 gap-y-3 border-y border-gray-100 py-3 text-xs">
+                        <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-x-4 gap-y-3 border-y border-gray-100 py-3 text-xs dark:border-gray-800">
                             <div>
-                                <dt className="text-gray-500">Reporter</dt>
-                                <dd className="mt-0.5 font-medium text-gray-800">{report.reporter?.name || 'Unknown reporter'}</dd>
+                                <dt className="text-gray-500 dark:text-gray-400">Reporter</dt>
+                                <dd className="mt-0.5 font-medium text-gray-800 dark:text-gray-200">{report.reporter?.name || 'Unknown reporter'}</dd>
                             </div>
                             <div>
-                                <dt className="text-gray-500">Incident time</dt>
-                                <dd className="mt-0.5 font-medium text-gray-800">{formatRelativeTime(getIncidentDate(report))}</dd>
+                                <dt className="text-gray-500 dark:text-gray-400">Incident time</dt>
+                                <dd className="mt-0.5 font-medium text-gray-800 dark:text-gray-200">{formatRelativeTime(getIncidentDate(report))}</dd>
                             </div>
                             <div>
-                                <dt className="text-gray-500">Responder</dt>
+                                <dt className="text-gray-500 dark:text-gray-400">Responder</dt>
                                 <dd className="mt-0.5"><ResponderSummary report={report} /></dd>
                             </div>
                         </dl>
@@ -292,7 +292,7 @@ const IncidentQueue = ({
                 ))}
             </div>
 
-            <div data-testid="incident-table" className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white 2xl:block">
+            <div data-testid="incident-table" className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 2xl:block">
                 <table className="w-full table-fixed border-collapse text-left">
                     <colgroup>
                         <col className="w-[27%]" />
@@ -302,7 +302,7 @@ const IncidentQueue = ({
                         <col className="w-[13%]" />
                         <col className="w-[18%]" />
                     </colgroup>
-                    <thead className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <thead className="border-b border-gray-200 bg-gray-50/80 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-400">
                         <tr>
                             <th className="px-4 py-3">Incident</th>
                             <th className="px-4 py-3">Reporter</th>
@@ -312,20 +312,20 @@ const IncidentQueue = ({
                             <th className="px-4 py-3 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {reports.map((report) => (
-                            <tr key={report._id} className="align-middle hover:bg-gray-50/70">
+                            <tr key={report._id} className="align-middle transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-800/50">
                                 <td className="min-w-0 px-4 py-4"><IncidentSummary report={report} /></td>
                                 <td className="min-w-0 px-4 py-4">
-                                    <p className="break-words text-sm font-medium text-gray-800">{report.reporter?.name || 'Unknown reporter'}</p>
-                                    <p className="text-xs text-gray-500">{report.reporter?.isVerified ? 'Verified account' : 'Reporter account'}</p>
+                                    <p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{report.reporter?.name || 'Unknown reporter'}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{report.reporter?.isVerified ? 'Verified account' : 'Reporter account'}</p>
                                 </td>
                                 <td className="px-4 py-4">
                                     <IncidentStatusBadge status={report.status} />
                                     <TransferAcknowledgmentState report={report} />
                                 </td>
                                 <td className="px-4 py-4"><ResponderSummary report={report} /></td>
-                                <td className="px-4 py-4 text-sm leading-5 text-gray-600">{formatRelativeTime(getIncidentDate(report))}</td>
+                                <td className="px-4 py-4 text-sm leading-5 text-gray-600 dark:text-gray-300">{formatRelativeTime(getIncidentDate(report))}</td>
                                 <td className="px-4 py-4">
                                     <IncidentActionButtons report={report} user={user} actions={actions} onInspect={onInspect} compact />
                                 </td>

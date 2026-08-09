@@ -838,6 +838,38 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Shimmer Skeleton Loader - Production Grade */
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.6) 0%,
+    rgba(241, 245, 249, 0.9) 50%,
+    rgba(226, 232, 240, 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerWave 1.8s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(28, 52, 40, 0.6) 0%,
+    rgba(38, 74, 56, 0.9) 50%,
+    rgba(28, 52, 40, 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerWave 1.8s ease-in-out infinite;
+}
+
 /* Colored Card Variants */
 .card-emerald:hover {
   box-shadow: 0 12px 40px rgba(16, 185, 129, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);

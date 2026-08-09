@@ -52,24 +52,32 @@ const IncidentQueueControls = ({
 
     return (
         <>
-            <header className="mb-4 flex min-w-0 flex-col gap-4 border-b border-gray-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <header className="mb-4 flex min-w-0 flex-col gap-4 border-b border-gray-200/80 pb-4 dark:border-gray-800 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         {role === 'responder' ? 'Responder operations' : 'Incident management'}
                     </p>
-                    <h1 className="mt-1 text-2xl font-bold text-gray-950">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
                         {isResponder ? activeResponderView.title : 'Incident reports'}
                     </h1>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                         {isResponder
                             ? activeResponderView.description
                             : `${resultCount} incident${resultCount === 1 ? '' : 's'} loaded${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600" aria-label="Operational totals">
-                            {isAdmin && <span><strong className="text-amber-700">{stats.pending || 0}</strong> pending review</span>}
-                            <span><strong className="text-indigo-700">{stats.responding || 0}</strong> responding</span>
-                            <span><strong className="text-emerald-700">{stats.resolved || 0}</strong> resolved</span>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-300" aria-label="Operational totals">
+                            {isAdmin && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 font-medium text-amber-900 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/20">
+                                    <strong className="text-amber-700 dark:text-amber-300">{stats.pending || 0}</strong> pending review
+                                </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 font-medium text-indigo-900 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-400/20">
+                                <strong className="text-indigo-700 dark:text-indigo-300">{stats.responding || 0}</strong> responding
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 font-medium text-emerald-900 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20">
+                                <strong className="text-emerald-700 dark:text-emerald-300">{stats.resolved || 0}</strong> resolved
+                            </span>
                         </div>
                     )}
                 </div>
@@ -79,7 +87,7 @@ const IncidentQueueControls = ({
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                         <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh

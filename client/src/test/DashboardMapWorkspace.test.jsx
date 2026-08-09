@@ -96,6 +96,20 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    test('uses the same gray surface for every overview card', () => {
+        renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+        }));
+
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        const cards = Array.from(summary.lastElementChild.children);
+
+        expect(cards).toHaveLength(4);
+        cards.forEach((card) => expect(card).toHaveClass('bg-gray-100'));
+    });
+
     test('enables claim and resolve actions only for responders', () => {
         const props = createProps({
             user: { _id: 'responder-1', role: 'responder', agency: 'BFP', assignedMunicipality: 'Magdiwang' },

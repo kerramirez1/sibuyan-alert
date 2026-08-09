@@ -404,7 +404,7 @@ const MainLayout = ({ children }) => {
                     </header>
 
                     {/* Page Content Scrollable Area */}
-                    <main data-map-scroll-container className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
+                    <main data-map-scroll-container className="custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={location.pathname}

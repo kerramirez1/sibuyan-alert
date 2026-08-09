@@ -189,7 +189,7 @@ const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
             {content}
         </button>
     ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">{content}</div>
+        <div className="rounded-xl border border-transparent bg-gray-100 p-4 shadow-sm">{content}</div>
     );
 };
 
