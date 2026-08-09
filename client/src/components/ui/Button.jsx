@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 
 const BASE_STYLES = [
-    'relative inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border font-semibold',
+    'ui-button relative inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-transparent font-semibold',
     'text-center leading-tight transition-colors duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
@@ -9,14 +9,14 @@ const BASE_STYLES = [
 ].join(' ');
 
 const VARIANT_STYLES = Object.freeze({
-    primary: 'border-brand-700 bg-brand-700 text-white hover:border-brand-800 hover:bg-brand-800',
-    secondary: 'border-gray-300 bg-white text-gray-800 hover:border-gray-400 hover:bg-gray-50',
-    danger: 'border-red-700 bg-red-700 text-white hover:border-red-800 hover:bg-red-800 focus-visible:ring-red-500',
-    dangerOutline: 'border-red-300 bg-white text-red-700 hover:border-red-400 hover:bg-red-50 focus-visible:ring-red-500',
-    success: 'border-emerald-700 bg-emerald-700 text-white hover:border-emerald-800 hover:bg-emerald-800 focus-visible:ring-emerald-500',
-    warning: 'border-amber-700 bg-amber-700 text-white hover:border-amber-800 hover:bg-amber-800 focus-visible:ring-amber-500',
-    ghost: 'border-transparent bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-950',
-    outline: 'border-gray-300 bg-white text-gray-800 hover:border-gray-400 hover:bg-gray-50',
+    primary: 'border-transparent bg-brand-700 text-white hover:bg-brand-800',
+    secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
+    danger: 'bg-red-700 text-white hover:bg-red-800 focus-visible:ring-red-500',
+    dangerOutline: 'bg-gray-100 text-red-700 hover:bg-red-50 focus-visible:ring-red-500',
+    success: 'border-transparent bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-500',
+    warning: 'bg-amber-700 text-white hover:bg-amber-800 focus-visible:ring-amber-500',
+    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-950',
+    outline: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
 });
 
 const SIZE_STYLES = Object.freeze({

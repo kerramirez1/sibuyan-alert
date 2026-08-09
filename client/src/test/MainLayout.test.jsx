@@ -89,6 +89,21 @@ describe('MainLayout responsive navigation', () => {
         expect(activeLinks).toHaveLength(1);
     });
 
+    test('labels the responder operational route as Incident Reports', () => {
+        mocks.user = {
+            _id: 'responder-1',
+            name: 'MDRRMO Cajidiocan',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        renderLayout('/admin/reports?view=dispatch-queue');
+
+        const reportsLink = screen.getByRole('link', { name: 'Incident Reports' });
+        expect(reportsLink).toHaveAttribute('href', '/admin/reports?view=dispatch-queue');
+        expect(screen.queryByRole('link', { name: 'Response Queue' })).not.toBeInTheDocument();
+    });
+
     test('opens and closes the fluid mobile navigation drawer accessibly', () => {
         renderLayout();
         const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });

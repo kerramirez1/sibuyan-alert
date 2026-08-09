@@ -179,6 +179,38 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Buttons are borderless across every page, including selected states. */
+  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]) {
+    border-color: transparent !important;
+    border-image: none !important;
+  }
+
+  /* Keep borderless neutral actions distinguishable from pure-white panels. */
+  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"])[class~="bg-white"] {
+    background-color: #eef0f3 !important;
+  }
+
+  .dark :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"])[class~="bg-white"] {
+    background-color: rgb(255 255 255 / 0.08) !important;
+  }
+
+  /* Suppress utility rings and use elevation/contrast for keyboard focus. */
+  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus {
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    outline: none !important;
+  }
+
+  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus-visible {
+    box-shadow: 0 8px 18px rgb(17 24 39 / 0.22) !important;
+    filter: brightness(0.92);
+  }
+
+  .dark :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus-visible {
+    box-shadow: 0 8px 18px rgb(0 0 0 / 0.48) !important;
+    filter: brightness(1.12);
+  }
 }
 
 /* Custom Component Styles */

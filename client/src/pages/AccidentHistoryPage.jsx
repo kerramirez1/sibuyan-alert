@@ -30,14 +30,6 @@ const SEVERITY_CONFIG = {
     critical: { label: 'Critical', dot: 'bg-red-700',     badge: 'bg-red-100 text-red-800 border-red-300' },
 };
 
-// Per-card accent: left border color + icon color
-const METRIC_ACCENT = [
-    { border: 'border-l-emerald-400', icon: 'text-emerald-500' },
-    { border: 'border-l-blue-400',    icon: 'text-blue-500' },
-    { border: 'border-l-violet-400',  icon: 'text-violet-500' },
-    { border: 'border-l-amber-400',   icon: 'text-amber-500' },
-];
-
 const INCIDENT_TYPE_LABELS = {
     vehicular: 'Vehicular Collision',
     motorcycle: 'Motorcycle Accident',
@@ -221,19 +213,16 @@ const AccidentHistoryPage = () => {
             </header>
 
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="History summary">
-                {metricCards.map(({ label, value, helper, icon: Icon, text }, index) => {
-                    const accent = METRIC_ACCENT[index];
-                    return (
-                        <div key={label} className={`rounded-xl border border-gray-200 border-l-4 bg-white p-4 ${accent.border}`}>
+                {metricCards.map(({ label, value, helper, icon: Icon, text }) => (
+                        <div key={label} className="rounded-xl bg-gray-100 p-4 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-xs font-medium text-gray-500">{label}</p>
-                                <Icon className={`w-4 h-4 ${accent.icon}`} />
+                                <Icon className="h-4 w-4 text-gray-400" />
                             </div>
                             <p className={`mt-3 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
                             <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
                         </div>
-                    );
-                })}
+                ))}
             </section>
 
             <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Resolved accident records">

@@ -552,12 +552,12 @@ const RegisterPage = () => {
                         {!idFile ? (
                             <div className={`rounded-2xl border border-dashed p-4 ${errors.idDocument ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-brand-200 bg-white p-4 text-center text-gray-900 hover:border-brand-400 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-transparent bg-white p-4 text-center text-gray-900 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
                                         <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-100 text-brand-700"><HiOutlineCamera className="h-6 w-6" aria-hidden="true" /></span>
                                         <span className="text-sm font-semibold">Take a photo</span>
                                         <span className="mt-1 text-xs text-gray-500">Use your rear camera</span>
                                     </button>
-                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center text-gray-900 hover:border-brand-400 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-transparent bg-white p-4 text-center text-gray-900 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
                                         <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-700"><HiOutlineCloudUpload className="h-6 w-6" aria-hidden="true" /></span>
                                         <span className="text-sm font-semibold">Choose from device</span>
                                         <span className="mt-1 text-xs text-gray-500">Select an existing photo</span>

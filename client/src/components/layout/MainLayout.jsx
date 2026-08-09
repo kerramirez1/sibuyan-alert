@@ -73,7 +73,7 @@ const MainLayout = ({ children }) => {
         },
         { name: 'Users', href: '/admin/users', icon: HiOutlineUsers },
         {
-            name: user?.role === 'responder' ? 'Response Queue' : 'Incident Reports',
+            name: 'Incident Reports',
             href: user?.role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/admin/reports',
             icon: HiOutlineClipboardList,
         },

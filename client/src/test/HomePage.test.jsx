@@ -79,7 +79,8 @@ describe('HomePage operational landing page', () => {
         expect(registrationAction).toHaveAttribute('href', '/register');
         expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
-        expect(mapAction).toHaveClass('border-emerald-700', 'bg-emerald-700', 'text-white', 'hover:bg-emerald-800');
+        expect(mapAction).not.toHaveClass('border-emerald-700');
+        expect(mapAction).toHaveClass('ui-button', 'bg-emerald-700', 'text-white', 'hover:bg-emerald-800');
         expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();

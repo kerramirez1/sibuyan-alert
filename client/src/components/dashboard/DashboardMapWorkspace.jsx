@@ -138,7 +138,7 @@ const RiskZoneList = ({ zones, onLocate }) => {
                             <button
                                 type="button"
                                 onClick={() => onLocate(zone)}
-                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:text-gray-900"
+                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-200 hover:text-gray-900"
                             >
                                 <HiOutlineLocationMarker className="h-4 w-4" />
                                 Locate
@@ -156,7 +156,7 @@ const MapActionButton = ({ onClick, icon: Icon, iconClassName, label, count, cou
         type="button"
         onClick={onClick}
         aria-label={label}
-        className="group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition-colors hover:border-gray-400 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 lg:w-auto lg:shrink-0"
+        className="group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent bg-gray-100 px-3.5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 active:scale-[0.97] dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 lg:w-auto lg:shrink-0"
     >
         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${iconClassName}`}>
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -184,7 +184,7 @@ const MetricCard = ({ label, value, helper, icon: Icon, onClick }) => {
         <button
             type="button"
             onClick={onClick}
-            className="rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-gray-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="rounded-xl border border-transparent bg-gray-100 p-4 text-left shadow-sm transition hover:bg-gray-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
             {content}
         </button>

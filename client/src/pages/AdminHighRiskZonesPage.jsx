@@ -411,7 +411,7 @@ const AdminHighRiskZonesPage = () => {
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, type: type.value })}
                                                         className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${formData.type === type.value
-                                                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                                            ? 'border-transparent bg-primary-50 text-primary-700'
                                                             : 'border-gray-200 hover:border-gray-300'
                                                             }`}
                                                     >
@@ -433,7 +433,7 @@ const AdminHighRiskZonesPage = () => {
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, severity: level.value })}
                                                         className={`flex-1 py-2 px-3 rounded-lg border-2 text-xs font-medium transition-all ${formData.severity === level.value
-                                                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                                            ? 'border-transparent bg-primary-50 text-primary-700'
                                                             : 'border-gray-200 hover:border-gray-300'
                                                             }`}
                                                     >

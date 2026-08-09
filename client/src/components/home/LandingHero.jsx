@@ -184,7 +184,7 @@ const LandingHero = ({
                             {/* ── Secondary CTA: View live map ────────────────────────────────── */}
                             <Link
                                 to="/dashboard?view=map"
-                                className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-700 bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(4,120,87,0.7)] transition-colors hover:border-emerald-800 hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:border-emerald-600 dark:bg-emerald-600 dark:hover:border-emerald-500 dark:hover:bg-emerald-500"
+                                className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(4,120,87,0.7)] transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 View live map

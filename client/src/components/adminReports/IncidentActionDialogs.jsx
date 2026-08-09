@@ -9,10 +9,10 @@ import ResponderUnitModal from '../ResponderUnitModal';
 
 const DialogButton = ({ children, onClick, tone = 'neutral', disabled = false, loading = false }) => {
     const tones = {
-        neutral: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-        success: 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800',
-        danger: 'border-red-700 bg-red-700 text-white hover:bg-red-800',
-        violet: 'border-violet-700 bg-violet-700 text-white hover:bg-violet-800',
+        neutral: 'border-transparent bg-white text-gray-700 hover:bg-gray-50',
+        success: 'border-transparent bg-emerald-700 text-white hover:bg-emerald-800',
+        danger: 'border-transparent bg-red-700 text-white hover:bg-red-800',
+        violet: 'border-transparent bg-violet-700 text-white hover:bg-violet-800',
     };
 
     return (

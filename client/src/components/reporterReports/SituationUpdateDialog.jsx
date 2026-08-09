@@ -51,15 +51,15 @@ const SENSITIVE_TYPES = new Set(['need_help', 'false_alarm']);
 const TYPE_STYLES = {
     danger: 'border-red-200 bg-red-50 text-red-900 hover:border-red-300',
     warning: 'border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-300',
-    success: 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300',
+    success: 'border-transparent bg-emerald-50 text-emerald-900',
     neutral: 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50',
 };
 
 const SELECTED_TYPE_STYLES = {
     danger: 'border-red-500 bg-red-50 ring-2 ring-red-500/15',
     warning: 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/15',
-    success: 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/15',
-    neutral: 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/15',
+    success: 'border-transparent bg-emerald-50',
+    neutral: 'border-transparent bg-brand-50',
 };
 
 const getFocusableElements = (container) => Array.from(container?.querySelectorAll(

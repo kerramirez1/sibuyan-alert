@@ -577,7 +577,7 @@ const ProfileSettingsPage = () => {
                                         type="button"
                                         onClick={handleTestPush}
                                         disabled={pushState.loading}
-                                        className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                                        className="min-h-11 rounded-xl border border-transparent bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
                                     >
                                         Send test
                                     </button>

@@ -174,7 +174,7 @@ const IncidentQueueControls = ({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setStatus(statusValue)}
-                                        className={`min-h-10 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 ${active ? config.className : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                                        className={`min-h-10 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 ${active ? config.className : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'} ${active && statusValue === 'resolved' ? '!border-transparent' : ''}`}
                                     >
                                         {config.label}
                                     </button>

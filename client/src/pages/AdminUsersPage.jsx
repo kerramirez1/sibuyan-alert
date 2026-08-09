@@ -484,7 +484,7 @@ const AdminUsersPage = () => {
                                                     <img
                                                         src={verificationAssets.selfiePhoto}
                                                         alt="Selfie Verification"
-                                                        className="w-full rounded-xl border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                                                        className="w-full rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-lg"
                                                     />
                                                 ) : (
                                                     <span className="flex min-h-32 items-center justify-center rounded-xl border border-gray-200 text-sm text-gray-500">

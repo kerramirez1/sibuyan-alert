@@ -245,7 +245,7 @@ const LoginPage = () => {
                 <div className="space-y-2.5">
                     <Link
                         to="/register"
-                        className="group flex min-h-[68px] w-full items-center gap-3 rounded-xl border border-gray-200 p-3.5 transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                        className="ui-button group flex min-h-[68px] w-full items-center gap-3 rounded-xl border border-transparent p-3.5 transition-colors hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                     >
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50">
                             <HiOutlineUserAdd className="h-5 w-5 text-brand-700" />

@@ -58,11 +58,11 @@ const TransferAcknowledgmentState = ({ report }) => {
 
 const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = false, disabled = false }) => {
     const tones = {
-        neutral: 'border-gray-200 text-gray-700 hover:bg-gray-50',
-        success: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50',
-        danger: 'border-red-200 text-red-700 hover:bg-red-50',
-        primary: 'border-blue-200 text-blue-700 hover:bg-blue-50',
-        violet: 'border-violet-200 text-violet-700 hover:bg-violet-50',
+        neutral: 'border-transparent text-gray-700 hover:bg-gray-50',
+        success: 'border-transparent text-emerald-700 hover:bg-emerald-50',
+        danger: 'border-transparent text-red-700 hover:bg-red-50',
+        primary: 'border-transparent text-blue-700 hover:bg-blue-50',
+        violet: 'border-transparent text-violet-700 hover:bg-violet-50',
     };
 
     return (

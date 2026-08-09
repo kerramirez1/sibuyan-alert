@@ -240,7 +240,7 @@ const NotificationBell = () => {
                                 <button
                                     onClick={() => setActiveTab('all')}
                                     className={`pb-3 text-sm font-medium border-b-2 transition-colors relative ${activeTab === 'all'
-                                        ? 'text-primary-600 border-primary-600'
+                                        ? 'text-primary-600 border-transparent'
                                         : 'text-gray-500 border-transparent hover:text-gray-700'
                                         }`}
                                 >
@@ -249,7 +249,7 @@ const NotificationBell = () => {
                                 <button
                                     onClick={() => setActiveTab('unread')}
                                     className={`pb-3 text-sm font-medium border-b-2 transition-colors relative ${activeTab === 'unread'
-                                        ? 'text-primary-600 border-primary-600'
+                                        ? 'text-primary-600 border-transparent'
                                         : 'text-gray-500 border-transparent hover:text-gray-700'
                                         }`}
                                 >
