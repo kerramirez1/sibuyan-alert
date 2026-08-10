@@ -18,6 +18,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Protected Pages (lazy load)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ReporterDashboardPage = lazy(() => import('./pages/ReporterDashboardPage'));
 const ReportPage = lazy(() => import('./pages/ReportPage'));
 const MyReportsPage = lazy(() => import('./pages/MyReportsPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
@@ -51,12 +52,12 @@ function App() {
                 {/* Auth Routes */}
                 <Route path="/login" element={(
                     <AuthLayout variant="login">
-                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <LoginPage />}
+                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/reporter' : '/dashboard'} /> : <LoginPage />}
                     </AuthLayout>
                 )} />
                 <Route path="/register" element={(
                     <AuthLayout variant="registration">
-                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <RegisterPage />}
+                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/reporter' : '/dashboard'} /> : <RegisterPage />}
                     </AuthLayout>
                 )} />
                 <Route path="/registration-submitted" element={(
@@ -76,6 +77,7 @@ function App() {
                 <Route path="/profile" element={<MainLayout><ProtectedRoute><ProfileSettingsPage /></ProtectedRoute></MainLayout>} />
 
                 {/* Reporter routes */}
+                <Route path="/reporter" element={<MainLayout><ProtectedRoute allowedRoles={['reporter']}><ReporterDashboardPage /></ProtectedRoute></MainLayout>} />
                 <Route path="/report" element={<MainLayout><ProtectedRoute allowedRoles={['reporter']} requireVerified><ReportPage /></ProtectedRoute></MainLayout>} />
                 <Route path="/my-reports" element={<MainLayout><ProtectedRoute allowedRoles={['reporter']}><MyReportsPage /></ProtectedRoute></MainLayout>} />
 

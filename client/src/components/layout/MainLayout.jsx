@@ -125,18 +125,31 @@ const MainLayout = ({ children }) => {
                 >
                     {/* Logo */}
                     <div className="flex min-h-20 items-center px-4">
-                        <NavLink to="/" className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-900/50 p-1">
-                                <img
-                                    src="/icons/Alert.png"
-                                    alt=""
-                                    className="h-full w-full object-contain drop-shadow-sm"
-                                />
-                            </div>
-                            <span className="truncate text-base font-black tracking-tight text-white sm:text-lg">
-                                Sibuyan <span className="text-brand-400">Alert</span>
-                            </span>
-                        </NavLink>
+                        {(() => {
+                            const homeHref = !isAuthenticated
+                                ? '/'
+                                : user?.role === 'reporter'
+                                    ? '/reporter'
+                                    : user?.role === 'municipal_admin'
+                                        ? '/dashboard'
+                                        : user?.role === 'responder'
+                                            ? '/admin'
+                                            : '/';
+                            return (
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-900/50 p-1">
+                                        <img
+                                            src="/icons/Alert.png"
+                                            alt=""
+                                            className="h-full w-full object-contain drop-shadow-sm"
+                                        />
+                                    </div>
+                                    <span className="truncate text-base font-black tracking-tight text-white sm:text-lg">
+                                        Sibuyan <span className="text-brand-400">Alert</span>
+                                    </span>
+                                </NavLink>
+                            );
+                        })()}
                         <button
                             type="button"
                             onClick={() => setSidebarOpen(false)}
@@ -155,7 +168,7 @@ const MainLayout = ({ children }) => {
                             const homeHref = !isAuthenticated
                                 ? '/'
                                 : user?.role === 'reporter'
-                                    ? '/'
+                                    ? '/reporter'
                                     : user?.role === 'municipal_admin'
                                         ? '/dashboard'
                                         : user?.role === 'responder'
@@ -165,7 +178,7 @@ const MainLayout = ({ children }) => {
                             const isHomeActive = !isAuthenticated
                                 ? location.pathname === '/'
                                 : user?.role === 'reporter'
-                                    ? location.pathname === '/'
+                                    ? location.pathname === '/reporter'
                                     : user?.role === 'municipal_admin'
                                         ? location.pathname === '/dashboard' && currentView !== 'map'
                                         : user?.role === 'responder'
