@@ -12,7 +12,6 @@ import {
     HiOutlineCloudUpload,
     HiOutlineEye,
     HiOutlineEyeOff,
-    HiOutlineLocationMarker,
     HiOutlineMail,
     HiOutlineRefresh,
     HiOutlineShieldCheck,
@@ -20,7 +19,23 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 
-const STEP_LABELS = ['Account', 'Identification', 'Selfie'];
+const REGISTRATION_STEPS = [
+    {
+        label: 'Account',
+        title: 'Create your account',
+        description: 'Register as a resident reporter. Your identity will be reviewed before incident reporting is enabled.',
+    },
+    {
+        label: 'Government ID',
+        title: 'Verify your identity',
+        description: 'Submit a clear photo of your valid government-issued or accepted school ID.',
+    },
+    {
+        label: 'Selfie verification',
+        title: 'Take a verification selfie',
+        description: 'Take a clear selfie so a municipal administrator can compare it with your ID.',
+    },
+];
 const FIELD_CLASS = 'block min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500';
 
 const FieldError = ({ id, children }) => children ? (
@@ -68,6 +83,7 @@ const RegisterPage = () => {
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const currentStep = REGISTRATION_STEPS[step - 1];
 
     const stopCamera = useCallback(() => {
         cameraRequestIdRef.current += 1;
@@ -390,35 +406,54 @@ const RegisterPage = () => {
 
     return (
         <div className="w-full py-2">
+            <div className="mb-6 flex items-center gap-2.5 lg:hidden">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
+                    <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                    <p className="font-display text-lg font-black leading-tight tracking-tight text-gray-900">
+                        Sibuyan <span className="text-emerald-700">Alert</span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-gray-500">
+                        Accident Alert &amp; Mapping System
+                    </p>
+                </div>
+            </div>
+
             <Link
                 to="/login"
-                className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-lg px-1 text-sm font-semibold text-brand-700 hover:text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="mb-5 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-brand-700 hover:text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
                 <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Back to sign in
             </Link>
 
             <header className="mb-6">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700">
-                    <HiOutlineUser className="h-4 w-4 text-brand-600" aria-hidden="true" />
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
                     Reporter registration
-                </div>
+                </p>
                 <h1 className="font-display text-3xl font-bold tracking-tight text-gray-950 sm:text-[2rem]">
-                    Create your account
+                    {currentStep.title}
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Register as a resident reporter. An administrator reviews your identity before report submission is enabled.
+                    {currentStep.description}
                 </p>
             </header>
 
-            <p className="sr-only" aria-live="polite">{`Step ${step} of ${STEP_LABELS.length}: ${STEP_LABELS[step - 1]}`}</p>
+            <p className="sr-only" aria-live="polite">{`Step ${step} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
             <ol className="mb-5 grid grid-cols-3 gap-x-2" aria-label="Registration progress">
-                {STEP_LABELS.map((label, index) => {
+                {REGISTRATION_STEPS.map(({ label }, index) => {
                     const number = index + 1;
                     const complete = step > number;
                     const active = step === number;
+                    const stateLabel = complete ? 'Completed' : active ? 'Current step' : 'Next';
                     return (
-                        <li key={label} aria-current={active ? 'step' : undefined} className="flex flex-col gap-2">
+                        <li
+                            key={label}
+                            aria-current={active ? 'step' : undefined}
+                            aria-label={`${label}: ${stateLabel.toLowerCase()}`}
+                            className="flex min-w-0 flex-col gap-2"
+                        >
                             <div className="flex items-center">
                                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ${
                                     complete
@@ -430,46 +465,52 @@ const RegisterPage = () => {
                                     {complete ? <HiOutlineCheck className="h-3.5 w-3.5" aria-hidden="true" /> : number}
                                 </span>
                                 <div className={`ml-1.5 h-0.5 flex-1 rounded-full ${
-                                    number < STEP_LABELS.length
+                                    number < REGISTRATION_STEPS.length
                                         ? (step > number ? 'bg-brand-600' : 'bg-gray-200')
                                         : 'bg-transparent'
                                 }`} aria-hidden="true" />
                             </div>
-                            <span className={`hidden text-xs font-semibold min-[380px]:block ${
-                                active ? 'text-gray-900' : complete ? 'text-brand-700' : 'text-gray-400'
-                            }`}>{label}</span>
+                            <span className="min-w-0">
+                                <span className={`block text-[10px] font-semibold leading-4 min-[420px]:text-xs ${
+                                    active ? 'text-gray-900' : complete ? 'text-brand-700' : 'text-gray-500'
+                                }`}>{label}</span>
+                                <span className={`mt-0.5 block text-[9px] font-medium uppercase tracking-wide min-[420px]:text-[10px] ${
+                                    active || complete ? 'text-brand-700' : 'text-gray-400'
+                                }`}>{stateLabel}</span>
+                            </span>
                         </li>
                     );
                 })}
             </ol>
 
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" noValidate>
+            <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6" noValidate>
                 {step === 1 && (
-                    <section aria-labelledby="account-step-title" className="space-y-4">
+                    <section aria-labelledby="account-step-title" className="space-y-5">
                         <div>
-                            <h2 id="account-step-title" className="text-lg font-semibold text-gray-950">Account and home address</h2>
-                            <p className="mt-1 text-sm text-gray-500">Use your current Sibuyan Island address.</p>
+                            <h2 id="account-step-title" className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Account information</h2>
                         </div>
 
-                        <div>
-                            <label htmlFor="register-name" className="mb-1.5 block text-sm font-semibold text-gray-800">Full name</label>
-                            <span className="relative block">
-                                <HiOutlineUser className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-                                <input id="register-name" className={`${inputClass('name')} pl-12`} name="name" autoComplete="name" value={formData.name} onChange={handleChange} placeholder="Juan Dela Cruz" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
-                            </span>
-                            <FieldError id="name-error">{errors.name}</FieldError>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="register-name" className="mb-1.5 block text-sm font-semibold text-gray-800">Full name</label>
+                                <span className="relative block">
+                                    <HiOutlineUser className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                                    <input id="register-name" className={`${inputClass('name')} pl-12`} name="name" autoComplete="name" value={formData.name} onChange={handleChange} placeholder="Juan Dela Cruz" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
+                                </span>
+                                <FieldError id="name-error">{errors.name}</FieldError>
+                            </div>
+
+                            <div>
+                                <label htmlFor="register-email" className="mb-1.5 block text-sm font-semibold text-gray-800">Email address</label>
+                                <span className="relative block">
+                                    <HiOutlineMail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                                    <input id="register-email" className={`${inputClass('email')} pl-12`} type="email" name="email" autoComplete="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'email-error' : undefined} />
+                                </span>
+                                <FieldError id="email-error">{errors.email}</FieldError>
+                            </div>
                         </div>
 
-                        <div>
-                            <label htmlFor="register-email" className="mb-1.5 block text-sm font-semibold text-gray-800">Email address</label>
-                            <span className="relative block">
-                                <HiOutlineMail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-                                <input id="register-email" className={`${inputClass('email')} pl-12`} type="email" name="email" autoComplete="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'email-error' : undefined} />
-                            </span>
-                            <FieldError id="email-error">{errors.email}</FieldError>
-                        </div>
-
-                        <div className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label htmlFor="register-password" className="mb-1.5 block text-sm font-semibold text-gray-800">Password</label>
                                 <div className={`flex min-h-12 items-center overflow-hidden rounded-xl border bg-white transition focus-within:ring-2 ${errors.password ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-brand-100'}`}>
@@ -494,11 +535,9 @@ const RegisterPage = () => {
                             </div>
                         </div>
 
-                        <fieldset className="border-t border-gray-100 pt-4 mt-2">
-                            <legend className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
-                                <HiOutlineLocationMarker className="h-4 w-4 text-brand-600" aria-hidden="true" />
-                                Home address
-                            </legend>
+                        <fieldset className="border-t border-gray-200 pt-5">
+                            <legend className="pr-3 text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Home address</legend>
+                            <p className="mb-4 mt-1 text-sm text-gray-600">Use your current Sibuyan Island address.</p>
                             {locationsError && (
                                 <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
                                     <span>{locationsError}</span>
@@ -507,7 +546,7 @@ const RegisterPage = () => {
                             )}
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div>
-                                    <label htmlFor="register-municipality" className="mb-1.5 block text-xs font-medium text-gray-600">Municipality</label>
+                                    <label htmlFor="register-municipality" className="mb-1.5 block text-sm font-semibold text-gray-800">Municipality</label>
                                     <select id="register-municipality" className={inputClass('municipality')} name="municipality" value={formData.municipality} onChange={handleMunicipalityChange} disabled={locationsLoading || Boolean(locationsError)} aria-invalid={Boolean(errors.municipality)} aria-describedby={errors.municipality ? 'municipality-error' : undefined}>
                                         <option value="">{locationsLoading ? 'Loading locations…' : 'Select municipality'}</option>
                                         {municipalities.map((municipality) => <option key={municipality.name} value={municipality.name}>{municipality.name}</option>)}
@@ -515,7 +554,7 @@ const RegisterPage = () => {
                                     <FieldError id="municipality-error">{errors.municipality}</FieldError>
                                 </div>
                                 <div>
-                                    <label htmlFor="register-barangay" className="mb-1.5 block text-xs font-medium text-gray-600">Barangay</label>
+                                    <label htmlFor="register-barangay" className="mb-1.5 block text-sm font-semibold text-gray-800">Barangay</label>
                                     <select id="register-barangay" className={inputClass('barangay')} name="barangay" value={formData.barangay} onChange={handleChange} disabled={!formData.municipality || locationsLoading || Boolean(locationsError)} aria-invalid={Boolean(errors.barangay)} aria-describedby={errors.barangay ? 'barangay-error' : undefined}>
                                         <option value="">{formData.municipality ? 'Select barangay' : 'Select municipality first'}</option>
                                         {selectedBarangays.map((barangay) => <option key={barangay.name} value={barangay.name}>{barangay.name}</option>)}
@@ -526,7 +565,7 @@ const RegisterPage = () => {
                         </fieldset>
 
                         <button type="button" onClick={handleNext} disabled={locationsLoading || Boolean(locationsError)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                            Continue to identification
+                            Continue to Government ID
                             <HiOutlineArrowRight className="h-5 w-5" aria-hidden="true" />
                         </button>
                     </section>
@@ -539,26 +578,26 @@ const RegisterPage = () => {
                             <p className="mt-1 text-sm leading-5 text-gray-500">Take or upload a clear photo of a valid government-issued or school ID.</p>
                         </div>
 
-                        <div className="rounded-xl border border-gray-200 bg-white p-4">
-                            <p className="text-sm font-semibold text-gray-900">Before you continue</p>
+                        <div className="border-y border-gray-200 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Before you continue</p>
                             <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
                                 {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
                                     <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
                                 ))}
                             </ul>
-                            <p className="mt-3 flex gap-2 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
+                            <p className="mt-4 flex gap-2 border-t border-gray-200 pt-4 text-xs leading-5 text-gray-600"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
                         </div>
 
                         {!idFile ? (
-                            <div className={`rounded-2xl border border-dashed p-4 ${errors.idDocument ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
+                            <div className={errors.idDocument ? 'border-l-2 border-red-400 pl-3' : ''}>
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-transparent bg-white p-4 text-center text-gray-900 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
-                                        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-100 text-brand-700"><HiOutlineCamera className="h-6 w-6" aria-hidden="true" /></span>
+                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 text-center text-gray-900 transition-colors hover:border-brand-300 hover:bg-brand-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                        <HiOutlineCamera className="mb-2 h-6 w-6 text-brand-700" aria-hidden="true" />
                                         <span className="text-sm font-semibold">Take a photo</span>
                                         <span className="mt-1 text-xs text-gray-500">Use your rear camera</span>
                                     </button>
-                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-transparent bg-white p-4 text-center text-gray-900 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
-                                        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-700"><HiOutlineCloudUpload className="h-6 w-6" aria-hidden="true" /></span>
+                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 text-center text-gray-900 transition-colors hover:border-brand-300 hover:bg-brand-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60">
+                                        <HiOutlineCloudUpload className="mb-2 h-6 w-6 text-gray-600" aria-hidden="true" />
                                         <span className="text-sm font-semibold">Choose from device</span>
                                         <span className="mt-1 text-xs text-gray-500">Select an existing photo</span>
                                     </button>
@@ -593,7 +632,7 @@ const RegisterPage = () => {
 
                         <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button type="button" onClick={handleBack} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">Back</button>
-                            <button type="button" onClick={handleNext} disabled={idPreparing} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">Continue <HiOutlineArrowRight className="h-5 w-5" /></button>
+                            <button type="button" onClick={handleNext} disabled={idPreparing || !idFile} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Continue to Selfie <HiOutlineArrowRight className="h-5 w-5" aria-hidden="true" /></button>
                         </div>
                     </section>
                 )}
@@ -601,13 +640,13 @@ const RegisterPage = () => {
                 {step === 3 && (
                     <section aria-labelledby="face-step-title" className="space-y-5">
                         <div>
-                            <h2 id="face-step-title" className="text-lg font-semibold text-gray-950">Take a verification selfie</h2>
-                            <p className="mt-1 text-sm leading-5 text-gray-500">A municipal administrator will manually compare this photo with your ID.</p>
+                            <h2 id="face-step-title" className="text-lg font-semibold text-gray-950">Camera preview</h2>
+                            <p className="mt-1 text-sm leading-5 text-gray-600">Center your full face inside the guide and make sure the photo is clear.</p>
                         </div>
 
                         {!cameraActive && !selfiePreview && (
-                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                                <p className="text-sm font-semibold text-gray-900">Get ready before opening the camera</p>
+                            <div className="border-y border-gray-200 py-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Before you continue</p>
                                 <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
                                     {['Face the camera directly', 'Use a well-lit area', 'Remove masks, caps, and tinted glasses', 'Make sure only you are visible'].map((item) => (
                                         <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
@@ -666,7 +705,7 @@ const RegisterPage = () => {
                         <p className="sr-only" role="status" aria-live="polite">{captureAnnouncement}</p>
                         <FieldError id="selfie-error">{errors.selfie}</FieldError>
 
-                        <div className="flex gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <div className="flex gap-3 border-t border-gray-200 pt-4">
                             <HiOutlineShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" aria-hidden="true" />
                             <div className="min-w-0 text-xs leading-5 text-gray-600">
                                 <p>Your ID and selfie are private and available only to you and authorized municipal administrators.</p>
@@ -686,7 +725,7 @@ const RegisterPage = () => {
                         <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button type="button" onClick={handleBack} disabled={loading} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50">Back</button>
                             <button ref={submitButtonRef} type="submit" disabled={loading || !selfieAccepted} aria-disabled={loading || !selfieAccepted} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                                {loading ? 'Submitting securely…' : selfieAccepted ? 'Submit for review' : 'Confirm your selfie to continue'}
+                                {loading ? 'Submitting securely…' : selfieAccepted ? 'Submit for municipal review' : 'Confirm your selfie to continue'}
                             </button>
                         </div>
                     </section>

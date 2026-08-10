@@ -10,7 +10,6 @@ import {
     HiOutlineEyeOff,
     HiOutlineGlobe,
     HiOutlineCheckCircle,
-    HiOutlineUserAdd,
 } from 'react-icons/hi';
 
 const LoginPage = () => {
@@ -64,25 +63,35 @@ const LoginPage = () => {
 
     return (
         <div className="w-full">
-            <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-                {/* Mobile Logo */}
-                <div className="mb-7 flex items-center gap-2.5 lg:hidden">
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
-                        <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
+            <div className="w-full rounded-xl border border-gray-200 bg-white p-5 sm:p-8">
+                {/* Compact system context for screens where the institutional panel is hidden. */}
+                <div className="mb-7 border-b border-gray-200 pb-5 lg:hidden">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
+                            <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
+                        </div>
+                        <div>
+                            <p className="font-display text-lg font-black leading-tight tracking-tight text-gray-900">
+                                Sibuyan <span className="text-emerald-700">Alert</span>
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-gray-500">
+                                Accident Alert &amp; Mapping System
+                            </p>
+                        </div>
                     </div>
-                    <span className="text-lg font-black tracking-tight text-gray-900">
-                        Sibuyan <span className="text-emerald-700">Alert</span>
-                    </span>
+                    <p className="mt-3 text-sm leading-5 text-gray-600">
+                        Official account access for Sibuyan Island incident coordination.
+                    </p>
                 </div>
 
                 {/* Header */}
                 <div className="mb-7">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Account access</p>
                     <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                        Welcome back
+                        Sign in to Sibuyan Alert
                     </h2>
                     <p className="text-sm leading-6 text-gray-600">
-                        Sign in to access your <span className="text-brand-700 font-semibold">Sibuyan Alert</span> account.
+                        Access your account securely.
                     </p>
                 </div>
 
@@ -176,7 +185,7 @@ const LoginPage = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(prev => !prev)}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1"
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                             >
                                 {showPassword
@@ -233,41 +242,30 @@ const LoginPage = () => {
                     </button>
                 </form>
 
-                {/* Secondary Actions */}
-                <div className="my-6 flex items-center gap-3" aria-hidden="true">
-                    <span className="h-px flex-1 bg-gray-200" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">or</span>
-                    <span className="h-px flex-1 bg-gray-200" />
-                </div>
-                <div className="space-y-2.5">
+                {/* Account creation and public access remain secondary to authentication. */}
+                <div className="mt-7 border-t border-gray-200 pt-5">
+                    <p className="text-sm font-medium text-gray-700">New to Sibuyan Alert?</p>
                     <Link
                         to="/register"
-                        className="ui-button group flex min-h-[68px] w-full items-center gap-3 rounded-xl border border-transparent p-3.5 transition-colors hover:bg-brand-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                        className="mt-1 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                     >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50">
-                            <HiOutlineUserAdd className="h-5 w-5 text-brand-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm text-gray-900">
-                                Register as a reporter
-                            </h3>
-                            <p className="text-xs text-gray-600">
-                                Submit incident reports once approved
-                            </p>
-                        </div>
-                        <HiOutlineArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
+                        <span>Register as a reporter</span>
+                        <HiOutlineArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
                     </Link>
+                    <p className="mt-1 text-xs leading-5 text-gray-600">
+                        Submit incident reports after approval.
+                    </p>
 
-                    <div className="flex items-center justify-center pt-1">
+                    <div className="mt-5">
                         <Link
                             to="/dashboard?view=map"
-                            className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 rounded"
+                            className="inline-flex items-center gap-1.5 rounded text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                         >
                             <HiOutlineGlobe className="h-4 w-4 shrink-0" aria-hidden="true" />
                             <span>View public incident map</span>
-                            <span className="text-gray-400">·</span>
-                            <span className="text-xs text-gray-400">no sign-in required</span>
+                            <HiOutlineArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
                         </Link>
+                        <p className="mt-1 text-xs text-gray-600">No sign-in required.</p>
                     </div>
                 </div>
             </div>

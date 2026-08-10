@@ -50,12 +50,12 @@ function App() {
 
                 {/* Auth Routes */}
                 <Route path="/login" element={(
-                    <AuthLayout>
+                    <AuthLayout variant="login">
                         {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <LoginPage />}
                     </AuthLayout>
                 )} />
                 <Route path="/register" element={(
-                    <AuthLayout>
+                    <AuthLayout variant="registration">
                         {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/my-reports' : '/dashboard'} /> : <RegisterPage />}
                     </AuthLayout>
                 )} />

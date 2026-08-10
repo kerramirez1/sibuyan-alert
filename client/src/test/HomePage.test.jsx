@@ -69,7 +69,9 @@ describe('HomePage operational landing page', () => {
     test('shows responsive hero actions and keeps the risk-zone metric non-interactive', async () => {
         renderPage();
 
-        expect(await screen.findByText('Verified in Jul 2026')).toBeInTheDocument();
+        const metricsStrip = screen.getByTestId('landing-hero-metrics');
+        expect(await within(metricsStrip).findByText('Verified reports')).toBeInTheDocument();
+        expect(await within(metricsStrip).findByText('July 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
         const mapAction = screen.getByRole('link', { name: 'View live map' });
         const reportAction = screen.getByRole('link', { name: 'Report an Incident' });
@@ -87,30 +89,48 @@ describe('HomePage operational landing page', () => {
         expect(screen.getByText('Municipalities covered')).toBeInTheDocument();
         expect(screen.getByText('14 barangays')).toBeInTheDocument();
         expect(screen.getByText('12 barangays')).toBeInTheDocument();
+        const coverageMetrics = screen.getByTestId('coverage-metrics');
+        const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
+        const guarantees = screen.getByTestId('system-guarantees');
+        expect(coverageMetrics).toHaveClass('border-y');
+        expect(coverageMetrics).not.toHaveClass('rounded-2xl', 'bg-white/[0.04]');
+        expect(municipalityCoverage.tagName).toBe('UL');
+        expect(municipalityCoverage).toHaveClass('divide-y', 'border-y');
+        Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
+            expect(municipalityRow).not.toHaveClass('rounded-2xl', 'bg-white/[0.04]');
+        });
+        expect(screen.getByRole('img', { name: 'Cajidiocan seal' })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'Magdiwang seal' })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'San Fernando seal' })).toBeInTheDocument();
+        expect(screen.queryByLabelText('Covered')).not.toBeInTheDocument();
+        expect(guarantees).toHaveClass('lg:border-l');
+        expect(guarantees).not.toHaveClass('rounded-3xl', 'bg-white/[0.05]');
         expect(screen.getByText('GPS-based incident location')).toBeInTheDocument();
         expect(screen.queryByText('GPS-based incident location with barangay verification')).not.toBeInTheDocument();
         const emergencyNoticeLabel = screen.getByText('Emergency notice:');
         expect(emergencyNoticeLabel).toHaveClass('text-emerald-300');
-        expect(emergencyNoticeLabel.closest('div')).toHaveClass('border-emerald-400/25', 'bg-emerald-500/10');
+        expect(emergencyNoticeLabel.closest('div')).toHaveClass('border-l-2', 'border-emerald-400/50');
+        expect(emergencyNoticeLabel.closest('div')).not.toHaveClass('rounded-xl', 'bg-emerald-500/10');
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Built around real municipal workflows.' })).not.toBeInTheDocument();
         expect(screen.queryByText('Data Privacy Notice')).not.toBeInTheDocument();
         expect(screen.queryByText(/Data handled in compliance with RA 10173/i)).not.toBeInTheDocument();
 
+        // The lifecycle visual is now a neutral "Typical incident journey"
+        // progression (public-facing happy path), not a colored per-status pill strip.
+        expect(screen.getByText('Typical incident journey')).toBeInTheDocument();
+        expect(screen.queryByText('Full incident lifecycle')).not.toBeInTheDocument();
         const lifecycle = screen.getByRole('list', { name: 'Incident status stages in order' });
         expect(lifecycle).toHaveClass('flex-nowrap', 'overflow-x-auto', 'overscroll-x-contain');
         expect(lifecycle).toHaveAttribute('tabindex', '0');
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
-        lifecycleStages.forEach((stage) => {
-            expect(stage).toHaveClass('border-gray-200', 'bg-white', 'text-gray-700');
+        const journeyLabels = ['Reported', 'Under review', 'Verified', 'Responding', 'Resolved'];
+        lifecycleStages.forEach((stage, index) => {
+            expect(stage).toHaveTextContent(journeyLabels[index]);
+            expect(stage.querySelector('span')).toHaveClass('bg-emerald-500');
         });
-        expect(lifecycleStages[0].querySelector('span')).toHaveClass('bg-slate-400');
-        expect(lifecycleStages[1].querySelector('span')).toHaveClass('bg-amber-500');
-        expect(lifecycleStages[2].querySelector('span')).toHaveClass('bg-blue-500');
-        expect(lifecycleStages[3].querySelector('span')).toHaveClass('bg-cyan-500');
-        expect(lifecycleStages[4].querySelector('span')).toHaveClass('bg-emerald-500');
 
         expect(screen.getAllByText('Active risk zones').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();
@@ -118,6 +138,7 @@ describe('HomePage operational landing page', () => {
         const copy = screen.getByTestId('landing-hero-copy');
         const mapPreview = screen.getByTestId('sibuyan-island-map');
         const staticMapPreview = mapPreview.querySelector('img[src="/icons/Municipality.png"]');
+        const staticMapFrame = staticMapPreview.parentElement;
         const heroLayout = screen.getByTestId('landing-hero-layout');
         const mapContainer = screen.getByTestId('landing-hero-map');
         const eyebrow = screen.getByTestId('landing-hero-eyebrow');
@@ -129,6 +150,12 @@ describe('HomePage operational landing page', () => {
         expect(copy).toHaveClass('self-stretch', 'flex-col', 'justify-between');
         expect(mapContainer).toHaveClass('self-stretch', 'lg:self-start');
         expect(mapContainer).not.toHaveClass('lg:pt-10');
+        expect(mapPreview).toHaveClass('max-w-[210px]', 'sm:max-w-[360px]', 'lg:max-w-[450px]', 'xl:max-w-[500px]');
+        expect(staticMapFrame).toHaveClass('overflow-hidden', 'p-1', 'sm:p-1.5', 'lg:p-1');
+        expect(staticMapFrame).not.toHaveClass('p-2', 'sm:p-2.5');
+        expect(staticMapPreview).toHaveClass('h-auto', 'w-full', 'object-contain');
+        expect(staticMapPreview).toHaveAttribute('width', '640');
+        expect(staticMapPreview).toHaveAttribute('height', '530');
         expect(eyebrow).toHaveTextContent('Island-wide incident coordination');
         expect(eyebrow).toHaveClass('whitespace-nowrap', 'text-[clamp(6px,1.9vw,9px)]', 'sm:text-[11px]', 'lg:mb-2');
         expect(eyebrow).not.toHaveClass('hidden');
@@ -142,6 +169,22 @@ describe('HomePage operational landing page', () => {
         const benefits = screen.getByTestId('landing-hero-benefits');
         expect(benefits).toHaveClass('lg:self-start');
         expect(benefits).not.toHaveClass('lg:pt-10');
+        const benefitList = within(benefits).getByRole('list');
+        const benefitRows = within(benefitList).getAllByRole('listitem');
+        expect(benefitRows).toHaveLength(5);
+        expect(benefitRows.map((row) => within(row).getByRole('heading').textContent)).toEqual([
+            'Verified reports',
+            'Real-time alerts',
+            'Municipality coordination',
+            'High-risk areas',
+            'Responder dispatch',
+        ]);
+        expect(within(benefitList).getByText('View mapped high-risk areas and monitored hazard zones on the live map.')).toBeInTheDocument();
+        expect(benefitList).toHaveClass('divide-y', 'lg:py-0.5');
+        expect(benefitList).not.toHaveClass('overflow-y-auto', 'overflow-hidden', 'max-h-full');
+        benefitRows.forEach((row) => {
+            expect(row).toHaveClass('gap-2.5', 'py-3.5', 'sm:py-3', 'lg:py-2.5');
+        });
         const metrics = screen.getByTestId('landing-hero-metrics');
         expect(copy.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(staticMapPreview).toBeInTheDocument();

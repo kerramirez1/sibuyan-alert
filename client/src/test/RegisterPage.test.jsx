@@ -24,6 +24,7 @@ vi.mock('../utils/identityImage', () => ({
 }));
 
 import RegisterPage from '../pages/RegisterPage';
+import AuthLayout from '../components/layout/AuthLayout';
 
 const officialLocations = [
     {
@@ -42,7 +43,9 @@ const officialLocations = [
 
 const renderRegister = () => render(
     <MemoryRouter>
-        <RegisterPage />
+        <AuthLayout variant="registration">
+            <RegisterPage />
+        </AuthLayout>
     </MemoryRouter>
 );
 
@@ -55,6 +58,22 @@ describe('RegisterPage location reference and responsive form', () => {
         mocks.register.mockResolvedValue({ success: true });
         mocks.prepareIdentityImage.mockImplementation(async (file) => ({ file }));
         mocks.prepareVerificationImage.mockImplementation(async (file) => ({ file }));
+    });
+
+    test('presents a registration-specific enrollment context and accessible progress', async () => {
+        renderRegister();
+        await screen.findByLabelText('Municipality');
+
+        expect(screen.getByRole('complementary', { name: 'Sibuyan Alert reporter registration overview' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Become a verified reporter.' })).toBeInTheDocument();
+        expect(screen.getByText('Submit your government ID')).toBeInTheDocument();
+        expect(screen.getByText('Wait for municipal approval')).toBeInTheDocument();
+        expect(screen.queryByText('Operational Map')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responder Alerts')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
+        expect(screen.getByRole('listitem', { name: 'Account: current step' })).toBeInTheDocument();
+        expect(screen.getByRole('listitem', { name: 'Government ID: next' })).toBeInTheDocument();
+        expect(screen.getByRole('listitem', { name: 'Selfie verification: next' })).toBeInTheDocument();
     });
 
     test('loads barangays from the backend and shows only the selected municipality records', async () => {
@@ -79,12 +98,12 @@ describe('RegisterPage location reference and responsive form', () => {
         renderRegister();
         await screen.findByLabelText('Municipality');
 
-        fireEvent.click(screen.getByRole('button', { name: /Continue to identification/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
 
         expect(screen.getAllByRole('alert')).toHaveLength(6);
         expect(screen.getByText('Enter your full name.')).toBeInTheDocument();
         expect(screen.getByLabelText('Full name')).toHaveAttribute('aria-invalid', 'true');
-        expect(screen.getByRole('heading', { name: 'Account and home address' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Account information' })).toBeInTheDocument();
     });
 
     test('keeps independent show-password controls aligned with each field', async () => {
@@ -127,15 +146,22 @@ describe('RegisterPage location reference and responsive form', () => {
         fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
         fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
         fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByRole('button', { name: /Continue to identification/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
 
+        expect(screen.getByRole('heading', { name: 'Verify your identity' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Upload your ID' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Take a photo/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Choose from device/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Continue to Selfie/i })).toBeDisabled();
         expect(screen.getByLabelText('Take an ID photo')).toHaveAttribute('capture', 'environment');
         expect(screen.getByLabelText('Take an ID photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
         expect(screen.getByLabelText('Choose an ID photo from device')).not.toHaveAttribute('capture');
         expect(screen.getByText(/never shown on public reports/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(screen.getByLabelText('Full name')).toHaveValue('Juan Dela Cruz');
+        expect(screen.getByLabelText('Municipality')).toHaveValue('Cajidiocan');
+        expect(screen.getByLabelText('Barangay')).toHaveValue('Gutivan');
     });
 
     test('requires explicit selfie confirmation before enabling final submission', async () => {
@@ -148,12 +174,12 @@ describe('RegisterPage location reference and responsive form', () => {
         fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
         fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
         fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByRole('button', { name: /Continue to identification/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
 
         const idPhoto = new File(['id'], 'id.jpg', { type: 'image/jpeg' });
         fireEvent.change(screen.getByLabelText('Choose an ID photo from device'), { target: { files: [idPhoto] } });
         await screen.findByAltText('Selected identification preview');
-        fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Selfie/i }));
 
         expect(screen.getByRole('heading', { name: /Take a verification selfie/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Confirm your selfie to continue/i })).toBeDisabled();
@@ -166,9 +192,16 @@ describe('RegisterPage location reference and responsive form', () => {
         const usePhoto = screen.getByRole('button', { name: /Use this photo/i });
         await waitFor(() => expect(usePhoto).toHaveFocus());
         fireEvent.click(usePhoto);
-        const submit = screen.getByRole('button', { name: /Submit for review/i });
+        const submit = screen.getByRole('button', { name: /Submit for municipal review/i });
         expect(submit).toBeEnabled();
         await waitFor(() => expect(submit).toHaveFocus());
         expect(screen.getByText(/manual identity comparison/i)).toBeInTheDocument();
+
+        fireEvent.click(submit);
+        await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
+        const submittedData = mocks.register.mock.calls[0][0];
+        expect(submittedData.get('name')).toBe('Juan Dela Cruz');
+        expect(submittedData.get('municipality')).toBe('Cajidiocan');
+        expect(submittedData.get('idDocument')).toBe(idPhoto);
     });
 });

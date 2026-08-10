@@ -1,11 +1,11 @@
-import { HiOutlineShieldCheck, HiOutlineLocationMarker, HiOutlineUserCircle, HiOutlineRefresh, HiOutlineLockClosed } from 'react-icons/hi';
+import { HiOutlineCheckCircle } from 'react-icons/hi';
 
 const TRUST_ITEMS = [
-    { Icon: HiOutlineShieldCheck, text: 'Municipal administrator review before public visibility' },
-    { Icon: HiOutlineLocationMarker, text: 'GPS-based incident location' },
-    { Icon: HiOutlineUserCircle, text: 'Reporter identity verified before account approval' },
-    { Icon: HiOutlineRefresh, text: 'Real-time status updates across the full lifecycle' },
-    { Icon: HiOutlineLockClosed, text: 'Secure, role-based access for each user type' },
+    'Municipal administrator review before public visibility',
+    'GPS-based incident location',
+    'Reporter identity verified before account approval',
+    'Real-time status updates across the full lifecycle',
+    'Secure, role-based access for each user type',
 ];
 
 const logoConfig = {
@@ -28,64 +28,75 @@ const Coverage = ({ municipalities }) => {
                 <div>
                     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-400">Coverage</p>
                     <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Connected across Sibuyan Island.</h2>
-                    <p className="mb-8 mt-4 max-w-xl text-sm leading-relaxed text-emerald-50/65">The platform serves the island's three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.</p>
+                    <p className="mb-8 mt-4 max-w-xl text-sm leading-relaxed text-emerald-50/75">The platform serves the island's three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.</p>
 
-                    <div className="mb-8 grid grid-cols-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                    <dl
+                        data-testid="coverage-metrics"
+                        aria-label="Island coverage totals"
+                        className="mb-9 grid grid-cols-3 border-y border-white/15"
+                    >
                         {[
                             [municipalities.length, 'Municipalities'],
                             [totalBarangays, 'Barangays'],
                             [4, 'Response agencies'],
                         ].map(([value, label], index) => (
-                            <div key={label} className={`min-w-0 px-2 py-4 text-center sm:px-4 ${index === 1 ? 'border-x border-white/10' : ''}`}>
-                                <p className="text-xl font-black tabular-nums text-white sm:text-2xl">{value}</p>
-                                <p className="mt-1 text-[9px] font-semibold leading-tight text-emerald-50/50 sm:text-xs">{label}</p>
+                            <div
+                                key={label}
+                                className={`flex min-w-0 flex-col py-5 ${index > 0 ? 'border-l border-white/15 pl-3 sm:pl-5' : 'pr-3 sm:pr-5'}`}
+                            >
+                                <dt className="order-2 mt-1 text-[11px] font-semibold leading-snug text-emerald-50/75 sm:text-xs">{label}</dt>
+                                <dd className="order-1 text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
                             </div>
                         ))}
-                    </div>
+                    </dl>
 
-                    <div className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-1">
+                    <ul
+                        data-testid="municipality-coverage-list"
+                        aria-label="Municipalities covered"
+                        className="divide-y divide-white/15 border-y border-white/15"
+                    >
                         {municipalities.map((municipality) => {
                             const logo = logoConfig[municipality.name];
                             const barangayCount = municipality.barangays?.length || fallbackBarangayCount(municipality.name);
                             return (
-                                <div key={municipality.code} className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
-                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1">
+                                <li key={municipality.code} className="flex min-w-0 items-center gap-4 py-4 sm:py-5">
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-12 sm:w-12">
                                         {logo
                                             ? <img src={logo.src} alt={`${municipality.name} seal`} className={`h-full w-full object-contain ${logo.scale}`} />
-                                            : <span className="font-bold text-emerald-900">{municipality.name[0]}</span>}
+                                            : <span className="text-lg font-bold text-emerald-100">{municipality.name[0]}</span>}
                                     </span>
-                                    <div className="min-w-0 flex-1">
+                                    <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:justify-between sm:gap-6">
                                         <p className="truncate text-sm font-bold text-white">{municipality.name}</p>
-                                        <p className="mt-0.5 text-xs text-emerald-50/50">{barangayCount} barangays</p>
+                                        <p className="mt-1 shrink-0 text-xs font-medium text-emerald-50/70 sm:mt-0">{barangayCount} barangays</p>
                                     </div>
-                                    <HiOutlineShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" aria-label="Covered" />
-                                </div>
+                                </li>
                             );
                         })}
-                    </div>
+                    </ul>
                 </div>
 
                 {/* ── Trust + disclaimer block ─────────────────────────────── */}
-                <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 sm:p-8 lg:sticky lg:top-24">
+                <aside
+                    data-testid="system-guarantees"
+                    className="border-t border-white/15 pt-10 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0 xl:pl-16"
+                >
                     <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">System guarantees</p>
-                    <h3 className="mt-4 text-xl font-black text-white">Built for accountability.</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-emerald-50/60">
+                    <h3 className="mt-3 text-xl font-black text-white">Built for accountability.</h3>
+                    <p className="mt-2 max-w-md text-sm leading-relaxed text-emerald-50/75">
                         Every incident record passes through a structured review and response chain before public visibility.
                     </p>
 
-                    <ul className="mt-6 space-y-3.5" role="list">
-                        {TRUST_ITEMS.map(({ Icon, text }) => (
-                            <li key={text} className="flex items-start gap-3">
-                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400">
-                                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                                </span>
-                                <span className="text-sm leading-snug text-emerald-50/70">{text}</span>
+                    <ul className="mt-7 divide-y divide-white/10 border-y border-white/15" role="list">
+                        {TRUST_ITEMS.map((text) => (
+                            <li key={text} className="flex items-start gap-3 py-3.5">
+                                <HiOutlineCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                                <span className="text-sm leading-relaxed text-emerald-50/85">{text}</span>
                             </li>
                         ))}
                     </ul>
 
-                    <div className="mt-7 rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
-                        <p className="text-xs leading-relaxed text-emerald-100/80">
+                    <div data-testid="coverage-emergency-notice" className="mt-7 border-l-2 border-emerald-400/50 pl-4">
+                        <p className="text-xs leading-relaxed text-emerald-50/80">
                             <strong className="font-bold text-emerald-300">Emergency notice:</strong>{' '}
                             Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
                         </p>

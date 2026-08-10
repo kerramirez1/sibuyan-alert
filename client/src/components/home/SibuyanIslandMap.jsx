@@ -11,18 +11,18 @@ const SibuyanIslandMap = memo(() => (
         aria-label="Map of Sibuyan Island showing Cajidiocan, Magdiwang, and San Fernando municipalities"
         data-testid="sibuyan-island-map"
     >
-        {/* Ambient radial emerald glow */}
+        {/* Restrained ambient emerald glow (kept subtle; the map is the focus) */}
         <div
-            className="absolute -inset-6 -z-10 rounded-full bg-emerald-400/30 blur-3xl dark:bg-emerald-500/20"
+            className="absolute -inset-5 -z-10 rounded-full bg-emerald-400/15 blur-2xl dark:bg-emerald-500/10"
             aria-hidden="true"
         />
 
-        {/* Rounded picture container */}
-        <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white/90 p-2 shadow-[0_20px_60px_-15px_rgba(9,23,17,0.35)] transition-all duration-300 hover:shadow-[0_25px_70px_-12px_rgba(9,23,17,0.45)] sm:rounded-3xl sm:p-3.5 dark:border-white/10 dark:bg-[#101c19]/90">
+        {/* Light picture frame: thin border + gentle shadow, restrained radius */}
+        <div className="overflow-hidden rounded-xl border border-[#dbeae1] bg-white p-1 shadow-[0_8px_24px_-18px_rgba(9,23,17,0.28)] sm:rounded-2xl sm:p-1.5 lg:p-1 dark:border-[#1c3428] dark:bg-[#101c19]">
             <img
                 src="/icons/Municipality.png"
                 alt="Sibuyan Island municipality boundaries — Cajidiocan, Magdiwang, and San Fernando"
-                className="block h-auto w-full rounded-xl object-contain sm:rounded-2xl"
+                className="block h-auto w-full rounded-lg object-contain sm:rounded-xl"
                 loading="eager"
                 decoding="async"
                 width={640}

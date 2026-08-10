@@ -16,18 +16,18 @@ const DEFAULT_MUNICIPALITIES = [
 ];
 
 const getVerifiedPeriodLabel = (period) => {
-    if (!period?.startAt) return 'Verified this month';
+    if (!period?.startAt) return 'This month';
     const startAt = new Date(period.startAt);
-    if (Number.isNaN(startAt.getTime())) return 'Verified this month';
+    if (Number.isNaN(startAt.getTime())) return 'This month';
 
     try {
-        return `Verified in ${new Intl.DateTimeFormat('en-PH', {
-            month: 'short',
+        return new Intl.DateTimeFormat('en-PH', {
+            month: 'long',
             year: 'numeric',
             timeZone: period.timezone || 'Asia/Manila',
-        }).format(startAt)}`;
+        }).format(startAt);
     } catch {
-        return 'Verified this month';
+        return 'This month';
     }
 };
 

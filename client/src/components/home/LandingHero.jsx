@@ -27,16 +27,24 @@ const benefits = [
         description: 'Reports and response activity stay scoped to the responsible municipality.',
     },
     {
+        Icon: HiOutlineExclamation,
+        title: 'High-risk areas',
+        description: 'View mapped high-risk areas and monitored hazard zones on the live map.',
+    },
+    {
         Icon: HiOutlineChartBar,
         title: 'Responder dispatch',
         description: 'Eligible incidents move from verification to field response in one record.',
     },
 ];
 
-const Metric = ({ value, label, bordered = false }) => (
+const Metric = ({ value, label, sublabel = null, bordered = false }) => (
     <div className={`min-w-0 px-2 py-2.5 text-center sm:px-5 sm:py-4 ${bordered ? 'border-x border-white/30 dark:border-white/10' : ''}`}>
         <p className="text-base font-black leading-none tabular-nums text-gray-950 sm:text-2xl dark:text-white">{value}</p>
-        <p className="mt-1 text-[8px] font-semibold leading-snug text-gray-600 sm:mt-1.5 sm:text-xs dark:text-gray-300">{label}</p>
+        <p className="mt-1 border-t border-[#e2ede7] pt-1 text-[8px] font-semibold leading-snug text-gray-600 sm:mt-1.5 sm:pt-1.5 sm:text-xs dark:border-white/10 dark:text-gray-300">{label}</p>
+        {sublabel && (
+            <p className="mt-0.5 text-[8px] font-medium tracking-wide text-gray-400 sm:text-[11px] dark:text-gray-500">{sublabel}</p>
+        )}
     </div>
 );
 
@@ -89,23 +97,24 @@ const LandingHero = ({
     return (
         <section id="home" className="relative isolate overflow-hidden border-b border-[#d0e8dc] bg-[#f6fbf8] pt-[60px] dark:border-[#1c3428] dark:bg-[#091711]">
 
-            {/* ── Background layer 1: directional brand gradient ────────────────
-                 Light: white-left fading to a faint emerald wash on the right
-                 Dark:  near-black left, deep green right where the map sits */}
+            {/* ── Background layer 1: restrained off-white base with a faint emerald tint ──
+                 Light: near-neutral off-white across the hero, settling into a soft emerald
+                        tint on the right where the map and feature list sit.
+                 Dark:  near-black left, deep green right. */}
             <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 -z-20"
                 style={{
-                    background: 'linear-gradient(118deg,#f6fbf8 0%,#edf8f2 42%,#d6f1e5 100%)',
+                    background: 'linear-gradient(180deg,#f9fcfa 0%,#f6fbf8 70%,#f3faf6 100%)',
                 }}
             />
             {/* Dark mode override via pseudo-class so we can keep the inline style */}
-            <style>{`.dark #home { background: linear-gradient(118deg,#091711 0%,#0d1f17 48%,#122a1d 100%) !important; }`}</style>
+            <style>{`.dark #home { background: linear-gradient(180deg,#0a1812 0%,#0d1f17 60%,#10241a 100%) !important; }`}</style>
 
-            {/* ── Background layer 2: radial emerald glow (right side, where map sits) ── */}
+            {/* ── Background layer 2: faint radial emerald atmosphere (right side, where map sits) ── */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_55%_65%_at_78%_44%,rgba(16,185,129,0.14),transparent_70%)] dark:bg-[radial-gradient(ellipse_55%_65%_at_78%_44%,rgba(52,211,153,0.08),transparent_70%)]"
+                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_50%_60%_at_80%_42%,rgba(16,185,129,0.08),transparent_75%)] dark:bg-[radial-gradient(ellipse_50%_60%_at_80%_42%,rgba(52,211,153,0.05),transparent_75%)]"
             />
 
             {/* ── Background layer 3: subtle dot-grid texture ────────────────── */}
@@ -116,7 +125,7 @@ const LandingHero = ({
             >
                 <defs>
                     <pattern id="hero-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                        <circle cx="1" cy="1" r="1" className="fill-emerald-800/[0.07] dark:fill-emerald-400/[0.06]" />
+                        <circle cx="1" cy="1" r="1" className="fill-emerald-800/[0.05] dark:fill-emerald-400/[0.04]" />
                     </pattern>
                     {/* Fade-out mask: dots visible on right, invisible on left */}
                     <linearGradient id="hero-dot-mask" x1="0" y1="0" x2="1" y2="0">
@@ -173,7 +182,7 @@ const LandingHero = ({
                                     <Link
                                         to={reportCta.to}
                                         id="hero-report-cta"
-                                        className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(185,28,28,0.75)] transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
+                                        className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
                                     >
                                         <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Report an Incident
@@ -184,7 +193,7 @@ const LandingHero = ({
                             {/* ── Secondary CTA: View live map ────────────────────────────────── */}
                             <Link
                                 to="/dashboard?view=map"
-                                className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white shadow-[0_12px_28px_-14px_rgba(4,120,87,0.7)] transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 View live map
@@ -210,23 +219,25 @@ const LandingHero = ({
                         <SibuyanIslandMap />
                     </div>
 
-                    <div data-testid="landing-hero-benefits" className="order-5 grid basis-full grid-cols-2 gap-2 lg:order-none lg:w-[clamp(270px,25vw,360px)] lg:basis-auto lg:flex-none lg:grid-cols-1 lg:gap-2.5 lg:self-start">
-                        {benefits.map(({ Icon, title, description }) => (
-                            <div key={title} className="flex min-w-0 items-center gap-2 rounded-xl border border-[#d0e8dc] bg-white p-2 shadow-[0_8px_24px_-16px_rgba(9,23,17,0.4)] sm:items-start sm:gap-3 sm:rounded-2xl sm:p-3.5 dark:border-[#1c3428] dark:bg-[#112219]">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 sm:h-10 sm:w-10 sm:rounded-xl dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/10">
-                                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                                </span>
-                                <div className="min-w-0">
-                                    <h2 className="text-[10px] font-bold leading-tight text-gray-950 sm:text-sm dark:text-white">{title}</h2>
-                                    <p className="mt-1 hidden text-xs leading-relaxed text-gray-600 sm:block dark:text-gray-300">{description}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div data-testid="landing-hero-benefits" className="order-5 basis-full lg:order-none lg:w-[clamp(300px,26vw,380px)] lg:basis-auto lg:flex-none lg:self-start">
+                        {/* Flat editorial feature list: one shared subtle surface, items
+                             separated by thin dividers instead of individual cards. */}
+                        <ul className="divide-y divide-[#e2ede7] rounded-2xl border border-[#dbeae1] bg-white/75 px-4 py-1 sm:px-5 lg:py-0.5 dark:divide-[#1f372c] dark:border-[#1c3428] dark:bg-[#0f2018]/60">
+                            {benefits.map(({ Icon, title, description }) => (
+                                <li key={title} className="flex items-start gap-2.5 py-3.5 sm:py-3 lg:py-2.5">
+                                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                    <div className="min-w-0">
+                                        <h2 className="text-[13px] font-bold leading-snug text-gray-950 sm:text-sm dark:text-white">{title}</h2>
+                                        <p className="mt-0.5 text-xs leading-5 text-gray-600 dark:text-gray-300">{description}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 </div>
 
-                <div data-testid="landing-hero-metrics" className="mx-auto mt-4 grid w-full max-w-5xl grid-cols-3 overflow-hidden rounded-xl border border-[#d0e8dc] bg-white shadow-[0_18px_50px_-30px_rgba(9,23,17,0.5)] sm:mt-7 sm:rounded-2xl lg:mt-9 dark:border-[#1c3428] dark:bg-[#112219]">
-                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label={verifiedPeriodLabel} />
+                <div data-testid="landing-hero-metrics" className="mx-auto mt-4 grid w-full max-w-5xl grid-cols-3 overflow-hidden rounded-xl border border-[#dbeae1] bg-white sm:mt-7 lg:mt-9 dark:border-[#1c3428] dark:bg-[#112219]">
+                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="Verified reports" sublabel={verifiedPeriodLabel} />
                     <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="Active risk zones" bordered />
                     <Metric value={municipalityCount} label="Municipalities covered" />
                 </div>
