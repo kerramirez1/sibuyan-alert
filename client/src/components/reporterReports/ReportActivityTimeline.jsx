@@ -1,13 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import {
-    HiOutlineBadgeCheck,
-    HiOutlineCheckCircle,
-    HiOutlineClipboardList,
-    HiOutlineLightningBolt,
-    HiOutlineLocationMarker,
-    HiOutlineSwitchHorizontal,
-} from 'react-icons/hi';
-import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+
 
 const UPDATE_LABELS = {
     general: 'Situation changed',
@@ -18,13 +10,13 @@ const UPDATE_LABELS = {
     other: 'Other update',
 };
 
-const TYPE_CONFIG = {
-    submitted: { icon: HiOutlineClipboardList, iconClass: 'bg-gray-100 text-gray-600' },
-    verified: { icon: HiOutlineCheckCircle, iconClass: MAP_STATUS_CONFIG.verified.iconTone },
-    transferred: { icon: HiOutlineSwitchHorizontal, iconClass: MAP_STATUS_CONFIG.transferred.iconTone },
-    responding: { icon: HiOutlineLightningBolt, iconClass: MAP_STATUS_CONFIG.responding.iconTone },
-    resolved: { icon: HiOutlineBadgeCheck, iconClass: MAP_STATUS_CONFIG.resolved.iconTone },
-    reporter_update: { icon: HiOutlineLocationMarker, iconClass: 'bg-brand-50 text-brand-700' },
+const getDotClass = (item) => {
+    if (item.type === 'reporter_update' && item.tag === 'need_help') return 'bg-red-500 ring-4 ring-red-50';
+    if (item.type === 'reporter_update') return 'bg-brand-500 ring-4 ring-brand-50';
+    if (item.type === 'resolved') return 'bg-emerald-500';
+    if (item.type === 'responding') return 'bg-blue-500';
+    if (item.type === 'submitted') return 'bg-gray-400';
+    return 'bg-gray-300';
 };
 
 const toValidDate = (value) => {
@@ -63,6 +55,7 @@ const buildActivity = (report) => {
         items.push({
             id: update._id || `update-${index}`,
             type: 'reporter_update',
+            tag: update.tag,
             title: UPDATE_LABELS[update.tag] || 'Situation update',
             detail: update.message,
             date,
@@ -98,16 +91,15 @@ const ReportActivityTimeline = ({ report, highlightedUpdateId }) => {
     return (
         <ol className="mt-4 space-y-0" aria-label="Report activity timeline">
             {activity.map((item, index) => {
-                const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.submitted;
-                const Icon = config.icon;
+                const dotClass = getDotClass(item);
                 const highlighted = highlightedUpdateId && String(item.id) === String(highlightedUpdateId);
                 return (
-                    <li key={`${item.type}-${item.id}`} className="relative flex gap-3 pb-4 last:pb-0">
-                        {index < activity.length - 1 && <span className="absolute left-4 top-8 h-[calc(100%-1rem)] w-px bg-gray-200" aria-hidden="true" />}
-                        <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.iconClass}`}>
-                            <Icon className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <div className={`min-w-0 flex-1 rounded-lg px-1 py-1 ${highlighted ? 'bg-brand-50 ring-2 ring-brand-500/15' : ''}`}>
+                    <li key={`${item.type}-${item.id}`} className="relative flex gap-4 pb-5 last:pb-0">
+                        {index < activity.length - 1 && <span className="absolute left-[9px] top-4 h-[calc(100%-1rem)] w-px bg-gray-200" aria-hidden="true" />}
+                        <div className="relative mt-1 flex h-5 w-5 shrink-0 items-center justify-center bg-white">
+                            <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                        </div>
+                        <div className={`min-w-0 flex-1 ${highlighted ? 'rounded-lg bg-brand-50 p-2 ring-1 ring-brand-500/20' : ''}`}>
                             <div className="flex flex-col gap-0.5 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between min-[420px]:gap-3">
                                 <p className="text-sm font-semibold text-gray-900">{item.title}</p>
                                 <time dateTime={item.date.toISOString()} className="shrink-0 text-xs text-gray-500">

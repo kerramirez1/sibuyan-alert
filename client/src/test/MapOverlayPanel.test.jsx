@@ -104,4 +104,37 @@ describe('MapOverlayPanel', () => {
         scrollRegion.dispatchEvent(wheelEvent);
         expect(wheelEvent.defaultPrevented).toBe(false);
     });
+
+    test('resets the shared panel body scroll when its content changes', () => {
+        const { rerender } = render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Pending incidents"
+                    contentKey="overview:pending:list"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Pending content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+        const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
+        scrollRegion.scrollTop = 180;
+
+        rerender(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Responding incidents"
+                    contentKey="overview:responding:list"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Responding content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        expect(screen.getByTestId('map-overlay-scroll-region')).toBe(scrollRegion);
+        expect(scrollRegion.scrollTop).toBe(0);
+    });
 });

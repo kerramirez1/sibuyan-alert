@@ -1,19 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineExclamationCircle,
-    HiOutlineExternalLink,
-    HiOutlineLocationMarker,
     HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
-import MapView from '../map/MapView';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
+import IncidentLocationPreview from './IncidentLocationPreview';
 import { IncidentActionButtons, IncidentStatusBadge } from './IncidentQueue';
 import ResponderIncidentInspector from './ResponderIncidentInspector';
 import {
     getAgencyLabel,
-    getCoordinates,
     getIncidentDate,
     SEVERITY_STYLES,
 } from './incidentReportConfig';
@@ -53,44 +51,56 @@ const AdministrativeIncidentDetailsDrawer = ({
     highlightedUpdateId = '',
     openedFromNotification = false,
 }) => {
+    const panelRef = useRef(null);
+    const panelBodyRef = useRef(null);
     const closeButtonRef = useRef(null);
-    const drawerRef = useRef(null);
     const previouslyFocusedRef = useRef(null);
-    const coordinates = getCoordinates(report);
+    const [entered, setEntered] = useState(false);
+    const isOpen = Boolean(report);
+    const reportId = String(report?._id || report?.id || '');
 
     useEffect(() => {
-        if (!report) return undefined;
+        if (!isOpen) return undefined;
+
         previouslyFocusedRef.current = document.activeElement;
-        const previousBodyOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        closeButtonRef.current?.focus();
+        const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') onClose();
-            if (event.key !== 'Tab') return;
-
-            const focusable = drawerRef.current?.querySelectorAll(
-                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-            );
-            if (!focusable?.length) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
         };
+
         window.addEventListener('keydown', handleKeyDown);
         return () => {
+            window.cancelAnimationFrame(focusFrame);
             window.removeEventListener('keydown', handleKeyDown);
-            document.body.style.overflow = previousBodyOverflow;
-            previouslyFocusedRef.current?.focus?.();
+            const focusTarget = previouslyFocusedRef.current;
+            if (focusTarget?.isConnected) focusTarget.focus();
         };
-    }, [onClose, report]);
+    }, [isOpen, onClose]);
 
-    if (!report) return null;
+    useEffect(() => {
+        if (!reportId) return;
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement !== document.body && !panelRef.current?.contains(activeElement)) {
+            previouslyFocusedRef.current = activeElement;
+        }
+    }, [reportId]);
+
+    useLayoutEffect(() => {
+        if (!reportId || !panelBodyRef.current) return;
+        panelBodyRef.current.scrollTop = 0;
+    }, [reportId]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setEntered(false);
+            return undefined;
+        }
+
+        const frame = window.requestAnimationFrame(() => setEntered(true));
+        return () => window.cancelAnimationFrame(frame);
+    }, [isOpen]);
+
+    if (!report || typeof document === 'undefined') return null;
 
     const incidentDate = getIncidentDate(report);
     const updates = Array.isArray(report.reportUpdates)
@@ -107,35 +117,43 @@ const AdministrativeIncidentDetailsDrawer = ({
         ? [...report.transferHistory].reverse()
         : [];
 
-    return (
-        <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby="incident-details-title">
-            <button type="button" tabIndex={-1} className="absolute inset-0 bg-gray-950/45" onClick={() => onClose()} aria-label="Close incident details" />
-            <aside ref={drawerRef} className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col bg-white shadow-xl">
-                <header className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 sm:px-6">
-                    <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Incident record</p>
-                        <h2 id="incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-bold text-gray-950">
-                            {report.address || 'Incident details'}
-                        </h2>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <IncidentStatusBadge status={report.status} />
-                            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${SEVERITY_STYLES[report.severity] || 'border-gray-200 bg-gray-50 text-gray-700'}`}>
-                                {report.severity || 'Unspecified'} severity
-                            </span>
-                        </div>
+    return createPortal(
+        <aside
+            id="administrative-incident-inspector"
+            ref={panelRef}
+            className={`fixed inset-y-0 right-0 z-40 flex min-h-0 w-full flex-col overflow-hidden border-l border-gray-200 bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.08)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-gray-800 dark:bg-gray-950 md:w-[30rem] md:max-w-[calc(100vw-2rem)] ${entered ? 'translate-x-0' : 'translate-x-full'}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="incident-details-title"
+        >
+            <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950 sm:px-5">
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Incident record</p>
+                    <h2 id="incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-bold leading-6 text-gray-950 dark:text-white">
+                        {report.address || 'Incident details'}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <IncidentStatusBadge status={report.status} />
+                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${SEVERITY_STYLES[report.severity] || 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+                            {report.severity || 'Unspecified'} severity
+                        </span>
                     </div>
-                    <button
-                        ref={closeButtonRef}
-                        type="button"
-                        onClick={() => onClose()}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        aria-label="Close incident details"
-                    >
-                        <HiOutlineX className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                </header>
+                </div>
+                <button
+                    ref={closeButtonRef}
+                    type="button"
+                    onClick={() => onClose()}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                    aria-label="Close incident details"
+                >
+                    <HiOutlineX className="h-5 w-5" aria-hidden="true" />
+                </button>
+            </header>
 
-                <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+            <div
+                ref={panelBodyRef}
+                className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-5"
+            >
                     {detailLoading && (
                         <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800" role="status">
                             Loading the protected operational record...
@@ -185,19 +203,34 @@ const AdministrativeIncidentDetailsDrawer = ({
                     )}
 
                     <section aria-labelledby="incident-overview-heading">
-                        <h3 id="incident-overview-heading" className="text-sm font-bold text-gray-900">Incident overview</h3>
+                        <h3 id="incident-overview-heading" className="text-sm font-bold text-gray-950 dark:text-white">Incident overview</h3>
                         <dl className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
                             <DetailItem label="Type"><span className="capitalize">{report.incidentType || report.accidentType || report.incidentCategory}</span></DetailItem>
+                            <DetailItem label="Severity"><span className="capitalize">{report.severity || 'Moderate'}</span></DetailItem>
+                            {report.fireInvolved && (
+                                <DetailItem label="Fire">
+                                    Yes {report.fireType ? `(${report.fireType.replace('_', ' ')})` : ''}
+                                </DetailItem>
+                            )}
                             <DetailItem label="Incident time">{formatDate(incidentDate)}</DetailItem>
                             <DetailItem label="Municipality">{report.municipalityName || report.municipality?.name}</DetailItem>
                             <DetailItem label="Submitted">{formatDate(report.createdAt)}</DetailItem>
+                            {report.casualties && (report.casualties.injured > 0 || report.casualties.fatalities > 0 || report.casualties.missing > 0) && (
+                                <DetailItem label="Casualties">
+                                    {[
+                                        report.casualties.fatalities > 0 ? `${report.casualties.fatalities} fatal` : null,
+                                        report.casualties.injured > 0 ? `${report.casualties.injured} injured` : null,
+                                        report.casualties.missing > 0 ? `${report.casualties.missing} missing` : null,
+                                    ].filter(Boolean).join(', ')}
+                                </DetailItem>
+                            )}
                             <DetailItem label="Reporter">{report.reporter?.name || 'Unknown reporter'}</DetailItem>
                             <DetailItem label="Reporter account">{report.reporter?.isVerified ? 'Verified' : 'Not verified'}</DetailItem>
                         </dl>
                     </section>
 
                     <section className="mt-5" aria-labelledby="incident-description-heading">
-                        <h3 id="incident-description-heading" className="text-sm font-bold text-gray-900">Description</h3>
+                        <h3 id="incident-description-heading" className="text-sm font-bold text-gray-950 dark:text-white">Description</h3>
                         <p className="mt-2 whitespace-pre-wrap rounded-xl border border-gray-200 p-4 text-sm leading-6 text-gray-700">
                             {report.description || 'No description provided.'}
                         </p>
@@ -205,7 +238,7 @@ const AdministrativeIncidentDetailsDrawer = ({
 
                     {transfers.length > 0 && (
                         <section className="mt-5" aria-labelledby="transfer-history-heading">
-                            <h3 id="transfer-history-heading" className="text-sm font-bold text-gray-900">Transfer history</h3>
+                            <h3 id="transfer-history-heading" className="text-sm font-bold text-gray-950 dark:text-white">Transfer history</h3>
                             <ol className="mt-3 space-y-3">
                                 {transfers.map((transfer, index) => (
                                     <li key={transfer._id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
@@ -238,38 +271,11 @@ const AdministrativeIncidentDetailsDrawer = ({
                         </section>
                     )}
 
-                    {coordinates && (
-                        <section className="mt-5" aria-labelledby="incident-location-heading">
-                            <div className="flex flex-col gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
-                                <div>
-                                    <h3 id="incident-location-heading" className="text-sm font-bold text-gray-900">Pinned location</h3>
-                                    <p className="mt-0.5 text-xs text-gray-500">{coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenMap(report)}
-                                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 min-[360px]:w-auto"
-                                >
-                                    <HiOutlineExternalLink className="h-4 w-4" aria-hidden="true" />
-                                    Open full map
-                                </button>
-                            </div>
-                            <div className="mt-3 aspect-square w-full overflow-hidden rounded-xl border border-gray-200 sm:aspect-auto sm:h-56">
-                                <MapView
-                                    reports={[report]}
-                                    showPending
-                                    filterMode={user?.role === 'municipal_admin' ? 'review' : 'response'}
-                                    viewerRole={user?.role || 'guest'}
-                                    focusLocation={{ ...coordinates, zoom: 16 }}
-                                    className="h-full w-full"
-                                />
-                            </div>
-                            <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-600">
-                                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                                {report.address}
-                            </p>
-                        </section>
-                    )}
+                    <IncidentLocationPreview
+                        report={report}
+                        userRole={user?.role}
+                        onOpenMap={onOpenMap}
+                    />
 
                     {(report.respondedBy || report.status === 'resolved') && (
                         <section className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-labelledby="incident-response-heading">
@@ -285,7 +291,7 @@ const AdministrativeIncidentDetailsDrawer = ({
 
                     {updates.length > 0 && (
                         <section className="mt-5" aria-labelledby="incident-updates-heading">
-                            <h3 id="incident-updates-heading" className="text-sm font-bold text-gray-900">Reporter updates</h3>
+                            <h3 id="incident-updates-heading" className="text-sm font-bold text-gray-950 dark:text-white">Reporter updates</h3>
                             <ol className="mt-3 space-y-2">
                                 {updates.map((item, index) => (
                                     <li
@@ -306,7 +312,7 @@ const AdministrativeIncidentDetailsDrawer = ({
 
                     {report.detailCompleteness === 'full' && (
                         <section className="mt-5" aria-labelledby="incident-photos-heading">
-                            <h3 id="incident-photos-heading" className="text-sm font-bold text-gray-900">Evidence photos ({report.images?.length || 0})</h3>
+                            <h3 id="incident-photos-heading" className="text-sm font-bold text-gray-950 dark:text-white">Evidence photos ({report.images?.length || 0})</h3>
                             <div className="mt-3">
                                 <ProtectedEvidenceGallery images={report.images || []} onViewImage={onViewImage} />
                             </div>
@@ -314,7 +320,7 @@ const AdministrativeIncidentDetailsDrawer = ({
                     )}
                 </div>
 
-                <footer className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                <footer className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950 sm:px-5">
                     <IncidentActionButtons
                         report={report}
                         user={user}
@@ -323,9 +329,9 @@ const AdministrativeIncidentDetailsDrawer = ({
                         hideInspect
                     />
                 </footer>
-            </aside>
-        </div>
-    );
+            </aside>,
+            document.body
+        );
 };
 
 const IncidentDetailsDrawer = (props) => (

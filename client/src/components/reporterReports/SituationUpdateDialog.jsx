@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+    HiCheckCircle,
     HiOutlineArrowLeft,
     HiOutlineExclamation,
     HiOutlinePaperAirplane,
@@ -48,18 +49,31 @@ const UPDATE_TYPES = [
 
 const SENSITIVE_TYPES = new Set(['need_help', 'false_alarm']);
 
-const TYPE_STYLES = {
-    danger: 'border-red-200 bg-red-50 text-red-900 hover:border-red-300',
-    warning: 'border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-300',
-    success: 'border-transparent bg-emerald-50 text-emerald-900',
-    neutral: 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50',
-};
-
-const SELECTED_TYPE_STYLES = {
-    danger: 'border-red-500 bg-red-50 ring-2 ring-red-500/15',
-    warning: 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/15',
-    success: 'border-transparent bg-emerald-50',
-    neutral: 'border-transparent bg-brand-50',
+const TONE_STYLES = {
+    danger: {
+        default: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+        selected: 'border-red-400 bg-red-50/50 ring-1 ring-red-500/15',
+        dot: 'bg-red-500',
+        text: 'text-red-600',
+    },
+    warning: {
+        default: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+        selected: 'border-amber-400 bg-amber-50/50 ring-1 ring-amber-500/15',
+        dot: 'bg-amber-500',
+        text: 'text-amber-600',
+    },
+    success: {
+        default: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+        selected: 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-500/15',
+        dot: 'bg-emerald-500',
+        text: 'text-emerald-600',
+    },
+    neutral: {
+        default: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+        selected: 'border-brand-400 bg-brand-50/50 ring-1 ring-brand-500/15',
+        dot: 'bg-gray-400',
+        text: 'text-brand-600',
+    },
 };
 
 const getFocusableElements = (container) => Array.from(container?.querySelectorAll(
@@ -260,6 +274,7 @@ const SituationUpdateDialog = ({ isOpen, report, submitting, onClose, onSubmit }
                                 <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Situation update type">
                                     {UPDATE_TYPES.map((item) => {
                                         const isSelected = tag === item.value;
+                                        const style = TONE_STYLES[item.tone];
                                         return (
                                             <button
                                                 key={item.value}
@@ -267,10 +282,18 @@ const SituationUpdateDialog = ({ isOpen, report, submitting, onClose, onSubmit }
                                                 role="radio"
                                                 aria-checked={isSelected}
                                                 onClick={() => { setTag(item.value); setError(''); }}
-                                                className={`min-h-16 rounded-xl border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-brand-500 ${isSelected ? SELECTED_TYPE_STYLES[item.tone] : TYPE_STYLES[item.tone]}`}
+                                                className={`group relative flex min-h-16 w-full flex-col rounded-xl border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${isSelected ? style.selected : style.default}`}
                                             >
-                                                <span className="block text-sm font-semibold">{item.label}</span>
-                                                <span className="mt-0.5 block text-xs leading-5 text-gray-600">{item.description}</span>
+                                                <div className="flex w-full items-start justify-between gap-2">
+                                                    <span className={`flex items-center gap-2 text-sm transition-colors ${isSelected ? 'font-semibold text-gray-900' : 'font-medium text-gray-700 group-hover:text-gray-900'}`}>
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot} transition-transform group-hover:scale-110`} aria-hidden="true" />
+                                                        {item.label}
+                                                    </span>
+                                                    {isSelected && <HiCheckCircle className={`h-5 w-5 shrink-0 ${style.text}`} aria-hidden="true" />}
+                                                </div>
+                                                <span className={`mt-1 block pl-3.5 text-xs leading-5 transition-colors ${isSelected ? 'text-gray-700' : 'text-gray-500 group-hover:text-gray-600'}`}>
+                                                    {item.description}
+                                                </span>
                                             </button>
                                         );
                                     })}

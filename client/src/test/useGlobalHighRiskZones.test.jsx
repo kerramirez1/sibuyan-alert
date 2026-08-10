@@ -77,4 +77,28 @@ describe('useGlobalHighRiskZones', () => {
         });
         expect(result.current.zones.some((zone) => zone._id === 'zone-cajidiocan')).toBe(false);
     });
+
+    test('clears a previous request error immediately when retrying', async () => {
+        getAllMock.mockRejectedValueOnce(new Error('Network unavailable'));
+        const { result } = renderHook(() => useGlobalHighRiskZones());
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.error).toBe('High-risk zones are temporarily unavailable.');
+
+        let resolveRetry;
+        getAllMock.mockReturnValueOnce(new Promise((resolve) => {
+            resolveRetry = resolve;
+        }));
+        act(() => {
+            result.current.refresh();
+        });
+
+        expect(result.current.loading).toBe(true);
+        expect(result.current.error).toBe('');
+
+        await act(async () => {
+            resolveRetry({ data: { data: [] } });
+        });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+    });
 });

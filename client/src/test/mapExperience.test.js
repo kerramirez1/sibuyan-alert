@@ -6,7 +6,7 @@ describe('shared role-aware map experience', () => {
         ['guest', undefined, false, false],
         ['reporter', 'reporter', false, true],
         ['admin', 'municipal_admin', true, false],
-        ['responder', 'responder', true, false],
+        ['responder', 'responder', false, false],
     ])('configures the %s mode without expanding permissions', (mode, role, showPendingReports, showSubmitReport) => {
         const experience = getMapExperience({ role, municipality: 'Cajidiocan', agency: 'MDRRMO' });
 

@@ -113,6 +113,8 @@ const MapView = ({
     onResolveReport = null,
     viewerRole = 'guest',
     showDataState = false,
+    disableScrollZoom = false,
+    mode = 'full',
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -281,25 +283,24 @@ const MapView = ({
             maxZoom: OPERATIONAL_MAX_ZOOM,
         });
 
-        const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
-        mapInstance.addControl(navigationControl, 'top-right');
+        if (disableScrollZoom) {
+            mapInstance.scrollZoom.disable();
+        }
+
         const removeCompactAttribution = installCompactAttribution(
             mapInstance,
             new maplibregl.AttributionControl({ compact: true }),
         );
-        const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
-            pitch: effective3D ? 45 : 0,
-            bearing: effective3D ? -17 : 0,
-        });
-
-        const pauseMarkerAnimations = () => {
-            mapInstance.getContainer().classList.add('map-motion-active');
-        };
-        const resumeMarkerAnimations = () => {
-            mapInstance.getContainer().classList.remove('map-motion-active');
-        };
-        mapInstance.on('movestart', pauseMarkerAnimations);
-        mapInstance.on('moveend', resumeMarkerAnimations);
+        
+        let removeCompassToggle = () => {};
+        if (mode !== 'incident-preview') {
+            const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
+            mapInstance.addControl(navigationControl, 'top-right');
+            removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
+                pitch: effective3D ? 45 : 0,
+                bearing: effective3D ? -17 : 0,
+            });
+        }
 
         mapInstance.on('error', (event) => {
             const sourceId = event?.sourceId || event?.source?.id;
@@ -437,8 +438,6 @@ const MapView = ({
         });
 
         return () => {
-            mapInstance.off('movestart', pauseMarkerAnimations);
-            mapInstance.off('moveend', resumeMarkerAnimations);
             removeCompassToggle();
             removeCompactAttribution();
             markerFocusCleanupRef.current?.();
@@ -478,7 +477,7 @@ const MapView = ({
     }, [mapStyle, mapReady]);
 
     useEffect(() => {
-        if (!mapReady || !mapInstanceRef.current) return;
+        if (!mapReady || !mapInstanceRef.current || mode === 'incident-preview') return;
 
         const zonesWithRealCoverage = highRiskZones.filter((zone) => (
             Number.isFinite(Number(zone?.radius)) && Number(zone.radius) > 0
@@ -487,7 +486,7 @@ const MapView = ({
         source?.setData(buildRiskZoneFeatureCollection(zonesWithRealCoverage, {
             points: performanceProfile.riskZonePolygonPoints,
         }));
-    }, [highRiskZones, mapReady, performanceProfile.riskZonePolygonPoints]);
+    }, [highRiskZones, mapReady, performanceProfile.riskZonePolygonPoints, mode]);
 
     // Update data layers
     useEffect(() => {
@@ -515,7 +514,6 @@ const MapView = ({
                 const report = [...groupedReports].sort(
                     (left, right) => (statusPriority[right.status] || 0) - (statusPriority[left.status] || 0)
                 )[0];
-                const isResponding = groupedReports.some((item) => item.status === 'responding');
                 const isPending = groupedReports.every((item) => item.status === 'pending');
                 const canRespondToThisReport = canRespond && ['verified', 'transferred'].includes(report.status);
                 const canResolveThisReport = canResolve &&
@@ -529,26 +527,7 @@ const MapView = ({
                 el.className = 'report-marker';
                 el.innerHTML = `
                     <div style="position:relative; width:40px; height:40px; display:flex; align-items:flex-end; justify-content:center;">
-                        ${isResponding && performanceProfile.markerAnimations ? `
-                            <div style="
-                                position:absolute;
-                                width:30px;
-                                height:30px;
-                                border-radius:9999px;
-                                background:rgba(239,68,68,0.34);
-                                animation: responderPulse 1.8s ease-out infinite;
-                            " data-map-pulse>
-                            </div>
-                            <div style="
-                                position:absolute;
-                                width:30px;
-                                height:30px;
-                                border-radius:9999px;
-                                background:rgba(239,68,68,0.20);
-                                animation: responderPulse 1.8s ease-out infinite 0.9s;
-                            " data-map-pulse></div>
-                        ` : ''}
-                         <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isResponding ? 'filter: drop-shadow(0 0 12px rgba(239,68,68,0.95));' : isPending ? 'filter: drop-shadow(0 0 14px rgba(249,115,22,0.95));' : ''}">
+                         <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isPending ? 'filter: drop-shadow(0 0 10px rgba(249,115,22,0.6));' : ''}">
                             <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${markerColor}"/>
                             ${isPending ? `
                                 <circle cx="12" cy="11.5" r="4.5" fill="none" stroke="white" stroke-width="1.5"/>
@@ -633,7 +612,7 @@ const MapView = ({
                 });
             });
 
-    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, performanceProfile.markerAnimations, selectOperationalMarker]);
+    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, selectOperationalMarker]);
 
     // Risk zones use focused HTML pins so the imagery remains unobstructed.
     useEffect(() => {
@@ -876,11 +855,11 @@ const MapView = ({
 
         return scheduleMapFocus(mapInstanceRef.current, focusLocation, {
             zoom: MAP_FOCUS_CONFIG.pointZoom,
-            duration: performanceProfile.navigationDuration === 0
+            duration: (mode === 'incident-preview' || performanceProfile.navigationDuration === 0)
                 ? 0
                 : MAP_FOCUS_CONFIG.duration,
         });
-    }, [effectiveLocateRequest, focusLocation, mapReady, performanceProfile.navigationDuration]);
+    }, [effectiveLocateRequest, focusLocation, mapReady, performanceProfile.navigationDuration, mode]);
 
     // Navigation handlers
     const recenterMap = () => {
@@ -1052,55 +1031,59 @@ const MapView = ({
             )}
 
             {/* Controls */}
-            <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-3 right-3 z-20 flex flex-col gap-2 sm:bottom-4 sm:right-4" role="group" aria-label="Map tools">
-                <MapToolButton
-                    label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
-                    icon={HiOutlineMap}
-                    active={mapStyle === 'streets'}
-                    onClick={() => setMapStyle(prev => prev === 'satellite' ? 'streets' : 'satellite')}
-                    aria-pressed={mapStyle === 'streets'}
-                />
-
-                <div ref={municipalityMenuRef} className="relative">
+            {!['incident-preview', 'report-location'].includes(mode) && (
+                <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-3 right-3 z-20 flex flex-col gap-2 sm:bottom-4 sm:right-4" role="group" aria-label="Map tools">
                     <MapToolButton
-                        label="Choose municipality"
-                        icon={HiOutlineOfficeBuilding}
-                        onClick={() => setShowMuniMenu(!showMuniMenu)}
-                        aria-expanded={showMuniMenu}
-                        aria-controls="municipality-map-menu"
+                        label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
+                        icon={HiOutlineMap}
+                        active={mapStyle === 'streets'}
+                        onClick={() => setMapStyle(prev => prev === 'satellite' ? 'streets' : 'satellite')}
+                        aria-pressed={mapStyle === 'streets'}
                     />
-                    {showMuniMenu && (
-                        <motion.div
-                            id="municipality-map-menu"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="absolute bottom-12 right-0 min-w-[170px] rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
-                        >
-                            {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => goToMunicipality(muni.center)}
-                                    className="min-h-10 w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-gray-800"
-                                >
-                                    {muni.name}
-                                </button>
-                            ))}
-                        </motion.div>
-                    )}
-                </div>
-                <MapToolButton
-                    label="Reset map view"
-                    icon={HiOutlineLocationMarker}
-                    onClick={recenterMap}
-                />
-            </div>
 
-            <MapLegend
-                showPending={showPending}
-                filterStatus={filterStatus}
-                filterMode={filterMode}
-                hasGroupedReports={hasGroupedReports}
-            />
+                    <div ref={municipalityMenuRef} className="relative">
+                        <MapToolButton
+                            label="Choose municipality"
+                            icon={HiOutlineOfficeBuilding}
+                            onClick={() => setShowMuniMenu(!showMuniMenu)}
+                            aria-expanded={showMuniMenu}
+                            aria-controls="municipality-map-menu"
+                        />
+                        {showMuniMenu && (
+                            <motion.div
+                                id="municipality-map-menu"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="absolute bottom-12 right-0 min-w-[170px] rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                            >
+                                {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => goToMunicipality(muni.center)}
+                                        className="min-h-10 w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    >
+                                        {muni.name}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </div>
+                    <MapToolButton
+                        label="Reset map view"
+                        icon={HiOutlineLocationMarker}
+                        onClick={recenterMap}
+                    />
+                </div>
+            )}
+
+            {!['incident-preview', 'report-location'].includes(mode) && (
+                <MapLegend
+                    showPending={showPending}
+                    filterStatus={filterStatus}
+                    filterMode={filterMode}
+                    hasGroupedReports={hasGroupedReports}
+                />
+            )}
         </div>
     );
 };

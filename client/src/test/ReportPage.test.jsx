@@ -20,14 +20,7 @@ vi.mock('../services/api', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: toastMock }));
 
-vi.mock('../hooks/useGlobalHighRiskZones', () => ({
-    default: () => ({
-        zones: [
-            { _id: 'zone-cajidiocan', municipality: 'Cajidiocan' },
-            { _id: 'zone-magdiwang', municipality: 'Magdiwang' },
-        ],
-    }),
-}));
+
 
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
@@ -90,10 +83,7 @@ describe('ReportPage workflow', () => {
         expect(container.querySelectorAll('form')).toHaveLength(1);
         expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId('location-map')).toBeInTheDocument();
-        expect(mapPropsSpy.mock.lastCall[0].highRiskZones.map((zone) => zone.municipality)).toEqual([
-            'Cajidiocan',
-            'Magdiwang',
-        ]);
+        expect(mapPropsSpy.mock.lastCall[0].mode).toBe('report-location');
     });
 
     test('shows accessible feedback when required fields are missing', () => {

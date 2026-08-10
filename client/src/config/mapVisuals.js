@@ -74,7 +74,10 @@ export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
 
 export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null, filterMode = 'public' } = {}) => {
     if (filterStatus === 'pending') {
-        return filterMode === 'review' ? ['pending'] : ['pending', 'verified', 'transferred'];
+        if (filterMode === 'review') return showPending ? ['pending'] : [];
+        return showPending
+            ? ['pending', 'verified', 'transferred']
+            : ['verified', 'transferred'];
     }
     if (filterStatus === 'responding') return showPending
         ? ['pending', 'responding']

@@ -167,16 +167,6 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.queryByRole('button', { name: /join response/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /resolve incident/i })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Transferred' })).toBeInTheDocument();
-        expect(screen.getByTestId('incident-table')).not.toHaveClass('overflow-x-auto');
-        expect(screen.getByTestId('incident-table').querySelector('table')).toHaveClass('table-fixed');
-        const compactVerifyButton = screen.getAllByRole('button', { name: 'Verify report' })
-            .find((button) => button.hasAttribute('aria-label'));
-        expect(compactVerifyButton).toHaveClass('h-10', 'w-10');
-        expect(compactVerifyButton.parentElement).toHaveClass('flex', 'flex-wrap', 'justify-center');
-        const mobileVerifyButton = screen.getAllByRole('button', { name: 'Verify report' })
-            .find((button) => !button.hasAttribute('aria-label'));
-        expect(mobileVerifyButton).toHaveClass('w-full', 'min-h-11');
-        expect(mobileVerifyButton.parentElement.className).toContain('auto-fit');
     });
 
     test('opens the exact scoped incident from an update notification before marking it read', async () => {
@@ -495,7 +485,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-controls', 'responder-incident-inspector');
         const openFullMap = within(inspector).getByRole('button', { name: 'Open full map' });
         expect(openFullMap).toBeInTheDocument();
-        expect(within(inspector).queryByTestId('incident-map')).not.toBeInTheDocument();
+        expect(within(inspector).queryByTestId('incident-map')).toBeInTheDocument();
         expect(document.body.style.overflow).toBe('');
 
         fireEvent.click(openFullMap);

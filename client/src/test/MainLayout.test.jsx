@@ -60,7 +60,7 @@ describe('MainLayout responsive navigation', () => {
         renderLayout();
 
         const activeLink = screen.getByRole('link', { name: 'Accident History' });
-        expect(activeLink).toHaveClass('min-h-11', 'bg-brand-50', 'text-brand-800');
+        expect(activeLink).toHaveClass('min-h-11', 'bg-brand-800/60', 'text-white');
         expect(activeLink.className).not.toContain('gradient');
         expect(activeLink.className).not.toContain('shadow');
         expect(activeLink.className).not.toContain('focus:ring');
@@ -83,9 +83,9 @@ describe('MainLayout responsive navigation', () => {
     test('shows one clear active analytics destination on the administrative dashboard', () => {
         renderLayout('/dashboard');
 
-        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-50');
+        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-800/60');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
-        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.includes('bg-brand-50'));
+        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.includes('bg-brand-800/60'));
         expect(activeLinks).toHaveLength(1);
     });
 
@@ -123,8 +123,8 @@ describe('MainLayout responsive navigation', () => {
 
         const activeIncidentsLink = screen.getByRole('link', { name: 'Active Incidents' });
         expect(activeIncidentsLink).toHaveAttribute('href', '/dashboard?view=map&panel=incidents');
-        expect(activeIncidentsLink).toHaveClass('bg-brand-50', 'text-brand-800');
-        expect(screen.getByRole('link', { name: 'Map' })).not.toHaveClass('bg-brand-50');
+        expect(activeIncidentsLink).toHaveClass('bg-brand-800/60', 'text-white');
+        expect(screen.getByRole('link', { name: 'Map' })).not.toHaveClass('bg-brand-800/60');
         expect(screen.queryByRole('link', { name: 'Incident Reports' })).not.toBeInTheDocument();
     });
 });

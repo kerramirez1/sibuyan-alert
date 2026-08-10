@@ -188,8 +188,20 @@ const AccidentHistoryPage = () => {
         return (
             <div className="max-w-6xl mx-auto space-y-5 animate-pulse">
                 <div className="h-16 rounded-xl bg-gray-100" />
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {[0, 1, 2, 3].map((item) => <div key={item} className="h-24 rounded-xl bg-gray-100" />)}
+                <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-gray-100 bg-white">
+                    {[0, 1, 2, 3].map((item) => (
+                        <div key={item} className={`p-4 sm:p-6 border-gray-100 ${
+                            item % 2 === 1 ? 'border-l' : ''
+                        } ${
+                            item >= 2 ? 'border-t' : ''
+                        } md:border-t-0 ${
+                            item > 0 ? 'md:border-l' : ''
+                        }`}>
+                            <div className="h-3 w-20 bg-gray-100 rounded" />
+                            <div className="mt-3 h-6 w-12 bg-gray-200 rounded" />
+                            <div className="mt-2 h-2.5 w-24 bg-gray-100 rounded" />
+                        </div>
+                    ))}
                 </div>
                 <div className="h-48 rounded-xl bg-gray-100" />
             </div>
@@ -228,16 +240,25 @@ const AccidentHistoryPage = () => {
                 </div>
             </header>
 
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="History summary">
-                {metricCards.map(({ label, value, helper, icon: Icon, text }) => (
-                        <div key={label} className="rounded-xl bg-gray-100 p-4 shadow-sm">
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium text-gray-500">{label}</p>
-                                <Icon className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <p className={`mt-3 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
-                            <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+            <section className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-gray-200 bg-white shadow-sm" aria-label="History summary">
+                {metricCards.map(({ label, value, helper, icon: Icon, text }, index) => (
+                    <div
+                        key={label}
+                        className={`p-4 sm:p-5 border-gray-200 ${
+                            index % 2 === 1 ? 'border-l' : ''
+                        } ${
+                            index >= 2 ? 'border-t' : ''
+                        } md:border-t-0 ${
+                            index > 0 ? 'md:border-l' : ''
+                        }`}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <Icon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</h2>
                         </div>
+                        <p className={`mt-2 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
+                        <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+                    </div>
                 ))}
             </section>
 

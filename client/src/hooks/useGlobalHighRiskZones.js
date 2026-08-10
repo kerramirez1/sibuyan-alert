@@ -18,6 +18,7 @@ const useGlobalHighRiskZones = () => {
 
     const refresh = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
             // Risk-zone visibility is intentionally island-wide. Municipal scope
             // applies only to management permissions, never to this read model.

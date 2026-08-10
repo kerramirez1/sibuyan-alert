@@ -27,21 +27,29 @@ import { parseISO, differenceInMinutes, isSameMonth } from 'date-fns';
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
     const [reports, setReports] = useState([]);
-    const { zones: highRiskZones } = useGlobalHighRiskZones();
+    const {
+        zones: highRiskZones,
+        loading: highRiskZonesLoading,
+        error: highRiskZonesError,
+        refresh: refreshHighRiskZones,
+    } = useGlobalHighRiskZones();
     const [roleStats, setRoleStats] = useState(null);
+    const [reporterOverviewReports, setReporterOverviewReports] = useState(null);
+    const [reporterOverviewReportsLoading, setReporterOverviewReportsLoading] = useState(false);
+    const [reporterOverviewReportsError, setReporterOverviewReportsError] = useState('');
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe } = useSocket();
     const [mapSummaryPanel, setMapSummaryPanel] = useState('');
-    const [showMapPendingModal, setShowMapPendingModal] = useState(false);
-    const [showMapRespondingModal, setShowMapRespondingModal] = useState(false);
-    const [showMapResolvedModal, setShowMapResolvedModal] = useState(false);
     const [responderMapFilter, setResponderMapFilter] = useState('all');
     const [operationsDateKey, setOperationsDateKey] = useState(getManilaCalendarDateKey);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const historySectionRef = useRef(null);
+    const reporterOverviewReportsRef = useRef(null);
+    const reporterOverviewRequestRef = useRef(null);
+    const reporterOverviewOwnerRef = useRef('');
     const isMapView = searchParams.get('view') === 'map';
     const panelView = searchParams.get('panel');
 
@@ -77,6 +85,83 @@ const DashboardPage = () => {
     const isResponder = user?.role === 'responder';
     const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
     const activeMunicipality = hasMunicipality ? user.assignedMunicipality : null;
+
+    useEffect(() => {
+        const ownerId = isReporter ? String(user?._id || user?.id || '') : '';
+        if (reporterOverviewOwnerRef.current === ownerId) return;
+
+        reporterOverviewOwnerRef.current = ownerId;
+        reporterOverviewRequestRef.current = null;
+        reporterOverviewReportsRef.current = null;
+        setReporterOverviewReports(null);
+        setReporterOverviewReportsLoading(false);
+        setReporterOverviewReportsError('');
+    }, [isReporter, user?._id, user?.id]);
+
+    const loadReporterOverviewReports = useCallback(({ force = false } = {}) => {
+        if (!isReporter) return Promise.resolve([]);
+        if (!force && Array.isArray(reporterOverviewReportsRef.current)) {
+            return Promise.resolve(reporterOverviewReportsRef.current);
+        }
+        if (reporterOverviewRequestRef.current) return reporterOverviewRequestRef.current;
+
+        const requestOwnerId = String(user?._id || user?.id || '');
+        setReporterOverviewReportsLoading(true);
+        setReporterOverviewReportsError('');
+
+        const request = reportsAPI.getMyReports()
+            .then((response) => {
+                if (reporterOverviewOwnerRef.current !== requestOwnerId) return [];
+                const payload = Array.isArray(response.data?.data) ? response.data.data : [];
+                const ownedReports = deduplicateDashboardReports(payload).map((report) => ({
+                    ...report,
+                    isOwnedByCurrentUser: true,
+                    detailAccess: 'owner',
+                    detailCompleteness: 'full',
+                }));
+                reporterOverviewReportsRef.current = ownedReports;
+                setReporterOverviewReports(ownedReports);
+                return ownedReports;
+            })
+            .catch((requestError) => {
+                if (reporterOverviewOwnerRef.current !== requestOwnerId) return [];
+                console.error('Failed to load reporter overview records:', requestError);
+                setReporterOverviewReportsError('Your report details are temporarily unavailable. Please try again.');
+                return [];
+            })
+            .finally(() => {
+                if (reporterOverviewOwnerRef.current === requestOwnerId) {
+                    reporterOverviewRequestRef.current = null;
+                    setReporterOverviewReportsLoading(false);
+                }
+            });
+
+        reporterOverviewRequestRef.current = request;
+        return request;
+    }, [isReporter, user?._id, user?.id]);
+
+    const updateLoadedReporterOverviewReport = useCallback((incomingReport) => {
+        const incomingId = incomingReport?._id || incomingReport?.id;
+        if (!incomingId) return;
+
+        setReporterOverviewReports((current) => {
+            if (!Array.isArray(current) || !current.some((report) => String(report._id || report.id) === String(incomingId))) {
+                return current;
+            }
+            const updated = upsertDashboardReport(current, incomingReport);
+            reporterOverviewReportsRef.current = updated;
+            return updated;
+        });
+    }, []);
+
+    const removeLoadedReporterOverviewReport = useCallback((reportId) => {
+        setReporterOverviewReports((current) => {
+            if (!Array.isArray(current)) return current;
+            const updated = removeDashboardReport(current, reportId);
+            reporterOverviewReportsRef.current = updated;
+            return updated;
+        });
+    }, []);
 
     const dashboardReports = useMemo(() => {
         if (!activeMunicipality) return reports;
@@ -312,30 +397,38 @@ const DashboardPage = () => {
             const normalized = normalizeIncomingReport({ ...report, status: 'verified' });
             if (!normalized) return;
             setReports((previous) => upsertDashboardReport(previous, normalized));
+            updateLoadedReporterOverviewReport(normalized);
         });
         const unsub2 = subscribe('reportResponded', (data) => {
-            setReports((previous) => upsertDashboardReport(previous, {
+            const normalized = {
                 ...data,
                 _id: data.id,
                 status: 'responding',
-            }));
+            };
+            setReports((previous) => upsertDashboardReport(previous, normalized));
+            updateLoadedReporterOverviewReport(normalized);
         });
         const unsub3 = subscribe('reportResolved', (data) => {
-            setReports((previous) => upsertDashboardReport(previous, {
+            const normalized = {
                 ...data,
                 _id: data.id,
                 status: 'resolved',
-            }));
+            };
+            setReports((previous) => upsertDashboardReport(previous, normalized));
+            updateLoadedReporterOverviewReport(normalized);
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
-            setReports((previous) => upsertDashboardReport(previous, {
+            const normalized = {
                 ...data,
                 _id: data.id,
                 status: 'resolved',
-            }));
+            };
+            setReports((previous) => upsertDashboardReport(previous, normalized));
+            updateLoadedReporterOverviewReport(normalized);
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
             setReports((previous) => removeDashboardReport(previous, data?.id ?? data?._id));
+            removeLoadedReporterOverviewReport(data?.id ?? data?._id);
         });
         const unsub8 = subscribe('reportTransferred', (data) => {
             const normalized = normalizeIncomingReport({
@@ -345,10 +438,12 @@ const DashboardPage = () => {
             });
             if (!normalized) return;
             setReports((previous) => upsertDashboardReport(previous, normalized));
+            updateLoadedReporterOverviewReport(normalized);
         });
         const unsub9 = subscribe('reportRejectedUpdate', (data) => {
             if (!data?.id) return;
             setReports((previous) => updateDashboardReportStatus(previous, data.id, 'rejected'));
+            updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
         });
 
         return () => {
@@ -361,7 +456,7 @@ const DashboardPage = () => {
             unsub8();
             unsub9();
         };
-    }, [subscribe]);
+    }, [removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
 
     useEffect(() => {
         if (panelView === 'incidents') {
@@ -499,7 +594,14 @@ const DashboardPage = () => {
                 respondingReports={responderRespondingReports}
                 resolvedTodayReports={computedResolvedTodayReports}
                 highRiskZones={highRiskZones}
+                highRiskZonesLoading={highRiskZonesLoading}
+                highRiskZonesError={highRiskZonesError}
+                onRetryHighRiskZones={refreshHighRiskZones}
                 roleStats={roleStats}
+                reporterOverviewReports={reporterOverviewReports}
+                reporterOverviewReportsLoading={reporterOverviewReportsLoading}
+                reporterOverviewReportsError={reporterOverviewReportsError}
+                onLoadReporterOverviewReports={loadReporterOverviewReports}
                 focusLocation={focusLocation}
                 focusedReport={focusedMapReport}
                 focusedRiskZone={focusedRiskZone}
@@ -512,12 +614,6 @@ const DashboardPage = () => {
                 setSearchParams={setSearchParams}
                 mapSummaryPanel={mapSummaryPanel}
                 setMapSummaryPanel={setMapSummaryPanel}
-                showMapPendingModal={showMapPendingModal}
-                setShowMapPendingModal={setShowMapPendingModal}
-                showMapRespondingModal={showMapRespondingModal}
-                setShowMapRespondingModal={setShowMapRespondingModal}
-                showMapResolvedModal={showMapResolvedModal}
-                setShowMapResolvedModal={setShowMapResolvedModal}
                 activePanel={panelView}
             />
         );

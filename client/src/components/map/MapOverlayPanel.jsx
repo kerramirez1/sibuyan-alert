@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineX } from 'react-icons/hi';
 
@@ -20,10 +20,12 @@ const MapOverlayPanel = ({
     size = 'md',
     presentation = 'modal',
     closeLabel = 'Close incident panel',
+    contentKey,
 }) => {
     const titleId = useId();
     const descriptionId = useId();
     const panelRef = useRef(null);
+    const scrollRegionRef = useRef(null);
     const closeButtonRef = useRef(null);
     const previousFocusRef = useRef(null);
     const onCloseRef = useRef(onClose);
@@ -80,6 +82,10 @@ const MapOverlayPanel = ({
         closeButtonRef.current?.focus();
     }, [isContextual, title]);
 
+    useLayoutEffect(() => {
+        if (scrollRegionRef.current) scrollRegionRef.current.scrollTop = 0;
+    }, [contentKey, title]);
+
     const widthClass = size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
     if (typeof document === 'undefined') return null;
 
@@ -119,6 +125,7 @@ const MapOverlayPanel = ({
             </header>
 
             <div
+                ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
                 className={`min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'}`}
             >

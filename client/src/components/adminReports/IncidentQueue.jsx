@@ -249,6 +249,65 @@ const getResponderAssignment = (report) => {
     return responderName || (agency !== 'Unassigned' ? agency : 'Unassigned');
 };
 
+const ContextualAction = ({ label, icon: Icon, onClick, tone = 'neutral', disabled = false }) => {
+    const tones = {
+        neutral: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+        success: 'text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800',
+        danger: 'text-red-700 hover:bg-red-50 hover:text-red-800',
+        primary: 'text-blue-700 hover:bg-blue-50 hover:text-blue-800',
+        violet: 'text-violet-700 hover:bg-violet-50 hover:text-violet-800',
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-50 sm:w-auto ${tones[tone]}`}
+        >
+            <Icon className={`h-4 w-4 ${disabled ? 'animate-pulse' : ''}`} aria-hidden="true" />
+            {label}
+        </button>
+    );
+};
+
+const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
+    const capabilities = getIncidentCapabilities(user, report);
+    
+    return (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <button
+                type="button"
+                onClick={() => onInspect(report)}
+                aria-expanded={isSelected}
+                aria-controls={isSelected ? 'admin-incident-inspector' : undefined}
+                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
+            >
+                Inspect report
+                <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
+            </button>
+
+            <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
+                {capabilities.canAcknowledgeTransfer && (
+                    <ContextualAction label="Acknowledge transfer" icon={HiOutlineCheckCircle} onClick={() => actions.acknowledgeTransfer(report)} tone="violet" disabled={actions.acknowledgeLoadingId === report._id} />
+                )}
+                {capabilities.canVerify && (
+                    <ContextualAction label="Verify report" icon={HiOutlineCheckCircle} onClick={() => actions.openReview(report, 'verified')} tone="success" />
+                )}
+                {capabilities.canReject && (
+                    <ContextualAction label="Reject report" icon={HiOutlineXCircle} onClick={() => actions.openReview(report, 'rejected')} tone="danger" />
+                )}
+                {capabilities.canTransfer && (
+                    <ContextualAction label="Transfer report" icon={HiOutlineSwitchHorizontal} onClick={() => actions.openTransfer(report)} tone="violet" />
+                )}
+                {capabilities.canDelete && (
+                    <ContextualAction label="Delete report" icon={HiOutlineTrash} onClick={() => actions.deleteReport(report)} tone="danger" disabled={actions.deleteLoadingId === report._id} />
+                )}
+            </div>
+        </div>
+    );
+};
+
 const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
     const isResponding = report.status === 'responding';
@@ -292,7 +351,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
     );
 };
 
-const ResponderIncidentRow = ({ report, user, actions, onInspect, isSelected = false }) => {
+const IncidentListRow = ({ report, isSelected = false, actionSlot }) => {
     const latestUpdate = report.latestReporterUpdate
         || (Array.isArray(report.reportUpdates) ? report.reportUpdates[report.reportUpdates.length - 1] : null);
     const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate.tag) : null;
@@ -348,6 +407,18 @@ const ResponderIncidentRow = ({ report, user, actions, onInspect, isSelected = f
             )}
 
             <div className="mt-3 border-t border-gray-100 pt-2 dark:border-gray-800">
+                {actionSlot}
+            </div>
+        </article>
+    );
+};
+
+const ResponderIncidentRow = ({ report, user, actions, onInspect, isSelected = false }) => {
+    return (
+        <IncidentListRow
+            report={report}
+            isSelected={isSelected}
+            actionSlot={
                 <ResponderIncidentActions
                     report={report}
                     user={user}
@@ -355,8 +426,26 @@ const ResponderIncidentRow = ({ report, user, actions, onInspect, isSelected = f
                     onInspect={onInspect}
                     isSelected={isSelected}
                 />
-            </div>
-        </article>
+            }
+        />
+    );
+};
+
+const AdminIncidentRow = ({ report, user, actions, onInspect, isSelected = false }) => {
+    return (
+        <IncidentListRow
+            report={report}
+            isSelected={isSelected}
+            actionSlot={
+                <AdminIncidentActions
+                    report={report}
+                    user={user}
+                    actions={actions}
+                    onInspect={onInspect}
+                    isSelected={isSelected}
+                />
+            }
+        />
     );
 };
 
@@ -467,130 +556,25 @@ const IncidentQueue = ({
         );
     }
 
-    if (isResponder) {
-        return (
-            <section aria-label="Incident queue">
-                <ul aria-label="Responder incident list" className="divide-y divide-gray-100 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-                    {reports.map((report) => (
-                        <li key={report._id}>
-                            <ResponderIncidentRow
-                                report={report}
-                                user={user}
-                                actions={actions}
-                                onInspect={onInspect}
-                                isSelected={String(report._id) === String(selectedReportId)}
-                            />
-                        </li>
-                    ))}
-                </ul>
-
-                <IncidentPagination pagination={pagination} onPageChange={onPageChange} lightweight />
-            </section>
-        );
-    }
+    const RowComponent = isResponder ? ResponderIncidentRow : AdminIncidentRow;
 
     return (
         <section aria-label="Incident queue">
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:hidden">
+            <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="divide-y divide-gray-100 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
                 {reports.map((report) => (
-                    <article key={report._id} className="min-w-0 rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700 sm:p-5">
-                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <IncidentSummary report={report} />
-                            <div className="shrink-0 sm:max-w-40 sm:text-right">
-                                <IncidentStatusBadge status={report.status} />
-                                <TransferAcknowledgmentState report={report} />
-                            </div>
-                        </div>
-                        <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-x-4 gap-y-3 border-y border-gray-100 py-3 text-xs dark:border-gray-800">
-                            <div>
-                                <dt className="text-gray-500 dark:text-gray-400">Reporter</dt>
-                                <dd className="mt-0.5 font-medium text-gray-800 dark:text-gray-200">{report.reporter?.name || 'Unknown reporter'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500 dark:text-gray-400">Incident time</dt>
-                                <dd className="mt-0.5 font-medium text-gray-800 dark:text-gray-200">{formatRelativeTime(getIncidentDate(report))}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500 dark:text-gray-400">Responder</dt>
-                                <dd className="mt-0.5"><ResponderSummary report={report} /></dd>
-                            </div>
-                        </dl>
-                        <div className="mt-3">
-                            <IncidentActionButtons report={report} user={user} actions={actions} onInspect={onInspect} />
-                        </div>
-                    </article>
+                    <li key={report._id}>
+                        <RowComponent
+                            report={report}
+                            user={user}
+                            actions={actions}
+                            onInspect={onInspect}
+                            isSelected={String(report._id) === String(selectedReportId)}
+                        />
+                    </li>
                 ))}
-            </div>
+            </ul>
 
-            <div data-testid="incident-table" className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 2xl:block">
-                <table className="w-full table-fixed border-collapse text-left">
-                    <colgroup>
-                        <col className="w-[27%]" />
-                        <col className="w-[13%]" />
-                        <col className="w-[18%]" />
-                        <col className="w-[11%]" />
-                        <col className="w-[13%]" />
-                        <col className="w-[18%]" />
-                    </colgroup>
-                    <thead className="border-b border-gray-200 bg-gray-50/80 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-400">
-                        <tr>
-                            <th className="px-4 py-3">Incident</th>
-                            <th className="px-4 py-3">Reporter</th>
-                            <th className="px-4 py-3">Status</th>
-                            <th className="px-4 py-3">Responder</th>
-                            <th className="px-4 py-3">Incident time</th>
-                            <th className="px-4 py-3 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                        {reports.map((report) => (
-                            <tr key={report._id} className="align-middle transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-800/50">
-                                <td className="min-w-0 px-4 py-4"><IncidentSummary report={report} /></td>
-                                <td className="min-w-0 px-4 py-4">
-                                    <p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{report.reporter?.name || 'Unknown reporter'}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{report.reporter?.isVerified ? 'Verified account' : 'Reporter account'}</p>
-                                </td>
-                                <td className="px-4 py-4">
-                                    <IncidentStatusBadge status={report.status} />
-                                    <TransferAcknowledgmentState report={report} />
-                                </td>
-                                <td className="px-4 py-4"><ResponderSummary report={report} /></td>
-                                <td className="px-4 py-4 text-sm leading-5 text-gray-600 dark:text-gray-300">{formatRelativeTime(getIncidentDate(report))}</td>
-                                <td className="px-4 py-4">
-                                    <IncidentActionButtons report={report} user={user} actions={actions} onInspect={onInspect} compact />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {pagination?.pages > 1 && (
-                <nav className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Incident queue pages">
-                    <p className="text-center text-xs text-gray-500 sm:text-left">
-                        Page <strong className="text-gray-800">{pagination.page}</strong> of {pagination.pages}
-                        <span aria-hidden="true"> · </span>{pagination.total} incidents
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
-                        <button
-                            type="button"
-                            onClick={() => onPageChange(pagination.page - 1)}
-                            disabled={pagination.page <= 1}
-                            className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            Previous
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onPageChange(pagination.page + 1)}
-                            disabled={pagination.page >= pagination.pages}
-                            className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            Next
-                        </button>
-                    </div>
-                </nav>
-            )}
+            <IncidentPagination pagination={pagination} onPageChange={onPageChange} lightweight />
         </section>
     );
 };

@@ -20,13 +20,13 @@ import {
     HiOutlineUserAdd,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900';
+const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'bg-brand-50 font-semibold text-brand-800 ring-1 ring-inset ring-brand-100 dark:bg-brand-900/35 dark:text-brand-200 dark:ring-brand-800/40'
-    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`;
+    ? 'bg-brand-800/60 font-semibold text-white'
+    : 'text-brand-100/70 hover:bg-brand-900/50 hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0';
 const SECTION_CLASS = 'mt-4 pt-1';
-const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400';
+const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-300/50';
 
 const getAccountContext = (user) => {
     const roleLabels = {
@@ -121,27 +121,27 @@ const MainLayout = ({ children }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out dark:border-gray-800 dark:bg-gray-900 lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-brand-900 bg-brand-950 transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Logo */}
                     <div className="flex min-h-20 items-center px-4">
-                        <NavLink to="/" className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Sibuyan Alert home">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 p-1">
+                        <NavLink to="/" className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-900/50 p-1">
                                 <img
                                     src="/icons/Alert.png"
                                     alt=""
-                                    className="h-full w-full object-contain"
+                                    className="h-full w-full object-contain drop-shadow-sm"
                                 />
                             </div>
-                            <span className="truncate text-base font-black tracking-tight text-gray-950 sm:text-lg">
-                                Sibuyan <span className="text-emerald-700">Alert</span>
+                            <span className="truncate text-base font-black tracking-tight text-white sm:text-lg">
+                                Sibuyan <span className="text-brand-400">Alert</span>
                             </span>
                         </NavLink>
                         <button
                             type="button"
                             onClick={() => setSidebarOpen(false)}
                             aria-label="Close navigation menu"
-                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
+                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-300 hover:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
                         >
                             <HiOutlineX className="w-6 h-6" />
                         </button>
@@ -292,17 +292,17 @@ const MainLayout = ({ children }) => {
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="mt-auto space-y-3 border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+                    <div className="mt-auto space-y-3 border-t border-brand-900/50 bg-brand-950 p-3">
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
                             <div className="space-y-2">
                                 <Link
                                     to="/profile"
                                     onClick={() => setSidebarOpen(false)}
-                                    className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_1.25rem] items-center gap-3 rounded-xl bg-gray-50 p-3 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_1.25rem] items-center gap-3 rounded-xl bg-brand-900/40 p-3 transition-colors hover:bg-brand-900/70 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950"
                                     aria-label="Open profile settings"
                                 >
-                                    <div className="h-10 w-10 shrink-0 rounded-full bg-brand-200/50 p-0.5">
+                                    <div className="h-10 w-10 shrink-0 rounded-full bg-brand-800 p-0.5 border border-brand-700/50">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
@@ -310,42 +310,42 @@ const MainLayout = ({ children }) => {
                                                 className="h-full w-full rounded-full object-cover"
                                             />
                                         ) : (
-                                            <div className="flex h-full w-full items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">
+                                            <div className="flex h-full w-full items-center justify-center rounded-full bg-brand-700 font-bold text-white">
                                                 {user?.name?.charAt(0).toUpperCase()}
                                             </div>
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="line-clamp-2 text-sm font-semibold leading-4 text-gray-900">{user?.name}</p>
-                                        <p className="mt-1 break-words text-xs leading-4 text-gray-500">{getAccountContext(user)}</p>
+                                        <p className="line-clamp-2 text-sm font-semibold leading-4 text-white">{user?.name}</p>
+                                        <p className="mt-1 break-words text-xs leading-4 text-brand-200/60">{getAccountContext(user)}</p>
                                     </div>
-                                    <HiOutlineChevronRight className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                    <HiOutlineChevronRight className="h-5 w-5 text-brand-400/50" aria-hidden="true" />
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-lg px-3 text-xs font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-lg px-3 text-xs font-medium text-brand-200/50 transition-colors hover:bg-brand-900/50 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                 >
                                     <HiOutlineLogout className="h-5 w-5" aria-hidden="true" />
                                     Sign out
                                 </button>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                            <div className="rounded-xl border border-brand-800/50 bg-brand-900/30 p-3">
                                 <div className="mb-3 flex items-center gap-2">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
-                                        <HiOutlineGlobe className="h-4 w-4 text-brand-600" aria-hidden="true" />
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-800 shadow-sm ring-1 ring-brand-700">
+                                        <HiOutlineGlobe className="h-4 w-4 text-brand-300" aria-hidden="true" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">Guest mode</p>
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400">Sign in for full access</p>
+                                        <p className="text-xs font-semibold text-white">Guest mode</p>
+                                        <p className="text-[11px] text-brand-200/60">Sign in for full access</p>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Link
                                         to="/login"
                                         onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
                                         <HiOutlineLogin className="h-4 w-4" aria-hidden="true" />
                                         Sign In
@@ -353,7 +353,7 @@ const MainLayout = ({ children }) => {
                                     <Link
                                         to="/register"
                                         onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-700 bg-brand-900/50 px-3 py-2 text-xs font-semibold text-brand-100 transition-colors hover:border-brand-600 hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
                                         <HiOutlineUserAdd className="h-4 w-4" aria-hidden="true" />
                                         Become a Reporter

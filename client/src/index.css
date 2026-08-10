@@ -599,28 +599,6 @@
   }
 }
 
-@keyframes responderPulse {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.95;
-  }
-
-  80% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-}
-
-/* Camera interaction takes priority over decorative marker animation. */
-.maplibregl-map.map-motion-active [data-map-pulse] {
-  animation-play-state: paused !important;
-}
-
 @keyframes zoneMarkerSelected {
   0% {
     filter: drop-shadow(0 0 0 rgba(15, 118, 110, 0));
@@ -655,10 +633,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .maplibregl-map [data-map-pulse] {
-    animation: none !important;
-  }
-
   .zone-marker--selected {
     animation: none;
   }

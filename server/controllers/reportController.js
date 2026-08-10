@@ -42,6 +42,8 @@ export const createReport = async (req, res) => {
             accidentTime, // Legacy support
             accidentType, // Legacy support
             severity,
+            fireInvolved,
+            fireType,
             lat,
             lng,
             locationSource,
@@ -173,6 +175,8 @@ export const createReport = async (req, res) => {
             accidentTime: new Date(finalIncidentTime), // Legacy compatibility
             accidentType: finalType, // Legacy compatibility
             severity: severity || 'moderate',
+            fireInvolved: fireInvolved === 'true' || fireInvolved === true,
+            fireType: (fireInvolved === 'true' || fireInvolved === true) ? fireType : null,
             casualties,
             affectedArea,
             images: uploadedImageUrls,

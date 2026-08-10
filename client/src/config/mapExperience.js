@@ -24,7 +24,10 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             description: `Monitor incidents, active responses, and mapped hazards in ${assignedMunicipality}.`,
             filters: OPERATIONAL_FILTERS.responder,
             filterMode: 'response',
-            showPendingReports: true,
+            // The operational API deliberately excludes unverified pending
+            // reports from responder reads. "Awaiting response" consists of
+            // verified/transferred incidents that are eligible for response.
+            showPendingReports: false,
             showSubmitReport: false,
             canRespond: true,
             canResolve: true,

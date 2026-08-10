@@ -2,20 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
-    HiOutlineArrowRight,
     HiOutlineBadgeCheck,
     HiOutlineChevronDown,
     HiOutlineExclamationCircle,
     HiOutlineLightningBolt,
-    HiOutlineLocationMarker,
     HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
+import IncidentLocationPreview from './IncidentLocationPreview';
 import { IncidentSeverityIndicator, OperationalStatusIndicator } from './IncidentQueue';
 import {
     getAgencyLabel,
-    getCoordinates,
     getIncidentCapabilities,
     getIncidentDate,
 } from './incidentReportConfig';
@@ -160,17 +158,12 @@ const ResponderIncidentInspector = ({
 
     if (!report || typeof document === 'undefined') return null;
 
-    const coordinates = getCoordinates(report);
     const incidentDate = getIncidentDate(report);
     const incidentType = formatIncidentLabel(
         report.incidentType || report.accidentType || report.incidentCategory,
     );
     const municipality = report.municipalityName || report.municipality?.name || '';
     const locationTitle = report.address || [report.barangay, municipality].filter(Boolean).join(', ') || 'Incident details';
-    const locationContext = [report.barangay, municipality]
-        .filter(Boolean)
-        .filter((value, index, values) => values.indexOf(value) === index)
-        .join(', ');
     const updates = Array.isArray(report.reportUpdates)
         ? [...report.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         : [];
@@ -275,11 +268,26 @@ const ResponderIncidentInspector = ({
 
                 <section aria-labelledby="responder-overview-heading">
                     <h3 id="responder-overview-heading" className="text-sm font-bold text-gray-950 dark:text-white">Overview</h3>
-                    <dl className="mt-2 grid grid-cols-2 gap-x-5">
+                    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
                         <DetailItem label="Type"><span className="capitalize">{incidentType}</span></DetailItem>
+                        <DetailItem label="Severity"><span className="capitalize">{report.severity || 'Moderate'}</span></DetailItem>
+                        {report.fireInvolved && (
+                            <DetailItem label="Fire">
+                                Yes {report.fireType ? `(${report.fireType.replace('_', ' ')})` : ''}
+                            </DetailItem>
+                        )}
                         <DetailItem label="Incident time">{formatDate(incidentDate)}</DetailItem>
                         <DetailItem label="Municipality">{municipality}</DetailItem>
                         <DetailItem label="Submitted">{formatDate(report.createdAt)}</DetailItem>
+                        {report.casualties && (report.casualties.injured > 0 || report.casualties.fatalities > 0 || report.casualties.missing > 0) && (
+                            <DetailItem label="Casualties">
+                                {[
+                                    report.casualties.fatalities > 0 ? `${report.casualties.fatalities} fatal` : null,
+                                    report.casualties.injured > 0 ? `${report.casualties.injured} injured` : null,
+                                    report.casualties.missing > 0 ? `${report.casualties.missing} missing` : null,
+                                ].filter(Boolean).join(', ')}
+                            </DetailItem>
+                        )}
                         <DetailItem label="Reporter">{report.reporter?.name || 'Unknown reporter'}</DetailItem>
                         <DetailItem label="Reporter account">{report.reporter?.isVerified ? 'Verified' : 'Not verified'}</DetailItem>
                     </dl>
@@ -292,31 +300,11 @@ const ResponderIncidentInspector = ({
                     </p>
                 </section>
 
-                <section className="border-t border-gray-200 py-5 dark:border-gray-800" aria-labelledby="responder-location-heading">
-                    <div className="flex items-start gap-3">
-                        <HiOutlineLocationMarker className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
-                        <div className="min-w-0 flex-1">
-                            <h3 id="responder-location-heading" className="text-sm font-bold text-gray-950 dark:text-white">Pinned location</h3>
-                            <p className="mt-2 break-words text-sm font-medium leading-5 text-gray-900 dark:text-gray-100">{locationTitle}</p>
-                            {locationContext && locationContext !== locationTitle && (
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{locationContext}</p>
-                            )}
-                            <p className="mt-1 text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                {coordinates ? `${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}` : 'Coordinates unavailable'}
-                            </p>
-                            {coordinates && typeof onOpenMap === 'function' && (
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenMap(report)}
-                                    className="group mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-sm font-semibold text-gray-700 transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-300 dark:hover:text-brand-300"
-                                >
-                                    Open full map
-                                    <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </section>
+                <IncidentLocationPreview
+                    report={report}
+                    userRole={user?.role}
+                    onOpenMap={onOpenMap}
+                />
 
                 {(report.respondedBy || report.status === 'resolved') && (
                     <section className="border-t border-gray-200 py-5 dark:border-gray-800" aria-labelledby="responder-response-heading">

@@ -11,9 +11,9 @@ import { FIRE_TYPES, INCIDENT_CATEGORIES, SEVERITY_LEVELS } from './reportConfig
 const FieldError = ({ id, children }) => <p id={id} className="mt-1.5 text-xs font-medium text-red-600">{children}</p>;
 
 const SectionHeader = ({ id, step, title, description }) => (
-    <div className="mb-4">
+    <div className="mb-5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Step {step}</p>
-        <h2 id={id} className="mt-0.5 text-base font-semibold text-gray-900">{title}</h2>
+        <h2 id={id} className="mt-1 text-base font-bold text-gray-900">{title}</h2>
         {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
     </div>
 );
@@ -37,9 +37,9 @@ const ReportDetailsPanel = ({
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
 
     return (
-        <div className="space-y-4">
-            <section className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="details-heading">
-                <SectionHeader id="details-heading" step="2" title="Incident details" description="Provide the essential information responders need to assess the report." />
+        <div className="space-y-8 divide-y divide-gray-200">
+            <section className="pt-2" aria-labelledby="details-heading">
+                <SectionHeader id="details-heading" step="2" title="Incident details" />
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <label>
@@ -78,30 +78,30 @@ const ReportDetailsPanel = ({
                         </span>
                     </label>
 
-                    <div className="sm:col-span-2">
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={formData.fireInvolved}
-                            onClick={() => setFormData((current) => ({ ...current, fireInvolved: !current.fireInvolved, fireType: 'gas_leak' }))}
-                            className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${formData.fireInvolved ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-                        >
-                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${formData.fireInvolved ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                                <HiOutlineFire className="h-4 w-4" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-medium text-gray-900">Fire, gas leak, or explosion involved</span>
-                                <span className="mt-0.5 block text-xs text-gray-500">Enable this when fire response may be required.</span>
-                            </span>
-                            <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${formData.fireInvolved ? 'bg-orange-600' : 'bg-gray-300'}`}>
-                                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${formData.fireInvolved ? 'left-[18px]' : 'left-0.5'}`} />
-                            </span>
-                        </button>
+                    <div className="sm:col-span-2 pt-2 pb-1 border-t border-b border-gray-100 my-1">
+                        <div className="flex w-full items-center justify-between gap-3 py-1.5">
+                            <div className="flex items-start gap-2.5">
+                                <HiOutlineFire className="mt-0.5 h-5 w-5 text-gray-400" />
+                                <div>
+                                    <span className="block text-sm font-medium text-gray-900">Fire, gas leak, or explosion involved</span>
+                                    <span className="block text-[11px] text-gray-500">Enable this when fire response may be required.</span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={formData.fireInvolved}
+                                onClick={() => setFormData((current) => ({ ...current, fireInvolved: !current.fireInvolved, fireType: 'gas_leak' }))}
+                                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${formData.fireInvolved ? 'bg-orange-600' : 'bg-gray-200'}`}
+                            >
+                                <span className={`absolute top-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.fireInvolved ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
 
                         {formData.fireInvolved && (
-                            <label className="mt-3 block rounded-lg border border-orange-200 bg-orange-50 p-3">
-                                <span className="text-xs font-medium text-orange-900">Fire-related condition</span>
-                                <select name="fireType" value={formData.fireType} onChange={handleChange} className="mt-1.5 w-full rounded-lg border border-orange-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100">
+                            <label className="mt-3 block pl-7 pr-12 pb-2">
+                                <span className="text-xs font-medium text-gray-700">Fire-related condition</span>
+                                <select name="fireType" value={formData.fireType} onChange={handleChange} className={inputClass}>
                                     {FIRE_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
                                 </select>
                             </label>
@@ -116,7 +116,7 @@ const ReportDetailsPanel = ({
                 </div>
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="casualties-heading">
+            <section className="pt-8" aria-labelledby="casualties-heading">
                 <SectionHeader id="casualties-heading" step="3" title="Casualties and injuries" description="Enter zero when none are known." />
                 <div className="grid grid-cols-3 gap-3">
                     {[
@@ -132,7 +132,7 @@ const ReportDetailsPanel = ({
                 </div>
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="evidence-heading">
+            <section className="pt-8" aria-labelledby="evidence-heading">
                 <SectionHeader id="evidence-heading" step="4" title="Evidence photos" description="Optional. Upload up to five images, maximum 5 MB each." />
 
                 {imagePreviews.length > 0 && (
@@ -158,7 +158,7 @@ const ReportDetailsPanel = ({
                 <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageChange} className="sr-only" aria-label="Upload evidence photos" />
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="submit-heading">
+            <section className="pt-8" aria-labelledby="submit-heading">
                 <div className="flex items-start gap-3">
                     <HiOutlineShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
                     <div>
