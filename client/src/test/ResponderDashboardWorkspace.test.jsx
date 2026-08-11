@@ -135,12 +135,11 @@ describe('ResponderDashboardWorkspace', () => {
             expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
             expect(card).toHaveClass(
                 'cursor-pointer',
-                'border-transparent',
-                'hover:border-gray-200',
-                'hover:bg-gray-50/80',
+                'bg-white',
+                'hover:bg-gray-50',
                 'focus-visible:ring-2',
             );
-            expect(card).not.toHaveClass('rounded-xl', 'shadow-sm');
+            expect(card).not.toHaveClass('rounded-xl', 'shadow-sm', 'border-transparent');
         });
         expect(resolvedCard).toHaveAccessibleName(/View today's records/i);
         expect(emergenciesCard.parentElement?.parentElement).toHaveClass(
@@ -161,7 +160,7 @@ describe('ResponderDashboardWorkspace', () => {
             />
         );
 
-        expect(screen.getByText('Barangay incident distribution')).toBeInTheDocument();
+        expect(screen.getByText('Barangay distribution')).toBeInTheDocument();
         expect(screen.getByText('Poblacion')).toBeInTheDocument();
         expect(screen.getByText('5 incidents')).toBeInTheDocument();
         expect(screen.getByText('2 inj.')).toBeInTheDocument();

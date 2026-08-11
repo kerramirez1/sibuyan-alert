@@ -78,7 +78,7 @@ const MapIncidentDetails = ({
                     </span>
                 </div>
 
-                <h3 className="mt-3 text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
+                <h3 className="mt-3 text-lg font-bold uppercase tracking-wider text-gray-950 sm:text-xl">
                     {details.title}
                 </h3>
                 <div className="mt-1.5 flex items-start gap-2 text-sm leading-6 text-gray-600">
@@ -87,7 +87,7 @@ const MapIncidentDetails = ({
                 </div>
 
                 {operational.loading && (
-                    <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800" role="status">
+                    <div className="mt-4 rounded-sm border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800" role="status">
                         {operational.isOperationalViewer
                             ? 'Loading protected operational details...'
                             : 'Loading your evidence photos...'}
@@ -95,7 +95,7 @@ const MapIncidentDetails = ({
                 )}
 
                 {operational.error && (
-                    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                    <div className="mt-4 flex flex-col gap-3 rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between" role="alert">
                         <span>{operational.error}</span>
                         {!operational.restricted && (
                             <Button variant="dangerOutline" size="sm" onClick={operational.retry}>Retry</Button>
@@ -103,8 +103,8 @@ const MapIncidentDetails = ({
                     </div>
                 )}
 
-                <dl className="mt-4 grid grid-cols-1 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 sm:grid-cols-2 sm:divide-x sm:divide-gray-200">
-                    <div className="border-b border-gray-200 p-3 sm:border-b-0">
+                <dl className="mt-4 grid grid-cols-1 overflow-hidden rounded-sm border border-gray-300 bg-gray-50 sm:grid-cols-2 sm:divide-x sm:divide-gray-300">
+                    <div className="border-b border-gray-300 p-3 sm:border-b-0">
                         <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Incident time</dt>
                         <dd className="mt-1 text-sm font-semibold text-gray-900">{formatDate(details.incidentTime)}</dd>
                         {formatRelativeDate(details.incidentTime) && (
@@ -126,24 +126,24 @@ const MapIncidentDetails = ({
                 </section>
 
                 {details.safetyIndicators.length > 0 && (
-                    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3" aria-labelledby="safety-indicators-heading">
-                        <h4 id="safety-indicators-heading" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-800">
+                    <section className="mt-4 rounded-sm border border-amber-200 bg-amber-50 p-3" aria-labelledby="safety-indicators-heading">
+                        <h4 id="safety-indicators-heading" className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-800">
                             <HiOutlineExclamationCircle className="h-4 w-4" aria-hidden="true" />
                             {showOperationalDetails ? 'Critical incident indicators' : 'Public safety indicators'}
                         </h4>
                         <ul className="mt-2 flex flex-wrap gap-2">
                             {details.safetyIndicators.map((indicator) => (
-                                <li key={indicator} className="rounded-md bg-white/80 px-2 py-1 text-xs font-medium text-amber-900">{indicator}</li>
+                                <li key={indicator} className="rounded-sm border border-amber-200/50 bg-white/80 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-900">{indicator}</li>
                             ))}
                         </ul>
                     </section>
                 )}
 
                 {!showOperationalDetails && details.respondingAgencies.length > 0 && (
-                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-gray-200 p-3">
+                    <div className="mt-4 flex items-start gap-2 rounded-sm border border-gray-300 p-3">
                         <HiOutlineClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
                         <div>
-                            <p className="text-xs font-semibold text-gray-900">Responding agency</p>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900">Responding agency</p>
                             <p className="mt-0.5 text-xs text-gray-600">{details.respondingAgencies.join(', ')}</p>
                         </div>
                     </div>

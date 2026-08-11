@@ -14,19 +14,19 @@ import {
 } from 'react-icons/hi';
 
 const STATUS_CONFIG = {
-    pending: { label: 'Pending review', dot: 'bg-amber-400', icon: HiOutlineClock },
-    verified: { label: 'Verified', dot: 'bg-gray-400', icon: HiOutlineClipboardList },
-    transferred: { label: 'Transferred', dot: 'bg-gray-400', icon: HiOutlineClipboardList },
-    responding: { label: 'Response active', dot: 'bg-blue-400', icon: HiOutlineLightningBolt },
-    resolved: { label: 'Resolved', dot: 'bg-emerald-500', icon: HiOutlineBadgeCheck },
-    rejected: { label: 'Rejected', dot: 'bg-gray-400', icon: HiOutlineClipboardList },
+    pending: { label: 'Pending review', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-400' },
+    verified: { label: 'Verified', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-400' },
+    transferred: { label: 'Transferred', bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-800 dark:text-indigo-400' },
+    responding: { label: 'Response active', bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-800 dark:text-cyan-400' },
+    resolved: { label: 'Resolved', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-800 dark:text-emerald-400' },
+    rejected: { label: 'Rejected', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-800 dark:text-gray-300' },
 };
 
 const SEVERITY_CONFIG = {
-    minor: { label: 'Minor', color: 'text-emerald-700' },
-    moderate: { label: 'Moderate', color: 'text-amber-700' },
-    severe: { label: 'Severe', color: 'text-red-600' },
-    critical: { label: 'Critical', color: 'text-red-700 font-bold' },
+    minor: { label: 'Minor', color: 'text-emerald-700 dark:text-emerald-400' },
+    moderate: { label: 'Moderate', color: 'text-amber-700 dark:text-amber-400' },
+    severe: { label: 'Severe', color: 'text-orange-700 dark:text-orange-400' },
+    critical: { label: 'Critical', color: 'text-red-700 dark:text-red-400 font-bold' },
 };
 
 const formatRelativeDate = (value) => {
@@ -140,17 +140,17 @@ const ReporterDashboardPage = () => {
                         Track your reports and stay informed about their response status.
                     </p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-sm border border-gray-300 bg-white px-5 py-2 text-sm font-bold text-gray-800 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                         <HiOutlineGlobe className="h-4 w-4" aria-hidden="true" />
-                        View live map
+                        Live incident map
                     </Link>
                     <Link
                         to="/report"
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                        className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-sm border border-transparent bg-brand-700 px-6 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:hover:bg-brand-600"
                     >
                         <HiOutlineDocumentAdd className="h-4 w-4" aria-hidden="true" />
                         Submit incident report
@@ -175,79 +175,76 @@ const ReporterDashboardPage = () => {
                 <>
                     <section aria-labelledby="my-reports-overview">
                         <h2 id="my-reports-overview" className="sr-only">My Reports Overview</h2>
-                        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 sm:grid-cols-4">
-                            <div className="bg-white p-4 sm:p-6">
-                                <p className="text-xs font-semibold text-gray-500">Total reports</p>
-                                <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">{summary.total}</p>
-                                <p className="mt-1 text-xs text-gray-500">All submissions</p>
+                        <div className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 dark:border-gray-600 dark:bg-gray-600 sm:grid-cols-4">
+                            <div className="bg-white p-5 dark:bg-gray-900 sm:p-7">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total reports</p>
+                                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{summary.total}</p>
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">All submissions</p>
                             </div>
-                            <div className="bg-white p-4 sm:p-6">
-                                <p className="text-xs font-semibold text-gray-500">Pending review</p>
-                                <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">{summary.pending}</p>
-                                <p className="mt-1 text-xs text-gray-500">Waiting review</p>
+                            <div className="bg-white p-5 dark:bg-gray-900 sm:p-7">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pending review</p>
+                                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{summary.pending}</p>
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Waiting review</p>
                             </div>
-                            <div className="bg-white p-4 sm:p-6">
-                                <p className="text-xs font-semibold text-gray-500">Active cases</p>
-                                <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">{summary.responding}</p>
-                                <p className="mt-1 text-xs text-gray-500">In response</p>
+                            <div className="bg-white p-5 dark:bg-gray-900 sm:p-7">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active cases</p>
+                                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{summary.responding}</p>
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">In response</p>
                             </div>
-                            <div className="bg-white p-4 sm:p-6">
-                                <p className="text-xs font-semibold text-gray-500">Resolved</p>
-                                <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">{summary.resolved}</p>
-                                <p className="mt-1 text-xs text-gray-500">Closed incidents</p>
+                            <div className="bg-white p-5 dark:bg-gray-900 sm:p-7">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Resolved</p>
+                                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{summary.resolved}</p>
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Closed incidents</p>
                             </div>
                         </div>
                     </section>
 
-                    <section aria-labelledby="recent-reports-heading">
-                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                            <h2 id="recent-reports-heading" className="text-base font-semibold text-gray-900">Recent reports</h2>
+                    <section aria-labelledby="recent-reports-heading" className="border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900">
+                        <div className="flex items-center justify-between border-b border-gray-300 bg-gray-100 px-5 py-4 dark:border-gray-600 dark:bg-gray-800">
+                            <h2 id="recent-reports-heading" className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity log</h2>
                             {reports.length > 0 && (
                                 <Link
                                     to="/my-reports"
-                                    className="text-sm font-semibold text-brand-600 hover:text-brand-500"
+                                    className="text-xs font-bold uppercase tracking-wider text-brand-700 hover:text-brand-800 dark:text-brand-400"
                                 >
-                                    View all reports &rarr;
+                                    View all records
                                 </Link>
                             )}
                         </div>
 
                         {recentReports.length > 0 ? (
-                            <div className="divide-y divide-gray-100">
+                            <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {recentReports.map((report) => {
                                     const severityLabel = report.severity ? SEVERITY_CONFIG[report.severity]?.label : 'Unknown';
                                     const severityColor = report.severity ? SEVERITY_CONFIG[report.severity]?.color : 'text-gray-500';
                                     const statusConfig = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
-                                    const StatusIcon = statusConfig.icon;
 
                                     return (
-                                        <div key={report._id} className="group py-5 transition hover:bg-gray-50 sm:px-4 sm:-mx-4 sm:rounded-xl">
-                                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider">
-                                                    <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} aria-hidden="true" />
-                                                    <span className={severityColor}>{severityLabel}</span>
-                                                    <span className="text-gray-300">&middot;</span>
-                                                    <span className="flex items-center gap-1 text-gray-600">
-                                                        <StatusIcon className="h-3 w-3" aria-hidden="true" />
+                                        <div key={report._id} className="flex flex-col gap-4 p-5 transition hover:bg-gray-50 dark:hover:bg-gray-800/50 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-3">
+                                                    <span className={`inline-flex items-center rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${statusConfig.bg} ${statusConfig.text}`}>
                                                         {statusConfig.label}
                                                     </span>
+                                                    <span className={`text-[11px] font-bold uppercase tracking-wider ${severityColor}`}>
+                                                        {severityLabel} Severity
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-gray-500">
-                                                    {formatRelativeDate(report.createdAt)}
-                                                </span>
+                                                <p className="mt-3 truncate text-sm font-bold text-gray-900 dark:text-white">
+                                                    {getLocation(report)}
+                                                </p>
+                                                <div className="mt-1 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                                    <span className="font-semibold">{formatIncidentType(report)}</span>
+                                                    <span>&middot;</span>
+                                                    <span>Reported {formatRelativeDate(report.createdAt)}</span>
+                                                </div>
                                             </div>
-                                            <div className="mt-2 text-sm font-semibold text-gray-900">
-                                                {getLocation(report)}
-                                            </div>
-                                            <div className="mt-1 text-sm text-gray-600">
-                                                {formatIncidentType(report)}
-                                            </div>
-                                            <div className="mt-3">
+                                            <div className="flex shrink-0 items-center sm:ml-4 sm:mt-0">
                                                 <Link
                                                     to={`/my-reports?report=${report._id}`}
-                                                    className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600 group-hover:text-brand-700"
+                                                    className="inline-flex min-h-[36px] items-center justify-center rounded-sm border border-gray-300 bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-800 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                                                 >
-                                                    View report &rarr;
+                                                    View details
                                                 </Link>
                                             </div>
                                         </div>
@@ -255,19 +252,19 @@ const ReporterDashboardPage = () => {
                                 })}
                             </div>
                         ) : (
-                            <div className="mt-8 flex flex-col items-center justify-center text-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                                    <HiOutlineClipboardList className="h-6 w-6 text-gray-500" aria-hidden="true" />
+                            <div className="flex flex-col items-center justify-center p-12 text-center">
+                                <div className="flex h-12 w-12 items-center justify-center bg-gray-100 dark:bg-gray-800">
+                                    <HiOutlineClipboardList className="h-6 w-6 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                                 </div>
-                                <h3 className="mt-4 text-sm font-semibold text-gray-900">No incident reports submitted yet.</h3>
-                                <p className="mt-1 text-sm text-gray-500">Submit a new incident report to see it tracked here.</p>
-                                <div className="mt-5">
+                                <h3 className="mt-4 text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">No activity logged</h3>
+                                <p className="mt-1 max-w-sm text-sm text-gray-600 dark:text-gray-400">There are currently no reports linked to your profile. Submit a new incident to see it tracked here.</p>
+                                <div className="mt-6">
                                     <Link
                                         to="/report"
-                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                                        className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-sm bg-brand-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-800"
                                     >
                                         <HiOutlineDocumentAdd className="h-4 w-4" aria-hidden="true" />
-                                        Submit incident report
+                                        Submit new incident
                                     </Link>
                                 </div>
                             </div>

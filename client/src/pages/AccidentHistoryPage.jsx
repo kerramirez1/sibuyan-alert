@@ -229,9 +229,9 @@ const AccidentHistoryPage = () => {
                     </div>
                 </div>
 
-                <div className={`inline-flex self-start items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold select-none ${canViewFullDetails
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                <div className={`inline-flex self-start items-center gap-2 rounded-sm border px-3 py-2 text-[11px] font-bold uppercase tracking-wider select-none ${canViewFullDetails
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                    : 'border-gray-300 bg-gray-100 text-gray-700'
                 }`} aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}>
                     {canViewFullDetails
                         ? <HiOutlineShieldCheck className="w-4 h-4" />
@@ -240,45 +240,39 @@ const AccidentHistoryPage = () => {
                 </div>
             </header>
 
-            <section className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-gray-200 bg-white shadow-sm" aria-label="History summary">
+            <section className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 md:grid-cols-4 dark:border-gray-600 dark:bg-gray-600" aria-label="History summary">
                 {metricCards.map(({ label, value, helper, icon: Icon, text }, index) => (
                     <div
                         key={label}
-                        className={`p-4 sm:p-5 border-gray-200 ${
-                            index % 2 === 1 ? 'border-l' : ''
-                        } ${
-                            index >= 2 ? 'border-t' : ''
-                        } md:border-t-0 ${
-                            index > 0 ? 'md:border-l' : ''
-                        }`}
+                        className="bg-white p-4 sm:p-5 dark:bg-gray-900"
                     >
                         <div className="flex items-center gap-1.5">
-                            <Icon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</h2>
+                            <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                            <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</h2>
                         </div>
-                        <p className={`mt-2 font-bold text-gray-900 ${text ? 'text-base truncate' : 'text-2xl'}`}>{value}</p>
-                        <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+                        <p className={`mt-2 font-display font-bold text-gray-900 dark:text-white ${text ? 'text-xl truncate' : 'text-3xl'}`}>{value}</p>
+                        <p className="mt-1 text-[11px] text-gray-600 dark:text-gray-400">{helper}</p>
                     </div>
                 ))}
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Resolved accident records">
+            <section className="border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-label="Resolved accident records">
                 {/* Filters */}
-                <div className="p-4">
+                <div className="border-b border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-800">
                     <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
                         <label className="relative block">
                             <span className="sr-only">Search accident history</span>
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Search location, barangay, or incident type"
-                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-100"
+                                className="w-full rounded-sm border border-gray-300 bg-white py-2 pl-9 pr-3 text-xs font-semibold text-gray-800 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-gray-700"
                             />
                         </label>
 
-                        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
                             <option value="all">All dates</option>
                             <option value="today">Today</option>
                             <option value="7">Last 7 days</option>
@@ -287,7 +281,7 @@ const AccidentHistoryPage = () => {
                             <option value="365">Last year</option>
                         </select>
 
-                        <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                        <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
                             <option value="all">All severities</option>
                             <option value="minor">Minor</option>
                             <option value="moderate">Moderate</option>
@@ -295,7 +289,7 @@ const AccidentHistoryPage = () => {
                             <option value="critical">Critical</option>
                         </select>
 
-                        <select value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-gray-400">
+                        <select value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
                             <option value="all">All municipalities</option>
                             {municipalities.map((municipality) => (
                                 <option key={municipality} value={municipality}>{municipality}</option>
@@ -303,13 +297,13 @@ const AccidentHistoryPage = () => {
                         </select>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                        <p className="text-xs text-gray-500">
-                            Showing <span className="font-semibold text-gray-800">{filteredReports.length}</span> of {reports.length} records
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-300 pt-3 dark:border-gray-700">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                            Showing <span className="text-gray-900 dark:text-white">{filteredReports.length}</span> of {reports.length} records
                         </p>
                         {hasFilters && (
-                            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900">
-                                <HiOutlineX className="w-4 h-4" /> Clear filters
+                            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-700 hover:text-brand-800 dark:text-brand-400">
+                                <HiOutlineX className="w-3.5 h-3.5" /> Clear filters
                             </button>
                         )}
                     </div>
@@ -328,7 +322,7 @@ const AccidentHistoryPage = () => {
                     </div>
                 ) : (
                     <>
-                    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-t border-b border-gray-200 bg-gray-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+                    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-b border-gray-300 bg-gray-200 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
                         <span>Incident</span>
                         <span>Municipality</span>
                         <span>Resolved</span>
@@ -381,20 +375,20 @@ const AccidentHistoryPage = () => {
                                         </div>
 
                                         <div className="flex items-center justify-between gap-3 md:block">
-                                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severity.badge}`}>{severity.label}</span>
-                                            {casualtyCount > 0 && <span className="text-[11px] text-gray-500 md:mt-1 md:block">{casualtyCount} casualties</span>}
+                                            <span className={`inline-flex rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${severity.badge}`}>{severity.label}</span>
+                                            {casualtyCount > 0 && <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 md:mt-1 md:block">{casualtyCount} casualties</span>}
                                         </div>
 
                                         <HiOutlineChevronDown className={`hidden w-4 h-4 text-gray-400 transition-transform md:block ${isExpanded ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {isExpanded && (
-                                        <div className="border-t border-gray-100 bg-gray-50/70 px-4 py-5 md:px-8">
+                                        <div className="border-t border-gray-300 bg-gray-100 px-4 py-5 md:px-8 dark:border-gray-600 dark:bg-gray-800">
                                             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,.8fr)]">
                                                 <div className="space-y-5">
                                                     <div>
-                                                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Incident summary</h3>
-                                                        <p className="mt-2 text-sm leading-6 text-gray-700">{report.description || 'No incident description was provided.'}</p>
+                                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Incident summary</h3>
+                                                        <p className="mt-2 text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">{report.description || 'No incident description was provided.'}</p>
                                                     </div>
 
                                                     <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
@@ -411,17 +405,17 @@ const AccidentHistoryPage = () => {
                                                             ] : []),
                                                         ].map(([label, value, Icon]) => (
                                                             <div key={label}>
-                                                                <dt className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500"><Icon className="w-3.5 h-3.5" />{label}</dt>
-                                                                <dd className="mt-1 text-xs font-semibold text-gray-800 break-words">{value}</dd>
+                                                                <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"><Icon className="w-3.5 h-3.5" />{label}</dt>
+                                                                <dd className="mt-1 text-xs font-semibold text-gray-900 break-words dark:text-white">{value}</dd>
                                                             </div>
                                                         ))}
                                                     </dl>
 
                                                     {(report.respondedBy || report.resolvedBy) && (
-                                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                                            <p className="text-xs font-semibold text-emerald-800">Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}</p>
+                                                        <div className="rounded-sm border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                                                            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}</p>
                                                             {canViewFullDetails && (
-                                                                <p className="mt-1 text-xs text-emerald-700">
+                                                                <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-500">
                                                                     {report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}
                                                                     {report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''}
                                                                 </p>
@@ -432,10 +426,10 @@ const AccidentHistoryPage = () => {
 
                                                 <aside className="space-y-4">
                                                     {canViewFullDetails ? (
-                                                        <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                                        <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
                                                             <div className="flex items-center justify-between">
-                                                                <h3 className="flex items-center gap-2 text-xs font-semibold text-gray-700"><HiOutlinePhotograph className="w-4 h-4" />Evidence</h3>
-                                                                <span className="text-[11px] text-gray-400">{report.images?.length || 0} photos</span>
+                                                                <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200"><HiOutlinePhotograph className="w-4 h-4" />Evidence</h3>
+                                                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{report.images?.length || 0} photos</span>
                                                             </div>
                                                             {report.images?.length ? (
                                                                 <div className="mt-3 grid grid-cols-3 gap-2">
@@ -444,23 +438,23 @@ const AccidentHistoryPage = () => {
                                                                             key={image}
                                                                             type="button"
                                                                             onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
-                                                                            className="aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                                                                            className="aspect-square overflow-hidden rounded-sm border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800"
                                                                         >
                                                                             <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
                                                                         </button>
                                                                     ))}
                                                                 </div>
                                                             ) : (
-                                                                <p className="mt-3 text-xs text-gray-500">No evidence photos attached.</p>
+                                                                <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">No evidence photos attached.</p>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                                        <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
                                                             <div className="flex items-start gap-3">
-                                                                <HiOutlineLockClosed className="mt-0.5 w-4 h-4 text-gray-400 shrink-0" />
+                                                                <HiOutlineLockClosed className="mt-0.5 w-4 h-4 text-gray-500 shrink-0 dark:text-gray-400" />
                                                                 <div>
-                                                                    <h3 className="text-xs font-semibold text-gray-800">Protected incident details</h3>
-                                                                    <p className="mt-1 text-xs leading-5 text-gray-500">Evidence, exact coordinates, reporter identity, and response notes are available only to authorized operational users.</p>
+                                                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Protected incident details</h3>
+                                                                    <p className="mt-1 text-xs font-semibold leading-5 text-gray-600 dark:text-gray-400">Evidence, exact coordinates, reporter identity, and response notes are available only to authorized operational users.</p>
                                                                 </div>
                                                             </div>
                                                         </div>

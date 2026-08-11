@@ -11,18 +11,18 @@ const SibuyanIslandMap = memo(() => (
         aria-label="Map of Sibuyan Island showing Cajidiocan, Magdiwang, and San Fernando municipalities"
         data-testid="sibuyan-island-map"
     >
-        {/* Restrained ambient emerald glow (kept subtle; the map is the focus) */}
-        <div
-            className="absolute -inset-5 -z-10 rounded-full bg-emerald-400/15 blur-2xl dark:bg-emerald-500/10"
-            aria-hidden="true"
-        />
-
-        {/* Light picture frame: thin border + gentle shadow, restrained radius */}
-        <div className="overflow-hidden rounded-xl border border-[#dbeae1] bg-white p-1 shadow-[0_8px_24px_-18px_rgba(9,23,17,0.28)] sm:rounded-2xl sm:p-1.5 lg:p-1 dark:border-[#1c3428] dark:bg-[#101c19]">
+        {/* Tactical Frame */}
+        <div className="relative border border-emerald-900/20 bg-gray-50/50 p-3 sm:p-4 dark:border-emerald-400/20 dark:bg-[#0a1410]">
+            {/* Corner Brackets / Crosshairs */}
+            <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-t-2 border-emerald-600 dark:border-emerald-400" aria-hidden="true" />
+            <div className="absolute right-0 top-0 h-4 w-4 border-r-2 border-t-2 border-emerald-600 dark:border-emerald-400" aria-hidden="true" />
+            <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-emerald-600 dark:border-emerald-400" aria-hidden="true" />
+            <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-emerald-600 dark:border-emerald-400" aria-hidden="true" />
+            
             <img
                 src="/icons/Municipality.png"
                 alt="Sibuyan Island municipality boundaries — Cajidiocan, Magdiwang, and San Fernando"
-                className="block h-auto w-full rounded-lg object-contain sm:rounded-xl"
+                className="block h-auto w-full object-contain"
                 loading="eager"
                 decoding="async"
                 width={640}

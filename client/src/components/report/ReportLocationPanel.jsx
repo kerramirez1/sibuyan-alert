@@ -44,32 +44,32 @@ const ReportLocationPanel = ({
     };
 
     return (
-        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-labelledby="location-heading">
-            <div className="border-b border-gray-200 p-4 sm:p-5">
+        <section className="border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-labelledby="location-heading">
+            <div className="border-b border-gray-300 bg-gray-100 p-4 sm:p-5 dark:border-gray-600 dark:bg-gray-800">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                 <HiOutlineLocationMarker className="h-4 w-4" />
                             </span>
                             <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Step 1</p>
-                                <h2 id="location-heading" className="text-base font-semibold text-gray-900">Incident location</h2>
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Step 1</p>
+                                <h2 id="location-heading" className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Incident location</h2>
                             </div>
                         </div>
-                        <p className="mt-2 text-sm text-gray-500">Use GPS, search for a landmark, or select the exact position on the map.</p>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Use GPS, search for a landmark, or select the exact position on the map.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold ${status.badge}`}>
+                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                        <span className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider ${status.badge}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${status.dot} ${locationStatus === 'detecting' ? 'animate-pulse' : ''}`} />
                             {status.label}
                         </span>
                         {locationStatus === 'idle' ? (
-                            <button type="button" onClick={detectLocation} disabled={geoLoading} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
+                            <button type="button" onClick={detectLocation} disabled={geoLoading} className="rounded-sm bg-brand-600 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
                                 Use my location
                             </button>
                         ) : ['selected', 'confirmed'].includes(locationStatus) ? (
-                            <button type="button" onClick={retryLocation} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-gray-400">Change</button>
+                            <button type="button" onClick={retryLocation} className="rounded-sm border border-gray-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-700 hover:border-gray-400 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500">Change</button>
                         ) : null}
                     </div>
                 </div>
@@ -143,23 +143,27 @@ const ReportLocationPanel = ({
                 </div>
             )}
 
-            <div className="grid gap-3 border-t border-gray-200 p-4 sm:grid-cols-2 sm:p-5">
-                <label>
-                    <span className="text-xs font-medium text-gray-700">Address or landmark <span className="text-red-600">*</span></span>
-                    <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        aria-invalid={Boolean(locationError)}
-                        aria-describedby={locationError ? 'location-error' : undefined}
-                        placeholder="Near Municipal Hall, Poblacion"
-                        className={`mt-1.5 w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:ring-2 ${locationError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-gray-400 focus:ring-gray-100'}`}
-                    />
+            <div className="grid gap-3 border-t border-gray-300 p-4 dark:border-gray-600 sm:grid-cols-2 sm:p-5">
+                <label className="flex h-full flex-col">
+                    <span className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Address or landmark <span className="text-brand-600 dark:text-brand-400">*</span></span>
+                    <div className="mt-auto">
+                        <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            aria-invalid={Boolean(locationError)}
+                            aria-describedby={locationError ? 'location-error' : undefined}
+                            placeholder="Near Municipal Hall, Poblacion"
+                            className={`h-[42px] w-full rounded-sm border bg-white px-3 py-2 text-xs font-semibold text-gray-800 outline-none focus:ring-2 dark:bg-gray-800 dark:text-gray-200 ${locationError ? 'border-brand-300 focus:border-brand-400 focus:ring-brand-100' : 'border-gray-300 focus:border-gray-500 focus:ring-gray-200 dark:border-gray-600 dark:focus:ring-gray-700'}`}
+                        />
+                    </div>
                 </label>
-                <label>
-                    <span className="text-xs font-medium text-gray-700">Barangay</span>
-                    <input type="text" name="barangay" value={formData.barangay} onChange={handleChange} placeholder="Poblacion" className="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100" />
+                <label className="flex h-full flex-col">
+                    <span className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Barangay</span>
+                    <div className="mt-auto">
+                        <input type="text" name="barangay" value={formData.barangay} onChange={handleChange} placeholder="Poblacion" className="h-[42px] w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-800 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:ring-gray-700" />
+                    </div>
                 </label>
                 {locationError && <p id="location-error" className="text-xs font-medium text-red-600 sm:col-span-2">{locationError}</p>}
             </div>

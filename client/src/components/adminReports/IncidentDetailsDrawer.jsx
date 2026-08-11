@@ -31,11 +31,40 @@ const formatDate = (value, pattern = 'PPpp') => {
 };
 
 const DetailItem = ({ label, children }) => (
-    <div>
-        <dt className="text-xs font-medium text-gray-500">{label}</dt>
-        <dd className="mt-1 text-sm font-medium text-gray-900">{children || 'Unavailable'}</dd>
+    <div className="min-w-0 border-t border-gray-100 py-3 dark:border-gray-700">
+        <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{label}</dt>
+        <dd className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{children || 'Unavailable'}</dd>
     </div>
 );
+
+const CasualtyBlock = ({ report }) => {
+    const cas = report?.casualties || {};
+    const injured = Number(cas.injured) || Number(report?.injured) || 0;
+    const fatalities = Number(cas.fatalities) || Number(report?.fatalities) || Number(report?.deaths) || 0;
+    const missing = Number(cas.missing) || Number(report?.missing) || 0;
+    const total = injured + fatalities + missing;
+    const stats = [
+        { label: 'Injured', value: injured },
+        { label: 'Fatalities', value: fatalities },
+        { label: 'Missing', value: missing },
+    ];
+    return (
+        <div className="col-span-full border-t border-gray-100 py-3 dark:border-gray-700">
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Casualties and injuries</dt>
+            <dd className="mt-2 flex items-stretch divide-x divide-gray-200 rounded-sm border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                {stats.map(({ label, value }) => (
+                    <div key={label} className="flex flex-1 flex-col items-center px-3 py-2">
+                        <span className={`text-lg font-bold tabular-nums leading-tight ${value > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>{value}</span>
+                        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</span>
+                    </div>
+                ))}
+            </dd>
+            {total === 0 && (
+                <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">No casualties or injuries were reported for this incident.</p>
+            )}
+        </div>
+    );
+};
 
 const AdministrativeIncidentDetailsDrawer = ({
     report,
@@ -121,20 +150,20 @@ const AdministrativeIncidentDetailsDrawer = ({
         <aside
             id="administrative-incident-inspector"
             ref={panelRef}
-            className={`fixed inset-y-0 right-0 z-40 flex min-h-0 w-full flex-col overflow-hidden border-l border-gray-200 bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.08)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-gray-800 dark:bg-gray-950 md:w-[30rem] md:max-w-[calc(100vw-2rem)] ${entered ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`fixed inset-y-0 right-0 z-40 flex min-h-0 w-full flex-col overflow-hidden border-l-2 border-gray-300 bg-white shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-gray-700 dark:bg-gray-800 md:w-[30rem] md:max-w-[calc(100vw-2rem)] ${entered ? 'translate-x-0' : 'translate-x-full'}`}
             role="dialog"
             aria-modal="false"
             aria-labelledby="incident-details-title"
         >
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950 sm:px-5">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Incident record</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Incident record</p>
                     <h2 id="incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-bold leading-6 text-gray-950 dark:text-white">
                         {report.address || 'Incident details'}
                     </h2>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                         <IncidentStatusBadge status={report.status} />
-                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${SEVERITY_STYLES[report.severity] || 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+                        <span className={`rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${SEVERITY_STYLES[report.severity] || 'border-gray-200 bg-gray-50 text-gray-700'}`}>
                             {report.severity || 'Unspecified'} severity
                         </span>
                     </div>
@@ -143,7 +172,7 @@ const AdministrativeIncidentDetailsDrawer = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onClose()}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                     aria-label="Close incident details"
                 >
                     <HiOutlineX className="h-5 w-5" aria-hidden="true" />
@@ -203,8 +232,8 @@ const AdministrativeIncidentDetailsDrawer = ({
                     )}
 
                     <section aria-labelledby="incident-overview-heading">
-                        <h3 id="incident-overview-heading" className="text-sm font-bold text-gray-950 dark:text-white">Incident overview</h3>
-                        <dl className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
+                        <h3 id="incident-overview-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Incident overview</h3>
+                        <dl className="mt-3 grid grid-cols-1 gap-x-5 sm:grid-cols-2">
                             <DetailItem label="Type"><span className="capitalize">{report.incidentType || report.accidentType || report.incidentCategory}</span></DetailItem>
                             <DetailItem label="Severity"><span className="capitalize">{report.severity || 'Moderate'}</span></DetailItem>
                             {report.fireInvolved && (
@@ -215,33 +244,25 @@ const AdministrativeIncidentDetailsDrawer = ({
                             <DetailItem label="Incident time">{formatDate(incidentDate)}</DetailItem>
                             <DetailItem label="Municipality">{report.municipalityName || report.municipality?.name}</DetailItem>
                             <DetailItem label="Submitted">{formatDate(report.createdAt)}</DetailItem>
-                            {report.casualties && (report.casualties.injured > 0 || report.casualties.fatalities > 0 || report.casualties.missing > 0) && (
-                                <DetailItem label="Casualties">
-                                    {[
-                                        report.casualties.fatalities > 0 ? `${report.casualties.fatalities} fatal` : null,
-                                        report.casualties.injured > 0 ? `${report.casualties.injured} injured` : null,
-                                        report.casualties.missing > 0 ? `${report.casualties.missing} missing` : null,
-                                    ].filter(Boolean).join(', ')}
-                                </DetailItem>
-                            )}
                             <DetailItem label="Reporter">{report.reporter?.name || 'Unknown reporter'}</DetailItem>
                             <DetailItem label="Reporter account">{report.reporter?.isVerified ? 'Verified' : 'Not verified'}</DetailItem>
+                            <CasualtyBlock report={report} />
                         </dl>
                     </section>
 
-                    <section className="mt-5" aria-labelledby="incident-description-heading">
-                        <h3 id="incident-description-heading" className="text-sm font-bold text-gray-950 dark:text-white">Description</h3>
-                        <p className="mt-2 whitespace-pre-wrap rounded-xl border border-gray-200 p-4 text-sm leading-6 text-gray-700">
+                    <section className="mt-5 border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="incident-description-heading">
+                        <h3 id="incident-description-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Description</h3>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
                             {report.description || 'No description provided.'}
                         </p>
                     </section>
 
                     {transfers.length > 0 && (
-                        <section className="mt-5" aria-labelledby="transfer-history-heading">
-                            <h3 id="transfer-history-heading" className="text-sm font-bold text-gray-950 dark:text-white">Transfer history</h3>
+                        <section className="mt-5 border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="transfer-history-heading">
+                            <h3 id="transfer-history-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Transfer history</h3>
                             <ol className="mt-3 space-y-3">
                                 {transfers.map((transfer, index) => (
-                                    <li key={transfer._id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+                                    <li key={transfer._id || `${transfer.transferredAt}-${index}`} className="rounded-sm border border-violet-200 bg-violet-50/60 p-4">
                                         <div className="flex flex-col gap-2 min-[360px]:flex-row min-[360px]:items-start min-[360px]:justify-between">
                                             <div>
                                                 <p className="text-sm font-semibold text-violet-950">
@@ -253,9 +274,9 @@ const AdministrativeIncidentDetailsDrawer = ({
                                                 </p>
                                             </div>
                                             {transfer.acknowledgedAt ? (
-                                                <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Acknowledged</span>
+                                                <span className="w-fit rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">Acknowledged</span>
                                             ) : (
-                                                <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Awaiting acknowledgment</span>
+                                                <span className="w-fit rounded-sm border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-800">Awaiting acknowledgment</span>
                                             )}
                                         </div>
                                         <p className="mt-3 border-t border-violet-200 pt-3 text-sm text-violet-900">{transfer.reason}</p>
@@ -278,8 +299,8 @@ const AdministrativeIncidentDetailsDrawer = ({
                     />
 
                     {(report.respondedBy || report.status === 'resolved') && (
-                        <section className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-labelledby="incident-response-heading">
-                            <h3 id="incident-response-heading" className="text-sm font-bold text-blue-950">Response record</h3>
+                        <section className="mt-5 rounded-sm border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950" aria-labelledby="incident-response-heading">
+                            <h3 id="incident-response-heading" className="text-[11px] font-bold uppercase tracking-wider text-blue-950 dark:text-blue-100">Response record</h3>
                             <p className="mt-2 text-sm text-blue-900">
                                 {getAgencyLabel(report.respondedBy?.agency || report.responderAgency)} · {report.respondedBy?.name || 'Assigned responder'}
                             </p>
@@ -290,17 +311,17 @@ const AdministrativeIncidentDetailsDrawer = ({
                     )}
 
                     {updates.length > 0 && (
-                        <section className="mt-5" aria-labelledby="incident-updates-heading">
-                            <h3 id="incident-updates-heading" className="text-sm font-bold text-gray-950 dark:text-white">Reporter updates</h3>
+                        <section className="mt-5 border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="incident-updates-heading">
+                            <h3 id="incident-updates-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Reporter updates</h3>
                             <ol className="mt-3 space-y-2">
                                 {updates.map((item, index) => (
                                     <li
                                         key={`${item.createdAt || 'update'}-${index}`}
-                                        className={`rounded-xl border border-gray-200 p-3 ${effectiveHighlightedUpdateId && String(item._id) === effectiveHighlightedUpdateId ? 'bg-brand-50 ring-2 ring-brand-500/20' : ''}`}
+                                        className={`rounded-sm border border-gray-200 p-3 dark:border-gray-600 ${effectiveHighlightedUpdateId && String(item._id) === effectiveHighlightedUpdateId ? 'bg-gray-100 dark:bg-gray-700 ring-2 ring-gray-500/20' : ''}`}
                                     >
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                            <span className="font-semibold text-gray-800">{item.author?.name || 'Reporter'}</span>
-                                            {item.tag && <span className="rounded-full bg-gray-100 px-2 py-0.5 capitalize">{item.tag.replace('_', ' ')}</span>}
+                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                            <span className="font-bold text-gray-800 dark:text-gray-200">{item.author?.name || 'Reporter'}</span>
+                                            {item.tag && <span className="rounded-sm bg-gray-100 px-2 py-0.5 capitalize dark:bg-gray-800">{item.tag.replace('_', ' ')}</span>}
                                             {item.createdAt && <span>{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</span>}
                                         </div>
                                         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{item.message}</p>
@@ -311,8 +332,8 @@ const AdministrativeIncidentDetailsDrawer = ({
                     )}
 
                     {report.detailCompleteness === 'full' && (
-                        <section className="mt-5" aria-labelledby="incident-photos-heading">
-                            <h3 id="incident-photos-heading" className="text-sm font-bold text-gray-950 dark:text-white">Evidence photos ({report.images?.length || 0})</h3>
+                        <section className="mt-5 border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="incident-photos-heading">
+                            <h3 id="incident-photos-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Evidence photos ({report.images?.length || 0})</h3>
                             <div className="mt-3">
                                 <ProtectedEvidenceGallery images={report.images || []} onViewImage={onViewImage} />
                             </div>

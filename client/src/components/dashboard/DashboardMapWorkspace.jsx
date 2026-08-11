@@ -228,20 +228,20 @@ const MapActionButton = ({
         aria-expanded={selected}
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
-        className={`group inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold text-gray-800 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-100 lg:w-auto lg:shrink-0 ${selected
-            ? 'border-gray-400 bg-gray-100 dark:border-gray-600 dark:bg-gray-800'
-            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800'
-        }`}
+        className={`group inline-flex min-h-[42px] w-full min-w-0 items-center gap-2 rounded-sm border px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-100 lg:w-auto lg:shrink-0 ${selected
+            ? 'border-gray-400 bg-gray-200 dark:border-gray-500 dark:bg-gray-700'
+            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800'
+            }`}
     >
         <Icon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
         <span className="min-w-0 flex-1 whitespace-nowrap text-left">{label}</span>
-        <span aria-hidden="true" className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-bold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
+        <span aria-hidden="true" className="shrink-0 rounded-sm border border-gray-300 bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
             {loading ? '…' : unavailable ? '—' : count}
         </span>
     </button>
 );
 
-const MetricStripItem = ({ label, value, helper, onClick, selected, loading = false, dividerClass }) => (
+const MetricStripItem = ({ label, value, helper, onClick, selected, loading = false }) => (
     <button
         type="button"
         onClick={onClick}
@@ -250,21 +250,21 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group min-w-0 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:bg-gray-100 dark:active:bg-gray-800 sm:px-4 sm:py-3 ${selected
-            ? 'bg-brand-50/50 shadow-[inset_0_-2px_0_0_theme(colors.brand.500)] dark:bg-brand-900/20 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.400)]'
-            : 'bg-white hover:bg-brand-50/20 dark:bg-gray-900 dark:hover:bg-gray-800/60'
-        } ${dividerClass}`}
+        className={`group min-w-0 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-4 sm:py-3 ${selected
+            ? 'bg-brand-50/80 shadow-[inset_0_-2px_0_0_theme(colors.brand.600)] dark:bg-brand-900/40 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.500)]'
+            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800'
+            }`}
     >
         <div className="flex items-center justify-between gap-3">
-            <p className={`text-[11px] font-semibold uppercase tracking-wide transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
+            <p className={`text-[11px] font-bold uppercase tracking-wider transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
                 {label}
             </p>
-            <span className={`flex shrink-0 items-center transition-colors ${selected ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-400'}`} aria-hidden="true">
+            <span className={`flex shrink-0 items-center transition-colors ${selected ? 'text-brand-700 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-400'}`} aria-hidden="true">
                 <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </span>
         </div>
-        <p className="mt-1.5 text-lg font-bold text-gray-900 dark:text-white">{value}</p>
-        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{helper}</p>
+        <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
+        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{helper}</p>
     </button>
 );
 
@@ -459,37 +459,37 @@ const DashboardMapWorkspace = ({
                 },
             ]
 
-                : [
-                    {
-                        id: 'public-active', label: 'Active incidents', value: displayedMapReports.length,
-                        helper: displayedMapReports.length === displayedLocationCount
-                            ? 'Visible map reports'
-                            : `Across ${displayedLocationCount} map locations`,
-                        icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
-                        panelDescription: `${displayedMapReports.length} currently visible`, records: displayedMapReports,
-                        emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently visible.',
-                    },
-                    {
-                        id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
-                        helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
-                        panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
-                        records: activeResponseReports, emptyTitle: 'No active responses',
-                        emptyDescription: 'No public incidents are currently in active response.',
-                    },
-                    {
-                        id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
-                        helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
-                        panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
-                        records: transferredReports, emptyTitle: 'No transferred incidents',
-                        emptyDescription: 'No public incidents are currently transferred to another area.',
-                    },
-                    {
-                        id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
-                        helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
-                        panelTitle: 'Active risk zones', records: highRiskZones,
-                        loading: highRiskZonesLoading, error: highRiskZonesError,
-                    },
-                ];
+            : [
+                {
+                    id: 'public-active', label: 'Active incidents', value: displayedMapReports.length,
+                    helper: displayedMapReports.length === displayedLocationCount
+                        ? 'Visible map reports'
+                        : `Across ${displayedLocationCount} map locations`,
+                    icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
+                    panelDescription: `${displayedMapReports.length} currently visible`, records: displayedMapReports,
+                    emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently visible.',
+                },
+                {
+                    id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
+                    helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
+                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
+                    records: activeResponseReports, emptyTitle: 'No active responses',
+                    emptyDescription: 'No public incidents are currently in active response.',
+                },
+                {
+                    id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
+                    helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
+                    panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
+                    records: transferredReports, emptyTitle: 'No transferred incidents',
+                    emptyDescription: 'No public incidents are currently transferred to another area.',
+                },
+                {
+                    id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
+                    helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
+                    panelTitle: 'Active risk zones', records: highRiskZones,
+                    loading: highRiskZonesLoading, error: highRiskZonesError,
+                },
+            ];
 
     const activeOverviewMetric = metrics.find(
         (metric) => `${OVERVIEW_PANEL_PREFIX}${metric.id}` === mapSummaryPanel,
@@ -572,7 +572,7 @@ const DashboardMapWorkspace = ({
     const panelTitle = selectedActiveIncident
         ? 'Incident details'
         : activeOverviewMetric?.panelTitle
-            || (mapSummaryPanel === 'incidents' ? 'Active incidents' : 'High-risk zones');
+        || (mapSummaryPanel === 'incidents' ? 'Active incidents' : 'High-risk zones');
     const panelDescription = selectedActiveIncident
         ? undefined
         : activeOverviewMetric
@@ -583,7 +583,7 @@ const DashboardMapWorkspace = ({
                 : activeOverviewMetric.error
                     ? 'Metric details unavailable'
                     : activeOverviewMetric.panelDescription
-                        || `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`
+                    || `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`
             : mapSummaryPanel === 'incidents'
                 ? `${displayedMapReports.length} currently visible`
                 : highRiskZonesLoading
@@ -610,7 +610,7 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <header className="flex flex-col gap-4">
                 <div className="min-w-0">
                     <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <HiOutlineMap className="h-3.5 w-3.5" aria-hidden="true" />
@@ -618,35 +618,6 @@ const DashboardMapWorkspace = ({
                     </p>
                     <h1 className="mt-1 text-2xl font-display font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">{mapExperience.title}</h1>
                     <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-300">{mapExperience.description}</p>
-                </div>
-
-                <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-nowrap lg:items-center lg:self-center">
-                    <MapActionButton
-                        onClick={() => openMapSummaryPanel('incidents')}
-                        icon={HiOutlineExclamation}
-                        label="Incidents"
-                        count={displayedMapReports.length}
-                        selected={mapSummaryPanel === 'incidents'}
-                    />
-                    <MapActionButton
-                        onClick={() => openMapSummaryPanel('zones')}
-                        icon={HiOutlineLightningBolt}
-                        label="Risk zones"
-                        count={highRiskZones.length}
-                        loading={highRiskZonesLoading}
-                        unavailable={Boolean(highRiskZonesError)}
-                        selected={mapSummaryPanel === 'zones'}
-                    />
-                    {mapExperience.showSubmitReport && (
-                        <Button
-                            as={Link}
-                            to="/report"
-                            icon={HiOutlinePlus}
-                            className="col-span-2 w-full lg:w-auto"
-                        >
-                            Submit report
-                        </Button>
-                    )}
                 </div>
             </header>
 
@@ -689,28 +660,28 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 sm:rounded-lg sm:border" aria-label="Live incident map">
-                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-label="Live incident map">
+                <div className="flex flex-col gap-3 border-b border-gray-300 bg-gray-100 px-4 py-3 dark:border-gray-600 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-900">Live map</h2>
-                        <p className="mt-0.5 text-xs text-gray-500">Map markers update automatically when report status changes.</p>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
+                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">Map markers update automatically when report status changes.</p>
                         {displayedMapReports.length > displayedLocationCount && (
-                            <p className="mt-1 text-[11px] font-medium text-gray-500">
+                            <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 A numbered marker groups incidents reported at the same location.
                             </p>
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (
-                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800" aria-label="Map status filter">
+                        <div className="inline-flex max-w-full items-center overflow-x-auto border border-gray-300 bg-gray-50 p-0.5 dark:border-gray-600 dark:bg-gray-900" aria-label="Map status filter">
                             {mapExperience.filters.map((filter) => (
                                 <button
                                     key={filter.value}
                                     type="button"
                                     onClick={() => setResponderMapFilter(filter.value)}
-                                    className={`min-h-9 shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
-                                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                                        : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
-                                    }`}
+                                    className={`min-h-9 shrink-0 rounded-sm px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
+                                        ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900'
+                                        : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
+                                        }`}
                                 >
                                     {filter.label}
                                 </button>
@@ -824,13 +795,13 @@ const DashboardMapWorkspace = ({
                 </div>
             </section>
 
-            <section className="space-y-2" aria-label="Map summary">
+            <section className="space-y-3" aria-label="Map summary">
                 <div>
-                    <h2 className="text-sm font-semibold text-gray-900">Current overview</h2>
-                    <p className="mt-0.5 text-xs text-gray-500">Key incident and response totals for the current map view.</p>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Current overview</h2>
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">Key incident and response totals for the current map view.</p>
                 </div>
-                <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white lg:grid-cols-4 dark:border-gray-800 dark:bg-gray-900">
-                    {metrics.map((metric, index) => (
+                <div className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 lg:grid-cols-4 dark:border-gray-600 dark:bg-gray-600">
+                    {metrics.map((metric) => (
                         <MetricStripItem
                             key={metric.id}
                             label={metric.label}
@@ -840,7 +811,6 @@ const DashboardMapWorkspace = ({
                             onClick={() => openOverviewMetric(metric)}
                             selected={mapSummaryPanel === `${OVERVIEW_PANEL_PREFIX}${metric.id}`}
                             loading={metric.loading}
-                            dividerClass={METRIC_DIVIDER_CLASSES[index]}
                         />
                     ))}
                 </div>

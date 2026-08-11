@@ -49,9 +49,38 @@ const DetailItem = ({ label, children }) => (
     </div>
 );
 
+const CasualtyBlock = ({ report }) => {
+    const cas = report?.casualties || {};
+    const injured = Number(cas.injured) || Number(report?.injured) || 0;
+    const fatalities = Number(cas.fatalities) || Number(report?.fatalities) || Number(report?.deaths) || 0;
+    const missing = Number(cas.missing) || Number(report?.missing) || 0;
+    const total = injured + fatalities + missing;
+    const stats = [
+        { label: 'Injured', value: injured },
+        { label: 'Fatalities', value: fatalities },
+        { label: 'Missing', value: missing },
+    ];
+    return (
+        <div className="col-span-full border-t border-gray-100 py-3 dark:border-gray-700">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Casualties and injuries</dt>
+            <dd className="mt-2 flex items-stretch divide-x divide-gray-200 rounded-sm border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                {stats.map(({ label, value }) => (
+                    <div key={label} className="flex flex-1 flex-col items-center px-3 py-2">
+                        <span className={`text-lg font-bold tabular-nums leading-tight ${value > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>{value}</span>
+                        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</span>
+                    </div>
+                ))}
+            </dd>
+            {total === 0 && (
+                <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">No casualties or injuries were reported for this incident.</p>
+            )}
+        </div>
+    );
+};
+
 const Disclosure = ({ title, count, children }) => (
     <details className="group border-t border-gray-200 dark:border-gray-800">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-semibold text-gray-900 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 dark:text-gray-100 dark:hover:text-gray-300 [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-900 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gray-500 dark:text-gray-100 dark:hover:text-gray-300 [&::-webkit-details-marker]:hidden">
             <span>{title}{Number.isFinite(count) ? ` (${count})` : ''}</span>
             <HiOutlineChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
@@ -72,7 +101,7 @@ const ResponderInspectorActions = ({ report, user, actions }) => {
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report._id}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors duration-150 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus-visible:ring-offset-gray-950"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-gray-900 px-4 text-[11px] font-bold uppercase tracking-wider text-white transition-colors duration-150 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus-visible:ring-offset-gray-950"
                 >
                     <HiOutlineLightningBolt className={`h-4 w-4 ${actions.respondLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
                     {isResponding ? 'Join response' : 'Respond to incident'}
@@ -83,7 +112,7 @@ const ResponderInspectorActions = ({ report, user, actions }) => {
                 <button
                     type="button"
                     onClick={() => actions.openResolve(report)}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition-colors duration-150 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 dark:focus-visible:ring-offset-gray-950"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm border border-gray-300 bg-white px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors duration-150 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-gray-600 dark:hover:bg-gray-900 dark:focus-visible:ring-offset-gray-950"
                 >
                     <HiOutlineBadgeCheck className="h-4 w-4" aria-hidden="true" />
                     Resolve incident
@@ -186,7 +215,7 @@ const ResponderIncidentInspector = ({
         <aside
             id="responder-incident-inspector"
             ref={panelRef}
-            className={`fixed inset-y-0 right-0 z-40 flex min-h-0 w-full flex-col overflow-hidden border-l border-gray-200 bg-white shadow-[-8px_0_24px_rgba(15,23,42,0.08)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-gray-800 dark:bg-gray-950 md:w-[30rem] md:max-w-[calc(100vw-2rem)] ${entered ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`fixed inset-y-0 right-0 z-40 flex min-h-0 w-full flex-col overflow-hidden border-l-2 border-gray-300 bg-white shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-gray-700 dark:bg-gray-800 md:w-[30rem] md:max-w-[calc(100vw-2rem)] ${entered ? 'translate-x-0' : 'translate-x-full'}`}
             role="dialog"
             aria-modal="false"
             aria-labelledby="responder-incident-details-title"
@@ -194,7 +223,7 @@ const ResponderIncidentInspector = ({
         >
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950 sm:px-5">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Incident details</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Incident details</p>
                     <h2 id="responder-incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-bold leading-6 text-gray-950 dark:text-white">
                         {locationTitle}
                     </h2>
@@ -208,7 +237,7 @@ const ResponderIncidentInspector = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onClose()}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                     aria-label="Close incident details"
                 >
                     <HiOutlineX className="h-5 w-5" aria-hidden="true" />
@@ -267,8 +296,8 @@ const ResponderIncidentInspector = ({
                 )}
 
                 <section aria-labelledby="responder-overview-heading">
-                    <h3 id="responder-overview-heading" className="text-sm font-bold text-gray-950 dark:text-white">Overview</h3>
-                    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">
+                    <h3 id="responder-overview-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Overview</h3>
+                    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-0">
                         <DetailItem label="Type"><span className="capitalize">{incidentType}</span></DetailItem>
                         <DetailItem label="Severity"><span className="capitalize">{report.severity || 'Moderate'}</span></DetailItem>
                         {report.fireInvolved && (
@@ -279,22 +308,14 @@ const ResponderIncidentInspector = ({
                         <DetailItem label="Incident time">{formatDate(incidentDate)}</DetailItem>
                         <DetailItem label="Municipality">{municipality}</DetailItem>
                         <DetailItem label="Submitted">{formatDate(report.createdAt)}</DetailItem>
-                        {report.casualties && (report.casualties.injured > 0 || report.casualties.fatalities > 0 || report.casualties.missing > 0) && (
-                            <DetailItem label="Casualties">
-                                {[
-                                    report.casualties.fatalities > 0 ? `${report.casualties.fatalities} fatal` : null,
-                                    report.casualties.injured > 0 ? `${report.casualties.injured} injured` : null,
-                                    report.casualties.missing > 0 ? `${report.casualties.missing} missing` : null,
-                                ].filter(Boolean).join(', ')}
-                            </DetailItem>
-                        )}
                         <DetailItem label="Reporter">{report.reporter?.name || 'Unknown reporter'}</DetailItem>
                         <DetailItem label="Reporter account">{report.reporter?.isVerified ? 'Verified' : 'Not verified'}</DetailItem>
+                        <CasualtyBlock report={report} />
                     </dl>
                 </section>
 
-                <section className="border-t border-gray-200 py-5 dark:border-gray-800" aria-labelledby="responder-description-heading">
-                    <h3 id="responder-description-heading" className="text-sm font-bold text-gray-950 dark:text-white">Description</h3>
+                <section className="border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="responder-description-heading">
+                    <h3 id="responder-description-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Description</h3>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
                         {report.description || 'No description provided.'}
                     </p>
@@ -307,8 +328,8 @@ const ResponderIncidentInspector = ({
                 />
 
                 {(report.respondedBy || report.status === 'resolved') && (
-                    <section className="border-t border-gray-200 py-5 dark:border-gray-800" aria-labelledby="responder-response-heading">
-                        <h3 id="responder-response-heading" className="text-sm font-bold text-gray-950 dark:text-white">Response record</h3>
+                    <section className="border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="responder-response-heading">
+                        <h3 id="responder-response-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Response record</h3>
                         <p className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                             {getAgencyLabel(report.respondedBy?.agency || report.responderAgency)}
                             <span className="font-normal text-gray-500 dark:text-gray-400"> &middot; {report.respondedBy?.name || 'Assigned responder'}</span>

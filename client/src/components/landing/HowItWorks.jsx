@@ -1,25 +1,20 @@
-import { HiOutlineArrowNarrowRight, HiOutlineClipboardCheck, HiOutlineDocumentText, HiOutlineShieldCheck } from 'react-icons/hi';
-
 // The three high-level workflow stages. Each shows the responsible role,
 // an editorial stage label, and a concise public-facing description.
 const steps = [
     {
         n: '01',
-        Icon: HiOutlineDocumentText,
         role: 'Report',
         title: 'Reporter submits',
         desc: 'Verified residents file an incident with its location, category, severity, and supporting photos.',
     },
     {
         n: '02',
-        Icon: HiOutlineClipboardCheck,
         role: 'Verify',
         title: 'Administrator verifies',
         desc: 'The responsible municipal administrator reviews the report before it is published for operational use.',
     },
     {
         n: '03',
-        Icon: HiOutlineShieldCheck,
         role: 'Respond',
         title: 'Responders act',
         desc: 'Authorized municipal response units receive eligible incidents and coordinate field response.',
@@ -43,49 +38,39 @@ const HowItWorks = () => (
     <section id="how-it-works" className="scroll-mt-16 border-y border-gray-100 bg-gray-50 px-5 py-20 dark:border-white/10 dark:bg-[#101f1c] sm:px-8 sm:py-24">
         <div className="mx-auto max-w-6xl">
             <div className="mb-10 max-w-2xl sm:mb-14">
-                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">How it works</p>
-                <h2 className="mb-2 text-2xl font-black tracking-tight text-gray-950 dark:text-white sm:text-3xl">From report to field response.</h2>
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">ISLAND-WIDE DISPATCH PROTOCOL</p>
+                <h2 className="mb-2 text-2xl font-black leading-tight tracking-tight text-gray-950 dark:text-white sm:text-3xl">From report to field response.</h2>
                 <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
                     One incident record moves from citizen reporting to municipal verification and coordinated field response.
                 </p>
             </div>
 
             {/* ── Editorial workflow timeline ──────────────────────────────────
-                 A flat horizontal procession on desktop, stacking on mobile. No
-                 enclosing card — structure comes from a subtle top rule, the
-                 stage typography, and thin directional connectors. */}
+                 Transformed into solid dispatch cards connected by a pipeline track. */}
             <div
                 role="list"
                 aria-label="Incident workflow stages in order"
-                className="flex flex-col sm:flex-row"
+                className="relative flex flex-col gap-6 sm:flex-row sm:gap-8"
             >
-                {steps.map(({ n, Icon, role, title, desc }, index) => (
+                {/* Pipeline track (desktop only) */}
+                <div className="absolute left-0 top-1/2 hidden h-[2px] w-full -translate-y-1/2 bg-gray-200 dark:bg-white/10 sm:block" aria-hidden="true" />
+
+                {steps.map(({ n, role, title, desc }) => (
                     <div key={n} role="listitem" className="relative min-w-0 flex-1">
-                        <div className="relative border-t border-gray-200 pt-6 dark:border-white/10 sm:pt-7">
-                            {/* Thin connector arrow at each stage seam (desktop only) */}
-                            {index > 0 && (
-                                <HiOutlineArrowNarrowRight
-                                    aria-hidden="true"
-                                    className="absolute -left-1 top-0 hidden h-3.5 w-3.5 -translate-y-1/2 text-gray-300 sm:block dark:text-gray-600"
-                                />
-                            )}
-                            <div className="flex items-center gap-3 sm:pr-8">
+                        <div className="relative flex h-full flex-col rounded-lg border border-gray-200 bg-gray-50 p-6 shadow-sm dark:border-white/10 dark:bg-gray-900/60">
+                            <div className="mb-4">
                                 <span
                                     aria-hidden="true"
-                                    className="text-sm font-black leading-none tracking-tight text-gray-300 dark:text-gray-600"
+                                    className="text-4xl font-black tracking-tighter text-gray-300 dark:text-gray-700"
                                 >
                                     {n}
                                 </span>
-                                <Icon
-                                    aria-hidden="true"
-                                    className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400"
-                                />
                             </div>
-                            <p className="mt-2.5 text-xs font-bold uppercase tracking-widest text-gray-950 dark:text-white">
+                            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                                 {role}
                             </p>
-                            <h3 className="mt-1 text-sm font-semibold text-emerald-800 dark:text-emerald-300">{title}</h3>
-                            <p className="mt-1.5 text-sm leading-relaxed text-gray-500 dark:text-gray-400 sm:pr-8">
+                            <h3 className="mb-2 text-base font-bold text-gray-950 dark:text-white">{title}</h3>
+                            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                                 {desc}
                             </p>
                         </div>
@@ -118,11 +103,11 @@ const HowItWorks = () => (
                                 role="listitem"
                                 className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium leading-none text-gray-700 dark:text-gray-300"
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden="true" />
+                                <span className={`h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 ${stage.key === 'in_progress' ? 'animate-pulse' : ''}`} aria-hidden="true" />
                                 {stage.label}
                             </span>
                             {index < JOURNEY_STAGES.length - 1 && (
-                                <span className="h-px w-6 shrink-0 bg-gray-200 sm:w-8 dark:bg-white/15" aria-hidden="true" />
+                                <span className="h-[2px] w-6 shrink-0 bg-gray-200 sm:w-8 dark:bg-white/15" aria-hidden="true" />
                             )}
                         </div>
                     ))}

@@ -156,11 +156,11 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="ml-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4"
+                                className="ml-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-bold uppercase text-white shadow-md shadow-red-500/20 transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4"
                             >
                                 <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                <span className="hidden sm:inline">Report Incident</span>
-                                <span className="sm:hidden">Report</span>
+                                <span className="hidden sm:inline">REPORT INCIDENT</span>
+                                <span className="sm:hidden">REPORT</span>
                             </Link>
                         )}
                     </nav>
@@ -178,7 +178,7 @@ const HomePage = () => {
                 <Coverage municipalities={municipalities} userRole={user?.role} />
             </main>
 
-            <footer className="border-t border-gray-100 bg-white px-5 pb-8 pt-12 dark:border-white/10 dark:bg-gray-950 sm:px-8">
+            <footer className="border-t border-gray-800 bg-[#091711] px-5 pb-8 pt-12 sm:px-8">
                 <div className="mx-auto max-w-6xl">
 
                     {/* Brand spans the mobile row; navigation and legal links stay side by side. */}
@@ -190,22 +190,22 @@ const HomePage = () => {
                         {/* Col 1 — Brand + mission */}
                         <div className="col-span-2 lg:col-span-1">
                             <div className="mb-4 flex items-center gap-2.5">
-                                <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
-                                <span className="text-base font-black tracking-tight text-gray-950 dark:text-white">
-                                    Sibuyan <span className="text-emerald-700 dark:text-emerald-300">Alert</span>
+                                <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain opacity-90" />
+                                <span className="text-base font-black tracking-tight text-white">
+                                    Sibuyan <span className="text-emerald-400">Alert</span>
                                 </span>
                             </div>
-                            <p className="mb-4 max-w-xs text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                            <p className="mb-4 max-w-xs text-sm leading-relaxed text-gray-400">
                                 Public incident reporting and emergency response coordination across Cajidiocan, Magdiwang, and San Fernando.
                             </p>
-                            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
-                                Romblon State University — Capstone Project
+                            <p className="text-xs font-medium text-gray-500">
+                                Version: RSU-CAPSTONE-2026
                             </p>
                         </div>
 
                         {/* Col 2 — Quick links */}
                         <div className="min-w-0">
-                            <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Navigate</p>
+                            <p className="mb-4 text-sm font-semibold text-gray-400">Quick Links</p>
                             <nav aria-label="Footer navigation">
                                 <ul className="space-y-2.5">
                                     {[
@@ -219,7 +219,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <Link
                                                     to={to}
-                                                    className="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                                                    className="inline-block text-sm text-gray-300 transition-all hover:translate-x-1 hover:text-emerald-400"
                                                 >
                                                     {label}
                                                 </Link>
@@ -228,7 +228,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <a
                                                     href={href}
-                                                    className="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                                                    className="inline-block text-sm text-gray-300 transition-all hover:translate-x-1 hover:text-emerald-400"
                                                 >
                                                     {label}
                                                 </a>
@@ -241,7 +241,7 @@ const HomePage = () => {
 
                         {/* Col 3 — Legal + project info */}
                         <div className="min-w-0">
-                            <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Legal</p>
+                            <p className="mb-4 text-sm font-semibold text-gray-400">Legal Information</p>
                             <ul className="space-y-2.5">
                                 {[
                                     { label: 'Privacy Policy', documentType: 'privacy' },
@@ -251,7 +251,7 @@ const HomePage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setActiveLegalDocument(documentType)}
-                                            className="rounded text-left text-sm text-gray-500 transition-colors hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-gray-400 dark:hover:text-white dark:focus-visible:ring-offset-gray-950"
+                                            className="inline-block rounded text-left text-sm text-gray-300 transition-all hover:translate-x-1 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#091711]"
                                         >
                                             {label}
                                         </button>
@@ -262,13 +262,13 @@ const HomePage = () => {
                     </div>
 
                     {/* ── Bottom bar ────────────────────────────────────────── */}
-                    <div className="mt-10 border-t border-gray-100 pt-6 dark:border-white/10">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <p className="max-w-lg text-xs leading-relaxed text-gray-400 dark:text-gray-600">
-                                <strong className="font-semibold text-gray-500 dark:text-gray-500">Disclaimer:</strong>{' '}
+                    <div className="mt-10 border-t border-gray-800 pt-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <p className="max-w-lg text-xs leading-relaxed text-gray-400">
+                                <strong className="font-semibold text-amber-500">Disclaimer:</strong>{' '}
                                 Sibuyan Alert supports accident reporting and emergency coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
                             </p>
-                            <p className="shrink-0 text-xs text-gray-400 dark:text-gray-600">© 2026 Sibuyan Alert System</p>
+                            <p className="shrink-0 text-xs font-medium text-gray-500">© 2026 Sibuyan Alert System</p>
                         </div>
                     </div>
 

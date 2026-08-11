@@ -36,7 +36,7 @@ const REGISTRATION_STEPS = [
         description: 'Take a clear selfie so a municipal administrator can compare it with your ID.',
     },
 ];
-const FIELD_CLASS = 'block min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500';
+const FIELD_CLASS = 'block min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500';
 
 const FieldError = ({ id, children }) => children ? (
     <p id={id} className="mt-1.5 text-xs font-medium text-red-600" role="alert">{children}</p>
@@ -402,7 +402,7 @@ const RegisterPage = () => {
         }
     };
 
-    const inputClass = (field) => `${FIELD_CLASS} ${errors[field] ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : ''}`;
+    const inputClass = (field) => `${FIELD_CLASS} ${errors[field] ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100' : ''}`;
 
     return (
         <div className="w-full py-2">
@@ -422,17 +422,13 @@ const RegisterPage = () => {
 
             <Link
                 to="/login"
-                className="mb-5 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-brand-700 hover:text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="mb-5 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
             >
-                <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Back to sign in
+                <HiOutlineArrowLeft className="h-4 w-4" /> Back to login
             </Link>
 
             <header className="mb-6">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-                    Reporter registration
-                </p>
-                <h1 className="font-display text-3xl font-bold tracking-tight text-gray-950 sm:text-[2rem]">
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                     {currentStep.title}
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -441,53 +437,17 @@ const RegisterPage = () => {
             </header>
 
             <p className="sr-only" aria-live="polite">{`Step ${step} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
-            <ol className="mb-5 grid grid-cols-3 gap-x-2" aria-label="Registration progress">
-                {REGISTRATION_STEPS.map(({ label }, index) => {
-                    const number = index + 1;
-                    const complete = step > number;
-                    const active = step === number;
-                    const stateLabel = complete ? 'Completed' : active ? 'Current step' : 'Next';
-                    return (
-                        <li
-                            key={label}
-                            aria-current={active ? 'step' : undefined}
-                            aria-label={`${label}: ${stateLabel.toLowerCase()}`}
-                            className="flex min-w-0 flex-col gap-2"
-                        >
-                            <div className="flex items-center">
-                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ${
-                                    complete
-                                        ? 'bg-brand-600 text-white ring-brand-600'
-                                        : active
-                                            ? 'bg-white text-brand-700 ring-brand-600'
-                                            : 'bg-white text-gray-400 ring-gray-200'
-                                }`}>
-                                    {complete ? <HiOutlineCheck className="h-3.5 w-3.5" aria-hidden="true" /> : number}
-                                </span>
-                                <div className={`ml-1.5 h-0.5 flex-1 rounded-full ${
-                                    number < REGISTRATION_STEPS.length
-                                        ? (step > number ? 'bg-brand-600' : 'bg-gray-200')
-                                        : 'bg-transparent'
-                                }`} aria-hidden="true" />
-                            </div>
-                            <span className="min-w-0">
-                                <span className={`block text-[10px] font-semibold leading-4 min-[420px]:text-xs ${
-                                    active ? 'text-gray-900' : complete ? 'text-brand-700' : 'text-gray-500'
-                                }`}>{label}</span>
-                                <span className={`mt-0.5 block text-[9px] font-medium uppercase tracking-wide min-[420px]:text-[10px] ${
-                                    active || complete ? 'text-brand-700' : 'text-gray-400'
-                                }`}>{stateLabel}</span>
-                            </span>
-                        </li>
-                    );
-                })}
-            </ol>
+            <div className="mb-6 border-b border-gray-200 pb-4" aria-label="Registration progress">
+                <p className="text-sm font-semibold text-brand-700">
+                    Step {step} of {REGISTRATION_STEPS.length}: {currentStep.label}
+                </p>
+            </div>
 
-            <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6" noValidate>
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8" noValidate>
                 {step === 1 && (
                     <section aria-labelledby="account-step-title" className="space-y-5">
-                        <div>
-                            <h2 id="account-step-title" className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Account information</h2>
+                        <div className="border-b border-gray-200 pb-3">
+                            <h2 id="account-step-title" className="text-lg font-semibold text-gray-900">Account Information</h2>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
@@ -513,9 +473,9 @@ const RegisterPage = () => {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label htmlFor="register-password" className="mb-1.5 block text-sm font-semibold text-gray-800">Password</label>
-                                <div className={`flex min-h-12 items-center overflow-hidden rounded-xl border bg-white transition focus-within:ring-2 ${errors.password ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-brand-100'}`}>
+                                <div className={`flex min-h-12 items-center overflow-hidden rounded-lg border bg-white transition ${errors.password ? 'border-red-400 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-100'}`}>
                                     <input id="register-password" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-gray-400" type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} placeholder="At least 12 characters" minLength={12} maxLength={72} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : 'password-hint'} />
-                                    <button type="button" onClick={() => setShowPassword((current) => !current)} className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                                    <button type="button" onClick={() => setShowPassword((current) => !current)} className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                         {showPassword ? <HiOutlineEyeOff className="h-5 w-5" aria-hidden="true" /> : <HiOutlineEye className="h-5 w-5" aria-hidden="true" />}
                                     </button>
                                 </div>
@@ -525,9 +485,9 @@ const RegisterPage = () => {
 
                             <div>
                                 <label htmlFor="register-confirm-password" className="mb-1.5 block text-sm font-semibold text-gray-800">Confirm password</label>
-                                <div className={`flex min-h-12 items-center overflow-hidden rounded-xl border bg-white transition focus-within:ring-2 ${errors.confirmPassword ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-brand-100'}`}>
+                                <div className={`flex min-h-12 items-center overflow-hidden rounded-lg border bg-white transition ${errors.confirmPassword ? 'border-red-400 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-100'}`}>
                                     <input id="register-confirm-password" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-gray-400" type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" autoComplete="new-password" value={formData.confirmPassword} onChange={handleChange} placeholder="Enter the same password again" aria-invalid={Boolean(errors.confirmPassword)} aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined} />
-                                    <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
+                                    <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
                                         {showConfirmPassword ? <HiOutlineEyeOff className="h-5 w-5" aria-hidden="true" /> : <HiOutlineEye className="h-5 w-5" aria-hidden="true" />}
                                     </button>
                                 </div>
@@ -535,8 +495,10 @@ const RegisterPage = () => {
                             </div>
                         </div>
 
-                        <fieldset className="border-t border-gray-200 pt-5">
-                            <legend className="pr-3 text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Home address</legend>
+                        <fieldset className="pt-5">
+                            <div className="mb-4 border-b border-gray-200 pb-3">
+                                <legend className="text-lg font-semibold text-gray-900">Home Address</legend>
+                            </div>
                             <p className="mb-4 mt-1 text-sm text-gray-600">Use your current Sibuyan Island address.</p>
                             {locationsError && (
                                 <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
@@ -564,10 +526,11 @@ const RegisterPage = () => {
                             </div>
                         </fieldset>
 
-                        <button type="button" onClick={handleNext} disabled={locationsLoading || Boolean(locationsError)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                            Continue to Government ID
-                            <HiOutlineArrowRight className="h-5 w-5" aria-hidden="true" />
-                        </button>
+                        <div className="pt-2">
+                            <button type="button" onClick={handleNext} disabled={locationsLoading || Boolean(locationsError)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                Continue to ID Upload <HiOutlineArrowRight className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                        </div>
                     </section>
                 )}
 
@@ -579,13 +542,12 @@ const RegisterPage = () => {
                         </div>
 
                         <div className="border-y border-gray-200 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Before you continue</p>
-                            <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Before you continue</p>
+                            <ul className="mt-3 grid gap-2 text-sm leading-5 text-gray-600 sm:grid-cols-2">
                                 {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
-                                    <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
+                                    <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" /><span>{item}</span></li>
                                 ))}
                             </ul>
-                            <p className="mt-4 flex gap-2 border-t border-gray-200 pt-4 text-xs leading-5 text-gray-600"><HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>Your ID is encrypted in transit, stored as a private verification record, and never shown on public reports.</span></p>
                         </div>
 
                         {!idFile ? (
@@ -630,6 +592,15 @@ const RegisterPage = () => {
                         <input ref={fileInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} onChange={(event) => handleFileChange(event, 'device')} aria-label="Choose an ID photo from device" />
                         <FieldError id="id-document-error">{errors.idDocument}</FieldError>
 
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                            <div className="flex gap-3">
+                                <HiOutlineShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" aria-hidden="true" />
+                                <p className="text-sm leading-relaxed text-gray-600">
+                                    Your files are encrypted in transit, stored securely as a private verification record, and never shown on public reports.
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button type="button" onClick={handleBack} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">Back</button>
                             <button type="button" onClick={handleNext} disabled={idPreparing || !idFile} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Continue to Selfie <HiOutlineArrowRight className="h-5 w-5" aria-hidden="true" /></button>
@@ -646,10 +617,10 @@ const RegisterPage = () => {
 
                         {!cameraActive && !selfiePreview && (
                             <div className="border-y border-gray-200 py-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-600">Before you continue</p>
-                                <ul className="mt-2 grid gap-2 text-xs leading-5 text-gray-600 sm:grid-cols-2">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Before you continue</p>
+                                <ul className="mt-3 grid gap-2 text-sm leading-5 text-gray-600 sm:grid-cols-2">
                                     {['Face the camera directly', 'Use a well-lit area', 'Remove masks, caps, and tinted glasses', 'Make sure only you are visible'].map((item) => (
-                                        <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" /><span>{item}</span></li>
+                                        <li key={item} className="flex gap-2"><HiOutlineCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" /><span>{item}</span></li>
                                     ))}
                                 </ul>
                             </div>
@@ -705,18 +676,20 @@ const RegisterPage = () => {
                         <p className="sr-only" role="status" aria-live="polite">{captureAnnouncement}</p>
                         <FieldError id="selfie-error">{errors.selfie}</FieldError>
 
-                        <div className="flex gap-3 border-t border-gray-200 pt-4">
-                            <HiOutlineShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" aria-hidden="true" />
-                            <div className="min-w-0 text-xs leading-5 text-gray-600">
-                                <p>Your ID and selfie are private and available only to you and authorized municipal administrators.</p>
-                                <details className="mt-2">
-                                    <summary className="cursor-pointer font-semibold text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">How verification photos are handled</summary>
-                                    <div className="mt-2 space-y-1 border-t border-gray-200 pt-2">
-                                        <p>Purpose: manual identity comparison before reporter access is approved.</p>
-                                        <p>Visibility: never displayed on public reports and never shared with responders.</p>
-                                        <p>Retention: stored with the account until removed through the authorized account-record process. Contact your municipal administrator to request correction or deletion.</p>
-                                    </div>
-                                </details>
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                            <div className="flex gap-3">
+                                <HiOutlineShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" aria-hidden="true" />
+                                <div className="min-w-0 text-sm leading-relaxed text-gray-600">
+                                    <p>Your files are encrypted in transit, stored securely as a private verification record, and never shown on public reports.</p>
+                                    <details className="mt-3">
+                                        <summary className="cursor-pointer font-semibold text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">How verification photos are handled</summary>
+                                        <div className="mt-3 space-y-2 border-t border-gray-200 pt-3 text-xs">
+                                            <p><strong className="font-semibold text-gray-800">Purpose:</strong> manual identity comparison before reporter access is approved.</p>
+                                            <p><strong className="font-semibold text-gray-800">Visibility:</strong> never displayed on public reports and never shared with responders.</p>
+                                            <p><strong className="font-semibold text-gray-800">Retention:</strong> stored with the account until removed through the authorized account-record process. Contact your municipal administrator to request correction or deletion.</p>
+                                        </div>
+                                    </details>
+                                </div>
                             </div>
                         </div>
 

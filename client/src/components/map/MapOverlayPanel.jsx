@@ -99,16 +99,16 @@ const MapOverlayPanel = ({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             className={isContextual
-                ? `pointer-events-auto flex max-h-[75%] min-h-0 w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-900 sm:max-h-full sm:w-[min(24rem,42%)] ${widthClass}`
-                : `relative flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:rounded-2xl ${widthClass}`}
+                ? `pointer-events-auto flex max-h-[calc(100%-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-sm border-2 border-gray-300 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] ${widthClass}`
+                : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-sm border-2 border-gray-300 bg-white shadow-xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-gray-700 dark:bg-gray-800 ${widthClass}`}
         >
-            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-5">
                 <div className="min-w-0 py-0.5">
-                    <h2 id={titleId} className="truncate text-base font-display font-bold text-gray-950 sm:text-lg dark:text-white">
+                    <h2 id={titleId} className="truncate text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white">
                         {title}
                     </h2>
                     {description && (
-                        <p id={descriptionId} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        <p id={descriptionId} className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             {description}
                         </p>
                     )}
@@ -117,10 +117,10 @@ const MapOverlayPanel = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onCloseRef.current?.()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:bg-gray-800 dark:hover:text-white"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-transparent text-gray-500 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white"
                     aria-label={closeLabel}
                 >
-                    <HiOutlineX className="h-5 w-5" aria-hidden="true" />
+                    <HiOutlineX className="h-4 w-4" aria-hidden="true" />
                 </button>
             </header>
 
@@ -136,7 +136,7 @@ const MapOverlayPanel = ({
 
     if (isContextual) {
         return (
-            <div className="pointer-events-none absolute inset-0 z-[40] flex items-end justify-end p-2 sm:items-start sm:p-3">
+            <div className="pointer-events-none absolute inset-0 z-[40] flex items-end justify-end p-3 sm:items-start sm:p-4">
                 {panel}
             </div>
         );

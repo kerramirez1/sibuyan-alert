@@ -52,15 +52,17 @@ export const createReport = async (req, res) => {
         } = req.body;
 
         // Parse casualties and affected area from form data
+        const casInput = req.body.casualties || {};
         const casualties = {
-            injured: parseInt(req.body['casualties[injured]']) || 0,
-            fatalities: parseInt(req.body['casualties[fatalities]']) || 0,
-            missing: parseInt(req.body['casualties[missing]']) || 0,
+            injured: parseInt(casInput.injured ?? req.body['casualties[injured]']) || 0,
+            fatalities: parseInt(casInput.fatalities ?? req.body['casualties[fatalities]']) || 0,
+            missing: parseInt(casInput.missing ?? req.body['casualties[missing]']) || 0,
         };
 
+        const areaInput = req.body.affectedArea || {};
         const affectedArea = {
-            householdsAffected: parseInt(req.body['affectedArea[householdsAffected]']) || 0,
-            evacuees: parseInt(req.body['affectedArea[evacuees]']) || 0,
+            householdsAffected: parseInt(areaInput.householdsAffected ?? req.body['affectedArea[householdsAffected]']) || 0,
+            evacuees: parseInt(areaInput.evacuees ?? req.body['affectedArea[evacuees]']) || 0,
         };
 
         // Validate required fields

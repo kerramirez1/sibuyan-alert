@@ -60,7 +60,7 @@ describe('MainLayout responsive navigation', () => {
         renderLayout();
 
         const activeLink = screen.getByRole('link', { name: 'Accident History' });
-        expect(activeLink).toHaveClass('min-h-11', 'bg-brand-800/60', 'text-white');
+        expect(activeLink).toHaveClass('min-h-10', 'bg-brand-900/40', 'text-brand-100');
         expect(activeLink.className).not.toContain('gradient');
         expect(activeLink.className).not.toContain('shadow');
         expect(activeLink.className).not.toContain('focus:ring');
@@ -72,7 +72,7 @@ describe('MainLayout responsive navigation', () => {
         const reportsLink = screen.getByRole('link', { name: 'Incident Reports' });
         expect(reportsLink.querySelector('svg')).toBeInTheDocument();
         expect(reportsLink.querySelector('img')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-11', 'w-full');
+        expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-10', 'w-full');
         const main = screen.getByRole('main');
         expect(main).toHaveClass('min-h-0', 'overscroll-contain', 'pt-3', 'sm:pt-4', 'lg:pt-5');
         expect(main.parentElement).toHaveClass('min-h-0', 'overflow-hidden');
@@ -83,9 +83,9 @@ describe('MainLayout responsive navigation', () => {
     test('shows one clear active analytics destination on the administrative dashboard', () => {
         renderLayout('/dashboard');
 
-        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-800/60');
+        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-900/40');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
-        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.includes('bg-brand-800/60'));
+        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.includes('bg-brand-900/40'));
         expect(activeLinks).toHaveLength(1);
     });
 

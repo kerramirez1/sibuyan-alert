@@ -161,12 +161,12 @@ const ResponderQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="min-h-11 w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:ring-brand-900/40"
+                            className="min-h-10 w-full rounded-sm border border-gray-300 bg-white py-2 pl-10 pr-3 text-[11px] uppercase tracking-wider font-bold text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="min-h-11 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
+                        className="min-h-10 rounded-sm bg-gray-900 px-5 text-[11px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
                     >
                         Search
                     </button>
@@ -174,7 +174,7 @@ const ResponderQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-sm border border-gray-300 px-3 text-[11px] uppercase tracking-wider font-bold text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
                         >
                             <HiOutlineX className="h-4 w-4" aria-hidden="true" />
                             Clear
@@ -209,7 +209,7 @@ const ResponderQueueControls = ({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setStatus(statusValue)}
-                                        className={`min-h-10 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active
+                                        className={`min-h-9 rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 ${active
                                             ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
                                             : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
                                     >
@@ -311,7 +311,7 @@ const IncidentQueueControls = ({
                 </div>
             </header>
 
-            <section aria-label="Incident filters" className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
+            <section aria-label="Incident filters" className="mb-4 rounded-sm border border-gray-300 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -327,12 +327,12 @@ const IncidentQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="min-h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                            className="min-h-10 w-full rounded-sm border border-gray-300 bg-white py-2 pl-10 pr-3 text-[11px] uppercase tracking-wider font-bold text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="min-h-11 rounded-lg bg-gray-900 px-5 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        className="min-h-10 rounded-sm bg-gray-900 px-5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
                     >
                         Search
                     </button>
@@ -340,7 +340,7 @@ const IncidentQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-sm border border-gray-300 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                         >
                             <HiOutlineX className="h-4 w-4" aria-hidden="true" />
                             Clear
@@ -362,7 +362,7 @@ const IncidentQueueControls = ({
                                 type="button"
                                 aria-pressed={status === ''}
                                 onClick={() => setStatus('')}
-                                className={`min-h-10 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 ${status === '' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                                className={`min-h-9 whitespace-nowrap rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-500 ${status === '' ? 'border-gray-900 bg-gray-900 text-white dark:bg-white dark:text-gray-950 dark:border-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                             >
                                 All statuses
                             </button>
@@ -375,7 +375,7 @@ const IncidentQueueControls = ({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setStatus(statusValue)}
-                                        className={`min-h-10 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 ${active ? config.className : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'} ${active && statusValue === 'resolved' ? '!border-transparent' : ''}`}
+                                        className={`min-h-9 whitespace-nowrap rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-500 ${active ? config.className : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'} ${active && statusValue === 'resolved' ? '!border-transparent' : ''}`}
                                     >
                                         {config.label}
                                     </button>

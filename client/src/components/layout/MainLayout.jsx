@@ -18,15 +18,16 @@ import {
     HiOutlineClock,
     HiOutlineChevronRight,
     HiOutlineUserAdd,
+    HiOutlineChartBar,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950';
+const NAV_LINK_BASE = 'group flex min-h-10 w-full min-w-0 items-center gap-3 rounded-sm px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 border-l-2 border-transparent';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'bg-brand-800/60 font-semibold text-white'
-    : 'text-brand-100/70 hover:bg-brand-900/50 hover:text-white'}`;
-const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0';
-const SECTION_CLASS = 'mt-4 pt-1';
-const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-300/50';
+    ? 'border-brand-500 bg-brand-900/40 text-brand-100'
+    : 'text-brand-300/50 hover:bg-brand-900/20 hover:text-brand-100'}`;
+const NAV_ICON_CLASS = 'h-4 w-4 shrink-0';
+const SECTION_CLASS = 'mt-5 pt-2';
+const SECTION_HEADING_CLASS = 'mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-brand-400/50';
 
 const getAccountContext = (user) => {
     const roleLabels = {
@@ -66,9 +67,9 @@ const MainLayout = ({ children }) => {
 
     const adminNavigation = [
         {
-            name: 'Operations Dashboard',
-            href: '/admin',
-            icon: HiOutlineHome,
+            name: 'Analytics Dashboard',
+            href: '/dashboard',
+            icon: HiOutlineChartBar,
             roles: ['municipal_admin'],
         },
         { name: 'Users', href: '/admin/users', icon: HiOutlineUsers },
@@ -121,7 +122,7 @@ const MainLayout = ({ children }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-brand-900 bg-brand-950 transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-emerald-900/40 bg-brand-950 transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Logo */}
                     <div className="flex min-h-20 items-center px-4">
@@ -130,21 +131,19 @@ const MainLayout = ({ children }) => {
                                 ? '/'
                                 : user?.role === 'reporter'
                                     ? '/reporter'
-                                    : user?.role === 'municipal_admin'
-                                        ? '/dashboard'
-                                        : user?.role === 'responder'
-                                            ? '/admin'
-                                            : '/';
+                                    : (user?.role === 'municipal_admin' || user?.role === 'responder')
+                                        ? '/admin'
+                                        : '/';
                             return (
-                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-900/50 p-1">
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-brand-900/50 p-1 border border-brand-800/50">
                                         <img
                                             src="/icons/Alert.png"
                                             alt=""
                                             className="h-full w-full object-contain drop-shadow-sm"
                                         />
                                     </div>
-                                    <span className="truncate text-base font-black tracking-tight text-white sm:text-lg">
+                                    <span className="truncate text-sm font-black uppercase tracking-wider text-white sm:text-base">
                                         Sibuyan <span className="text-brand-400">Alert</span>
                                     </span>
                                 </NavLink>
@@ -169,25 +168,21 @@ const MainLayout = ({ children }) => {
                                 ? '/'
                                 : user?.role === 'reporter'
                                     ? '/reporter'
-                                    : user?.role === 'municipal_admin'
-                                        ? '/dashboard'
-                                        : user?.role === 'responder'
-                                            ? '/admin'
-                                            : '/';
+                                    : (user?.role === 'municipal_admin' || user?.role === 'responder')
+                                        ? '/admin'
+                                        : '/';
 
                             const isHomeActive = !isAuthenticated
                                 ? location.pathname === '/'
                                 : user?.role === 'reporter'
                                     ? location.pathname === '/reporter'
-                                    : user?.role === 'municipal_admin'
-                                        ? location.pathname === '/dashboard' && currentView !== 'map'
-                                        : user?.role === 'responder'
-                                            ? location.pathname === '/admin'
-                                            : location.pathname === '/';
+                                    : (user?.role === 'municipal_admin' || user?.role === 'responder')
+                                        ? location.pathname === '/admin'
+                                        : location.pathname === '/';
                             const homeLabel = !isAuthenticated
                                 ? 'Overview'
                                 : user?.role === 'municipal_admin'
-                                    ? 'Analytics Dashboard'
+                                    ? 'Operations Dashboard'
                                     : user?.role === 'responder'
                                         ? 'Responder Dashboard'
                                         : 'Home';
@@ -242,14 +237,7 @@ const MainLayout = ({ children }) => {
                                     <NavLink
                                         key={item.name}
                                         to={item.href}
-                                        className={({ isActive }) => {
-                                            // For items on /dashboard path, exclude map view
-                                            const itemIsDashboard = item.href === '/dashboard';
-                                            const active = itemIsDashboard
-                                                ? location.pathname === '/dashboard' && currentView !== 'map'
-                                                : isActive;
-                                            return getNavLinkClass(active);
-                                        }}
+                                        className={({ isActive }) => getNavLinkClass(isActive)}
                                         onClick={() => setSidebarOpen(false)}
                                     >
                                         <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
@@ -273,11 +261,14 @@ const MainLayout = ({ children }) => {
                                             className={({ isActive }) => {
                                                 const isIncidentReportsItem = item.href.startsWith('/admin/reports');
                                                 const isHighRiskZonesItem = item.href === '/admin/zones';
-                                                const adminItemActive = isIncidentReportsItem
-                                                    ? location.pathname === '/admin/reports'
-                                                    : isHighRiskZonesItem
-                                                        ? location.pathname === '/admin/zones'
-                                                    : isActive;
+                                                const isAnalyticsDashboard = item.href === '/dashboard';
+                                                const adminItemActive = isAnalyticsDashboard
+                                                    ? location.pathname === '/dashboard' && currentView !== 'map'
+                                                    : isIncidentReportsItem
+                                                        ? location.pathname === '/admin/reports'
+                                                        : isHighRiskZonesItem
+                                                            ? location.pathname === '/admin/zones'
+                                                            : isActive;
 
                                                 return getNavLinkClass(adminItemActive);
                                             }}
@@ -294,70 +285,70 @@ const MainLayout = ({ children }) => {
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="mt-auto space-y-3 border-t border-brand-900/50 bg-brand-950 p-3">
+                    <div className="mt-auto border-t border-emerald-900/40 bg-brand-950 p-4">
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-3">
                                 <Link
                                     to="/profile"
                                     onClick={() => setSidebarOpen(false)}
-                                    className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_1.25rem] items-center gap-3 rounded-xl bg-brand-900/40 p-3 transition-colors hover:bg-brand-900/70 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950"
+                                    className="flex min-w-0 items-center gap-3 rounded-sm border border-brand-800/50 bg-brand-900/20 p-3 transition-colors hover:border-brand-700/50 hover:bg-brand-900/40 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950"
                                     aria-label="Open profile settings"
                                 >
-                                    <div className="h-10 w-10 shrink-0 rounded-full bg-brand-800 p-0.5 border border-brand-700/50">
+                                    <div className="h-9 w-9 shrink-0 rounded-sm bg-brand-800 p-0.5 border border-brand-700/50 overflow-hidden">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
                                                 alt={user.name}
-                                                className="h-full w-full rounded-full object-cover"
+                                                className="h-full w-full object-cover"
                                             />
                                         ) : (
-                                            <div className="flex h-full w-full items-center justify-center rounded-full bg-brand-700 font-bold text-white">
+                                            <div className="flex h-full w-full items-center justify-center bg-brand-700 text-xs font-bold text-white">
                                                 {user?.name?.charAt(0).toUpperCase()}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="min-w-0">
-                                        <p className="line-clamp-2 text-sm font-semibold leading-4 text-white">{user?.name}</p>
-                                        <p className="mt-1 break-words text-xs leading-4 text-brand-200/60">{getAccountContext(user)}</p>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="line-clamp-2 text-[11px] font-bold uppercase tracking-wider text-white">{user?.name}</p>
+                                        <p className="mt-0.5 break-words text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">{getAccountContext(user)}</p>
                                     </div>
-                                    <HiOutlineChevronRight className="h-5 w-5 text-brand-400/50" aria-hidden="true" />
+                                    <HiOutlineChevronRight className="h-4 w-4 shrink-0 text-brand-400/50" aria-hidden="true" />
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-lg px-3 text-xs font-medium text-brand-200/50 transition-colors hover:bg-brand-900/50 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-sm border border-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-200/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                 >
-                                    <HiOutlineLogout className="h-5 w-5" aria-hidden="true" />
+                                    <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     Sign out
                                 </button>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-brand-800/50 bg-brand-900/30 p-3">
-                                <div className="mb-3 flex items-center gap-2">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-800 shadow-sm ring-1 ring-brand-700">
+                            <div className="rounded-sm border border-brand-800/50 bg-brand-900/20 p-4">
+                                <div className="mb-4 flex items-center gap-3">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-brand-900 border border-brand-700/50">
                                         <HiOutlineGlobe className="h-4 w-4 text-brand-300" aria-hidden="true" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-xs font-semibold text-white">Guest mode</p>
-                                        <p className="text-[11px] text-brand-200/60">Sign in for full access</p>
+                                        <p className="text-[11px] font-bold uppercase tracking-wider text-white">Guest mode</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">Limited access</p>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2.5">
                                     <Link
                                         to="/login"
                                         onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand-600 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineLogin className="h-4 w-4" aria-hidden="true" />
+                                        <HiOutlineLogin className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Sign In
                                     </Link>
                                     <Link
                                         to="/register"
                                         onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-700 bg-brand-900/50 px-3 py-2 text-xs font-semibold text-brand-100 transition-colors hover:border-brand-600 hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-sm border border-brand-700/50 bg-brand-900/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-200 transition-colors hover:border-brand-600/80 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineUserAdd className="h-4 w-4" aria-hidden="true" />
+                                        <HiOutlineUserAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Become a Reporter
                                     </Link>
                                 </div>

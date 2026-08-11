@@ -16,12 +16,12 @@ import {
 } from 'react-icons/hi';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden';
-const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
+const PANEL_CLASS = 'rounded-sm border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900';
 const KPI_DIVIDER_CLASSES = [
     '',
-    'border-l border-gray-200 dark:border-gray-800',
-    'border-t border-gray-200 dark:border-gray-800 xl:border-l xl:border-t-0',
-    'border-l border-t border-gray-200 dark:border-gray-800 xl:border-t-0',
+    'border-l border-gray-300 dark:border-gray-700',
+    'border-t border-gray-300 dark:border-gray-700 xl:border-l xl:border-t-0',
+    'border-l border-t border-gray-300 dark:border-gray-700 xl:border-t-0',
 ];
 
 const toCount = (value) => {
@@ -30,39 +30,31 @@ const toCount = (value) => {
 };
 
 const DashboardEmptyState = ({ icon: Icon, title, description }) => (
-    <div className="flex flex-col items-center justify-center px-4 py-6 text-center">
+    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
         <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-        <p className="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200">{title}</p>
-        <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">{title}</p>
+        <p className="mt-1 max-w-sm text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
     </div>
 );
 
 const KpiCard = ({ stat, loading, dividerClass }) => {
-    const isPrimary = stat.priority === 'primary';
-    const isSecondary = stat.priority === 'secondary';
-    const valueClass = isPrimary && stat.value > 0
-        ? 'text-red-700 dark:text-red-400'
-        : isSecondary && stat.value > 0
-            ? 'text-brand-700 dark:text-emerald-400'
-            : 'text-gray-950 dark:text-white';
-
     return (
-        <article className={`min-w-0 p-1 sm:p-1.5 ${dividerClass}`}>
+        <article className={`min-w-0 ${dividerClass}`}>
             <Link
                 to={stat.link}
                 aria-label={`${stat.title}: ${loading ? 'loading' : stat.value}. ${stat.actionLabel}`}
-                className="group block h-full min-h-[6.5rem] cursor-pointer rounded-md border border-transparent bg-white px-3 py-3 transition-[background-color,border-color] duration-150 hover:border-gray-200 hover:bg-gray-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:bg-gray-900 dark:hover:border-gray-700 dark:hover:bg-gray-800/60 sm:px-4"
+                className="group block h-full min-h-[6.5rem] cursor-pointer bg-white px-4 py-4 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-gray-900 dark:hover:bg-gray-800"
             >
                 <div className="flex items-start justify-between gap-3">
-                    <p className={`${isPrimary || isSecondary ? 'text-3xl' : 'text-2xl'} font-bold leading-none tracking-tight ${valueClass}`}>
+                    <p className="text-3xl font-bold leading-none tracking-tight text-gray-900 dark:text-white">
                         {loading ? '...' : stat.value}
                     </p>
                     <HiOutlineArrowRight
-                        className="h-4 w-4 shrink-0 text-gray-300 transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-gray-600 group-focus-visible:text-brand-700 dark:text-gray-600 dark:group-hover:text-gray-300 dark:group-focus-visible:text-emerald-400"
+                        className="h-4 w-4 shrink-0 text-gray-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-gray-600 group-focus-visible:text-brand-700 dark:text-gray-600 dark:group-hover:text-gray-300 dark:group-focus-visible:text-emerald-400"
                         aria-hidden="true"
                     />
                 </div>
-                <h2 className={`mt-2 text-sm leading-snug text-gray-900 dark:text-gray-100 ${isPrimary || isSecondary ? 'font-semibold' : 'font-medium'}`}>
+                <h2 className="mt-3 text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
                     {stat.title}
                 </h2>
                 <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
@@ -234,7 +226,7 @@ const ResponderDashboardWorkspace = ({
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         Responder operations
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                         Operations dashboard
                     </h1>
                     <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-300">
@@ -256,11 +248,11 @@ const ResponderDashboardWorkspace = ({
                         as={Link}
                         to="/admin/reports?view=dispatch-queue"
                         fullWidth
-                        className="!rounded-lg font-semibold"
+                        className="!rounded-sm min-h-[42px] font-bold uppercase tracking-wider text-[11px] !bg-gray-900 !text-white hover:!bg-gray-800 dark:!bg-gray-800 dark:hover:!bg-gray-700"
                     >
                         <span>Dispatch Queue</span>
                         {availableIncidents > 0 && (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white" aria-label={`${availableIncidents} available incidents`}>
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-sm bg-white px-1.5 text-[10px] font-bold text-gray-900" aria-label={`${availableIncidents} available incidents`}>
                                 {availableIncidents}
                             </span>
                         )}
@@ -273,7 +265,7 @@ const ResponderDashboardWorkspace = ({
                         variant="secondary"
                         fullWidth
                         icon={HiOutlineMap}
-                        className="!rounded-lg dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="!rounded-sm border-2 border-gray-300 dark:border-gray-600 min-h-[42px] font-bold uppercase tracking-wider text-[11px]"
                     >
                         <span>Safety Map</span>
                     </Button>
@@ -290,7 +282,7 @@ const ResponderDashboardWorkspace = ({
             )}
 
             {/* 1. Operational status strip */}
-            <section className="grid grid-cols-2 border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 xl:grid-cols-4" aria-label="Operational status">
+            <section className="grid grid-cols-2 overflow-hidden rounded-sm border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900 xl:grid-cols-4" aria-label="Operational status">
                 {kpiCards.map((stat, idx) => (
                     <KpiCard
                         key={stat.title}
@@ -309,10 +301,10 @@ const ResponderDashboardWorkspace = ({
                         <div className="flex min-w-0 items-start gap-2">
                             <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                             <div>
-                                <h2 id="barangay-distribution-title" className="text-sm font-semibold text-gray-950 dark:text-white">
-                                    Barangay incident distribution
+                                <h2 id="barangay-distribution-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                                    Barangay distribution
                                 </h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                <p className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Incident frequency across {municipalityName}
                                 </p>
                             </div>
@@ -339,13 +331,13 @@ const ResponderDashboardWorkspace = ({
                                     <div key={item?.barangay || idx} className="py-3">
                                         <div className="mb-1.5 flex items-center justify-between gap-2">
                                             <div className="min-w-0">
-                                                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                                                <p className="truncate text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white">
                                                     {item?.barangay || 'Unspecified barangay'}
                                                 </p>
                                             </div>
 
                                             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-xs">
-                                                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                                                <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200">
                                                     {incidentCount} {incidentCount === 1 ? 'incident' : 'incidents'}
                                                 </span>
                                                 {injuredCount > 0 && (
@@ -380,11 +372,11 @@ const ResponderDashboardWorkspace = ({
                         <div className="flex min-w-0 items-start gap-2">
                             <HiOutlineShieldExclamation className="mt-0.5 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                             <div>
-                                <h2 id="hazard-watchlist-title" className="text-sm font-semibold text-gray-950 dark:text-white">
+                                <h2 id="hazard-watchlist-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                                     Hazard watchlist
                                 </h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Active road &amp; environmental risks in {municipalityName}
+                                <p className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    Active road & environmental risks in {municipalityName}
                                 </p>
                             </div>
                         </div>
@@ -414,7 +406,7 @@ const ResponderDashboardWorkspace = ({
                                 >
                                     <div className="flex flex-col items-start justify-between gap-2 xs:flex-row">
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-gray-950 dark:text-white">
+                                            <p className="truncate text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                                                 {zone.name}
                                             </p>
                                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -455,11 +447,11 @@ const ResponderDashboardWorkspace = ({
                     <div className="flex min-w-0 items-start gap-2">
                         <HiOutlineUsers className="mt-0.5 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                         <div>
-                            <h2 id="readiness-title" className="text-sm font-semibold text-gray-950 dark:text-white">
+                            <h2 id="readiness-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                                 Multi-agency readiness
                             </h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Online response units &amp; coordination personnel
+                            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                Online response units & coordination personnel
                             </p>
                         </div>
                     </div>
@@ -514,7 +506,7 @@ const ResponderDashboardWorkspace = ({
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-bold text-gray-950 dark:text-white">
+                                        <p className="truncate text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                                             {activeUser.name}
                                         </p>
                                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">

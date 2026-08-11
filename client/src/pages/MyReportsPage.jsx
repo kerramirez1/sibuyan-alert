@@ -30,19 +30,53 @@ import ReportActivityTimeline from '../components/reporterReports/ReportActivity
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 
 const STATUS_CONFIG = {
-    pending: { label: 'Pending review', dot: 'bg-amber-400', icon: HiOutlineClock },
-    verified: { label: 'Verified', dot: 'bg-gray-400', icon: HiOutlineCheckCircle },
-    transferred: { label: 'Transferred', dot: 'bg-gray-400', icon: HiOutlineSwitchHorizontal },
-    responding: { label: 'Response active', dot: 'bg-blue-400', icon: HiOutlineLightningBolt },
-    resolved: { label: 'Resolved', dot: 'bg-emerald-500', icon: HiOutlineBadgeCheck },
-    rejected: { label: 'Rejected', dot: 'bg-gray-400', icon: HiOutlineXCircle },
+    pending: { label: 'Pending review', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-amber-700 dark:text-amber-500', icon: HiOutlineClock },
+    verified: { label: 'Verified', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-blue-700 dark:text-blue-400', icon: HiOutlineCheckCircle },
+    transferred: { label: 'Transferred', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-indigo-700 dark:text-indigo-400', icon: HiOutlineSwitchHorizontal },
+    responding: { label: 'Response active', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-cyan-700 dark:text-cyan-400', icon: HiOutlineLightningBolt },
+    resolved: { label: 'Resolved', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-emerald-700 dark:text-emerald-400', icon: HiOutlineBadgeCheck },
+    rejected: { label: 'Rejected', bg: 'border border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-400', icon: HiOutlineXCircle },
 };
 
 const SEVERITY_CONFIG = {
-    minor: { label: 'Minor', color: 'text-emerald-700' },
-    moderate: { label: 'Moderate', color: 'text-amber-700' },
-    severe: { label: 'Severe', color: 'text-red-600' },
-    critical: { label: 'Critical', color: 'text-red-700 font-bold' },
+    minor: { label: 'Minor', color: 'border border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+    moderate: { label: 'Moderate', color: 'border border-gray-300 bg-gray-50 text-amber-700 dark:border-gray-600 dark:bg-gray-800 dark:text-amber-500' },
+    severe: { label: 'Severe', color: 'border border-gray-300 bg-gray-50 text-orange-700 dark:border-gray-600 dark:bg-gray-800 dark:text-orange-500' },
+    critical: { label: 'Critical', color: 'border border-red-300 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400' },
+};
+
+const IncidentTypeIcon = ({ type, className = "h-5 w-5" }) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('motorcycle') || t.includes('motor')) {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="5.5" cy="17.5" r="3.5" />
+                <circle cx="18.5" cy="17.5" r="3.5" />
+                <path d="M15 6a3 3 0 1 0-6 0v0c0 1.5 1 2 2.5 2h3C16 8 17 9.5 17 11v3" />
+                <path d="M8.5 17.5H5.5" />
+                <path d="M12 17.5h-1" />
+            </svg>
+        );
+    }
+    if (t.includes('pedestrian')) {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="1.5" />
+                <path d="M12 12l-2-2 1-3" />
+                <path d="M12 12l3 3 1.5-1" />
+                <path d="M12 12v5l-2.5 3" />
+                <path d="M12 17l3 3" />
+            </svg>
+        );
+    }
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+            <circle cx="7" cy="17" r="2" />
+            <path d="M9 17h6" />
+            <circle cx="17" cy="17" r="2" />
+        </svg>
+    );
 };
 
 const FILTERS = ['all', 'pending', 'verified', 'transferred', 'responding', 'resolved', 'rejected'];
@@ -277,124 +311,113 @@ function MyReportsPage() {
 
                 <Link
                     to="/report"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(220,38,38,0.75)] transition-all hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-sm border border-transparent bg-brand-700 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:w-auto"
                 >
-                    <HiOutlineExclamation className="h-4 w-4" />
-                    Submit report
+                    <HiOutlineExclamation className="h-5 w-5" aria-hidden="true" />
+                    Submit incident report
                 </Link>
             </header>
 
-            <section className="rounded-xl border border-gray-200 bg-white" aria-label="Report summary">
-                <div className="grid grid-cols-2 border-b border-gray-100 lg:grid-cols-4 lg:border-b-0">
-                    {metricCards.map(({ label, value, helper }, index) => (
-                        <div
-                            key={label}
-                            className={`p-4 sm:p-5 ${
-                                index % 2 === 0 ? 'border-r border-gray-100' : ''
-                            } ${
-                                index < 2 ? 'border-b border-gray-100 lg:border-b-0' : ''
-                            } ${
-                                index !== 3 ? 'lg:border-r lg:border-gray-100' : ''
-                            }`}
-                        >
-                            <p className="text-xs font-medium text-gray-500">{label}</p>
-                            <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-                            <p className="mt-1 text-[11px] text-gray-400">{helper}</p>
+            <section aria-label="Report summary">
+                <div className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 dark:border-gray-600 dark:bg-gray-600 sm:grid-cols-4">
+                    {metricCards.map(({ label, value, helper }) => (
+                        <div key={label} className="bg-white p-5 dark:bg-gray-900 sm:p-7">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+                            <p className="mt-2 font-display text-4xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
+                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{helper}</p>
                         </div>
                     ))}
                 </div>
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white" aria-label="Submitted reports">
-                {reports.length > 0 && (
-                    <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-200 p-3 sm:p-4 hide-scrollbar">
-                        <div className="mr-1 inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500">
-                            <HiOutlineFilter className="h-4 w-4" />
-                            Status
-                        </div>
-                        {FILTERS.map((filter) => {
-                            const count = filter === 'all' ? reports.length : (counts[filter] || 0);
-                            if (filter !== 'all' && count === 0) return null;
-                            const isActive = filterStatus === filter;
-                            const label = filter === 'all' ? 'All' : STATUS_CONFIG[filter]?.label;
-                            return (
-                                <button
-                                    key={filter}
-                                    type="button"
-                                    onClick={() => setFilterStatus(filter)}
-                                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${isActive
-                                        ? 'border-gray-800 bg-gray-800 text-white'
-                                        : 'border-transparent bg-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                    }`}
-                                >
-                                    {label}
-                                    <span className={isActive ? 'text-gray-300' : 'text-gray-400'}>{count}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-                <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5">
-                    <div>
-                        <h2 className="text-sm font-semibold text-gray-900">Submitted incidents</h2>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                            {filteredReports.length} {filteredReports.length === 1 ? 'record' : 'records'} shown
+            <section className="border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-label="Submitted reports">
+                <div className="flex flex-col border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="px-5 py-4">
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">Submitted incident records</h2>
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            {filteredReports.length} {filteredReports.length === 1 ? 'record' : 'records'} displayed
                         </p>
                     </div>
+                    {reports.length > 0 && (
+                        <div className="flex items-center gap-2 overflow-x-auto border-t border-gray-300 px-4 py-3 hide-scrollbar dark:border-gray-600 sm:border-t-0 sm:py-4">
+                            <span className="mr-1 inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                <HiOutlineFilter className="h-4 w-4" aria-hidden="true" />
+                                Filter
+                            </span>
+                            {FILTERS.map((filter) => {
+                                const count = filter === 'all' ? reports.length : (counts[filter] || 0);
+                                if (filter !== 'all' && count === 0) return null;
+                                const isActive = filterStatus === filter;
+                                const label = filter === 'all' ? 'All records' : STATUS_CONFIG[filter]?.label;
+                                return (
+                                    <button
+                                        key={filter}
+                                        type="button"
+                                        onClick={() => setFilterStatus(filter)}
+                                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${isActive
+                                            ? 'border-gray-800 bg-gray-800 text-white dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900'
+                                            : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        {label}
+                                        <span className={isActive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-400'}>{count}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {reports.length === 0 ? (
                     <div className="px-5 py-14 text-center sm:py-16">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
-                            <HiOutlineClipboardList className="h-6 w-6" />
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center bg-gray-100 dark:bg-gray-800">
+                            <HiOutlineClipboardList className="h-6 w-6 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                         </div>
-                        <h3 className="mt-4 text-base font-semibold text-gray-900">No reports submitted</h3>
-                        <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">Your incident reports will appear here after submission.</p>
-                        <Link to="/report" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-14px_rgba(220,38,38,0.75)] transition-all hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">
-                            <HiOutlineExclamation className="h-4 w-4" />
+                        <h3 className="mt-4 text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">No records found</h3>
+                        <p className="mx-auto mt-1 max-w-sm text-sm text-gray-600 dark:text-gray-400">There are currently no reports linked to your profile. Submit a new incident to see it tracked here.</p>
+                        <Link to="/report" className="mt-6 inline-flex items-center justify-center gap-2 rounded-sm bg-brand-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                            <HiOutlineExclamation className="h-4 w-4" aria-hidden="true" />
                             Submit your first report
                         </Link>
                     </div>
                 ) : filteredReports.length === 0 ? (
                     <div className="px-5 py-12 text-center">
-                        <HiOutlineFilter className="mx-auto h-6 w-6 text-gray-300" />
-                        <p className="mt-3 text-sm font-medium text-gray-700">No reports match this status</p>
-                        <button type="button" onClick={() => setFilterStatus('all')} className="mt-2 text-xs font-semibold text-brand-600 hover:text-brand-700">Clear filter</button>
+                        <HiOutlineFilter className="mx-auto h-6 w-6 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                        <p className="mt-3 text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">No reports match this status</p>
+                        <button type="button" onClick={() => setFilterStatus('all')} className="mt-2 text-xs font-bold uppercase tracking-wider text-brand-700 hover:text-brand-800 dark:text-brand-400">Clear filter</button>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-gray-300 dark:divide-gray-700">
                         {filteredReports.map((report) => {
                             const isExpanded = selectedReportId === report._id;
                             const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
                             const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
-                            const StatusIcon = status.icon;
                             const isClosed = ['resolved', 'rejected'].includes(report.status);
 
                             return (
-                                <article key={report._id} className={isExpanded ? 'bg-gray-50/60' : 'bg-white'}>
+                                <article key={report._id} className={isExpanded ? 'bg-gray-50/60 dark:bg-gray-800/50' : 'bg-white dark:bg-gray-900'}>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedReportId(isExpanded ? null : report._id)}
                                         aria-expanded={isExpanded}
-                                        className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-5"
+                                        className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-5"
                                     >
                                         <div className="flex min-w-0 items-start gap-0">
                                             <div className="min-w-0">
-                                                <h3 className="truncate text-sm font-semibold text-gray-900">{getLocation(report)}</h3>
-                                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                                                    <span>{formatIncidentType(report)}</span>
-                                                    <span aria-hidden="true" className="text-gray-300">•</span>
+                                                <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{getLocation(report)}</h3>
+                                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                                    <span className="font-semibold">{formatIncidentType(report)}</span>
+                                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">•</span>
                                                     <span>Submitted {formatRelativeDate(report.createdAt)}</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-                                            <span className="inline-flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600">
-                                                <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                                            <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${status.bg} ${status.text}`}>
                                                 {status.label}
                                             </span>
-                                            <span className={`text-[11px] font-semibold ${severity.color}`}>
+                                            <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${severity.color}`}>
                                                 {severity.label}
                                             </span>
                                         </div>
@@ -461,7 +484,7 @@ function MyReportsPage() {
                                                                     key={`${image}-${index}`}
                                                                     type="button"
                                                                     onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
-                                                                    className="h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                                                                    className="h-24 w-24 overflow-hidden rounded-sm border border-gray-300 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800"
                                                                 >
                                                                     <img src={resolveAssetUrl(image)} alt={`Incident evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
                                                                 </button>
@@ -471,23 +494,23 @@ function MyReportsPage() {
                                                 )}
                                             </div>
 
-                                            <section className="mt-8 border-t border-gray-200 pt-6" aria-labelledby={`activity-heading-${report._id}`}>
+                                            <section className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700" aria-labelledby={`activity-heading-${report._id}`}>
                                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                                     <div>
-                                                        <h4 id={`activity-heading-${report._id}`} className="text-xs font-semibold uppercase tracking-wider text-gray-500">Report activity</h4>
-                                                        <p className="mt-1.5 text-xs text-gray-500">Updates and response milestones for this incident.</p>
+                                                        <h4 id={`activity-heading-${report._id}`} className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Incident activity log</h4>
+                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Official updates and response milestones for this incident.</p>
                                                     </div>
                                                     {!isClosed ? (
                                                         <button
                                                             type="button"
                                                             onClick={() => setUpdateDialogReportId(report._id)}
-                                                            className="inline-flex min-h-[38px] w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 sm:w-auto"
+                                                            className="inline-flex min-h-[38px] w-full shrink-0 items-center justify-center gap-2 rounded-sm border border-gray-300 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-800 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto"
                                                         >
-                                                            <HiOutlineChatAlt2 className="h-4 w-4" aria-hidden="true" />
+                                                            <HiOutlineChatAlt2 className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                                                             Send situation update
                                                         </button>
                                                     ) : (
-                                                        <span className="rounded-lg bg-gray-100 px-3 py-2 text-[11px] font-medium text-gray-600">Updates closed</span>
+                                                        <span className="rounded-sm bg-gray-200 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:bg-gray-700 dark:text-gray-300">Updates closed</span>
                                                     )}
                                                 </div>
                                                 <div className="mt-6">

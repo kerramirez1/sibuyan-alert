@@ -57,22 +57,22 @@ const GroupedMarkerSymbol = () => (
 );
 
 const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false }) => (
-    <div className={compact ? 'space-y-0.5' : 'flex flex-wrap items-center gap-x-2.5 gap-y-0.5'}>
-        <div className="flex min-h-5 items-center gap-1 rounded px-0.5 text-[10px] font-semibold text-gray-700">
+    <div className={compact ? 'space-y-1.5' : 'flex flex-wrap items-center gap-x-3 gap-y-1'}>
+        <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
             <LegendSymbol shape="risk" color={MAP_RISK_ZONE_CONFIG.markerColor} />
             <span>{MAP_RISK_ZONE_CONFIG.label}</span>
         </div>
         {statusKeys.map((status) => {
             const config = MAP_STATUS_CONFIG[status];
             return (
-                <div key={status} className="flex min-h-5 items-center gap-1 rounded px-0.5 text-[10px] font-semibold text-gray-700">
+                <div key={status} className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
                     <LegendSymbol shape={config.legendShape} color={config.markerColor} />
                     <span>{config.label}</span>
                 </div>
             );
         })}
         {hasGroupedReports && (
-            <div className="flex min-h-5 items-center gap-1 rounded px-0.5 text-[10px] font-semibold text-gray-700">
+            <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
                 <GroupedMarkerSymbol />
                 <span>Multiple incidents</span>
             </div>
@@ -115,7 +115,7 @@ const MapLegend = ({ showPending = false, filterStatus = null, filterMode = 'pub
         <>
             <section
                 aria-label="Map legend"
-                className="pointer-events-auto absolute left-1/2 top-2 z-20 hidden w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-gray-200 bg-white px-1.5 py-0.5 shadow-md sm:block"
+                className="pointer-events-auto absolute left-1/2 top-2 z-20 hidden w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-sm border border-gray-300 bg-white px-2.5 py-1.5 shadow-sm sm:block sm:px-3 sm:py-2"
             >
                 <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} />
             </section>
@@ -127,7 +127,7 @@ const MapLegend = ({ showPending = false, filterStatus = null, filterMode = 'pub
                     aria-expanded={mobileOpen}
                     aria-controls={popoverId}
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-gray-800 shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                     <HiOutlineMap className="h-3.5 w-3.5 text-brand-700" aria-hidden="true" />
                     Map legend
@@ -136,9 +136,9 @@ const MapLegend = ({ showPending = false, filterStatus = null, filterMode = 'pub
                     <section
                         id={popoverId}
                         aria-label="Map legend details"
-                        className="absolute left-0 top-11 w-52 max-w-[calc(100vw-1rem)] rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg"
+                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-1rem)] rounded-sm border border-gray-300 bg-white p-2.5 shadow-md sm:p-4"
                     >
-                        <p className="px-1 pb-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">Map legend</p>
+                        <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:text-[10px] sm:pb-2">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} compact />
                     </section>
                 )}

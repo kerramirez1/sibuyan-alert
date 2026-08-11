@@ -1,49 +1,49 @@
 import { Link } from '../../router';
 import {
-    HiOutlineBell,
-    HiOutlineChartBar,
-    HiOutlineClock,
-    HiOutlineExclamation,
-    HiOutlineMap,
-    HiOutlineShieldCheck,
+    HiBell,
+    HiChartBar,
+    HiClock,
+    HiExclamation,
+    HiMap,
+    HiShieldCheck,
 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
 import SibuyanIslandMap from './SibuyanIslandMap';
 
 const benefits = [
     {
-        Icon: HiOutlineShieldCheck,
+        Icon: HiShieldCheck,
         title: 'Verified reports',
         description: 'Municipal administrators review reports before public publication.',
     },
     {
-        Icon: HiOutlineBell,
+        Icon: HiBell,
         title: 'Real-time alerts',
         description: 'Authorized users receive lifecycle and assignment updates as they happen.',
     },
     {
-        Icon: HiOutlineMap,
+        Icon: HiMap,
         title: 'Municipality coordination',
         description: 'Reports and response activity stay scoped to the responsible municipality.',
     },
     {
-        Icon: HiOutlineExclamation,
+        Icon: HiExclamation,
         title: 'High-risk areas',
         description: 'View mapped high-risk areas and monitored hazard zones on the live map.',
     },
     {
-        Icon: HiOutlineChartBar,
+        Icon: HiChartBar,
         title: 'Responder dispatch',
         description: 'Eligible incidents move from verification to field response in one record.',
     },
 ];
 
-const Metric = ({ value, label, sublabel = null, bordered = false }) => (
-    <div className={`min-w-0 px-2 py-2.5 text-center sm:px-5 sm:py-4 ${bordered ? 'border-x border-white/30 dark:border-white/10' : ''}`}>
-        <p className="text-base font-black leading-none tabular-nums text-gray-950 sm:text-2xl dark:text-white">{value}</p>
-        <p className="mt-1 border-t border-[#e2ede7] pt-1 text-[8px] font-semibold leading-snug text-gray-600 sm:mt-1.5 sm:pt-1.5 sm:text-xs dark:border-white/10 dark:text-gray-300">{label}</p>
+const Metric = ({ value, label, sublabel = null }) => (
+    <div className="flex min-w-[120px] flex-1 flex-col items-center justify-center px-4 py-3 sm:px-8">
+        <p className="text-2xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
+        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-emerald-500">{label}</p>
         {sublabel && (
-            <p className="mt-0.5 text-[8px] font-medium tracking-wide text-gray-400 sm:text-[11px] dark:text-gray-500">{sublabel}</p>
+            <p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-gray-400">{sublabel}</p>
         )}
     </div>
 );
@@ -95,53 +95,20 @@ const LandingHero = ({
     const isLoading = publicStatsState === 'loading';
 
     return (
-        <section id="home" className="relative isolate overflow-hidden border-b border-[#d0e8dc] bg-[#f6fbf8] pt-[60px] dark:border-[#1c3428] dark:bg-[#091711]">
-
-            {/* ── Background layer 1: restrained off-white base with a faint emerald tint ──
-                 Light: near-neutral off-white across the hero, settling into a soft emerald
-                        tint on the right where the map and feature list sit.
-                 Dark:  near-black left, deep green right. */}
+        <section id="home" className="relative isolate overflow-hidden border-b border-gray-200 bg-gray-50 pt-[60px] dark:border-gray-900 dark:bg-[#0a0f0d]">
+            {/* ── Background layer 1: Tactical Grid ── */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-20"
-                style={{
-                    background: 'linear-gradient(180deg,#f9fcfa 0%,#f6fbf8 70%,#f3faf6 100%)',
-                }}
+                className="pointer-events-none absolute inset-0 -z-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] dark:bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)]"
             />
-            {/* Dark mode override via pseudo-class so we can keep the inline style */}
-            <style>{`.dark #home { background: linear-gradient(180deg,#0a1812 0%,#0d1f17 60%,#10241a 100%) !important; }`}</style>
 
-            {/* ── Background layer 2: faint radial emerald atmosphere (right side, where map sits) ── */}
+            {/* ── Background layer 2: Faint radial emerald atmosphere ── */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_50%_60%_at_80%_42%,rgba(16,185,129,0.08),transparent_75%)] dark:bg-[radial-gradient(ellipse_50%_60%_at_80%_42%,rgba(52,211,153,0.05),transparent_75%)]"
+                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(16,185,129,0.05),transparent_70%)] dark:bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(52,211,153,0.03),transparent_70%)]"
             />
 
-            {/* ── Background layer 3: subtle dot-grid texture ────────────────── */}
-            <svg
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 h-full w-full"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <defs>
-                    <pattern id="hero-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                        <circle cx="1" cy="1" r="1" className="fill-emerald-800/[0.05] dark:fill-emerald-400/[0.04]" />
-                    </pattern>
-                    {/* Fade-out mask: dots visible on right, invisible on left */}
-                    <linearGradient id="hero-dot-mask" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="white" stopOpacity="0" />
-                        <stop offset="40%" stopColor="white" stopOpacity="0" />
-                        <stop offset="100%" stopColor="white" stopOpacity="1" />
-                    </linearGradient>
-                    <mask id="hero-dot-fade">
-                        <rect width="100%" height="100%" fill="url(#hero-dot-mask)" />
-                    </mask>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#hero-dot-grid)" mask="url(#hero-dot-fade)" />
-            </svg>
-
-
-            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-7 sm:px-8 sm:py-9 lg:min-h-[calc(100svh-60px)] lg:px-10 lg:py-12 xl:px-14">
+            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-7 sm:px-8 sm:py-9 lg:min-h-[calc(100svh-160px)] lg:px-10 lg:py-12 xl:px-14">
                 <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-3.5 gap-y-5 sm:gap-x-8 sm:gap-y-6 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
                     <div className="contents lg:flex lg:min-w-0 lg:flex-[1.1] lg:flex-col lg:items-start">
                     <div data-testid="landing-hero-copy" className="order-1 flex min-w-0 flex-1 self-stretch flex-col justify-between overflow-visible text-left lg:order-none lg:w-full lg:flex-none">
@@ -169,7 +136,7 @@ const LandingHero = ({
                                         aria-disabled="true"
                                         title={reportCta.reason}
                                     >
-                                        <HiOutlineClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <HiClock className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Report an Incident
                                         <span
                                             role="tooltip"
@@ -184,7 +151,7 @@ const LandingHero = ({
                                         id="hero-report-cta"
                                         className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
                                     >
-                                        <HiOutlineExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <HiExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Report an Incident
                                     </Link>
                                 )
@@ -195,7 +162,7 @@ const LandingHero = ({
                                 to="/dashboard?view=map"
                                 className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-700 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
-                                <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 View live map
                             </Link>
                         </div>
@@ -220,26 +187,30 @@ const LandingHero = ({
                     </div>
 
                     <div data-testid="landing-hero-benefits" className="order-5 basis-full lg:order-none lg:w-[clamp(300px,26vw,380px)] lg:basis-auto lg:flex-none lg:self-start">
-                        {/* Flat editorial feature list: one shared subtle surface, items
-                             separated by thin dividers instead of individual cards. */}
-                        <ul className="divide-y divide-[#e2ede7] rounded-2xl border border-[#dbeae1] bg-white/75 px-4 py-1 sm:px-5 lg:py-0.5 dark:divide-[#1f372c] dark:border-[#1c3428] dark:bg-[#0f2018]/60">
+                        {/* Tactical Capabilities List */}
+                        <ul className="flex flex-col gap-6 px-2 py-4 sm:px-0 lg:mt-2">
                             {benefits.map(({ Icon, title, description }) => (
-                                <li key={title} className="flex items-start gap-2.5 py-3.5 sm:py-3 lg:py-2.5">
-                                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <li key={title} className="flex items-start gap-4">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-100 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+                                        <Icon className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                    </div>
                                     <div className="min-w-0">
-                                        <h2 className="text-[13px] font-bold leading-snug text-gray-950 sm:text-sm dark:text-white">{title}</h2>
-                                        <p className="mt-0.5 text-xs leading-5 text-gray-600 dark:text-gray-300">{description}</p>
+                                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">{title}</h2>
+                                        <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">{description}</p>
                                     </div>
                                 </li>
                             ))}
                         </ul>
                     </div>
                 </div>
+            </div>
 
-                <div data-testid="landing-hero-metrics" className="mx-auto mt-4 grid w-full max-w-5xl grid-cols-3 overflow-hidden rounded-xl border border-[#dbeae1] bg-white sm:mt-7 lg:mt-9 dark:border-[#1c3428] dark:bg-[#112219]">
-                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="Verified reports" sublabel={verifiedPeriodLabel} />
-                    <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="Active risk zones" bordered />
-                    <Metric value={municipalityCount} label="Municipalities covered" />
+            {/* Telemetry Readout (Full Width Bottom Bar) */}
+            <div data-testid="landing-hero-metrics" className="w-full border-t border-gray-300 bg-gray-900 px-4 py-4 dark:border-gray-800 dark:bg-gray-950">
+                <div className="mx-auto flex max-w-[1440px] flex-row flex-wrap items-center justify-center divide-x divide-gray-700 sm:px-8 lg:px-10 xl:px-14">
+                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="VERIFIED REPORTS" sublabel={verifiedPeriodLabel} />
+                    <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="ACTIVE RISK ZONES" />
+                    <Metric value={municipalityCount} label="MUNICIPALITIES COVERED" />
                 </div>
             </div>
         </section>

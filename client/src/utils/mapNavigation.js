@@ -122,42 +122,14 @@ export const focusExistingMapEntity = (map, entityFocus, options = {}) => {
     map.resize?.();
     map.stop?.();
 
-    if (entityFocus.type === 'risk-zone' && hasValidBounds(entityFocus.bounds) && map.fitBounds) {
-        if (duration > 0) map.once?.('moveend', complete);
-        map.fitBounds(entityFocus.bounds, {
-            padding: riskZonePadding,
-            maxZoom: zoom,
-            bearing: MAP_FOCUS_CONFIG.bearing,
-            pitch: MAP_FOCUS_CONFIG.pitch,
-            duration,
-            essential: true,
-            easing: mapFocusEasing,
-        });
-        if (duration === 0 || map.isMoving?.() === false) complete();
-        return () => map.off?.('moveend', complete);
-    }
 
-    if (duration === 0) {
-        map.jumpTo?.({
-            center: [lng, lat],
-            zoom,
-            bearing: MAP_FOCUS_CONFIG.bearing,
-            pitch: MAP_FOCUS_CONFIG.pitch,
-        });
-        complete();
-        return () => {};
-    }
 
     map.once?.('moveend', complete);
     map.flyTo?.({
         center: [lng, lat],
-        zoom,
-        bearing: MAP_FOCUS_CONFIG.bearing,
-        pitch: MAP_FOCUS_CONFIG.pitch,
-        curve: MAP_FOCUS_CONFIG.curve,
-        duration,
+        zoom: 15,
         essential: true,
-        easing: mapFocusEasing,
+        duration: 1500,
     });
     if (map.isMoving?.() === false) complete();
 

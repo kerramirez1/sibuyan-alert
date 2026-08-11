@@ -63,30 +63,30 @@ const LoginPage = () => {
 
     return (
         <div className="w-full">
-            <div className="w-full rounded-xl border border-gray-200 bg-white p-5 sm:p-8">
+            <div className="w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
                 {/* Compact system context for screens where the institutional panel is hidden. */}
                 <div className="mb-7 border-b border-gray-200 pb-5 lg:hidden">
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1">
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden border border-gray-300 bg-white p-1">
                             <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <p className="font-display text-lg font-black leading-tight tracking-tight text-gray-900">
                                 Sibuyan <span className="text-emerald-700">Alert</span>
                             </p>
-                            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-gray-500">
+                            <p className="mt-0.5 text-xs font-medium text-gray-500">
                                 Accident Alert &amp; Mapping System
                             </p>
                         </div>
                     </div>
-                    <p className="mt-3 text-sm leading-5 text-gray-600">
+                    <p className="mt-3 text-sm leading-5 text-gray-500">
                         Official account access for Sibuyan Island incident coordination.
                     </p>
                 </div>
 
                 {/* Header */}
                 <div className="mb-7">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Account access</p>
+                    <p className="mb-2 text-sm font-semibold text-emerald-600">Secure Authentication</p>
                     <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                         Sign in to Sibuyan Alert
                     </h2>
@@ -127,8 +127,8 @@ const LoginPage = () => {
                                 autoComplete="email"
                                 aria-invalid={Boolean(errors.email)}
                                 aria-describedby={errors.email ? 'login-email-error' : undefined}
-                                className={`w-full pl-11 pr-10 py-3.5 border rounded-xl text-sm bg-white transition-colors outline-none ${errors.email
-                                    ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                                className={`w-full pl-11 pr-10 py-3.5 border rounded-lg text-sm bg-white transition-colors outline-none ${errors.email
+                                    ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100'
                                     : 'border-gray-300 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100'
                                     }`}
                             />
@@ -177,8 +177,8 @@ const LoginPage = () => {
                                 autoComplete="current-password"
                                 aria-invalid={Boolean(errors.password)}
                                 aria-describedby={errors.password ? 'login-password-error' : undefined}
-                                className={`w-full pl-11 pr-12 py-3.5 border rounded-xl text-sm bg-white transition-colors outline-none ${errors.password
-                                    ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                                className={`w-full pl-11 pr-12 py-3.5 border rounded-lg text-sm bg-white transition-colors outline-none ${errors.password
+                                    ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100'
                                     : 'border-gray-300 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100'
                                     }`}
                             />
@@ -221,7 +221,7 @@ const LoginPage = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
+                        className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <span className="flex items-center justify-center gap-2">
                             {loading ? (
@@ -234,8 +234,8 @@ const LoginPage = () => {
                                 </>
                             ) : (
                                 <>
-                                    <span>Sign in</span>
-                                    <HiOutlineArrowRight className="w-4.5 h-4.5" />
+                                    <span>Sign In</span>
+                                    <HiOutlineArrowRight className="h-4 w-4" />
                                 </>
                             )}
                         </span>
@@ -244,28 +244,31 @@ const LoginPage = () => {
 
                 {/* Account creation and public access remain secondary to authentication. */}
                 <div className="mt-7 border-t border-gray-200 pt-5">
-                    <p className="text-sm font-medium text-gray-700">New to Sibuyan Alert?</p>
-                    <Link
-                        to="/register"
-                        className="mt-1 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                    >
-                        <span>Register as a reporter</span>
-                        <HiOutlineArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    </Link>
-                    <p className="mt-1 text-xs leading-5 text-gray-600">
-                        Submit incident reports after approval.
-                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Additional Options</p>
+                    <div className="mt-3 flex flex-col gap-4">
+                        <div>
+                            <Link
+                                to="/register"
+                                className="inline-flex items-center text-sm font-semibold text-brand-700 transition-colors hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                            >
+                                Register as a reporter
+                            </Link>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Submit incident reports after administrator approval.
+                            </p>
+                        </div>
 
-                    <div className="mt-5">
-                        <Link
-                            to="/dashboard?view=map"
-                            className="inline-flex items-center gap-1.5 rounded text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                        >
-                            <HiOutlineGlobe className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            <span>View public incident map</span>
-                            <HiOutlineArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        </Link>
-                        <p className="mt-1 text-xs text-gray-600">No sign-in required.</p>
+                        <div>
+                            <Link
+                                to="/dashboard?view=map"
+                                className="inline-flex items-center text-sm font-semibold text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                            >
+                                View public incident map
+                            </Link>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Accessible without an account.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

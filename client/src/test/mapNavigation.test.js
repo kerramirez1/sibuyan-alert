@@ -102,10 +102,9 @@ describe('scheduleMapFocus', () => {
         expect(map.resize).toHaveBeenCalledOnce();
         expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 16,
-            pitch: 0,
-            bearing: 0,
-            duration: MAP_FOCUS_CONFIG.duration,
+            zoom: 15,
+            duration: 1500,
+            essential: true,
         }));
     });
 
@@ -119,7 +118,7 @@ describe('scheduleMapFocus', () => {
         });
 
         expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
-            duration: MAP_FOCUS_CONFIG.duration,
+            duration: 1500,
         }));
     });
 
@@ -151,10 +150,12 @@ describe('scheduleMapFocus', () => {
         });
         vi.runAllTimers();
 
-        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
+            zoom: 15,
+            duration: 1500,
+            essential: true,
         }));
-        expect(map.flyTo).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
         vi.useRealTimers();
     });
@@ -191,20 +192,19 @@ describe('focusExistingMapEntity', () => {
 
         expect(map.resize).toHaveBeenCalledOnce();
         expect(map.stop).toHaveBeenCalledOnce();
-        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+            expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 16,
-            duration: MAP_FOCUS_CONFIG.duration,
-            curve: MAP_FOCUS_CONFIG.curve,
+            zoom: 15,
+            duration: 1500,
+            essential: true,
         }));
-        expect(map.jumpTo).not.toHaveBeenCalled();
         expect(onComplete).not.toHaveBeenCalled();
 
         handlers.get('moveend')();
         expect(onComplete).toHaveBeenCalledOnce();
     });
 
-    test('fits the whole risk-zone geometry instead of applying a point-only zoom', () => {
+    test('uses the standard smooth flyTo animation for risk zones', () => {
         const { handlers, map } = createLocateMap();
         const bounds = [[122.68, 12.39], [122.70, 12.42]];
         const onComplete = vi.fn();
@@ -215,12 +215,12 @@ describe('focusExistingMapEntity', () => {
             bounds,
         }, { padding: 48, reducedMotion: false, onComplete });
 
-        expect(map.fitBounds).toHaveBeenCalledWith(bounds, expect.objectContaining({
-            padding: 48,
-            maxZoom: 16,
-            duration: MAP_FOCUS_CONFIG.duration,
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.69, 12.405],
+            zoom: 15,
+            essential: true,
+            duration: 1500,
         }));
-        expect(map.flyTo).not.toHaveBeenCalled();
         handlers.get('moveend')();
         expect(onComplete).toHaveBeenCalledOnce();
     });
@@ -250,7 +250,7 @@ describe('focusExistingMapEntity', () => {
     });
 
     test('uses an immediate in-place move for reduced-motion users', () => {
-        const { map } = createLocateMap();
+        const { handlers, map } = createLocateMap();
         const onComplete = vi.fn();
 
         focusExistingMapEntity(map, {
@@ -258,10 +258,13 @@ describe('focusExistingMapEntity', () => {
             coordinates: { lat: 12.4044, lng: 122.6897 },
         }, { reducedMotion: true, onComplete });
 
-        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
+            zoom: 15,
+            duration: 1500,
+            essential: true,
         }));
-        expect(map.flyTo).not.toHaveBeenCalled();
+        handlers.get('moveend')();
         expect(onComplete).toHaveBeenCalledOnce();
     });
 });

@@ -1,5 +1,3 @@
-import { HiOutlineCheckCircle } from 'react-icons/hi';
-
 const TRUST_ITEMS = [
     'Municipal administrator review before public visibility',
     'GPS-based incident location',
@@ -23,7 +21,8 @@ const Coverage = ({ municipalities }) => {
     );
 
     return (
-        <section className="bg-[#071b13] px-5 py-20 text-white sm:px-8 sm:py-24">
+        <section className="relative isolate bg-[#071b13] px-5 py-20 text-white sm:px-8 sm:py-24">
+            <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px]" aria-hidden="true" />
             <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.72fr)] lg:gap-16 xl:gap-24">
                 <div>
                     <p className="mb-3 text-xs font-bold uppercase tracking-widest text-emerald-400">Coverage</p>
@@ -33,19 +32,19 @@ const Coverage = ({ municipalities }) => {
                     <dl
                         data-testid="coverage-metrics"
                         aria-label="Island coverage totals"
-                        className="mb-9 grid grid-cols-3 border-y border-white/15"
+                        className="mb-9 grid grid-cols-1 gap-3 min-[400px]:grid-cols-3 sm:gap-4"
                     >
                         {[
                             [municipalities.length, 'Municipalities'],
                             [totalBarangays, 'Barangays'],
                             [4, 'Response agencies'],
-                        ].map(([value, label], index) => (
+                        ].map(([value, label]) => (
                             <div
                                 key={label}
-                                className={`flex min-w-0 flex-col py-5 ${index > 0 ? 'border-l border-white/15 pl-3 sm:pl-5' : 'pr-3 sm:pr-5'}`}
+                                className="flex min-w-0 flex-col border border-gray-800 bg-black/20 p-4 sm:p-5"
                             >
-                                <dt className="order-2 mt-1 text-[11px] font-semibold leading-snug text-emerald-50/75 sm:text-xs">{label}</dt>
-                                <dd className="order-1 text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
+                                <dt className="order-2 mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-50/75 sm:text-[11px]">{label}</dt>
+                                <dd className="order-1 font-mono text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
                             </div>
                         ))}
                     </dl>
@@ -53,21 +52,27 @@ const Coverage = ({ municipalities }) => {
                     <ul
                         data-testid="municipality-coverage-list"
                         aria-label="Municipalities covered"
-                        className="divide-y divide-white/15 border-y border-white/15"
+                        className="flex flex-col gap-3"
                     >
                         {municipalities.map((municipality) => {
                             const logo = logoConfig[municipality.name];
                             const barangayCount = municipality.barangays?.length || fallbackBarangayCount(municipality.name);
                             return (
-                                <li key={municipality.code} className="flex min-w-0 items-center gap-4 py-4 sm:py-5">
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-12 sm:w-12">
+                                <li key={municipality.code} className="flex min-w-0 items-center gap-4 rounded border border-gray-800 bg-black/10 px-4 py-3 sm:px-5 sm:py-4">
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-12 sm:w-12">
                                         {logo
-                                            ? <img src={logo.src} alt={`${municipality.name} seal`} className={`h-full w-full object-contain ${logo.scale}`} />
+                                            ? <img src={logo.src} alt={`${municipality.name} seal`} className={`h-full w-full object-contain opacity-90 ${logo.scale}`} />
                                             : <span className="text-lg font-bold text-emerald-100">{municipality.name[0]}</span>}
                                     </span>
-                                    <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:justify-between sm:gap-6">
-                                        <p className="truncate text-sm font-bold text-white">{municipality.name}</p>
-                                        <p className="mt-1 shrink-0 text-xs font-medium text-emerald-50/70 sm:mt-0">{barangayCount} barangays</p>
+                                    <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between sm:gap-6">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                                            </span>
+                                            <p className="truncate text-sm font-bold uppercase tracking-wider text-white">{municipality.name}</p>
+                                        </div>
+                                        <p className="mt-1 shrink-0 font-mono text-xs text-gray-400 sm:mt-0 sm:text-sm">{barangayCount} BRGYS</p>
                                     </div>
                                 </li>
                             );
@@ -86,20 +91,29 @@ const Coverage = ({ municipalities }) => {
                         Every incident record passes through a structured review and response chain before public visibility.
                     </p>
 
-                    <ul className="mt-7 divide-y divide-white/10 border-y border-white/15" role="list">
-                        {TRUST_ITEMS.map((text) => (
-                            <li key={text} className="flex items-start gap-3 py-3.5">
-                                <HiOutlineCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
-                                <span className="text-sm leading-relaxed text-emerald-50/85">{text}</span>
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="mt-7 rounded-xl border border-gray-700 bg-black/20 p-5">
+                        <ul className="flex flex-col gap-4" role="list">
+                            {TRUST_ITEMS.map((text) => (
+                                <li key={text} className="flex items-start gap-3">
+                                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span className="text-sm leading-relaxed text-emerald-50/85">{text}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
 
-                    <div data-testid="coverage-emergency-notice" className="mt-7 border-l-2 border-emerald-400/50 pl-4">
-                        <p className="text-xs leading-relaxed text-emerald-50/80">
-                            <strong className="font-bold text-emerald-300">Emergency notice:</strong>{' '}
-                            Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
-                        </p>
+                    <div data-testid="coverage-emergency-notice" className="mt-7 rounded-xl border border-amber-500/50 bg-amber-950/30 p-4">
+                        <div className="flex gap-3">
+                            <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <p className="text-xs leading-relaxed text-amber-100/80">
+                                <strong className="mb-1 block font-bold text-amber-500">Important Notice</strong>
+                                Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
+                            </p>
+                        </div>
                     </div>
                 </aside>
             </div>

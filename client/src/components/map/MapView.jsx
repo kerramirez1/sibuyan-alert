@@ -75,7 +75,7 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors duration-150 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white';
+const MAP_TOOL_BUTTON_CLASS = 'flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-sm border border-gray-300 bg-white text-gray-600 shadow-sm transition-colors duration-150 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
@@ -85,7 +85,7 @@ const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
         className={`${MAP_TOOL_BUTTON_CLASS} ${active ? 'text-brand-700 dark:text-emerald-400' : ''}`}
         {...props}
     >
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
     </button>
 );
 
@@ -980,14 +980,14 @@ const MapView = ({
                                         className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                     >
                                         <span className="min-w-0">
-                                            <span className="block truncate text-sm font-semibold text-gray-900">
+                                            <span className="block truncate text-[13px] font-bold uppercase tracking-wider text-gray-900">
                                                 {report.title || report.incidentType || 'Incident report'}
                                             </span>
-                                            <span className="mt-1 block truncate text-xs text-gray-500">
+                                            <span className="mt-1 block truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                                 {report.address || 'Location unavailable'}
                                             </span>
                                         </span>
-                                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
+                                        <span className={`shrink-0 rounded-sm border px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
                                             {report.status}
                                         </span>
                                     </button>
@@ -1003,16 +1003,16 @@ const MapView = ({
                                     </span>
                                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{mapModal.data.municipality || mapModal.data.municipalityName || 'Sibuyan Island'}</span>
                                 </div>
-                                <h4 className="text-xl font-display font-bold text-gray-950 dark:text-white">{mapModal.data.name || 'High-risk zone'}</h4>
+                                <h4 className="text-[15px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">{mapModal.data.name || 'High-risk zone'}</h4>
                                 <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{mapModal.data.description || 'No description provided.'}</p>
-                                <dl className="mt-4 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                                <dl className="mt-4 divide-y divide-gray-300 border-y border-gray-300 dark:divide-gray-700 dark:border-gray-700">
                                     <div className="flex items-center justify-between gap-4 py-3">
-                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Hazard type</dt>
-                                        <dd className="text-right text-sm font-semibold text-gray-900 dark:text-white">{getMapRiskTypeConfig(mapModal.data.type).label}</dd>
+                                        <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Hazard type</dt>
+                                        <dd className="text-right text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white">{getMapRiskTypeConfig(mapModal.data.type).label}</dd>
                                     </div>
                                     <div className="flex items-center justify-between gap-4 py-3">
-                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Coverage</dt>
-                                        <dd className="text-right text-sm font-semibold text-gray-900 dark:text-white">{Number.isFinite(Number(mapModal.data.radius)) ? `${Number(mapModal.data.radius)} m radius` : 'Not specified'}</dd>
+                                        <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Coverage</dt>
+                                        <dd className="text-right text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white">{Number.isFinite(Number(mapModal.data.radius)) ? `${Number(mapModal.data.radius)} m radius` : 'Not specified'}</dd>
                                     </div>
                                 </dl>
                                 {selectedZoneCoordinates && (
@@ -1020,7 +1020,7 @@ const MapView = ({
                                         href={`https://www.google.com/maps?q=${selectedZoneCoordinates.lat},${selectedZoneCoordinates.lng}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
+                                        className="mt-4 inline-flex min-h-[42px] w-full items-center justify-center rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                                     >
                                         Open in Google Maps
                                     </a>
@@ -1054,7 +1054,7 @@ const MapView = ({
                                 id="municipality-map-menu"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="absolute bottom-12 right-0 min-w-[170px] rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                                className="absolute bottom-10 sm:bottom-12 right-0 min-w-[170px] rounded-sm border border-gray-300 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
                             >
                                 {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
                                     <button

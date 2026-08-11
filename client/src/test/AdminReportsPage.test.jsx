@@ -422,7 +422,7 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
 
         const list = await screen.findByRole('list', { name: 'Responder incident list' });
-        expect(list).toHaveClass('divide-y', 'border-y');
+        expect(list).toHaveClass('flex', 'flex-col', 'gap-3');
         expect(screen.queryByTestId('incident-table')).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
         expect(screen.getByLabelText('Operational totals')).toHaveTextContent('3 incidents');

@@ -432,11 +432,11 @@ const ReportPage = () => {
         <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
             <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Reporter workflow</p>
-                    <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl">Submit incident report</h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-500">Pin the incident location and provide the information authorities need to verify and dispatch the report.</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Reporter workflow</p>
+                    <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">Submit incident report</h1>
+                    <p className="mt-1 max-w-2xl text-sm font-medium text-gray-600 dark:text-gray-300">Pin the incident location and provide the information authorities need to verify and dispatch the report.</p>
                 </div>
-                <p className="text-xs font-medium text-gray-400">Required fields are marked *</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Required fields are marked *</p>
             </header>
 
             <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-5">

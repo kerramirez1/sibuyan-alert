@@ -32,12 +32,12 @@ const formatRelativeTime = (value) => {
 export const IncidentStatusBadge = ({ status }) => {
     const config = INCIDENT_STATUS[status];
     if (!config) {
-        return <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold capitalize text-gray-700">{status || 'Unknown'}</span>;
+        return <span className="inline-flex rounded-sm border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-700">{status || 'Unknown'}</span>;
     }
 
     return (
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${config.className}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${config.dotClassName}`} aria-hidden="true" />
+        <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${config.className}`}>
+            <span className={`h-1.5 w-1.5 rounded-sm ${config.dotClassName}`} aria-hidden="true" />
             {config.label}
         </span>
     );
@@ -218,8 +218,8 @@ export const IncidentSeverityIndicator = ({ severity }) => {
         || { dot: 'bg-gray-400', text: 'text-gray-600 dark:text-gray-300' };
 
     return (
-        <span className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${style.text}`}>
-            <span className={`h-2 w-2 rounded-full ${style.dot}`} aria-hidden="true" />
+        <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${style.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-sm ${style.dot}`} aria-hidden="true" />
             {normalizedSeverity || 'Unspecified'}
         </span>
     );
@@ -228,11 +228,11 @@ export const IncidentSeverityIndicator = ({ severity }) => {
 export const OperationalStatusIndicator = ({ status }) => {
     const config = INCIDENT_STATUS[status];
     if (!config) {
-        return <span className="text-xs font-medium capitalize text-gray-600 dark:text-gray-300">{status || 'Unknown'}</span>;
+        return <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">{status || 'Unknown'}</span>;
     }
 
     return (
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{config.label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">{config.label}</span>
     );
 };
 
@@ -263,7 +263,7 @@ const ContextualAction = ({ label, icon: Icon, onClick, tone = 'neutral', disabl
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-50 sm:w-auto ${tones[tone]}`}
+            className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-sm px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-wait disabled:opacity-50 sm:w-auto ${tones[tone]}`}
         >
             <Icon className={`h-4 w-4 ${disabled ? 'animate-pulse' : ''}`} aria-hidden="true" />
             {label}
@@ -281,7 +281,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'admin-incident-inspector' : undefined}
-                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
+                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-sm px-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
             >
                 Inspect report
                 <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
@@ -319,7 +319,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
+                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-sm px-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
             >
                 Inspect report
                 <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
@@ -330,7 +330,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report._id}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 sm:w-auto"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-sm bg-gray-900 px-4 text-[11px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 sm:w-auto"
                 >
                     <HiOutlineLightningBolt className={`h-4 w-4 ${actions.respondLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
                     {isResponding ? 'Join response' : 'Respond to incident'}
@@ -341,7 +341,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 <button
                     type="button"
                     onClick={() => actions.openResolve(report)}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 sm:w-auto"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-sm border border-gray-300 bg-white px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-900 sm:w-auto"
                 >
                     <HiOutlineBadgeCheck className="h-4 w-4" aria-hidden="true" />
                     Resolve incident
@@ -361,9 +361,9 @@ const IncidentListRow = ({ report, isSelected = false, actionSlot }) => {
 
     return (
         <article
-            className={`min-w-0 border-l-2 px-3 py-4 transition-colors duration-150 sm:px-4 sm:py-5 ${isSelected
+            className={`min-w-0 rounded-sm border px-3 py-4 transition-colors duration-150 sm:px-4 sm:py-5 ${isSelected
                 ? 'border-gray-400 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/70'
-                : 'border-transparent bg-white hover:bg-gray-50/50 dark:bg-gray-950 dark:hover:bg-gray-900/40'}`}
+                : 'border-gray-200 bg-white hover:bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-800/80'}`}
             data-status={report.status || 'unknown'}
             data-selected={isSelected ? 'true' : 'false'}
         >
@@ -470,7 +470,7 @@ const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) =
         <nav
             className={lightweight
                 ? 'mt-4 flex flex-col gap-3 border-t border-gray-200 pt-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between'
-                : 'mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between'}
+                : 'mt-4 flex flex-col gap-3 rounded-sm border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between'}
             aria-label="Incident queue pages"
         >
             <p className="text-center text-xs text-gray-500 dark:text-gray-400 sm:text-left">
@@ -482,7 +482,7 @@ const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) =
                     type="button"
                     onClick={() => onPageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="min-h-11 rounded-sm border border-gray-300 px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                     Previous
                 </button>
@@ -490,7 +490,7 @@ const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) =
                     type="button"
                     onClick={() => onPageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="min-h-11 rounded-sm border border-gray-300 px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                     Next
                 </button>
@@ -518,7 +518,7 @@ const IncidentQueue = ({
         if (isResponder) return <ResponderQueueSkeleton />;
 
         return (
-            <div className="rounded-xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900" role="status">
+            <div className="rounded-sm border border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900" role="status">
                 <div className="spinner mx-auto" />
                 <p className="mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Loading incident reports…</p>
             </div>
@@ -527,10 +527,10 @@ const IncidentQueue = ({
 
     if (error) {
         return (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20" role="alert">
+            <div className="rounded-sm border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20" role="alert">
                 <p className="font-semibold text-red-900 dark:text-red-300">Incident queue unavailable</p>
                 <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>
-                <button type="button" onClick={onRetry} className="mt-4 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800 hover:bg-red-100 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700">
+                <button type="button" onClick={onRetry} className="mt-4 rounded-sm border border-red-300 bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800 hover:bg-red-100 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700">
                     Try again
                 </button>
             </div>
@@ -549,7 +549,7 @@ const IncidentQueue = ({
         return (
             <div className={isResponder
                 ? 'border-y border-gray-200 bg-white px-4 py-8 text-center dark:border-gray-800 dark:bg-gray-950'
-                : 'rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-900'}>
+                : 'rounded-sm border border-dashed border-gray-300 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-800'}>
                 <p className="font-semibold text-gray-900 dark:text-white">{emptyCopy[0]}</p>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{emptyCopy[1]}</p>
             </div>
@@ -560,7 +560,7 @@ const IncidentQueue = ({
 
     return (
         <section aria-label="Incident queue">
-            <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="divide-y divide-gray-100 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+            <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="flex flex-col gap-3">
                 {reports.map((report) => (
                     <li key={report._id}>
                         <RowComponent
