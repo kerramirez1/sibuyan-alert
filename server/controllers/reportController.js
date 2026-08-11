@@ -507,6 +507,15 @@ export const getMyReports = async (req, res) => {
     }
 };
 
+const REPORT_UPDATE_NOTIFICATION_TITLES = {
+    general: 'Situation update received',
+    transported: 'Patient transport update',
+    stabilized: 'Patient condition update',
+    need_help: 'Urgent help requested',
+    false_alarm: 'Possible false alarm reported',
+    other: 'Reporter update received',
+};
+
 /**
  * @desc    Add a reporter update to an existing report
  * @route   POST /api/reports/:id/updates
@@ -811,14 +820,7 @@ export const searchLocations = async (req, res) => {
     }
 };
 
-const REPORT_UPDATE_NOTIFICATION_TITLES = {
-    general: 'Situation update received',
-    transported: 'Patient transport update',
-    stabilized: 'Patient condition update',
-    need_help: 'Urgent help requested',
-    false_alarm: 'Possible false alarm reported',
-    other: 'Reporter update received',
-};
+
 
 /**
  * @desc    Geocode an address and determine municipality

@@ -53,8 +53,10 @@ export const uploadFileToGridFS = (file, metadata = {}) => {
             originalName,
             category: metadata.category || 'general',
             visibility: metadata.visibility === 'private' ? 'private' : 'public',
-            ownerId: metadata.ownerId ? new mongoose.Types.ObjectId(metadata.ownerId) : null,
-            resourceId: metadata.resourceId ? new mongoose.Types.ObjectId(metadata.resourceId) : null,
+            ownerId: metadata.ownerId && mongoose.isValidObjectId(metadata.ownerId)
+                ? new mongoose.Types.ObjectId(metadata.ownerId) : null,
+            resourceId: metadata.resourceId && mongoose.isValidObjectId(metadata.resourceId)
+                ? new mongoose.Types.ObjectId(metadata.resourceId) : null,
             municipalityName: metadata.municipalityName || null,
             uploadedAt: new Date(),
         },

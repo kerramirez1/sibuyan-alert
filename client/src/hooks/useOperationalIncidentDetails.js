@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { adminAPI, reportsAPI } from '../services/api';
 
 const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder']);
@@ -28,15 +28,25 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
         restricted: false,
     });
 
+    // Use a ref to capture the latest `report` prop without destabilizing
+    // the `load` callback. The `report` object reference changes on every
+    // parent re-render (objects are never referentially stable), so including
+    // it directly in `useCallback` deps would recreate `load` on every
+    // render → fire the `useEffect` → trigger an API request every time.
+    const reportRef = useRef(report);
+    reportRef.current = report;
+
     const load = useCallback(async (signal) => {
+        const currentReport = reportRef.current;
+
         if (!shouldLoad) {
-            setState({ report, loading: false, error: '', restricted: false });
+            setState({ report: currentReport, loading: false, error: '', restricted: false });
             return;
         }
 
         setState((current) => ({
             ...current,
-            report: current.report?._id === reportId ? current.report : report,
+            report: current.report?._id === reportId ? current.report : currentReport,
             loading: true,
             error: '',
             restricted: false,
@@ -55,7 +65,7 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
                 detailCompleteness: 'full',
             };
             setState({
-                report: { ...report, ...normalizedReport },
+                report: { ...currentReport, ...normalizedReport },
                 loading: false,
                 error: '',
                 restricted: false,
@@ -64,7 +74,7 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
             if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
             const restricted = error?.response?.status === 403;
             setState({
-                report,
+                report: currentReport,
                 loading: false,
                 restricted,
                 error: restricted
@@ -77,7 +87,7 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
                             : 'Unable to load your evidence photos.'),
             });
         }
-    }, [isOperationalViewer, report, reportId, shouldLoad]);
+    }, [isOperationalViewer, reportId, shouldLoad]);
 
     useEffect(() => {
         const controller = new AbortController();

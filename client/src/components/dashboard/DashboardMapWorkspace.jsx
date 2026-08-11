@@ -241,7 +241,7 @@ const MapActionButton = ({
     </button>
 );
 
-const MetricStripItem = ({ label, value, helper, icon: Icon, onClick, selected, loading = false, dividerClass }) => (
+const MetricStripItem = ({ label, value, helper, onClick, selected, loading = false, dividerClass }) => (
     <button
         type="button"
         onClick={onClick}
@@ -249,19 +249,21 @@ const MetricStripItem = ({ label, value, helper, icon: Icon, onClick, selected, 
         aria-expanded={selected}
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
-        className={`group min-w-0 px-3 py-3 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:bg-gray-100 dark:active:bg-gray-800 sm:px-4 ${selected
-            ? 'bg-gray-50 ring-1 ring-inset ring-gray-300 dark:bg-gray-800/70 dark:ring-gray-700'
-            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800/60'
+        aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
+        className={`group min-w-0 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:bg-gray-100 dark:active:bg-gray-800 sm:px-4 sm:py-3 ${selected
+            ? 'bg-brand-50/50 shadow-[inset_0_-2px_0_0_theme(colors.brand.500)] dark:bg-brand-900/20 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.400)]'
+            : 'bg-white hover:bg-brand-50/20 dark:bg-gray-900 dark:hover:bg-gray-800/60'
         } ${dividerClass}`}
     >
         <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
-            <span className="flex shrink-0 items-center gap-1.5 text-gray-400 dark:text-gray-500" aria-hidden="true">
-                <Icon className="h-4 w-4" />
-                <HiOutlineArrowRight className="h-3.5 w-3.5 opacity-40 transition-all duration-150 group-hover:translate-x-0.5 group-hover:opacity-80" />
+            <p className={`text-[11px] font-semibold uppercase tracking-wide transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
+                {label}
+            </p>
+            <span className={`flex shrink-0 items-center transition-colors ${selected ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-400'}`} aria-hidden="true">
+                <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </span>
         </div>
-        <p className="mt-2 text-xl font-bold text-gray-950 dark:text-white">{value}</p>
+        <p className="mt-1.5 text-lg font-bold text-gray-900 dark:text-white">{value}</p>
         <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{helper}</p>
     </button>
 );
@@ -347,6 +349,13 @@ const DashboardMapWorkspace = ({
     }, [externalFocusId]);
 
     useEffect(() => {
+        if (!mapSummaryPanel) return undefined;
+        mapScrollCleanupRef.current?.();
+        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current, { delay: 100, behavior: 'reveal' });
+        return () => mapScrollCleanupRef.current?.();
+    }, [mapSummaryPanel]);
+
+    useEffect(() => {
         if (focusedReportId || focusedRiskZoneId) setMapLocateRequest(null);
     }, [focusedReportId, focusedRiskZoneId]);
 
@@ -368,19 +377,7 @@ const DashboardMapWorkspace = ({
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
     const transferredReports = activeReports.filter((report) => report.status === 'transferred');
-    const reporterRecordsLoaded = Array.isArray(reporterOverviewReports);
-    const reporterPendingReports = reporterRecordsLoaded
-        ? reporterOverviewReports.filter((report) => report.status === 'pending')
-        : [];
-    const reporterVerifiedReports = reporterRecordsLoaded
-        ? reporterOverviewReports.filter((report) => report.status === 'verified')
-        : [];
-    const reporterResolvedReports = reporterRecordsLoaded
-        ? reporterOverviewReports.filter((report) => report.status === 'resolved')
-        : [];
-    const reporterTrustPoints = reporterRecordsLoaded
-        ? reporterVerifiedReports.length + reporterResolvedReports.length
-        : roleStats?.trustPoints || 0;
+
 
     const closeMapSummaryPanel = useCallback((options = {}) => {
         setSelectedActiveIncidentId('');
@@ -461,41 +458,7 @@ const DashboardMapWorkspace = ({
                     emptyDescription: 'No incidents have been resolved today.',
                 },
             ]
-            : isReporter
-                ? [
-                    {
-                        id: 'reporter-pending', label: 'My pending',
-                        value: reporterRecordsLoaded ? reporterPendingReports.length : roleStats?.myReports?.pending || 0,
-                        helper: 'Waiting for review', icon: HiOutlineClock, panelType: 'incidents',
-                        panelTitle: 'My pending reports', panelDescription: `${reporterPendingReports.length} ${reporterPendingReports.length === 1 ? 'report' : 'reports'} awaiting review`,
-                        records: reporterPendingReports, requiresReporterRecords: true,
-                        loading: reporterOverviewReportsLoading, error: reporterOverviewReportsError,
-                        emptyTitle: 'No pending reports', emptyDescription: 'You have no reports currently awaiting review.',
-                    },
-                    {
-                        id: 'reporter-verified', label: 'My verified',
-                        value: reporterRecordsLoaded ? reporterVerifiedReports.length : roleStats?.myReports?.verified || 0,
-                        helper: 'Approved submissions', icon: HiOutlineCheckCircle, panelType: 'incidents',
-                        panelTitle: 'My verified reports', panelDescription: `${reporterVerifiedReports.length} verified ${reporterVerifiedReports.length === 1 ? 'report' : 'reports'}`,
-                        records: reporterVerifiedReports, requiresReporterRecords: true,
-                        loading: reporterOverviewReportsLoading, error: reporterOverviewReportsError,
-                        emptyTitle: 'No verified reports', emptyDescription: 'You have no reports currently marked as verified.',
-                    },
-                    {
-                        id: 'reporter-resolved', label: 'My resolved',
-                        value: reporterRecordsLoaded ? reporterResolvedReports.length : roleStats?.myReports?.resolved || 0,
-                        helper: 'Closed submissions', icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                        panelTitle: 'My resolved reports', panelDescription: `${reporterResolvedReports.length} resolved ${reporterResolvedReports.length === 1 ? 'report' : 'reports'}`,
-                        records: reporterResolvedReports, requiresReporterRecords: true,
-                        loading: reporterOverviewReportsLoading, error: reporterOverviewReportsError,
-                        emptyTitle: 'No resolved reports', emptyDescription: 'You have no reports currently marked as resolved.',
-                    },
-                    {
-                        id: 'reporter-trust-points', label: 'Trust points', value: reporterTrustPoints,
-                        helper: 'Reporter standing', icon: HiOutlineShieldCheck, panelType: 'trust-points',
-                        panelTitle: 'Trust points', panelDescription: 'Reporter standing',
-                    },
-                ]
+
                 : [
                     {
                         id: 'public-active', label: 'Active incidents', value: displayedMapReports.length,
@@ -866,7 +829,7 @@ const DashboardMapWorkspace = ({
                     <h2 className="text-sm font-semibold text-gray-900">Current overview</h2>
                     <p className="mt-0.5 text-xs text-gray-500">Key incident and response totals for the current map view.</p>
                 </div>
-                <div className="grid grid-cols-2 overflow-hidden border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:grid-cols-4">
+                <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white lg:grid-cols-4 dark:border-gray-800 dark:bg-gray-900">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}

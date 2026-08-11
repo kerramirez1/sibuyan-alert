@@ -116,15 +116,4 @@ describe('MainLayout responsive navigation', () => {
         expect(sidebar).toHaveClass('-translate-x-full');
     });
 
-    test('shows a guest-only active incidents destination with one clear active state', () => {
-        mocks.isAuthenticated = false;
-        mocks.user = null;
-        renderLayout('/dashboard?view=map&panel=incidents');
-
-        const activeIncidentsLink = screen.getByRole('link', { name: 'Active Incidents' });
-        expect(activeIncidentsLink).toHaveAttribute('href', '/dashboard?view=map&panel=incidents');
-        expect(activeIncidentsLink).toHaveClass('bg-brand-800/60', 'text-white');
-        expect(screen.getByRole('link', { name: 'Map' })).not.toHaveClass('bg-brand-800/60');
-        expect(screen.queryByRole('link', { name: 'Incident Reports' })).not.toBeInTheDocument();
-    });
 });

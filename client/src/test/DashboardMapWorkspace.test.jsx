@@ -109,7 +109,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const cards = Array.from(summary.lastElementChild.children);
 
         expect(cards).toHaveLength(4);
-        expect(summary.lastElementChild).toHaveClass('border-y', 'bg-white');
+        expect(summary.lastElementChild).toHaveClass('rounded-xl', 'border', 'border-gray-200', 'bg-white');
         cards.forEach((card) => {
             expect(card).not.toHaveClass('bg-gray-100', 'rounded-xl', 'shadow-sm');
         });
@@ -184,7 +184,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const { rerender } = renderWorkspace(props);
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
-        expect(within(summary).getByRole('button', { name: /Pending 1 Awaiting review/i })).toHaveAttribute('aria-pressed', 'true');
+        expect(within(summary).getByRole('button', { name: /View 1 pending\. Awaiting review/i })).toHaveAttribute('aria-pressed', 'true');
         let panel = screen.getByRole('dialog', { name: 'Pending incidents' });
         expect(within(panel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
         expect(within(panel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
@@ -219,74 +219,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(panel).queryByRole('button', { name: 'Locate' })).not.toBeInTheDocument();
     });
 
-    test('loads reporter-owned metric records lazily and keeps trust points informational', () => {
-        const onLoadReporterOverviewReports = vi.fn();
-        const setMapSummaryPanel = vi.fn();
-        const reporterProps = createProps({ onLoadReporterOverviewReports, setMapSummaryPanel });
-        const { rerender } = renderWorkspace(reporterProps);
 
-        fireEvent.click(within(screen.getByRole('region', { name: 'Map summary' })).getByRole('button', { name: /My pending 1 Waiting for review/i }));
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:reporter-pending');
-        expect(onLoadReporterOverviewReports).toHaveBeenCalledTimes(1);
-
-        rerender(
-            <MemoryRouter>
-                <DashboardMapWorkspace
-                    {...reporterProps}
-                    mapSummaryPanel="overview:reporter-pending"
-                    reporterOverviewReportsLoading
-                />
-            </MemoryRouter>,
-        );
-        expect(screen.getByRole('dialog', { name: 'My pending reports' })).toBeInTheDocument();
-        expect(screen.getByRole('status')).toHaveTextContent('Loading matching reports');
-
-        rerender(
-            <MemoryRouter>
-                <DashboardMapWorkspace
-                    {...reporterProps}
-                    mapSummaryPanel="overview:reporter-pending"
-                    reporterOverviewReportsError="Your report details are temporarily unavailable. Please try again."
-                />
-            </MemoryRouter>,
-        );
-        expect(screen.getByRole('alert')).toHaveTextContent('Your report details are temporarily unavailable.');
-        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-        expect(onLoadReporterOverviewReports).toHaveBeenLastCalledWith({ force: true });
-
-        const ownedReports = [
-            { _id: 'mine-pending', status: 'pending', incidentType: 'vehicular', isOwnedByCurrentUser: true, detailCompleteness: 'full' },
-            { _id: 'mine-verified', status: 'verified', incidentType: 'fire', isOwnedByCurrentUser: true, detailCompleteness: 'full' },
-            { _id: 'mine-resolved', status: 'resolved', incidentType: 'medical', isOwnedByCurrentUser: true, detailCompleteness: 'full' },
-        ];
-        rerender(
-            <MemoryRouter>
-                <DashboardMapWorkspace
-                    {...reporterProps}
-                    mapSummaryPanel="overview:reporter-pending"
-                    reporterOverviewReports={ownedReports}
-                />
-            </MemoryRouter>,
-        );
-        const pendingPanel = screen.getByRole('dialog', { name: 'My pending reports' });
-        expect(within(pendingPanel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
-        expect(within(pendingPanel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
-        expect(within(pendingPanel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
-
-        rerender(
-            <MemoryRouter>
-                <DashboardMapWorkspace
-                    {...reporterProps}
-                    mapSummaryPanel="overview:reporter-trust-points"
-                    reporterOverviewReports={ownedReports}
-                />
-            </MemoryRouter>,
-        );
-        const trustPanel = screen.getByRole('dialog', { name: 'Trust points' });
-        expect(within(trustPanel).getByText('2')).toBeInTheDocument();
-        expect(within(trustPanel).getByText(/calculated from reports that are presently verified or resolved/i)).toBeInTheDocument();
-        expect(within(trustPanel).queryByRole('button', { name: 'View details' })).not.toBeInTheDocument();
-    });
 
     test('opens zero-count metrics with a metric-specific empty state', () => {
         renderWorkspace(createProps({
@@ -296,7 +229,7 @@ describe('DashboardMapWorkspace permissions', () => {
             mapSummaryPanel: 'overview:admin-pending',
         }));
 
-        expect(screen.getByRole('button', { name: /Pending 0 Awaiting review/i })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /View 0 pending\. Awaiting review/i })).toBeEnabled();
         expect(screen.getByRole('dialog', { name: 'Pending incidents' })).toHaveTextContent('No incidents are currently awaiting municipal review.');
     });
 
@@ -360,7 +293,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const panel = screen.getByRole('dialog', { name: 'Active risk zones' });
         expect(panel.closest('[aria-label="Live incident map"]')).toBeInTheDocument();
         expect(within(panel).getByText('Cambijang Risk Zone')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Risk zones 1 Mapped hazards/i })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: /View 1 risk zones\. Mapped hazards/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     test('enables claim and resolve actions only for responders', () => {
@@ -540,7 +473,7 @@ describe('DashboardMapWorkspace permissions', () => {
             reports,
         }));
 
-        expect(screen.getByRole('button', { name: /Active incidents 4 Across 3 map locations/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /View 4 active incidents\. Across 3 map locations/i })).toBeInTheDocument();
     });
 
     test('locates an incident through the mounted map without URL navigation', () => {

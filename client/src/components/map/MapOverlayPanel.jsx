@@ -39,7 +39,7 @@ const MapOverlayPanel = ({
         previousFocusRef.current = document.activeElement;
         const previousOverflow = document.body.style.overflow;
         if (!isContextual) document.body.style.overflow = 'hidden';
-        closeButtonRef.current?.focus();
+        closeButtonRef.current?.focus({ preventScroll: true });
 
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
@@ -71,7 +71,7 @@ const MapOverlayPanel = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             if (!isContextual) document.body.style.overflow = previousOverflow;
-            previousFocusRef.current?.focus?.();
+            previousFocusRef.current?.focus?.({ preventScroll: true });
         };
     }, [isContextual]);
 
@@ -79,7 +79,7 @@ const MapOverlayPanel = ({
         if (isContextual && !panelRef.current?.contains(document.activeElement)) {
             previousFocusRef.current = document.activeElement;
         }
-        closeButtonRef.current?.focus();
+        closeButtonRef.current?.focus({ preventScroll: true });
     }, [isContextual, title]);
 
     useLayoutEffect(() => {

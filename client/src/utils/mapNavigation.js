@@ -198,6 +198,7 @@ export const scheduleElementScroll = (element, options = {}) => {
 
     const delay = Math.max(0, asFiniteNumber(options.delay, MAP_SCROLL_PRESET.delay));
     const duration = Math.max(0, asFiniteNumber(options.duration, MAP_SCROLL_PRESET.duration));
+    const behavior = options.behavior || 'center';
     let animationFrame = null;
 
     const timer = globalThis.setTimeout(() => {
@@ -207,20 +208,40 @@ export const scheduleElementScroll = (element, options = {}) => {
             || typeof globalThis.requestAnimationFrame !== 'function'
             || typeof scrollContainer.scrollTo !== 'function'
         ) {
-            element.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+            element.scrollIntoView?.({ behavior: 'smooth', block: behavior === 'reveal' ? 'start' : 'center' });
             return;
         }
 
         const startTop = scrollContainer.scrollTop;
         const containerRect = scrollContainer.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
-        const unclampedTarget = startTop
-            + elementRect.top
-            - containerRect.top
-            - (scrollContainer.clientHeight - elementRect.height) / 2;
-        const maximumTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        
+        const relativeTop = elementRect.top - containerRect.top;
+        const viewportHeight = containerRect.height;
+        
+        let targetOffset = (viewportHeight - elementRect.height) / 2;
+
+        if (behavior === 'reveal') {
+            const relativeBottom = elementRect.bottom - containerRect.top;
+            
+            // If the top of the element is nicely visible within the upper 120px 
+            // OR the element is large and currently covers most of the viewport
+            const isTopNicelyVisible = relativeTop >= 0 && relativeTop <= 120;
+            const isLargeAndCovering = relativeTop < 0 && relativeBottom > viewportHeight * 0.7;
+            
+            if (isTopNicelyVisible || isLargeAndCovering) return;
+            
+            // Provide a comfortable 80px breathing room from the top, or center if the element is small
+            targetOffset = Math.min(80, (viewportHeight - elementRect.height) / 2);
+        }
+
+        const unclampedTarget = startTop + relativeTop - targetOffset;
+        const maximumTop = Math.max(0, scrollContainer.scrollHeight - viewportHeight);
         const targetTop = Math.min(maximumTop, Math.max(0, unclampedTarget));
         const distance = targetTop - startTop;
+        
+        if (Math.abs(distance) < 20) return;
+
         const startedAt = globalThis.performance?.now() ?? Date.now();
 
         const animate = (timestamp) => {

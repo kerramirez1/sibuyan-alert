@@ -627,6 +627,17 @@ export const verifyReport = async (req, res) => {
             });
         }
 
+        // Only pending reports may be verified or rejected. Re-verifying a
+        // report that is already in a downstream lifecycle state (responding,
+        // resolved, transferred) would emit duplicate notifications, corrupt
+        // the incident state machine, and re-alert all responders.
+        if (report.status !== 'pending') {
+            return res.status(409).json({
+                success: false,
+                message: `Cannot ${status === 'verified' ? 'verify' : 'reject'} a report with status "${report.status}"`,
+            });
+        }
+
         if (!ensureReportScopeAccess(admin, report)) {
             return res.status(403).json({
                 success: false,
@@ -1026,7 +1037,7 @@ export const respondToReport = async (req, res) => {
 
         // Check if this user/unit combination has already responded
         const alreadyResponded = report.responders?.some(
-            r => r.user.toString() === responder._id.toString() && r.unitName === unitName
+            r => r.user?.toString() === responder._id.toString() && r.unitName === unitName
         );
 
         if (alreadyResponded) {
@@ -1213,7 +1224,7 @@ export const resolveReport = async (req, res) => {
 
         // Only the first responder or a joined responding unit can resolve.
         const isFirstResponder = report.respondedBy && report.respondedBy.toString() === responder._id.toString();
-        const isJoinedResponder = report.responders?.some(r => r.user && r.user.toString() === responder._id.toString());
+        const isJoinedResponder = report.responders?.some(r => r.user?.toString() === responder._id.toString());
 
         if (!isFirstResponder && !isJoinedResponder) {
             return res.status(403).json({

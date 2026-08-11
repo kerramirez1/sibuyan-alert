@@ -184,11 +184,13 @@ const MainLayout = ({ children }) => {
                                         : user?.role === 'responder'
                                             ? location.pathname === '/admin'
                                             : location.pathname === '/';
-                            const homeLabel = user?.role === 'municipal_admin'
-                                ? 'Analytics Dashboard'
-                                : user?.role === 'responder'
-                                    ? 'Responder Dashboard'
-                                    : 'Home';
+                            const homeLabel = !isAuthenticated
+                                ? 'Overview'
+                                : user?.role === 'municipal_admin'
+                                    ? 'Analytics Dashboard'
+                                    : user?.role === 'responder'
+                                        ? 'Responder Dashboard'
+                                        : 'Home';
 
                             return (
                                 <div className="space-y-0.5">
@@ -216,20 +218,7 @@ const MainLayout = ({ children }) => {
                                         <span className="truncate">Map</span>
                                      </NavLink>
 
-                                    {!isAuthenticated && (
-                                        <NavLink
-                                            to="/dashboard?view=map&panel=incidents"
-                                            className={() => getNavLinkClass(
-                                                location.pathname === '/dashboard'
-                                                && currentView === 'map'
-                                                && currentPanel === 'incidents'
-                                            )}
-                                            onClick={() => setSidebarOpen(false)}
-                                        >
-                                            <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
-                                            <span className="truncate">Active Incidents</span>
-                                        </NavLink>
-                                    )}
+
 
                                      <NavLink
                                         to="/accident-history"

@@ -105,6 +105,8 @@ export const AuthProvider = ({ children }) => {
                 navigate('/admin/reports?view=dispatch-queue');
             } else if (user.role === 'municipal_admin') {
                 navigate('/admin');
+            } else if (user.role === 'reporter') {
+                navigate('/reporter');
             } else {
                 navigate('/dashboard');
             }

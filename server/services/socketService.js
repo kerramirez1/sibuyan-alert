@@ -223,7 +223,7 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
     // 2. Alert the target municipality specifically
     io.to(`municipality_${toMuni}`).emit('localIncidentTransferredIn', eventData);
     io.to(`municipality_${toMuni}_responders`).emit('reportVerifiedAlert', {
-        ...report.toObject(),
+        ...(typeof report.toObject === 'function' ? report.toObject() : report),
         id: report._id,
         timestamp: new Date()
     });

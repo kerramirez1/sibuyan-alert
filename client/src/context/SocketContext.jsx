@@ -230,7 +230,7 @@ export const SocketProvider = ({ children }) => {
             return () => socket.off(event, callback);
         }
         return () => { };
-    }, [socket, user?.role]);
+    }, [socket]);
 
     // Clear notifications
     const clearNotifications = useCallback(() => {
