@@ -4,6 +4,28 @@ import {
     SIBUYAN_MUNICIPALITY_NAMES,
 } from '../config/sibuyanLocations.js';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
+import {
+    INCIDENT_CATEGORY_NAMES,
+    isSupportedIncidentType,
+} from '../config/incidentCategories.js';
+
+const REPORT_COUNT_FIELDS = [
+    ['casualties', 'injured'],
+    ['casualties', 'fatalities'],
+    ['casualties', 'missing'],
+    ['affectedArea', 'householdsAffected'],
+    ['affectedArea', 'evacuees'],
+];
+
+const readNestedOrMultipartValue = (bodyValue, group, field) => (
+    bodyValue?.[group]?.[field] ?? bodyValue?.[`${group}[${field}]`]
+);
+
+const isNonNegativeSafeInteger = (value) => {
+    if (value === undefined || value === null || value === '') return true;
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number >= 0;
+};
 
 /**
  * Middleware to check validation results and return errors if any.
@@ -81,6 +103,30 @@ export const validateResetPassword = [
 
 export const validateCreateReport = [
     body().custom((_, { req }) => {
+        const incidentTime = req.body.incidentTime || req.body.accidentTime;
+        if (!incidentTime) throw new Error('Incident time is required');
+        if (Number.isNaN(Date.parse(incidentTime))) {
+            throw new Error('Incident time must be a valid date');
+        }
+
+        const category = req.body.incidentCategory || 'accident';
+        const type = req.body.incidentType || req.body.accidentType || 'vehicular';
+        if (!INCIDENT_CATEGORY_NAMES.includes(category)) {
+            throw new Error('Invalid incident category');
+        }
+        if (!isSupportedIncidentType(category, type)) {
+            throw new Error('Invalid incident type');
+        }
+
+        for (const [group, field] of REPORT_COUNT_FIELDS) {
+            const value = readNestedOrMultipartValue(req.body, group, field);
+            if (!isNonNegativeSafeInteger(value)) {
+                throw new Error(`${field} must be a non-negative whole number`);
+            }
+        }
+        return true;
+    }),
+    body().custom((_, { req }) => {
         const hasLat = req.body.lat !== undefined && req.body.lat !== '';
         const hasLng = req.body.lng !== undefined && req.body.lng !== '';
         if (hasLat !== hasLng) throw new Error('Latitude and longitude must be provided together');
@@ -117,6 +163,11 @@ export const validateCreateReport = [
     body('description')
         .optional({ checkFalsy: true })
         .isLength({ max: 2000 }).withMessage('Description cannot exceed 2000 characters'),
+    handleValidationErrors,
+];
+
+export const validateMongoIdParam = [
+    param('id').isMongoId().withMessage('Invalid resource ID'),
     handleValidationErrors,
 ];
 

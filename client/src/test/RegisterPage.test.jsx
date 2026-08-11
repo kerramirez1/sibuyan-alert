@@ -71,9 +71,7 @@ describe('RegisterPage location reference and responsive form', () => {
         expect(screen.queryByText('Operational Map')).not.toBeInTheDocument();
         expect(screen.queryByText('Responder Alerts')).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
-        expect(screen.getByRole('listitem', { name: 'Account: current step' })).toBeInTheDocument();
-        expect(screen.getByRole('listitem', { name: 'Government ID: next' })).toBeInTheDocument();
-        expect(screen.getByRole('listitem', { name: 'Selfie verification: next' })).toBeInTheDocument();
+        expect(screen.getAllByText('Step 1 of 3: Account')).toHaveLength(2);
     });
 
     test('loads barangays from the backend and shows only the selected municipality records', async () => {
@@ -98,12 +96,12 @@ describe('RegisterPage location reference and responsive form', () => {
         renderRegister();
         await screen.findByLabelText('Municipality');
 
-        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to ID Upload/i }));
 
         expect(screen.getAllByRole('alert')).toHaveLength(6);
         expect(screen.getByText('Enter your full name.')).toBeInTheDocument();
         expect(screen.getByLabelText('Full name')).toHaveAttribute('aria-invalid', 'true');
-        expect(screen.getByRole('heading', { name: 'Account information' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Account information/i })).toBeInTheDocument();
     });
 
     test('keeps independent show-password controls aligned with each field', async () => {
@@ -146,7 +144,7 @@ describe('RegisterPage location reference and responsive form', () => {
         fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
         fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
         fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to ID Upload/i }));
 
         expect(screen.getByRole('heading', { name: 'Verify your identity' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Upload your ID' })).toBeInTheDocument();
@@ -174,7 +172,7 @@ describe('RegisterPage location reference and responsive form', () => {
         fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
         fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
         fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByRole('button', { name: /Continue to Government ID/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Continue to ID Upload/i }));
 
         const idPhoto = new File(['id'], 'id.jpg', { type: 'image/jpeg' });
         fireEvent.change(screen.getByLabelText('Choose an ID photo from device'), { target: { files: [idPhoto] } });

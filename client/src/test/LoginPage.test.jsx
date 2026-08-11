@@ -38,11 +38,11 @@ describe('LoginPage system-accurate content', () => {
         expect(screen.getByRole('img', { name: 'Magdiwang seal' })).toHaveAttribute('src', '/icons/Magdiwang.logo.png');
         expect(screen.getByRole('img', { name: 'San Fernando seal' })).toHaveAttribute('src', '/icons/Sanfernando.logo.png');
         expect(screen.getByRole('complementary', { name: 'Sibuyan Alert system overview' })).toHaveClass('bg-brand-950');
-        expect(screen.getByRole('button', { name: 'Sign in' })).toHaveClass('min-h-12', 'bg-brand-700');
+        expect(screen.getByRole('button', { name: /Sign in/i })).toHaveClass('min-h-12', 'bg-brand-700');
         expect(screen.getByRole('link', { name: /Register as a reporter/i })).toHaveAttribute('href', '/register');
         expect(screen.getByRole('link', { name: /View public incident map/i })).toHaveAttribute('href', '/dashboard?view=map');
-        expect(screen.getByText(/Submit incident reports after approval/i)).toBeInTheDocument();
-        expect(screen.getByText(/no sign-in required/i)).toBeInTheDocument();
+        expect(screen.getByText(/Submit incident reports after administrator approval/i)).toBeInTheDocument();
+        expect(screen.getByText(/Accessible without an account/i)).toBeInTheDocument();
 
         expect(screen.queryByText('Operational Map')).not.toBeInTheDocument();
         expect(screen.queryByText('Responder Alerts')).not.toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('LoginPage system-accurate content', () => {
         fireEvent.change(screen.getByLabelText('Password'), {
             target: { value: 'wrong-password' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+        fireEvent.click(screen.getByRole('button', { name: /Sign in/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials');

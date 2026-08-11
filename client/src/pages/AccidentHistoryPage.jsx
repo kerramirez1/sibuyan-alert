@@ -26,10 +26,10 @@ import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
 
 const SEVERITY_CONFIG = {
-    minor:    { label: 'Minor',    dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    moderate: { label: 'Moderate', dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-    severe:   { label: 'Severe',   dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200' },
-    critical: { label: 'Critical', dot: 'bg-red-700',     badge: 'bg-red-100 text-red-800 border-red-300' },
+    minor: { label: 'Minor', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    moderate: { label: 'Moderate', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+    severe: { label: 'Severe', dot: 'bg-red-500', badge: 'bg-red-50 text-red-700 border-red-200' },
+    critical: { label: 'Critical', dot: 'bg-red-700', badge: 'bg-red-100 text-red-800 border-red-300' },
 };
 
 const INCIDENT_TYPE_LABELS = {
@@ -190,13 +190,10 @@ const AccidentHistoryPage = () => {
                 <div className="h-16 rounded-xl bg-gray-100" />
                 <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-gray-100 bg-white">
                     {[0, 1, 2, 3].map((item) => (
-                        <div key={item} className={`p-4 sm:p-6 border-gray-100 ${
-                            item % 2 === 1 ? 'border-l' : ''
-                        } ${
-                            item >= 2 ? 'border-t' : ''
-                        } md:border-t-0 ${
-                            item > 0 ? 'md:border-l' : ''
-                        }`}>
+                        <div key={item} className={`p-4 sm:p-6 border-gray-100 ${item % 2 === 1 ? 'border-l' : ''
+                            } ${item >= 2 ? 'border-t' : ''
+                            } md:border-t-0 ${item > 0 ? 'md:border-l' : ''
+                            }`}>
                             <div className="h-3 w-20 bg-gray-100 rounded" />
                             <div className="mt-3 h-6 w-12 bg-gray-200 rounded" />
                             <div className="mt-2 h-2.5 w-24 bg-gray-100 rounded" />
@@ -232,7 +229,7 @@ const AccidentHistoryPage = () => {
                 <div className={`inline-flex self-start items-center gap-2 rounded-sm border px-3 py-2 text-[11px] font-bold uppercase tracking-wider select-none ${canViewFullDetails
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                     : 'border-gray-300 bg-gray-100 text-gray-700'
-                }`} aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}>
+                    }`} aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}>
                     {canViewFullDetails
                         ? <HiOutlineShieldCheck className="w-4 h-4" />
                         : <HiOutlineEye className="w-4 h-4" />}
@@ -241,7 +238,7 @@ const AccidentHistoryPage = () => {
             </header>
 
             <section className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 md:grid-cols-4 dark:border-gray-600 dark:bg-gray-600" aria-label="History summary">
-                {metricCards.map(({ label, value, helper, icon: Icon, text }, index) => (
+                {metricCards.map(({ label, value, helper, icon: Icon, text }) => (
                     <div
                         key={label}
                         className="bg-white p-4 sm:p-5 dark:bg-gray-900"
@@ -322,151 +319,151 @@ const AccidentHistoryPage = () => {
                     </div>
                 ) : (
                     <>
-                    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-b border-gray-300 bg-gray-200 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        <span>Incident</span>
-                        <span>Municipality</span>
-                        <span>Resolved</span>
-                        <span>Severity</span>
-                        <span />
-                    </div>
+                        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-b border-gray-300 bg-gray-200 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            <span>Incident</span>
+                            <span>Municipality</span>
+                            <span>Resolved</span>
+                            <span>Severity</span>
+                            <span />
+                        </div>
 
-                    <div className="divide-y divide-gray-100">
-                        {filteredReports.map((report) => {
-                            const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
-                            const isExpanded = expandedId === report._id;
-                            const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
-                            const resolvedDate = report.resolvedAt || report.updatedAt;
-                            const casualtyCount = Number(report.casualties?.injured || 0) + Number(report.casualties?.fatalities || 0);
+                        <div className="divide-y divide-gray-100">
+                            {filteredReports.map((report) => {
+                                const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
+                                const isExpanded = expandedId === report._id;
+                                const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
+                                const resolvedDate = report.resolvedAt || report.updatedAt;
+                                const casualtyCount = Number(report.casualties?.injured || 0) + Number(report.casualties?.fatalities || 0);
 
-                            return (
-                                <article key={report._id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setExpandedId(isExpanded ? null : report._id)}
-                                        aria-expanded={isExpanded}
-                                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
-                                        className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 md:grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] md:items-center md:gap-4 md:px-5"
-                                    >
-                                        <div className="flex min-w-0 items-start gap-3">
-                                            <span
-                                                className={`mt-1.5 h-2.5 w-2.5 rounded-full ${severity.dot} shrink-0`}
-                                                title={`${severity.label} severity`}
-                                                aria-label={`${severity.label} severity indicator`}
-                                            />
-                                            <div className="min-w-0">
-                                                <p className="truncate text-sm font-semibold text-gray-900">
-                                                    {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
-                                                </p>
-                                                <p className="mt-1 truncate text-xs text-gray-500">
-                                                    {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
-                                                </p>
-                                                <p className="mt-1 text-[11px] text-gray-400 md:hidden">Incident {formatDate(incidentDate)}</p>
+                                return (
+                                    <article key={report._id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedId(isExpanded ? null : report._id)}
+                                            aria-expanded={isExpanded}
+                                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
+                                            className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 md:grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] md:items-center md:gap-4 md:px-5"
+                                        >
+                                            <div className="flex min-w-0 items-start gap-3">
+                                                <span
+                                                    className={`mt-1.5 h-2.5 w-2.5 rounded-full ${severity.dot} shrink-0`}
+                                                    title={`${severity.label} severity`}
+                                                    aria-label={`${severity.label} severity indicator`}
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-semibold text-gray-900">
+                                                        {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
+                                                    </p>
+                                                    <p className="mt-1 truncate text-xs text-gray-500">
+                                                        {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
+                                                    </p>
+                                                    <p className="mt-1 text-[11px] text-gray-400 md:hidden">Incident {formatDate(incidentDate)}</p>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="flex items-center gap-2 text-xs text-gray-600 md:block">
-                                            <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 md:hidden" />
-                                            <span className="truncate">{report.municipalityName || 'Unknown'}</span>
-                                        </div>
+                                            <div className="flex items-center gap-2 text-xs text-gray-600 md:block">
+                                                <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 md:hidden" />
+                                                <span className="truncate">{report.municipalityName || 'Unknown'}</span>
+                                            </div>
 
-                                        <div className="text-xs text-gray-600">
-                                            <p>{formatDate(resolvedDate)}</p>
-                                            <p className="mt-0.5 text-[11px] text-gray-400">{formatRelativeDate(resolvedDate)}</p>
-                                        </div>
+                                            <div className="text-xs text-gray-600">
+                                                <p>{formatDate(resolvedDate)}</p>
+                                                <p className="mt-0.5 text-[11px] text-gray-400">{formatRelativeDate(resolvedDate)}</p>
+                                            </div>
 
-                                        <div className="flex items-center justify-between gap-3 md:block">
-                                            <span className={`inline-flex rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${severity.badge}`}>{severity.label}</span>
-                                            {casualtyCount > 0 && <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 md:mt-1 md:block">{casualtyCount} casualties</span>}
-                                        </div>
+                                            <div className="flex items-center justify-between gap-3 md:block">
+                                                <span className={`inline-flex rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${severity.badge}`}>{severity.label}</span>
+                                                {casualtyCount > 0 && <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 md:mt-1 md:block">{casualtyCount} casualties</span>}
+                                            </div>
 
-                                        <HiOutlineChevronDown className={`hidden w-4 h-4 text-gray-400 transition-transform md:block ${isExpanded ? 'rotate-180' : ''}`} />
-                                    </button>
+                                            <HiOutlineChevronDown className={`hidden w-4 h-4 text-gray-400 transition-transform md:block ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
 
-                                    {isExpanded && (
-                                        <div className="border-t border-gray-300 bg-gray-100 px-4 py-5 md:px-8 dark:border-gray-600 dark:bg-gray-800">
-                                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,.8fr)]">
-                                                <div className="space-y-5">
-                                                    <div>
-                                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Incident summary</h3>
-                                                        <p className="mt-2 text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">{report.description || 'No incident description was provided.'}</p>
+                                        {isExpanded && (
+                                            <div className="border-t border-gray-300 bg-gray-100 px-4 py-5 md:px-8 dark:border-gray-600 dark:bg-gray-800">
+                                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,.8fr)]">
+                                                    <div className="space-y-5">
+                                                        <div>
+                                                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Incident summary</h3>
+                                                            <p className="mt-2 text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">{report.description || 'No incident description was provided.'}</p>
+                                                        </div>
+
+                                                        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
+                                                            {[
+                                                                ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a'), HiOutlineClock],
+                                                                ['Barangay', report.barangay || 'Not available', HiOutlineLocationMarker],
+                                                                ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a'), HiOutlineBadgeCheck],
+                                                                ['Municipality', report.municipalityName || 'Not available', HiOutlineMap],
+                                                                ['Casualties', casualtyCount ? `${report.casualties?.injured || 0} injured, ${report.casualties?.fatalities || 0} fatal` : 'None recorded', HiOutlineUserGroup],
+                                                                ...(canViewFullDetails ? [
+                                                                    ['Coordinates', getCoordinates(report), HiOutlineMap],
+                                                                    ['Reported by', report.reporter?.name || 'Anonymous', HiOutlineUserGroup],
+                                                                    ['Views', String(report.viewCount || 0), HiOutlineEye],
+                                                                ] : []),
+                                                            ].map(([label, value, Icon]) => (
+                                                                <div key={label}>
+                                                                    <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"><Icon className="w-3.5 h-3.5" />{label}</dt>
+                                                                    <dd className="mt-1 text-xs font-semibold text-gray-900 break-words dark:text-white">{value}</dd>
+                                                                </div>
+                                                            ))}
+                                                        </dl>
+
+                                                        {(report.respondedBy || report.resolvedBy) && (
+                                                            <div className="rounded-sm border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                                                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}</p>
+                                                                {canViewFullDetails && (
+                                                                    <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-500">
+                                                                        {report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}
+                                                                        {report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
-                                                        {[
-                                                            ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a'), HiOutlineClock],
-                                                            ['Barangay', report.barangay || 'Not available', HiOutlineLocationMarker],
-                                                            ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a'), HiOutlineBadgeCheck],
-                                                            ['Municipality', report.municipalityName || 'Not available', HiOutlineMap],
-                                                            ['Casualties', casualtyCount ? `${report.casualties?.injured || 0} injured, ${report.casualties?.fatalities || 0} fatal` : 'None recorded', HiOutlineUserGroup],
-                                                            ...(canViewFullDetails ? [
-                                                                ['Coordinates', getCoordinates(report), HiOutlineMap],
-                                                                ['Reported by', report.reporter?.name || 'Anonymous', HiOutlineUserGroup],
-                                                                ['Views', String(report.viewCount || 0), HiOutlineEye],
-                                                            ] : []),
-                                                        ].map(([label, value, Icon]) => (
-                                                            <div key={label}>
-                                                                <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"><Icon className="w-3.5 h-3.5" />{label}</dt>
-                                                                <dd className="mt-1 text-xs font-semibold text-gray-900 break-words dark:text-white">{value}</dd>
+                                                    <aside className="space-y-4">
+                                                        {canViewFullDetails ? (
+                                                            <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
+                                                                <div className="flex items-center justify-between">
+                                                                    <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200"><HiOutlinePhotograph className="w-4 h-4" />Evidence</h3>
+                                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{report.images?.length || 0} photos</span>
+                                                                </div>
+                                                                {report.images?.length ? (
+                                                                    <div className="mt-3 grid grid-cols-3 gap-2">
+                                                                        {report.images.map((image, index) => (
+                                                                            <button
+                                                                                key={image}
+                                                                                type="button"
+                                                                                onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
+                                                                                className="aspect-square overflow-hidden rounded-sm border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800"
+                                                                            >
+                                                                                <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">No evidence photos attached.</p>
+                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </dl>
-
-                                                    {(report.respondedBy || report.resolvedBy) && (
-                                                        <div className="rounded-sm border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                                                            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}</p>
-                                                            {canViewFullDetails && (
-                                                                <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-                                                                    {report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}
-                                                                    {report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                        ) : (
+                                                            <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
+                                                                <div className="flex items-start gap-3">
+                                                                    <HiOutlineLockClosed className="mt-0.5 w-4 h-4 text-gray-500 shrink-0 dark:text-gray-400" />
+                                                                    <div>
+                                                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Protected incident details</h3>
+                                                                        <p className="mt-1 text-xs font-semibold leading-5 text-gray-600 dark:text-gray-400">Evidence, exact coordinates, reporter identity, and response notes are available only to authorized operational users.</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </aside>
                                                 </div>
-
-                                                <aside className="space-y-4">
-                                                    {canViewFullDetails ? (
-                                                        <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                                                            <div className="flex items-center justify-between">
-                                                                <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200"><HiOutlinePhotograph className="w-4 h-4" />Evidence</h3>
-                                                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{report.images?.length || 0} photos</span>
-                                                            </div>
-                                                            {report.images?.length ? (
-                                                                <div className="mt-3 grid grid-cols-3 gap-2">
-                                                                    {report.images.map((image, index) => (
-                                                                        <button
-                                                                            key={image}
-                                                                            type="button"
-                                                                            onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
-                                                                            className="aspect-square overflow-hidden rounded-sm border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800"
-                                                                        >
-                                                                            <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">No evidence photos attached.</p>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                                                            <div className="flex items-start gap-3">
-                                                                <HiOutlineLockClosed className="mt-0.5 w-4 h-4 text-gray-500 shrink-0 dark:text-gray-400" />
-                                                                <div>
-                                                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Protected incident details</h3>
-                                                                    <p className="mt-1 text-xs font-semibold leading-5 text-gray-600 dark:text-gray-400">Evidence, exact coordinates, reporter identity, and response notes are available only to authorized operational users.</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </aside>
                                             </div>
-                                        </div>
-                                    )}
-                                </article>
-                            );
-                        })}
-                    </div>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
                     </>
                 )}
             </section>

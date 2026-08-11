@@ -4,6 +4,7 @@ import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { sortHighRiskZonesBySeverity } from '../utils/highRiskZones.js';
 import { resolveRiskZoneJurisdiction } from '../services/riskZoneJurisdictionService.js';
+import { validateMongoIdParam } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -109,7 +110,7 @@ router.post('/', protect, requireRole('municipal_admin'), async (req, res) => {
  * @desc    Update a high-risk zone
  * @access  Private (admin only)
  */
-router.put('/:id', protect, requireRole('municipal_admin'), async (req, res) => {
+router.put('/:id', protect, requireRole('municipal_admin'), validateMongoIdParam, async (req, res) => {
     try {
         const zone = await HighRiskZone.findById(req.params.id);
         const admin = req.user;
@@ -180,7 +181,7 @@ router.put('/:id', protect, requireRole('municipal_admin'), async (req, res) => 
  * @desc    Delete a high-risk zone
  * @access  Private (admin only)
  */
-router.delete('/:id', protect, requireRole('municipal_admin'), async (req, res) => {
+router.delete('/:id', protect, requireRole('municipal_admin'), validateMongoIdParam, async (req, res) => {
     try {
         const zone = await HighRiskZone.findById(req.params.id);
         const admin = req.user;

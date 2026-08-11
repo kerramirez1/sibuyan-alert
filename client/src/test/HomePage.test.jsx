@@ -70,7 +70,7 @@ describe('HomePage operational landing page', () => {
         renderPage();
 
         const metricsStrip = screen.getByTestId('landing-hero-metrics');
-        expect(await within(metricsStrip).findByText('Verified reports')).toBeInTheDocument();
+        expect(await within(metricsStrip).findByText(/Verified reports/i)).toBeInTheDocument();
         expect(await within(metricsStrip).findByText('July 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
         const mapAction = screen.getByRole('link', { name: 'View live map' });
@@ -86,18 +86,17 @@ describe('HomePage operational landing page', () => {
         expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
-        expect(screen.getByText('Municipalities covered')).toBeInTheDocument();
-        expect(screen.getByText('14 barangays')).toBeInTheDocument();
-        expect(screen.getByText('12 barangays')).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: 'Municipalities covered' })).toBeInTheDocument();
+        expect(screen.getByText('14 BRGYS')).toBeInTheDocument();
+        expect(screen.getByText('12 BRGYS')).toBeInTheDocument();
         const coverageMetrics = screen.getByTestId('coverage-metrics');
         const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
         const guarantees = screen.getByTestId('system-guarantees');
-        expect(coverageMetrics).toHaveClass('border-y');
-        expect(coverageMetrics).not.toHaveClass('rounded-2xl', 'bg-white/[0.04]');
+        expect(coverageMetrics).toHaveClass('grid', 'min-[400px]:grid-cols-3');
         expect(municipalityCoverage.tagName).toBe('UL');
-        expect(municipalityCoverage).toHaveClass('divide-y', 'border-y');
+        expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
-            expect(municipalityRow).not.toHaveClass('rounded-2xl', 'bg-white/[0.04]');
+            expect(municipalityRow).toHaveClass('rounded', 'border');
         });
         expect(screen.getByRole('img', { name: 'Cajidiocan seal' })).toBeInTheDocument();
         expect(screen.getByRole('img', { name: 'Magdiwang seal' })).toBeInTheDocument();
@@ -107,10 +106,9 @@ describe('HomePage operational landing page', () => {
         expect(guarantees).not.toHaveClass('rounded-3xl', 'bg-white/[0.05]');
         expect(screen.getByText('GPS-based incident location')).toBeInTheDocument();
         expect(screen.queryByText('GPS-based incident location with barangay verification')).not.toBeInTheDocument();
-        const emergencyNoticeLabel = screen.getByText('Emergency notice:');
-        expect(emergencyNoticeLabel).toHaveClass('text-emerald-300');
-        expect(emergencyNoticeLabel.closest('div')).toHaveClass('border-l-2', 'border-emerald-400/50');
-        expect(emergencyNoticeLabel.closest('div')).not.toHaveClass('rounded-xl', 'bg-emerald-500/10');
+        const emergencyNoticeLabel = screen.getByText('Important Notice');
+        expect(emergencyNoticeLabel).toHaveClass('text-amber-500');
+        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-xl', 'border-amber-500/50');
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Built around real municipal workflows.' })).not.toBeInTheDocument();
@@ -132,7 +130,7 @@ describe('HomePage operational landing page', () => {
             expect(stage.querySelector('span')).toHaveClass('bg-emerald-500');
         });
 
-        expect(screen.getAllByText('Active risk zones').length).toBeGreaterThan(0);
+        expect((await screen.findAllByText(/Active risk zones/i)).length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();
 
         const copy = screen.getByTestId('landing-hero-copy');
@@ -151,8 +149,7 @@ describe('HomePage operational landing page', () => {
         expect(mapContainer).toHaveClass('self-stretch', 'lg:self-start');
         expect(mapContainer).not.toHaveClass('lg:pt-10');
         expect(mapPreview).toHaveClass('max-w-[210px]', 'sm:max-w-[360px]', 'lg:max-w-[450px]', 'xl:max-w-[500px]');
-        expect(staticMapFrame).toHaveClass('overflow-hidden', 'p-1', 'sm:p-1.5', 'lg:p-1');
-        expect(staticMapFrame).not.toHaveClass('p-2', 'sm:p-2.5');
+        expect(staticMapFrame).toHaveClass('relative', 'border', 'p-3', 'sm:p-4');
         expect(staticMapPreview).toHaveClass('h-auto', 'w-full', 'object-contain');
         expect(staticMapPreview).toHaveAttribute('width', '640');
         expect(staticMapPreview).toHaveAttribute('height', '530');
@@ -164,8 +161,8 @@ describe('HomePage operational landing page', () => {
         expect(actions).toHaveClass('order-4', 'basis-full', 'flex-col', 'lg:basis-auto');
         expect(primaryActions).toHaveClass('w-full', 'flex-nowrap', 'items-center');
         expect(footerGrid).toHaveClass('grid-cols-2', 'lg:grid-cols-[1.6fr_1fr_1fr]');
-        expect(screen.getByText('Navigate').parentElement).toHaveClass('min-w-0');
-        expect(screen.getByText('Legal').parentElement).toHaveClass('min-w-0');
+        expect(screen.getByText('Quick Links').parentElement).toHaveClass('min-w-0');
+        expect(screen.getByText('Legal Information').parentElement).toHaveClass('min-w-0');
         const benefits = screen.getByTestId('landing-hero-benefits');
         expect(benefits).toHaveClass('lg:self-start');
         expect(benefits).not.toHaveClass('lg:pt-10');
@@ -180,10 +177,10 @@ describe('HomePage operational landing page', () => {
             'Responder dispatch',
         ]);
         expect(within(benefitList).getByText('View mapped high-risk areas and monitored hazard zones on the live map.')).toBeInTheDocument();
-        expect(benefitList).toHaveClass('divide-y', 'lg:py-0.5');
+        expect(benefitList).toHaveClass('flex', 'flex-col', 'gap-6', 'lg:mt-2');
         expect(benefitList).not.toHaveClass('overflow-y-auto', 'overflow-hidden', 'max-h-full');
         benefitRows.forEach((row) => {
-            expect(row).toHaveClass('gap-2.5', 'py-3.5', 'sm:py-3', 'lg:py-2.5');
+            expect(row).toHaveClass('flex', 'items-start', 'gap-4');
         });
         const metrics = screen.getByTestId('landing-hero-metrics');
         expect(copy.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

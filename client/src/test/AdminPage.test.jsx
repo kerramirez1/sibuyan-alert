@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     user: {
@@ -53,6 +53,11 @@ vi.mock('../components/dashboard/ResponderDashboardWorkspace', () => ({
 const { default: AdminPage } = await import('../pages/AdminPage');
 
 describe('AdminPage responder dashboard orchestration', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.callbacks = {};
@@ -84,15 +89,22 @@ describe('AdminPage responder dashboard orchestration', () => {
             'highRiskZoneDeleted',
         ]));
 
+        let scheduledRefresh;
+        vi.spyOn(window, 'setTimeout').mockImplementation((callback) => {
+            scheduledRefresh = callback;
+            return 1;
+        });
         act(() => {
             mocks.callbacks.reportTransferred({ id: 'report-1' });
             mocks.callbacks.highRiskZoneCreated({ _id: 'zone-1' });
         });
 
-        await waitFor(
-            () => expect(mocks.getResponder).toHaveBeenCalledTimes(2),
-            { timeout: 3000 },
-        );
+        await act(async () => {
+            scheduledRefresh();
+            await Promise.resolve();
+        });
+
+        expect(mocks.getResponder).toHaveBeenCalledTimes(2);
     });
 
     test('exposes separate analytics and presence failures to the workspace', async () => {

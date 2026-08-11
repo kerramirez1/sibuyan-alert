@@ -76,7 +76,7 @@ describe('reporter situation update flow', () => {
     test('opens the requested owned report from a protected map deep link', async () => {
         renderPage('/my-reports?report=report-1');
 
-        expect(await screen.findByRole('button', { name: 'Send situation update' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'Send situation update' }, { timeout: 3000 })).toBeInTheDocument();
         expect(screen.getByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
     });
 

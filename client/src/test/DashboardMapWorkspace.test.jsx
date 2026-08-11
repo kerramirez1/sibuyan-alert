@@ -82,20 +82,17 @@ describe('DashboardMapWorkspace permissions', () => {
         );
     });
 
-    test('keeps primary map actions above the map and moves the four-card summary below it', () => {
+    test('keeps the four-metric summary after the live map', () => {
         renderWorkspace(createProps());
 
-        const incidentsAction = screen.getByRole('button', { name: /^incidents$/i });
-        const riskZonesAction = screen.getByRole('button', { name: /^risk zones$/i });
         const liveMap = screen.getByRole('region', { name: 'Live incident map' });
         const summary = screen.getByRole('region', { name: 'Map summary' });
+        const incidentsAction = within(summary).getByRole('button', { name: /View 0 active incidents/i });
+        const riskZonesAction = within(summary).getByRole('button', { name: /View 0 risk zones/i });
 
-        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-2', 'lg:flex');
-        expect(incidentsAction).toHaveClass('w-full', 'min-w-0', 'lg:w-auto');
-        expect(riskZonesAction).toHaveClass('w-full', 'min-w-0', 'lg:w-auto');
-        expect(incidentsAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(riskZonesAction.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
+        expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
     });
 
     test('uses one lightweight overview strip instead of four heavy cards', () => {
@@ -109,13 +106,11 @@ describe('DashboardMapWorkspace permissions', () => {
         const cards = Array.from(summary.lastElementChild.children);
 
         expect(cards).toHaveLength(4);
-        expect(summary.lastElementChild).toHaveClass('rounded-xl', 'border', 'border-gray-200', 'bg-white');
+        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'gap-px', 'lg:grid-cols-4');
         cards.forEach((card) => {
             expect(card).not.toHaveClass('bg-gray-100', 'rounded-xl', 'shadow-sm');
         });
-        expect(cards[0]).not.toHaveClass('border-l', 'border-t');
-        expect(cards[1]).toHaveClass('border-l');
-        expect(cards[2]).toHaveClass('border-t', 'lg:border-l');
+        expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });
 
     test('renders every role-specific overview metric as a full semantic button', () => {
@@ -158,7 +153,7 @@ describe('DashboardMapWorkspace permissions', () => {
             metricButtons.forEach((button) => {
                 expect(button).toHaveAttribute('type', 'button');
                 expect(button).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
-                expect(button).toHaveClass('focus-visible:ring-2', 'active:bg-gray-100');
+                expect(button).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-inset');
             });
             unmount();
         });
@@ -386,8 +381,8 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Transferred/i);
         expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Responding/i);
 
-        fireEvent.click(screen.getByRole('button', { name: /^incidents$/i }));
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('incidents');
+        fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-active');
     });
 
     test('keeps the guest map public and free of operational controls', () => {
@@ -556,10 +551,10 @@ describe('DashboardMapWorkspace permissions', () => {
             coordinates: { lat: 12.405, lng: 122.69 },
         };
         const props = createProps({ reports: [report], highRiskZones: [zone] });
-        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'incidents' });
+        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'overview:public-active' });
 
-        const incidentControl = screen.getByRole('button', { name: 'Incidents' });
-        const riskZoneControl = screen.getByRole('button', { name: 'Risk zones' });
+        const incidentControl = screen.getByRole('button', { name: /View 1 active incidents/i });
+        const riskZoneControl = screen.getByRole('button', { name: /View 1 risk zones/i });
         const panel = screen.getByRole('dialog', { name: 'Active incidents' });
         expect(incidentControl).toHaveAttribute('aria-pressed', 'true');
         expect(riskZoneControl).toHaveAttribute('aria-pressed', 'false');
@@ -567,14 +562,14 @@ describe('DashboardMapWorkspace permissions', () => {
 
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="zones" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:public-risk-zones" />
             </MemoryRouter>,
         );
 
-        expect(screen.getByRole('dialog', { name: 'High-risk zones' })).toBe(panel);
+        expect(screen.getByRole('dialog', { name: 'Active risk zones' })).toBe(panel);
         expect(screen.getByText('1 monitored zone')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Incidents' })).toHaveAttribute('aria-pressed', 'false');
-        expect(screen.getByRole('button', { name: 'Risk zones' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: /View 1 active incidents/i })).toHaveAttribute('aria-pressed', 'false');
+        expect(screen.getByRole('button', { name: /View 1 risk zones/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     test('locates a risk zone using its real marker identity and closes the summary panel', () => {
@@ -624,7 +619,7 @@ describe('DashboardMapWorkspace permissions', () => {
             mapSummaryPanel: 'incidents',
         }));
 
-        expect(screen.getByRole('button', { name: 'Incidents' })).toHaveTextContent('1');
+        expect(screen.getByRole('button', { name: /View 1 pending\. Awaiting review/i })).toHaveTextContent('1');
         const incidentPanel = screen.getByRole('dialog', { name: 'Active incidents' });
         expect(within(incidentPanel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
         expect(within(incidentPanel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
@@ -644,7 +639,7 @@ describe('DashboardMapWorkspace permissions', () => {
         });
         const { rerender } = renderWorkspace(props);
 
-        expect(screen.getByRole('button', { name: 'Risk zones' })).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('button', { name: /View 0 risk zones/i })).toHaveAttribute('aria-busy', 'true');
         expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Loading risk zones');
         expect(screen.getByTestId('map-view')).toBeInTheDocument();
 
@@ -658,7 +653,7 @@ describe('DashboardMapWorkspace permissions', () => {
             </MemoryRouter>,
         );
 
-        expect(screen.getByRole('button', { name: 'Risk zones' })).toHaveTextContent('—');
+        expect(screen.getByRole('button', { name: /View 0 risk zones/i })).not.toHaveAttribute('aria-busy');
         expect(screen.getAllByText('High-risk zones are temporarily unavailable.')).toHaveLength(2);
         fireEvent.click(screen.getByRole('button', { name: 'Retry risk zones' }));
         expect(onRetryHighRiskZones).toHaveBeenCalledTimes(1);

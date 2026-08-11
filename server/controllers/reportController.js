@@ -10,17 +10,9 @@ import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS } from '../services/gridFsService.js';
+import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 
-/**
- * Incident Categories Configuration
- */
-const INCIDENT_CATEGORIES = {
-    accident: {
-        label: 'Vehicle Accident',
-        types: ['vehicular', 'motorcycle', 'pedestrian', 'bicycle', 'maritime', 'other'],
-        emoji: '🚗',
-    },
-};
+const toValidatedCount = (value) => Number(value ?? 0);
 
 /**
  * @desc    Create a new incident report
@@ -54,15 +46,15 @@ export const createReport = async (req, res) => {
         // Parse casualties and affected area from form data
         const casInput = req.body.casualties || {};
         const casualties = {
-            injured: parseInt(casInput.injured ?? req.body['casualties[injured]']) || 0,
-            fatalities: parseInt(casInput.fatalities ?? req.body['casualties[fatalities]']) || 0,
-            missing: parseInt(casInput.missing ?? req.body['casualties[missing]']) || 0,
+            injured: toValidatedCount(casInput.injured ?? req.body['casualties[injured]']),
+            fatalities: toValidatedCount(casInput.fatalities ?? req.body['casualties[fatalities]']),
+            missing: toValidatedCount(casInput.missing ?? req.body['casualties[missing]']),
         };
 
         const areaInput = req.body.affectedArea || {};
         const affectedArea = {
-            householdsAffected: parseInt(areaInput.householdsAffected ?? req.body['affectedArea[householdsAffected]']) || 0,
-            evacuees: parseInt(areaInput.evacuees ?? req.body['affectedArea[evacuees]']) || 0,
+            householdsAffected: toValidatedCount(areaInput.householdsAffected ?? req.body['affectedArea[householdsAffected]']),
+            evacuees: toValidatedCount(areaInput.evacuees ?? req.body['affectedArea[evacuees]']),
         };
 
         // Validate required fields
@@ -299,7 +291,6 @@ export const createReport = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to create report',
-            error: error.message,
         });
     }
 };
@@ -905,7 +896,6 @@ export const geocodeLocation = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to geocode location',
-            error: error.message,
         });
     }
 };

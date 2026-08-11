@@ -5,26 +5,19 @@ import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineBadgeCheck,
-    HiOutlineChartBar,
     HiOutlineChatAlt2,
     HiOutlineCheckCircle,
     HiOutlineChevronDown,
     HiOutlineClipboardList,
     HiOutlineClock,
     HiOutlineExclamation,
-    HiOutlineExclamationCircle,
-    HiOutlineEye,
     HiOutlineFilter,
     HiOutlineLightningBolt,
-    HiOutlineLocationMarker,
-    HiOutlinePhotograph,
-    HiOutlineShieldCheck,
     HiOutlineSwitchHorizontal,
     HiOutlineXCircle,
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ImageViewer from '../components/ui/ImageViewer';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
@@ -43,40 +36,6 @@ const SEVERITY_CONFIG = {
     moderate: { label: 'Moderate', color: 'border border-gray-300 bg-gray-50 text-amber-700 dark:border-gray-600 dark:bg-gray-800 dark:text-amber-500' },
     severe: { label: 'Severe', color: 'border border-gray-300 bg-gray-50 text-orange-700 dark:border-gray-600 dark:bg-gray-800 dark:text-orange-500' },
     critical: { label: 'Critical', color: 'border border-red-300 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400' },
-};
-
-const IncidentTypeIcon = ({ type, className = "h-5 w-5" }) => {
-    const t = (type || '').toLowerCase();
-    if (t.includes('motorcycle') || t.includes('motor')) {
-        return (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="5.5" cy="17.5" r="3.5" />
-                <circle cx="18.5" cy="17.5" r="3.5" />
-                <path d="M15 6a3 3 0 1 0-6 0v0c0 1.5 1 2 2.5 2h3C16 8 17 9.5 17 11v3" />
-                <path d="M8.5 17.5H5.5" />
-                <path d="M12 17.5h-1" />
-            </svg>
-        );
-    }
-    if (t.includes('pedestrian')) {
-        return (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="5" r="1.5" />
-                <path d="M12 12l-2-2 1-3" />
-                <path d="M12 12l3 3 1.5-1" />
-                <path d="M12 12v5l-2.5 3" />
-                <path d="M12 17l3 3" />
-            </svg>
-        );
-    }
-    return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-            <circle cx="7" cy="17" r="2" />
-            <path d="M9 17h6" />
-            <circle cx="17" cy="17" r="2" />
-        </svg>
-    );
 };
 
 const FILTERS = ['all', 'pending', 'verified', 'transferred', 'responding', 'resolved', 'rejected'];
@@ -407,7 +366,7 @@ function MyReportsPage() {
                                                 <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{getLocation(report)}</h3>
                                                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
                                                     <span className="font-semibold">{formatIncidentType(report)}</span>
-                                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">•</span>
+                                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">&bull;</span>
                                                     <span>Submitted {formatRelativeDate(report.createdAt)}</span>
                                                 </div>
                                             </div>
@@ -454,7 +413,7 @@ function MyReportsPage() {
                                                 <div>
                                                     <p className="text-[11px] font-medium text-gray-500">Current status</p>
                                                     <p className="mt-1 text-sm font-medium text-gray-900">
-                                                        {status.label} <span className="font-normal text-gray-500">· Updated {formatRelativeDate(report.updatedAt || report.createdAt)}</span>
+                                                        {status.label} <span className="font-normal text-gray-500">&middot; Updated {formatRelativeDate(report.updatedAt || report.createdAt)}</span>
                                                     </p>
                                                     {report.respondedBy && (
                                                         <p className="mt-1 text-xs text-gray-500">

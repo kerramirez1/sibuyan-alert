@@ -72,7 +72,7 @@ describe('MainLayout responsive navigation', () => {
         const reportsLink = screen.getByRole('link', { name: 'Incident Reports' });
         expect(reportsLink.querySelector('svg')).toBeInTheDocument();
         expect(reportsLink.querySelector('img')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-10', 'w-full');
+        expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass('min-h-9', 'w-full');
         const main = screen.getByRole('main');
         expect(main).toHaveClass('min-h-0', 'overscroll-contain', 'pt-3', 'sm:pt-4', 'lg:pt-5');
         expect(main.parentElement).toHaveClass('min-h-0', 'overflow-hidden');
@@ -85,7 +85,7 @@ describe('MainLayout responsive navigation', () => {
 
         expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-900/40');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
-        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.includes('bg-brand-900/40'));
+        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.split(/\s+/).includes('bg-brand-900/40'));
         expect(activeLinks).toHaveLength(1);
     });
 

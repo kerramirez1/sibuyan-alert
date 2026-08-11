@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from '../router';
-import { useAuth } from '../context/AuthContext';
+import { Link } from '../router';
 import { useSocket } from '../context/SocketContext';
 import { reportsAPI } from '../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineDocumentAdd,
     HiOutlineGlobe,
-    HiOutlineClock,
-    HiOutlineLightningBolt,
-    HiOutlineBadgeCheck,
     HiOutlineClipboardList,
 } from 'react-icons/hi';
 
@@ -50,8 +46,6 @@ const getLocation = (report) => (
 );
 
 const ReporterDashboardPage = () => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

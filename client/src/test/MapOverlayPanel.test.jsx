@@ -13,7 +13,7 @@ describe('MapOverlayPanel', () => {
         const dialog = screen.getByRole('dialog', { name: 'Incident details' });
         const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
 
-        expect(dialog).toHaveClass('max-h-[calc(100dvh-1rem)]', 'sm:max-h-[90dvh]', 'sm:max-w-2xl');
+        expect(dialog).toHaveClass('max-h-[calc(100dvh-2rem)]', 'sm:max-h-[calc(100dvh-2rem)]', 'sm:max-w-2xl');
         expect(dialog.parentElement?.parentElement).toBe(document.body);
         expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto', 'overscroll-contain');
         expect(screen.getByRole('button', { name: 'Close incident panel' })).toHaveFocus();
@@ -88,7 +88,7 @@ describe('MapOverlayPanel', () => {
         const dialog = screen.getByRole('dialog', { name: 'Risk-zone details' });
         expect(dialog).toHaveAttribute('id', 'map-context-panel');
         expect(dialog).toHaveAccessibleDescription('1 monitored zone');
-        expect(dialog).toHaveClass('pointer-events-auto', 'sm:max-h-full', 'sm:w-[min(24rem,42%)]');
+        expect(dialog).toHaveClass('pointer-events-auto', 'sm:max-h-[calc(100%-2rem)]', 'sm:w-[min(24rem,42%)]');
         expect(dialog).not.toHaveClass('sm:h-full', 'sm:max-h-none');
         expect(dialog.parentElement).toHaveClass('items-end', 'sm:items-start');
         expect(dialog.parentElement).not.toHaveClass('sm:items-stretch');

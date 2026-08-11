@@ -91,12 +91,12 @@ const hasValidBounds = (bounds) => (
  * later Locate action can safely replace an in-progress flight.
  */
 export const focusExistingMapEntity = (map, entityFocus, options = {}) => {
-    if (!map || !entityFocus) return () => {};
+    if (!map || !entityFocus) return () => { };
 
     const lat = Number(entityFocus.coordinates?.lat);
     const lng = Number(entityFocus.coordinates?.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => {};
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => {};
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => { };
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => { };
 
     const prefersReducedMotion = options.reducedMotion
         ?? globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
@@ -122,15 +122,44 @@ export const focusExistingMapEntity = (map, entityFocus, options = {}) => {
     map.resize?.();
     map.stop?.();
 
-
+    if (prefersReducedMotion) {
+        const immediateCamera = {
+            center: [lng, lat],
+            zoom,
+            bearing: MAP_FOCUS_CONFIG.bearing,
+            pitch: MAP_FOCUS_CONFIG.pitch,
+        };
+        if (typeof map.jumpTo === 'function') {
+            map.jumpTo(immediateCamera);
+        } else {
+            map.flyTo?.({ ...immediateCamera, duration: 0, essential: false });
+        }
+        complete();
+        return () => map.off?.('moveend', complete);
+    }
 
     map.once?.('moveend', complete);
-    map.flyTo?.({
-        center: [lng, lat],
-        zoom: 15,
-        essential: true,
-        duration: 1500,
-    });
+    if (
+        entityFocus.type === 'risk-zone'
+        && hasValidBounds(entityFocus.bounds)
+        && typeof map.fitBounds === 'function'
+    ) {
+        map.fitBounds(entityFocus.bounds, {
+            padding: riskZonePadding,
+            duration,
+            essential: false,
+        });
+    } else {
+        map.flyTo?.({
+            center: [lng, lat],
+            zoom,
+            bearing: MAP_FOCUS_CONFIG.bearing,
+            pitch: MAP_FOCUS_CONFIG.pitch,
+            curve: MAP_FOCUS_CONFIG.curve,
+            essential: false,
+            duration,
+        });
+    }
     if (map.isMoving?.() === false) complete();
 
     return () => map.off?.('moveend', complete);
@@ -141,12 +170,12 @@ export const focusExistingMapEntity = (map, entityFocus, options = {}) => {
  * the same native flyTo lifecycle used by incident and risk-zone Locate flows.
  */
 export const scheduleMapFocus = (map, location, fallback = {}) => {
-    if (!map || !location) return () => {};
+    if (!map || !location) return () => { };
 
     const lat = Number(location.lat);
     const lng = Number(location.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => {};
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => {};
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return () => { };
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return () => { };
 
     const prefersReducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     const options = {
@@ -166,7 +195,7 @@ export const scheduleMapFocus = (map, location, fallback = {}) => {
 
 /** Smoothly centers an element inside the application's nearest scroll area. */
 export const scheduleElementScroll = (element, options = {}) => {
-    if (!element) return () => {};
+    if (!element) return () => { };
 
     const delay = Math.max(0, asFiniteNumber(options.delay, MAP_SCROLL_PRESET.delay));
     const duration = Math.max(0, asFiniteNumber(options.duration, MAP_SCROLL_PRESET.duration));
@@ -187,22 +216,22 @@ export const scheduleElementScroll = (element, options = {}) => {
         const startTop = scrollContainer.scrollTop;
         const containerRect = scrollContainer.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
-        
+
         const relativeTop = elementRect.top - containerRect.top;
         const viewportHeight = containerRect.height;
-        
+
         let targetOffset = (viewportHeight - elementRect.height) / 2;
 
         if (behavior === 'reveal') {
             const relativeBottom = elementRect.bottom - containerRect.top;
-            
+
             // If the top of the element is nicely visible within the upper 120px 
             // OR the element is large and currently covers most of the viewport
             const isTopNicelyVisible = relativeTop >= 0 && relativeTop <= 120;
             const isLargeAndCovering = relativeTop < 0 && relativeBottom > viewportHeight * 0.7;
-            
+
             if (isTopNicelyVisible || isLargeAndCovering) return;
-            
+
             // Provide a comfortable 80px breathing room from the top, or center if the element is small
             targetOffset = Math.min(80, (viewportHeight - elementRect.height) / 2);
         }
@@ -211,7 +240,7 @@ export const scheduleElementScroll = (element, options = {}) => {
         const maximumTop = Math.max(0, scrollContainer.scrollHeight - viewportHeight);
         const targetTop = Math.min(maximumTop, Math.max(0, unclampedTarget));
         const distance = targetTop - startTop;
-        
+
         if (Math.abs(distance) < 20) return;
 
         const startedAt = globalThis.performance?.now() ?? Date.now();
@@ -238,7 +267,7 @@ export const scheduleElementScroll = (element, options = {}) => {
  * preventing the expanded attribution strip from obscuring operational maps.
  */
 export const installCompactAttribution = (map, attributionControl, position = 'bottom-left') => {
-    if (!map || !attributionControl) return () => {};
+    if (!map || !attributionControl) return () => { };
 
     map.addControl(attributionControl, position);
     const container = map.getContainer?.();
@@ -301,7 +330,7 @@ export const installCompassOrientationToggle = (
     fallbackOrientation = { bearing: 0, pitch: 0 },
 ) => {
     const compassButton = navigationControl?._compass;
-    if (!map || !compassButton) return () => {};
+    if (!map || !compassButton) return () => { };
 
     const fallback = normalizeOrientation(fallbackOrientation);
     const initial = normalizeOrientation({

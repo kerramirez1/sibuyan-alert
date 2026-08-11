@@ -80,7 +80,7 @@ const Coverage = ({ municipalities }) => {
                     </ul>
                 </div>
 
-                {/* ── Trust + disclaimer block ─────────────────────────────── */}
+                {/* Trust and emergency disclaimer */}
                 <aside
                     data-testid="system-guarantees"
                     className="border-t border-white/15 pt-10 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0 xl:pl-16"

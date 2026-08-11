@@ -325,9 +325,14 @@ configureProductionClient(app);
 app.use((err, req, res, _next) => {
     console.error('❌ Error:', err);
 
-    res.status(err.status || 500).json({
+    const status = Number.isInteger(err.status) && err.status >= 400 && err.status <= 599
+        ? err.status
+        : 500;
+    const exposeDetails = status < 500 || process.env.NODE_ENV === 'development';
+
+    res.status(status).json({
         success: false,
-        message: err.message || 'Internal server error',
+        message: exposeDetails && err.message ? err.message : 'Internal server error',
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
 });
@@ -378,4 +383,3 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
-

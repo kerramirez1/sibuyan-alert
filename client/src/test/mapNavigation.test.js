@@ -4,7 +4,6 @@ import {
     installCompassOrientationToggle,
     installCompactAttribution,
     isWithinSibuyanInteractionBounds,
-    MAP_FOCUS_CONFIG,
     MAP_FOCUS_PRESETS,
     MAP_INTERACTION_OPTIONS,
     scheduleMapFocus,
@@ -102,9 +101,9 @@ describe('scheduleMapFocus', () => {
         expect(map.resize).toHaveBeenCalledOnce();
         expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 15,
-            duration: 1500,
-            essential: true,
+            zoom: MAP_FOCUS_PRESETS.list.zoom,
+            duration: MAP_FOCUS_PRESETS.list.duration,
+            essential: false,
         }));
     });
 
@@ -118,7 +117,7 @@ describe('scheduleMapFocus', () => {
         });
 
         expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
-            duration: 1500,
+            duration: MAP_FOCUS_PRESETS.list.duration,
         }));
     });
 
@@ -150,12 +149,11 @@ describe('scheduleMapFocus', () => {
         });
         vi.runAllTimers();
 
-        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 15,
-            duration: 1500,
-            essential: true,
+            zoom: MAP_FOCUS_PRESETS.list.zoom,
         }));
+        expect(map.flyTo).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
         vi.useRealTimers();
     });
@@ -192,11 +190,11 @@ describe('focusExistingMapEntity', () => {
 
         expect(map.resize).toHaveBeenCalledOnce();
         expect(map.stop).toHaveBeenCalledOnce();
-            expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 15,
-            duration: 1500,
-            essential: true,
+            zoom: MAP_FOCUS_PRESETS.list.zoom,
+            duration: MAP_FOCUS_PRESETS.list.duration,
+            essential: false,
         }));
         expect(onComplete).not.toHaveBeenCalled();
 
@@ -215,12 +213,12 @@ describe('focusExistingMapEntity', () => {
             bounds,
         }, { padding: 48, reducedMotion: false, onComplete });
 
-        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
-            center: [122.69, 12.405],
-            zoom: 15,
-            essential: true,
-            duration: 1500,
+        expect(map.fitBounds).toHaveBeenCalledWith(bounds, expect.objectContaining({
+            padding: 48,
+            essential: false,
+            duration: MAP_FOCUS_PRESETS.list.duration,
         }));
+        expect(map.flyTo).not.toHaveBeenCalled();
         handlers.get('moveend')();
         expect(onComplete).toHaveBeenCalledOnce();
     });
@@ -250,7 +248,7 @@ describe('focusExistingMapEntity', () => {
     });
 
     test('uses an immediate in-place move for reduced-motion users', () => {
-        const { handlers, map } = createLocateMap();
+        const { map } = createLocateMap();
         const onComplete = vi.fn();
 
         focusExistingMapEntity(map, {
@@ -258,13 +256,10 @@ describe('focusExistingMapEntity', () => {
             coordinates: { lat: 12.4044, lng: 122.6897 },
         }, { reducedMotion: true, onComplete });
 
-        expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({
+        expect(map.jumpTo).toHaveBeenCalledWith(expect.objectContaining({
             center: [122.6897, 12.4044],
-            zoom: 15,
-            duration: 1500,
-            essential: true,
+            zoom: MAP_FOCUS_PRESETS.list.zoom,
         }));
-        handlers.get('moveend')();
         expect(onComplete).toHaveBeenCalledOnce();
     });
 });

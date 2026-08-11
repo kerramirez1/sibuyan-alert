@@ -6,7 +6,6 @@ import {
     HiOutlineClock,
     HiOutlineEye,
     HiOutlineLightningBolt,
-    HiOutlineLocationMarker,
     HiOutlineSwitchHorizontal,
     HiOutlineTrash,
     HiOutlineXCircle,
@@ -18,7 +17,6 @@ import {
     getLatestTransfer,
     INCIDENT_STATUS,
     SEVERITY_INDICATOR_STYLES,
-    SEVERITY_STYLES,
 } from './incidentReportConfig';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 
@@ -168,50 +166,6 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
     );
 };
 
-const IncidentSummary = ({ report }) => {
-    const latestUpdate = report.latestReporterUpdate
-        || (Array.isArray(report.reportUpdates) ? report.reportUpdates[report.reportUpdates.length - 1] : null);
-    const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate.tag) : null;
-
-    return (
-        <div className="min-w-0">
-        <div className="flex items-start gap-2">
-            <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
-            <div className="min-w-0">
-                <p className="line-clamp-2 text-sm font-semibold leading-5 text-gray-950">{report.address || 'Address unavailable'}</p>
-                <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{report.description || 'No description provided'}</p>
-            </div>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize ${SEVERITY_STYLES[report.severity] || 'border-gray-200 bg-gray-50 text-gray-700'}`}>
-                {report.severity || 'Unspecified'}
-            </span>
-            <span className="text-[11px] capitalize text-gray-500">
-                {report.incidentType || report.incidentCategory || report.accidentType || 'Incident'}
-            </span>
-        </div>
-        {report.hasUnreadReporterUpdate && updateMeta && (
-            <div className="ml-6 mt-2 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-2">
-                <p className="text-[11px] font-bold text-brand-800">New reporter update · {updateMeta.label}</p>
-                {latestUpdate?.message && <p className="mt-0.5 line-clamp-1 text-xs text-brand-700">{latestUpdate.message}</p>}
-            </div>
-        )}
-        </div>
-    );
-};
-
-const ResponderSummary = ({ report }) => {
-    const responder = report.respondedBy;
-    if (!responder) return <span className="text-xs text-gray-400">Unassigned</span>;
-
-    return (
-        <div>
-            <p className="text-xs font-semibold text-gray-800">{getAgencyLabel(responder.agency || report.responderAgency)}</p>
-            <p className="text-xs text-gray-500">{responder.name || 'Assigned responder'}</p>
-        </div>
-    );
-};
-
 export const IncidentSeverityIndicator = ({ severity }) => {
     const normalizedSeverity = typeof severity === 'string' ? severity.toLocaleLowerCase() : '';
     const style = SEVERITY_INDICATOR_STYLES[normalizedSeverity]
@@ -273,7 +227,7 @@ const ContextualAction = ({ label, icon: Icon, onClick, tone = 'neutral', disabl
 
 const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
-    
+
     return (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <button
