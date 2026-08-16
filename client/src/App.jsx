@@ -61,12 +61,12 @@ function App() {
                     </AuthLayout>
                 )} />
                 <Route path="/registration-submitted" element={(
-                    <AuthLayout>
+                    <AuthLayout variant="login">
                         {isAuthenticated ? <RegistrationSubmittedPage /> : <Navigate to="/login" />}
                     </AuthLayout>
                 )} />
-                <Route path="/forgot-password" element={<AuthLayout><ForgotPasswordPage /></AuthLayout>} />
-                <Route path="/reset-password/:token" element={<AuthLayout><ResetPasswordPage /></AuthLayout>} />
+                <Route path="/forgot-password" element={<AuthLayout variant="login"><ForgotPasswordPage /></AuthLayout>} />
+                <Route path="/reset-password/:token" element={<AuthLayout variant="login"><ResetPasswordPage /></AuthLayout>} />
 
                 {/* Public map and history routes */}
                 <Route path="/dashboard" element={<MainLayout><DashboardPage /></MainLayout>} />

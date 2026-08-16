@@ -10,6 +10,7 @@ import {
     getReportUpdateMeta,
     shouldDeferNotificationRead,
 } from '../../utils/notificationNavigation';
+import { cleanNotificationTitle, cleanNotificationMessage } from '../../utils/notificationFormatting';
 import {
     HiOutlineBell,
     HiOutlineCheck,
@@ -19,6 +20,7 @@ import {
     HiOutlineDocumentText,
     HiOutlineInbox,
     HiOutlineSwitchHorizontal,
+    HiOutlineStatusOnline,
 } from 'react-icons/hi';
 
 const NotificationBell = () => {
@@ -160,29 +162,30 @@ const NotificationBell = () => {
         }
     };
 
-    const getNotificationIcon = (notification) => {
+    const getNotificationVisual = (notification) => {
         switch (notification.type) {
             case 'reporter_verified':
             case 'report_verified':
-                return <HiOutlineCheckCircle className="w-5 h-5 text-success-500" />;
+            case 'report_resolved':
+                return { icon: HiOutlineCheckCircle, iconClass: 'text-brand-600' };
             case 'reporter_rejected':
             case 'report_rejected':
-                return <HiOutlineXCircle className="w-5 h-5 text-danger-500" />;
+                return { icon: HiOutlineXCircle, iconClass: 'text-red-600' };
             case 'report_responding':
-                return <HiOutlineExclamation className="w-5 h-5 text-blue-500" />;
+                return { icon: HiOutlineStatusOnline, iconClass: 'text-cyan-600' };
             case 'report_update': {
                 const updateMeta = getReportUpdateMeta(notification);
-                if (updateMeta.priority === 'urgent') return <HiOutlineExclamation className="h-5 w-5 text-red-500" />;
-                if (updateMeta.priority === 'review') return <HiOutlineExclamation className="h-5 w-5 text-amber-500" />;
-                return <HiOutlineDocumentText className="h-5 w-5 text-indigo-500" />;
+                if (updateMeta.priority === 'urgent') return { icon: HiOutlineExclamation, iconClass: 'text-red-600' };
+                if (updateMeta.priority === 'review') return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
+                return { icon: HiOutlineDocumentText, iconClass: 'text-indigo-600' };
             }
             case 'new_report':
-                return <HiOutlineExclamation className="w-5 h-5 text-accent-500" />;
+                return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
             case 'report_transferred':
             case 'report_transfer_acknowledged':
-                return <HiOutlineSwitchHorizontal className="w-5 h-5 text-purple-500" />;
+                return { icon: HiOutlineSwitchHorizontal, iconClass: 'text-violet-600' };
             default:
-                return <HiOutlineDocumentText className="w-5 h-5 text-primary-500" />;
+                return { icon: HiOutlineDocumentText, iconClass: 'text-gray-500' };
         }
     };
 
@@ -279,46 +282,49 @@ const NotificationBell = () => {
                                 </div>
                             ) : (
                                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {filteredNotifications.map((notification) => (
-                                        <motion.button
-                                            type="button"
-                                            key={notification._id}
-                                            layout
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className={`relative w-full px-4 py-4 text-left transition-all hover:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 dark:hover:bg-gray-700 ${!notification.isRead
-                                                ? 'bg-white dark:bg-gray-800'
-                                                : 'bg-gray-50/50 dark:bg-gray-900/50 opacity-75 hover:opacity-100'
-                                                }`}
-                                            onClick={() => handleNotificationClick(notification)}
-                                        >
-                                            {!notification.isRead && (
-                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500" />
-                                            )}
+                                    {filteredNotifications.map((notification) => {
+                                        const visual = getNotificationVisual(notification);
+                                        const Icon = visual.icon;
+                                        return (
+                                            <motion.button
+                                                type="button"
+                                                key={notification._id}
+                                                layout
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className={`relative w-full px-4 py-4 text-left transition-all hover:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 dark:hover:bg-gray-700 ${!notification.isRead
+                                                    ? 'bg-white dark:bg-gray-800'
+                                                    : 'bg-gray-50/50 dark:bg-gray-900/50 opacity-75 hover:opacity-100'
+                                                    }`}
+                                                onClick={() => handleNotificationClick(notification)}
+                                            >
+                                                {!notification.isRead && (
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500" />
+                                                )}
 
-                                            <div className="flex gap-3">
-                                                <div className={`flex-shrink-0 mt-1 w-9 h-9 rounded-full flex items-center justify-center ${!notification.isRead ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-500'
-                                                    }`}>
-                                                    {getNotificationIcon(notification)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-start gap-2">
-                                                        <p className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
-                                                            }`}>
-                                                            {notification.title}
-                                                        </p>
-                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
-                                                            {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                                        </span>
+                                                <div className="flex gap-3">
+                                                    <div className="flex-shrink-0 mt-1 w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                                        <Icon className={`w-5 h-5 ${visual.iconClass}`} />
                                                     </div>
-                                                    <p className={`text-sm mt-0.5 line-clamp-2 ${!notification.isRead ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'
-                                                        }`}>
-                                                        {notification.message}
-                                                    </p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <p className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
+                                                                }`}>
+                                                                {cleanNotificationTitle(notification.title)}
+                                                            </p>
+                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0 mt-0.5">
+                                                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                            </span>
+                                                        </div>
+                                                        <p className={`text-sm mt-0.5 line-clamp-2 ${!notification.isRead ? 'text-gray-600 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'
+                                                            }`}>
+                                                            {cleanNotificationMessage(notification.message)}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </motion.button>
-                                    ))}
+                                            </motion.button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

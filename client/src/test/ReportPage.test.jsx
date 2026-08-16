@@ -157,6 +157,7 @@ describe('ReportPage workflow', () => {
         fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Near Municipal Hall' } });
         fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
         fireEvent.change(screen.getByLabelText(/^injured$/i), { target: { value: '2' } });
+        fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Two motorcycles skidded on loose gravel' } });
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -168,6 +169,8 @@ describe('ReportPage workflow', () => {
         expect(payload.get('incidentTime')).toBe('2025-01-15T10:30');
         expect(payload.get('casualties[injured]')).toBe('2');
         expect(payload.get('severity')).toBe('moderate');
+        expect(payload.get('description')).toBe('Two motorcycles skidded on loose gravel');
+        expect(payload.get('fireInvolved')).toBe('false');
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
     });
 });

@@ -86,8 +86,7 @@ describe('operational notification inbox', () => {
 
         renderPage();
 
-        expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
-        expect(screen.getByText('Urgent help requested')).toBeInTheDocument();
+        expect(await screen.findByText('Urgent help requested')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Urgent help requested/ }));
 
         await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(

@@ -164,4 +164,76 @@ describe('reporter situation update flow', () => {
         expect(await screen.findByText(remoteUpdate.message)).toBeInTheDocument();
         expect(screen.getByText('Patient transported')).toBeInTheDocument();
     });
+
+    test('renders stat strip metrics and allows filtering by status', async () => {
+        const resolvedReport = {
+            ...initialReport,
+            _id: 'report-2',
+            address: 'Magdiwang bridge area',
+            status: 'resolved',
+        };
+        mocks.getMyReports.mockResolvedValue({ data: { data: [initialReport, resolvedReport] } });
+
+        renderPage();
+
+        expect(await screen.findByText('Poblacion coastal road')).toBeInTheDocument();
+        expect(screen.getByText('Magdiwang bridge area')).toBeInTheDocument();
+
+        // Stat strip
+        expect(screen.getByText('Total reports')).toBeInTheDocument();
+        expect(screen.getByText('Active cases')).toBeInTheDocument();
+
+        // Filter by resolved
+        const resolvedFilterBtn = screen.getByRole('button', { name: /^Resolved/i });
+        fireEvent.click(resolvedFilterBtn);
+
+        expect(screen.queryByText('Poblacion coastal road')).not.toBeInTheDocument();
+        expect(screen.getByText('Magdiwang bridge area')).toBeInTheDocument();
+
+        // Filter back to all
+        fireEvent.click(screen.getByRole('button', { name: /^All records/i }));
+        expect(screen.getByText('Poblacion coastal road')).toBeInTheDocument();
+        expect(screen.getByText('Magdiwang bridge area')).toBeInTheDocument();
+    });
+
+    test('collapses expanded report when clicked again', async () => {
+        renderPage();
+
+        const locationBtn = await screen.findByText(initialReport.address);
+        fireEvent.click(locationBtn);
+
+        expect(await screen.findByText('Incident details')).toBeInTheDocument();
+        expect(screen.getByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
+
+        // Click again to collapse
+        fireEvent.click(locationBtn);
+        await waitFor(() => {
+            expect(screen.queryByText('Incident details')).not.toBeInTheDocument();
+        });
+    });
+
+    test('switches expanded state cleanly when clicking a different report', async () => {
+        const secondReport = {
+            ...initialReport,
+            _id: 'report-2',
+            address: 'San Fernando bypass road',
+            description: 'Two tricycles collided near the intersection.',
+        };
+        mocks.getMyReports.mockResolvedValue({ data: { data: [initialReport, secondReport] } });
+
+        renderPage();
+
+        const firstReportBtn = await screen.findByText(initialReport.address);
+        const secondReportBtn = screen.getByText(secondReport.address);
+
+        // Expand first report
+        fireEvent.click(firstReportBtn);
+        expect(await screen.findByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
+        expect(screen.queryByText('Two tricycles collided near the intersection.')).not.toBeInTheDocument();
+
+        // Switch and expand second report
+        fireEvent.click(secondReportBtn);
+        expect(await screen.findByText('Two tricycles collided near the intersection.')).toBeInTheDocument();
+        expect(screen.queryByText('A motorcycle is blocking one lane.')).not.toBeInTheDocument();
+    });
 });

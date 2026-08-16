@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Link } from '../router';
-import { motion } from 'framer-motion';
 import api from '../services/api';
 import toast from '../utils/appToast';
-import { HiOutlineMail, HiOutlineArrowLeft, HiOutlineCheckCircle } from 'react-icons/hi';
+import {
+    HiOutlineMail,
+    HiOutlineArrowLeft,
+    HiOutlineCheckCircle,
+} from 'react-icons/hi';
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
@@ -36,136 +39,142 @@ const ForgotPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-            {/* Animated Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 -z-20" />
-            <div className="absolute top-1/3 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-blue-200/40 rounded-full blur-3xl animate-pulse -z-10" />
-            <div className="absolute bottom-1/3 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-indigo-200/40 rounded-full blur-3xl animate-pulse -z-10" style={{ animationDelay: '1.5s' }} />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 sm:w-72 h-48 sm:h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse -z-10" style={{ animationDelay: '3s' }} />
+        <div className="w-full py-2">
+            {/* Mobile Brand Header */}
+            <div className="mb-5 flex items-center gap-2.5 lg:hidden">
+                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-2xs dark:border-white/10 dark:bg-white/10">
+                    <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                    <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
+                        Sibuyan <span className="text-emerald-700 dark:text-emerald-400">Alert</span>
+                    </p>
+                    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                        Accident Alert &amp; Mapping System
+                    </p>
+                </div>
+            </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="w-full max-w-md relative z-10"
+            {/* Back to Login */}
+            <Link
+                to="/login"
+                className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:text-gray-400 dark:hover:text-white"
             >
-                {/* Back to Login */}
-                <Link
-                    to="/login"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-5 sm:mb-7 font-bold text-sm transition-all group"
-                >
-                    <HiOutlineArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    Back to Login
-                </Link>
+                <HiOutlineArrowLeft className="h-4 w-4" /> Back to login
+            </Link>
 
-                <div className="bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl shadow-blue-500/10 p-6 sm:p-8 border border-white/80">
-                    {!sent ? (
-                        <>
-                            {/* Icon */}
-                            <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                                className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-5 sm:mb-6 shadow-lg shadow-blue-500/30"
-                            >
-                                <HiOutlineMail className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                            </motion.div>
-
-                            {/* Header */}
-                            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-700 bg-clip-text text-transparent text-center mb-2">
-                                Forgot Password?
-                            </h1>
-                            <p className="text-gray-500 text-sm sm:text-base text-center mb-6 sm:mb-8 leading-relaxed px-2">
-                                No worries! Enter your email and we'll send you a reset link.
+            {/* Main Card Container */}
+            <div className="w-full rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8">
+                {!sent ? (
+                    <>
+                        {/* Header */}
+                        <div className="mb-6">
+                            <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                                Account Recovery
                             </p>
+                            <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                                Forgot your password?
+                            </h1>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
+                                Enter the email address associated with your account to receive a password reset link.
+                            </p>
+                        </div>
 
-                            {/* Form */}
-                            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                                <div>
-                                    <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
-                                        Email Address
-                                    </label>
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label htmlFor="recovery-email" className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                    Email Address
+                                </label>
+                                <div className="relative">
+                                    <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                                        <HiOutlineMail className="h-4.5 w-4.5" />
+                                    </div>
                                     <input
                                         type="email"
+                                        id="recovery-email"
+                                        name="email"
+                                        placeholder="you@example.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="your.email@example.com"
-                                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3.5 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
+                                        autoComplete="email"
                                         required
+                                        className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-9 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
                                     />
                                 </div>
+                            </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95"
-                                >
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <span className="flex items-center justify-center gap-2">
                                     {loading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        <>
+                                            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                             </svg>
-                                            Sending...
-                                        </span>
+                                            <span>Sending...</span>
+                                        </>
                                     ) : (
                                         'Send Reset Link'
                                     )}
-                                </button>
-                            </form>
-                        </>
-                    ) : (
-                        <>
-                            {/* Success State */}
-                            <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 200 }}
-                                className="text-center"
-                            >
-                                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6 shadow-lg shadow-emerald-500/30">
-                                    <HiOutlineCheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
-                                </div>
+                                </span>
+                            </button>
+                        </form>
+                    </>
+                ) : (
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            <HiOutlineCheckCircle className="h-7 w-7" />
+                        </div>
 
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
-                                    Check Your Email
-                                </h2>
-                                <p className="text-gray-600 text-sm mb-5 sm:mb-6 px-2">
-                                    We've sent a password reset link to{' '}
-                                    <strong className="text-gray-900">{email}</strong>
-                                </p>
+                        <h2 className="font-display text-xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-2xl">
+                            Check your email
+                        </h2>
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            We have sent a password reset link to <strong className="text-gray-900 dark:text-white font-semibold">{email}</strong>.
+                        </p>
 
-                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-5 sm:mb-6">
-                                    <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
-                            Didn't receive the email? Check your spam folder or{' '}
-                                        <button
-                                            onClick={() => setSent(false)}
-                                            className="text-blue-600 font-bold hover:underline transition-all"
-                                        >
-                                            try again
-                                        </button>
-                                    </p>
-                                </div>
-
-                                <Link
-                                    to="/login"
-                                    className="inline-block w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-sm sm:text-base font-bold rounded-lg sm:rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all shadow-md hover:shadow-lg"
+                        <div className="mt-5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-3.5 dark:border-white/10 dark:bg-[#07130e]">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Didn&apos;t receive the email? Check your spam folder or{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => setSent(false)}
+                                    className="font-semibold text-brand-700 hover:text-brand-900 dark:text-emerald-400 dark:hover:text-emerald-300"
                                 >
-                                    Back to Login
-                                </Link>
-                            </motion.div>
-                        </>
-                    )}
-                </div>
+                                    try again
+                                </button>
+                            </p>
+                        </div>
+
+                        <div className="mt-5">
+                            <Link
+                                to="/login"
+                                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            >
+                                Back to login
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
                 {/* Additional Help */}
-                <p className="text-center text-gray-500 text-xs sm:text-sm mt-6 sm:mt-8">
-                    Need help?{' '}
-                    <a href="mailto:sibuyan.alert@gmail.com" className="text-blue-600 hover:text-blue-700 underline font-bold transition-colors">
-                        Contact Support
-                    </a>
-                </p>
-            </motion.div>
+                <div className="mt-6 border-t border-gray-200/80 pt-4.5 text-center dark:border-white/10">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Need help?{' '}
+                        <a
+                            href="mailto:sibuyan.alert@gmail.com"
+                            className="font-semibold text-brand-700 transition-colors hover:text-brand-900 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        >
+                            Contact Support
+                        </a>
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };

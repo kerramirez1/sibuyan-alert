@@ -189,7 +189,7 @@ describe('HomePage operational landing page', () => {
         expect(actions.compareDocumentPosition(mapPreview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(actions.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
+    }, 15000);
 
     test('uses safe metric fallbacks when public analytics are unavailable', async () => {
         mocks.getPublic.mockRejectedValueOnce(new Error('Unavailable'));

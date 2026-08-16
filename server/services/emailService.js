@@ -49,8 +49,8 @@ export const sendVerificationEmail = async (user, status, feedback = '') => {
   const isApproved = status === 'approved';
 
   const subject = isApproved
-    ? '✅ Your Reporter Account Has Been Verified'
-    : '❌ Reporter Verification Update';
+    ? 'Your Reporter Account Has Been Verified'
+    : 'Reporter Verification Update';
 
   const html = `
     <!DOCTYPE html>
@@ -118,8 +118,8 @@ export const sendReportStatusEmail = async (user, report, status, feedback = '')
   const isVerified = status === 'verified';
 
   const subject = isVerified
-    ? '✅ Your Accident Report Has Been Verified'
-    : '❌ Accident Report Update';
+    ? 'Your Accident Report Has Been Verified'
+    : 'Accident Report Update';
 
   const html = `
     <!DOCTYPE html>
@@ -251,7 +251,7 @@ export const sendNewReportAlertEmail = async (adminEmail, report, reporter) => {
 
   return sendEmail({
     to: adminEmail,
-    subject: `🚨 New Accident Report - ${report.address}`,
+    subject: `New Accident Report - ${report.address}`,
     html,
   });
 };

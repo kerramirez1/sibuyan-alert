@@ -45,12 +45,12 @@ const formatIncidentType = (report) => (
 );
 
 const EmptyState = ({ title, description }) => (
-    <div className="px-4 py-12 text-center">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
+    <div className="px-4 py-10 text-center sm:px-5">
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
             <HiOutlineCheckCircle className="h-5 w-5" />
         </div>
-        <h3 className="mt-3 text-sm font-semibold text-gray-900">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">{description}</p>
+        <h3 className="mt-2.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
     </div>
 );
 
@@ -60,29 +60,31 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
     }
 
     return (
-        <div className="divide-y divide-gray-200 dark:divide-gray-800">
+        <div className="divide-y divide-gray-100 dark:divide-white/5">
             {reports.map((report) => {
                 const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
                 const coordinates = getMapCoordinates(report);
                 const locateAvailable = Boolean(coordinates && onLocate && (!canLocate || canLocate(report)));
                 const location = report.address || report.title || report.barangay || report.municipalityName || 'Location unavailable';
                 return (
-                    <article key={report._id || report.id} className="px-4 py-4 sm:px-5">
+                    <article key={report._id || report.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="text-sm font-semibold leading-5 text-gray-950 dark:text-white">{location}</h3>
+                            <h3 className="line-clamp-1 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">
+                                {location}
+                            </h3>
                             <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
                                 {formatIncidentType(report)} <span aria-hidden="true">·</span> {status.label}
                             </p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
                                 {report.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
                             </p>
                         </div>
-                        <div className="mt-3 flex min-h-10 items-center justify-between gap-3 border-t border-gray-100 pt-2.5 dark:border-gray-800">
+                        <div className="mt-2.5 flex min-h-8 items-center justify-between gap-3 border-t border-gray-100/80 pt-2 dark:border-white/5">
                             {onInspect && (
                                 <button
                                     type="button"
                                     onClick={() => onInspect(report)}
-                                    className="inline-flex min-h-10 items-center rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
+                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white"
                                 >
                                     View details
                                 </button>
@@ -91,10 +93,10 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="ml-auto inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
                                 >
-                                    Locate
-                                    <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+                                    <span>Locate</span>
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                                 </button>
                             )}
                         </div>
@@ -106,21 +108,21 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
 };
 
 const PanelLoadingState = ({ label }) => (
-    <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-sm font-medium text-gray-600 dark:text-gray-300" role="status">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-700 dark:border-t-gray-200" aria-hidden="true" />
+    <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-xs font-medium text-gray-600 dark:text-gray-300" role="status">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" aria-hidden="true" />
         {label}
     </div>
 );
 
 const PanelErrorState = ({ title, description, onRetry }) => (
     <div className="px-4 py-8 text-center sm:px-5" role="alert">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 dark:text-gray-400">{description}</p>
+        <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{description}</p>
         {onRetry && (
             <button
                 type="button"
                 onClick={onRetry}
-                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
             >
                 Retry
             </button>
@@ -129,10 +131,10 @@ const PanelErrorState = ({ title, description, onRetry }) => (
 );
 
 const TrustPointsSummary = ({ value }) => (
-    <div className="px-4 py-5 sm:px-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current score</p>
-        <p className="mt-1 text-3xl font-bold tracking-tight text-gray-950 dark:text-white">{value}</p>
-        <p className="mt-3 border-t border-gray-200 pt-3 text-sm leading-6 text-gray-600 dark:border-gray-800 dark:text-gray-300">
+    <div className="px-4 py-4 sm:px-5">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current score</p>
+        <p className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">{value}</p>
+        <p className="mt-2.5 border-t border-gray-100/80 pt-2.5 text-xs leading-relaxed text-gray-600 dark:border-white/5 dark:text-gray-300">
             Your current reporter standing is calculated from reports that are presently verified or resolved.
         </p>
     </div>
@@ -141,8 +143,8 @@ const TrustPointsSummary = ({ value }) => (
 const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry }) => {
     if (loading) {
         return (
-            <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-sm font-medium text-gray-600 dark:text-gray-300" role="status">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-700 dark:border-t-gray-200" aria-hidden="true" />
+            <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-xs font-medium text-gray-600 dark:text-gray-300" role="status">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" aria-hidden="true" />
                 Loading risk zones&hellip;
             </div>
         );
@@ -151,13 +153,13 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
     if (error) {
         return (
             <div className="px-4 py-8 text-center sm:px-5" role="alert">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Risk zones unavailable</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 dark:text-gray-400">{error}</p>
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Risk zones unavailable</h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{error}</p>
                 {onRetry && (
                     <button
                         type="button"
                         onClick={onRetry}
-                        className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                         Retry
                     </button>
@@ -171,28 +173,28 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
     }
 
     return (
-        <div className="divide-y divide-gray-200 dark:divide-gray-800">
+        <div className="divide-y divide-gray-100 dark:divide-white/5">
             {zones.map((zone) => {
                 const config = getMapRiskTypeConfig(zone.type);
                 return (
-                    <article key={zone._id || zone.id} className="px-4 py-4 sm:px-5">
+                    <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="text-sm font-semibold leading-5 text-gray-950 dark:text-white">{zone.name || 'Unnamed zone'}</h3>
-                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">{config.label}</p>
-                            <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-300">{zone.address || zone.description || 'Address unavailable'}</p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <h3 className="line-clamp-1 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">{zone.name || 'Unnamed zone'}</h3>
+                            <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">{config.label}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{zone.address || zone.description || 'Address unavailable'}</p>
+                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
                                 {zone.municipality || zone.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
                             </p>
                         </div>
                         {getMapCoordinates(zone) && (
-                            <div className="mt-3 flex min-h-10 items-center justify-end border-t border-gray-100 pt-2.5 dark:border-gray-800">
+                            <div className="mt-2.5 flex min-h-8 items-center justify-end border-t border-gray-100/80 pt-2 dark:border-white/5">
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
+                                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
                                 >
-                                    Locate
-                                    <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+                                    <span>Locate</span>
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                                 </button>
                             </div>
                         )}
@@ -212,9 +214,9 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group min-w-0 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-4 sm:py-3 ${selected
+        className={`group min-w-0 px-3.5 py-3 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-4 sm:py-3.5 ${selected
             ? 'bg-brand-50/80 shadow-[inset_0_-2px_0_0_theme(colors.brand.600)] dark:bg-brand-900/40 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.500)]'
-            : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800'
+            : 'bg-white hover:bg-gray-50/80 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
             }`}
     >
         <div className="flex items-center justify-between gap-3">
@@ -226,7 +228,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
             </span>
         </div>
         <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
-        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{helper}</p>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
     </button>
 );
 
@@ -568,36 +570,36 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         <HiOutlineMap className="h-3.5 w-3.5" aria-hidden="true" />
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-1 text-2xl font-display font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">{mapExperience.title}</h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-300">{mapExperience.description}</p>
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">{mapExperience.title}</h1>
+                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{mapExperience.description}</p>
                 </div>
                 {isAuthenticated && user?.role === 'reporter' && (
-                    <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0">
+                    <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs">
                         Submit report
                     </Button>
                 )}
             </header>
 
             {error && (
-                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div role="alert" className="rounded-xl border border-red-200/90 bg-red-50/80 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     {error}
                 </div>
             )}
 
             {highRiskZonesError && !highRiskZonesLoading && (
-                <div role="alert" className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3 text-xs sm:text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                     <span>{highRiskZonesError}</span>
                     {onRetryHighRiskZones && (
                         <button
                             type="button"
                             onClick={onRetryHighRiskZones}
-                            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50"
+                            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50"
                         >
                             Retry risk zones
                         </button>
@@ -606,16 +608,17 @@ const DashboardMapWorkspace = ({
             )}
 
             {focusedReport && (
-                <section className="flex flex-col gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Focused incident context">
+                <section className="flex flex-col gap-3 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/50 dark:bg-emerald-950/30" aria-label="Focused incident context">
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Focused incident</p>
-                        <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">{focusedReport.address || 'Selected incident'}</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Focused incident</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{focusedReport.address || 'Selected incident'}</p>
                     </div>
                     {onReturnToReport && (
                         <Button
                             onClick={onReturnToReport}
                             variant="secondary"
                             icon={HiOutlineArrowLeft}
+                            className="rounded-lg text-xs"
                         >
                             Back to incident
                         </Button>
@@ -623,27 +626,27 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-label="Live incident map">
-                <div className="flex flex-col gap-3 border-b border-gray-300 bg-gray-100 px-4 py-3 dark:border-gray-600 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
+                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
                     <div>
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
-                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">Map markers update automatically when report status changes.</p>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
+                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
                         {displayedMapReports.length > displayedLocationCount && (
-                            <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 A numbered marker groups incidents reported at the same location.
                             </p>
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (
-                        <div className="inline-flex max-w-full items-center overflow-x-auto border border-gray-300 bg-gray-50 p-0.5 dark:border-gray-600 dark:bg-gray-900" aria-label="Map status filter">
+                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-gray-200/80 bg-white p-0.5 dark:border-white/10 dark:bg-[#07130e]" aria-label="Map status filter">
                             {mapExperience.filters.map((filter) => (
                                 <button
                                     key={filter.value}
                                     type="button"
                                     onClick={() => setResponderMapFilter(filter.value)}
-                                    className={`min-h-9 shrink-0 rounded-sm px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
-                                        ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900'
-                                        : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
+                                    className={`min-h-8 shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
+                                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-950'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
                                         }`}
                                 >
                                     {filter.label}
@@ -653,11 +656,11 @@ const DashboardMapWorkspace = ({
                     )}
                 </div>
 
-                <div className="relative aspect-square w-full sm:aspect-auto sm:h-[480px] lg:h-[560px]">
+                <div className="relative aspect-square w-full sm:aspect-auto sm:h-[480px] lg:h-[580px]">
                     {loading && (
-                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80" aria-live="polite">
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" />
                                 Loading map data…
                             </div>
                         </div>
@@ -758,12 +761,12 @@ const DashboardMapWorkspace = ({
                 </div>
             </section>
 
-            <section className="space-y-3" aria-label="Map summary">
+            <section className="space-y-2.5" aria-label="Map summary">
                 <div>
                     <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Current overview</h2>
-                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">Key incident and response totals for the current map view.</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Key incident and response totals for the current map view.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 lg:grid-cols-4 dark:border-gray-600 dark:bg-gray-600">
+                <div className="grid grid-cols-2 gap-px rounded-xl border border-gray-200/90 bg-gray-200/90 lg:grid-cols-4 dark:border-white/10 dark:bg-white/10 overflow-hidden shadow-2xs">
                     {metrics.map((metric) => (
                         <MetricStripItem
                             key={metric.id}
@@ -780,14 +783,14 @@ const DashboardMapWorkspace = ({
             </section>
 
             {!isAuthenticated && (
-                <section className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+                <section className="flex flex-col gap-4 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-900">Report incidents in your community</h2>
-                        <p className="mt-1 text-sm text-gray-500">Create and verify a reporter account to submit incident reports.</p>
+                        <h2 className="font-display text-sm font-bold text-gray-950 sm:text-base dark:text-white">Report incidents in your community</h2>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 sm:text-sm">Create and verify a reporter account to submit incident reports.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
-                        <Button as={Link} to="/login" variant="secondary">Sign in</Button>
-                        <Button as={Link} to="/register">Register</Button>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                        <Button as={Link} to="/login" variant="secondary" className="rounded-xl border-gray-200 dark:border-white/10 text-xs font-semibold">Sign in</Button>
+                        <Button as={Link} to="/register" className="rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-2xs">Register</Button>
                     </div>
                 </section>
             )}

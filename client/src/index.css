@@ -5,20 +5,25 @@
 /* Semantic application theme tokens. New components should prefer these variables. */
 :root {
   /* Backgrounds */
-  --bg-primary: #f6fbf8;        /* near-white with faint green breath */
+  --bg-primary: #f6fbf8;
+  /* near-white with faint green breath */
   --bg-secondary: #ffffff;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
-  --surface-hover: #eef7f2;     /* very subtle green hover */
+  --surface-hover: #eef7f2;
+  /* very subtle green hover */
   --surface-muted: #f2f9f5;
 
   /* Typography */
-  --text-primary: #0f1f1a;      /* dark with green tint, not pure #111827 */
-  --text-secondary: #516b62;    /* green-tinted gray */
+  --text-primary: #0f1f1a;
+  /* dark with green tint, not pure #111827 */
+  --text-secondary: #516b62;
+  /* green-tinted gray */
   --text-muted: #7a9a8e;
 
   /* Borders */
-  --border: #d0e8dc;            /* very subtle green border */
+  --border: #d0e8dc;
+  /* very subtle green border */
   --border-strong: #b4d4c8;
 
   /* Brand / Accent = emerald-600 */
@@ -75,7 +80,8 @@
   --border-strong: #264a38;
 
   /* Brand / Accent */
-  --accent: #34d399;            /* emerald-400 in dark */
+  --accent: #34d399;
+  /* emerald-400 in dark */
   --accent-hover: #6ee7b7;
   --accent-soft: rgb(5 150 105 / 0.22);
   --accent-text: #6ee7b7;
@@ -854,29 +860,26 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(226, 232, 240, 0.6) 0%,
-    rgba(241, 245, 249, 0.9) 50%,
-    rgba(226, 232, 240, 0.6) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(226, 232, 240, 0.6) 0%,
+      rgba(241, 245, 249, 0.9) 50%,
+      rgba(226, 232, 240, 0.6) 100%);
   background-size: 200% 100%;
   animation: shimmerWave 1.8s ease-in-out infinite;
 }
 
 .dark .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(28, 52, 40, 0.6) 0%,
-    rgba(38, 74, 56, 0.9) 50%,
-    rgba(28, 52, 40, 0.6) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(28, 52, 40, 0.6) 0%,
+      rgba(38, 74, 56, 0.9) 50%,
+      rgba(28, 52, 40, 0.6) 100%);
   background-size: 200% 100%;
   animation: shimmerWave 1.8s ease-in-out infinite;
 }
@@ -1000,8 +1003,8 @@
 .dark .border-gray-200,
 .dark .border-slate-100,
 .dark .border-slate-200,
-.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+.dark .divide-gray-100> :not([hidden])~ :not([hidden]),
+.dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
   border-color: var(--border) !important;
 }
 
@@ -1234,6 +1237,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   body,
   .theme-toggle {
     transition: none !important;

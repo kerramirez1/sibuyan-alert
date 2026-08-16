@@ -18,8 +18,6 @@ const ReportPage = () => {
     const [formData, setFormData] = useState({
         incidentCategory: 'accident',
         incidentType: 'vehicular',
-        fireInvolved: false,
-        fireType: 'gas_leak',
         description: '',
         address: '',
         barangay: '',
@@ -391,8 +389,7 @@ const ReportPage = () => {
             const submitData = new FormData();
             submitData.append('incidentCategory', formData.incidentCategory);
             submitData.append('incidentType', formData.incidentType);
-            submitData.append('fireInvolved', formData.fireInvolved);
-            if (formData.fireInvolved) submitData.append('fireType', formData.fireType);
+            submitData.append('fireInvolved', 'false');
             submitData.append('description', formData.description);
             submitData.append('incidentTime', formData.incidentTime);
             submitData.append('severity', formData.severity);
@@ -427,21 +424,30 @@ const ReportPage = () => {
     const localNow = new Date(now.getTime() - (offset * 60 * 1000));
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
-
     return (
-        <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
-            <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Reporter workflow</p>
-                    <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl dark:text-white">Submit incident report</h1>
-                    <p className="mt-1 max-w-2xl text-sm font-medium text-gray-600 dark:text-gray-300">Pin the incident location and provide the information authorities need to verify and dispatch the report.</p>
+        <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        Reporter workflow
+                    </p>
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                        Submit incident report
+                    </h1>
+                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Pin the incident location and provide the information authorities need to verify and dispatch the report.
+                    </p>
                 </div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Required fields are marked *</p>
+                <div className="flex shrink-0 items-center gap-2">
+                    <span className="inline-flex items-center rounded-lg border border-gray-200/90 bg-gray-50/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                        Required fields are marked *
+                    </span>
+                </div>
             </header>
 
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-5">
-                <div className="lg:sticky lg:top-24">
-                <ReportLocationPanel
+            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
+                <div className="lg:sticky lg:top-20">
+                    <ReportLocationPanel
                         locationStatus={locationStatus}
                         geoLoading={geoLoading}
                         gpsAccuracy={gpsAccuracy}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
@@ -11,11 +11,9 @@ import {
     HiOutlineEye,
     HiOutlineLocationMarker,
     HiOutlineLockClosed,
-    HiOutlineMap,
     HiOutlinePhotograph,
     HiOutlineSearch,
     HiOutlineShieldCheck,
-    HiOutlineUserGroup,
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
@@ -26,10 +24,10 @@ import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
 
 const SEVERITY_CONFIG = {
-    minor: { label: 'Minor', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    moderate: { label: 'Moderate', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-    severe: { label: 'Severe', dot: 'bg-red-500', badge: 'bg-red-50 text-red-700 border-red-200' },
-    critical: { label: 'Critical', dot: 'bg-red-700', badge: 'bg-red-100 text-red-800 border-red-300' },
+    minor: { label: 'Minor', shortLabel: 'Minor', dot: 'bg-emerald-500' },
+    moderate: { label: 'Moderate', shortLabel: 'Moderate', dot: 'bg-amber-500' },
+    severe: { label: 'Severe', shortLabel: 'Severe', dot: 'bg-orange-500' },
+    critical: { label: 'Critical', shortLabel: 'Critical', dot: 'bg-red-500' },
 };
 
 const INCIDENT_TYPE_LABELS = {
@@ -82,6 +80,7 @@ const AccidentHistoryPage = () => {
     const [expandedId, setExpandedId] = useState(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerImage, setViewerImage] = useState(null);
+    const itemRefs = useRef({});
 
     const canViewFullDetails = useMemo(() => (
         Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
@@ -110,6 +109,29 @@ const AccidentHistoryPage = () => {
     useEffect(() => {
         setDateFilter(normalizeDateFilter(requestedDateFilter));
     }, [requestedDateFilter]);
+
+    useEffect(() => {
+        if (!expandedId) return undefined;
+
+        const el = itemRefs.current[expandedId];
+        if (!el) return undefined;
+
+        const frameId = window.requestAnimationFrame(() => {
+            const prefersReducedMotion = typeof window !== 'undefined'
+                && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+
+            try {
+                el.scrollIntoView({
+                    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                    block: 'start',
+                });
+            } catch {
+                el.scrollIntoView?.();
+            }
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
+    }, [expandedId]);
 
     useEffect(() => {
         const unsubscribeResolved = subscribe('reportResolved', () => fetchReports(true));
@@ -186,21 +208,10 @@ const AccidentHistoryPage = () => {
 
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto space-y-5 animate-pulse">
-                <div className="h-16 rounded-xl bg-gray-100" />
-                <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-gray-100 bg-white">
-                    {[0, 1, 2, 3].map((item) => (
-                        <div key={item} className={`p-4 sm:p-6 border-gray-100 ${item % 2 === 1 ? 'border-l' : ''
-                            } ${item >= 2 ? 'border-t' : ''
-                            } md:border-t-0 ${item > 0 ? 'md:border-l' : ''
-                            }`}>
-                            <div className="h-3 w-20 bg-gray-100 rounded" />
-                            <div className="mt-3 h-6 w-12 bg-gray-200 rounded" />
-                            <div className="mt-2 h-2.5 w-24 bg-gray-100 rounded" />
-                        </div>
-                    ))}
-                </div>
-                <div className="h-48 rounded-xl bg-gray-100" />
+            <div className="mx-auto max-w-6xl space-y-5 animate-pulse">
+                <div className="h-14 w-full rounded-2xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-24 w-full rounded-2xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-64 w-full rounded-2xl bg-gray-100 dark:bg-white/5" />
             </div>
         );
     }
@@ -213,63 +224,72 @@ const AccidentHistoryPage = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gray-900 text-white flex items-center justify-center shrink-0">
-                        <HiOutlineArchive className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Records</p>
-                        <h1 className="text-2xl sm:text-3xl font-display font-bold text-gray-900">Accident history</h1>
-                        <p className="mt-1 text-sm text-gray-500">Resolved road incidents across Sibuyan Island.</p>
-                    </div>
+        <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        <HiOutlineArchive className="h-3.5 w-3.5" aria-hidden="true" />
+                        Records
+                    </p>
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                        Accident history
+                    </h1>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Resolved road incidents across Sibuyan Island.
+                    </p>
                 </div>
 
-                <div className={`inline-flex self-start items-center gap-2 rounded-sm border px-3 py-2 text-[11px] font-bold uppercase tracking-wider select-none ${canViewFullDetails
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                    : 'border-gray-300 bg-gray-100 text-gray-700'
-                    }`} aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}>
+                <div
+                    className={`inline-flex self-start items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold select-none shadow-2xs ${canViewFullDetails
+                        ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'
+                        }`}
+                    aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}
+                >
                     {canViewFullDetails
-                        ? <HiOutlineShieldCheck className="w-4 h-4" />
-                        : <HiOutlineEye className="w-4 h-4" />}
-                    {canViewFullDetails ? 'Operational access' : 'Public records'}
+                        ? <HiOutlineShieldCheck className="h-4 w-4" />
+                        : <HiOutlineEye className="h-4 w-4" />}
+                    <span>{canViewFullDetails ? 'Operational access' : 'Public records'}</span>
                 </div>
             </header>
 
-            <section className="grid grid-cols-2 gap-px border border-gray-300 bg-gray-300 md:grid-cols-4 dark:border-gray-600 dark:bg-gray-600" aria-label="History summary">
+            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-gray-200/90 bg-gray-200/90 shadow-2xs md:grid-cols-4 dark:border-white/10 dark:bg-white/10" aria-label="History summary">
                 {metricCards.map(({ label, value, helper, icon: Icon, text }) => (
                     <div
                         key={label}
-                        className="bg-white p-4 sm:p-5 dark:bg-gray-900"
+                        className="bg-white p-4 sm:p-5 dark:bg-[#0c1813]/90"
                     >
                         <div className="flex items-center gap-1.5">
-                            <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                            <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                             <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</h2>
                         </div>
-                        <p className={`mt-2 font-display font-bold text-gray-900 dark:text-white ${text ? 'text-xl truncate' : 'text-3xl'}`}>{value}</p>
-                        <p className="mt-1 text-[11px] text-gray-600 dark:text-gray-400">{helper}</p>
+                        <p className={`mt-1.5 font-display font-bold text-gray-950 dark:text-white ${text ? 'text-xl truncate' : 'text-2xl sm:text-3xl'}`}>{value}</p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
                     </div>
                 ))}
             </section>
 
-            <section className="border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900" aria-label="Resolved accident records">
-                {/* Filters */}
-                <div className="border-b border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-800">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
+            <section className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
+                {/* Filters Toolbar */}
+                <div className="border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
                         <label className="relative block">
                             <span className="sr-only">Search accident history</span>
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Search location, barangay, or incident type"
-                                className="w-full rounded-sm border border-gray-300 bg-white py-2 pl-9 pr-3 text-xs font-semibold text-gray-800 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-gray-700"
+                                className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-3 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                             />
                         </label>
 
-                        <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                        <select
+                            value={dateFilter}
+                            onChange={(event) => setDateFilter(event.target.value)}
+                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                        >
                             <option value="all">All dates</option>
                             <option value="today">Today</option>
                             <option value="7">Last 7 days</option>
@@ -278,7 +298,11 @@ const AccidentHistoryPage = () => {
                             <option value="365">Last year</option>
                         </select>
 
-                        <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                        <select
+                            value={severityFilter}
+                            onChange={(event) => setSeverityFilter(event.target.value)}
+                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                        >
                             <option value="all">All severities</option>
                             <option value="minor">Minor</option>
                             <option value="moderate">Moderate</option>
@@ -286,7 +310,11 @@ const AccidentHistoryPage = () => {
                             <option value="critical">Critical</option>
                         </select>
 
-                        <select value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                        <select
+                            value={municipalityFilter}
+                            onChange={(event) => setMunicipalityFilter(event.target.value)}
+                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                        >
                             <option value="all">All municipalities</option>
                             {municipalities.map((municipality) => (
                                 <option key={municipality} value={municipality}>{municipality}</option>
@@ -294,32 +322,43 @@ const AccidentHistoryPage = () => {
                         </select>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-300 pt-3 dark:border-gray-700">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Showing <span className="text-gray-900 dark:text-white">{filteredReports.length}</span> of {reports.length} records
                         </p>
                         {hasFilters && (
-                            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-700 hover:text-brand-800 dark:text-brand-400">
-                                <HiOutlineX className="w-3.5 h-3.5" /> Clear filters
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            >
+                                <HiOutlineX className="w-3.5 h-3.5" />
+                                <span>Clear filters</span>
                             </button>
                         )}
                     </div>
                 </div>
 
                 {filteredReports.length === 0 ? (
-                    <div className="border-t border-gray-100 px-6 py-14 text-center">
-                        <HiOutlineArchive className="mx-auto w-8 h-8 text-gray-300" />
-                        <h2 className="mt-3 text-base font-semibold text-gray-900">No records found</h2>
-                        <p className="mt-1 text-sm text-gray-500">Try changing or clearing the current filters.</p>
+                    <div className="px-6 py-14 text-center">
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            <HiOutlineArchive className="h-5 w-5" />
+                        </div>
+                        <h2 className="mt-3 font-display text-sm font-bold text-gray-950 dark:text-white">No records found</h2>
+                        <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try changing or clearing the current filters.</p>
                         {hasFilters && (
-                            <button type="button" onClick={clearFilters} className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="mt-4 inline-flex h-9 items-center justify-center rounded-xl bg-brand-700 px-4 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                            >
                                 Clear filters
                             </button>
                         )}
                     </div>
                 ) : (
                     <>
-                        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] gap-4 border-b border-gray-300 bg-gray-200 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] gap-4 border-b border-gray-200/80 bg-gray-50/50 px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/[0.01] dark:text-gray-400">
                             <span>Incident</span>
                             <span>Municipality</span>
                             <span>Resolved</span>
@@ -327,136 +366,139 @@ const AccidentHistoryPage = () => {
                             <span />
                         </div>
 
-                        <div className="divide-y divide-gray-100">
+                        <div className="divide-y divide-gray-100 dark:divide-white/5">
                             {filteredReports.map((report) => {
                                 const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
-                                const isExpanded = expandedId === report._id;
+                                const isExpanded = Boolean(expandedId && String(expandedId) === String(report._id));
                                 const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
                                 const resolvedDate = report.resolvedAt || report.updatedAt;
                                 const casualtyCount = Number(report.casualties?.injured || 0) + Number(report.casualties?.fatalities || 0);
 
                                 return (
-                                    <article key={report._id}>
+                                    <article
+                                        key={report._id}
+                                        ref={(node) => {
+                                            if (node) {
+                                                itemRefs.current[report._id] = node;
+                                            } else {
+                                                delete itemRefs.current[report._id];
+                                            }
+                                        }}
+                                        style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #15803d)' } : undefined}
+                                        className={`transition-colors duration-150 border-l-2 sm:border-l-[3px] scroll-mt-4 sm:scroll-mt-6 ${isExpanded
+                                            ? 'border-l-brand-700 bg-[#F8FAF9] shadow-2xs dark:border-l-brand-500 dark:bg-[#07130e]/80 border-b border-gray-200/90 dark:border-white/10'
+                                            : 'border-l-transparent bg-white hover:bg-gray-50/75 dark:bg-transparent dark:hover:bg-white/[0.02]'
+                                        }`}
+                                    >
                                         <button
                                             type="button"
                                             onClick={() => setExpandedId(isExpanded ? null : report._id)}
                                             aria-expanded={isExpanded}
                                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
-                                            className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-gray-50 md:grid-cols-[minmax(0,1.5fr)_minmax(150px,.8fr)_130px_110px_36px] md:items-center md:gap-4 md:px-5"
+                                            className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
                                         >
-                                            <div className="flex min-w-0 items-start gap-3">
-                                                <span
-                                                    className={`mt-1.5 h-2.5 w-2.5 rounded-full ${severity.dot} shrink-0`}
-                                                    title={`${severity.label} severity`}
-                                                    aria-label={`${severity.label} severity indicator`}
-                                                />
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-sm font-semibold text-gray-900">
-                                                        {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
-                                                    </p>
-                                                    <p className="mt-1 truncate text-xs text-gray-500">
-                                                        {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
-                                                    </p>
-                                                    <p className="mt-1 text-[11px] text-gray-400 md:hidden">Incident {formatDate(incidentDate)}</p>
-                                                </div>
+                                            <div className="min-w-0">
+                                                <p className="line-clamp-1 font-display text-sm font-bold text-gray-950 dark:text-white">
+                                                    {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
+                                                </p>
+                                                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+                                                    {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
+                                                </p>
+                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden">Incident {formatDate(incidentDate)}</p>
                                             </div>
 
-                                            <div className="flex items-center gap-2 text-xs text-gray-600 md:block">
-                                                <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 md:hidden" />
+                                            <div className="hidden md:flex md:items-center text-xs text-gray-600 dark:text-gray-300">
                                                 <span className="truncate">{report.municipalityName || 'Unknown'}</span>
                                             </div>
 
-                                            <div className="text-xs text-gray-600">
-                                                <p>{formatDate(resolvedDate)}</p>
-                                                <p className="mt-0.5 text-[11px] text-gray-400">{formatRelativeDate(resolvedDate)}</p>
+                                            <div className="hidden md:block text-xs text-gray-600 dark:text-gray-300">
+                                                <p className="font-semibold text-gray-900 dark:text-white">{formatDate(resolvedDate)}</p>
+                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{formatRelativeDate(resolvedDate)}</p>
                                             </div>
 
-                                            <div className="flex items-center justify-between gap-3 md:block">
-                                                <span className={`inline-flex rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${severity.badge}`}>{severity.label}</span>
-                                                {casualtyCount > 0 && <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 md:mt-1 md:block">{casualtyCount} casualties</span>}
+                                            <div className="flex items-center justify-start">
+                                                <span className="inline-flex h-5.5 sm:h-6 w-full max-w-[74px] sm:max-w-[88px] md:max-w-[96px] items-center gap-1 sm:gap-1.5 rounded-md sm:rounded-lg border border-gray-200/90 bg-white px-1 sm:px-2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
+                                                    <span className="hidden md:inline truncate">{severity.label}</span>
+                                                    <span className="md:hidden truncate">{severity.shortLabel || severity.label}</span>
+                                                </span>
                                             </div>
 
-                                            <HiOutlineChevronDown className={`hidden w-4 h-4 text-gray-400 transition-transform md:block ${isExpanded ? 'rotate-180' : ''}`} />
+                                            <div className="flex items-center justify-center">
+                                                <HiOutlineChevronDown className={`h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-emerald-700 dark:text-emerald-400' : ''}`} />
+                                            </div>
                                         </button>
 
+                                        {/* Compact Inline Expanded Inspector with distinct boundary */}
                                         {isExpanded && (
-                                            <div className="border-t border-gray-300 bg-gray-100 px-4 py-5 md:px-8 dark:border-gray-600 dark:bg-gray-800">
-                                                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,.8fr)]">
-                                                    <div className="space-y-5">
-                                                        <div>
-                                                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Incident summary</h3>
-                                                            <p className="mt-2 text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">{report.description || 'No incident description was provided.'}</p>
+                                            <div className="border-t border-gray-200/60 px-4 py-4 space-y-3.5 sm:px-6 dark:border-white/5">
+                                                <div>
+                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Incident summary</h3>
+                                                    <p className="mt-0.5 text-xs leading-relaxed text-gray-700 dark:text-gray-300">{report.description || <span className="italic text-gray-400 dark:text-gray-500">No incident description was provided.</span>}</p>
+                                                </div>
+
+                                                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-200/60 pt-2.5 sm:grid-cols-3 md:grid-cols-5 dark:border-white/5">
+                                                    {[
+                                                        ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a')],
+                                                        ['Barangay', report.barangay || 'Not available'],
+                                                        ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a')],
+                                                        ['Municipality', report.municipalityName || 'Not available'],
+                                                        ['Casualties', casualtyCount ? `${report.casualties?.injured || 0} injured, ${report.casualties?.fatalities || 0} fatal` : 'None recorded'],
+                                                        ...(canViewFullDetails ? [
+                                                            ['Coordinates', getCoordinates(report)],
+                                                            ['Reported by', report.reporter?.name || 'Anonymous'],
+                                                            ['Views', String(report.viewCount || 0)],
+                                                        ] : []),
+                                                    ].map(([label, value]) => (
+                                                        <div key={label} className="min-w-0">
+                                                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 truncate">{label}</dt>
+                                                            <dd className="mt-0.5 text-xs font-semibold text-gray-900 break-words dark:text-white truncate">{value}</dd>
                                                         </div>
+                                                    ))}
+                                                </dl>
 
-                                                        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
-                                                            {[
-                                                                ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a'), HiOutlineClock],
-                                                                ['Barangay', report.barangay || 'Not available', HiOutlineLocationMarker],
-                                                                ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a'), HiOutlineBadgeCheck],
-                                                                ['Municipality', report.municipalityName || 'Not available', HiOutlineMap],
-                                                                ['Casualties', casualtyCount ? `${report.casualties?.injured || 0} injured, ${report.casualties?.fatalities || 0} fatal` : 'None recorded', HiOutlineUserGroup],
-                                                                ...(canViewFullDetails ? [
-                                                                    ['Coordinates', getCoordinates(report), HiOutlineMap],
-                                                                    ['Reported by', report.reporter?.name || 'Anonymous', HiOutlineUserGroup],
-                                                                    ['Views', String(report.viewCount || 0), HiOutlineEye],
-                                                                ] : []),
-                                                            ].map(([label, value, Icon]) => (
-                                                                <div key={label}>
-                                                                    <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"><Icon className="w-3.5 h-3.5" />{label}</dt>
-                                                                    <dd className="mt-1 text-xs font-semibold text-gray-900 break-words dark:text-white">{value}</dd>
-                                                                </div>
-                                                            ))}
-                                                        </dl>
+                                                <div className="flex flex-col gap-2 border-t border-gray-200/60 pt-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-white/5">
+                                                    {(report.respondedBy || report.resolvedBy) ? (
+                                                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider">
+                                                                Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}
+                                                            </span>
+                                                            {canViewFullDetails && (
+                                                                <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                                                                    ({report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}{report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : <div />}
 
-                                                        {(report.respondedBy || report.resolvedBy) && (
-                                                            <div className="rounded-sm border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                                                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}</p>
-                                                                {canViewFullDetails && (
-                                                                    <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-500">
-                                                                        {report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}
-                                                                        {report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <aside className="space-y-4">
-                                                        {canViewFullDetails ? (
-                                                            <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                                                                <div className="flex items-center justify-between">
-                                                                    <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200"><HiOutlinePhotograph className="w-4 h-4" />Evidence</h3>
-                                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{report.images?.length || 0} photos</span>
-                                                                </div>
-                                                                {report.images?.length ? (
-                                                                    <div className="mt-3 grid grid-cols-3 gap-2">
-                                                                        {report.images.map((image, index) => (
-                                                                            <button
-                                                                                key={image}
-                                                                                type="button"
-                                                                                onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
-                                                                                className="aspect-square overflow-hidden rounded-sm border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800"
-                                                                            >
-                                                                                <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover transition hover:scale-105" />
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                ) : (
-                                                                    <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">No evidence photos attached.</p>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="rounded-sm border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                                                                <div className="flex items-start gap-3">
-                                                                    <HiOutlineLockClosed className="mt-0.5 w-4 h-4 text-gray-500 shrink-0 dark:text-gray-400" />
-                                                                    <div>
-                                                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Protected incident details</h3>
-                                                                        <p className="mt-1 text-xs font-semibold leading-5 text-gray-600 dark:text-gray-400">Evidence, exact coordinates, reporter identity, and response notes are available only to authorized operational users.</p>
-                                                                    </div>
+                                                    {canViewFullDetails ? (
+                                                        report.images?.length ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                                    <HiOutlinePhotograph className="h-3.5 w-3.5" />
+                                                                    Evidence ({report.images.length})
+                                                                </span>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {report.images.map((image, index) => (
+                                                                        <button
+                                                                            key={image}
+                                                                            type="button"
+                                                                            onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
+                                                                            className="h-7 w-7 overflow-hidden rounded-md border border-gray-200/90 bg-gray-100 transition-transform hover:scale-105 dark:border-white/10 dark:bg-gray-800"
+                                                                        >
+                                                                            <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover" />
+                                                                        </button>
+                                                                    ))}
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                    </aside>
+                                                        ) : null
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                                                            <HiOutlineLockClosed className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                                            <span>Protected details restricted to authorized operational users.</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}

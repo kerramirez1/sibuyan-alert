@@ -109,11 +109,35 @@ describe('MainLayout responsive navigation', () => {
         const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });
         expect(sidebar).toHaveClass('-translate-x-full');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+        const menuButton = screen.getByRole('button', { name: 'Open navigation menu' });
+        expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(menuButton);
         expect(sidebar).toHaveClass('translate-x-0');
+        expect(menuButton).toHaveAttribute('aria-expanded', 'true');
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Close navigation menu' })[0]);
         expect(sidebar).toHaveClass('-translate-x-full');
+        expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    test('closes the drawer when Escape key is pressed', () => {
+        renderLayout();
+        const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+        expect(sidebar).toHaveClass('translate-x-0');
+
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(sidebar).toHaveClass('-translate-x-full');
+    });
+
+    test('uses a predictable drawer width with prefers-reduced-motion support', () => {
+        renderLayout();
+        const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });
+        expect(sidebar.className).toContain('w-[min(80vw,320px)]');
+        expect(sidebar.className).toContain('motion-safe:transition-transform');
+        expect(sidebar.className).toContain('motion-safe:duration-200');
     });
 
 });

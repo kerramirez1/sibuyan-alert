@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useLocation } from '../../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -46,6 +46,23 @@ const MainLayout = ({ children }) => {
     const currentSearchParams = new URLSearchParams(location.search);
     const currentView = currentSearchParams.get('view');
     const currentPanel = currentSearchParams.get('panel');
+    const menuButtonRef = useRef(null);
+    const closeButtonRef = useRef(null);
+
+    // Focus management: focus close button on open, restore to hamburger on close
+    const openDrawer = useCallback(() => {
+        setSidebarOpen(true);
+        requestAnimationFrame(() => {
+            closeButtonRef.current?.focus();
+        });
+    }, []);
+
+    const closeDrawer = useCallback(() => {
+        setSidebarOpen(false);
+        requestAnimationFrame(() => {
+            menuButtonRef.current?.focus();
+        });
+    }, []);
 
     useEffect(() => {
         const previousBodyOverflow = document.body.style.overflow;
@@ -59,6 +76,16 @@ const MainLayout = ({ children }) => {
             document.documentElement.style.overflow = previousDocumentOverflow;
         };
     }, []);
+
+    // Close drawer on Escape key
+    useEffect(() => {
+        if (!sidebarOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') closeDrawer();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [sidebarOpen, closeDrawer]);
 
     const navigation = [
         { name: 'Submit Report', href: '/report', icon: HiOutlineDocumentAdd, roles: ['reporter'], requireVerified: true },
@@ -114,7 +141,7 @@ const MainLayout = ({ children }) => {
                             type="button"
                             aria-label="Close navigation menu"
                             className="fixed inset-0 z-40 bg-black/45 lg:hidden"
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={closeDrawer}
                         />
                     )}
                 </AnimatePresence>
@@ -122,10 +149,10 @@ const MainLayout = ({ children }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-50 flex w-[calc(100vw-2rem)] max-w-64 flex-col border-r border-emerald-900/40 bg-brand-950 transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-50 flex w-[min(80vw,320px)] flex-col border-r border-emerald-900/40 bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Logo */}
-                    <div className="flex min-h-20 items-center px-4">
+                    <div className="flex min-h-14 items-center px-3 lg:min-h-20 lg:px-4">
                         {(() => {
                             const homeHref = !isAuthenticated
                                 ? '/'
@@ -150,8 +177,9 @@ const MainLayout = ({ children }) => {
                             );
                         })()}
                         <button
+                            ref={closeButtonRef}
                             type="button"
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={closeDrawer}
                             aria-label="Close navigation menu"
                             className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-300 hover:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
                         >
@@ -193,7 +221,7 @@ const MainLayout = ({ children }) => {
                                         to={homeHref}
                                         end={!isAuthenticated}
                                         className={() => getNavLinkClass(isHomeActive)}
-                                        onClick={() => setSidebarOpen(false)}
+                                        onClick={closeDrawer}
                                     >
                                         <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">{homeLabel}</span>
@@ -207,7 +235,7 @@ const MainLayout = ({ children }) => {
                                                  && !currentPanel;
                                             return getNavLinkClass(isMapActive);
                                         }}
-                                        onClick={() => setSidebarOpen(false)}
+                                        onClick={closeDrawer}
                                     >
                                         <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">Map</span>
@@ -218,7 +246,7 @@ const MainLayout = ({ children }) => {
                                      <NavLink
                                         to="/accident-history"
                                         className={({ isActive }) => getNavLinkClass(isActive)}
-                                        onClick={() => setSidebarOpen(false)}
+                                        onClick={closeDrawer}
                                     >
                                         <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">Accident History</span>
@@ -238,7 +266,7 @@ const MainLayout = ({ children }) => {
                                         key={item.name}
                                         to={item.href}
                                         className={({ isActive }) => getNavLinkClass(isActive)}
-                                        onClick={() => setSidebarOpen(false)}
+                                        onClick={closeDrawer}
                                     >
                                         <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">{item.name}</span>
@@ -272,7 +300,7 @@ const MainLayout = ({ children }) => {
 
                                                 return getNavLinkClass(adminItemActive);
                                             }}
-                                            onClick={() => setSidebarOpen(false)}
+                                            onClick={closeDrawer}
                                         >
                                             <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
                                             <span className="truncate">{item.name}</span>
@@ -285,17 +313,17 @@ const MainLayout = ({ children }) => {
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="mt-auto border-t border-emerald-900/40 bg-brand-950 p-4">
+                    <div className="mt-auto border-t border-emerald-900/40 bg-brand-950 p-2.5 lg:p-3.5">
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-2.5">
                                 <Link
                                     to="/profile"
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="flex min-w-0 items-center gap-3 rounded-sm border border-brand-800/50 bg-brand-900/20 p-3 transition-colors hover:border-brand-700/50 hover:bg-brand-900/40 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950"
+                                    onClick={closeDrawer}
+                                    className="flex min-w-0 items-center gap-2.5 rounded-xl border border-brand-800/50 bg-brand-900/20 p-2 transition-colors hover:border-brand-700/50 hover:bg-brand-900/40 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950 lg:p-2.5"
                                     aria-label="Open profile settings"
                                 >
-                                    <div className="h-9 w-9 shrink-0 rounded-sm bg-brand-800 p-0.5 border border-brand-700/50 overflow-hidden">
+                                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-brand-700/50 bg-brand-800 p-0.5">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
@@ -309,46 +337,46 @@ const MainLayout = ({ children }) => {
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="line-clamp-2 text-[11px] font-bold uppercase tracking-wider text-white">{user?.name}</p>
-                                        <p className="mt-0.5 break-words text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">{getAccountContext(user)}</p>
+                                        <p className="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-white">{user?.name}</p>
+                                        <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">{getAccountContext(user)}</p>
                                     </div>
-                                    <HiOutlineChevronRight className="h-4 w-4 shrink-0 text-brand-400/50" aria-hidden="true" />
+                                    <HiOutlineChevronRight className="h-3.5 w-3.5 shrink-0 text-brand-400/50" aria-hidden="true" />
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-sm border border-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-200/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-lg border border-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-200/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                 >
                                     <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     Sign out
                                 </button>
                             </div>
                         ) : (
-                            <div className="rounded-sm border border-brand-800/50 bg-brand-900/20 p-4">
-                                <div className="mb-4 flex items-center gap-3">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-brand-900 border border-brand-700/50">
-                                        <HiOutlineGlobe className="h-4 w-4 text-brand-300" aria-hidden="true" />
+                            <div className="rounded-xl border border-emerald-900/40 bg-brand-900/25 p-3.5">
+                                <div className="mb-3 flex items-center gap-2.5">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-800/40 bg-brand-900/60 text-emerald-400 shadow-2xs">
+                                        <HiOutlineGlobe className="h-3.5 w-3.5" aria-hidden="true" />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[11px] font-bold uppercase tracking-wider text-white">Guest mode</p>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">Limited access</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80">Limited access</p>
                                     </div>
                                 </div>
-                                <div className="space-y-2.5">
+                                <div className="space-y-2">
                                     <Link
                                         to="/login"
-                                        onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand-600 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        onClick={closeDrawer}
+                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineLogin className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <HiOutlineLogin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                         Sign In
                                     </Link>
                                     <Link
                                         to="/register"
-                                        onClick={() => setSidebarOpen(false)}
-                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-sm border border-brand-700/50 bg-brand-900/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-200 transition-colors hover:border-brand-600/80 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        onClick={closeDrawer}
+                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineUserAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <HiOutlineUserAdd className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                         Become a Reporter
                                     </Link>
                                 </div>
@@ -360,32 +388,37 @@ const MainLayout = ({ children }) => {
                 {/* Main Content Area */}
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-950">
                     {/* Header */}
-                    <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-md sticky top-0 z-30 dark:border-b dark:border-gray-800 dark:bg-gray-950/85">
+                    <header className="h-16 flex items-center justify-between border-b border-gray-200/80 bg-white/85 px-4 backdrop-blur-md sticky top-0 z-30 dark:border-white/10 dark:bg-gray-950/85 sm:px-8">
                         <button
+                            ref={menuButtonRef}
                             type="button"
-                            onClick={() => setSidebarOpen(true)}
+                            onClick={openDrawer}
                             aria-label="Open navigation menu"
-                            className="-ml-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
+                            aria-expanded={sidebarOpen}
+                            className="-ml-2 inline-flex h-10 w-10 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden dark:text-gray-300 dark:hover:bg-white/10"
                         >
-                            <HiOutlineMenu className="w-6 h-6" />
+                            <HiOutlineMenu className="w-5 h-5" />
                         </button>
 
-                        <div className="hidden lg:flex items-center gap-3">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                            <span className="text-sm font-medium text-brand-900/60">
-                                Sibuyan Island <span className="text-brand-900 font-bold">Alert System Active</span>
+                        <div className="hidden lg:flex items-center gap-2.5">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                            </span>
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Sibuyan Island <span className="text-gray-300 dark:text-gray-600">·</span> <strong className="font-semibold text-gray-900 dark:text-white">Alert System Active</strong>
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-2 sm:gap-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link
                                     to="/login"
-                                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors shadow-md"
+                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                                 >
-                                    <HiOutlineLogin className="w-4 h-4" />
-                                    Sign In
+                                    <HiOutlineLogin className="h-3.5 w-3.5" />
+                                    <span>Sign In</span>
                                 </Link>
                             )}
                         </div>

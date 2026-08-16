@@ -57,22 +57,22 @@ const GroupedMarkerSymbol = () => (
 );
 
 const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false }) => (
-    <div className={compact ? 'space-y-1.5' : 'flex flex-wrap items-center gap-x-3 gap-y-1'}>
-        <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
+    <div className={compact ? 'space-y-1.5' : 'flex flex-wrap items-center gap-x-3.5 gap-y-1'}>
+        <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
             <LegendSymbol shape="risk" color={MAP_RISK_ZONE_CONFIG.markerColor} />
             <span>{MAP_RISK_ZONE_CONFIG.label}</span>
         </div>
         {statusKeys.map((status) => {
             const config = MAP_STATUS_CONFIG[status];
             return (
-                <div key={status} className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                <div key={status} className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                     <LegendSymbol shape={config.legendShape} color={config.markerColor} />
                     <span>{config.label}</span>
                 </div>
             );
         })}
         {hasGroupedReports && (
-            <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700">
+            <div className="flex min-h-5 items-center gap-2 rounded text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 <GroupedMarkerSymbol />
                 <span>Multiple incidents</span>
             </div>
@@ -115,30 +115,30 @@ const MapLegend = ({ showPending = false, filterStatus = null, filterMode = 'pub
         <>
             <section
                 aria-label="Map legend"
-                className="pointer-events-auto absolute left-1/2 top-2 z-20 hidden w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-sm border border-gray-300 bg-white px-2.5 py-1.5 shadow-sm sm:block sm:px-3 sm:py-2"
+                className="pointer-events-auto absolute left-1/2 top-3 z-20 hidden w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border border-gray-200/90 bg-white/90 px-3 py-1.5 backdrop-blur-md shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:block sm:px-3.5 sm:py-2"
             >
                 <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} />
             </section>
 
-            <div ref={containerRef} className="pointer-events-auto absolute left-2 top-2 z-20 sm:hidden">
+            <div ref={containerRef} className="pointer-events-auto absolute left-3 top-3 z-20 sm:hidden">
                 <button
                     ref={triggerRef}
                     type="button"
                     aria-expanded={mobileOpen}
                     aria-controls={popoverId}
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-sm border border-gray-300 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-800 backdrop-blur-md shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-[#07130e]"
                 >
-                    <HiOutlineMap className="h-3.5 w-3.5 text-brand-700" aria-hidden="true" />
+                    <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                     Map legend
                 </button>
                 {mobileOpen && (
                     <section
                         id={popoverId}
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-1rem)] rounded-sm border border-gray-300 bg-white p-2.5 shadow-md sm:p-4"
+                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4"
                     >
-                        <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:text-[10px] sm:pb-2">Map legend</p>
+                        <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sm:text-[10px] sm:pb-2">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} compact />
                     </section>
                 )}

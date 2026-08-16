@@ -691,8 +691,8 @@ export const verifyReport = async (req, res) => {
                 recipient: report.reporter._id,
                 type: status === 'verified' ? 'report_verified' : 'report_rejected',
                 title: status === 'verified'
-                    ? '✅ Report Verified'
-                    : '❌ Report Not Verified',
+                    ? 'Report Verified'
+                    : 'Report Not Verified',
                 message: status === 'verified'
                     ? `Your report at ${report.address} is now visible on the map.`
                     : rejectionReason || 'Your report could not be verified.',
@@ -716,7 +716,7 @@ export const verifyReport = async (req, res) => {
                         {
                             recipient: responder._id,
                             type: 'report_verified',
-                            title: '🚨 New Verified Incident',
+                            title: 'New Verified Incident',
                             message: `${report.incidentType || report.incidentCategory} at ${report.address || 'Unknown Location'} — requires response.`,
                             data: { reportId: report._id, status: 'verified', severity: report.severity },
                         },
@@ -1099,10 +1099,10 @@ export const respondToReport = async (req, res) => {
                 {
                     recipient: report.reporter._id,
                     type: 'report_responding',
-                    title: isFirstResponder ? '🚨 Responder Dispatched!' : '🚑 Additional Unit Responding!',
+                    title: isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Responding',
                     message: isFirstResponder
-                        ? `${unitType} ${unitName} is now responding to your report at ${report.address}.`
-                        : `${unitType} ${unitName} has joined the response. Total units: ${report.responders.length}`,
+                        ? `${unitName} is now responding to your report at ${report.address}.`
+                        : `${unitName} has joined the response. Total units: ${report.responders.length}`,
                     data: {
                         reportId: report._id,
                         responderId: responder._id,
@@ -1131,8 +1131,8 @@ export const respondToReport = async (req, res) => {
                         type: 'report_responding',
                         title: isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Joined',
                         message: isFirstResponder
-                            ? `${unitType} ${unitName} is now responding at ${report.address}.`
-                            : `${unitType} ${unitName} joined response at ${report.address}. Total units: ${report.responders.length}.`,
+                            ? `${unitName} is now responding at ${report.address}.`
+                            : `${unitName} joined response at ${report.address}. Total units: ${report.responders.length}.`,
                         data: {
                             reportId: report._id,
                             responderId: responder._id,
@@ -1150,8 +1150,8 @@ export const respondToReport = async (req, res) => {
         // Send push notification to reporter
         if (report.reporter?.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
             await sendPushToUser(report.reporter, {
-                title: isFirstResponder ? '🚨 Help is on the way!' : '🚑 More help arriving!',
-                body: `${unitType} ${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
+                title: isFirstResponder ? 'Help is on the way' : 'More help arriving',
+                body: `${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
                 icon: '/icon-192x192.png',
                 data: { url: '/my-reports' },
             });
@@ -1260,7 +1260,7 @@ export const resolveReport = async (req, res) => {
                     {
                         recipient: report.reporter._id,
                         type: 'report_resolved',
-                        title: '✅ Incident Resolved',
+                        title: 'Incident Resolved',
                         message: `Your report at ${report.address} has been resolved by ${agencyLabel} (${responder.name}).${resolutionNotes ? ` Notes: ${resolutionNotes}` : ''}`,
                         data: {
                             reportId: report._id,
@@ -1273,7 +1273,7 @@ export const resolveReport = async (req, res) => {
 
                 if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
                     await sendPushToUser(report.reporter, {
-                        title: '✅ Incident Resolved',
+                        title: 'Incident Resolved',
                         body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
                         icon: '/icon-192x192.png',
                         data: { url: '/my-reports' },
@@ -1389,7 +1389,7 @@ export const transferReport = async (req, res) => {
                     {
                         recipient: targetUser._id,
                         type: 'report_transferred',
-                        title: '🔄 Cross-Border Incident Transferred',
+                        title: 'Incident Transferred',
                         message: `Incident at ${report.address} has been transferred to your municipality from ${fromMuniName}. Reason: ${reason}`,
                         data: {
                             reportId: report._id,

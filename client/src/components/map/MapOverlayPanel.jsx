@@ -99,16 +99,16 @@ const MapOverlayPanel = ({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             className={isContextual
-                ? `pointer-events-auto flex max-h-[calc(100%-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-sm border-2 border-gray-300 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] ${widthClass}`
-                : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-sm border-2 border-gray-300 bg-white shadow-xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-gray-700 dark:bg-gray-800 ${widthClass}`}
+                ? `pointer-events-auto flex max-h-[calc(100%-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] ${widthClass}`
+                : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-white/10 dark:bg-[#0c1813]/95 ${widthClass}`}
         >
-            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-5">
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200/80 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5">
                 <div className="min-w-0 py-0.5">
-                    <h2 id={titleId} className="truncate text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white">
+                    <h2 id={titleId} className="truncate font-display text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white">
                         {title}
                     </h2>
                     {description && (
-                        <p id={descriptionId} className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <p id={descriptionId} className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             {description}
                         </p>
                     )}
@@ -117,7 +117,7 @@ const MapOverlayPanel = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onCloseRef.current?.()}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-transparent text-gray-500 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
                     aria-label={closeLabel}
                 >
                     <HiOutlineX className="h-4 w-4" aria-hidden="true" />
@@ -127,7 +127,7 @@ const MapOverlayPanel = ({
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className={`min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'}`}
+                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'}`}
             >
                 {children}
             </div>

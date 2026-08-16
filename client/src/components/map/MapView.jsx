@@ -75,7 +75,7 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-sm border border-gray-300 bg-white text-gray-600 shadow-sm transition-colors duration-150 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white';
+const MAP_TOOL_BUTTON_CLASS = 'flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-gray-200/90 bg-white/90 text-gray-700 backdrop-blur-md shadow-2xs transition-colors duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
@@ -1054,13 +1054,13 @@ const MapView = ({
                                 id="municipality-map-menu"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="absolute bottom-10 sm:bottom-12 right-0 min-w-[170px] rounded-sm border border-gray-300 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                                className="absolute bottom-10 sm:bottom-12 right-0 min-w-[170px] rounded-xl border border-gray-200/90 bg-white/95 p-1.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95"
                             >
                                 {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
                                     <button
                                         key={key}
                                         onClick={() => goToMunicipality(muni.center)}
-                                        className="min-h-10 w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-gray-800"
+                                        className="min-h-9 w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-white"
                                     >
                                         {muni.name}
                                     </button>

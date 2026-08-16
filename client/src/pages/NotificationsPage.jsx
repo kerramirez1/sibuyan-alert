@@ -12,11 +12,13 @@ import {
     HiOutlineRefresh,
     HiOutlineSwitchHorizontal,
     HiOutlineXCircle,
+    HiOutlineStatusOnline,
 } from 'react-icons/hi';
 import { useNavigate } from '../router';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
+import { cleanNotificationTitle, cleanNotificationMessage } from '../utils/notificationFormatting';
 import {
     buildNotificationTarget,
     getReportUpdateMeta,
@@ -42,25 +44,26 @@ const getNotificationVisual = (notification) => {
     switch (notification.type) {
         case 'reporter_verified':
         case 'report_verified':
-            return { icon: HiOutlineCheckCircle, iconClass: 'bg-emerald-50 text-emerald-600' };
+        case 'report_resolved':
+            return { icon: HiOutlineCheckCircle, iconClass: 'text-brand-600' };
         case 'reporter_rejected':
         case 'report_rejected':
-            return { icon: HiOutlineXCircle, iconClass: 'bg-red-50 text-red-600' };
+            return { icon: HiOutlineXCircle, iconClass: 'text-red-600' };
         case 'report_responding':
-            return { icon: HiOutlineExclamation, iconClass: 'bg-blue-50 text-blue-600' };
+            return { icon: HiOutlineStatusOnline, iconClass: 'text-cyan-600' };
         case 'report_update': {
             const meta = getReportUpdateMeta(notification);
-            if (meta.priority === 'urgent') return { icon: HiOutlineExclamation, iconClass: 'bg-red-50 text-red-600' };
-            if (meta.priority === 'review') return { icon: HiOutlineExclamation, iconClass: 'bg-amber-50 text-amber-600' };
-            return { icon: HiOutlineDocumentText, iconClass: 'bg-indigo-50 text-indigo-600' };
+            if (meta.priority === 'urgent') return { icon: HiOutlineExclamation, iconClass: 'text-red-600' };
+            if (meta.priority === 'review') return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
+            return { icon: HiOutlineDocumentText, iconClass: 'text-indigo-600' };
         }
         case 'report_transferred':
         case 'report_transfer_acknowledged':
-            return { icon: HiOutlineSwitchHorizontal, iconClass: 'bg-violet-50 text-violet-600' };
+            return { icon: HiOutlineSwitchHorizontal, iconClass: 'text-violet-600' };
         case 'new_report':
-            return { icon: HiOutlineExclamation, iconClass: 'bg-amber-50 text-amber-600' };
+            return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
         default:
-            return { icon: HiOutlineBell, iconClass: 'bg-gray-100 text-gray-600' };
+            return { icon: HiOutlineBell, iconClass: 'text-gray-600' };
     }
 };
 
@@ -248,12 +251,12 @@ const NotificationsPage = () => {
                                         onClick={() => handleNotificationClick(notification)}
                                         className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 px-4 py-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 sm:px-5 ${notification.isRead ? 'bg-white hover:bg-gray-50' : 'bg-brand-50/40 hover:bg-brand-50/70'}`}
                                     >
-                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${visual.iconClass}`}>
+                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 border border-gray-100 ${visual.iconClass}`}>
                                             <Icon className="h-5 w-5" aria-hidden="true" />
                                         </span>
                                         <span className="min-w-0">
                                             <span className="flex flex-wrap items-center gap-2">
-                                                <span className="text-sm font-semibold text-gray-950">{notification.title}</span>
+                                                <span className="text-sm font-semibold text-gray-950">{cleanNotificationTitle(notification.title)}</span>
                                                 {!notification.isRead && <span className="h-2 w-2 rounded-full bg-brand-500" aria-label="Unread" />}
                                                 {updateMeta && (
                                                     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${UPDATE_TONE_STYLES[updateMeta.tone]}`}>
@@ -264,7 +267,7 @@ const NotificationsPage = () => {
                                                 )}
                                             </span>
                                             <span className="mt-1 block line-clamp-2 text-sm leading-5 text-gray-600">
-                                                {notification.data?.updatePreview || notification.message}
+                                                {notification.data?.updatePreview || cleanNotificationMessage(notification.message)}
                                             </span>
                                             <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                                                 {notification.data?.address && (

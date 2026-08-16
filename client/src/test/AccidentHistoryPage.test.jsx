@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 
@@ -73,5 +73,81 @@ describe('AccidentHistoryPage date deep links', () => {
             element?.tagName === 'P' && element.textContent === 'Showing 1 of 2 records'
         ))).toBeInTheDocument();
         expect(mocks.getReports).toHaveBeenCalledWith({ limit: 500, status: 'resolved' });
+    });
+
+    test('renders stat strip metrics and expands record details on click', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByRole('heading', { level: 1, name: 'Accident history' })).toBeInTheDocument();
+        expect(screen.getByText('Records')).toBeInTheDocument();
+
+        // Stat strip metrics
+        const summary = screen.getByRole('region', { name: 'History summary' });
+        expect(within(summary).getByText('Total resolved')).toBeInTheDocument();
+        expect(within(summary).getByText('Last 7 days')).toBeInTheDocument();
+        expect(within(summary).getByText('Last 30 days')).toBeInTheDocument();
+        expect(within(summary).getByText('Most incidents')).toBeInTheDocument();
+
+        // Expand record
+        const expandButtons = screen.getAllByRole('button', { name: /Expand details/i });
+        expect(expandButtons[0]).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(expandButtons[0]);
+
+        expect(screen.getByRole('button', { name: /Collapse details/i })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('Incident summary')).toBeInTheDocument();
+        expect(screen.getByText('Incident date')).toBeInTheDocument();
+    });
+
+    test('filters records by search query and allows clearing filters', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        const searchInput = screen.getByPlaceholderText('Search location, barangay, or incident type');
+        fireEvent.change(searchInput, { target: { value: 'Today' } });
+
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 1 of 2 records'
+        ))).toBeInTheDocument();
+
+        const clearBtn = screen.getByRole('button', { name: /Clear filters/i });
+        fireEvent.click(clearBtn);
+
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 2 of 2 records'
+        ))).toBeInTheDocument();
+    });
+
+    test('switches expanded state cleanly when clicking another accident record', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        const expandButtons = screen.getAllByRole('button', { name: /Expand details/i });
+        expect(expandButtons).toHaveLength(2);
+
+        // Expand first record
+        fireEvent.click(expandButtons[0]);
+        expect(screen.getByRole('button', { name: /Collapse details for/i })).toBeInTheDocument();
+
+        // Switch to second record
+        const remainingExpandButtons = screen.getAllByRole('button', { name: /Expand details/i });
+        fireEvent.click(remainingExpandButtons[0]);
+
+        // Still exactly one collapsed/expanded toggle open
+        expect(screen.getAllByRole('button', { name: /Collapse details for/i })).toHaveLength(1);
     });
 });

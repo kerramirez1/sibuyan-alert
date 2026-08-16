@@ -21,11 +21,7 @@ const steps = [
     },
 ];
 
-// Typical incident journey — a simplified, public-facing progression for the
-// landing page. This intentionally shows the common happy path; it is not an
-// exhaustive map of every backend status (transferred / rejected are handled
-// during review). Labels use public-friendly wording rather than raw backend
-// status names, so internal keys are neutral tokens rather than status codes.
+// Typical incident journey — a simplified, public-facing progression.
 const JOURNEY_STAGES = [
     { key: 'reported', label: 'Reported' },
     { key: 'under_review', label: 'Under review' },
@@ -35,63 +31,71 @@ const JOURNEY_STAGES = [
 ];
 
 const HowItWorks = () => (
-    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-100 bg-gray-50 px-5 py-20 dark:border-white/10 dark:bg-[#101f1c] sm:px-8 sm:py-24">
+    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-200/80 bg-gray-50/50 px-5 py-16 dark:border-white/5 dark:bg-[#08140f] sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
-            <div className="mb-10 max-w-2xl sm:mb-14">
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">ISLAND-WIDE DISPATCH PROTOCOL</p>
-                <h2 className="mb-2 text-2xl font-black leading-tight tracking-tight text-gray-950 dark:text-white sm:text-3xl">From report to field response.</h2>
-                <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+            <div className="mb-10 max-w-2xl sm:mb-12">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-400">
+                    ISLAND-WIDE DISPATCH PROTOCOL
+                </p>
+                <h2 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                    From report to field response.
+                </h2>
+                <p className="mt-2 text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                     One incident record moves from citizen reporting to municipal verification and coordinated field response.
                 </p>
             </div>
 
-            {/* ── Editorial workflow timeline ──────────────────────────────────
-                 Transformed into solid dispatch cards connected by a pipeline track. */}
+            {/* ── Linear-inspired Structured Workflow Panels ── */}
             <div
                 role="list"
                 aria-label="Incident workflow stages in order"
-                className="relative flex flex-col gap-6 sm:flex-row sm:gap-8"
+                className="relative flex flex-col gap-5 sm:flex-row sm:gap-6"
             >
-                {/* Pipeline track (desktop only) */}
-                <div className="absolute left-0 top-1/2 hidden h-[2px] w-full -translate-y-1/2 bg-gray-200 dark:bg-white/10 sm:block" aria-hidden="true" />
+                {/* Connecting hairline pipeline (desktop only) */}
+                <div className="pointer-events-none absolute left-0 top-1/2 hidden h-[1px] w-full -translate-y-1/2 bg-gray-200 dark:bg-white/10 sm:block" aria-hidden="true" />
 
                 {steps.map(({ n, role, title, desc }) => (
                     <div key={n} role="listitem" className="relative min-w-0 flex-1">
-                        <div className="relative flex h-full flex-col rounded-lg border border-gray-200 bg-gray-50 p-6 shadow-sm dark:border-white/10 dark:bg-gray-900/60">
-                            <div className="mb-4">
-                                <span
-                                    aria-hidden="true"
-                                    className="text-4xl font-black tracking-tighter text-gray-300 dark:text-gray-700"
-                                >
-                                    {n}
-                                </span>
+                        <div className="relative flex h-full flex-col justify-between rounded-xl border border-gray-200/80 bg-white p-5 sm:p-6 shadow-2xs transition-colors hover:border-gray-300 dark:border-white/10 dark:bg-[#0c1a14]/70 dark:hover:border-white/20">
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span
+                                        aria-hidden="true"
+                                        className="font-mono text-2xl sm:text-3xl font-black tracking-tight text-gray-300 dark:text-gray-700"
+                                    >
+                                        {n}
+                                    </span>
+                                    <span className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                        {role}
+                                    </span>
+                                </div>
+                                <h3 className="mt-3 text-sm font-bold text-gray-950 dark:text-white sm:text-base">
+                                    {title}
+                                </h3>
+                                <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                    {desc}
+                                </p>
                             </div>
-                            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                                {role}
-                            </p>
-                            <h3 className="mb-2 text-base font-bold text-gray-950 dark:text-white">{title}</h3>
-                            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                                {desc}
-                            </p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* ── Typical incident journey ─────────────────────────────────────
-                 A simplified, public-facing happy-path progression. It does not
-                 enumerate every technical status; transfers/rejections happen
-                 during review. */}
-
-            <div className="mt-12 sm:mt-16">
-                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
-                    Typical incident journey
-                </p>
+            {/* ── Incident Journey Progression ── */}
+            <div className="mt-10 sm:mt-14 rounded-xl border border-gray-200/80 bg-white p-5 sm:p-6 dark:border-white/10 dark:bg-[#0c1a14]/70 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                        Typical incident journey
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Some reports may be transferred to the appropriate municipality during review.
+                    </p>
+                </div>
                 <p id="incident-journey-scroll-hint" className="sr-only">
                     A simplified incident progression. Select or scroll horizontally to view every stage in order.
                 </p>
                 <div
-                    className="flex flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                    className="flex flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain pb-1 pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     role="list"
                     aria-label="Incident status stages in order"
                     aria-describedby="incident-journey-scroll-hint"
@@ -103,18 +107,15 @@ const HowItWorks = () => (
                                 role="listitem"
                                 className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium leading-none text-gray-700 dark:text-gray-300"
                             >
-                                <span className={`h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 ${stage.key === 'in_progress' ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                                <span className={`h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 ${stage.key === 'in_progress' ? 'animate-pulse ring-2 ring-emerald-400/40' : ''}`} aria-hidden="true" />
                                 {stage.label}
                             </span>
                             {index < JOURNEY_STAGES.length - 1 && (
-                                <span className="h-[2px] w-6 shrink-0 bg-gray-200 sm:w-8 dark:bg-white/15" aria-hidden="true" />
+                                <span className="h-[1px] w-6 shrink-0 bg-gray-200 sm:w-8 dark:bg-white/15" aria-hidden="true" />
                             )}
                         </div>
                     ))}
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
-                    Some reports may be transferred to the appropriate municipality during review.
-                </p>
             </div>
         </div>
     </section>
