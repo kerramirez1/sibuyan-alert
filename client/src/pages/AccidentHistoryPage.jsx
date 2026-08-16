@@ -22,6 +22,11 @@ import { useAuth } from '../context/AuthContext';
 import ImageViewer from '../components/ui/ImageViewer';
 import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
+import {
+    getAvailableBarangays,
+    isBarangayInMunicipality,
+    SIBUYAN_MUNICIPALITY_NAMES,
+} from '../utils/sibuyanLocations';
 
 const SEVERITY_CONFIG = {
     minor: { label: 'Minor', shortLabel: 'Minor', dot: 'bg-emerald-500' },
@@ -72,11 +77,13 @@ const AccidentHistoryPage = () => {
     const [searchParams] = useSearchParams();
     const requestedDateFilter = searchParams.get('date');
     const [reports, setReports] = useState([]);
+    const [municipalitiesData, setMunicipalitiesData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState(() => normalizeDateFilter(requestedDateFilter));
     const [severityFilter, setSeverityFilter] = useState('all');
     const [municipalityFilter, setMunicipalityFilter] = useState('all');
+    const [barangayFilter, setBarangayFilter] = useState('all');
     const [expandedId, setExpandedId] = useState(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerImage, setViewerImage] = useState(null);
@@ -105,6 +112,16 @@ const AccidentHistoryPage = () => {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
+    useEffect(() => {
+        reportsAPI.getMunicipalities()
+            .then((response) => {
+                if (response.data?.success && Array.isArray(response.data?.data)) {
+                    setMunicipalitiesData(response.data.data);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         setDateFilter(normalizeDateFilter(requestedDateFilter));
@@ -145,9 +162,45 @@ const AccidentHistoryPage = () => {
         };
     }, [subscribe, fetchReports]);
 
-    const municipalities = useMemo(() => (
-        [...new Set(reports.map((report) => report.municipalityName).filter(Boolean))].sort()
-    ), [reports]);
+    const municipalities = useMemo(() => {
+        const set = new Set(SIBUYAN_MUNICIPALITY_NAMES);
+        municipalitiesData.forEach((m) => { if (m.name) set.add(m.name); });
+        reports.forEach((report) => { if (report.municipalityName) set.add(report.municipalityName); });
+        return [...set].sort((a, b) => a.localeCompare(b));
+    }, [reports, municipalitiesData]);
+
+    const availableBarangays = useMemo(() => (
+        getAvailableBarangays(municipalityFilter, municipalitiesData, reports)
+    ), [municipalityFilter, municipalitiesData, reports]);
+
+    const handleMunicipalityChange = (newMunicipality) => {
+        setMunicipalityFilter(newMunicipality);
+        if (barangayFilter !== 'all') {
+            const isValid = isBarangayInMunicipality(
+                barangayFilter,
+                newMunicipality,
+                municipalitiesData,
+                reports
+            );
+            if (!isValid) {
+                setBarangayFilter('all');
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (barangayFilter !== 'all') {
+            const isValid = isBarangayInMunicipality(
+                barangayFilter,
+                municipalityFilter,
+                municipalitiesData,
+                reports
+            );
+            if (!isValid) {
+                setBarangayFilter('all');
+            }
+        }
+    }, [municipalityFilter, barangayFilter, municipalitiesData, reports]);
 
     const filteredReports = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -172,31 +225,104 @@ const AccidentHistoryPage = () => {
                 if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
                 if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
                 if (municipalityFilter !== 'all' && report.municipalityName !== municipalityFilter) return false;
+                if (barangayFilter !== 'all' && report.barangay !== barangayFilter) return false;
                 return true;
             })
             .sort((a, b) => new Date(b.resolvedAt || b.createdAt) - new Date(a.resolvedAt || a.createdAt));
+    }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter, barangayFilter]);
+
+    // Top Barangay calculation: calculated within the current active search/date/severity/municipality scope
+    // explicitly EXCLUDING the barangay filter itself so it remains informative when a barangay is selected.
+    const topBarangayScopeReports = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        const cutoff = ['7', '30'].includes(dateFilter)
+            ? subDays(new Date(), Number(dateFilter))
+            : null;
+
+        return reports.filter((report) => {
+            if (query) {
+                const searchable = [
+                    report.address,
+                    report.barangay,
+                    report.municipalityName,
+                    report.incidentType,
+                    report.description,
+                ].filter(Boolean).join(' ').toLowerCase();
+                if (!searchable.includes(query)) return false;
+            }
+            const resolvedDate = report.resolvedAt || report.createdAt;
+            if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
+            if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
+            if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
+            if (municipalityFilter !== 'all' && report.municipalityName !== municipalityFilter) return false;
+            return true;
+        });
     }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter]);
+
+    const topBarangayInfo = useMemo(() => {
+        const counts = {};
+        const barangayToMunicipality = {};
+
+        topBarangayScopeReports.forEach((report) => {
+            const b = report.barangay?.trim();
+            if (!b) return;
+            counts[b] = (counts[b] || 0) + 1;
+            if (report.municipalityName && !barangayToMunicipality[b]) {
+                barangayToMunicipality[b] = report.municipalityName;
+            }
+        });
+
+        const entries = Object.entries(counts);
+        if (entries.length === 0) {
+            return {
+                name: 'No data',
+                helper: '0 resolved incidents',
+            };
+        }
+
+        let maxCount = 0;
+        entries.forEach(([, count]) => {
+            if (count > maxCount) maxCount = count;
+        });
+
+        const leaders = entries
+            .filter(([, count]) => count === maxCount)
+            .map(([name]) => name)
+            .sort((a, b) => a.localeCompare(b));
+
+        const topName = leaders[0];
+        const isTied = leaders.length > 1;
+        const incidentWord = maxCount === 1 ? 'incident' : 'incidents';
+        const municipalityLabel = barangayToMunicipality[topName] || (municipalityFilter !== 'all' ? municipalityFilter : null);
+
+        let helper = `${maxCount} resolved ${incidentWord}`;
+        if (isTied) {
+            helper += ` · Tied (${leaders.length} barangays)`;
+        } else if (municipalityLabel) {
+            helper += ` · ${municipalityLabel}`;
+        }
+
+        return {
+            name: topName,
+            helper,
+        };
+    }, [topBarangayScopeReports, municipalityFilter]);
 
     const stats = useMemo(() => {
         const now = new Date();
-        const municipalityCounts = reports.reduce((counts, report) => {
-            const name = report.municipalityName || 'Unknown';
-            counts[name] = (counts[name] || 0) + 1;
-            return counts;
-        }, {});
-        const topMunicipality = Object.entries(municipalityCounts).sort((a, b) => b[1] - a[1])[0];
-
         return {
             total: reports.length,
             last7: reports.filter((report) => isAfter(new Date(report.resolvedAt || report.createdAt), subDays(now, 7))).length,
             last30: reports.filter((report) => isAfter(new Date(report.resolvedAt || report.createdAt), subDays(now, 30))).length,
-            topArea: topMunicipality?.[0] || 'No data',
-            topAreaCount: topMunicipality?.[1] || 0,
         };
     }, [reports]);
 
     const hasFilters = Boolean(
-        searchQuery || dateFilter !== 'all' || severityFilter !== 'all' || municipalityFilter !== 'all'
+        searchQuery
+        || dateFilter !== 'all'
+        || severityFilter !== 'all'
+        || municipalityFilter !== 'all'
+        || barangayFilter !== 'all'
     );
 
     const clearFilters = () => {
@@ -204,6 +330,7 @@ const AccidentHistoryPage = () => {
         setDateFilter('all');
         setSeverityFilter('all');
         setMunicipalityFilter('all');
+        setBarangayFilter('all');
     };
 
     if (loading) {
@@ -220,7 +347,7 @@ const AccidentHistoryPage = () => {
         { label: 'Total resolved', value: stats.total, helper: 'All recorded incidents', icon: HiOutlineBadgeCheck },
         { label: 'Last 7 days', value: stats.last7, helper: 'Recently closed', icon: HiOutlineClock },
         { label: 'Last 30 days', value: stats.last30, helper: 'Monthly activity', icon: HiOutlineCalendar },
-        { label: 'Most incidents', value: stats.topArea, helper: `${stats.topAreaCount} resolved`, icon: HiOutlineLocationMarker, text: true },
+        { label: 'Top Barangay', value: topBarangayInfo.name, helper: topBarangayInfo.helper, icon: HiOutlineLocationMarker, text: true },
     ];
 
     return (
@@ -272,8 +399,8 @@ const AccidentHistoryPage = () => {
             <section className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
                 {/* Filters Toolbar */}
                 <div className="border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(3,auto)]">
-                        <label className="relative block">
+                    <div className="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:flex-wrap md:items-center lg:flex-nowrap">
+                        <label className="relative block flex-1 min-w-[200px]">
                             <span className="sr-only">Search accident history</span>
                             <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
@@ -285,41 +412,58 @@ const AccidentHistoryPage = () => {
                             />
                         </label>
 
-                        <select
-                            value={dateFilter}
-                            onChange={(event) => setDateFilter(event.target.value)}
-                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
-                        >
-                            <option value="all">All dates</option>
-                            <option value="today">Today</option>
-                            <option value="7">Last 7 days</option>
-                            <option value="30">Last 30 days</option>
-                            <option value="90">Last 3 months</option>
-                            <option value="365">Last year</option>
-                        </select>
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+                            <select
+                                value={dateFilter}
+                                onChange={(event) => setDateFilter(event.target.value)}
+                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                aria-label="Filter by date"
+                            >
+                                <option value="all">All dates</option>
+                                <option value="today">Today</option>
+                                <option value="7">Last 7 days</option>
+                                <option value="30">Last 30 days</option>
+                                <option value="90">Last 3 months</option>
+                                <option value="365">Last year</option>
+                            </select>
 
-                        <select
-                            value={severityFilter}
-                            onChange={(event) => setSeverityFilter(event.target.value)}
-                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
-                        >
-                            <option value="all">All severities</option>
-                            <option value="minor">Minor</option>
-                            <option value="moderate">Moderate</option>
-                            <option value="severe">Severe</option>
-                            <option value="critical">Critical</option>
-                        </select>
+                            <select
+                                value={severityFilter}
+                                onChange={(event) => setSeverityFilter(event.target.value)}
+                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                aria-label="Filter by severity"
+                            >
+                                <option value="all">All severities</option>
+                                <option value="minor">Minor</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="severe">Severe</option>
+                                <option value="critical">Critical</option>
+                            </select>
 
-                        <select
-                            value={municipalityFilter}
-                            onChange={(event) => setMunicipalityFilter(event.target.value)}
-                            className="h-9 rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
-                        >
-                            <option value="all">All municipalities</option>
-                            {municipalities.map((municipality) => (
-                                <option key={municipality} value={municipality}>{municipality}</option>
-                            ))}
-                        </select>
+                            <select
+                                value={municipalityFilter}
+                                onChange={(event) => handleMunicipalityChange(event.target.value)}
+                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                aria-label="Filter by municipality"
+                            >
+                                <option value="all">All municipalities</option>
+                                {municipalities.map((municipality) => (
+                                    <option key={municipality} value={municipality}>{municipality}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={barangayFilter}
+                                onChange={(event) => setBarangayFilter(event.target.value)}
+                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                aria-label="Filter by barangay"
+                            >
+                                <option value="all">All barangays</option>
+                                {availableBarangays.map((barangay) => (
+                                    <option key={barangay} value={barangay}>{barangay}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
@@ -344,8 +488,8 @@ const AccidentHistoryPage = () => {
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
                             <HiOutlineArchive className="h-5 w-5" />
                         </div>
-                        <h2 className="mt-3 font-display text-sm font-bold text-gray-950 dark:text-white">No records found</h2>
-                        <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try changing or clearing the current filters.</p>
+                        <h2 className="mt-3 font-display text-sm font-bold text-gray-950 dark:text-white">No accident records found</h2>
+                        <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try adjusting the selected filters.</p>
                         {hasFilters && (
                             <button
                                 type="button"

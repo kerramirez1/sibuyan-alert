@@ -304,8 +304,8 @@ export const verifyReporter = async (req, res) => {
                 recipient: user._id,
                 type: status === 'approved' ? 'reporter_verified' : 'reporter_rejected',
                 title: status === 'approved'
-                    ? '🎉 Account Verified!'
-                    : '⚠️ Verification Update',
+                    ? 'Account Verified'
+                    : 'Verification Update',
                 message: status === 'approved'
                     ? 'Your reporter account has been approved. You can now submit reports!'
                     : feedback || 'Your verification was not approved.',
