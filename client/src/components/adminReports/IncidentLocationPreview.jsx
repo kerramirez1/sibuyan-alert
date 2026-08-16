@@ -16,16 +16,16 @@ const IncidentLocationPreview = ({
         .join(', ');
         
     return (
-        <section className="border-t border-gray-100 py-4 dark:border-gray-700" aria-labelledby="shared-location-heading">
-            <div className="flex items-start gap-3">
-                <HiOutlineLocationMarker className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+        <section className="border-t border-gray-100 py-3 dark:border-white/5" aria-labelledby="shared-location-heading">
+            <div className="flex items-start gap-2.5">
+                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                     <h3 id="shared-location-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">Pinned location</h3>
-                    <p className="mt-2 break-words text-sm font-medium leading-5 text-gray-900 dark:text-gray-100">{locationTitle}</p>
+                    <p className="mt-1 break-words text-xs sm:text-sm font-semibold leading-5 text-gray-900 dark:text-gray-100">{locationTitle}</p>
                     {locationContext && locationContext !== locationTitle && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{locationContext}</p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{locationContext}</p>
                     )}
-                    <p className="mt-1 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                    <p className="mt-0.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">
                         {coordinates ? `${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}` : 'Coordinates unavailable'}
                     </p>
                     
@@ -33,15 +33,15 @@ const IncidentLocationPreview = ({
                         <button
                             type="button"
                             onClick={() => onOpenMap(report)}
-                            className="group mt-2 mb-3 inline-flex min-h-10 items-center gap-1.5 rounded-sm px-1 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 dark:text-gray-300 dark:hover:text-white"
+                            className="group mt-1.5 mb-2.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:text-emerald-300"
                         >
-                            Open full map
-                            <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                            <span>Open full map</span>
+                            <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
                         </button>
                     )}
 
                     {coordinates ? (
-                        <div className="aspect-square w-full overflow-hidden rounded-sm border border-gray-300 dark:border-gray-700 sm:aspect-auto sm:h-56">
+                        <div className="aspect-square w-full overflow-hidden rounded-2xl border border-gray-200/90 shadow-2xs dark:border-white/10 sm:aspect-auto sm:h-52">
                             <MapView
                                 reports={[report]}
                                 showPending
@@ -55,8 +55,8 @@ const IncidentLocationPreview = ({
                             />
                         </div>
                     ) : (
-                        <div className="mt-3 flex h-32 items-center justify-center rounded-sm border border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Location coordinates unavailable.</p>
+                        <div className="mt-2.5 flex h-28 items-center justify-center rounded-2xl border border-gray-200/90 bg-gray-50/60 dark:border-white/10 dark:bg-white/5">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Location coordinates unavailable.</p>
                         </div>
                     )}
                 </div>

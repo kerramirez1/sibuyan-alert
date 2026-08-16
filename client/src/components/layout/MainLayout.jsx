@@ -21,18 +21,18 @@ import {
     HiOutlineChartBar,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group flex min-h-10 w-full min-w-0 items-center gap-3 rounded-sm px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 border-l-2 border-transparent';
+const NAV_LINK_BASE = 'group flex min-h-10 w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 border-l-2 border-transparent';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-brand-500 bg-brand-900/40 text-brand-100'
     : 'text-brand-300/50 hover:bg-brand-900/20 hover:text-brand-100'}`;
 const NAV_ICON_CLASS = 'h-4 w-4 shrink-0';
-const SECTION_CLASS = 'mt-5 pt-2';
-const SECTION_HEADING_CLASS = 'mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-brand-400/50';
+const SECTION_CLASS = 'mt-4 pt-1';
+const SECTION_HEADING_CLASS = 'mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-brand-400/50';
 
 const getAccountContext = (user) => {
     const roleLabels = {
         municipal_admin: 'Municipal admin',
-        responder: user?.agency ? `${user.agency} responder` : 'Responder',
+        responder: user?.agency === 'LGU' ? 'MDRRMO responder' : (user?.agency ? `${user.agency} responder` : 'Responder'),
         reporter: 'Reporter',
     };
     const role = roleLabels[user?.role] || 'Account';
@@ -151,8 +151,8 @@ const MainLayout = ({ children }) => {
                     aria-label="Primary navigation"
                     className={`fixed inset-y-0 left-0 z-50 flex w-[min(80vw,320px)] flex-col border-r border-emerald-900/40 bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
-                    {/* Logo */}
-                    <div className="flex min-h-14 items-center px-3 lg:min-h-20 lg:px-4">
+                    {/* Logo Header */}
+                    <div className="flex h-14 items-center justify-between border-b border-emerald-900/30 px-3.5 lg:h-16 lg:px-4">
                         {(() => {
                             const homeHref = !isAuthenticated
                                 ? '/'
@@ -162,15 +162,15 @@ const MainLayout = ({ children }) => {
                                         ? '/admin'
                                         : '/';
                             return (
-                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-brand-900/50 p-1 border border-brand-800/50">
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Sibuyan Alert home">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-brand-800/50 bg-brand-900/50 p-1">
                                         <img
                                             src="/icons/Alert.png"
                                             alt=""
-                                            className="h-full w-full object-contain drop-shadow-sm"
+                                            className="h-full w-full object-contain drop-shadow-xs"
                                         />
                                     </div>
-                                    <span className="truncate text-sm font-black uppercase tracking-wider text-white sm:text-base">
+                                    <span className="truncate text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
                                         Sibuyan <span className="text-brand-400">Alert</span>
                                     </span>
                                 </NavLink>
@@ -181,14 +181,14 @@ const MainLayout = ({ children }) => {
                             type="button"
                             onClick={closeDrawer}
                             aria-label="Close navigation menu"
-                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-brand-300 hover:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
+                            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-brand-300 hover:bg-brand-900/60 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden"
                         >
-                            <HiOutlineX className="w-6 h-6" />
+                            <HiOutlineX className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Navigation */}
-                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4 pt-2">
+                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-2">
                         {/* Quick Links - always visible */}
                         {(() => {
                             // Smart Home redirect based on role
@@ -240,8 +240,6 @@ const MainLayout = ({ children }) => {
                                         <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
                                         <span className="truncate">Map</span>
                                      </NavLink>
-
-
 
                                      <NavLink
                                         to="/accident-history"
@@ -313,31 +311,29 @@ const MainLayout = ({ children }) => {
                     </nav>
 
                     {/* Bottom Section */}
-                    <div className="mt-auto border-t border-emerald-900/40 bg-brand-950 p-2.5 lg:p-3.5">
+                    <div className="mt-auto border-t border-emerald-900/40 bg-brand-950/80 p-2.5 lg:p-3">
                         {/* User Profile or Guest Login Prompt */}
                         {isAuthenticated ? (
-                            <div className="flex flex-col gap-2.5">
+                            <div className="flex flex-col gap-2">
                                 <Link
                                     to="/profile"
                                     onClick={closeDrawer}
-                                    className="flex min-w-0 items-center gap-2.5 rounded-xl border border-brand-800/50 bg-brand-900/20 p-2 transition-colors hover:border-brand-700/50 hover:bg-brand-900/40 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950 lg:p-2.5"
+                                    className="flex min-w-0 items-center gap-2.5 rounded-xl border border-brand-800/50 bg-brand-900/20 p-2 transition-colors hover:border-brand-700/50 hover:bg-brand-900/40 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-950"
                                     aria-label="Open profile settings"
                                 >
-                                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-brand-700/50 bg-brand-800 p-0.5">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-brand-700/50 bg-brand-800 p-0.5 text-xs font-bold text-white">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
                                                 alt={user.name}
-                                                className="h-full w-full object-cover"
+                                                className="h-full w-full object-cover rounded-md"
                                             />
                                         ) : (
-                                            <div className="flex h-full w-full items-center justify-center bg-brand-700 text-xs font-bold text-white">
-                                                {user?.name?.charAt(0).toUpperCase()}
-                                            </div>
+                                            user?.name?.charAt(0).toUpperCase() || 'U'
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-white">{user?.name}</p>
+                                        <p className="truncate text-xs font-bold uppercase tracking-wider text-white">{user?.name}</p>
                                         <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wider text-brand-400/80">{getAccountContext(user)}</p>
                                     </div>
                                     <HiOutlineChevronRight className="h-3.5 w-3.5 shrink-0 text-brand-400/50" aria-hidden="true" />
@@ -352,8 +348,8 @@ const MainLayout = ({ children }) => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-emerald-900/40 bg-brand-900/25 p-3.5">
-                                <div className="mb-3 flex items-center gap-2.5">
+                            <div className="rounded-xl border border-emerald-900/40 bg-brand-900/25 p-3">
+                                <div className="mb-2.5 flex items-center gap-2.5">
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-800/40 bg-brand-900/60 text-emerald-400 shadow-2xs">
                                         <HiOutlineGlobe className="h-3.5 w-3.5" aria-hidden="true" />
                                     </div>

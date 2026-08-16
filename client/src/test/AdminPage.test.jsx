@@ -122,3 +122,101 @@ describe('AdminPage responder dashboard orchestration', () => {
         expect(screen.getByText('loading:false')).toBeInTheDocument();
     });
 });
+
+describe('AdminPage municipal admin dashboard rendering', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.user = {
+            id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getAdmin.mockResolvedValue({
+            data: {
+                data: {
+                    reports: {
+                        total: 24,
+                        pending: 3,
+                        thisMonth: 12,
+                        thisWeek: 5,
+                    },
+                    users: {
+                        total: 58,
+                        pendingVerifications: 2,
+                    },
+                    reportsByBarangay: [
+                        { barangay: 'Poblacion', count: 8, injured: 2, fatalities: 0 },
+                        { barangay: 'Sugod', count: 4, injured: 0, fatalities: 1 },
+                    ],
+                    recentReports: [
+                        {
+                            _id: 'rep-1',
+                            address: 'Main Highway, Poblacion',
+                            status: 'pending',
+                            createdAt: new Date().toISOString(),
+                            reporter: { name: 'Juan Cruz' },
+                        },
+                    ],
+                    recentUsers: [
+                        {
+                            _id: 'user-1',
+                            name: 'Maria Santos',
+                            email: 'maria@example.com',
+                            role: 'reporter',
+                        },
+                    ],
+                },
+            },
+        });
+        mocks.getOnlineUsers.mockResolvedValue({
+            data: {
+                data: [
+                    { userId: 'admin-1', name: 'Admin Chief', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                    { userId: 'resp-1', name: 'Officer Dalisay', role: 'responder', agency: 'PNP', assignedMunicipality: 'Cajidiocan' },
+                ],
+            },
+        });
+    });
+
+    test('renders the unified municipal operations dashboard layout and metrics', async () => {
+        render(<AdminPage />);
+
+        expect(await screen.findByRole('heading', { level: 1, name: 'Operations dashboard' })).toBeInTheDocument();
+        expect(screen.getByText(/System active · Sibuyan Island · Cajidiocan/i)).toBeInTheDocument();
+
+        // 4-Stat Strip
+        expect(screen.getByRole('link', { name: /Pending Reports: 3/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Pending Verifications: 2/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Total Reports: 24/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Total Users: 58/i })).toBeInTheDocument();
+
+        // Secondary Utility Strip
+        expect(screen.getByRole('link', { name: /High-Risk Zones/i })).toHaveAttribute('href', '/admin/zones');
+        expect(screen.getByText('12')).toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
+
+        // Barangay breakdown
+        expect(screen.getByText('Incidents per barangay')).toBeInTheDocument();
+        expect(screen.getByText('Poblacion')).toBeInTheDocument();
+        expect(screen.getByText('8 incidents')).toBeInTheDocument();
+        expect(screen.getByText('Sugod')).toBeInTheDocument();
+        expect(screen.getByText('4 incidents')).toBeInTheDocument();
+
+        // Active Personnel
+        expect(screen.getByText('Active personnel & users')).toBeInTheDocument();
+        expect(screen.getByText('2 online')).toBeInTheDocument();
+        expect(screen.getByText('Admin Chief')).toBeInTheDocument();
+        expect(screen.getByText('Officer Dalisay')).toBeInTheDocument();
+
+        // Recent Reports & Recent Users
+        expect(screen.getByText('Recent reports')).toBeInTheDocument();
+        expect(screen.getByText('Main Highway, Poblacion')).toBeInTheDocument();
+        expect(screen.getByText('Recent users')).toBeInTheDocument();
+        expect(screen.getByText('Maria Santos')).toBeInTheDocument();
+    });
+});

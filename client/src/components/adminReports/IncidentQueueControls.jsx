@@ -83,49 +83,49 @@ const ResponderQueueControls = ({
 
     return (
         <>
-            <header className="mb-4 flex min-w-0 flex-col gap-3 border-b border-gray-200/80 pb-4 dark:border-gray-800 sm:flex-row sm:items-start sm:justify-between">
+            <header className="mb-4 flex min-w-0 flex-col gap-3 border-b border-gray-200/80 pb-4 dark:border-white/10 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         Responder operations
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Incident reports
                     </h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-300">
+                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         Municipality-scoped incident records available to responders.
                     </p>
                     {stats && (
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
-                            <span>{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
-                            <span className="mx-1.5" aria-hidden="true">&middot;</span>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
                             <span>{toCount(stats.responding)} responding</span>
-                            <span className="mx-1.5" aria-hidden="true">&middot;</span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
                             <span>{toCount(stats.resolved)} resolved</span>
-                        </p>
+                        </div>
                     )}
                 </div>
 
-                <div className="flex min-h-10 shrink-0 items-center gap-1 self-start text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex min-h-9 shrink-0 items-center gap-2 self-start text-xs text-gray-500 dark:text-gray-400">
                     {lastUpdatedLabel && (
-                        <time dateTime={new Date(lastUpdatedAt).toISOString()}>
+                        <time dateTime={new Date(lastUpdatedAt).toISOString()} className="tabular-nums">
                             Last updated {lastUpdatedLabel}
                         </time>
                     )}
-                    {lastUpdatedLabel && <span aria-hidden="true">&middot;</span>}
+                    {lastUpdatedLabel && <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>}
                     <button
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                     >
-                        <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                        <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
                     </button>
                 </div>
             </header>
 
-            <nav className="mb-4 overflow-x-auto border-b border-gray-200 dark:border-gray-800" aria-label="Responder incident views">
-                <div className="-mb-px flex min-w-max items-end gap-1 sm:min-w-0 sm:flex-wrap">
+            <nav className="mb-4 overflow-x-auto border-b border-gray-200/80 dark:border-white/10" aria-label="Responder incident views">
+                <div className="-mb-px flex min-w-max items-end gap-2 sm:min-w-0 sm:flex-wrap">
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
                         return (
@@ -134,8 +134,8 @@ const ResponderQueueControls = ({
                                 type="button"
                                 aria-current={active ? 'page' : undefined}
                                 onClick={() => onResponderViewChange(view.value)}
-                                className={`min-h-11 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${active
-                                    ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white'
+                                className={`min-h-10 whitespace-nowrap border-b-2 px-3 py-2 text-xs sm:text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${active
+                                    ? 'border-brand-600 text-gray-950 dark:border-brand-500 dark:text-white'
                                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-100'}`}
                             >
                                 {view.label}
@@ -145,7 +145,7 @@ const ResponderQueueControls = ({
                 </div>
             </nav>
 
-            <section aria-label="Incident filters" className="mb-4 border-b border-gray-200 pb-4 dark:border-gray-800">
+            <section aria-label="Incident filters" className="mb-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -155,18 +155,18 @@ const ResponderQueueControls = ({
                 >
                     <label className="relative min-w-0 flex-1">
                         <span className="sr-only">Search incidents</span>
-                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
                         <input
                             type="search"
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="min-h-10 w-full rounded-sm border border-gray-300 bg-white py-2 pl-10 pr-3 text-[11px] uppercase tracking-wider font-bold text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-3 text-xs text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="min-h-10 rounded-sm bg-gray-900 px-5 text-[11px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
+                        className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-700 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                     >
                         Search
                     </button>
@@ -174,27 +174,27 @@ const ResponderQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-sm border border-gray-300 px-3 text-[11px] uppercase tracking-wider font-bold text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
-                            <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                            <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
                         </button>
                     )}
                 </form>
 
                 <div className="mt-3 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                    <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         {responderView === 'all' ? 'Status' : 'Scope'}
                     </span>
                     {responderView !== 'all' ? (
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{activeResponderView.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{activeResponderView.description}</p>
                     ) : (
-                        <div className="flex min-w-0 flex-wrap gap-1" aria-label="Filter by status">
+                        <div className="flex min-w-0 flex-wrap gap-1.5" aria-label="Filter by status">
                             <button
                                 type="button"
                                 aria-pressed={status === ''}
                                 onClick={() => setStatus('')}
-                                className={`min-h-10 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${status === ''
+                                className={`h-8 rounded-lg border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${status === ''
                                     ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
                                     : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
                             >
@@ -209,7 +209,7 @@ const ResponderQueueControls = ({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setStatus(statusValue)}
-                                        className={`min-h-9 rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 ${active
+                                        className={`h-8 rounded-lg border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active
                                             ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
                                             : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
                                     >
