@@ -958,6 +958,190 @@ describe('AdminReportsPage operational queue', () => {
         expect(within(inspector).queryByRole('button', { name: 'Transfer report' })).not.toBeInTheDocument();
     });
 
+    test('opens inline transfer form inside inspector, validates fields, and transfers successfully', async () => {
+        const verifiedReport = createReport({
+            _id: 'report-1',
+            status: 'verified',
+            address: 'M. Aquino Street, Poblacion',
+            municipality: '64b000000000000000000001',
+            municipalityName: 'Cajidiocan',
+        });
+        let currentReportsPayload = {
+            reports: [verifiedReport],
+            stats: { pending: 1, verified: 1, responding: 1, resolved: 1 },
+            pagination: { page: 1, limit: 20, total: 1, pages: 1 },
+        };
+        mocks.getReports.mockImplementation(() => Promise.resolve({ data: { data: currentReportsPayload } }));
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...verifiedReport,
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                },
+            },
+        });
+        mocks.getMunicipalities.mockResolvedValue({
+            data: {
+                data: [
+                    { _id: '64b000000000000000000001', name: 'Cajidiocan' },
+                    { _id: '64b000000000000000000002', name: 'Magdiwang' },
+                    { _id: '64b000000000000000000003', name: 'San Fernando' },
+                ],
+            },
+        });
+        mocks.transferReport.mockImplementation(() => {
+            currentReportsPayload = {
+                reports: [{ ...verifiedReport, status: 'transferred', municipality: '64b000000000000000000002', municipalityName: 'Magdiwang' }],
+                stats: { pending: 1, verified: 0, responding: 1, resolved: 1 },
+                pagination: { page: 1, limit: 20, total: 1, pages: 1 },
+            };
+            return Promise.resolve({
+                data: {
+                    message: 'Report transferred successfully',
+                    data: {
+                        _id: 'report-1',
+                        status: 'transferred',
+                        municipality: '64b000000000000000000002',
+                        municipalityName: 'Magdiwang',
+                    },
+                },
+            });
+        });
+
+        renderPage();
+        await screen.findAllByText('M. Aquino Street, Poblacion');
+
+        // 1. Open inspector
+        fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
+        const inspector = await screen.findByRole('dialog', { name: 'M. Aquino Street, Poblacion' });
+        expect(inspector).toBeInTheDocument();
+
+        // 2. Click Transfer report
+        const transferButton = within(inspector).getByRole('button', { name: 'Transfer report' });
+        fireEvent.click(transferButton);
+
+        // 3. Inline transfer panel appears inside inspector (NOT as a separate full modal)
+        expect(screen.getByRole('heading', { name: 'Transfer incident' })).toBeInTheDocument();
+        expect(screen.getByText(/Incident context:/i)).toHaveTextContent('M. Aquino Street, Poblacion');
+        expect(screen.getByLabelText(/Target municipality/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Explain the jurisdiction or mutual-aid reason/i)).toBeInTheDocument();
+
+        // Confirm button is disabled initially
+        const confirmBtn = screen.getByRole('button', { name: 'Confirm transfer' });
+        expect(confirmBtn).toBeDisabled();
+
+        // 4. Test cancel behavior: returns to details view without closing inspector
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(screen.queryByRole('heading', { name: 'Transfer incident' })).not.toBeInTheDocument();
+        expect(within(inspector).getByRole('button', { name: 'Transfer report' })).toBeInTheDocument();
+
+        // 5. Re-open and fill form
+        fireEvent.click(within(inspector).getByRole('button', { name: 'Transfer report' }));
+        await waitFor(() => {
+            expect(screen.getByRole('option', { name: 'Magdiwang' })).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByLabelText(/Target municipality/i), {
+            target: { value: '64b000000000000000000002' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Explain the jurisdiction or mutual-aid reason/i), {
+            target: { value: 'Incident occurred near Magdiwang boundary line' },
+        });
+
+        expect(screen.getByRole('button', { name: 'Confirm transfer' })).not.toBeDisabled();
+
+        // 6. Submit transfer
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm transfer' }));
+
+        await waitFor(() => {
+            expect(mocks.transferReport).toHaveBeenCalledWith('report-1', {
+                targetMunicipalityId: '64b000000000000000000002',
+                reason: 'Incident occurred near Magdiwang boundary line',
+            });
+        });
+
+        // 7. Status updates immediately in inspector and transfer panel closes
+        await waitFor(() => {
+            expect(screen.queryByRole('heading', { name: 'Transfer incident' })).not.toBeInTheDocument();
+            const currentInspector = screen.getByRole('dialog', { name: 'M. Aquino Street, Poblacion' });
+            expect(within(currentInspector).getAllByText('Transferred').length).toBeGreaterThanOrEqual(1);
+        });
+
+        expect(mocks.toast.success).toHaveBeenCalledWith(expect.stringContaining('Report transferred successfully'), expect.anything());
+    });
+
+    test('handles failed transfer safely without falsely updating inspector status', async () => {
+        const verifiedReport = createReport({
+            _id: 'report-1',
+            status: 'verified',
+            address: 'M. Aquino Street, Poblacion',
+            municipality: '64b000000000000000000001',
+            municipalityName: 'Cajidiocan',
+        });
+        mocks.getReports.mockResolvedValue(apiResponse([verifiedReport]));
+        mocks.getReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...verifiedReport,
+                    detailAccess: 'operational',
+                    detailCompleteness: 'full',
+                    reportUpdates: [],
+                    transferHistory: [],
+                },
+            },
+        });
+        mocks.getMunicipalities.mockResolvedValue({
+            data: {
+                data: [
+                    { _id: '64b000000000000000000001', name: 'Cajidiocan' },
+                    { _id: '64b000000000000000000002', name: 'Magdiwang' },
+                ],
+            },
+        });
+        mocks.transferReport.mockRejectedValueOnce({
+            response: {
+                data: {
+                    message: 'Transfer failed: jurisdiction conflict',
+                },
+            },
+        });
+
+        renderPage();
+        await screen.findAllByText('M. Aquino Street, Poblacion');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
+        const inspector = await screen.findByRole('dialog', { name: 'M. Aquino Street, Poblacion' });
+
+        fireEvent.click(within(inspector).getByRole('button', { name: 'Transfer report' }));
+        await waitFor(() => {
+            expect(screen.getByRole('option', { name: 'Magdiwang' })).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByLabelText(/Target municipality/i), {
+            target: { value: '64b000000000000000000002' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Explain the jurisdiction or mutual-aid reason/i), {
+            target: { value: 'Boundary issue requires transfer' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm transfer' }));
+
+        await waitFor(() => {
+            expect(mocks.toast.error).toHaveBeenCalledWith(
+                expect.stringContaining('Transfer failed: jurisdiction conflict'),
+                expect.anything(),
+            );
+        });
+
+        // Form remains open with preserved values, status remains Verified
+        expect(screen.getByRole('heading', { name: 'Transfer incident' })).toBeInTheDocument();
+        expect(screen.getByLabelText(/Target municipality/i)).toHaveValue('64b000000000000000000002');
+        expect(within(inspector).getAllByText('Verified').length).toBeGreaterThanOrEqual(1);
+    });
+
     test('keeps report deletion behind destructive confirmation', async () => {
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
         renderPage();

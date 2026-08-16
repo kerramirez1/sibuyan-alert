@@ -154,7 +154,7 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="ml-1 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-all hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4"
+                                className="ml-1 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-all hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 <HiOutlineExclamation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span className="hidden sm:inline">REPORT INCIDENT</span>

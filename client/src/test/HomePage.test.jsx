@@ -82,7 +82,8 @@ describe('HomePage operational landing page', () => {
         expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(mapAction).not.toHaveClass('border-emerald-700');
-        expect(mapAction).toHaveClass('ui-button', 'bg-emerald-700', 'text-white', 'hover:bg-emerald-800');
+        expect(mapAction).toHaveClass('ui-button', 'bg-white', 'text-gray-800');
+        expect(reportAction).toHaveClass('bg-emerald-600', 'text-white');
         expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
@@ -124,10 +125,16 @@ describe('HomePage operational landing page', () => {
         expect(lifecycle).toHaveAttribute('tabindex', '0');
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
-        const journeyLabels = ['Reported', 'Under review', 'Verified', 'Responding', 'Resolved'];
+        const journeyStagesExpected = [
+            { label: 'Reported', dotClass: 'bg-amber-500' },
+            { label: 'Under review', dotClass: 'bg-amber-500' },
+            { label: 'Verified', dotClass: 'bg-blue-600' },
+            { label: 'Responding', dotClass: 'bg-cyan-600' },
+            { label: 'Resolved', dotClass: 'bg-emerald-600' },
+        ];
         lifecycleStages.forEach((stage, index) => {
-            expect(stage).toHaveTextContent(journeyLabels[index]);
-            expect(stage.querySelector('span')).toHaveClass('bg-emerald-500');
+            expect(stage).toHaveTextContent(journeyStagesExpected[index].label);
+            expect(stage.querySelector('span')).toHaveClass(journeyStagesExpected[index].dotClass);
         });
 
         expect((await screen.findAllByText(/Active risk zones/i)).length).toBeGreaterThan(0);

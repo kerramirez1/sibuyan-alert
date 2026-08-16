@@ -37,6 +37,7 @@ const useIncidentActions = ({
             toast.error('Only administrators can review this report at its current status.');
             return;
         }
+        setTransferDialog(closedTransfer);
         setReviewDialog({ open: true, report, status, rejectionReason: '' });
     }, [user]);
 
@@ -152,6 +153,7 @@ const useIncidentActions = ({
             return;
         }
 
+        setReviewDialog(closedReview);
         setTransferDialog({ ...closedTransfer, open: true, report });
         if (municipalities.length > 0) return;
 
@@ -173,13 +175,16 @@ const useIncidentActions = ({
                 targetMunicipalityId,
                 reason: reason.trim(),
             });
-            const municipalityName = municipalities.find((item) => item._id === targetMunicipalityId)?.name;
-            patchReport(report._id, {
-                ...response.data?.data,
+            const serverReport = response.data?.data;
+            const municipalityName = municipalities.find((item) => String(item._id) === String(targetMunicipalityId))?.name;
+            const updatedReport = {
+                ...report,
+                ...serverReport,
                 municipality: targetMunicipalityId,
                 municipalityName: municipalityName || report.municipalityName,
                 status: 'transferred',
-            });
+            };
+            patchReport(report._id, updatedReport);
             toast.success(response.data?.message || 'Report transferred successfully');
             setTransferDialog(closedTransfer);
             await refreshReports({ silent: true });

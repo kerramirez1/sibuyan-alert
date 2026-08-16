@@ -300,7 +300,13 @@ const MapView = ({
         );
         
         let removeCompassToggle = () => {};
-        if (mode !== 'incident-preview') {
+        if (mode === 'incident-preview') {
+            const navigationControl = new maplibregl.NavigationControl({
+                showCompass: false,
+                showZoom: true,
+            });
+            mapInstance.addControl(navigationControl, 'top-right');
+        } else {
             const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
             mapInstance.addControl(navigationControl, 'top-right');
             removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {

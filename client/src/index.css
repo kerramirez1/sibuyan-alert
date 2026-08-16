@@ -991,6 +991,19 @@
   }
 }
 
+/* Compact zoom controls in embedded incident location preview */
+.incident-location-preview .maplibregl-ctrl-group button {
+  width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 640px) {
+  .incident-location-preview .maplibregl-ctrl-group button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 /*
  * Legacy utility compatibility layer.
  * The application predates semantic tokens and contains light-only Tailwind

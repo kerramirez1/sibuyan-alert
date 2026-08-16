@@ -104,10 +104,16 @@ const AdminReportsPage = () => {
         actions.openReview(report, status);
     }, [actions, reportState]);
 
+    const handleOpenTransfer = useCallback((report) => {
+        reportState.setSelectedReport(report);
+        actions.openTransfer(report);
+    }, [actions, reportState]);
+
     const queueActions = useMemo(() => ({
         ...actions,
         openReview: handleOpenReview,
-    }), [actions, handleOpenReview]);
+        openTransfer: handleOpenTransfer,
+    }), [actions, handleOpenReview, handleOpenTransfer]);
 
     const openMap = useCallback((report) => {
         const coordinates = getCoordinates(report);

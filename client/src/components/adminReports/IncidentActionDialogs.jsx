@@ -1,6 +1,5 @@
 import {
     HiOutlineBadgeCheck,
-    HiOutlineSwitchHorizontal,
 } from 'react-icons/hi';
 import Modal from '../ui/Modal';
 import ResponderUnitModal from '../ResponderUnitModal';
@@ -34,14 +33,10 @@ const ReportPreview = ({ report }) => (
 );
 
 const IncidentActionDialogs = ({ actions, municipality }) => {
-    const { resolveDialog, transferDialog } = actions;
-    const transferReasonLength = transferDialog.reason.trim().length;
-    const transferInvalid = !transferDialog.targetMunicipalityId || transferReasonLength < 10;
-    const currentMunicipalityId = transferDialog.report?.municipality?._id || transferDialog.report?.municipality;
+    const { resolveDialog } = actions;
 
     return (
         <>
-
             <Modal
                 isOpen={resolveDialog.open}
                 onClose={actions.closeResolve}
@@ -67,53 +62,6 @@ const IncidentActionDialogs = ({ actions, municipality }) => {
                     <DialogButton onClick={actions.confirmResolve} tone="success" loading={actions.resolveLoading}>
                         <HiOutlineBadgeCheck className="h-4 w-4" aria-hidden="true" />
                         Confirm resolved
-                    </DialogButton>
-                </div>
-            </Modal>
-
-            <Modal
-                isOpen={transferDialog.open}
-                onClose={actions.closeTransfer}
-                title="Transfer incident"
-                size="md"
-            >
-                <ReportPreview report={transferDialog.report} />
-                <div className="space-y-4">
-                    <label className="block">
-                        <span className="text-sm font-semibold text-gray-800">Target municipality <span className="text-red-600">*</span></span>
-                        <select
-                            value={transferDialog.targetMunicipalityId}
-                            onChange={(event) => actions.setTransferDialog((current) => ({ ...current, targetMunicipalityId: event.target.value }))}
-                            className="mt-2 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                        >
-                            <option value="">Select municipality</option>
-                            {actions.municipalities
-                                .filter((item) => item._id?.toString() !== currentMunicipalityId?.toString())
-                                .map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
-                        </select>
-                    </label>
-                    <label className="block">
-                        <span className="text-sm font-semibold text-gray-800">Transfer reason <span className="text-red-600">*</span></span>
-                        <textarea
-                            value={transferDialog.reason}
-                            onChange={(event) => actions.setTransferDialog((current) => ({ ...current, reason: event.target.value }))}
-                            rows={4}
-                            minLength={10}
-                            required
-                            aria-describedby="transfer-reason-help"
-                            className="mt-2 w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                            placeholder="Explain the jurisdiction or mutual-aid reason"
-                        />
-                        <span id="transfer-reason-help" className={`mt-1 block text-xs ${transferReasonLength > 0 && transferReasonLength < 10 ? 'text-red-600' : 'text-gray-500'}`}>
-                            Minimum 10 characters · {transferReasonLength}/10
-                        </span>
-                    </label>
-                </div>
-                <div className="mt-5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-                    <DialogButton onClick={actions.closeTransfer}>Cancel</DialogButton>
-                    <DialogButton onClick={actions.confirmTransfer} tone="violet" disabled={transferInvalid} loading={actions.transferLoading}>
-                        <HiOutlineSwitchHorizontal className="h-4 w-4" aria-hidden="true" />
-                        Confirm transfer
                     </DialogButton>
                 </div>
             </Modal>

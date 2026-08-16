@@ -41,7 +41,10 @@ const IncidentLocationPreview = ({
                     )}
 
                     {coordinates ? (
-                        <div className="aspect-square w-full overflow-hidden rounded-2xl border border-gray-200/90 shadow-2xs dark:border-white/10 sm:aspect-auto sm:h-52">
+                        <div
+                            data-testid="incident-location-preview"
+                            className="incident-location-preview aspect-square w-full overflow-hidden rounded-2xl border border-gray-200/90 shadow-2xs dark:border-white/10 sm:aspect-auto sm:h-52"
+                        >
                             <MapView
                                 reports={[report]}
                                 showPending
@@ -49,7 +52,7 @@ const IncidentLocationPreview = ({
                                 viewerRole={userRole}
                                 focusLocation={{ ...coordinates, zoom: 16 }}
                                 className="h-full w-full"
-                                disableScrollZoom={true}
+                                disableScrollZoom={false}
                                 mode="incident-preview"
                                 enable3D={false}
                             />

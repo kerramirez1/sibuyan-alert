@@ -21,13 +21,13 @@ const steps = [
     },
 ];
 
-// Typical incident journey — a simplified, public-facing progression.
+// Typical incident journey — a simplified, public-facing progression matching system status colors.
 const JOURNEY_STAGES = [
-    { key: 'reported', label: 'Reported' },
-    { key: 'under_review', label: 'Under review' },
-    { key: 'verified', label: 'Verified' },
-    { key: 'in_progress', label: 'Responding' },
-    { key: 'resolved', label: 'Resolved' },
+    { key: 'reported', label: 'Reported', dotClass: 'bg-amber-500' },
+    { key: 'under_review', label: 'Under review', dotClass: 'bg-amber-500' },
+    { key: 'verified', label: 'Verified', dotClass: 'bg-blue-600' },
+    { key: 'in_progress', label: 'Responding', dotClass: 'bg-cyan-600 animate-pulse ring-2 ring-cyan-400/40' },
+    { key: 'resolved', label: 'Resolved', dotClass: 'bg-emerald-600' },
 ];
 
 const HowItWorks = () => (
@@ -107,7 +107,7 @@ const HowItWorks = () => (
                                 role="listitem"
                                 className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium leading-none text-gray-700 dark:text-gray-300"
                             >
-                                <span className={`h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 ${stage.key === 'in_progress' ? 'animate-pulse ring-2 ring-emerald-400/40' : ''}`} aria-hidden="true" />
+                                <span className={`h-2.5 w-2.5 rounded-full ${stage.dotClass}`} aria-hidden="true" />
                                 {stage.label}
                             </span>
                             {index < JOURNEY_STAGES.length - 1 && (

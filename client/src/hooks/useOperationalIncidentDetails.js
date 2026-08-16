@@ -123,6 +123,8 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
             ...(report.resolvedBy !== undefined ? { resolvedBy: report.resolvedBy } : {}),
             ...(report.resolvedAt !== undefined ? { resolvedAt: report.resolvedAt } : {}),
             ...(report.resolutionNotes !== undefined ? { resolutionNotes: report.resolutionNotes } : {}),
+            ...(report.municipality !== undefined ? { municipality: report.municipality } : {}),
+            ...(report.municipalityName !== undefined ? { municipalityName: report.municipalityName } : {}),
             ...(report.transferredAt !== undefined ? { transferredAt: report.transferredAt } : {}),
             ...(report.transferHistory !== undefined ? { transferHistory: report.transferHistory } : {}),
             ...(report.reportUpdates !== undefined ? { reportUpdates: report.reportUpdates } : {}),
