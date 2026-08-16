@@ -1,8 +1,6 @@
 import {
     HiOutlineBadgeCheck,
-    HiOutlineCheckCircle,
     HiOutlineSwitchHorizontal,
-    HiOutlineXCircle,
 } from 'react-icons/hi';
 import Modal from '../ui/Modal';
 import ResponderUnitModal from '../ResponderUnitModal';
@@ -36,58 +34,13 @@ const ReportPreview = ({ report }) => (
 );
 
 const IncidentActionDialogs = ({ actions, municipality }) => {
-    const { reviewDialog, resolveDialog, transferDialog } = actions;
-    const rejectionRequired = reviewDialog.status === 'rejected';
-    const rejectionInvalid = rejectionRequired && !reviewDialog.rejectionReason.trim();
+    const { resolveDialog, transferDialog } = actions;
     const transferReasonLength = transferDialog.reason.trim().length;
     const transferInvalid = !transferDialog.targetMunicipalityId || transferReasonLength < 10;
     const currentMunicipalityId = transferDialog.report?.municipality?._id || transferDialog.report?.municipality;
 
     return (
         <>
-            <Modal
-                isOpen={reviewDialog.open}
-                onClose={actions.closeReview}
-                title={reviewDialog.status === 'verified' ? 'Verify incident report' : 'Reject incident report'}
-                size="md"
-            >
-                <ReportPreview report={reviewDialog.report} />
-                {rejectionRequired && (
-                    <label className="block">
-                        <span className="text-sm font-semibold text-gray-800">Rejection reason <span className="text-red-600">*</span></span>
-                        <textarea
-                            value={reviewDialog.rejectionReason}
-                            onChange={(event) => actions.setReviewDialog((current) => ({ ...current, rejectionReason: event.target.value }))}
-                            rows={4}
-                            required
-                            aria-invalid={rejectionInvalid}
-                            aria-describedby="rejection-help"
-                            className="mt-2 w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                            placeholder="Explain why this report cannot be verified"
-                        />
-                        <span id="rejection-help" className={`mt-1 block text-xs ${rejectionInvalid ? 'text-red-600' : 'text-gray-500'}`}>
-                            A reason is required and will be shown to the reporter.
-                        </span>
-                    </label>
-                )}
-                {!rejectionRequired && (
-                    <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                        Verification makes this incident eligible for responder action and map visibility.
-                    </p>
-                )}
-                <div className="mt-5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-                    <DialogButton onClick={actions.closeReview}>Cancel</DialogButton>
-                    <DialogButton
-                        onClick={actions.confirmReview}
-                        tone={rejectionRequired ? 'danger' : 'success'}
-                        disabled={rejectionInvalid}
-                        loading={actions.reviewLoading}
-                    >
-                        {rejectionRequired ? <HiOutlineXCircle className="h-4 w-4" aria-hidden="true" /> : <HiOutlineCheckCircle className="h-4 w-4" aria-hidden="true" />}
-                        {rejectionRequired ? 'Confirm rejection' : 'Confirm verification'}
-                    </DialogButton>
-                </div>
-            </Modal>
 
             <Modal
                 isOpen={resolveDialog.open}

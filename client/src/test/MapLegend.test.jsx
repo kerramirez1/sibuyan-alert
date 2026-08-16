@@ -62,4 +62,19 @@ describe('MapLegend', () => {
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(trigger).toHaveAttribute('aria-expanded', 'false');
     });
+
+    test('hides incident status indicators when showIncidentStatus is false', () => {
+        render(<MapLegend showIncidentStatus={false} />);
+
+        expect(screen.getByText('High-risk zone')).toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    });
+
+    test('returns null when both showIncidentStatus and showRiskZone are false', () => {
+        const { container } = render(<MapLegend showIncidentStatus={false} showRiskZone={false} />);
+        expect(container).toBeEmptyDOMElement();
+    });
 });

@@ -268,71 +268,88 @@ const IncidentQueueControls = ({
         );
     }
 
+    const lastUpdatedLabel = formatLastUpdatedTime(lastUpdatedAt);
+
     return (
         <>
-            <header className="mb-4 flex min-w-0 flex-col gap-4 border-b border-gray-200/80 pb-4 dark:border-gray-800 lg:flex-row lg:items-start lg:justify-between">
+            <header className="mb-4 flex min-w-0 flex-col gap-3 border-b border-gray-200/80 pb-4 dark:border-white/10 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         Incident management
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Incident reports
                     </h1>
-                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                        {`${resultCount} incident${resultCount === 1 ? '' : 's'} loaded${municipality ? ` for ${municipality}` : ''}.`}
+                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {`Municipality-scoped incident records${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
-                        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-300" aria-label="Operational totals">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{resultCount} incident{resultCount === 1 ? '' : 's'}</span>
                             {isAdmin && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 font-medium text-amber-900 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/20">
-                                    <strong className="text-amber-700 dark:text-amber-300">{stats.pending || 0}</strong> pending review
-                                </span>
+                                <>
+                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                                        <span>{toCount(stats.pending)} pending review</span>
+                                    </span>
+                                </>
                             )}
-                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 font-medium text-indigo-900 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-400/20">
-                                <strong className="text-indigo-700 dark:text-indigo-300">{stats.responding || 0}</strong> responding
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
+                                <span>{toCount(stats.responding)} responding</span>
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 font-medium text-emerald-900 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20">
-                                <strong className="text-emerald-700 dark:text-emerald-300">{stats.resolved || 0}</strong> resolved
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                <span>{toCount(stats.resolved)} resolved</span>
                             </span>
                         </div>
                     )}
                 </div>
 
-                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-2 lg:w-auto lg:grid-flow-col lg:auto-cols-max lg:grid-cols-none">
+                <div className="flex min-h-9 shrink-0 items-center gap-2 self-start text-xs text-gray-500 dark:text-gray-400">
+                    {lastUpdatedLabel && (
+                        <time dateTime={new Date(lastUpdatedAt).toISOString()} className="tabular-nums">
+                            Last updated {lastUpdatedLabel}
+                        </time>
+                    )}
+                    {lastUpdatedLabel && <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>}
                     <button
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                     >
-                        <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                        <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
                     </button>
                 </div>
             </header>
 
-            <section aria-label="Incident filters" className="mb-4 rounded-sm border border-gray-300 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+            <section aria-label="Incident filters" className="mb-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
                         applySearch();
                     }}
-                    className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                    className="flex min-w-0 flex-col gap-2 sm:flex-row"
                 >
-                    <label className="relative flex-1">
+                    <label className="relative min-w-0 flex-1">
                         <span className="sr-only">Search incidents</span>
-                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
                         <input
                             type="search"
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="min-h-10 w-full rounded-sm border border-gray-300 bg-white py-2 pl-10 pr-3 text-[11px] uppercase tracking-wider font-bold text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-3 text-xs text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="min-h-10 rounded-sm bg-gray-900 px-5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
+                        className="inline-flex h-9 items-center justify-center rounded-xl bg-brand-700 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                     >
                         Search
                     </button>
@@ -340,49 +357,47 @@ const IncidentQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-sm border border-gray-300 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
-                            <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                            <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
                         </button>
                     )}
                 </form>
 
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                    {isResponder && responderView !== 'all' ? (
-                        <p className="text-sm font-medium text-blue-800">
-                            {responderView === 'available' && 'Showing verified unassigned and transferred incidents.'}
-                            {responderView === 'municipalActive' && 'Showing all active incidents in your municipality.'}
-                            {responderView === 'active' && 'Showing incidents assigned to your responder account.'}
-                            {responderView === 'history' && 'Showing incidents resolved by your response unit.'}
-                        </p>
-                    ) : (
-                        <div className="flex flex-wrap gap-2" aria-label="Filter by status">
-                            <button
-                                type="button"
-                                aria-pressed={status === ''}
-                                onClick={() => setStatus('')}
-                                className={`min-h-9 whitespace-nowrap rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-500 ${status === '' ? 'border-gray-900 bg-gray-900 text-white dark:bg-white dark:text-gray-950 dark:border-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-                            >
-                                All statuses
-                            </button>
-                            {getRoleStatuses(role).map((statusValue) => {
-                                const config = INCIDENT_STATUS[statusValue];
-                                const active = status === statusValue;
-                                return (
-                                    <button
-                                        key={statusValue}
-                                        type="button"
-                                        aria-pressed={active}
-                                        onClick={() => setStatus(statusValue)}
-                                        className={`min-h-9 whitespace-nowrap rounded-sm border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-500 ${active ? config.className : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'} ${active && statusValue === 'resolved' ? '!border-transparent' : ''}`}
-                                    >
-                                        {config.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+                <div className="mt-3 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                    <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Status
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1.5" aria-label="Filter by status">
+                        <button
+                            type="button"
+                            aria-pressed={status === ''}
+                            onClick={() => setStatus('')}
+                            className={`h-8 rounded-lg border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${status === ''
+                                ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
+                                : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                        >
+                            All statuses
+                        </button>
+                        {getRoleStatuses(role).map((statusValue) => {
+                            const config = INCIDENT_STATUS[statusValue];
+                            const active = status === statusValue;
+                            return (
+                                <button
+                                    key={statusValue}
+                                    type="button"
+                                    aria-pressed={active}
+                                    onClick={() => setStatus(statusValue)}
+                                    className={`h-8 rounded-lg border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active
+                                        ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
+                                        : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                                >
+                                    {config.label}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </section>
         </>

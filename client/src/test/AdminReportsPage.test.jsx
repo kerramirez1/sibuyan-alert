@@ -707,11 +707,41 @@ describe('AdminReportsPage operational queue', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Verify report' })[0]);
         expect(screen.getByRole('dialog', { name: 'Verify incident report' })).toBeInTheDocument();
+        expect(screen.getByText(/This will make the incident eligible for responder action/i)).toBeInTheDocument();
+
+        // Escape cancels confirmation without closing inspector
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('dialog', { name: 'Verify incident report' })).not.toBeInTheDocument();
+        expect(screen.getByTestId('responder-incident-inspector')).toBeInTheDocument();
+
+        // Re-open and confirm
+        fireEvent.click(screen.getAllByRole('button', { name: 'Verify report' })[0]);
         fireEvent.click(screen.getByRole('button', { name: 'Confirm verification' }));
 
         await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
             status: 'verified',
             rejectionReason: '',
+        }));
+    });
+
+    test('handles administrator rejection confirmation with required reason', async () => {
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Reject report' })[0]);
+        expect(screen.getByRole('dialog', { name: 'Reject incident report' })).toBeInTheDocument();
+
+        const confirmBtn = screen.getByRole('button', { name: 'Confirm rejection' });
+        expect(confirmBtn).toBeDisabled();
+
+        const reasonInput = screen.getByPlaceholderText(/Reason for rejection \(required\)\.\.\./i);
+        fireEvent.change(reasonInput, { target: { value: 'Duplicate report of already resolved event' } });
+        expect(confirmBtn).toBeEnabled();
+
+        fireEvent.click(confirmBtn);
+        await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
+            status: 'rejected',
+            rejectionReason: 'Duplicate report of already resolved event',
         }));
     });
 
@@ -802,6 +832,130 @@ describe('AdminReportsPage operational queue', () => {
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('Network unavailable');
         expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    test('updates inspector and queue immediately upon successful verification and reveals transfer action', async () => {
+        const pendingReport = createReport({
+            _id: 'report-1',
+            status: 'pending',
+            severity: 'moderate',
+            address: 'Poblacion coastal road',
+        });
+        let reportsData = {
+            reports: [pendingReport],
+            stats: { pending: 4, verified: 1, responding: 1, resolved: 1 },
+            pagination: { page: 1, limit: 20, total: 1, pages: 1 },
+        };
+        mocks.getReports.mockImplementation(() => Promise.resolve({
+            data: { data: reportsData },
+        }));
+
+        mocks.verifyReport.mockImplementationOnce(async () => {
+            reportsData = {
+                reports: [{ ...pendingReport, status: 'verified' }],
+                stats: { pending: 3, verified: 2, responding: 1, resolved: 1 },
+                pagination: { page: 1, limit: 20, total: 1, pages: 1 },
+            };
+            return {
+                data: {
+                    success: true,
+                    message: 'Incident verified successfully.',
+                    data: {
+                        ...pendingReport,
+                        status: 'verified',
+                        verifiedBy: 'admin-1',
+                        verifiedAt: '2026-07-17T08:12:00.000Z',
+                    },
+                },
+            };
+        });
+
+        renderPage();
+
+        await screen.findAllByText('Poblacion coastal road');
+        expect(screen.getByText('4 pending review')).toBeInTheDocument();
+
+        // 1. Open inspector
+        fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
+        const inspector = await screen.findByRole('dialog', { name: 'Poblacion coastal road' });
+        expect(inspector).toBeInTheDocument();
+        expect(within(inspector).getByText('Pending')).toBeInTheDocument();
+        expect(within(inspector).getByRole('button', { name: 'Verify report' })).toBeInTheDocument();
+        expect(within(inspector).getByRole('button', { name: 'Reject report' })).toBeInTheDocument();
+        expect(within(inspector).queryByRole('button', { name: 'Transfer report' })).not.toBeInTheDocument();
+
+        // 2. Click Verify Report
+        fireEvent.click(within(inspector).getByRole('button', { name: 'Verify report' }));
+        expect(screen.getByRole('heading', { name: 'Verify incident report?' })).toBeInTheDocument();
+
+        // 3. Confirm verification
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm verification' }));
+
+        await waitFor(() => {
+            expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
+                status: 'verified',
+                rejectionReason: '',
+            });
+        });
+
+        // 4. Verify inspector updates immediately
+        await waitFor(() => {
+            const currentInspector = screen.getByRole('dialog', { name: 'Poblacion coastal road' });
+            expect(screen.queryByRole('heading', { name: 'Verify incident report?' })).not.toBeInTheDocument();
+            expect(within(currentInspector).getAllByText('Verified').length).toBeGreaterThanOrEqual(1);
+            expect(within(currentInspector).queryByText('Pending')).not.toBeInTheDocument();
+        });
+
+        // 5. Actions update: Verify/Reject gone, Transfer appears
+        const activeInspector = screen.getByRole('dialog', { name: 'Poblacion coastal road' });
+        expect(within(activeInspector).queryByRole('button', { name: 'Verify report' })).not.toBeInTheDocument();
+        expect(within(activeInspector).queryByRole('button', { name: 'Reject report' })).not.toBeInTheDocument();
+        expect(within(activeInspector).getByRole('button', { name: 'Transfer report' })).toBeInTheDocument();
+
+        // 6. Inspector remains open and stats update
+        expect(activeInspector).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('3 pending review')).toBeInTheDocument();
+        });
+    });
+
+    test('handles failed verification safely without falsely updating inspector or queue status', async () => {
+        const pendingReport = createReport({
+            _id: 'report-1',
+            status: 'pending',
+            address: 'Poblacion coastal road',
+        });
+        mocks.getReports.mockResolvedValue(apiResponse([pendingReport]));
+        mocks.verifyReport.mockRejectedValueOnce({
+            response: {
+                data: {
+                    message: 'Server error verifying report',
+                },
+            },
+        });
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
+        const inspector = await screen.findByRole('dialog', { name: 'Poblacion coastal road' });
+
+        fireEvent.click(within(inspector).getByRole('button', { name: 'Verify report' }));
+        expect(screen.getByRole('heading', { name: 'Verify incident report?' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm verification' }));
+
+        await waitFor(() => {
+            expect(mocks.toast.error).toHaveBeenCalledWith(
+                expect.stringContaining('Server error verifying report'),
+                expect.anything(),
+            );
+        });
+
+        // Status remains Pending, confirmation remains available
+        expect(within(inspector).getByText('Pending')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Verify incident report?' })).toBeInTheDocument();
+        expect(within(inspector).queryByRole('button', { name: 'Transfer report' })).not.toBeInTheDocument();
     });
 
     test('keeps report deletion behind destructive confirmation', async () => {

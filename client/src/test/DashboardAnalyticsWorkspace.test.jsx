@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('recharts', () => ({
@@ -18,7 +18,7 @@ vi.mock('../components/map/MapView', () => ({
     default: () => <div data-testid="analytics-map">Map preview</div>,
 }));
 
-import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
+import DashboardAnalyticsWorkspace, { formatXAxisDay } from '../components/dashboard/DashboardAnalyticsWorkspace';
 
 const selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 const report = {
@@ -104,7 +104,11 @@ describe('DashboardAnalyticsWorkspace', () => {
             'lg:h-[400px]',
         );
         expect(screen.getByText(report.address)).toHaveClass('line-clamp-2');
-        expect(screen.getByText('verified')).toHaveClass('bg-blue-50');
+
+        const recentActivitySection = screen.getByLabelText('Recent activity');
+        const activityBadge = within(recentActivitySection).getByText('Verified');
+        expect(activityBadge).toBeInTheDocument();
+        expect(activityBadge.parentElement).toHaveClass('border-gray-200/90', 'bg-gray-50/80');
     });
 
     test('shows municipality comparisons only when no municipal scope is provided', () => {
@@ -135,5 +139,19 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(screen.getByText('Choose another month.')).toBeInTheDocument();
         expect(screen.queryByText(/expand the municipality scope/i)).not.toBeInTheDocument();
         expect(screen.queryByTestId('incident-line-chart')).not.toBeInTheDocument();
+    });
+
+    test('formatXAxisDay extracts day number across various date representations', () => {
+        expect(formatXAxisDay('Aug 1')).toBe('1');
+        expect(formatXAxisDay('Aug 3')).toBe('3');
+        expect(formatXAxisDay('Aug 15')).toBe('15');
+        expect(formatXAxisDay('Aug 31')).toBe('31');
+        expect(formatXAxisDay('Jan 1')).toBe('1');
+        expect(formatXAxisDay('Feb 28')).toBe('28');
+        expect(formatXAxisDay('Apr 30')).toBe('30');
+        expect(formatXAxisDay(7)).toBe('7');
+        expect(formatXAxisDay('2026-08-19')).toBe('19');
+        expect(formatXAxisDay(null)).toBe('');
+        expect(formatXAxisDay(undefined)).toBe('');
     });
 });

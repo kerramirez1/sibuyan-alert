@@ -99,27 +99,15 @@ const AdminReportsPage = () => {
         onIncidentResolved: handleIncidentResolved,
     });
 
+    const handleOpenReview = useCallback((report, status) => {
+        reportState.setSelectedReport(report);
+        actions.openReview(report, status);
+    }, [actions, reportState]);
+
     const queueActions = useMemo(() => ({
-        openReview: actions.openReview,
-        openRespond: actions.openRespond,
-        openResolve: actions.openResolve,
-        openTransfer: actions.openTransfer,
-        acknowledgeTransfer: actions.acknowledgeTransfer,
-        deleteReport: actions.deleteReport,
-        respondLoadingId: actions.respondLoadingId,
-        acknowledgeLoadingId: actions.acknowledgeLoadingId,
-        deleteLoadingId: actions.deleteLoadingId,
-    }), [
-        actions.acknowledgeLoadingId,
-        actions.acknowledgeTransfer,
-        actions.deleteLoadingId,
-        actions.deleteReport,
-        actions.openRespond,
-        actions.openResolve,
-        actions.openReview,
-        actions.openTransfer,
-        actions.respondLoadingId,
-    ]);
+        ...actions,
+        openReview: handleOpenReview,
+    }), [actions, handleOpenReview]);
 
     const openMap = useCallback((report) => {
         const coordinates = getCoordinates(report);

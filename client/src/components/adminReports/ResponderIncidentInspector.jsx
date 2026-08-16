@@ -3,11 +3,15 @@ import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineBadgeCheck,
+    HiOutlineCheckCircle,
     HiOutlineChevronDown,
     HiOutlineExclamationCircle,
     HiOutlineLightningBolt,
     HiOutlineRefresh,
+    HiOutlineSwitchHorizontal,
+    HiOutlineTrash,
     HiOutlineX,
+    HiOutlineXCircle,
 } from 'react-icons/hi';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import IncidentLocationPreview from './IncidentLocationPreview';
@@ -88,6 +92,213 @@ const Disclosure = ({ title, count, children }) => (
     </details>
 );
 
+const AdminInspectorActions = ({ report, user, actions }) => {
+    const capabilities = getIncidentCapabilities(user, report);
+    const isReviewActive = Boolean(
+        actions?.reviewDialog?.open
+        && actions?.reviewDialog?.report?._id === report._id
+    );
+    const isVerify = actions?.reviewDialog?.status === 'verified';
+    const isReject = actions?.reviewDialog?.status === 'rejected';
+    const rejectionReason = actions?.reviewDialog?.rejectionReason || '';
+    const rejectionInvalid = isReject && !rejectionReason.trim();
+
+    const hasAnyAction = (
+        capabilities.canVerify
+        || capabilities.canReject
+        || capabilities.canTransfer
+        || capabilities.canAcknowledgeTransfer
+        || capabilities.canDelete
+    );
+
+    if (!hasAnyAction) return null;
+
+    if (isReviewActive) {
+        return (
+            <footer className="shrink-0 border-t border-gray-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-gray-950 sm:px-5">
+                {isVerify && (
+                    <div
+                        role="dialog"
+                        aria-label="Verify incident report"
+                        aria-modal="false"
+                        className="rounded-xl border border-emerald-200/90 bg-emerald-50/80 p-3.5 dark:border-emerald-900/50 dark:bg-emerald-950/40"
+                    >
+                        <div className="flex items-start gap-2.5">
+                            <HiOutlineCheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
+                                    Verify incident report?
+                                </h4>
+                                <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                                    This will make the incident eligible for responder action and map visibility.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={actions.closeReview}
+                                disabled={actions.reviewLoading}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={actions.confirmReview}
+                                disabled={actions.reviewLoading}
+                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-wait disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            >
+                                {actions.reviewLoading ? (
+                                    <>
+                                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
+                                        <span>Verifying...</span>
+                                    </>
+                                ) : (
+                                    <span>Confirm verification</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {isReject && (
+                    <div
+                        role="dialog"
+                        aria-label="Reject incident report"
+                        aria-modal="false"
+                        className="rounded-xl border border-red-200/90 bg-red-50/80 p-3.5 dark:border-red-900/50 dark:bg-red-950/40"
+                    >
+                        <div className="flex items-start gap-2.5">
+                            <HiOutlineXCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" aria-hidden="true" />
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-red-900 dark:text-red-200">
+                                    Reject incident report?
+                                </h4>
+                                <p className="mt-0.5 text-xs text-red-800 dark:text-red-300 leading-relaxed">
+                                    Provide a reason for rejecting this report. This will be visible to the reporter.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-2.5">
+                            <label htmlFor="inspector-rejection-reason" className="sr-only">
+                                Rejection reason
+                            </label>
+                            <textarea
+                                id="inspector-rejection-reason"
+                                value={rejectionReason}
+                                onChange={(e) => actions.setReviewDialog((prev) => ({ ...prev, rejectionReason: e.target.value }))}
+                                placeholder="Reason for rejection (required)..."
+                                required
+                                rows={2}
+                                className="w-full rounded-lg border border-red-200/90 bg-white p-2 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-red-900/50 dark:bg-[#07130e] dark:text-white"
+                            />
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={actions.closeReview}
+                                disabled={actions.reviewLoading}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={actions.confirmReview}
+                                disabled={rejectionInvalid || actions.reviewLoading}
+                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-red-700 px-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
+                            >
+                                {actions.reviewLoading ? (
+                                    <>
+                                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />
+                                        <span>Rejecting...</span>
+                                    </>
+                                ) : (
+                                    <span>Confirm rejection</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </footer>
+        );
+    }
+
+    return (
+        <footer className="shrink-0 border-t border-gray-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-gray-950 sm:px-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                    {capabilities.canVerify && (
+                        <button
+                            type="button"
+                            onClick={() => actions.openReview(report, 'verified')}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400 sm:flex-initial"
+                            title="Verify report"
+                            aria-label="Verify report"
+                        >
+                            <HiOutlineCheckCircle className="h-4 w-4" aria-hidden="true" />
+                            <span>Verify report</span>
+                        </button>
+                    )}
+                    {capabilities.canReject && (
+                        <button
+                            type="button"
+                            onClick={() => actions.openReview(report, 'rejected')}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200/90 bg-red-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-red-700 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400 sm:flex-initial"
+                            title="Reject report"
+                            aria-label="Reject report"
+                        >
+                            <HiOutlineXCircle className="h-4 w-4" aria-hidden="true" />
+                            <span>Reject report</span>
+                        </button>
+                    )}
+                    {capabilities.canAcknowledgeTransfer && (
+                        <button
+                            type="button"
+                            onClick={() => actions.acknowledgeTransfer(report)}
+                            disabled={actions.acknowledgeLoadingId === report._id}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
+                            title="Acknowledge transfer"
+                            aria-label="Acknowledge transfer"
+                        >
+                            <HiOutlineCheckCircle className={`h-4 w-4 ${actions.acknowledgeLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                            <span>Acknowledge transfer</span>
+                        </button>
+                    )}
+                    {capabilities.canTransfer && (
+                        <button
+                            type="button"
+                            onClick={() => actions.openTransfer(report)}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
+                            title="Transfer report"
+                            aria-label="Transfer report"
+                        >
+                            <HiOutlineSwitchHorizontal className="h-4 w-4" aria-hidden="true" />
+                            <span>Transfer report</span>
+                        </button>
+                    )}
+                </div>
+                {capabilities.canDelete && (
+                    <button
+                        type="button"
+                        onClick={() => actions.deleteReport(report)}
+                        disabled={actions.deleteLoadingId === report._id}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-400 shadow-2xs transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                        title="Delete report"
+                        aria-label="Delete report"
+                    >
+                        <HiOutlineTrash className={`h-4 w-4 ${actions.deleteLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                    </button>
+                )}
+            </div>
+        </footer>
+    );
+};
+
 const ResponderInspectorActions = ({ report, user, actions }) => {
     const capabilities = getIncidentCapabilities(user, report);
     const isResponding = report.status === 'responding';
@@ -140,9 +351,14 @@ const ResponderIncidentInspector = ({
     const panelBodyRef = useRef(null);
     const closeButtonRef = useRef(null);
     const previouslyFocusedRef = useRef(null);
+    const actionsRef = useRef(actions);
     const [entered, setEntered] = useState(false);
     const isOpen = Boolean(report);
     const reportId = String(report?._id || report?.id || '');
+
+    useEffect(() => {
+        actionsRef.current = actions;
+    });
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -150,7 +366,13 @@ const ResponderIncidentInspector = ({
         previouslyFocusedRef.current = document.activeElement;
         const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
         const handleKeyDown = (event) => {
-            if (event.key === 'Escape') onClose();
+            if (event.key === 'Escape') {
+                if (actionsRef.current?.reviewDialog?.open) {
+                    actionsRef.current.closeReview();
+                    return;
+                }
+                onClose();
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -397,7 +619,11 @@ const ResponderIncidentInspector = ({
                 )}
             </div>
 
-            <ResponderInspectorActions report={report} user={user} actions={actions} />
+            {user?.role === 'responder' ? (
+                <ResponderInspectorActions report={report} user={user} actions={actions} />
+            ) : (
+                <AdminInspectorActions report={report} user={user} actions={actions} />
+            )}
         </aside>,
         document.body,
     );

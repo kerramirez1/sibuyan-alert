@@ -49,6 +49,12 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             if (focusedReportId) {
                 const focusedReport = nextReports.find((report) => report._id === focusedReportId);
                 setSelectedReport(focusedReport || null);
+            } else {
+                setSelectedReport((current) => {
+                    if (!current?._id) return current;
+                    const matchingReport = nextReports.find((report) => report._id === current._id);
+                    return matchingReport ? { ...current, ...matchingReport } : current;
+                });
             }
             setStats(data.stats || null);
             setPagination(data.pagination || {
@@ -197,7 +203,12 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         if (responderView !== 'all') setStatusState('');
     }, [responderView]);
 
-    const visibleReports = useMemo(() => reports, [reports]);
+    const visibleReports = useMemo(() => {
+        if (responderView === 'all' && status) {
+            return reports.filter((report) => report.status === status);
+        }
+        return reports;
+    }, [reports, responderView, status]);
 
     const setStatus = useCallback((nextStatus) => {
         setPage(1);

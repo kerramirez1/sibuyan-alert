@@ -10,7 +10,6 @@ import {
     HiOutlineClock,
     HiOutlineExclamation,
     HiOutlineLightningBolt,
-    HiOutlineMap,
     HiOutlinePlus,
     HiOutlineTruck,
 } from 'react-icons/hi';
@@ -573,17 +572,26 @@ const DashboardMapWorkspace = ({
             <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                        <HiOutlineMap className="h-3.5 w-3.5" aria-hidden="true" />
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">{mapExperience.title}</h1>
-                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{mapExperience.description}</p>
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                        {mapExperience.title}
+                    </h1>
+                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {mapExperience.description}
+                    </p>
                 </div>
-                {isAuthenticated && user?.role === 'reporter' && (
-                    <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs">
-                        Submit report
-                    </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Sibuyan Island · Alert System Active</span>
+                    </div>
+                    {isAuthenticated && user?.role === 'reporter' && (
+                        <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs">
+                            Submit report
+                        </Button>
+                    )}
+                </div>
             </header>
 
             {error && (
@@ -632,21 +640,21 @@ const DashboardMapWorkspace = ({
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
                         <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
                         {displayedMapReports.length > displayedLocationCount && (
-                            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                A numbered marker groups incidents reported at the same location.
+                            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                Numbered markers group incidents reported at the same location.
                             </p>
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (
-                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-gray-200/80 bg-white p-0.5 dark:border-white/10 dark:bg-[#07130e]" aria-label="Map status filter">
+                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5" aria-label="Map status filter">
                             {mapExperience.filters.map((filter) => (
                                 <button
                                     key={filter.value}
                                     type="button"
                                     onClick={() => setResponderMapFilter(filter.value)}
-                                    className={`min-h-8 shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
-                                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-950'
-                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
+                                    className={`min-h-8 shrink-0 rounded-lg px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
+                                        ? 'bg-white text-gray-950 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                         }`}
                                 >
                                     {filter.label}

@@ -48,8 +48,12 @@ const useIncidentActions = ({
         setReviewLoading(true);
         try {
             const response = await adminAPI.verifyReport(report._id, { status, rejectionReason });
-            patchReport(report._id, { ...response.data?.data, status, rejectionReason });
-            toast.success(`Report ${status} successfully`);
+            const serverReport = response.data?.data;
+            const updatedReport = serverReport
+                ? { ...report, ...serverReport, status, rejectionReason }
+                : { ...report, status, rejectionReason };
+            patchReport(report._id, updatedReport);
+            toast.success(response.data?.message || (status === 'verified' ? 'Incident verified successfully.' : `Report ${status} successfully`));
             setReviewDialog(closedReview);
             await refreshReports({ silent: true });
         } catch (error) {

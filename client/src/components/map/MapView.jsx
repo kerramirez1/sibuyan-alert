@@ -37,6 +37,11 @@ import MapIncidentDetails from './MapIncidentDetails';
 import MapOverlayPanel from './MapOverlayPanel';
 import MapLegend from './MapLegend';
 import { getMapRiskTypeConfig, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import {
+    createOperationalMarkerElement,
+    createRiskZoneMarkerElement,
+    getSelectedLocationMarkerSvg,
+} from '../../utils/mapMarkerVisuals';
 
 // Sibuyan Island bounds and center
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
@@ -115,6 +120,8 @@ const MapView = ({
     showDataState = false,
     disableScrollZoom = false,
     mode = 'full',
+    showLegend = true,
+    showIncidentStatusLegend = true,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -514,59 +521,16 @@ const MapView = ({
                 const report = [...groupedReports].sort(
                     (left, right) => (statusPriority[right.status] || 0) - (statusPriority[left.status] || 0)
                 )[0];
-                const isPending = groupedReports.every((item) => item.status === 'pending');
                 const canRespondToThisReport = canRespond && ['verified', 'transferred'].includes(report.status);
                 const canResolveThisReport = canResolve &&
                     report.status === 'responding' &&
                     (!canResolveReport || canResolveReport(report));
                 const markerColor = getReportMarkerColor(report);
-                const markerWidth = isPending ? 30 : 24;
-                const markerHeight = isPending ? 40 : 32;
-
-                const el = document.createElement('div');
-                el.className = 'report-marker';
-                el.innerHTML = `
-                    <div style="position:relative; width:40px; height:40px; display:flex; align-items:flex-end; justify-content:center;">
-                         <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="${isPending ? 'filter: drop-shadow(0 0 10px rgba(249,115,22,0.6));' : ''}">
-                            <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${markerColor}"/>
-                            ${isPending ? `
-                                <circle cx="12" cy="11.5" r="4.5" fill="none" stroke="white" stroke-width="1.5"/>
-                                <path d="M12 9.5V11.5L13.5 13" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                            ` : `
-                                <circle cx="12" cy="12" r="5" fill="white"/>
-                            `}
-                         </svg>
-                         ${groupedReports.length > 1 ? `
-                            <span style="
-                                position:absolute;
-                                right:-5px;
-                                top:-6px;
-                                min-width:20px;
-                                height:20px;
-                                padding:0 5px;
-                                display:flex;
-                                align-items:center;
-                                justify-content:center;
-                                border-radius:9999px;
-                                border:2px solid white;
-                                background:#111827;
-                                color:white;
-                                font:700 11px/1 Inter,system-ui,sans-serif;
-                                box-shadow:0 2px 6px rgba(15,23,42,.35);
-                            ">${groupedReports.length}</span>
-                         ` : ''}
-                     </div>
-                 `;
-                el.style.cursor = 'pointer';
-                el.style.zIndex = isPending ? '2' : '1';
-                el.setAttribute('role', 'button');
-                el.setAttribute('tabindex', '0');
-                el.setAttribute(
-                    'aria-label',
-                    groupedReports.length > 1
-                        ? `${groupedReports.length} incidents at this location`
-                        : `${report.title || report.incidentType || 'Incident'} map marker`
-                );
+                const el = createOperationalMarkerElement({
+                    report,
+                    groupedReports,
+                    markerColor,
+                });
 
                 const marker = new maplibregl.Marker({
                     ...OPERATIONAL_MARKER_VISIBILITY,
@@ -632,35 +596,7 @@ const MapView = ({
             const coordinates = getMapCoordinates(zone);
             if (!coordinates) return;
             const color = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
-
-            const el = document.createElement('div');
-            el.className = 'zone-marker';
-            el.style.zIndex = '1';
-            el.innerHTML = `
-                <div style="position:relative; width:32px; height:32px; display:flex; align-items:center; justify-content:center;">
-                    <div style="
-                        width:24px; height:24px;
-                        background:${color};
-                        border:2px solid white;
-                        border-radius:50%;
-                        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6);
-                        position:relative;
-                        z-index:2;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                    ">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M14 2L7 12h4l-1 10 7-10h-4l1-10z" fill="white"/>
-                        </svg>
-                    </div>
-                </div>
-            `;
-            el.style.cursor = 'pointer';
-            el.title = zone.name;
-            el.setAttribute('role', 'button');
-            el.setAttribute('tabindex', '0');
-            el.setAttribute('aria-label', `${zone.name || 'Risk zone'} map marker`);
+            const el = createRiskZoneMarkerElement({ zone, color });
 
             const marker = new maplibregl.Marker({
                 ...OPERATIONAL_MARKER_VISIBILITY,
@@ -764,10 +700,9 @@ const MapView = ({
                 const el = document.createElement('div');
                 el.className = 'selected-location-marker';
                 el.innerHTML = `
-                    <svg width="30" height="40" viewBox="0 0 30 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 0C6.72 0 0 6.72 0 15C0 26.25 15 40 15 40C15 40 30 26.25 30 15C30 6.72 23.28 0 15 0Z" fill="#EF4444"/>
-                        <circle cx="15" cy="15" r="6" fill="white"/>
-                    </svg>
+                    <div style="position:relative; width:34px; height:38px; display:flex; align-items:flex-end; justify-content:center;">
+                        ${getSelectedLocationMarkerSvg({ width: 30, height: 34 })}
+                    </div>
                 `;
                 el.style.cursor = 'pointer';
                 el.style.zIndex = '3';
@@ -1076,12 +1011,13 @@ const MapView = ({
                 </div>
             )}
 
-            {!['incident-preview', 'report-location'].includes(mode) && (
+            {showLegend && !['incident-preview', 'report-location', 'risk-zones'].includes(mode) && (
                 <MapLegend
                     showPending={showPending}
                     filterStatus={filterStatus}
                     filterMode={filterMode}
                     hasGroupedReports={hasGroupedReports}
+                    showIncidentStatus={showIncidentStatusLegend}
                 />
             )}
         </div>

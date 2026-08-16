@@ -631,16 +631,70 @@
   border-radius: 9999px;
 }
 
+@keyframes operationalMarkerPulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.report-marker,
+.zone-marker {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.16s ease;
+  will-change: transform;
+}
+
+.report-marker:hover,
+.zone-marker:hover {
+  transform: scale(1.1) translateY(-2px);
+  z-index: 10 !important;
+}
+
+.report-marker__pulse {
+  position: absolute;
+  top: -3px;
+  left: -1px;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: rgba(8, 145, 178, 0.4);
+  animation: operationalMarkerPulse 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .report-marker:focus-visible,
 .zone-marker:focus-visible,
 .map-marker--selected {
-  outline: 2px solid rgba(15, 118, 110, 0.9);
+  outline: 2px solid rgba(37, 99, 235, 0.9);
   outline-offset: 3px;
+  border-radius: 9999px;
+}
+
+.report-marker.is-selected,
+.zone-marker.is-selected {
+  transform: scale(1.14) translateY(-3px);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+  z-index: 20 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .zone-marker--selected {
-    animation: none;
+  .report-marker,
+  .zone-marker {
+    transition: none !important;
+  }
+  .zone-marker--selected,
+  .report-marker__pulse {
+    animation: none !important;
+    display: none !important;
   }
 }
 

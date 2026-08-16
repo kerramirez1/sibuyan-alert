@@ -16,7 +16,6 @@ import {
     HiChevronLeft,
     HiChevronRight,
     HiOutlineBadgeCheck,
-    HiOutlineChartBar,
     HiOutlineClipboardList,
     HiOutlineClock,
     HiOutlineDownload,
@@ -34,6 +33,8 @@ const TREND_SERIES = Object.freeze({
     daily: Object.freeze({ label: 'Daily reports' }),
 });
 
+const PANEL_CLASS = 'rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
+
 const formatActivityTime = (value) => {
     if (!value) return 'Time unavailable';
     const date = parseISO(value);
@@ -41,15 +42,28 @@ const formatActivityTime = (value) => {
     return formatDistanceToNow(date, { addSuffix: true });
 };
 
+export const formatXAxisDay = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'number') return String(value);
+    const str = String(value).trim();
+    const match = str.match(/\d+$/);
+    if (match) return match[0];
+    const date = new Date(str);
+    if (!Number.isNaN(date.getTime())) {
+        return String(date.getDate());
+    }
+    return str;
+};
+
 const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-sm">
-            <p className="mb-2 font-semibold text-gray-700">{payload[0].payload.fullDate || label}</p>
+        <div className="rounded-xl border border-gray-200/90 bg-white/95 p-3 text-xs shadow-md backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95">
+            <p className="mb-1.5 font-bold text-gray-900 dark:text-white">{payload[0].payload.fullDate || label}</p>
             {payload.map((entry) => (
                 <div key={entry.dataKey} className="flex items-center justify-between gap-4 py-0.5">
-                    <span className="text-gray-500">{entry.name || entry.dataKey}</span>
-                    <span className="font-semibold text-gray-900">{entry.value}</span>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">{entry.name || entry.dataKey}</span>
+                    <span className="font-bold text-gray-900 dark:text-white tabular-nums">{entry.value}</span>
                 </div>
             ))}
         </div>
@@ -57,20 +71,22 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 const MetricCard = ({ label, value, helper, icon: Icon }) => (
-    <div className="min-w-0 rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
-        <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
-            <Icon className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+    <article className="flex min-w-0 flex-col justify-between rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-4.5 shadow-2xs transition-colors hover:border-gray-300 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:border-white/20">
+        <div>
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+                <Icon className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+            </div>
+            <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{value}</p>
         </div>
-        <p className="mt-3 text-2xl font-bold font-display tracking-tight text-gray-900 dark:text-white tabular-nums">{value}</p>
-        <p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">{helper}</p>
-    </div>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">{helper}</p>
+    </article>
 );
 
 const EmptyChart = ({ message = 'No data for the selected period', detail }) => (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg bg-gray-50/80 px-4 py-6 text-center dark:bg-gray-800/40">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{message}</p>
-        {detail && <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400 dark:text-gray-500">{detail}</p>}
+    <div className="flex min-h-28 flex-col items-center justify-center rounded-xl bg-gray-50/80 px-4 py-6 text-center dark:bg-white/[0.02]">
+        <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{message}</p>
+        {detail && <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{detail}</p>}
     </div>
 );
 
@@ -84,9 +100,13 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
         .join(', ');
 
     return (
-        <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5 lg:col-span-2">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Incident trend</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily reports for {format(selectedMonth, 'MMMM yyyy')}</p>
+        <div className={`${PANEL_CLASS} lg:col-span-2`}>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">Incident trend</h2>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily reports for {format(selectedMonth, 'MMMM yyyy')}</p>
+                </div>
+            </div>
 
             {!hasTrendData ? (
                 <div className="mt-4">
@@ -99,9 +119,9 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                 </div>
             ) : (
                 <div className="mt-4">
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[11px] text-gray-500 dark:text-gray-400" aria-hidden="true">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400" aria-hidden="true">
                         <span className="inline-flex items-center gap-1.5">
-                            <span className="h-0.5 w-5 rounded-full bg-blue-700 dark:bg-blue-500" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-500" />
                             {TREND_SERIES.daily.label}
                         </span>
                         <span className="tabular-nums">{reportLabel} recorded</span>
@@ -123,8 +143,9 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
+                                    tickFormatter={formatXAxisDay}
                                     interval="preserveStartEnd"
-                                    minTickGap={32}
+                                    minTickGap={16}
                                     dy={8}
                                 />
                                 <YAxis
@@ -139,7 +160,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                                     type="monotone"
                                     dataKey="total"
                                     name={TREND_SERIES.daily.label}
-                                    stroke="#1D4ED8"
+                                    stroke="#2563EB"
                                     strokeWidth={2}
                                     dot={false}
                                     activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
@@ -155,20 +176,20 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
 };
 
 const LifecyclePanel = ({ statusData, totalReports }) => (
-    <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Report lifecycle</h2>
+    <div className={PANEL_CLASS}>
+        <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
         {statusData.length ? (
-            <div className="mt-5 space-y-3" aria-label="Report lifecycle distribution">
+            <div className="mt-4 space-y-3" aria-label="Report lifecycle distribution">
                 {statusData.map((item) => {
                     const percentage = totalReports ? Math.round((item.value / totalReports) * 100) : 0;
                     return (
                         <div key={item.name}>
                             <div className="flex items-center justify-between gap-3 text-xs">
-                                <span className="font-medium text-gray-700 dark:text-gray-300">{item.name}</span>
-                                <span className="text-gray-500 dark:text-gray-400 tabular-nums">{item.value} · {percentage}%</span>
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</span>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 tabular-nums">{item.value} · {percentage}%</span>
                             </div>
-                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percentage}%`, backgroundColor: item.color }} />
                             </div>
                         </div>
@@ -184,8 +205,8 @@ const LifecyclePanel = ({ statusData, totalReports }) => (
 const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = false, emptyDetail }) => {
     const chartHeight = Math.max(160, Math.min(260, data.length * 38 + 40));
     return (
-        <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
+        <div className={PANEL_CLASS}>
+            <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">{title}</h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
             {data.length ? (
                 <div className="mt-4 w-full" style={{ height: chartHeight }} role="img" aria-label={`${title}: ${description}`}>
@@ -196,7 +217,7 @@ const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = fa
                             <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis-strong)', fontSize: 11 }} width={labelWidth} />
                             <Tooltip content={<ChartTooltip />} />
                             <Bar dataKey="count" name="Reports" radius={[0, 4, 4, 0]} barSize={16}>
-                                {data.map((entry, index) => <Cell key={entry.name} fill={colors ? MUNICIPALITY_COLORS[index % MUNICIPALITY_COLORS.length] : '#2563eb'} />)}
+                                {data.map((entry, index) => <Cell key={entry.name} fill={colors ? MUNICIPALITY_COLORS[index % MUNICIPALITY_COLORS.length] : '#059669'} />)}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
@@ -339,40 +360,72 @@ const DashboardAnalyticsWorkspace = ({
         { label: 'Active risk zones', value: activeRiskZoneCount, helper: 'Currently mapped hazards', icon: HiOutlineLightningBolt },
     ];
 
+    const primaryMetrics = metrics.slice(0, 4);
+    const secondaryMetrics = metrics.slice(4);
+
     if (loading) {
         return (
-            <div className="mx-auto max-w-7xl space-y-5 animate-pulse" aria-label="Loading analytics">
-                <div className="h-16 rounded-xl bg-gray-100" />
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
-                    {[0, 1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-28 rounded-xl bg-gray-100" />)}
+            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5 animate-pulse" aria-label="Loading analytics">
+                <div className="h-20 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                <div className="space-y-3 sm:space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        {[0, 1, 2, 3].map((item) => (
+                            <div key={item} className="h-28 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4">
+                        {[4, 5, 6].map((item) => (
+                            <div key={item} className="h-28 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                        ))}
+                    </div>
                 </div>
-                <div className="h-72 rounded-xl bg-gray-100" />
+                <div className="h-72 rounded-2xl bg-gray-100 dark:bg-white/5" />
             </div>
         );
     }
 
     return (
-        <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6">
-            <header className="flex flex-col gap-5">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
-                        <HiOutlineChartBar className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Operational analytics</p>
-                        <h1 className="text-2xl font-display font-bold text-gray-900 sm:text-3xl">Incident overview</h1>
-                        <p className="mt-1 text-sm text-gray-500">
+        <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5">
+            <header className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                            Operational analytics
+                        </p>
+                        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                            Incident overview
+                        </h1>
+                        <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                             {hasMunicipality ? `${user?.assignedMunicipality} performance and incident trends.` : 'Performance and incident trends across Sibuyan Island.'}
                         </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Sibuyan Island · Alert System Active</span>
+                        </div>
                     </div>
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white p-1 lg:w-52">
-                        <button type="button" onClick={() => setSelectedMonth((current) => subMonths(current, 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400" aria-label="Previous month">
+                    <div className="flex min-h-10 w-full items-center justify-between rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 lg:w-52">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedMonth((current) => subMonths(current, 1))}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            aria-label="Previous month"
+                        >
                             <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={() => setSelectedMonth(new Date())} className="min-w-0 flex-1 rounded-md px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400" aria-label="Return to current month">{format(selectedMonth, 'MMM yyyy')}</button>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedMonth(new Date())}
+                            className="min-w-0 flex-1 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            aria-label="Return to current month"
+                        >
+                            {format(selectedMonth, 'MMM yyyy')}
+                        </button>
                         <button
                             type="button"
                             onClick={() => {
@@ -380,34 +433,55 @@ const DashboardAnalyticsWorkspace = ({
                                 if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
                             }}
                             disabled={isSameMonth(selectedMonth, new Date())}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
                             aria-label="Next month"
                         >
                             <HiChevronRight className="h-4 w-4" aria-hidden="true" />
                         </button>
                     </div>
-                    <button type="button" onClick={onOpenMap} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 lg:w-auto lg:min-w-28">
+                    <button
+                        type="button"
+                        onClick={onOpenMap}
+                        className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-28"
+                    >
                         <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
                         Map
                     </button>
-                    <button type="button" onClick={exportDashboard} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 lg:w-auto lg:min-w-28" aria-label="Export dashboard data as CSV">
+                    <button
+                        type="button"
+                        onClick={exportDashboard}
+                        className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:w-auto lg:min-w-28"
+                        aria-label="Export dashboard data as CSV"
+                    >
                         <HiOutlineDownload className="h-4 w-4" aria-hidden="true" />
                         Export
                     </button>
                 </div>
             </header>
 
-            {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+            {error && <div role="alert" className="rounded-xl border border-red-200/90 bg-red-50/80 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3" aria-label="Analytics summary">
-                {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
+            {/* Top Stat Cards Grid (2 Rows) */}
+            <section className="space-y-3 sm:space-y-4" aria-label="Analytics summary">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {primaryMetrics.map((metric) => (
+                        <MetricCard key={metric.label} {...metric} />
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {secondaryMetrics.map((metric) => (
+                        <MetricCard key={metric.label} {...metric} />
+                    ))}
+                </div>
             </section>
 
+            {/* Monthly Insights Section */}
             <section className="grid gap-4 lg:grid-cols-3" aria-label="Monthly insights">
                 <TrendPanel chartData={chartData} selectedMonth={selectedMonth} reportCount={reports.length} />
                 <LifecyclePanel statusData={statusData} totalReports={reports.length} />
             </section>
 
+            {/* Operational Breakdown Section */}
             <section className="grid gap-4 lg:grid-cols-2" aria-label="Operational breakdown">
                 {hasMunicipality ? (
                     <>
@@ -446,14 +520,19 @@ const DashboardAnalyticsWorkspace = ({
                 )}
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900" aria-label="Analytics map">
-                <div className="flex flex-col gap-3 border-b border-gray-200/80 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            {/* Map Preview Section */}
+            <section className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
+                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Incident map</h2>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Current pending, verified, transferred, and responding incidents</p>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Incident map</h2>
+                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Current pending, verified, transferred, and responding incidents</p>
                     </div>
-                    <button type="button" onClick={onOpenMap} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">
-                        <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
+                    <button
+                        type="button"
+                        onClick={onOpenMap}
+                        className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+                    >
+                        <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                         Open full map
                     </button>
                 </div>
@@ -472,33 +551,49 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
             </section>
 
-            <section ref={historySectionRef} className="rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900" aria-label="Recent activity">
-                <div className="flex flex-col gap-3 border-b border-gray-200/80 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            {/* Recent Activity Section */}
+            <section ref={historySectionRef} className="rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
+                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Recent activity</h2>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Latest report updates across the current scope</p>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity</h2>
+                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Latest report updates across the current scope</p>
                     </div>
-                    <button type="button" onClick={onOpenReports} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={onOpenReports}
+                        className="inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+                    >
                         View incident queue
                     </button>
                 </div>
                 {recentReports.length ? (
-                    <div className="divide-y divide-gray-200/80 dark:divide-gray-800">
-                        {recentReports.map((report) => {
-                            const status = (report.status || 'pending').toLowerCase();
+                    <div className="divide-y divide-gray-100 dark:divide-white/5">
+                        {recentReports.map((reportItem) => {
+                            const status = (reportItem.status || 'pending').toLowerCase();
+                            const statusConfig = MAP_STATUS_CONFIG[status] || MAP_STATUS_CONFIG.pending;
                             return (
-                                <article key={report._id} className="grid gap-3 px-4 py-3 transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-800/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+                                <article
+                                    key={reportItem._id}
+                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-4 py-3 sm:px-5 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/[0.02]"
+                                >
                                     <div className="min-w-0">
-                                        <p className="line-clamp-2 text-sm font-medium leading-5 text-gray-900 dark:text-gray-100">{report.address || report.title || 'Location unavailable'}</p>
-                                        <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                            {report.municipalityName || 'Unknown municipality'}
+                                        <p className="line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                            {reportItem.address || reportItem.title || 'Location unavailable'}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                                            {reportItem.municipalityName || 'Unknown municipality'}
                                             <span aria-hidden="true"> · </span>
-                                            {report.incidentType ? String(report.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
+                                            {reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
                                             <span aria-hidden="true"> · </span>
-                                            {formatActivityTime(report.updatedAt || report.createdAt)}
+                                            {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
                                         </p>
                                     </div>
-                                    <span className={`w-fit rounded-md border px-2.5 py-1 text-xs font-semibold capitalize ${MAP_STATUS_CONFIG[status]?.badge || 'border-gray-200 bg-gray-50 text-gray-600'}`}>{status}</span>
+                                    <div className="flex justify-end">
+                                        <span className="inline-flex h-6 w-[104px] items-center justify-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
+                                            <span className="truncate">{statusConfig.label || status}</span>
+                                        </span>
+                                    </div>
                                 </article>
                             );
                         })}
@@ -509,6 +604,6 @@ const DashboardAnalyticsWorkspace = ({
     );
 };
 
-const EmptyState = () => <div className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">No recent activity available.</div>;
+const EmptyState = () => <div className="px-5 py-10 text-center text-xs text-gray-500 dark:text-gray-400">No recent activity available.</div>;
 
 export default DashboardAnalyticsWorkspace;

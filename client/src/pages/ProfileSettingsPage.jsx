@@ -6,7 +6,29 @@ import { authAPI } from '../services/api';
 import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
-import { HiOutlineEye, HiOutlineEyeOff, HiOutlineCamera, HiOutlineUser, HiOutlineKey, HiOutlineShieldCheck, HiOutlineInformationCircle, HiOutlinePhotograph, HiOutlineX, HiOutlineBell } from 'react-icons/hi';
+import {
+    HiOutlineEye,
+    HiOutlineEyeOff,
+    HiOutlineCamera,
+    HiOutlinePhotograph,
+    HiOutlineX,
+    HiOutlineBell,
+    HiOutlineLockClosed,
+} from 'react-icons/hi';
+
+const ROLE_DISPLAY_NAMES = {
+    municipal_admin: 'Municipal Admin',
+    responder: 'Responder',
+    reporter: 'Reporter',
+    ordinary: 'Community Member',
+};
+
+const ROLE_DOT_COLORS = {
+    municipal_admin: 'bg-indigo-500',
+    responder: 'bg-cyan-500',
+    reporter: 'bg-emerald-500',
+    ordinary: 'bg-gray-400',
+};
 
 const ProfileSettingsPage = () => {
     const {
@@ -36,6 +58,11 @@ const ProfileSettingsPage = () => {
         newPassword: '',
         confirmPassword: '',
         avatar: null,
+    });
+    const [errors, setErrors] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
     });
 
     useEffect(() => {
@@ -71,6 +98,9 @@ const ProfileSettingsPage = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const handleAvatarChange = (e) => {
@@ -85,7 +115,6 @@ const ProfileSettingsPage = () => {
             }
             setFormData(prev => ({ ...prev, avatar: file }));
             setAvatarPreview(URL.createObjectURL(file));
-            // Reset so the same file can be re-selected if needed
             e.target.value = '';
         }
     };
@@ -120,7 +149,6 @@ const ProfileSettingsPage = () => {
             canvas.height = videoRef.current.videoHeight;
             const ctx = canvas.getContext('2d');
 
-            // Handle mirroring since we use user-facing camera
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(videoRef.current, 0, 0);
@@ -141,7 +169,6 @@ const ProfileSettingsPage = () => {
     };
 
     useEffect(() => {
-        // Attach stream to video tag when modal opens
         if (isWebcamOpen && videoRef.current && streamRef.current) {
             videoRef.current.srcObject = streamRef.current;
         }
@@ -181,25 +208,32 @@ const ProfileSettingsPage = () => {
             return;
         }
 
+        const newErrors = {};
+
         if (passwordChangeRequested) {
-            if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
-                toast.error('Fill in current, new, and confirm password fields');
-                return;
+            if (!formData.currentPassword) {
+                newErrors.currentPassword = 'Enter your current password';
             }
-
-            if (!isPasswordPolicyCompliant(formData.newPassword)) {
-                toast.error(PASSWORD_POLICY_MESSAGE);
-                return;
+            if (!formData.newPassword) {
+                newErrors.newPassword = 'Enter a new password';
+            } else if (!isPasswordPolicyCompliant(formData.newPassword)) {
+                newErrors.newPassword = PASSWORD_POLICY_MESSAGE;
             }
-
-            if (formData.newPassword !== formData.confirmPassword) {
-                toast.error('New passwords do not match');
-                return;
+            if (!formData.confirmPassword) {
+                newErrors.confirmPassword = 'Confirm your new password';
+            } else if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
+                newErrors.confirmPassword = 'Passwords do not match';
             }
         }
 
         if (emailChanged && !formData.currentPassword) {
-            toast.error('Enter your current password to change your email address');
+            newErrors.currentPassword = 'Enter your current password to change your email address';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorMessage = Object.values(newErrors)[0];
+            toast.error(firstErrorMessage);
             return;
         }
 
@@ -230,9 +264,12 @@ const ProfileSettingsPage = () => {
 
             if (response.data.success) {
                 updateUser(response.data.data);
-
                 toast.success('Profile updated successfully');
-
+                setErrors({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                });
                 setFormData(prev => ({
                     ...prev,
                     currentPassword: '',
@@ -243,6 +280,11 @@ const ProfileSettingsPage = () => {
             }
         } catch (error) {
             const message = error.response?.data?.message || 'Failed to update profile';
+            if (message.toLowerCase().includes('current password')) {
+                setErrors(prev => ({ ...prev, currentPassword: message }));
+            } else if (message.toLowerCase().includes('password')) {
+                setErrors(prev => ({ ...prev, newPassword: message }));
+            }
             toast.error(message);
         } finally {
             setLoading(false);
@@ -278,306 +320,281 @@ const ProfileSettingsPage = () => {
         else toast.error(result.message);
     };
 
-    const InputField = ({ label, icon: LabelIcon, ...inputProps }) => (
-        <div>
-            <label className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
-                {LabelIcon && <LabelIcon className="w-3.5 h-3.5 text-gray-400" />}
-                {label}
-            </label>
-            <input
-                {...inputProps}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
-            />
-        </div>
-    );
-
-    const PasswordField = ({ label, name, value, show, onToggle, placeholder }) => (
-        <div>
-            <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
-                {label}
-            </label>
-            <div className="relative">
-                <input
-                    type={show ? 'text' : 'password'}
-                    name={name}
-                    value={value}
-                    onChange={handleChange}
-                    className="w-full px-3 sm:px-4 pr-12 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm hover:shadow-md hover:border-gray-300"
-                    placeholder={placeholder}
-                    maxLength={72}
-                />
-                <button
-                    type="button"
-                    onClick={onToggle}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                    aria-label={show ? `Hide ${label}` : `Show ${label}`}
-                >
-                    {show ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
-                </button>
-            </div>
-        </div>
-    );
+    const roleName = ROLE_DISPLAY_NAMES[user?.role] || user?.role || 'User';
+    const roleDotColor = ROLE_DOT_COLORS[user?.role] || 'bg-gray-400';
 
     return (
-        <div className="max-w-4xl mx-auto px-1 sm:px-0 pb-8">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                {/* Header */}
-                <div className="mb-5 sm:mb-7">
-                    <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 transition-transform duration-300 hover:scale-110 hover:rotate-3">
-                            <HiOutlineUser className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl sm:text-3xl font-display font-bold bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-700 bg-clip-text text-transparent">
-                                Profile Settings
-                            </h1>
-                            <p className="text-gray-500 text-xs sm:text-sm mt-0.5 leading-snug">
-                                Update your personal information and preferences
-                            </p>
-                        </div>
-                    </div>
+        <div className="mx-auto w-full min-w-0 max-w-4xl space-y-4 sm:space-y-5 overflow-x-hidden pb-10">
+            {/* Page Header */}
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        Account
+                    </p>
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                        Profile settings
+                    </h1>
+                    <p className="mt-0.5 max-w-xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Update your personal information and account preferences.
+                    </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                    {/* Avatar Card */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
-                    >
-                        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-                            {/* Avatar — photo picker popup */}
-                            <div className="relative" onClick={() => showPhotoMenu && setShowPhotoMenu(false)}>
-                                {/* Dismiss backdrop */}
-                                {showPhotoMenu && (
-                                    <div
-                                        className="fixed inset-0 z-10"
-                                        onClick={() => setShowPhotoMenu(false)}
-                                    />
-                                )}
+                <div className="flex shrink-0 items-center gap-2">
+                    <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Sibuyan Island · Alert System Active</span>
+                    </div>
+                </div>
+            </header>
 
-                                {/* Avatar image */}
-                                <div className="relative group cursor-pointer" onClick={openPhotoMenu}>
-                                    {avatarPreview ? (
-                                        <img
-                                            src={avatarPreview}
-                                            alt="Profile"
-                                            className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-blue-100 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:border-blue-200"
-                                        />
-                                    ) : (
-                                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold shadow-lg group-hover:shadow-xl transition-all duration-300">
-                                            {user?.name?.charAt(0)?.toUpperCase() || 'A'}
-                                        </div>
+            {/* Account Identity Row */}
+            <section
+                className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                aria-label="Account identity summary"
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                        {/* Avatar */}
+                        <div className="relative shrink-0">
+                            {avatarPreview ? (
+                                <img
+                                    src={avatarPreview}
+                                    alt="Profile avatar"
+                                    className="h-16 w-16 sm:h-18 sm:w-18 rounded-2xl object-cover border border-gray-200/90 shadow-2xs dark:border-white/10"
+                                />
+                            ) : (
+                                <div className="flex h-16 w-16 sm:h-18 sm:w-18 items-center justify-center rounded-2xl bg-brand-700 font-display text-2xl font-bold text-white shadow-2xs dark:bg-brand-600">
+                                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* User Details */}
+                        <div className="min-w-0">
+                            <h2 className="truncate font-display text-base sm:text-lg font-bold text-gray-950 dark:text-white">
+                                {user?.name || 'User'}
+                            </h2>
+                            <p className="truncate text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                {user?.email}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${roleDotColor}`} aria-hidden="true" />
+                                    <span>{roleName}</span>
+                                    {user?.assignedMunicipality && (
+                                        <span className="text-gray-400 dark:text-gray-500">· {user.assignedMunicipality}</span>
                                     )}
-                                    {/* Hover overlay */}
-                                    <div className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center pointer-events-none">
-                                        <HiOutlineCamera className="w-7 h-7 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                                    </div>
-                                    {/* Camera badge */}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Change Photo Action Button */}
+                    <div className="relative shrink-0 sm:self-center">
+                        <button
+                            type="button"
+                            onClick={openPhotoMenu}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                            aria-expanded={showPhotoMenu}
+                            aria-haspopup="true"
+                            aria-label="Change profile photo"
+                        >
+                            <HiOutlineCamera className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                            <span>Change photo</span>
+                        </button>
+
+                        {/* Photo Source Dropdown Menu */}
+                        {showPhotoMenu && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-20"
+                                    onClick={() => setShowPhotoMenu(false)}
+                                    aria-hidden="true"
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: 6 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 6 }}
+                                    transition={{ duration: 0.12 }}
+                                    className="absolute right-0 top-full mt-1.5 z-30 w-52 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#0c1813]"
+                                    onClick={e => e.stopPropagation()}
+                                >
                                     <button
                                         type="button"
-                                        onClick={openPhotoMenu}
-                                        className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 ring-2 ring-white"
-                                        title="Change profile photo"
+                                        onClick={triggerCamera}
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors"
                                     >
-                                        <HiOutlineCamera className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                        <HiOutlineCamera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                        <span>Take photo</span>
                                     </button>
-                                </div>
-
-                                {/* ── Photo Source Popup ── */}
-                                {showPhotoMenu && (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9, y: 8 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.9, y: 8 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="absolute left-0 top-full mt-3 z-20 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 min-w-[200px]"
-                                        onClick={e => e.stopPropagation()}
+                                    <button
+                                        type="button"
+                                        onClick={triggerGallery}
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors"
                                     >
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-1.5 pb-2">
-                                            Change Photo
-                                        </p>
-                                        {/* Take Photo */}
-                                        <button
-                                            type="button"
-                                            onClick={triggerCamera}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-50 transition-colors group/btn text-left"
-                                        >
-                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm group-hover/btn:scale-105 transition-transform">
-                                                <HiOutlineCamera className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-800">Take Photo</p>
-                                                <p className="text-[10px] text-gray-400">Use camera</p>
-                                            </div>
-                                        </button>
-                                        {/* Choose from Gallery */}
-                                        <button
-                                            type="button"
-                                            onClick={triggerGallery}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group/btn text-left"
-                                        >
-                                            <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center shadow-sm group-hover/btn:scale-105 transition-transform">
-                                                <HiOutlinePhotograph className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-800">Choose from Gallery</p>
-                                                <p className="text-[10px] text-gray-400">Pick an existing photo</p>
-                                            </div>
-                                        </button>
-                                    </motion.div>
-                                )}
+                                        <HiOutlinePhotograph className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                        <span>Choose from device</span>
+                                    </button>
+                                </motion.div>
+                            </>
+                        )}
 
-                                {/* Gallery input — opens file picker */}
+                        <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                            aria-label="Upload profile image from device"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* Main Settings Form */}
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                {/* Unified Settings Workspace Surface */}
+                <div className="divide-y divide-gray-200/80 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/90">
+                    {/* 1. Basic Information Section */}
+                    <section className="p-4 sm:p-6" aria-labelledby="basic-info-heading">
+                        <div className="mb-4">
+                            <h3 id="basic-info-heading" className="text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                                Basic information
+                            </h3>
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                Update your full display name and contact email.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="name-input" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                                    Full name
+                                </label>
                                 <input
-                                    ref={avatarInputRef}
-                                    type="file"
-                                    accept="image/png, image/jpeg, image/jpg, image/webp"
-                                    onChange={handleAvatarChange}
-                                    className="hidden"
-                                    aria-label="Choose from gallery"
+                                    id="name-input"
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    required
+                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                    placeholder="Enter your full name"
                                 />
                             </div>
+                            <div>
+                                <label htmlFor="email-input" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                                    Email address
+                                </label>
+                                <input
+                                    id="email-input"
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                    placeholder="Enter email address"
+                                />
+                            </div>
+                        </div>
+                    </section>
 
-                            <div className="text-center sm:text-left">
-                                <h3 className="text-lg sm:text-xl font-bold text-gray-900">{user?.name || 'User'}</h3>
-                                <p className="text-gray-500 text-sm">{user?.email}</p>
-                                <div className="flex items-center gap-3 mt-2 justify-center sm:justify-start">
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] sm:text-xs font-bold rounded-lg uppercase tracking-wide">
-                                        <HiOutlineShieldCheck className="w-3 h-3" />
-                                        {user?.role || 'User'}
-                                    </span>
-                                    {user?.assignedMunicipality && (
-                                        <span className="text-[10px] sm:text-xs text-gray-400 font-medium">
-                                            {user.assignedMunicipality}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="mt-2 text-[10px] sm:text-xs text-gray-400 flex items-center gap-1 justify-center sm:justify-start">
-                                    <HiOutlineInformationCircle className="w-3 h-3" />
-                                    PNG, JPG up to 5MB. Tap photo to change.
+                    {/* 2. Protected Information Section */}
+                    <section className="p-4 sm:p-6" aria-labelledby="protected-info-heading">
+                        <div className="mb-4">
+                            <div className="flex items-center gap-1.5">
+                                <HiOutlineLockClosed className="h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                                <h3 id="protected-info-heading" className="text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                                    Protected information
+                                </h3>
+                            </div>
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                System-assigned operational attributes and permissions managed by administrators.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    Account role
+                                </span>
+                                <p className="mt-1 font-semibold text-xs sm:text-sm text-gray-950 dark:text-white">
+                                    {roleName}
                                 </p>
                             </div>
-                        </div>
-                    </motion.div>
 
-                    {/* Basic Information */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15 }}
-                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
-                    >
-                        <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-4 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <HiOutlineUser className="w-4 h-4 text-blue-600" />
-                            </div>
-                            Basic Information
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <InputField
-                                label="Full Name"
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                            />
-                            <InputField
-                                label="Email Address"
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-                    </motion.div>
-
-                    {/* Protected Information */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
-                    >
-                        <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-4 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <HiOutlineShieldCheck className="w-4 h-4 text-gray-500" />
-                            </div>
-                            Protected Information
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-gray-100">
-                            <div>
-                                <label className="block text-xs sm:text-sm font-bold text-gray-500 mb-1.5">Role</label>
-                                <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-100 rounded-lg sm:rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
-                                    {user?.role?.toUpperCase() || '—'}
-                                </div>
-                            </div>
-                            {user?.agency && (
-                                <div>
-                                    <label className="block text-xs sm:text-sm font-bold text-gray-500 mb-1.5">Agency</label>
-                                    <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-100 rounded-lg sm:rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
-                                        {user.agency}
-                                    </div>
-                                </div>
-                            )}
                             {user?.assignedMunicipality && (
-                                <div>
-                                    <label className="block text-xs sm:text-sm font-bold text-gray-500 mb-1.5">Municipality</label>
-                                    <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-100 rounded-lg sm:rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Municipality
+                                    </span>
+                                    <p className="mt-1 font-semibold text-xs sm:text-sm text-gray-950 dark:text-white">
                                         {user.assignedMunicipality}
-                                    </div>
+                                    </p>
+                                </div>
+                            )}
+
+                            {user?.agency && (
+                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Agency / Unit
+                                    </span>
+                                    <p className="mt-1 font-semibold text-xs sm:text-sm text-gray-950 dark:text-white">
+                                        {user.agency}
+                                    </p>
                                 </div>
                             )}
                         </div>
-                    </motion.div>
+                    </section>
 
-                    {/* Browser Notifications */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.25 }}
-                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
-                        aria-labelledby="browser-notifications-heading"
-                    >
+                    {/* 3. Browser Notifications Section */}
+                    <section className="p-4 sm:p-6" aria-labelledby="notifications-heading">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex min-w-0 items-start gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
-                                    <HiOutlineBell className="h-5 w-5 text-emerald-700" aria-hidden="true" />
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                    <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                                 </div>
-                                <div>
-                                    <h3 id="browser-notifications-heading" className="text-sm font-bold text-gray-900 sm:text-base">
+                                <div className="min-w-0">
+                                    <h3 id="notifications-heading" className="text-sm sm:text-base font-bold text-gray-950 dark:text-white">
                                         Browser notifications
                                     </h3>
-                                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500 sm:text-sm">
-                                        Receive verified report, dispatch, response, and account updates even when this page is not open.
+                                    <p className="mt-0.5 max-w-xl text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        Receive incident, dispatch, response, and account updates even when Sibuyan Alert is not open.
                                     </p>
-                                    <p className="mt-2 text-xs font-semibold text-gray-600" aria-live="polite">
-                                        {pushState.loading
-                                            ? 'Checking this browser…'
-                                            : pushState.subscribed
-                                                ? 'Enabled on this browser'
-                                                : pushState.permission === 'denied'
-                                                    ? 'Blocked in browser settings'
-                                                    : pushState.supported === false
-                                                        ? 'Not supported by this browser'
-                                                        : 'Disabled on this browser'}
-                                    </p>
+                                    <div className="mt-2 flex items-center gap-1.5" aria-live="polite">
+                                        <span
+                                            className={`h-2 w-2 shrink-0 rounded-full ${
+                                                pushState.subscribed
+                                                    ? 'bg-emerald-500'
+                                                    : pushState.permission === 'denied'
+                                                        ? 'bg-amber-500'
+                                                        : 'bg-gray-400'
+                                            }`}
+                                            aria-hidden="true"
+                                        />
+                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                            {pushState.loading
+                                                ? 'Checking this browser…'
+                                                : pushState.subscribed
+                                                    ? 'Enabled on this browser'
+                                                    : pushState.permission === 'denied'
+                                                        ? 'Blocked in browser settings'
+                                                        : pushState.supported === false
+                                                            ? 'Not supported by this browser'
+                                                            : 'Disabled on this browser'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+
                             <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
                                 {pushState.subscribed && (
                                     <button
                                         type="button"
                                         onClick={handleTestPush}
                                         disabled={pushState.loading}
-                                        className="min-h-11 rounded-xl border border-transparent bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                                        className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                     >
                                         Send test
                                     </button>
@@ -587,10 +604,10 @@ const ProfileSettingsPage = () => {
                                     onClick={handlePushToggle}
                                     disabled={pushState.loading || pushState.supported === false}
                                     aria-pressed={pushState.subscribed}
-                                    className={`min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    className={`inline-flex h-9 items-center justify-center rounded-xl px-4 text-xs font-semibold shadow-2xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                                         pushState.subscribed
-                                            ? 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                            ? 'border border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            : 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500'
                                     }`}
                                 >
                                     {pushState.loading
@@ -599,116 +616,217 @@ const ProfileSettingsPage = () => {
                                 </button>
                             </div>
                         </div>
-                    </motion.section>
+                    </section>
 
-                    {/* Change Password */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.25 }}
-                        className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm"
-                    >
-                        <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
-                                <HiOutlineKey className="w-4 h-4 text-amber-600" />
+                    {/* 4. Security / Change Password Section */}
+                    <section className="p-4 sm:p-6" aria-labelledby="security-heading">
+                        <div className="mb-4 sm:mb-5">
+                            <h3 id="security-heading" className="text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                                Change password
+                            </h3>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                Leave these fields blank if you do not want to change your password.
+                            </p>
+                        </div>
+
+                        <div className="space-y-4 sm:space-y-4.5">
+                            {/* Current Password (Full Width) */}
+                            <div>
+                                <label
+                                    htmlFor="current-password-input"
+                                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                                >
+                                    Current password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="current-password-input"
+                                        type={showCurrentPassword ? 'text' : 'password'}
+                                        name="currentPassword"
+                                        value={formData.currentPassword}
+                                        onChange={handleChange}
+                                        className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white ${
+                                            errors.currentPassword
+                                                ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
+                                                : 'border-gray-200/90 focus:border-brand-500 focus:ring-brand-500/20 dark:border-white/10'
+                                        }`}
+                                        placeholder="Enter current password"
+                                        maxLength={72}
+                                        aria-invalid={Boolean(errors.currentPassword)}
+                                        aria-describedby={errors.currentPassword ? 'current-password-error' : undefined}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(prev => !prev)}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                        aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                                    >
+                                        {showCurrentPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                                {errors.currentPassword && (
+                                    <p id="current-password-error" className="mt-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                        {errors.currentPassword}
+                                    </p>
+                                )}
                             </div>
-                            Change Password
-                        </h3>
-                        <p className="text-[10px] sm:text-xs text-gray-400 mb-4 ml-9">
-                            Leave blank if you don't want to change
-                        </p>
 
-                        <div className="space-y-3 sm:space-y-4">
-                            <PasswordField
-                                label="Current Password"
-                                name="currentPassword"
-                                value={formData.currentPassword}
-                                show={showCurrentPassword}
-                                onToggle={() => setShowCurrentPassword(prev => !prev)}
-                                placeholder="Enter current password"
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                <PasswordField
-                                    label="New Password"
-                                    name="newPassword"
-                                    value={formData.newPassword}
-                                    show={showNewPassword}
-                                    onToggle={() => setShowNewPassword(prev => !prev)}
-                                    placeholder="At least 12 characters"
-                                />
-                                <PasswordField
-                                    label="Confirm Password"
-                                    name="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    show={showConfirmPassword}
-                                    onToggle={() => setShowConfirmPassword(prev => !prev)}
-                                    placeholder="Re-enter password"
-                                />
+                            {/* New Password & Confirm Password (2-Column Grid on Desktop) */}
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label
+                                        htmlFor="new-password-input"
+                                        className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                                    >
+                                        New password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            id="new-password-input"
+                                            type={showNewPassword ? 'text' : 'password'}
+                                            name="newPassword"
+                                            value={formData.newPassword}
+                                            onChange={handleChange}
+                                            className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white ${
+                                                errors.newPassword
+                                                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
+                                                    : 'border-gray-200/90 focus:border-brand-500 focus:ring-brand-500/20 dark:border-white/10'
+                                            }`}
+                                            placeholder="Enter new password"
+                                            maxLength={72}
+                                            aria-invalid={Boolean(errors.newPassword)}
+                                            aria-describedby={errors.newPassword ? 'new-password-error' : 'new-password-helper'}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPassword(prev => !prev)}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                            aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                                        >
+                                            {showNewPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                    {errors.newPassword ? (
+                                        <p id="new-password-error" className="mt-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                            {errors.newPassword}
+                                        </p>
+                                    ) : (
+                                        <p id="new-password-helper" className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                                            At least 12 characters.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="confirm-password-input"
+                                        className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                                    >
+                                        Confirm password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            id="confirm-password-input"
+                                            type={showConfirmPassword ? 'text' : 'password'}
+                                            name="confirmPassword"
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                            className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white ${
+                                                errors.confirmPassword
+                                                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
+                                                    : 'border-gray-200/90 focus:border-brand-500 focus:ring-brand-500/20 dark:border-white/10'
+                                            }`}
+                                            placeholder="Re-enter new password"
+                                            maxLength={72}
+                                            aria-invalid={Boolean(errors.confirmPassword)}
+                                            aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(prev => !prev)}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                            aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                                        >
+                                            {showConfirmPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                    {errors.confirmPassword && (
+                                        <p id="confirm-password-error" className="mt-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                            {errors.confirmPassword}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </section>
+                </div>
 
-                    {/* Actions */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2"
+                {/* Save & Cancel Footer Actions */}
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-1">
+                    <button
+                        type="button"
+                        onClick={() => navigate(user?.role === 'reporter' ? '/my-reports' : '/dashboard')}
+                        className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-5 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                     >
-                        <button
-                            type="button"
-                            onClick={() => navigate(user?.role === 'reporter' ? '/my-reports' : '/dashboard')}
-                            className="w-full sm:w-auto px-6 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl text-sm text-gray-700 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading || !hasChanges}
-                            className="w-full sm:w-auto px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95"
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Saving...
-                                </span>
-                            ) : (
-                                'Save Changes'
-                            )}
-                        </button>
-                    </motion.div>
-                </form>
-            </motion.div>
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading || !hasChanges}
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-700 px-6 text-xs sm:text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-brand-600 dark:hover:bg-brand-500"
+                    >
+                        {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Saving...</span>
+                            </span>
+                        ) : (
+                            'Save changes'
+                        )}
+                    </button>
+                </div>
+            </form>
 
-            {/* Webcam Modal Overlay */}
+            {/* Webcam Capture Modal */}
             <AnimatePresence>
                 {isWebcamOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="webcam-modal-title"
                     >
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-white rounded-2xl overflow-hidden shadow-2xl max-w-md w-full"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs"
+                            onClick={stopWebcam}
+                        />
+
+                        <motion.div
+                            initial={{ scale: 0.96, opacity: 0, y: 8 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.96, opacity: 0, y: 8 }}
+                            transition={{ duration: 0.15 }}
+                            className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                            onClick={e => e.stopPropagation()}
                         >
-                            <div className="flex justify-between items-center p-4 border-b border-gray-100">
-                                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                    <HiOutlineCamera className="w-5 h-5 text-gray-500" />
-                                    Take Photo
+                            <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
+                                <h3 id="webcam-modal-title" className="text-sm font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                                    <HiOutlineCamera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                    Take profile photo
                                 </h3>
                                 <button
                                     type="button"
                                     onClick={stopWebcam}
-                                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200 transition-colors"
+                                    aria-label="Close camera"
                                 >
-                                    <HiOutlineX className="w-5 h-5" />
+                                    <HiOutlineX className="h-5 w-5" aria-hidden="true" />
                                 </button>
                             </div>
 
@@ -720,30 +838,28 @@ const ProfileSettingsPage = () => {
                                     muted
                                     className="w-full h-full object-cover -scale-x-100"
                                 />
-                                {/* Crosshair overlay for styling effect */}
-                                <div className="absolute inset-0 border-[8px] border-black/20 pointer-events-none"></div>
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-white/30 rounded-full pointer-events-none"></div>
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-36 w-36 rounded-full border-2 border-dashed border-white/60 pointer-events-none" />
                             </div>
 
-                            <div className="p-4 flex justify-between items-center bg-gray-50">
+                            <div className="flex items-center justify-between gap-3 border-t border-gray-200/80 bg-gray-50/70 p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
                                 <button
                                     type="button"
                                     onClick={stopWebcam}
-                                    className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+                                    className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-4 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
                                     onClick={captureWebcamPhoto}
-                                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105 active:scale-95"
+                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500"
                                 >
-                                    <HiOutlineCamera className="w-5 h-5" />
-                                    Capture
+                                    <HiOutlineCamera className="h-4 w-4" aria-hidden="true" />
+                                    Capture photo
                                 </button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

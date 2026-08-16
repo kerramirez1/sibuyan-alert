@@ -503,9 +503,9 @@ const AdminPage = () => {
                                 return (
                                     <div
                                         key={report._id}
-                                        className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                                        className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                                     >
-                                        <div className="min-w-0 flex-1">
+                                        <div className="min-w-0">
                                             <p className="truncate text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">
                                                 {report.address || 'Location pending'}
                                             </p>
@@ -513,10 +513,12 @@ const AdminPage = () => {
                                                 by {report.reporter?.name || 'Unknown'} · {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
                                             </p>
                                         </div>
-                                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                            <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} aria-hidden="true" />
-                                            {statusConfig.shortLabel || report.status}
-                                        </span>
+                                        <div className="flex justify-end">
+                                            <span className="inline-flex h-6 w-[104px] items-center justify-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot}`} aria-hidden="true" />
+                                                <span className="truncate">{statusConfig.shortLabel || report.status}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -550,7 +552,7 @@ const AdminPage = () => {
                                 return (
                                     <div
                                         key={recentUser._id}
-                                        className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                                        className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                                     >
                                         <div className="flex min-w-0 items-center gap-2.5">
                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/90 bg-gray-100 text-[11px] font-bold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
@@ -565,10 +567,12 @@ const AdminPage = () => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                            <span className={`h-1.5 w-1.5 rounded-full ${roleConfig.dot}`} aria-hidden="true" />
-                                            {roleConfig.label}
-                                        </span>
+                                        <div className="flex justify-end">
+                                            <span className="inline-flex h-6 w-[104px] items-center justify-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${roleConfig.dot}`} aria-hidden="true" />
+                                                <span className="truncate">{roleConfig.label}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                 );
                             })}

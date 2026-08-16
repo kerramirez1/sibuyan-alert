@@ -27,19 +27,9 @@ const formatRelativeTime = (value) => {
     return formatDistanceToNow(date, { addSuffix: true });
 };
 
-export const IncidentStatusBadge = ({ status }) => {
-    const config = INCIDENT_STATUS[status];
-    if (!config) {
-        return <span className="inline-flex rounded-sm border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-700">{status || 'Unknown'}</span>;
-    }
-
-    return (
-        <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${config.className}`}>
-            <span className={`h-1.5 w-1.5 rounded-sm ${config.dotClassName}`} aria-hidden="true" />
-            {config.label}
-        </span>
-    );
-};
+export const IncidentStatusBadge = ({ status }) => (
+    <OperationalStatusIndicator status={status} />
+);
 
 const TransferAcknowledgmentState = ({ report, neutral = false }) => {
     const transfer = getLatestTransfer(report);
@@ -211,27 +201,6 @@ const getResponderAssignment = (report) => {
     return responderName || (agency !== 'Unassigned' ? agency : 'Unassigned');
 };
 
-const ContextualAction = ({ label, icon: Icon, onClick, tone = 'neutral', disabled = false }) => {
-    const tones = {
-        neutral: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
-        success: 'text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800',
-        danger: 'text-red-700 hover:bg-red-50 hover:text-red-800',
-        primary: 'text-blue-700 hover:bg-blue-50 hover:text-blue-800',
-        violet: 'text-violet-700 hover:bg-violet-50 hover:text-violet-800',
-    };
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-sm px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-wait disabled:opacity-50 sm:w-auto ${tones[tone]}`}
-        >
-            <Icon className={`h-4 w-4 ${disabled ? 'animate-pulse' : ''}`} aria-hidden="true" />
-            {label}
-        </button>
-    );
-};
 
 const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
@@ -242,28 +211,74 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                 type="button"
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
-                aria-controls={isSelected ? 'admin-incident-inspector' : undefined}
-                className="group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-sm px-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:w-auto sm:justify-start"
+                aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
+                className="group inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100/80 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto sm:justify-start"
             >
-                Inspect report
-                <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
+                <span>Inspect report</span>
+                <HiOutlineArrowRight className="h-3.5 w-3.5 text-gray-400 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-emerald-700 dark:text-gray-500 dark:group-hover:text-emerald-400" aria-hidden="true" />
             </button>
 
-            <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
-                {capabilities.canAcknowledgeTransfer && (
-                    <ContextualAction label="Acknowledge transfer" icon={HiOutlineCheckCircle} onClick={() => actions.acknowledgeTransfer(report)} tone="violet" disabled={actions.acknowledgeLoadingId === report._id} />
-                )}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-end">
                 {capabilities.canVerify && (
-                    <ContextualAction label="Verify report" icon={HiOutlineCheckCircle} onClick={() => actions.openReview(report, 'verified')} tone="success" />
+                    <button
+                        type="button"
+                        onClick={() => actions.openReview(report, 'verified')}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        title="Verify report"
+                        aria-label="Verify report"
+                    >
+                        <HiOutlineCheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Verify</span>
+                    </button>
                 )}
                 {capabilities.canReject && (
-                    <ContextualAction label="Reject report" icon={HiOutlineXCircle} onClick={() => actions.openReview(report, 'rejected')} tone="danger" />
+                    <button
+                        type="button"
+                        onClick={() => actions.openReview(report, 'rejected')}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-red-200/90 bg-red-50/80 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+                        title="Reject report"
+                        aria-label="Reject report"
+                    >
+                        <HiOutlineXCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Reject</span>
+                    </button>
+                )}
+                {capabilities.canAcknowledgeTransfer && (
+                    <button
+                        type="button"
+                        onClick={() => actions.acknowledgeTransfer(report)}
+                        disabled={actions.acknowledgeLoadingId === report._id}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400"
+                        title="Acknowledge transfer"
+                        aria-label="Acknowledge transfer"
+                    >
+                        <HiOutlineCheckCircle className={`h-3.5 w-3.5 ${actions.acknowledgeLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                        <span>Acknowledge</span>
+                    </button>
                 )}
                 {capabilities.canTransfer && (
-                    <ContextualAction label="Transfer report" icon={HiOutlineSwitchHorizontal} onClick={() => actions.openTransfer(report)} tone="violet" />
+                    <button
+                        type="button"
+                        onClick={() => actions.openTransfer(report)}
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400"
+                        title="Transfer report"
+                        aria-label="Transfer report"
+                    >
+                        <HiOutlineSwitchHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Transfer</span>
+                    </button>
                 )}
                 {capabilities.canDelete && (
-                    <ContextualAction label="Delete report" icon={HiOutlineTrash} onClick={() => actions.deleteReport(report)} tone="danger" disabled={actions.deleteLoadingId === report._id} />
+                    <button
+                        type="button"
+                        onClick={() => actions.deleteReport(report)}
+                        disabled={actions.deleteLoadingId === report._id}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-400 shadow-2xs transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                        title="Delete report"
+                        aria-label="Delete report"
+                    >
+                        <HiOutlineTrash className={`h-3.5 w-3.5 ${actions.deleteLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                    </button>
                 )}
             </div>
         </div>
@@ -411,32 +426,30 @@ const AdminIncidentRow = ({ report, user, actions, onInspect, isSelected = false
     );
 };
 
-const ResponderQueueSkeleton = () => (
-    <div className="divide-y divide-gray-100 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800" role="status" aria-live="polite">
+const IncidentQueueSkeleton = () => (
+    <div className="divide-y divide-gray-100 border-y border-gray-200/80 dark:divide-white/5 dark:border-white/10" role="status" aria-live="polite">
         <span className="sr-only">Loading incident reports...</span>
         {[0, 1, 2].map((item) => (
             <div key={item} className="animate-pulse px-1 py-5 sm:px-2">
-                <div className="h-3 w-36 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="mt-3 h-5 w-2/3 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-gray-100 dark:bg-gray-800/70" />
-                <div className="mt-4 h-10 w-32 rounded bg-gray-100 dark:bg-gray-800/70" />
+                <div className="h-3 w-36 rounded-md bg-gray-200 dark:bg-white/10" />
+                <div className="mt-3 h-5 w-2/3 rounded-md bg-gray-200 dark:bg-white/10" />
+                <div className="mt-2 h-3 w-1/2 rounded-md bg-gray-100 dark:bg-white/5" />
+                <div className="mt-4 h-9 w-32 rounded-xl bg-gray-100 dark:bg-white/5" />
             </div>
         ))}
     </div>
 );
 
-const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) => {
+const IncidentPagination = ({ pagination, onPageChange }) => {
     if (!pagination || pagination.pages <= 1) return null;
 
     return (
         <nav
-            className={lightweight
-                ? 'mt-4 flex flex-col gap-3 border-t border-gray-200 pt-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between'
-                : 'mt-4 flex flex-col gap-3 rounded-sm border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between'}
+            className="mt-4 flex flex-col gap-3 border-t border-gray-200/80 pt-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between"
             aria-label="Incident queue pages"
         >
             <p className="text-center text-xs text-gray-500 dark:text-gray-400 sm:text-left">
-                Page <strong className="text-gray-800 dark:text-gray-200">{pagination.page}</strong> of {pagination.pages}
+                Page <strong className="font-semibold text-gray-800 dark:text-gray-200">{pagination.page}</strong> of {pagination.pages}
                 <span aria-hidden="true"> &middot; </span>{pagination.total} incidents
             </p>
             <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -444,7 +457,7 @@ const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) =
                     type="button"
                     onClick={() => onPageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="min-h-11 rounded-sm border border-gray-300 px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                 >
                     Previous
                 </button>
@@ -452,7 +465,7 @@ const IncidentPagination = ({ pagination, onPageChange, lightweight = false }) =
                     type="button"
                     onClick={() => onPageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="min-h-11 rounded-sm border border-gray-300 px-4 text-[11px] font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                 >
                     Next
                 </button>
@@ -477,22 +490,19 @@ const IncidentQueue = ({
     const isResponder = user?.role === 'responder';
 
     if (loading) {
-        if (isResponder) return <ResponderQueueSkeleton />;
-
-        return (
-            <div className="rounded-sm border border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900" role="status">
-                <div className="spinner mx-auto" />
-                <p className="mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">Loading incident reports…</p>
-            </div>
-        );
+        return <IncidentQueueSkeleton />;
     }
 
     if (error) {
         return (
-            <div className="rounded-sm border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20" role="alert">
+            <div className="rounded-2xl border border-red-200 bg-red-50/80 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20" role="alert">
                 <p className="font-semibold text-red-900 dark:text-red-300">Incident queue unavailable</p>
-                <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>
-                <button type="button" onClick={onRetry} className="mt-4 rounded-sm border border-red-300 bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800 hover:bg-red-100 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700">
+                <p className="mt-1 text-xs sm:text-sm text-red-700 dark:text-red-400">{error}</p>
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    className="mt-4 inline-flex h-9 items-center justify-center rounded-xl border border-red-300 bg-white px-4 text-xs font-semibold text-red-800 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700"
+                >
                     Try again
                 </button>
             </div>
@@ -506,14 +516,12 @@ const IncidentQueue = ({
             active: ['You have no active responses', 'Start a response from the Available tab when an eligible incident needs your unit.'],
             history: ['No response history yet', 'Incidents resolved by your response unit will appear here.'],
         };
-        const emptyCopy = responderEmptyCopy[responderView]
+        const emptyCopy = (isResponder && responderEmptyCopy[responderView])
             || ['No incident reports found', 'Adjust the status or search filters and try again.'];
         return (
-            <div className={isResponder
-                ? 'border-y border-gray-200 bg-white px-4 py-8 text-center dark:border-gray-800 dark:bg-gray-950'
-                : 'rounded-sm border border-dashed border-gray-300 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-800'}>
+            <div className="rounded-2xl border border-dashed border-gray-200/90 bg-white p-10 text-center dark:border-white/10 dark:bg-white/5">
                 <p className="font-semibold text-gray-900 dark:text-white">{emptyCopy[0]}</p>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{emptyCopy[1]}</p>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">{emptyCopy[1]}</p>
             </div>
         );
     }

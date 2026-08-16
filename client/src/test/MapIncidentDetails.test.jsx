@@ -97,7 +97,7 @@ describe('MapIncidentDetails', () => {
         expect(screen.getByRole('link', { name: /open my full report/i }))
             .toHaveAttribute('href', '/my-reports?report=report-1');
         expect(await screen.findByRole('heading', { name: 'Your evidence photos (1)' })).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/private-evidence.jpg');
+        expect(await screen.findByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/private-evidence.jpg');
         expect(mocks.getOwnerReportById).toHaveBeenCalledWith('report-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(mocks.getReportById).not.toHaveBeenCalled();
     });
@@ -144,7 +144,7 @@ describe('MapIncidentDetails', () => {
         renderDetails({ viewerRole: 'municipal_admin' });
 
         expect(await screen.findByRole('heading', { name: 'Evidence photos (1)' })).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/operational-evidence.jpg');
+        expect(await screen.findByRole('img', { name: 'Incident evidence 1' })).toHaveAttribute('src', '/api/operational-evidence.jpg');
     });
 
     test('shows a recoverable warning when evidence metadata and secure references disagree', async () => {

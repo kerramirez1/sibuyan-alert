@@ -80,7 +80,7 @@ describe('ReporterDashboardPage', () => {
         expect(screen.getByText('Reporter Overview')).toBeInTheDocument();
 
         // Stat strip metrics
-        expect(screen.getByText('Total reports')).toBeInTheDocument();
+        expect(await screen.findByText('Total reports')).toBeInTheDocument();
         expect(screen.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('Active cases')).toBeInTheDocument();
         expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);

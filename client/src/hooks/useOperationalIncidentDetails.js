@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI, reportsAPI } from '../services/api';
 
 const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder']);
@@ -17,36 +17,40 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
     const evidenceCount = getEvidenceCount(report);
     const loadedImageCount = Array.isArray(report?.images) ? report.images.length : 0;
     const evidencePayloadIncomplete = evidenceCount > loadedImageCount;
+    const loadedReportIdRef = useRef(null);
+
     const shouldLoad = Boolean(
         (isOperationalViewer || isOwnerViewer)
-        && (report?.detailCompleteness !== 'full' || evidencePayloadIncomplete)
+        && (reportId !== loadedReportIdRef.current || evidencePayloadIncomplete)
+        && report?.detailCompleteness !== 'full'
     );
+
     const [state, setState] = useState({
-        report,
+        extraDetails: null,
         loading: shouldLoad,
         error: '',
         restricted: false,
     });
 
-    // Use a ref to capture the latest `report` prop without destabilizing
-    // the `load` callback. The `report` object reference changes on every
-    // parent re-render (objects are never referentially stable), so including
-    // it directly in `useCallback` deps would recreate `load` on every
-    // render → fire the `useEffect` → trigger an API request every time.
-    const reportRef = useRef(report);
-    reportRef.current = report;
-
     const load = useCallback(async (signal) => {
-        const currentReport = reportRef.current;
+        if (!reportId) {
+            loadedReportIdRef.current = null;
+            setState({ extraDetails: null, loading: false, error: '', restricted: false });
+            return;
+        }
 
         if (!shouldLoad) {
-            setState({ report: currentReport, loading: false, error: '', restricted: false });
+            setState((current) => ({
+                ...current,
+                loading: false,
+                error: '',
+                restricted: false,
+            }));
             return;
         }
 
         setState((current) => ({
             ...current,
-            report: current.report?._id === reportId ? current.report : currentReport,
             loading: true,
             error: '',
             restricted: false,
@@ -64,8 +68,9 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
                 detailAccess: isOperationalViewer ? 'operational' : 'owner',
                 detailCompleteness: 'full',
             };
+            loadedReportIdRef.current = reportId;
             setState({
-                report: { ...currentReport, ...normalizedReport },
+                extraDetails: normalizedReport,
                 loading: false,
                 error: '',
                 restricted: false,
@@ -74,7 +79,7 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
             if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
             const restricted = error?.response?.status === 403;
             setState({
-                report: currentReport,
+                extraDetails: null,
                 loading: false,
                 restricted,
                 error: restricted
@@ -95,9 +100,44 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
         return () => controller.abort();
     }, [load]);
 
-    const retry = useCallback(() => load(undefined), [load]);
+    const retry = useCallback(() => {
+        loadedReportIdRef.current = null;
+        return load(undefined);
+    }, [load]);
 
-    return { ...state, retry, isOperationalViewer, isOwnerViewer };
+    const resolvedReport = useMemo(() => {
+        if (!report) return null;
+        if (!state.extraDetails || getReportId(state.extraDetails) !== reportId) {
+            return report;
+        }
+        return {
+            ...report,
+            ...state.extraDetails,
+            ...(report.status ? { status: report.status } : {}),
+            ...(report.rejectionReason !== undefined ? { rejectionReason: report.rejectionReason } : {}),
+            ...(report.verifiedBy !== undefined ? { verifiedBy: report.verifiedBy } : {}),
+            ...(report.verifiedAt !== undefined ? { verifiedAt: report.verifiedAt } : {}),
+            ...(report.respondedBy !== undefined ? { respondedBy: report.respondedBy } : {}),
+            ...(report.respondedAt !== undefined ? { respondedAt: report.respondedAt } : {}),
+            ...(report.responders !== undefined ? { responders: report.responders } : {}),
+            ...(report.resolvedBy !== undefined ? { resolvedBy: report.resolvedBy } : {}),
+            ...(report.resolvedAt !== undefined ? { resolvedAt: report.resolvedAt } : {}),
+            ...(report.resolutionNotes !== undefined ? { resolutionNotes: report.resolutionNotes } : {}),
+            ...(report.transferredAt !== undefined ? { transferredAt: report.transferredAt } : {}),
+            ...(report.transferHistory !== undefined ? { transferHistory: report.transferHistory } : {}),
+            ...(report.reportUpdates !== undefined ? { reportUpdates: report.reportUpdates } : {}),
+        };
+    }, [report, reportId, state.extraDetails]);
+
+    return {
+        report: resolvedReport,
+        loading: state.loading,
+        error: state.error,
+        restricted: state.restricted,
+        retry,
+        isOperationalViewer,
+        isOwnerViewer,
+    };
 };
 
 export default useOperationalIncidentDetails;
