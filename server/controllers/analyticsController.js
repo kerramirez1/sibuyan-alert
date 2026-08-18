@@ -42,7 +42,13 @@ export const getAdminAnalytics = async (req, res) => {
             });
         }
 
-        const reportFilter = { municipalityName: municipality };
+        const reportFilter = {
+            $or: [
+                { municipalityName: municipality },
+                { originalMunicipalityName: municipality },
+                { 'transferHistory.fromMunicipalityName': municipality },
+            ],
+        };
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
@@ -146,7 +152,13 @@ export const getResponderAnalytics = async (req, res) => {
                 message: 'Municipality is not assigned to this responder',
             });
         }
-        const filter = { municipalityName: responder.assignedMunicipality };
+        const municipalityScope = {
+            $or: [
+                { municipalityName: responder.assignedMunicipality },
+                { originalMunicipalityName: responder.assignedMunicipality },
+                { 'transferHistory.fromMunicipalityName': responder.assignedMunicipality },
+            ],
+        };
         const { startAt, endAt } = getPhilippineCalendarDayRange();
 
         const [
@@ -159,38 +171,50 @@ export const getResponderAnalytics = async (req, res) => {
             reportsByBarangay,
             criticalHighRiskZones,
         ] = await Promise.all([
-            Report.countDocuments({ ...filter, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
+            Report.countDocuments({ ...municipalityScope, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
             Report.countDocuments({
-                ...filter,
-                $or: [
-                    { status: 'transferred' },
+                $and: [
+                    municipalityScope,
                     {
-                        status: 'verified',
-                        respondedBy: null,
-                        'responders.0': { $exists: false },
+                        $or: [
+                            { status: 'transferred' },
+                            {
+                                status: 'verified',
+                                respondedBy: null,
+                                'responders.0': { $exists: false },
+                            },
+                        ],
                     },
                 ],
             }),
             Report.countDocuments({
-                ...filter,
-                status: 'resolved',
-                resolvedAt: { $gte: startAt, $lt: endAt },
-                $or: [
-                    { resolvedBy: responder._id },
-                    { respondedBy: responder._id },
-                    { 'responders.user': responder._id },
+                $and: [
+                    municipalityScope,
+                    {
+                        status: 'resolved',
+                        resolvedAt: { $gte: startAt, $lt: endAt },
+                        $or: [
+                            { resolvedBy: responder._id },
+                            { respondedBy: responder._id },
+                            { 'responders.user': responder._id },
+                        ],
+                    },
                 ],
             }),
             Report.countDocuments({
-                ...filter,
-                status: 'responding',
-                $or: [
-                    { respondedBy: responder._id },
-                    { 'responders.user': responder._id },
+                $and: [
+                    municipalityScope,
+                    {
+                        status: 'responding',
+                        $or: [
+                            { respondedBy: responder._id },
+                            { 'responders.user': responder._id },
+                        ],
+                    },
                 ],
             }),
             Report.countDocuments({
-                ...filter,
+                ...municipalityScope,
                 status: 'resolved',
                 resolvedAt: { $gte: startAt, $lt: endAt },
             }),
@@ -199,7 +223,7 @@ export const getResponderAnalytics = async (req, res) => {
                 isActive: true,
             }),
             Report.aggregate([
-                { $match: { ...filter, status: { $in: ['verified', 'resolved', 'responding'] }, barangay: { $nin: [null, ''] } } },
+                { $match: { ...municipalityScope, status: { $in: ['verified', 'resolved', 'responding'] }, barangay: { $nin: [null, ''] } } },
                 {
                     $group: {
                         _id: '$barangay',

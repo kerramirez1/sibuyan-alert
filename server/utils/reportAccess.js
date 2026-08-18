@@ -1,4 +1,5 @@
 const RESPONDER_OPERATIONAL_STATUSES = new Set([
+    'pending',
     'verified',
     'transferred',
     'responding',
@@ -23,12 +24,18 @@ export const isAssignedResponder = (user, report) => {
         && report.responders.some((entry) => getEntityId(entry?.user) === userId);
 };
 
+const getScopedMunicipalities = (report) => [
+    report?.municipalityName,
+    report?.originalMunicipalityName,
+    ...(Array.isArray(report?.transferHistory)
+        ? report.transferHistory.map((t) => t?.fromMunicipalityName).filter(Boolean)
+        : []),
+].filter(Boolean);
+
 export const isMunicipalAdminInReportScope = (user, report) => Boolean(
     user?.role === 'municipal_admin'
     && user.assignedMunicipality
-    && [report?.municipalityName, report?.originalMunicipalityName]
-        .filter(Boolean)
-        .includes(user.assignedMunicipality)
+    && getScopedMunicipalities(report).includes(user.assignedMunicipality)
 );
 
 export const isResponderInReportScope = (user, report) => {
@@ -37,7 +44,7 @@ export const isResponderInReportScope = (user, report) => {
 
     return Boolean(
         user.assignedMunicipality
-        && report.municipalityName === user.assignedMunicipality
+        && getScopedMunicipalities(report).includes(user.assignedMunicipality)
         && RESPONDER_OPERATIONAL_STATUSES.has(report.status)
     );
 };

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion } from 'framer-motion';
 import toast from '../../utils/appToast';
-import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding } from 'react-icons/hi';
+import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding, HiOutlineShieldExclamation } from 'react-icons/hi';
 import {
     getMapCoordinates,
     getFilteredMapReports,
@@ -101,6 +101,7 @@ const MapView = ({
     externalContextPanelOpen = false,
     onEntityInspectorOpen = null,
     showPending = false,
+    showRiskZones = true,
     onLocationSelect = null,
     selectedLocation = null,
     className = '',
@@ -140,6 +141,7 @@ const MapView = ({
     const [showMuniMenu, setShowMuniMenu] = useState(false);
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
+    const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
@@ -167,6 +169,11 @@ const MapView = ({
             filterMode,
         });
     }, [filterCategory, filterMode, filterStatus, reports, showPending]);
+    const isRiskZoneFilterActive = filterStatus === 'risk-zones' || filterStatus === 'all' || !filterStatus;
+    const filteredRiskZones = useMemo(() => {
+        if (!showHazardZones || !isRiskZoneFilterActive) return [];
+        return highRiskZones;
+    }, [highRiskZones, isRiskZoneFilterActive, showHazardZones]);
     const hasGroupedReports = useMemo(
         () => groupReportsByMapLocation(filteredReports).some((group) => group.reports.length > 1),
         [filteredReports],
@@ -490,16 +497,37 @@ const MapView = ({
     }, [mapStyle, mapReady]);
 
     useEffect(() => {
-        if (!mapReady || !mapInstanceRef.current || mode === 'incident-preview') return;
+        setShowHazardZones(showRiskZones);
+    }, [showRiskZones]);
 
-        const zonesWithRealCoverage = highRiskZones.filter((zone) => (
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current || mode === 'incident-preview') return;
+        const map = mapInstanceRef.current;
+        const setVisibility = (layerId, visible) => {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+            }
+        };
+
+        if (filteredRiskZones.length === 0) {
+            setVisibility(RISK_ZONE_FILL_LAYER_ID, false);
+            setVisibility(RISK_ZONE_OUTLINE_LAYER_ID, false);
+            const source = map.getSource(RISK_ZONE_SOURCE_ID);
+            source?.setData({ type: 'FeatureCollection', features: [] });
+            return;
+        }
+
+        setVisibility(RISK_ZONE_FILL_LAYER_ID, true);
+        setVisibility(RISK_ZONE_OUTLINE_LAYER_ID, true);
+
+        const zonesWithRealCoverage = filteredRiskZones.filter((zone) => (
             Number.isFinite(Number(zone?.radius)) && Number(zone.radius) > 0
         ));
-        const source = mapInstanceRef.current.getSource(RISK_ZONE_SOURCE_ID);
+        const source = map.getSource(RISK_ZONE_SOURCE_ID);
         source?.setData(buildRiskZoneFeatureCollection(zonesWithRealCoverage, {
             points: performanceProfile.riskZonePolygonPoints,
         }));
-    }, [highRiskZones, mapReady, performanceProfile.riskZonePolygonPoints, mode]);
+    }, [filteredRiskZones, mapReady, performanceProfile.riskZonePolygonPoints, mode]);
 
     // Update data layers
     useEffect(() => {
@@ -597,8 +625,10 @@ const MapView = ({
             selectedOperationalMarkerRef.current = null;
         }
 
+        if (filteredRiskZones.length === 0) return;
+
         // Create unique HTML markers for high-risk zones (warning triangle style)
-        highRiskZones.forEach(zone => {
+        filteredRiskZones.forEach(zone => {
             const coordinates = getMapCoordinates(zone);
             if (!coordinates) return;
             const color = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
@@ -653,7 +683,7 @@ const MapView = ({
             });
         });
 
-    }, [highRiskZones, mapReady, performanceProfile, selectOperationalMarker]);
+    }, [filteredRiskZones, mapReady, performanceProfile, selectOperationalMarker]);
 
     // Entity-based in-page and deep-link requests share one MapLibre camera path.
     useEffect(() => {
@@ -875,9 +905,17 @@ const MapView = ({
                 </div>
             )}
 
-            {mapReady && showDataState && filteredReports.length === 0 && (
+            {mapReady && showDataState && (
+                filterStatus === 'risk-zones'
+                    ? filteredRiskZones.length === 0
+                    : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0)
+            ) && (
                 <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[calc(100%-5rem)] rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
-                    {filterStatus ? 'No incidents match the selected filter.' : 'No active incidents are currently visible.'}
+                    {filterStatus === 'risk-zones'
+                        ? 'No high-risk zones match the selected filter.'
+                        : filterStatus
+                            ? 'No incidents match the selected filter.'
+                            : 'No active incidents are currently visible.'}
                 </div>
             )}
 
@@ -982,6 +1020,14 @@ const MapView = ({
                         aria-pressed={mapStyle === 'streets'}
                     />
 
+                    <MapToolButton
+                        label={showHazardZones ? 'Hide high-risk hazard zones' : 'Show high-risk hazard zones'}
+                        icon={HiOutlineShieldExclamation}
+                        active={showHazardZones}
+                        onClick={() => setShowHazardZones((prev) => !prev)}
+                        aria-pressed={showHazardZones}
+                    />
+
                     <div ref={municipalityMenuRef} className="relative">
                         <MapToolButton
                             label="Choose municipality"
@@ -1024,6 +1070,7 @@ const MapView = ({
                     filterMode={filterMode}
                     hasGroupedReports={hasGroupedReports}
                     showIncidentStatus={showIncidentStatusLegend}
+                    showRiskZone={showHazardZones}
                 />
             )}
         </div>

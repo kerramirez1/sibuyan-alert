@@ -306,8 +306,10 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapProps.onResolveReport).toBe(props.handleMapResolve);
         expect(mapProps.canResolveReport).toBe(props.canCurrentResponderResolve);
         expect(mapProps.filterMode).toBe('response');
-        expect(mapProps.showPending).toBe(false);
-        expect(screen.getByRole('button', { name: 'Awaiting response' })).toBeInTheDocument();
+        expect(mapProps.showPending).toBe(true);
+        const filterBar = screen.getByLabelText('Map status filter');
+        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
     });
 
     test('gives administrators review terminology without responder actions', () => {
@@ -318,7 +320,9 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
 
         expect(screen.getByText('Municipal oversight')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Needs review' })).toBeInTheDocument();
+        const filterBar = screen.getByLabelText('Map status filter');
+        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
             filterMode: 'review',
             canRespond: false,
@@ -657,5 +661,76 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getAllByText('High-risk zones are temporarily unavailable.')).toHaveLength(2);
         fireEvent.click(screen.getByRole('button', { name: 'Retry risk zones' }));
         expect(onRetryHighRiskZones).toHaveBeenCalledTimes(1);
+    });
+
+    test('renders role-aware status filter bar with counts and preserves high risk zones on map', () => {
+        const setResponderMapFilter = vi.fn();
+        const reports = [
+            { _id: 'pending-1', status: 'pending', incidentType: 'vehicular', coordinates: { lat: 12.4, lng: 122.6 } },
+            { _id: 'verified-1', status: 'verified', incidentType: 'fire', coordinates: { lat: 12.41, lng: 122.61 } },
+            { _id: 'responding-1', status: 'responding', incidentType: 'medical', coordinates: { lat: 12.42, lng: 122.62 } },
+            { _id: 'transferred-1', status: 'transferred', incidentType: 'other', coordinates: { lat: 12.43, lng: 122.63 } },
+            { _id: 'resolved-1', status: 'resolved', incidentType: 'marine', coordinates: { lat: 12.44, lng: 122.64 } },
+        ];
+        const highRiskZones = [
+            { _id: 'zone-1', name: 'Risk Zone 1', type: 'landslide_prone', coordinates: { lat: 12.4, lng: 122.6 }, radius: 100 },
+        ];
+
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            reports,
+            highRiskZones,
+            responderMapFilter: 'all',
+            setResponderMapFilter,
+        }));
+
+        const filterBar = screen.getByLabelText('Map status filter');
+        expect(filterBar).toBeInTheDocument();
+
+        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /verified/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /responding/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /transferred/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /resolved/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /risk zones/i })).toBeInTheDocument();
+
+        fireEvent.click(within(filterBar).getByRole('button', { name: /risk zones/i }));
+        expect(setResponderMapFilter).toHaveBeenCalledWith('risk-zones');
+
+        fireEvent.click(within(filterBar).getByRole('button', { name: /resolved/i }));
+        expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
+
+        expect(mapPropsSpy.mock.lastCall[0].highRiskZones).toEqual(highRiskZones);
+    });
+
+    test('keeps overview metrics decoupled from active map status filters (e.g. risk-zones filter)', () => {
+        const now = new Date().toISOString();
+        const reports = [
+            { _id: 'verified-1', status: 'verified', incidentType: 'fire', coordinates: { lat: 12.4, lng: 122.6 }, createdAt: now },
+            { _id: 'responding-1', status: 'responding', incidentType: 'medical', coordinates: { lat: 12.41, lng: 122.61 }, createdAt: now },
+            { _id: 'transferred-1', status: 'transferred', incidentType: 'vehicular', coordinates: { lat: 12.42, lng: 122.62 }, createdAt: now },
+        ];
+        const highRiskZones = [
+            { _id: 'zone-1', name: 'Risk Zone 1', type: 'landslide_prone', coordinates: { lat: 12.43, lng: 122.63 }, radius: 100 },
+        ];
+
+        renderWorkspace(createProps({
+            user: null,
+            isAdmin: false,
+            isResponder: false,
+            isReporter: false,
+            reports,
+            highRiskZones,
+            responderMapFilter: 'risk-zones',
+        }));
+
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        expect(within(summary).getByRole('button', { name: /View 3 active incidents/i })).toBeInTheDocument();
+        expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
+        expect(within(summary).getByRole('button', { name: /View 1 transferred/i })).toBeInTheDocument();
+        expect(within(summary).getByRole('button', { name: /View 1 risk zones/i })).toBeInTheDocument();
     });
 });

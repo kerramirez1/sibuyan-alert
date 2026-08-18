@@ -77,6 +77,7 @@ const MapLegend = ({
     const popoverId = useId();
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
+    const isRiskZoneVisible = showRiskZone && (filterStatus === 'risk-zones' || filterStatus === 'all' || !filterStatus);
     const statusKeys = showIncidentStatus
         ? getMapLegendStatusKeys({ showPending, filterStatus, filterMode })
         : [];
@@ -105,7 +106,7 @@ const MapLegend = ({
         setMobileOpen(false);
     }, [filterMode, filterStatus, showPending]);
 
-    if (!showRiskZone && statusKeys.length === 0 && !hasGroupedReports) {
+    if (!isRiskZoneVisible && statusKeys.length === 0 && !hasGroupedReports) {
         return null;
     }
 
@@ -115,7 +116,7 @@ const MapLegend = ({
                 aria-label="Map legend"
                 className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white/95 px-3 sm:px-3.5 py-1 backdrop-blur-md shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
             >
-                <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={showRiskZone} />
+                <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
             </section>
 
             <div ref={containerRef} className="pointer-events-auto absolute left-3 top-3 z-20 sm:hidden">
@@ -137,7 +138,7 @@ const MapLegend = ({
                         className="absolute left-0 top-10 w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4"
                     >
                         <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sm:pb-2 sm:text-[10px]">Map legend</p>
-                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={showRiskZone} compact />
+                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
                     </section>
                 )}
             </div>

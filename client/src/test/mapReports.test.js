@@ -15,7 +15,7 @@ describe('map report visibility', () => {
             { _id: 'resolved', status: 'resolved', coordinates: { lat: 12.6, lng: 122.8 } },
         ];
 
-        expect(getVisibleMapReports(reports).map((report) => report._id || report.id)).toEqual(['report-1', 'report-2']);
+        expect(getVisibleMapReports(reports).map((report) => report._id || report.id)).toEqual(['report-1', 'report-2', 'resolved']);
     });
 
     test('groups separate incidents at the same coordinates without losing their report count', () => {
@@ -33,32 +33,33 @@ describe('map report visibility', () => {
         expect(groups.reduce((total, group) => total + group.reports.length, 0)).toBe(4);
     });
 
-    test('separates administrator review filtering from responder dispatch filtering', () => {
+    test('filters by specific statuses cleanly across operational and public modes', () => {
         const coordinates = { lat: 12.4, lng: 122.6 };
         const reports = [
             { _id: 'pending', status: 'pending', coordinates },
-            { _id: 'assigned-pending', status: 'pending', coordinates, responders: [{ user: 'responder-1' }] },
             { _id: 'verified', status: 'verified', coordinates },
             { _id: 'transferred', status: 'transferred', coordinates },
             { _id: 'responding', status: 'responding', coordinates },
+            { _id: 'resolved', status: 'resolved', coordinates },
         ];
 
+        // Public All Active
         expect(getFilteredMapReports(reports, {
-            includePending: true,
-            statusFilter: 'pending',
-            filterMode: 'review',
-        }).map((report) => report._id)).toEqual(['pending', 'assigned-pending']);
+            filterMode: 'public',
+        }).map((r) => r._id)).toEqual(['verified', 'transferred', 'responding']);
 
+        // Operational All Active
         expect(getFilteredMapReports(reports, {
             includePending: true,
-            statusFilter: 'pending',
             filterMode: 'response',
-        }).map((report) => report._id)).toEqual(['pending', 'verified', 'transferred']);
+        }).map((r) => r._id)).toEqual(['pending', 'verified', 'transferred', 'responding']);
 
-        expect(getFilteredMapReports(reports, {
-            includePending: true,
-            statusFilter: 'responding',
-            filterMode: 'response',
-        }).map((report) => report._id)).toEqual(['assigned-pending', 'responding']);
+        // Specific status filters
+        expect(getFilteredMapReports(reports, { includePending: true, statusFilter: 'pending' }).map((r) => r._id)).toEqual(['pending']);
+        expect(getFilteredMapReports(reports, { statusFilter: 'verified' }).map((r) => r._id)).toEqual(['verified']);
+        expect(getFilteredMapReports(reports, { statusFilter: 'responding' }).map((r) => r._id)).toEqual(['responding']);
+        expect(getFilteredMapReports(reports, { statusFilter: 'transferred' }).map((r) => r._id)).toEqual(['transferred']);
+        expect(getFilteredMapReports(reports, { statusFilter: 'resolved' }).map((r) => r._id)).toEqual(['resolved']);
+        expect(getFilteredMapReports(reports, { statusFilter: 'risk-zones' }).map((r) => r._id)).toEqual([]);
     });
 });

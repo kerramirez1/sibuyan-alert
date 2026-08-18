@@ -336,6 +336,8 @@ const DashboardMapWorkspace = ({
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
     const transferredReports = activeReports.filter((report) => report.status === 'transferred');
+    const publicActiveReports = activeReports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
+    const publicActiveLocationCount = groupReportsByMapLocation(publicActiveReports).length;
 
 
     const closeMapSummaryPanel = useCallback((options = {}) => {
@@ -376,13 +378,13 @@ const DashboardMapWorkspace = ({
                 id: 'responder-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
                 helper: 'Incidents you handled', icon: HiOutlineBadgeCheck, panelType: 'incidents',
                 panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
-                records: resolvedTodayReports, mapFilter: 'all', emptyTitle: 'No incidents resolved today',
+                records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
                 emptyDescription: 'You have not resolved any incidents today.',
             },
             {
                 id: 'responder-risk-zones', label: 'Risk zones', value: highRiskZones.length,
                 helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
-                panelTitle: 'Active risk zones', records: highRiskZones,
+                panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
                 loading: highRiskZonesLoading, error: highRiskZonesError,
             },
         ]
@@ -413,39 +415,45 @@ const DashboardMapWorkspace = ({
                     id: 'admin-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
                     helper: 'Closed incidents', icon: HiOutlineBadgeCheck, panelType: 'incidents',
                     panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
-                    records: resolvedTodayReports, mapFilter: 'all', emptyTitle: 'No incidents resolved today',
+                    records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
                     emptyDescription: 'No incidents have been resolved today.',
                 },
             ]
 
             : [
                 {
-                    id: 'public-active', label: 'Active incidents', value: displayedMapReports.length,
-                    helper: displayedMapReports.length === displayedLocationCount
-                        ? 'Visible map reports'
-                        : `Across ${displayedLocationCount} map locations`,
+                    id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
+                    helper: publicActiveReports.length === publicActiveLocationCount
+                        ? 'Active incidents'
+                        : `Across ${publicActiveLocationCount} map locations`,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
-                    panelDescription: `${displayedMapReports.length} currently visible`, records: displayedMapReports,
-                    emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently visible.',
+                    panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
+                    records: publicActiveReports,
+                    mapFilter: 'all',
+                    emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
                 },
                 {
                     id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
                     helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
                     panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
-                    records: activeResponseReports, emptyTitle: 'No active responses',
+                    records: activeResponseReports,
+                    mapFilter: 'responding',
+                    emptyTitle: 'No active responses',
                     emptyDescription: 'No public incidents are currently in active response.',
                 },
                 {
                     id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
                     helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
                     panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
-                    records: transferredReports, emptyTitle: 'No transferred incidents',
+                    records: transferredReports,
+                    mapFilter: 'transferred',
+                    emptyTitle: 'No transferred incidents',
                     emptyDescription: 'No public incidents are currently transferred to another area.',
                 },
                 {
                     id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
                     helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
-                    panelTitle: 'Active risk zones', records: highRiskZones,
+                    panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
                     loading: highRiskZonesLoading, error: highRiskZonesError,
                 },
             ];
@@ -464,7 +472,7 @@ const DashboardMapWorkspace = ({
     const displayedMapReportIds = new Set(
         displayedMapReports.map((report) => String(report._id || report.id)),
     );
-    const canLocatePanelReport = (report) => displayedMapReportIds.has(String(report._id || report.id));
+    const canLocatePanelReport = () => true;
 
     const openOverviewMetric = (metric) => {
         if (metric.mapFilter && mapExperience.filters.length > 0) {
@@ -507,6 +515,9 @@ const DashboardMapWorkspace = ({
 
     const locateActiveIncident = (report) => {
         setSelectedActiveIncidentId('');
+        if (mapExperience.filters.length > 0 && !displayedMapReportIds.has(String(report._id || report.id))) {
+            setResponderMapFilter('all');
+        }
         locateReport(report, () => closeMapSummaryPanel({ preserveNavigation: true }));
     };
 
@@ -555,38 +566,58 @@ const DashboardMapWorkspace = ({
         : mapSummaryPanel === 'zones'
             ? 'Close risk zones panel'
             : `Close ${activeOverviewMetric?.panelTitle?.toLowerCase() || 'overview'} panel`;
+    const isReportInResponderMunicipality = (report) => {
+        if (!user?.assignedMunicipality) return true;
+        if (!report?.municipalityName) return true;
+        const assigned = user.assignedMunicipality.trim().toLowerCase();
+        const incidentMuni = report.municipalityName.trim().toLowerCase();
+        return incidentMuni === assigned;
+    };
     const selectedIncidentCanRespond = Boolean(
         selectedActiveIncident
         && mapExperience.canRespond
+        && isReportInResponderMunicipality(selectedActiveIncident)
         && ['verified', 'transferred'].includes(selectedActiveIncident.status),
     );
     const selectedIncidentCanResolve = Boolean(
         selectedActiveIncident
         && mapExperience.canResolve
+        && isReportInResponderMunicipality(selectedActiveIncident)
         && selectedActiveIncident.status === 'responding'
         && (!canCurrentResponderResolve || canCurrentResponderResolve(selectedActiveIncident)),
     );
 
+    const getFilterCount = (filterValue) => {
+        if (filterValue === 'risk-zones') {
+            return highRiskZones.length;
+        }
+        return getFilteredMapReports(reports, {
+            includePending: mapExperience.showPendingReports,
+            statusFilter: filterValue,
+            filterMode: mapExperience.filterMode,
+        }).length;
+    };
+
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-2.5 sm:gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="mt-0.5 sm:mt-1 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
                         {mapExperience.title}
                     </h1>
-                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="hidden sm:block mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         {mapExperience.description}
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span>Sibuyan Island · Alert System Active</span>
                     </div>
-                    {isAuthenticated && user?.role === 'reporter' && (
+                    {mapExperience.showSubmitReport && (
                         <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs">
                             Submit report
                         </Button>
@@ -635,36 +666,58 @@ const DashboardMapWorkspace = ({
             )}
 
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
-                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
-                    <div>
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
-                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
+                <div className="flex flex-col gap-2 sm:gap-2.5 border-b border-gray-200/80 bg-gray-50/70 p-2.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
+                            <p className="hidden sm:block mt-0.5 text-xs text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
+                        </div>
                         {displayedMapReports.length > displayedLocationCount && (
-                            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                            <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
                                 Numbered markers group incidents reported at the same location.
                             </p>
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (
-                        <div className="inline-flex max-w-full items-center overflow-x-auto rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5" aria-label="Map status filter">
-                            {mapExperience.filters.map((filter) => (
-                                <button
-                                    key={filter.value}
-                                    type="button"
-                                    onClick={() => setResponderMapFilter(filter.value)}
-                                    className={`min-h-8 shrink-0 rounded-lg px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${responderMapFilter === filter.value
-                                        ? 'bg-white text-gray-950 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40'
-                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                        }`}
-                                >
-                                    {filter.label}
-                                </button>
-                            ))}
+                        <div
+                            className="flex w-full sm:w-fit max-w-full items-center gap-1 sm:gap-1.5 rounded-xl border border-gray-200/80 bg-gray-100/90 p-1 dark:border-white/10 dark:bg-white/5 overflow-x-auto no-scrollbar"
+                            aria-label="Map status filter"
+                        >
+                            {mapExperience.filters.map((filter) => {
+                                const count = getFilterCount(filter.value);
+                                const isSelected = responderMapFilter === filter.value;
+                                const statusCfg = filter.value === 'risk-zones'
+                                    ? { dot: 'bg-red-500' }
+                                    : MAP_STATUS_CONFIG[filter.value];
+                                return (
+                                    <button
+                                        key={filter.value}
+                                        type="button"
+                                        onClick={() => setResponderMapFilter(filter.value)}
+                                        aria-pressed={isSelected}
+                                        className={`inline-flex min-h-8 sm:min-h-7 shrink-0 items-center gap-1.5 rounded-full sm:rounded-lg px-3 py-1 sm:px-2.5 sm:py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
+                                            ? 'bg-white text-gray-950 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40'
+                                            : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                            }`}
+                                    >
+                                        {statusCfg?.dot && (
+                                            <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                        )}
+                                        <span>{filter.label}</span>
+                                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none ${isSelected
+                                            ? 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-200'
+                                            : 'bg-gray-200/70 text-gray-600 dark:bg-white/5 dark:text-gray-400'
+                                            }`}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
 
-                <div className="relative aspect-square w-full sm:aspect-auto sm:h-[480px] lg:h-[580px]">
+                <div className="relative aspect-square min-h-[360px] sm:min-h-0 w-full sm:aspect-auto sm:h-[480px] lg:h-[580px]">
                     {loading && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">

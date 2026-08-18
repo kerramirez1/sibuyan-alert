@@ -403,6 +403,7 @@ export const getAllReports = async (req, res) => {
             $or: [
                 { municipalityName: scopedMunicipality },
                 { originalMunicipalityName: scopedMunicipality },
+                { 'transferHistory.fromMunicipalityName': scopedMunicipality },
             ],
         };
         query.$and = [scopeClause];
@@ -420,7 +421,7 @@ export const getAllReports = async (req, res) => {
         // Responder views are filtered on the server so actionable incidents are
         // never lost behind an unrelated first page of report history.
         if (admin.role === 'responder') {
-            const responderVisibleStatuses = ['verified', 'transferred', 'responding', 'resolved'];
+            const responderVisibleStatuses = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
             const responderId = admin._id;
 
             if (!reportId && responderView === 'available') {
@@ -906,7 +907,13 @@ export const getDashboardStats = async (req, res) => {
             });
         }
 
-        const reportFilter = { municipalityName: municipality };
+        const reportFilter = {
+            $or: [
+                { municipalityName: municipality },
+                { originalMunicipalityName: municipality },
+                { 'transferHistory.fromMunicipalityName': municipality },
+            ],
+        };
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };

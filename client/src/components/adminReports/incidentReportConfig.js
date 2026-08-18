@@ -34,7 +34,7 @@ export const SEVERITY_INDICATOR_STYLES = Object.freeze({
 
 export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
-export const RESPONDER_VISIBLE_STATUSES = ['verified', 'transferred', 'responding', 'resolved'];
+export const RESPONDER_VISIBLE_STATUSES = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const RESPONDER_QUEUE_VIEWS = Object.freeze({
@@ -93,10 +93,19 @@ export const isWithinResponderScope = (user, report) => {
     return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
 };
 
+export const isWithinMunicipalAdminScope = (user, report) => {
+    if (!ADMIN_ROLES.includes(user?.role)) return false;
+    if (!user?.assignedMunicipality) return true;
+    const assignedMunicipality = user.assignedMunicipality.trim().toLocaleLowerCase();
+    const reportMunicipality = report?.municipalityName?.trim().toLocaleLowerCase();
+    return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
+};
+
 export const getIncidentCapabilities = (user, report) => {
     const isAdmin = ADMIN_ROLES.includes(user?.role);
     const isResponder = user?.role === 'responder';
     const status = report?.status;
+    const withinAdminScope = isWithinMunicipalAdminScope(user, report);
     const withinResponderScope = isWithinResponderScope(user, report);
     const assignedResponder = isAssignedResponder(user, report);
     const latestTransfer = getLatestTransfer(report);
@@ -109,11 +118,11 @@ export const getIncidentCapabilities = (user, report) => {
 
     return {
         canInspect: Boolean(report),
-        canVerify: isAdmin && ADMIN_REVIEWABLE_STATUSES.includes(status),
-        canReject: isAdmin && ADMIN_REVIEWABLE_STATUSES.includes(status),
-        canTransfer: isAdmin && ADMIN_TRANSFERABLE_STATUSES.includes(status),
+        canVerify: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
+        canReject: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
+        canTransfer: isAdmin && withinAdminScope && ADMIN_TRANSFERABLE_STATUSES.includes(status),
         canAcknowledgeTransfer: isTargetMunicipalAdmin && !latestTransfer?.acknowledgedAt,
-        canDelete: isAdmin && Boolean(report),
+        canDelete: isAdmin && withinAdminScope && Boolean(report),
         canRespond: isResponder
             && withinResponderScope
             && RESPONDER_ACTIONABLE_STATUSES.includes(status)

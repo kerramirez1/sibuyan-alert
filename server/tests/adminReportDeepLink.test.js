@@ -81,6 +81,7 @@ describe('municipality-scoped incident notification deep links', () => {
                 $or: [
                     { municipalityName: 'Cajidiocan' },
                     { originalMunicipalityName: 'Cajidiocan' },
+                    { 'transferHistory.fromMunicipalityName': 'Cajidiocan' },
                 ],
             }],
         }));
@@ -118,6 +119,7 @@ describe('municipality-scoped incident notification deep links', () => {
                     $or: [
                         { municipalityName: 'Magdiwang' },
                         { originalMunicipalityName: 'Magdiwang' },
+                        { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
                     ],
                 },
                 {
@@ -168,6 +170,7 @@ describe('municipality-scoped incident notification deep links', () => {
                 $or: [
                     { municipalityName: 'Magdiwang' },
                     { originalMunicipalityName: 'Magdiwang' },
+                    { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
                 ],
             }],
         }));

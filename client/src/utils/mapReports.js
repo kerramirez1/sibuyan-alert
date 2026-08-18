@@ -1,4 +1,4 @@
-export const MAP_REPORT_STATUSES = Object.freeze(['verified', 'transferred', 'responding']);
+export const MAP_REPORT_STATUSES = Object.freeze(['verified', 'transferred', 'responding', 'resolved']);
 
 const MAP_REPORT_STATUS_SET = new Set(MAP_REPORT_STATUSES);
 
@@ -44,38 +44,49 @@ export const getVisibleMapReports = (reports = [], { includePending = false } = 
     return [...reportsById.values(), ...reportsWithoutId];
 };
 
-const hasAssignedResponder = (report) => (
-    (Array.isArray(report?.responders) && report.responders.length > 0)
-    || Boolean(report?.respondedBy)
-);
-
 export const getFilteredMapReports = (reports = [], {
     includePending = false,
     category = null,
     statusFilter = null,
-    filterMode = 'public',
+    _filterMode = 'public',
 } = {}) => {
     const visibleReports = getVisibleMapReports(reports, { includePending });
     const categoryFilteredReports = category
         ? visibleReports.filter((report) => report.incidentCategory === category)
         : visibleReports;
 
-    if (statusFilter === 'pending') {
-        if (filterMode === 'review') {
-            return categoryFilteredReports.filter((report) => report.status === 'pending');
-        }
+    if (statusFilter === 'risk-zones') {
+        return [];
+    }
 
+    if (!statusFilter || statusFilter === 'all') {
         return categoryFilteredReports.filter((report) => (
-            report.status === 'transferred'
-            || (['pending', 'verified'].includes(report.status) && !hasAssignedResponder(report))
+            includePending
+                ? ['pending', 'verified', 'transferred', 'responding'].includes(report.status)
+                : ['verified', 'transferred', 'responding'].includes(report.status)
         ));
     }
 
+    if (statusFilter === 'pending') {
+        return includePending
+            ? categoryFilteredReports.filter((report) => report.status === 'pending')
+            : [];
+    }
+
+    if (statusFilter === 'verified') {
+        return categoryFilteredReports.filter((report) => report.status === 'verified');
+    }
+
     if (statusFilter === 'responding') {
-        return categoryFilteredReports.filter((report) => (
-            report.status === 'responding'
-            || (filterMode === 'response' && report.status === 'pending' && hasAssignedResponder(report))
-        ));
+        return categoryFilteredReports.filter((report) => report.status === 'responding');
+    }
+
+    if (statusFilter === 'transferred') {
+        return categoryFilteredReports.filter((report) => report.status === 'transferred');
+    }
+
+    if (statusFilter === 'resolved') {
+        return categoryFilteredReports.filter((report) => report.status === 'resolved');
     }
 
     return categoryFilteredReports;

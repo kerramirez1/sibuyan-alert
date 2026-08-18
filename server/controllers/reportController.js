@@ -221,12 +221,21 @@ export const createReport = async (req, res) => {
                 // Alert responders in this municipality about the new report
                 io.to(responderRoom).emit('newReportAlert', {
                     id: report._id,
+                    title: report.title,
+                    description: report.description,
                     category: finalCategory,
+                    incidentCategory: finalCategory,
                     incidentType: finalType,
                     address: report.address,
+                    barangay: report.barangay,
                     municipalityName: locationResult.municipalityName,
                     severity: report.severity,
+                    priority: report.priority,
+                    casualties: report.casualties,
+                    status: 'pending',
                     coordinates: report.coordinates,
+                    incidentTime: report.incidentTime,
+                    createdAt: report.createdAt,
                     responseEstimate,
                     timestamp: new Date(),
                 });
@@ -242,22 +251,21 @@ export const createReport = async (req, res) => {
             }
         }
 
-        // Notify the responsible municipal administrators.
+        // Notify the responsible municipal administrators and emergency responders.
         const categoryConfig = INCIDENT_CATEGORIES[finalCategory];
 
-        // Build a municipality-scoped administrator query.
-        const adminQuery = {
-            role: 'municipal_admin',
+        const operationalUsersQuery = {
+            role: { $in: ['municipal_admin', 'responder'] },
             assignedMunicipality: locationResult.municipalityName,
         };
 
-        const admins = await User.find(adminQuery);
+        const operationalUsers = await User.find(operationalUsersQuery);
 
-        // Create in-app notifications for each municipal administrator.
-        for (const admin of admins) {
+        // Create in-app notifications for each municipal administrator and responder.
+        for (const opUser of operationalUsers) {
             await Notification.createAndSend(
                 {
-                    recipient: admin._id,
+                    recipient: opUser._id,
                     type: 'new_report',
                     title: `${categoryConfig.emoji} New ${categoryConfig.label} Report`,
                     message: `New ${categoryConfig.label.toLowerCase()} reported at ${report.address}${locationResult.municipalityName ? ` (${locationResult.municipalityName})` : ''}`,
@@ -267,14 +275,14 @@ export const createReport = async (req, res) => {
             );
 
             // Send email notification
-            if (admin.notificationPreferences?.email) {
-                await sendNewReportAlertEmail(admin.email, report, req.user);
+            if (opUser.role === 'municipal_admin' && opUser.notificationPreferences?.email) {
+                await sendNewReportAlertEmail(opUser.email, report, req.user);
             }
         }
 
-        // Send push notifications to admins
+        // Send push notifications to operational users (admins and responders)
         await sendPushToUsers(
-            admins.filter((a) => a.pushSubscription && a.notificationPreferences?.browserPush),
+            operationalUsers.filter((a) => a.pushSubscription && a.notificationPreferences?.browserPush),
             pushTemplates.newReport(report)
         );
 

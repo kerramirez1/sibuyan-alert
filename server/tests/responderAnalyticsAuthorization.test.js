@@ -83,19 +83,29 @@ describe('responder analytics municipality authorization', () => {
 
         expect(response.status).not.toHaveBeenCalled();
         expect(Report.countDocuments).toHaveBeenCalledTimes(5);
-        Report.countDocuments.mock.calls.forEach(([query]) => {
-            expect(query).toEqual(expect.objectContaining({ municipalityName: 'Magdiwang' }));
-        });
+        const municipalityScope = {
+            $or: [
+                { municipalityName: 'Magdiwang' },
+                { originalMunicipalityName: 'Magdiwang' },
+                { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+            ],
+        };
         expect(Report.countDocuments.mock.calls[0][0]).toEqual(expect.objectContaining({
+            ...municipalityScope,
             status: { $in: ['verified', 'transferred', 'responding'] },
         }));
         expect(Report.countDocuments.mock.calls[1][0]).toEqual(expect.objectContaining({
-            $or: [
-                { status: 'transferred' },
+            $and: [
+                municipalityScope,
                 {
-                    status: 'verified',
-                    respondedBy: null,
-                    'responders.0': { $exists: false },
+                    $or: [
+                        { status: 'transferred' },
+                        {
+                            status: 'verified',
+                            respondedBy: null,
+                            'responders.0': { $exists: false },
+                        },
+                    ],
                 },
             ],
         }));
@@ -110,15 +120,20 @@ describe('responder analytics municipality authorization', () => {
         }));
         expect(highRiskZoneSort).toHaveBeenCalledWith({ severity: 1, createdAt: -1 });
         expect(Report.countDocuments.mock.calls[2][0]).toEqual(expect.objectContaining({
-            status: 'resolved',
-            resolvedAt: {
-                $gte: new Date('2026-08-03T16:00:00.000Z'),
-                $lt: new Date('2026-08-04T16:00:00.000Z'),
-            },
-            $or: [
-                { resolvedBy: 'responder-1' },
-                { respondedBy: 'responder-1' },
-                { 'responders.user': 'responder-1' },
+            $and: [
+                municipalityScope,
+                {
+                    status: 'resolved',
+                    resolvedAt: {
+                        $gte: new Date('2026-08-03T16:00:00.000Z'),
+                        $lt: new Date('2026-08-04T16:00:00.000Z'),
+                    },
+                    $or: [
+                        { resolvedBy: 'responder-1' },
+                        { respondedBy: 'responder-1' },
+                        { 'responders.user': 'responder-1' },
+                    ],
+                },
             ],
         }));
         expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));

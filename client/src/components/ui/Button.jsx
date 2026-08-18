@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 
 const BASE_STYLES = [
-    'ui-button relative inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-transparent font-semibold',
+    'ui-button relative inline-flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-transparent font-semibold',
     'text-center leading-tight transition-colors duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',

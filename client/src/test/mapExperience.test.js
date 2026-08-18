@@ -6,7 +6,7 @@ describe('shared role-aware map experience', () => {
         ['guest', undefined, false, false],
         ['reporter', 'reporter', false, true],
         ['admin', 'municipal_admin', true, false],
-        ['responder', 'responder', false, false],
+        ['responder', 'responder', true, false],
     ])('configures the %s mode without expanding permissions', (mode, role, showPendingReports, showSubmitReport) => {
         const experience = getMapExperience({ role, municipality: 'Cajidiocan', agency: 'MDRRMO' });
 
@@ -17,15 +17,20 @@ describe('shared role-aware map experience', () => {
         expect(experience.canResolve).toBe(role === 'responder');
     });
 
-    test('uses distinct operational filter labels with shared filter values', () => {
+    test('uses role-aware operational and public filter lists with shared status values', () => {
         const responder = getMapExperience({ role: 'responder', municipality: 'Cajidiocan' });
         const admin = getMapExperience({ role: 'municipal_admin', municipality: 'Cajidiocan' });
+        const guest = getMapExperience({ role: 'guest' });
+        const reporter = getMapExperience({ role: 'reporter' });
 
-        expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'responding']);
-        expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'responding']);
-        expect(responder.filters[1].label).toBe('Awaiting response');
-        expect(admin.filters[1].label).toBe('Needs review');
+        expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'resolved', 'risk-zones']);
+        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'resolved', 'risk-zones']);
+
         expect(responder.filterMode).toBe('response');
         expect(admin.filterMode).toBe('review');
+        expect(guest.filterMode).toBe('public');
+        expect(reporter.filterMode).toBe('public');
     });
 });

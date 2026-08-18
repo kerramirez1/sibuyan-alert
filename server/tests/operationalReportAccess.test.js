@@ -33,12 +33,25 @@ describe('operational report authorization', () => {
         }, verifiedReport)).toBe(false);
     });
 
-    test('keeps pending reports private from unassigned responders', () => {
-        expect(canViewOperationalReport({
+    test('allows responders in the same municipality to view pending reports and evidence, while denying cross-municipality responders', () => {
+        const pendingReport = { ...verifiedReport, status: 'pending' };
+        const localResponder = {
             _id: 'responder-1',
             role: 'responder',
             assignedMunicipality: 'Cajidiocan',
-        }, { ...verifiedReport, status: 'pending' })).toBe(false);
+        };
+        const otherMuniResponder = {
+            _id: 'responder-2',
+            role: 'responder',
+            assignedMunicipality: 'Magdiwang',
+        };
+
+        expect(canViewOperationalReport(localResponder, pendingReport)).toBe(true);
+        expect(canViewReportEvidence(localResponder, pendingReport)).toBe(true);
+        expect(canViewReporterContact(localResponder, pendingReport)).toBe(false);
+
+        expect(canViewOperationalReport(otherMuniResponder, pendingReport)).toBe(false);
+        expect(canViewReportEvidence(otherMuniResponder, pendingReport)).toBe(false);
     });
 
     test('allows an assigned responder after transfer while limiting reporter contact to assigned responders', () => {
@@ -65,8 +78,41 @@ describe('operational report authorization', () => {
         expect(canViewReportEvidence(responder, transferredReport)).toBe(true);
     });
 
-    test('allows municipal administrators in the current or original municipality', () => {
-        const transferredReport = { ...verifiedReport, municipalityName: 'Magdiwang' };
+    test('allows an unassigned responder from the originating municipality to view transferred reports', () => {
+        const transferredReport = {
+            ...verifiedReport,
+            status: 'transferred',
+            municipalityName: 'Magdiwang',
+            transferHistory: [{ _id: 'transfer-1', fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', reason: 'Mutual aid' }],
+        };
+        const originatingResponder = {
+            _id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        const receivingResponder = {
+            _id: 'responder-2',
+            role: 'responder',
+            assignedMunicipality: 'Magdiwang',
+        };
+        const thirdPartyResponder = {
+            _id: 'responder-3',
+            role: 'responder',
+            assignedMunicipality: 'San Fernando',
+        };
+
+        expect(canViewOperationalReport(originatingResponder, transferredReport)).toBe(true);
+        expect(canViewOperationalReport(receivingResponder, transferredReport)).toBe(true);
+        expect(canViewOperationalReport(thirdPartyResponder, transferredReport)).toBe(false);
+    });
+
+    test('allows municipal administrators in the current, original, or transferHistory municipality', () => {
+        const transferredReport = {
+            ...verifiedReport,
+            municipalityName: 'Magdiwang',
+            originalMunicipalityName: 'Cajidiocan',
+            transferHistory: [{ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang' }],
+        };
         expect(canViewOperationalReport({ role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' }, transferredReport)).toBe(true);
         expect(canViewOperationalReport({ role: 'municipal_admin', assignedMunicipality: 'Magdiwang' }, transferredReport)).toBe(true);
         expect(canViewOperationalReport({ role: 'municipal_admin', assignedMunicipality: 'San Fernando' }, transferredReport)).toBe(false);

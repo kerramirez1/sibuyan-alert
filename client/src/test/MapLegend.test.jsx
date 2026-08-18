@@ -18,36 +18,44 @@ describe('MapLegend', () => {
 
         expect(screen.getByText('High-risk zone')).toBeInTheDocument();
         expect(screen.getByText('Verified')).toBeInTheDocument();
-        expect(screen.getByText('Transferred')).toBeInTheDocument();
         expect(screen.getByText('Responding')).toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
     });
 
-    test('uses the exact awaiting-filter statuses and grouped marker guidance', () => {
+    test('uses the exact filter status and grouped marker guidance', () => {
         render(<MapLegend showPending filterStatus="pending" hasGroupedReports />);
 
         expect(screen.getByText('Pending')).toBeInTheDocument();
-        expect(screen.getByText('Verified')).toBeInTheDocument();
-        expect(screen.getByText('Transferred')).toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         expect(screen.getByText('Multiple incidents')).toBeInTheDocument();
     });
 
-    test('does not advertise unverified pending data in the responder awaiting view', () => {
-        render(<MapLegend filterStatus="pending" filterMode="response" />);
+    test('does not show pending status in public mode even if pending filter is given without showPending', () => {
+        render(<MapLegend filterStatus="pending" filterMode="public" />);
 
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+    });
+
+    test('shows only verified status for the verified filter', () => {
+        render(<MapLegend filterStatus="verified" />);
+
         expect(screen.getByText('Verified')).toBeInTheDocument();
-        expect(screen.getByText('Transferred')).toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
     });
 
-    test('shows only pending incidents for the administrator review filter', () => {
-        render(<MapLegend showPending filterStatus="pending" filterMode="review" />);
+    test('shows only high-risk zone for the risk-zones filter', () => {
+        render(<MapLegend filterStatus="risk-zones" />);
 
-        expect(screen.getByText('Pending')).toBeInTheDocument();
+        expect(screen.getByText('High-risk zone')).toBeInTheDocument();
         expect(screen.queryByText('Verified')).not.toBeInTheDocument();
-        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
     });
 
     test('opens and closes the accessible mobile legend popover', () => {

@@ -173,6 +173,12 @@ describe('socket report lifecycle events', () => {
                 barangay: 'Boundary',
             })
         );
+        expect(io.to).toHaveBeenCalledWith('municipality_Magdiwang_responders');
+        expect(io.to).toHaveBeenCalledWith('municipality_Cajidiocan_responders');
+        expect(io.roomEmit).toHaveBeenCalledWith('reportTransferredAlert', expect.objectContaining({
+            id: 'report1',
+            status: 'transferred',
+        }));
         const publicPayload = io.emit.mock.calls.find(([event]) => event === 'reportTransferred')[1];
         expect(publicPayload).not.toHaveProperty('reason');
         expect(publicPayload).not.toHaveProperty('transferReason');

@@ -576,10 +576,10 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
         await screen.findByRole('list', { name: 'Responder incident list' });
         expect(screen.getByText(/Last updated/)).toBeInTheDocument();
-        ['All statuses', 'Verified', 'Transferred', 'Responding', 'Resolved'].forEach((label) => {
+        ['All statuses', 'Pending', 'Verified', 'Transferred', 'Responding', 'Resolved'].forEach((label) => {
             expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
         });
-        expect(screen.queryByRole('button', { name: 'Pending' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Responding' }));
         expect(screen.getByRole('button', { name: 'Responding' })).toHaveClass('bg-gray-100', 'text-gray-900');
@@ -605,7 +605,7 @@ describe('AdminReportsPage operational queue', () => {
         await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20 }));
     });
 
-    test('ignores a stale pending status query that responders are not authorized to filter', async () => {
+    test('ignores a stale rejected status query that responders are not authorized to filter', async () => {
         mocks.user = {
             id: 'responder-1',
             role: 'responder',
@@ -616,12 +616,12 @@ describe('AdminReportsPage operational queue', () => {
             createReport({ _id: 'resolved-report', status: 'resolved' }),
         ]));
 
-        renderPage('/admin/reports?status=pending');
+        renderPage('/admin/reports?status=rejected');
 
         const incidentList = await screen.findByRole('list', { name: 'Responder incident list' });
         expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20 });
         expect(screen.getByRole('button', { name: 'All statuses' })).toHaveAttribute('aria-pressed', 'true');
-        expect(screen.queryByRole('button', { name: 'Pending' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
         expect(within(incidentList).getByText('Responding')).toBeInTheDocument();
         expect(within(incidentList).getByText('Resolved')).toBeInTheDocument();

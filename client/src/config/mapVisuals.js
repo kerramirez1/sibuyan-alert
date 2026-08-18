@@ -70,20 +70,28 @@ export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
     'verified',
     'transferred',
     'responding',
+    'resolved',
 ]);
 
 export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null, filterMode = 'public' } = {}) => {
-    if (filterStatus === 'pending') {
-        if (filterMode === 'review') return showPending ? ['pending'] : [];
-        return showPending
-            ? ['pending', 'verified', 'transferred']
-            : ['verified', 'transferred'];
+    if (filterStatus === 'risk-zones') {
+        return [];
     }
-    if (filterStatus === 'responding') return showPending
-        ? ['pending', 'responding']
-        : ['responding'];
 
-    return ACTIVE_MAP_STATUS_KEYS.filter((status) => showPending || status !== 'pending');
+    if (filterStatus && filterStatus !== 'all') {
+        if (filterStatus === 'pending') {
+            return showPending ? ['pending'] : [];
+        }
+        if (MAP_STATUS_CONFIG[filterStatus]) {
+            return [filterStatus];
+        }
+    }
+
+    if (filterMode === 'public') {
+        return ['verified', 'responding'];
+    }
+
+    return ACTIVE_MAP_STATUS_KEYS.filter((status) => (showPending || status !== 'pending') && status !== 'resolved');
 };
 
 export default MAP_STATUS_CONFIG;

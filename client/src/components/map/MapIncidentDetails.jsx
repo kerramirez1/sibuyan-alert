@@ -1,8 +1,8 @@
 import { format, formatDistanceToNow } from 'date-fns';
 import {
+    HiOutlineArrowRight,
     HiOutlineClock,
     HiOutlineExclamationCircle,
-    HiOutlineExternalLink,
     HiOutlineLocationMarker,
     HiOutlineShieldCheck,
 } from 'react-icons/hi';
@@ -76,6 +76,11 @@ const MapIncidentDetails = ({
                     <span className={`${BADGE_BASE} border-gray-200/90 bg-gray-50 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300`}>
                         {details.typeLabel}
                     </span>
+                    {details.status === 'pending' && (
+                        <span className={`${BADGE_BASE} border-amber-300 bg-amber-100/80 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200`}>
+                            Awaiting Admin Verification
+                        </span>
+                    )}
                 </div>
 
                 <h3 className="mt-2.5 font-display text-base font-bold uppercase tracking-wider text-gray-950 sm:text-lg dark:text-white">
@@ -178,52 +183,55 @@ const MapIncidentDetails = ({
 
             {hasActions && (
                 <div className="sticky bottom-0 z-10 mt-auto border-t border-gray-200/80 bg-white/95 px-4 py-3 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {onLocate && (
-                            <Button
-                                variant="secondary"
-                                icon={HiOutlineLocationMarker}
-                                onClick={() => onLocate(displayedReport)}
-                                fullWidth
-                            >
-                                View on map
-                            </Button>
-                        )}
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            {onLocate && (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={HiOutlineLocationMarker}
+                                    onClick={() => onLocate(displayedReport)}
+                                    className="w-full sm:w-auto"
+                                >
+                                    View on map
+                                </Button>
+                            )}
+                        </div>
 
-                        {ownsReport && details.id && (
-                            <Button
-                                as={Link}
-                                to={`/my-reports?report=${encodeURIComponent(details.id)}`}
-                                icon={HiOutlineExternalLink}
-                                iconPosition="right"
-                                fullWidth
-                            >
-                                Open my full report
-                            </Button>
-                        )}
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            {ownsReport && details.id && (
+                                <Link
+                                    to={`/my-reports?report=${encodeURIComponent(details.id)}`}
+                                    className="group inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-md py-1.5 px-2 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                >
+                                    <span>Open my full report</span>
+                                    <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" />
+                                </Link>
+                            )}
 
-                        {canRespond && (
-                            <Button
-                                onClick={() => onRespond?.(displayedReport)}
-                                loading={actionLoading}
-                                loadingLabel="Please wait..."
-                                fullWidth
-                            >
-                                Respond to incident
-                            </Button>
-                        )}
+                            {canRespond && (
+                                <Button
+                                    onClick={() => onRespond?.(displayedReport)}
+                                    loading={actionLoading}
+                                    loadingLabel="Please wait..."
+                                    className="w-full sm:w-auto"
+                                >
+                                    Respond to incident
+                                </Button>
+                            )}
 
-                        {canResolve && (
-                            <Button
-                                variant="secondary"
-                                onClick={() => onResolve?.(displayedReport)}
-                                loading={actionLoading}
-                                loadingLabel="Please wait..."
-                                fullWidth
-                            >
-                                Review resolution
-                            </Button>
-                        )}
+                            {canResolve && (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => onResolve?.(displayedReport)}
+                                    loading={actionLoading}
+                                    loadingLabel="Please wait..."
+                                    className="w-full sm:w-auto"
+                                >
+                                    Review resolution
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

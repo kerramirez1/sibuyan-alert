@@ -165,7 +165,11 @@ const DashboardPage = () => {
 
     const dashboardReports = useMemo(() => {
         if (!activeMunicipality) return reports;
-        return reports.filter((r) => r.municipalityName === activeMunicipality);
+        return reports.filter((r) => (
+            r.municipalityName === activeMunicipality
+            || r.originalMunicipalityName === activeMunicipality
+            || (Array.isArray(r.transferHistory) && r.transferHistory.some((t) => t?.fromMunicipalityName === activeMunicipality))
+        ));
     }, [reports, activeMunicipality]);
     const focusedMapReportId = searchParams.get('report') || '';
     const focusedMapReport = useMemo(
@@ -435,6 +439,13 @@ const DashboardPage = () => {
                 ...data,
                 status: 'transferred',
                 municipalityName: data.toMunicipality || data.municipalityName,
+                transferHistory: [
+                    ...(Array.isArray(data.transferHistory) ? data.transferHistory : []),
+                    ...(data.fromMunicipality ? [{
+                        fromMunicipalityName: data.fromMunicipality,
+                        toMunicipalityName: data.toMunicipality || data.municipalityName,
+                    }] : []),
+                ],
             });
             if (!normalized) return;
             setReports((previous) => upsertDashboardReport(previous, normalized));

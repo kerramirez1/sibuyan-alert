@@ -1,15 +1,21 @@
 const DEFAULT_MUNICIPALITY = 'Sibuyan Island';
 
 const OPERATIONAL_FILTERS = Object.freeze({
-    responder: Object.freeze([
-        Object.freeze({ value: 'all', label: 'All active' }),
-        Object.freeze({ value: 'pending', label: 'Awaiting response' }),
+    operational: Object.freeze([
+        Object.freeze({ value: 'all', label: 'All Active' }),
+        Object.freeze({ value: 'pending', label: 'Pending' }),
+        Object.freeze({ value: 'verified', label: 'Verified' }),
         Object.freeze({ value: 'responding', label: 'Responding' }),
+        Object.freeze({ value: 'transferred', label: 'Transferred' }),
+        Object.freeze({ value: 'resolved', label: 'Resolved' }),
+        Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
     ]),
-    municipal_admin: Object.freeze([
-        Object.freeze({ value: 'all', label: 'All active' }),
-        Object.freeze({ value: 'pending', label: 'Needs review' }),
+    public: Object.freeze([
+        Object.freeze({ value: 'all', label: 'All Active' }),
+        Object.freeze({ value: 'verified', label: 'Verified' }),
         Object.freeze({ value: 'responding', label: 'Responding' }),
+        Object.freeze({ value: 'resolved', label: 'Resolved' }),
+        Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
     ]),
 });
 
@@ -22,12 +28,9 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             eyebrow: `${agency || 'Responder'} operations`,
             title: `${assignedMunicipality} incident map`,
             description: `Monitor incidents, active responses, and mapped hazards in ${assignedMunicipality}.`,
-            filters: OPERATIONAL_FILTERS.responder,
+            filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'response',
-            // The operational API deliberately excludes unverified pending
-            // reports from responder reads. "Awaiting response" consists of
-            // verified/transferred incidents that are eligible for response.
-            showPendingReports: false,
+            showPendingReports: true,
             showSubmitReport: false,
             canRespond: true,
             canResolve: true,
@@ -40,7 +43,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             eyebrow: 'Municipal oversight',
             title: `${assignedMunicipality} incident map`,
             description: `Review incident activity, field responses, and mapped hazards in ${assignedMunicipality}.`,
-            filters: OPERATIONAL_FILTERS.municipal_admin,
+            filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'review',
             showPendingReports: true,
             showSubmitReport: false,
@@ -55,7 +58,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             eyebrow: 'Reporter map',
             title: 'Sibuyan Island incident map',
             description: 'View verified incidents and mapped hazards, or submit a new community report.',
-            filters: Object.freeze([]),
+            filters: OPERATIONAL_FILTERS.public,
             filterMode: 'public',
             showPendingReports: false,
             showSubmitReport: true,
@@ -69,7 +72,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         eyebrow: 'Public safety map',
         title: 'Sibuyan Island incident map',
         description: 'Explore verified incidents, active responses, and mapped hazards across Sibuyan Island.',
-        filters: Object.freeze([]),
+        filters: OPERATIONAL_FILTERS.public,
         filterMode: 'public',
         showPendingReports: false,
         showSubmitReport: false,
