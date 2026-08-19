@@ -373,12 +373,13 @@ describe('DashboardMapWorkspace permissions', () => {
 
     test('shows reporter actions and all active lifecycle states in the incident list', () => {
         const setMapSummaryPanel = vi.fn();
+        const setResponderMapFilter = vi.fn();
         const reports = [
             { _id: 'verified-1', status: 'verified', incidentType: 'vehicular', coordinates: { lat: 12.4, lng: 122.6 }, createdAt: new Date().toISOString() },
             { _id: 'transferred-1', status: 'transferred', incidentType: 'motorcycle', coordinates: { lat: 12.5, lng: 122.7 }, createdAt: new Date().toISOString() },
             { _id: 'responding-1', status: 'responding', incidentType: 'pedestrian', coordinates: { lat: 12.6, lng: 122.8 }, createdAt: new Date().toISOString() },
         ];
-        renderWorkspace(createProps({ reports, mapSummaryPanel: 'incidents', setMapSummaryPanel }));
+        renderWorkspace(createProps({ reports, mapSummaryPanel: 'incidents', setMapSummaryPanel, setResponderMapFilter }));
 
         expect(screen.getByRole('link', { name: /submit report/i })).toHaveAttribute('href', '/report');
         expect(screen.getByText(/Vehicular/i)).toHaveTextContent(/Vehicular.*Verified/i);
@@ -387,6 +388,9 @@ describe('DashboardMapWorkspace permissions', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
         expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-active');
+        // The Active incidents card isolates incident pins (hazard layer hidden),
+        // unlike the aggregate 'all' view which renders both layers.
+        expect(setResponderMapFilter).toHaveBeenCalledWith('incidents');
     });
 
     test('keeps the guest map public and free of operational controls', () => {

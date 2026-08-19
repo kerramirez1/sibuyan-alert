@@ -59,7 +59,10 @@ export const getFilteredMapReports = (reports = [], {
         return [];
     }
 
-    if (!statusFilter || statusFilter === 'all') {
+    // 'all' and 'incidents' select the same active report set; they differ
+    // only in hazard-layer visibility, which isRiskZoneLayerVisibleForFilter
+    // resolves at the map/legend level ('incidents' suppresses hazard zones).
+    if (!statusFilter || statusFilter === 'all' || statusFilter === 'incidents') {
         return categoryFilteredReports.filter((report) => (
             includePending
                 ? ['pending', 'verified', 'transferred', 'responding'].includes(report.status)

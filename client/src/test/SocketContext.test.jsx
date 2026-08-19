@@ -19,9 +19,11 @@ const mocks = vi.hoisted(() => {
     const toast = vi.fn();
     toast.success = vi.fn();
     toast.error = vi.fn();
+    const ioMock = vi.fn(() => socket);
     return {
         listeners,
         socket,
+        ioMock,
         toast,
         user: {
             _id: 'responder-1',
@@ -31,7 +33,7 @@ const mocks = vi.hoisted(() => {
     };
 });
 
-vi.mock('socket.io-client', () => ({ io: () => mocks.socket }));
+vi.mock('socket.io-client', () => ({ io: mocks.ioMock }));
 vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({ user: mocks.user, isAuthenticated: true }),
 }));
@@ -42,8 +44,13 @@ vi.mock('../services/api', () => ({ refreshAuthSession: vi.fn() }));
 import { SocketProvider, useSocket } from '../context/SocketContext';
 
 const Probe = () => {
-    const { unreadCount } = useSocket();
-    return <output aria-label="Unread notifications">{unreadCount}</output>;
+    const { unreadCount, reconnectVersion } = useSocket();
+    return (
+        <>
+            <output aria-label="Unread notifications">{unreadCount}</output>
+            <output aria-label="Reconnect version">{reconnectVersion}</output>
+        </>
+    );
 };
 
 const trigger = (event, payload) => {
@@ -57,9 +64,36 @@ describe('SocketProvider notification policy', () => {
         mocks.socket.off.mockClear();
         mocks.socket.emit.mockClear();
         mocks.socket.disconnect.mockClear();
+        mocks.ioMock.mockClear();
         mocks.toast.mockReset();
         mocks.toast.success.mockReset();
         mocks.toast.error.mockReset();
+    });
+
+    test('reconnects indefinitely with capped exponential backoff', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+
+        expect(mocks.ioMock).toHaveBeenCalledWith('http://localhost:5000', expect.objectContaining({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 30000,
+        }));
+    });
+
+    test('signals consumers to resync only after a reconnect, not the initial connection', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+        expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('0');
+
+        act(() => trigger('connect'));
+        expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('0');
+
+        act(() => trigger('disconnect'));
+        act(() => trigger('connect'));
+        expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('1');
+
+        act(() => trigger('connect'));
+        expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('2');
     });
 
     test('announces a response only to other responder units', () => {

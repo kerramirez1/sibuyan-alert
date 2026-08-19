@@ -8,7 +8,7 @@ import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace
 import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
 import {
     deduplicateDashboardReports,
-    fetchAllAdminReportPages,
+    fetchAllReportPages,
     removeDashboardReport,
     updateDashboardReportStatus,
     upsertDashboardReport,
@@ -40,7 +40,7 @@ const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
-    const { subscribe } = useSocket();
+    const { subscribe, reconnectVersion } = useSocket();
     const [mapSummaryPanel, setMapSummaryPanel] = useState('');
     const [responderMapFilter, setResponderMapFilter] = useState('all');
     const [operationsDateKey, setOperationsDateKey] = useState(getManilaCalendarDateKey);
@@ -265,7 +265,7 @@ const DashboardPage = () => {
 
             const response = await adminAPI.respondToReport(report._id, unitPayload);
 
-            const refreshedReports = await fetchAllAdminReportPages(adminAPI.getReports);
+            const refreshedReports = await fetchAllReportPages(adminAPI.getReports);
             setReports(refreshedReports);
             navigate(`/admin/reports?view=active-responses&report=${encodeURIComponent(report._id)}`);
 
@@ -286,70 +286,71 @@ const DashboardPage = () => {
 
     // Reporters use the shared map workspace without responder-only controls.
 
-    useEffect(() => {
+    // Publishable reports render on the shared map for every audience; fetch
+    // every page instead of a single capped page so the dataset is never
+    // silently truncated by the server's per-page limit.
+    const loadPublicMapReports = useCallback(
+        () => fetchAllReportPages(reportsAPI.getAll, { status: 'all' }),
+        []
+    );
+
+    const loadDashboardReports = useCallback(async ({ silent = false } = {}) => {
         setDashboardError('');
         const handleReportLoadError = (error) => {
             console.error(error);
             setDashboardError('Some dashboard data could not be loaded. Please refresh and try again.');
         };
 
-        if (canViewReports) {
-            setLoading(true);
-            if (isAdmin) {
-                fetchAllAdminReportPages(adminAPI.getReports)
-                    .then(setReports)
-                    .catch(handleReportLoadError)
-                    .finally(() => setLoading(false));
-            } else if (isResponder) {
-                fetchAllAdminReportPages(adminAPI.getReports)
-                    .then(setReports)
-                    .catch(handleReportLoadError)
-                    .finally(() => setLoading(false));
+        if (!silent) setLoading(true);
+        try {
+            if (canViewReports) {
+                if (isAdmin || isResponder) {
+                    setReports(await fetchAllReportPages(adminAPI.getReports));
+                } else {
+                    // Fallback fetch
+                    setReports(await loadPublicMapReports());
+                }
+
+                // Responder dashboard cards rely on roleStats; fetch it in this branch too.
+                if (isResponder) {
+                    analyticsAPI.getResponder()
+                        .then(res => setRoleStats(res.data.data))
+                        .catch(err => console.error(err));
+                }
+            } else if (isAuthenticated && (isReporter || isResponder)) {
+                // Reporters & responders: fetch verified reports for the map display
+                setReports(await loadPublicMapReports());
+
+                // Fetch role-specific analytics
+                if (isResponder) {
+                    analyticsAPI.getResponder().then(res => setRoleStats(res.data.data)).catch(console.error);
+                } else if (isReporter) {
+                    analyticsAPI.getReporter().then(res => setRoleStats(res.data.data)).catch(console.error);
+                }
             } else {
-                // Fallback fetch
-                reportsAPI.getAll({ limit: 200, status: 'all' })
-                    .then(res => {
-                        setReports(deduplicateDashboardReports(res.data.data.reports || []));
-                    })
-                    .catch(handleReportLoadError)
-                    .finally(() => setLoading(false));
+                // Public/ordinary users: fetch public map data
+                setReports(await loadPublicMapReports());
             }
-
-            // Responder dashboard cards rely on roleStats; fetch it in this branch too.
-            if (isResponder) {
-                analyticsAPI.getResponder()
-                    .then(res => setRoleStats(res.data.data))
-                    .catch(err => console.error(err));
-            }
-        } else if (isAuthenticated && (isReporter || isResponder)) {
-            // Reporters & responders: fetch verified reports for the map display
-            setLoading(true);
-            reportsAPI.getAll({ limit: 200, status: 'all' })
-                .then(res => {
-                    setReports(deduplicateDashboardReports(res.data.data.reports || []));
-                })
-                .catch(handleReportLoadError)
-                .finally(() => setLoading(false));
-
-            // Fetch role-specific analytics
-            if (isResponder) {
-                analyticsAPI.getResponder().then(res => setRoleStats(res.data.data)).catch(console.error);
-            } else if (isReporter) {
-                analyticsAPI.getReporter().then(res => setRoleStats(res.data.data)).catch(console.error);
-            }
-        } else {
-            // Public/ordinary users: fetch public map data
-            setLoading(true);
-            reportsAPI.getAll({ limit: 200, status: 'all' })
-                .then(res => {
-                    setReports(deduplicateDashboardReports(res.data.data.reports || []));
-                })
-                .catch(handleReportLoadError)
-                .finally(() => setLoading(false));
-
+        } catch (error) {
+            handleReportLoadError(error);
+        } finally {
+            if (!silent) setLoading(false);
         }
+    }, [activeMunicipality, canViewReports, isAuthenticated, isAdmin, isReporter, isResponder, loadPublicMapReports]);
 
-    }, [canViewReports, isReporter, isResponder, activeMunicipality, isAdmin]);
+    useEffect(() => {
+        loadDashboardReports();
+    }, [loadDashboardReports]);
+
+    // Resync from the server after a socket reconnect so events missed while
+    // offline self-heal without requiring a page refresh.
+    useEffect(() => {
+        if (reconnectVersion === 0) return;
+        loadDashboardReports({ silent: true });
+        if (isReporter && reporterOverviewReportsRef.current) {
+            loadReporterOverviewReports({ force: true });
+        }
+    }, [isReporter, loadDashboardReports, loadReporterOverviewReports, reconnectVersion]);
 
     useEffect(() => {
         if (!isResponder) {
@@ -457,6 +458,14 @@ const DashboardPage = () => {
             updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
         });
 
+        // Reporter-scoped rejection (delivered to the reporter's user room).
+        // Mirrors the rejection into the loaded reporter overview; operational
+        // viewers receive the equivalent reportRejectedUpdate above.
+        const unsubReporterRejected = subscribe('reportRejected', (data) => {
+            if (!data?.id) return;
+            updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
+        });
+
         return () => {
             unsub0();
             unsub1();
@@ -466,6 +475,7 @@ const DashboardPage = () => {
             unsub4();
             unsub8();
             unsub9();
+            unsubReporterRejected();
         };
     }, [removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
 

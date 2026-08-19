@@ -8,7 +8,7 @@ const getErrorMessage = (error) => (
 
 const EMPTY_PAGINATION = Object.freeze({ page: 1, limit: 20, total: 0, pages: 0 });
 
-const useIncidentReports = ({ subscribe, role, responderView = 'all', initialStatus = '', focusedReportId = '' }) => {
+const useIncidentReports = ({ subscribe, role, responderView = 'all', initialStatus = '', focusedReportId = '', reconnectVersion = 0 }) => {
     const validInitialStatus = getRoleStatuses(role).includes(initialStatus) ? initialStatus : '';
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState(null);
@@ -100,6 +100,13 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     }, []);
 
     useEffect(() => {
+        const unsubNewReport = subscribe('newReport', () => {
+            // The queue is paginated, searchable, and status-filtered, so a
+            // silent refetch is the only insertion path that stays consistent
+            // with the active view instead of patching the thin broadcast payload.
+            refreshRef.current({ silent: true });
+        });
+
         const unsubRespond = subscribe('reportResponded', (data) => {
             patchReport(data?.id, (report) => ({
                 ...report,
@@ -186,6 +193,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         });
 
         return () => {
+            unsubNewReport();
             unsubRespond();
             unsubResolve();
             unsubResolutionDetails();
@@ -197,6 +205,11 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             unsubReporterUpdate();
         };
     }, [patchReport, removeReport, subscribe]);
+
+    // Recover any lifecycle events missed while the socket was disconnected.
+    useEffect(() => {
+        if (reconnectVersion > 0) refreshRef.current({ silent: true });
+    }, [reconnectVersion]);
 
     useEffect(() => {
         setPage(1);

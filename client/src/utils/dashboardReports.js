@@ -69,7 +69,10 @@ export const deduplicateDashboardReports = (reports = []) => {
     return [...reportsById.values(), ...reportsWithoutId];
 };
 
-export const fetchAllAdminReportPages = async (fetchPage, params = {}, pageSize = 250) => {
+// Paginates through every page of a report list endpoint (admin or public)
+// so large datasets are loaded completely instead of silently truncating at
+// the server's per-page limit.
+export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250) => {
     const reportsById = new Map();
     let page = 1;
     let totalPages = 1;

@@ -107,7 +107,7 @@ describe('ProfileSettingsPage', () => {
         expect(screen.getByLabelText('Current password')).toBeInTheDocument();
         expect(screen.getByLabelText('New password')).toBeInTheDocument();
         expect(screen.getByLabelText('Confirm password')).toBeInTheDocument();
-        expect(screen.getByText('At least 12 characters.')).toBeInTheDocument();
+        expect(screen.getByText('At least 8 characters.')).toBeInTheDocument();
 
         // 7. Save & Cancel Actions
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe('ProfileSettingsPage', () => {
         fireEvent.click(saveButton);
 
         await waitFor(() => {
-            expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('12 characters'));
+            expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('8 characters'));
             expect(mocks.updateProfile).not.toHaveBeenCalled();
         });
     });

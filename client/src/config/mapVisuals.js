@@ -65,6 +65,17 @@ export const getMapRiskTypeConfig = (type) => (
     MAP_RISK_TYPE_CONFIG[type] || MAP_RISK_TYPE_CONFIG.other
 );
 
+/**
+ * Central hazard-layer visibility predicate shared by the map canvas and the
+ * legend. High-risk zones render only in the aggregate view (no filter or
+ * 'all') and in the dedicated 'risk-zones' filter. Any incident-specific
+ * status filter isolates incident markers and hides the hazard layer
+ * entirely, keeping the two data layers mutually exclusive.
+ */
+export const isRiskZoneLayerVisibleForFilter = (filterStatus) => (
+    !filterStatus || filterStatus === 'all' || filterStatus === 'risk-zones'
+);
+
 export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
     'pending',
     'verified',

@@ -20,7 +20,7 @@ import { normalizeNotificationId } from '../utils/notificationNavigation';
 
 const AdminReportsPage = () => {
     const { user } = useAuth();
-    const { subscribe, setUnreadCount } = useSocket();
+    const { subscribe, setUnreadCount, reconnectVersion } = useSocket();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [viewerImage, setViewerImage] = useState(null);
@@ -36,6 +36,7 @@ const AdminReportsPage = () => {
 
     const reportState = useIncidentReports({
         subscribe,
+        reconnectVersion,
         role: user?.role,
         responderView,
         initialStatus,

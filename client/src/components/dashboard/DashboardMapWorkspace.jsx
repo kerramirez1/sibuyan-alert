@@ -429,7 +429,9 @@ const DashboardMapWorkspace = ({
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
                     panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
                     records: publicActiveReports,
-                    mapFilter: 'all',
+                    // 'incidents' shows the same active report set as 'all' but
+                    // suppresses the hazard layer, isolating incident pins.
+                    mapFilter: 'incidents',
                     emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
                 },
                 {

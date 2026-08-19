@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from '../router';
 import api from '../services/api';
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
+import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import toast from '../utils/appToast';
 import {
     HiOutlineLockClosed,
@@ -67,7 +67,7 @@ const ResetPasswordPage = () => {
     };
 
     const passwordChecks = [
-        { label: '12+ characters, within bcrypt limit', met: isPasswordPolicyCompliant(formData.password) },
+        { label: `${PASSWORD_MIN_CHARACTERS}+ characters, within bcrypt limit`, met: isPasswordPolicyCompliant(formData.password) },
         { label: 'Passwords match', met: formData.password === formData.confirmPassword && formData.password !== '' },
     ];
 
@@ -128,9 +128,9 @@ const ResetPasswordPage = () => {
                                         name="password"
                                         value={formData.password}
                                         onChange={handleChange}
-                                        placeholder="At least 12 characters"
+                                        placeholder={`At least ${PASSWORD_MIN_CHARACTERS} characters`}
                                         required
-                                        minLength={12}
+                                        minLength={PASSWORD_MIN_CHARACTERS}
                                         maxLength={72}
                                         className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-11 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
                                     />
@@ -160,7 +160,7 @@ const ResetPasswordPage = () => {
                                         onChange={handleChange}
                                         placeholder="Re-enter your password"
                                         required
-                                        minLength={12}
+                                        minLength={PASSWORD_MIN_CHARACTERS}
                                         maxLength={72}
                                         className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-11 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
                                     />

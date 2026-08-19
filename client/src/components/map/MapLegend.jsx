@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { HiOutlineMap } from 'react-icons/hi';
 import {
     getMapLegendStatusKeys,
+    isRiskZoneLayerVisibleForFilter,
     MAP_RISK_ZONE_CONFIG,
     MAP_STATUS_CONFIG,
 } from '../../config/mapVisuals';
@@ -77,7 +78,10 @@ const MapLegend = ({
     const popoverId = useId();
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
-    const isRiskZoneVisible = showRiskZone && (filterStatus === 'risk-zones' || filterStatus === 'all' || !filterStatus);
+    // The legend mirrors the canvas: the hazard badge appears only while the
+    // hazard layer is actually rendered (aggregate or hazard filter) and the
+    // explicit hazard toggle is on.
+    const isRiskZoneVisible = showRiskZone && isRiskZoneLayerVisibleForFilter(filterStatus);
     const statusKeys = showIncidentStatus
         ? getMapLegendStatusKeys({ showPending, filterStatus, filterMode })
         : [];

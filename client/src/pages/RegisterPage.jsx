@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '../router';
 import { useAuth } from '../context/AuthContext';
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
+import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { reportsAPI } from '../services/api';
 import { ID_IMAGE_ACCEPT, prepareIdentityImage, prepareVerificationImage } from '../utils/identityImage';
 import {
@@ -497,12 +497,12 @@ const RegisterPage = () => {
                             <div>
                                 <label htmlFor="register-password" className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Password</label>
                                 <div className={`flex h-11 items-center overflow-hidden rounded-lg border bg-white dark:bg-[#07130e] transition ${errors.password ? 'border-red-400 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100 dark:focus-within:ring-red-950/40' : 'border-gray-300 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-500/20 dark:border-gray-700 dark:focus-within:border-emerald-500'}`}>
-                                    <input id="register-password" className="min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-400" type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} placeholder="At least 12 characters" minLength={12} maxLength={72} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : 'password-hint'} />
+                                    <input id="register-password" className="min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-400" type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} placeholder={`At least ${PASSWORD_MIN_CHARACTERS} characters`} minLength={PASSWORD_MIN_CHARACTERS} maxLength={72} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : 'password-hint'} />
                                     <button type="button" onClick={() => setShowPassword((current) => !current)} className="mr-1 flex h-9 w-9 shrink-0 items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-md dark:hover:text-gray-300" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                         {showPassword ? <HiOutlineEyeOff className="h-4.5 w-4.5" aria-hidden="true" /> : <HiOutlineEye className="h-4.5 w-4.5" aria-hidden="true" />}
                                     </button>
                                 </div>
-                                <p id="password-hint" className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Use a unique password with at least 12 characters.</p>
+                                <p id="password-hint" className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{`Use a unique password with at least ${PASSWORD_MIN_CHARACTERS} characters.`}</p>
                                 <FieldError id="password-error">{errors.password}</FieldError>
                             </div>
 

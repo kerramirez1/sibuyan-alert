@@ -1,6 +1,6 @@
-export const PASSWORD_MIN_CHARACTERS = 12;
+export const PASSWORD_MIN_CHARACTERS = 8;
 export const PASSWORD_MAX_CHARACTERS = 72;
-export const PASSWORD_POLICY_MESSAGE = 'Use at least 12 characters and no more than 72 UTF-8 bytes.';
+export const PASSWORD_POLICY_MESSAGE = `Use at least ${PASSWORD_MIN_CHARACTERS} characters and no more than ${PASSWORD_MAX_CHARACTERS} UTF-8 bytes.`;
 
 export const isPasswordPolicyCompliant = (password) => (
     typeof password === 'string'

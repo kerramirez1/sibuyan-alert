@@ -36,7 +36,7 @@ import {
 import MapIncidentDetails from './MapIncidentDetails';
 import MapOverlayPanel from './MapOverlayPanel';
 import MapLegend from './MapLegend';
-import { getMapRiskTypeConfig, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapRiskTypeConfig, isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import {
     createOperationalMarkerElement,
     createRiskZoneMarkerElement,
@@ -169,7 +169,10 @@ const MapView = ({
             filterMode,
         });
     }, [filterCategory, filterMode, filterStatus, reports, showPending]);
-    const isRiskZoneFilterActive = filterStatus === 'risk-zones' || filterStatus === 'all' || !filterStatus;
+    // Incident status filters isolate incident markers and hide the hazard
+    // layer; zones render only in the aggregate or dedicated hazard view, and
+    // the explicit hazard toggle can always hide them.
+    const isRiskZoneFilterActive = isRiskZoneLayerVisibleForFilter(filterStatus);
     const filteredRiskZones = useMemo(() => {
         if (!showHazardZones || !isRiskZoneFilterActive) return [];
         return highRiskZones;

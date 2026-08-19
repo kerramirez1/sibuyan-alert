@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
     deduplicateDashboardReports,
-    fetchAllAdminReportPages,
+    fetchAllReportPages,
     mergeDashboardReport,
     removeDashboardReport,
     updateDashboardReportStatus,
@@ -106,7 +106,7 @@ describe('dashboard report data synchronization', () => {
             },
         }));
 
-        const reports = await fetchAllAdminReportPages(fetchPage, {}, 2);
+        const reports = await fetchAllReportPages(fetchPage, {}, 2);
 
         expect(fetchPage).toHaveBeenNthCalledWith(1, { page: 1, limit: 2 });
         expect(fetchPage).toHaveBeenNthCalledWith(2, { page: 2, limit: 2 });

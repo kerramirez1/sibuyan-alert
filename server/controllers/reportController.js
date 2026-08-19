@@ -322,6 +322,13 @@ export const getReports = async (req, res) => {
             status = 'verified',
         } = req.query;
 
+        const parsedPage = Number.parseInt(page, 10);
+        const parsedLimit = Number.parseInt(limit, 10);
+        const safePage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+        const safeLimit = Number.isFinite(parsedLimit)
+            ? Math.min(Math.max(parsedLimit, 1), 100)
+            : 50;
+
         const query = {};
 
         // Public feeds may only expose reports that have passed verification.
@@ -393,8 +400,8 @@ export const getReports = async (req, res) => {
             ].join(' '))
             .populate('municipality', 'name code')
             .sort({ incidentTime: -1 })
-            .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit))
+            .limit(safeLimit)
+            .skip((safePage - 1) * safeLimit)
             .lean();
 
         const total = await Report.countDocuments(query);
@@ -404,10 +411,10 @@ export const getReports = async (req, res) => {
             data: {
                 reports: reports.map((report) => toPublicReport(report, { viewerId: req.user?._id })),
                 pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: safePage,
+                    limit: safeLimit,
                     total,
-                    pages: Math.ceil(total / parseInt(limit)),
+                    pages: Math.ceil(total / safeLimit),
                 },
             },
         });

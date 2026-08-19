@@ -54,6 +54,11 @@ describe('map report visibility', () => {
             filterMode: 'response',
         }).map((r) => r._id)).toEqual(['pending', 'verified', 'transferred', 'responding']);
 
+        // 'incidents' selects the same active report set as 'all'; the hazard
+        // layer difference is resolved by isRiskZoneLayerVisibleForFilter.
+        expect(getFilteredMapReports(reports, { statusFilter: 'incidents' }).map((r) => r._id)).toEqual(['verified', 'transferred', 'responding']);
+        expect(getFilteredMapReports(reports, { includePending: true, statusFilter: 'incidents' }).map((r) => r._id)).toEqual(['pending', 'verified', 'transferred', 'responding']);
+
         // Specific status filters
         expect(getFilteredMapReports(reports, { includePending: true, statusFilter: 'pending' }).map((r) => r._id)).toEqual(['pending']);
         expect(getFilteredMapReports(reports, { statusFilter: 'verified' }).map((r) => r._id)).toEqual(['verified']);

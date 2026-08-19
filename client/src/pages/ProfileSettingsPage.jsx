@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
+import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import {
     HiOutlineEye,
     HiOutlineEyeOff,
@@ -712,7 +712,7 @@ const ProfileSettingsPage = () => {
                                         </p>
                                     ) : (
                                         <p id="new-password-helper" className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
-                                            At least 12 characters.
+                                            {`At least ${PASSWORD_MIN_CHARACTERS} characters.`}
                                         </p>
                                     )}
                                 </div>

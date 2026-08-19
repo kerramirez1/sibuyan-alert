@@ -20,9 +20,11 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const [connected, setConnected] = useState(false);
+    const [reconnectVersion, setReconnectVersion] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const receivedNotificationIdsRef = useRef(new Set());
+    const hasConnectedOnceRef = useRef(false);
     const { user, isAuthenticated } = useAuth();
 
     // Initialize socket connection
@@ -37,13 +39,24 @@ export const SocketProvider = ({ children }) => {
             transports: ['websocket', 'polling'],
             autoConnect: true,
             reconnection: true,
-            reconnectionAttempts: 5,
+            // Field connectivity is intermittent by nature, so retry forever.
+            // Backoff starts at 1s and is capped at 30s between attempts.
+            reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 30000,
             withCredentials: true,
         });
 
         socketInstance.on('connect', () => {
             setConnected(true);
+            // The initial fetch already covers the first connection; only
+            // reconnects bump the version, signalling consumers to resync
+            // data for events missed while the socket was offline.
+            if (hasConnectedOnceRef.current) {
+                setReconnectVersion((version) => version + 1);
+            } else {
+                hasConnectedOnceRef.current = true;
+            }
         });
 
         socketInstance.on('disconnect', () => {
@@ -264,6 +277,7 @@ export const SocketProvider = ({ children }) => {
     const value = {
         socket,
         connected,
+        reconnectVersion,
         emit,
         subscribe,
         notifications,

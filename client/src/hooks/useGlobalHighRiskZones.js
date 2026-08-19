@@ -11,13 +11,13 @@ const upsertVisibleZone = (zones, zone) => {
 };
 
 const useGlobalHighRiskZones = () => {
-    const { subscribe } = useSocket();
+    const { subscribe, reconnectVersion } = useSocket();
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const refresh = useCallback(async () => {
-        setLoading(true);
+    const refresh = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
         setError('');
         try {
             // Risk-zone visibility is intentionally island-wide. Municipal scope
@@ -29,13 +29,18 @@ const useGlobalHighRiskZones = () => {
             console.error('Failed to load island-wide high-risk zones:', requestError);
             setError('High-risk zones are temporarily unavailable.');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
         refresh();
     }, [refresh]);
+
+    // Recover any zone changes missed while the socket was disconnected.
+    useEffect(() => {
+        if (reconnectVersion > 0) refresh({ silent: true });
+    }, [reconnectVersion, refresh]);
 
     useEffect(() => {
         const unsubscribeCreated = subscribe('highRiskZoneCreated', (zone) => {

@@ -12,7 +12,7 @@ import {
     signAccessToken,
     verifyAccessToken,
 } from '../services/authSessionService.js';
-import { isPasswordPolicyCompliant } from '../utils/passwordPolicy.js';
+import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS } from '../utils/passwordPolicy.js';
 
 const createResponse = () => {
     const response = {};
@@ -56,7 +56,8 @@ describe('hardened authentication primitives', () => {
 
     test('enforces the bcrypt input boundary without silently truncating passwords', () => {
         expect(isPasswordPolicyCompliant('correct horse battery staple')).toBe(true);
-        expect(isPasswordPolicyCompliant('too-short')).toBe(false);
+        expect(isPasswordPolicyCompliant('a'.repeat(PASSWORD_MIN_CHARACTERS))).toBe(true);
+        expect(isPasswordPolicyCompliant('a'.repeat(PASSWORD_MIN_CHARACTERS - 1))).toBe(false);
         expect(isPasswordPolicyCompliant('a'.repeat(73))).toBe(false);
         expect(isPasswordPolicyCompliant('🔐'.repeat(19))).toBe(false);
     });

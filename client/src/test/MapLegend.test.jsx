@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import MapLegend from '../components/map/MapLegend';
-import { MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import { isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 
 describe('MapLegend', () => {
     test('keeps danger and lifecycle colors semantically distinct', () => {
@@ -22,7 +22,7 @@ describe('MapLegend', () => {
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
     });
 
-    test('uses the exact filter status and grouped marker guidance', () => {
+    test('isolates the pending filter and hides the hazard indicator', () => {
         render(<MapLegend showPending filterStatus="pending" hasGroupedReports />);
 
         expect(screen.getByText('Pending')).toBeInTheDocument();
@@ -40,13 +40,33 @@ describe('MapLegend', () => {
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
     });
 
-    test('shows only verified status for the verified filter', () => {
+    test('shows only verified status for the verified filter and hides the hazard indicator', () => {
         render(<MapLegend filterStatus="verified" />);
 
         expect(screen.getByText('Verified')).toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+    });
+
+    test('exposes the hazard layer only for aggregate and hazard filters', () => {
+        expect(isRiskZoneLayerVisibleForFilter(null)).toBe(true);
+        expect(isRiskZoneLayerVisibleForFilter('all')).toBe(true);
+        expect(isRiskZoneLayerVisibleForFilter('risk-zones')).toBe(true);
+        expect(isRiskZoneLayerVisibleForFilter('incidents')).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('pending')).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('verified')).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('responding')).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('transferred')).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('resolved')).toBe(false);
+    });
+
+    test('hides the hazard indicator for the incidents-only filter', () => {
+        render(<MapLegend filterStatus="incidents" />);
+
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+        expect(screen.getByText('Verified')).toBeInTheDocument();
+        expect(screen.getByText('Responding')).toBeInTheDocument();
     });
 
     test('shows only high-risk zone for the risk-zones filter', () => {
