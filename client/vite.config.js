@@ -39,7 +39,7 @@ export default defineConfig({
     },
     build: {
         outDir: 'dist',
-        sourcemap: true,
+        sourcemap: false,
         rolldownOptions: {
             output: {
                 // Keep the operational renderer and optional vector-tile stack

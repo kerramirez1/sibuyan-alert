@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from '../router';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { reportsAPI, adminAPI, analyticsAPI } from '../services/api';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
-import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
-import DashboardAnalyticsWorkspace from '../components/dashboard/DashboardAnalyticsWorkspace';
+// Workspace components lazy-split: defers recharts (analytics) and maplibre-gl UI (map)
+// from the initial DashboardPage chunk — each workspace loads on first render only.
+const DashboardMapWorkspace = lazy(() => import('../components/dashboard/DashboardMapWorkspace'));
+const DashboardAnalyticsWorkspace = lazy(() => import('../components/dashboard/DashboardAnalyticsWorkspace'));
 import {
     deduplicateDashboardReports,
     fetchAllReportPages,
@@ -602,68 +604,72 @@ const DashboardPage = () => {
 
     if (showMapWorkspace) {
         return (
-            <DashboardMapWorkspace
-                user={user}
-                isAuthenticated={isAuthenticated}
-                isAdmin={isAdmin}
-                isResponder={isResponder}
-                isReporter={isReporter}
-                loading={loading}
-                error={dashboardError}
-                reports={dashboardReports}
-                pendingReports={responderPendingReports}
-                respondingReports={responderRespondingReports}
-                resolvedTodayReports={computedResolvedTodayReports}
-                highRiskZones={highRiskZones}
-                highRiskZonesLoading={highRiskZonesLoading}
-                highRiskZonesError={highRiskZonesError}
-                onRetryHighRiskZones={refreshHighRiskZones}
-                roleStats={roleStats}
-                reporterOverviewReports={reporterOverviewReports}
-                reporterOverviewReportsLoading={reporterOverviewReportsLoading}
-                reporterOverviewReportsError={reporterOverviewReportsError}
-                onLoadReporterOverviewReports={loadReporterOverviewReports}
-                focusLocation={focusLocation}
-                focusedReport={focusedMapReport}
-                focusedRiskZone={focusedRiskZone}
-                onReturnToReport={focusedMapReportId ? returnToFocusedReport : null}
-                responderMapFilter={responderMapFilter}
-                setResponderMapFilter={setResponderMapFilter}
-                canCurrentResponderResolve={canCurrentResponderResolve}
-                handleMapRespond={handleMapRespond}
-                handleMapResolve={handleMapResolve}
-                setSearchParams={setSearchParams}
-                mapSummaryPanel={mapSummaryPanel}
-                setMapSummaryPanel={setMapSummaryPanel}
-                activePanel={panelView}
-            />
+            <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+                <DashboardMapWorkspace
+                    user={user}
+                    isAuthenticated={isAuthenticated}
+                    isAdmin={isAdmin}
+                    isResponder={isResponder}
+                    isReporter={isReporter}
+                    loading={loading}
+                    error={dashboardError}
+                    reports={dashboardReports}
+                    pendingReports={responderPendingReports}
+                    respondingReports={responderRespondingReports}
+                    resolvedTodayReports={computedResolvedTodayReports}
+                    highRiskZones={highRiskZones}
+                    highRiskZonesLoading={highRiskZonesLoading}
+                    highRiskZonesError={highRiskZonesError}
+                    onRetryHighRiskZones={refreshHighRiskZones}
+                    roleStats={roleStats}
+                    reporterOverviewReports={reporterOverviewReports}
+                    reporterOverviewReportsLoading={reporterOverviewReportsLoading}
+                    reporterOverviewReportsError={reporterOverviewReportsError}
+                    onLoadReporterOverviewReports={loadReporterOverviewReports}
+                    focusLocation={focusLocation}
+                    focusedReport={focusedMapReport}
+                    focusedRiskZone={focusedRiskZone}
+                    onReturnToReport={focusedMapReportId ? returnToFocusedReport : null}
+                    responderMapFilter={responderMapFilter}
+                    setResponderMapFilter={setResponderMapFilter}
+                    canCurrentResponderResolve={canCurrentResponderResolve}
+                    handleMapRespond={handleMapRespond}
+                    handleMapResolve={handleMapResolve}
+                    setSearchParams={setSearchParams}
+                    mapSummaryPanel={mapSummaryPanel}
+                    setMapSummaryPanel={setMapSummaryPanel}
+                    activePanel={panelView}
+                />
+            </Suspense>
         );
     }
 
 
     return (
-        <DashboardAnalyticsWorkspace
-            user={user}
-            hasMunicipality={hasMunicipality}
-            selectedMonth={selectedMonth}
-            setSelectedMonth={setSelectedMonth}
-            reports={monthFilteredReports}
-            allReports={dashboardReports}
-            highRiskZones={highRiskZones}
-            performanceMetrics={performanceMetrics}
-            chartData={chartData}
-            statusData={statusData}
-            municipalityBarData={municipalityBarData}
-            barangayBarData={barangayBarData}
-            incidentTypeBarData={incidentTypeBarData}
-            dashboardReports={dashboardReports}
-            focusLocation={focusLocation}
-            historySectionRef={historySectionRef}
-            loading={loading}
-            error={dashboardError}
-            onOpenMap={() => setSearchParams({ view: 'map' })}
-            onOpenReports={() => navigate('/admin/reports')}
-        />
+        <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+            <DashboardAnalyticsWorkspace
+                user={user}
+                hasMunicipality={hasMunicipality}
+                selectedMonth={selectedMonth}
+                setSelectedMonth={setSelectedMonth}
+                reports={monthFilteredReports}
+                allReports={dashboardReports}
+                highRiskZones={highRiskZones}
+                performanceMetrics={performanceMetrics}
+                chartData={chartData}
+                statusData={statusData}
+                municipalityBarData={municipalityBarData}
+                barangayBarData={barangayBarData}
+                incidentTypeBarData={incidentTypeBarData}
+                dashboardReports={dashboardReports}
+                focusLocation={focusLocation}
+                historySectionRef={historySectionRef}
+                loading={loading}
+                error={dashboardError}
+                onOpenMap={() => setSearchParams({ view: 'map' })}
+                onOpenReports={() => navigate('/admin/reports')}
+            />
+        </Suspense>
     );
 };
 

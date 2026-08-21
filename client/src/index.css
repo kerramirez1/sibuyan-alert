@@ -1,3 +1,14 @@
+/* Self-hosted fonts via @fontsource — replaces Google Fonts external request.
+   Only the specific weights used in the codebase are imported (Inter, Outfit).
+   latin subset covers all English/Filipino UI text. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/outfit/latin-600.css';
+@import '@fontsource/outfit/latin-700.css';
+@import '@fontsource/outfit/latin-800.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -113,7 +124,17 @@
   --map-control-hover: #1d3628;
 }
 
-/* Custom Base Styles */
+/* Hero image entrance: CSS-only replacement for framer-motion scale entrance in HeroSection.
+   Replaces: initial={{ scale: 1.05 }} animate={{ scale: 1 }} transition={{ duration: 1.5, ease: 'easeOut' }} */
+@keyframes heroScaleIn {
+  from { transform: scale(1.05); }
+  to   { transform: scale(1); }
+}
+.hero-scale-in {
+  animation: heroScaleIn 1.5s ease-out both;
+}
+
+
 @layer base {
   html {
     scroll-behavior: smooth;

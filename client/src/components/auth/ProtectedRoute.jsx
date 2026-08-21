@@ -1,7 +1,12 @@
 import { Navigate, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
-import { motion } from 'framer-motion';
 import { HiOutlineExclamation, HiOutlineClock } from 'react-icons/hi';
+
+const FadeInSlide = ({ children }) => (
+    <div className="animate-fade-in min-h-[60vh] flex items-center justify-center p-4" style={{ animationDuration: '0.35s' }}>
+        {children}
+    </div>
+);
 
 const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }) => {
     const { user, isAuthenticated, loading } = useAuth();
@@ -23,42 +28,34 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
     // Check role access
     if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="min-h-[60vh] flex items-center justify-center p-4"
-            >
+            <FadeInSlide>
                 <div className="card max-w-md text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-danger-100 rounded-full flex items-center justify-center">
                         <HiOutlineExclamation className="w-8 h-8 text-danger-600" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
                     <p className="text-gray-600 mb-4">
-                        You don't have permission to access this page.
+                        You don&apos;t have permission to access this page.
                     </p>
                     <p className="text-sm text-gray-500">
                         Required role: {allowedRoles.join(' or ')}
                     </p>
                 </div>
-            </motion.div>
+            </FadeInSlide>
         );
     }
 
     // Check verification for reporters
     if (requireVerified && user.role === 'reporter' && !user.isVerified) {
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="min-h-[60vh] flex items-center justify-center p-4"
-            >
+            <FadeInSlide>
                 <div className="card max-w-md text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-accent-100 rounded-full flex items-center justify-center">
                         <HiOutlineClock className="w-8 h-8 text-accent-600" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Verification Required</h2>
                     <p className="text-gray-600 mb-4">
-                        Your reporter account is pending verification. You'll be able to submit reports once your municipal administrator approves your account.
+                        Your reporter account is pending verification. You&apos;ll be able to submit reports once your municipal administrator approves your account.
                     </p>
                     {user.verificationStatus === 'rejected' && user.verificationFeedback && (
                         <div className="bg-danger-50 border border-danger-200 rounded-xl p-4 text-left mb-4">
@@ -73,7 +70,7 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
                         Status: {user.verificationStatus}
                     </div>
                 </div>
-            </motion.div>
+            </FadeInSlide>
         );
     }
 
