@@ -604,27 +604,26 @@ const DashboardMapWorkspace = ({
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
             <header className="flex flex-col gap-2.5 sm:gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                        {mapExperience.eyebrow}
-                    </p>
-                    <h1 className="mt-0.5 sm:mt-1 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                            {mapExperience.eyebrow}
+                        </span>
+                    </div>
+                    <h1 className="mt-1 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
                         {mapExperience.title}
                     </h1>
-                    <p className="hidden sm:block mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         {mapExperience.description}
                     </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Sibuyan Island · Alert System Active</span>
-                    </div>
-                    {mapExperience.showSubmitReport && (
+                {mapExperience.showSubmitReport && (
+                    <div className="flex shrink-0 items-center">
                         <Button as={Link} to="/report" icon={HiOutlinePlus} className="shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs">
                             Submit report
                         </Button>
-                    )}
-                </div>
+                    </div>
+                )}
             </header>
 
             {error && (

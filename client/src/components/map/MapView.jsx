@@ -80,14 +80,14 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-gray-200/90 bg-white/90 text-gray-700 backdrop-blur-md shadow-2xs transition-colors duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white';
+const MAP_TOOL_BUTTON_CLASS = 'flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-gray-200/90 bg-white/95 text-gray-700 backdrop-blur-md shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
         type="button"
         aria-label={label}
         title={label}
-        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? 'text-brand-700 dark:text-emerald-400' : ''}`}
+        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-brand-400 !bg-brand-50/95 !text-brand-800 shadow-xs dark:!border-emerald-700/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
         {...props}
     >
         <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />

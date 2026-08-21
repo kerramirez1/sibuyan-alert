@@ -435,20 +435,22 @@ const AccidentHistoryPage = () => {
         <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
             <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                        <HiOutlineArchive className="h-3.5 w-3.5" aria-hidden="true" />
-                        Records
-                    </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <HiOutlineArchive className="h-3.5 w-3.5" aria-hidden="true" />
+                            Records
+                        </span>
+                    </div>
+                    <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
                         Accident history
                     </h1>
-                    <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="mt-0.5 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         Resolved road incidents across Sibuyan Island.
                     </p>
                 </div>
 
                 <div
-                    className={`inline-flex self-start items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold select-none shadow-2xs ${canViewFullDetails
+                    className={`inline-flex self-start sm:self-auto items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold select-none shadow-2xs ${canViewFullDetails
                         ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300'
                         : 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'
                         }`}
@@ -456,13 +458,13 @@ const AccidentHistoryPage = () => {
                 >
                     {canViewFullDetails
                         ? <HiOutlineShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                        : <HiOutlineEye className="h-4 w-4 text-gray-500" />}
+                        : <HiOutlineEye className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
                     <span>{canViewFullDetails ? 'Operational access' : 'Public records'}</span>
                 </div>
             </header>
 
             {/* Restrained 4-Column Supporting Summary Strip */}
-            <section className="grid grid-cols-2 divide-y divide-gray-200/80 rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0" aria-label="History summary">
+            <section className="grid grid-cols-2 divide-y divide-gray-200/80 rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 overflow-hidden" aria-label="History summary">
                 {metricCards.map(({ label, value, helper, icon: Icon, text, isButton, isActive, onClick }) => {
                     const CardComponent = isButton ? 'button' : 'div';
                     return (
@@ -473,13 +475,13 @@ const AccidentHistoryPage = () => {
                             aria-pressed={isButton ? isActive : undefined}
                             className={`p-3.5 sm:p-4 flex flex-col justify-between text-left transition-all duration-150 relative ${
                                 isButton
-                                    ? 'cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30'
+                                    ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30'
                                     : ''
                             } ${isActive ? 'bg-emerald-500/10 dark:bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30' : ''}`}
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
-                                    <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                                    <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                                     <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</h2>
                                 </div>
                                 {isButton && (
@@ -492,7 +494,7 @@ const AccidentHistoryPage = () => {
                                     </span>
                                 )}
                             </div>
-                            <p className={`mt-1 font-display font-black text-gray-950 dark:text-white tabular-nums ${text ? 'text-lg sm:text-xl truncate' : 'text-xl sm:text-2xl'}`}>{value}</p>
+                            <p className={`mt-1.5 font-display font-bold text-gray-950 dark:text-white tabular-nums tracking-tight ${text ? 'text-lg sm:text-xl truncate' : 'text-xl sm:text-2xl'}`}>{value}</p>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">{helper}</p>
                         </CardComponent>
                     );
@@ -500,19 +502,19 @@ const AccidentHistoryPage = () => {
             </section>
 
             {/* Resolved Accident Records Ledger */}
-            <section className="rounded-xl border border-gray-200/90 bg-white shadow-xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
+            <section className="relative z-10 rounded-2xl border border-gray-200/90 bg-white shadow-xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
                 {/* Integrated Filters Toolbar */}
-                <div className="rounded-t-xl border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="relative z-20 rounded-t-2xl border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
                     <div className="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:flex-wrap md:items-center lg:flex-nowrap">
                         <label className="relative block flex-1 min-w-[200px]">
                             <span className="sr-only">Search accident history</span>
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Search location, barangay, or incident type"
-                                className="h-9 w-full rounded-lg border border-gray-200/90 bg-white py-1.5 pl-9 pr-8 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-8 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                             />
                             {searchQuery && (
                                 <button
@@ -575,8 +577,8 @@ const AccidentHistoryPage = () => {
                 </div>
 
                 {filteredReports.length === 0 ? (
-                    <div className="px-6 py-14 text-center">
-                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                    <div className="rounded-b-2xl px-6 py-14 text-center">
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
                             <HiOutlineArchive className="h-5 w-5" />
                         </div>
                         <h2 className="mt-3 font-display text-sm font-bold text-gray-950 dark:text-white">No accident records found</h2>
@@ -585,7 +587,7 @@ const AccidentHistoryPage = () => {
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="mt-4 inline-flex h-9 items-center justify-center rounded-xl bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 Clear filters
                             </button>
@@ -601,7 +603,7 @@ const AccidentHistoryPage = () => {
                             <span className="sr-only">Toggle details</span>
                         </div>
 
-                        <div className="divide-y divide-gray-100 dark:divide-white/5">
+                        <div className="rounded-b-2xl overflow-hidden divide-y divide-gray-100 dark:divide-white/5">
                             {filteredReports.map((report) => {
                                 const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
                                 const isExpanded = Boolean(expandedId && String(expandedId) === String(report._id));
@@ -669,10 +671,10 @@ const AccidentHistoryPage = () => {
                                             <div className="border-t border-gray-200/60 px-4 py-4 space-y-3.5 sm:px-6 dark:border-white/5">
                                                 <div>
                                                     <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Incident summary</h3>
-                                                    <p className="mt-1 text-xs leading-relaxed text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0c1813]/80 p-3 rounded-lg border border-gray-200/70 dark:border-white/10 break-words">{report.description || <span className="italic text-gray-400 dark:text-gray-500">No incident description was provided.</span>}</p>
+                                                    <p className="mt-1 text-xs leading-relaxed text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0c1813]/80 p-3 rounded-xl border border-gray-200/70 dark:border-white/10 break-words">{report.description || <span className="italic text-gray-400 dark:text-gray-500">No incident description was provided.</span>}</p>
                                                 </div>
 
-                                                <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pt-1">
+                                                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pt-1">
                                                     {[
                                                         ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a')],
                                                         ['Barangay', report.barangay || 'Not available'],
@@ -685,14 +687,14 @@ const AccidentHistoryPage = () => {
                                                             ['Views', String(report.viewCount || 0)],
                                                         ] : []),
                                                     ].map(([label, value]) => (
-                                                        <div key={label} className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-2.5 dark:border-white/10 dark:bg-white/[0.02] min-w-0">
+                                                        <div key={label} className="rounded-xl border border-gray-200/70 bg-gray-50/60 p-2.5 dark:border-white/10 dark:bg-white/[0.02] min-w-0">
                                                             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">{label}</dt>
                                                             <dd className="mt-0.5 text-xs font-bold text-gray-950 break-words dark:text-white tabular-nums truncate">{value}</dd>
                                                         </div>
                                                     ))}
                                                 </dl>
 
-                                                <div className="flex flex-col gap-2 rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.02]">
+                                                <div className="flex flex-col gap-2 rounded-xl border border-gray-200/60 bg-gray-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.02]">
                                                     {(report.respondedBy || report.resolvedBy) ? (
                                                         <div className="flex flex-wrap items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
                                                             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />

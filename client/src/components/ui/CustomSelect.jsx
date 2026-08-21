@@ -166,8 +166,12 @@ const CustomSelect = ({
                     ref={listboxRef}
                     role="listbox"
                     aria-label={ariaLabel}
-                    className={`absolute left-0 right-0 ${alignmentClass} sm:min-w-[190px] max-w-[280px] z-[100] mt-1.5 max-h-60 overflow-y-auto overflow-x-hidden overscroll-contain rounded-xl border border-gray-200/90 bg-white/98 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/98 dark:shadow-black/60 focus:outline-none animate-in fade-in zoom-in-95 duration-100`}
-                    style={{ maxHeight: '240px' }}
+                    className={`absolute left-0 right-0 ${alignmentClass} sm:min-w-[190px] max-w-[280px] z-[100] mt-1.5 max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-gray-200/90 bg-white/98 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/98 dark:shadow-black/60 focus:outline-none animate-in fade-in zoom-in-95 duration-100`}
+                    style={{
+                        maxHeight: '280px',
+                        WebkitOverflowScrolling: 'touch',
+                        touchAction: 'pan-y',
+                    }}
                 >
                     {options.map((opt, index) => {
                         const isSelected = String(opt.value) === String(value);
