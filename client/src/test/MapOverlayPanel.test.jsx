@@ -137,4 +137,94 @@ describe('MapOverlayPanel', () => {
         expect(screen.getByTestId('map-overlay-scroll-region')).toBe(scrollRegion);
         expect(scrollRegion.scrollTop).toBe(0);
     });
+
+    test('supports mobile expand and collapse toggling in contextual presentation', () => {
+        render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Incident details"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Brief content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        const expandBtn = screen.getByRole('button', { name: /Expand incident details/i });
+        expect(expandBtn).toBeInTheDocument();
+        expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
+
+        // Toggle to expand
+        fireEvent.click(expandBtn);
+        const collapseBtn = screen.getByRole('button', { name: /Collapse incident details/i });
+        expect(collapseBtn).toBeInTheDocument();
+        expect(collapseBtn).toHaveAttribute('aria-expanded', 'true');
+
+        // Toggle to collapse
+        fireEvent.click(collapseBtn);
+        expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
+    });
+
+    test('supports touch swipe up to expand and swipe down to collapse/close', () => {
+        const onClose = vi.fn();
+        render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Incident details"
+                    presentation="contextual"
+                    onClose={onClose}
+                >
+                    <p>Brief content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        const header = screen.getByRole('dialog').querySelector('header');
+        expect(header).toBeInTheDocument();
+
+        // Swipe up (deltaY = -60) -> expands
+        fireEvent.touchStart(header, { touches: [{ clientY: 200 }] });
+        fireEvent.touchEnd(header, { changedTouches: [{ clientY: 140 }] });
+        expect(screen.getByRole('button', { name: /Collapse incident details/i })).toBeInTheDocument();
+
+        // Swipe down while expanded (deltaY = +60) -> collapses to peek
+        fireEvent.touchStart(header, { touches: [{ clientY: 140 }] });
+        fireEvent.touchEnd(header, { changedTouches: [{ clientY: 200 }] });
+        expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+
+        // Swipe down while in peek (deltaY = +60) -> closes
+        fireEvent.touchStart(header, { touches: [{ clientY: 200 }] });
+        fireEvent.touchEnd(header, { changedTouches: [{ clientY: 260 }] });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    test('collapses expanded mobile sheet on Escape before closing', () => {
+        const onClose = vi.fn();
+        render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Incident details"
+                    presentation="contextual"
+                    onClose={onClose}
+                >
+                    <p>Brief content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        // Expand sheet
+        fireEvent.click(screen.getByRole('button', { name: /Expand incident details/i }));
+        expect(screen.getByRole('button', { name: /Collapse incident details/i })).toBeInTheDocument();
+
+        // First Escape collapses to peek
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+
+        // Second Escape closes the panel
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
 });

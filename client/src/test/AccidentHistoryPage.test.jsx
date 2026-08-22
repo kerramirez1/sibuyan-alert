@@ -295,4 +295,88 @@ describe('AccidentHistoryPage features and filters', () => {
             element?.tagName === 'P' && element.textContent === 'Showing 3 of 3 records'
         ))).toBeInTheDocument();
     });
+
+    test('opens mobile filter bottom sheet and applies filters cleanly', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        // Open mobile filter sheet
+        const mobileFilterBtn = screen.getByRole('button', { name: /Filters/i });
+        fireEvent.click(mobileFilterBtn);
+
+        expect(screen.getByRole('heading', { name: 'Archive filters' })).toBeInTheDocument();
+
+        // Change severity inside bottom sheet
+        const severitySelects = screen.getAllByLabelText('Filter by severity');
+        fireEvent.change(severitySelects[severitySelects.length - 1], { target: { value: 'critical' } });
+
+        // Close bottom sheet via Apply action
+        const showBtn = screen.getByRole('button', { name: /Show 1 record/i });
+        fireEvent.click(showBtn);
+
+        expect(screen.queryByRole('heading', { name: 'Archive filters' })).not.toBeInTheDocument();
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 1 of 3 records'
+        ))).toBeInTheDocument();
+    });
+
+    test('removes individual filter when clicking removable filter chip', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        const municipalitySelect = screen.getAllByLabelText('Filter by municipality')[0];
+        fireEvent.change(municipalitySelect, { target: { value: 'Cajidiocan' } });
+
+        expect(screen.getByText('Municipality: Cajidiocan')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 2 of 3 records'
+        ))).toBeInTheDocument();
+
+        // Remove municipality filter via chip
+        const removeChipBtn = screen.getByRole('button', { name: 'Remove municipality filter' });
+        fireEvent.click(removeChipBtn);
+
+        expect(screen.queryByText('Municipality: Cajidiocan')).not.toBeInTheDocument();
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 3 of 3 records'
+        ))).toBeInTheDocument();
+    });
+
+    test('supports keyboard activation on Top Barangay insight card', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        const summary = screen.getByRole('region', { name: 'History summary' });
+        const topBarangayBtn = within(summary).getByRole('button');
+
+        // Press Enter to activate Top Barangay filter
+        fireEvent.keyDown(topBarangayBtn, { key: 'Enter' });
+
+        expect(screen.getByText('Barangay: Poblacion')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 1 of 3 records'
+        ))).toBeInTheDocument();
+
+        // Press Enter again to toggle off
+        fireEvent.keyDown(topBarangayBtn, { key: 'Enter' });
+        expect(screen.queryByText('Barangay: Poblacion')).not.toBeInTheDocument();
+        expect(screen.getByText((_, element) => (
+            element?.tagName === 'P' && element.textContent === 'Showing 3 of 3 records'
+        ))).toBeInTheDocument();
+    });
 });

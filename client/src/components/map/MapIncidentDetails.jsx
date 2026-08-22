@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineArrowRight,
+    HiOutlineChevronUp,
     HiOutlineExclamationCircle,
     HiOutlineLocationMarker,
     HiOutlinePhotograph,
@@ -91,6 +92,7 @@ const MapIncidentDetails = ({
     onLocate,
     onRespond,
     onResolve,
+    onToggleExpand,
 }) => {
     const operational = useOperationalIncidentDetails(report, viewerRole);
     const displayedReport = operational.report || report;
@@ -170,7 +172,7 @@ const MapIncidentDetails = ({
 
     return (
         <div className="flex min-h-full flex-col">
-            <div className="space-y-3.5 px-4 py-4 sm:px-5 sm:py-5">
+            <div className="space-y-3.5 px-4 py-3 sm:px-5 sm:py-5">
                 {/* 1. Incident Brief Header */}
                 <div>
                     <div className="flex items-center justify-between gap-2">
@@ -200,7 +202,7 @@ const MapIncidentDetails = ({
                         )}
                     </div>
 
-                    <h3 className="mt-2.5 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug">
+                    <h3 className="mt-2 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug">
                         {details.title}
                     </h3>
                     <div className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-600 dark:text-gray-300">
@@ -208,6 +210,26 @@ const MapIncidentDetails = ({
                         <span className="min-w-0 break-words font-medium">{details.location}</span>
                     </div>
                 </div>
+
+                {/* Mobile Peek Affordance Helper */}
+                {onToggleExpand && (
+                    <div className="sm:hidden pt-0.5">
+                        <button
+                            type="button"
+                            onClick={onToggleExpand}
+                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/80 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            aria-label="Expand full incident brief"
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <HiOutlineChevronUp className="h-4 w-4 animate-bounce text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <span>Swipe up for incident details</span>
+                            </span>
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                                Expand &rarr;
+                            </span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Error Banner with Retry */}
                 {operational.error && (
@@ -383,7 +405,7 @@ const MapIncidentDetails = ({
 
             {/* 8. Sticky Actions Footer */}
             {hasActions && (
-                <div className="sticky bottom-0 z-10 mt-auto border-t border-gray-200/80 bg-white/95 px-4 py-3 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
+                <div className="sticky bottom-0 z-10 mt-auto border-t border-gray-200/80 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             {onLocate && (
@@ -392,7 +414,7 @@ const MapIncidentDetails = ({
                                     size="sm"
                                     icon={HiOutlineLocationMarker}
                                     onClick={() => onLocate(displayedReport)}
-                                    className="w-full sm:w-auto cursor-pointer text-xs"
+                                    className="w-full sm:w-auto cursor-pointer text-xs min-h-[44px] sm:min-h-8"
                                 >
                                     View on map
                                 </Button>
@@ -403,7 +425,7 @@ const MapIncidentDetails = ({
                             {ownsReport && details.id && (
                                 <Link
                                     to={`/my-reports?report=${encodeURIComponent(details.id)}`}
-                                    className="group inline-flex items-center gap-1.5 whitespace-nowrap text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md py-1.5 px-2 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="group inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md py-2 px-3 sm:py-1.5 sm:px-2 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer min-h-[44px] sm:min-h-0"
                                 >
                                     <span>Open my full report</span>
                                     <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" />
@@ -415,7 +437,7 @@ const MapIncidentDetails = ({
                                     onClick={() => onRespond?.(displayedReport)}
                                     loading={actionLoading}
                                     loadingLabel="Please wait..."
-                                    className="w-full sm:w-auto text-xs"
+                                    className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
                                 >
                                     Respond to incident
                                 </Button>
@@ -427,7 +449,7 @@ const MapIncidentDetails = ({
                                     onClick={() => onResolve?.(displayedReport)}
                                     loading={actionLoading}
                                     loadingLabel="Please wait..."
-                                    className="w-full sm:w-auto text-xs"
+                                    className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
                                 >
                                     Review resolution
                                 </Button>

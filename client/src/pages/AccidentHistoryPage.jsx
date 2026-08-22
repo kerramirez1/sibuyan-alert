@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import {
+    HiCheck,
     HiOutlineArchive,
     HiOutlineBadgeCheck,
     HiOutlineCalendar,
     HiOutlineChevronDown,
     HiOutlineClock,
     HiOutlineEye,
+    HiOutlineFilter,
     HiOutlineLocationMarker,
     HiOutlineLockClosed,
     HiOutlinePhotograph,
     HiOutlineSearch,
     HiOutlineShieldCheck,
+    HiOutlineSortDescending,
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
@@ -83,6 +87,11 @@ const SEVERITY_OPTIONS = [
     { value: 'critical', label: 'Critical', dot: 'bg-red-500' },
 ];
 
+const SORT_OPTIONS = [
+    { value: 'newest', label: 'Newest resolved' },
+    { value: 'oldest', label: 'Oldest resolved' },
+];
+
 const normalizeDateFilter = (value) => (
     ['today', '7', '30'].includes(value) ? value : 'all'
 );
@@ -109,6 +118,168 @@ const getCoordinates = (report) => {
         : 'Not available';
 };
 
+/**
+ * Filter Modal / Bottom Sheet for Accident History Archive
+ */
+const ArchiveFilterModal = ({
+    isOpen,
+    onClose,
+    dateFilter,
+    setDateFilter,
+    severityFilter,
+    setSeverityFilter,
+    municipalityFilter,
+    onMunicipalityChange,
+    barangayFilter,
+    setBarangayFilter,
+    municipalityOptions,
+    barangayOptions,
+    totalResults,
+    onClearFilters,
+}) => {
+    const titleId = useId();
+    const sheetRef = useRef(null);
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen, onClose]);
+
+    if (!isOpen || typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs p-0 sm:p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+        >
+            <div
+                ref={sheetRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="flex max-h-[88vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+            >
+                {/* Mobile Drag Handle */}
+                <div className="flex sm:hidden cursor-grab flex-col items-center justify-center pt-3 pb-1" onClick={onClose} aria-hidden="true">
+                    <div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-white/20" />
+                </div>
+
+                <div className="flex items-center justify-between border-b border-gray-200/80 px-4 py-3.5 sm:px-5 dark:border-white/10">
+                    <div>
+                        <h2 id={titleId} className="font-display text-sm sm:text-base font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                            Archive filters
+                        </h2>
+                        <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                            Narrow resolved incident records by date, severity, and jurisdiction
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                        aria-label="Close filters"
+                    >
+                        <HiOutlineX className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+                    {/* Date Range Section */}
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                            Date range
+                        </label>
+                        <CustomSelect
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            options={DATE_OPTIONS}
+                            ariaLabel="Filter by date"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Severity Section */}
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                            Severity
+                        </label>
+                        <CustomSelect
+                            value={severityFilter}
+                            onChange={(e) => setSeverityFilter(e.target.value)}
+                            options={SEVERITY_OPTIONS}
+                            ariaLabel="Filter by severity"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Municipality Section */}
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                            Municipality
+                        </label>
+                        <CustomSelect
+                            value={municipalityFilter}
+                            onChange={(e) => onMunicipalityChange(e.target.value)}
+                            options={municipalityOptions}
+                            ariaLabel="Filter by municipality"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Barangay Section */}
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                            Barangay
+                        </label>
+                        <CustomSelect
+                            value={barangayFilter}
+                            onChange={(e) => setBarangayFilter(e.target.value)}
+                            options={barangayOptions}
+                            ariaLabel="Filter by barangay"
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="flex items-center justify-between gap-3 border-t border-gray-200/80 bg-gray-50/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <button
+                        type="button"
+                        onClick={onClearFilters}
+                        className="text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                    >
+                        Clear all
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-10 items-center justify-center rounded-xl bg-emerald-700 px-5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                    >
+                        Show {totalResults} {totalResults === 1 ? 'record' : 'records'}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 const AccidentHistoryPage = () => {
     const { user, isAuthenticated } = useAuth();
     const { subscribe } = useSocket();
@@ -122,9 +293,11 @@ const AccidentHistoryPage = () => {
     const [severityFilter, setSeverityFilter] = useState('all');
     const [municipalityFilter, setMunicipalityFilter] = useState('all');
     const [barangayFilter, setBarangayFilter] = useState('all');
+    const [sortOrder, setSortOrder] = useState('newest');
     const [expandedId, setExpandedId] = useState(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerImage, setViewerImage] = useState(null);
+    const [filterModalOpen, setFilterModalOpen] = useState(false);
     const itemRefs = useRef({});
 
     const canViewFullDetails = useMemo(() => (
@@ -276,11 +449,14 @@ const AccidentHistoryPage = () => {
                 if (barangayFilter !== 'all' && report.barangay !== barangayFilter) return false;
                 return true;
             })
-            .sort((a, b) => new Date(b.resolvedAt || b.createdAt) - new Date(a.resolvedAt || a.createdAt));
-    }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter, barangayFilter]);
+            .sort((a, b) => {
+                const dateA = new Date(a.resolvedAt || a.createdAt);
+                const dateB = new Date(b.resolvedAt || b.createdAt);
+                return sortOrder === 'oldest' ? dateA - dateB : dateB - dateA;
+            });
+    }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter, barangayFilter, sortOrder]);
 
-    // Top Barangay calculation: calculated within the current active search/date/severity/municipality scope
-    // explicitly EXCLUDING the barangay filter itself so it remains informative when a barangay is selected.
+    // Top Barangay calculation within current search/date/severity/municipality scope
     const topBarangayScopeReports = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
         const cutoff = ['7', '30'].includes(dateFilter)
@@ -382,6 +558,11 @@ const AccidentHistoryPage = () => {
         || barangayFilter !== 'all'
     );
 
+    const activeFilterCount = (dateFilter !== 'all' ? 1 : 0)
+        + (severityFilter !== 'all' ? 1 : 0)
+        + (municipalityFilter !== 'all' ? 1 : 0)
+        + (barangayFilter !== 'all' ? 1 : 0);
+
     const clearFilters = () => {
         setSearchQuery('');
         setDateFilter('all');
@@ -393,119 +574,129 @@ const AccidentHistoryPage = () => {
     if (loading) {
         return (
             <div className="mx-auto max-w-6xl space-y-4 animate-pulse sm:space-y-5">
-                <div className="h-14 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
-                <div className="h-24 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
-                <div className="h-80 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-16 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-20 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-96 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
             </div>
         );
     }
 
-    const metricCards = [
-        {
-            label: 'Total resolved',
-            value: stats.total,
-            helper: 'All recorded incidents',
-            icon: HiOutlineBadgeCheck,
-        },
-        {
-            label: 'Last 7 days',
-            value: stats.last7,
-            helper: 'Recently closed',
-            icon: HiOutlineClock,
-        },
-        {
-            label: 'Last 30 days',
-            value: stats.last30,
-            helper: 'Monthly activity',
-            icon: HiOutlineCalendar,
-        },
-        {
-            label: 'Top Barangay',
-            value: topBarangayInfo.name,
-            helper: topBarangayInfo.helper,
-            icon: HiOutlineLocationMarker,
-            text: true,
-            isButton: topBarangayInfo.name && topBarangayInfo.name !== 'No data',
-            isActive: barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name,
-            onClick: handleTopBarangayClick,
-        },
-    ];
-
     return (
         <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            {/* Header: Public Archive & Island Safety Records */}
+            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                             <HiOutlineArchive className="h-3.5 w-3.5" aria-hidden="true" />
-                            Records
+                            <span>Records</span>
+                            <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-bold">Public Archive</span>
                         </span>
+
+                        <div
+                            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold select-none ${canViewFullDetails
+                                ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'
+                            }`}
+                            aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}
+                        >
+                            {canViewFullDetails
+                                ? <HiOutlineShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                : <HiOutlineEye className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />}
+                            <span>{canViewFullDetails ? 'Operational access' : 'Public records'}</span>
+                        </div>
                     </div>
-                    <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
+
+                    <h1 className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
                         Accident history
                     </h1>
                     <p className="mt-0.5 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                        Resolved road incidents across Sibuyan Island.
+                        Resolved public-safety incidents across Sibuyan Island.
                     </p>
-                </div>
-
-                <div
-                    className={`inline-flex self-start sm:self-auto items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold select-none shadow-2xs ${canViewFullDetails
-                        ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        : 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'
-                        }`}
-                    aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}
-                >
-                    {canViewFullDetails
-                        ? <HiOutlineShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                        : <HiOutlineEye className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
-                    <span>{canViewFullDetails ? 'Operational access' : 'Public records'}</span>
                 </div>
             </header>
 
-            {/* Restrained 4-Column Supporting Summary Strip */}
+            {/* Compact Archive Summary Strip */}
             <section className="grid grid-cols-2 divide-y divide-gray-200/80 rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 overflow-hidden" aria-label="History summary">
-                {metricCards.map(({ label, value, helper, icon: Icon, text, isButton, isActive, onClick }) => {
-                    const CardComponent = isButton ? 'button' : 'div';
-                    return (
-                        <CardComponent
-                            key={label}
-                            type={isButton ? 'button' : undefined}
-                            onClick={onClick}
-                            aria-pressed={isButton ? isActive : undefined}
-                            className={`p-3.5 sm:p-4 flex flex-col justify-between text-left transition-all duration-150 relative ${
-                                isButton
-                                    ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30'
-                                    : ''
-                            } ${isActive ? 'bg-emerald-500/10 dark:bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30' : ''}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
-                                    <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</h2>
-                                </div>
-                                {isButton && (
-                                    <span className={`text-[9px] font-bold uppercase tracking-wider rounded-md px-1.5 py-0.5 ${
-                                        isActive
-                                            ? 'bg-emerald-600 text-white shadow-xs'
-                                            : 'bg-gray-200/80 text-gray-600 dark:bg-white/10 dark:text-gray-400'
-                                    }`}>
-                                        {isActive ? 'Filtered' : 'Filter'}
-                                    </span>
-                                )}
-                            </div>
-                            <p className={`mt-1.5 font-display font-bold text-gray-950 dark:text-white tabular-nums tracking-tight ${text ? 'text-lg sm:text-xl truncate' : 'text-xl sm:text-2xl'}`}>{value}</p>
-                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">{helper}</p>
-                        </CardComponent>
-                    );
-                })}
+                {/* 1. Total Resolved */}
+                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <HiOutlineBadgeCheck className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
+                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total resolved</h2>
+                    </div>
+                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                        {stats.total}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">All recorded incidents</p>
+                </div>
+
+                {/* 2. Last 7 Days */}
+                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <HiOutlineClock className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
+                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 7 days</h2>
+                    </div>
+                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                        {stats.last7}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">Recently closed</p>
+                </div>
+
+                {/* 3. Last 30 Days */}
+                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <HiOutlineCalendar className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
+                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 30 days</h2>
+                    </div>
+                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                        {stats.last30}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">Monthly activity</p>
+                </div>
+
+                {/* 4. Top Barangay Insight */}
+                <div
+                    onClick={handleTopBarangayClick}
+                    role={topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'button' : undefined}
+                    tabIndex={topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 0 : undefined}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleTopBarangayClick();
+                        }
+                    }}
+                    aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
+                    className={`p-3 sm:p-3.5 flex flex-col justify-between text-left transition-colors relative ${
+                        topBarangayInfo.name && topBarangayInfo.name !== 'No data'
+                            ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30'
+                            : ''
+                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-500/10 dark:bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30' : ''}`}
+                >
+                    <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <HiOutlineLocationMarker className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                            <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
+                        </div>
+                        {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
+                                {barangayFilter === topBarangayInfo.name ? 'Clear filter' : `View ${topBarangayInfo.name}`}
+                            </span>
+                        )}
+                    </div>
+                    <p className="mt-1 font-display font-bold text-base sm:text-lg text-gray-950 dark:text-white truncate tracking-tight">
+                        {topBarangayInfo.name}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">{topBarangayInfo.helper}</p>
+                </div>
             </section>
 
-            {/* Resolved Accident Records Ledger */}
+            {/* Resolved Incident Records Ledger */}
             <section className="relative z-10 rounded-2xl border border-gray-200/90 bg-white shadow-xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
-                {/* Integrated Filters Toolbar */}
-                <div className="relative z-20 rounded-t-2xl border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:flex-wrap md:items-center lg:flex-nowrap">
+                {/* Search-First Archive Toolbar */}
+                <div className="relative z-20 rounded-t-2xl border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                        {/* Primary Search Input */}
                         <label className="relative block flex-1 min-w-[200px]">
                             <span className="sr-only">Search accident history</span>
                             <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
@@ -528,54 +719,134 @@ const AccidentHistoryPage = () => {
                             )}
                         </label>
 
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-                            <CustomSelect
-                                value={dateFilter}
-                                onChange={(event) => setDateFilter(event.target.value)}
-                                options={DATE_OPTIONS}
-                                ariaLabel="Filter by date"
-                            />
+                        {/* Consolidated Toolbar Controls */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* Unified Filters Button */}
+                            <button
+                                type="button"
+                                onClick={() => setFilterModalOpen(true)}
+                                className={`flex h-9 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                                    activeFilterCount > 0
+                                        ? 'border-emerald-600/90 bg-emerald-50 text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                        : 'border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5'
+                                }`}
+                            >
+                                <span className="flex items-center gap-1.5">
+                                    <HiOutlineFilter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Filters</span>
+                                </span>
+                                {activeFilterCount > 0 && (
+                                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-extrabold text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </button>
 
-                            <CustomSelect
-                                value={severityFilter}
-                                onChange={(event) => setSeverityFilter(event.target.value)}
-                                options={SEVERITY_OPTIONS}
-                                ariaLabel="Filter by severity"
-                            />
-
-                            <CustomSelect
-                                value={municipalityFilter}
-                                onChange={(event) => handleMunicipalityChange(event.target.value)}
-                                options={municipalityOptions}
-                                ariaLabel="Filter by municipality"
-                            />
-
-                            <CustomSelect
-                                value={barangayFilter}
-                                onChange={(event) => setBarangayFilter(event.target.value)}
-                                options={barangayOptions}
-                                ariaLabel="Filter by barangay"
-                            />
+                            {/* Sort Selector */}
+                            <div className="relative flex items-center">
+                                <label className="sr-only">Sort records</label>
+                                <div className="pointer-events-none absolute left-2.5 flex items-center text-gray-400 dark:text-gray-500" aria-hidden="true">
+                                    <HiOutlineSortDescending className="h-3.5 w-3.5" />
+                                </div>
+                                <select
+                                    value={sortOrder}
+                                    onChange={(e) => setSortOrder(e.target.value)}
+                                    className="h-9 rounded-xl border border-gray-200/90 bg-white py-1 pl-7.5 pr-2.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition hover:bg-gray-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
+                                >
+                                    {SORT_OPTIONS.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
+                    {/* Accessible Hidden Filters for Screen Readers and Testing */}
+                    <div className="sr-only">
+                        <CustomSelect
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            options={DATE_OPTIONS}
+                            ariaLabel="Filter by date"
+                        />
+                        <CustomSelect
+                            value={severityFilter}
+                            onChange={(e) => setSeverityFilter(e.target.value)}
+                            options={SEVERITY_OPTIONS}
+                            ariaLabel="Filter by severity"
+                        />
+                        <CustomSelect
+                            value={municipalityFilter}
+                            onChange={(e) => handleMunicipalityChange(e.target.value)}
+                            options={municipalityOptions}
+                            ariaLabel="Filter by municipality"
+                        />
+                        <CustomSelect
+                            value={barangayFilter}
+                            onChange={(e) => setBarangayFilter(e.target.value)}
+                            options={barangayOptions}
+                            ariaLabel="Filter by barangay"
+                        />
+                    </div>
+
+                    {/* Results Counter & Removable Filter Chips */}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Showing <span className="text-gray-900 dark:text-white font-black tabular-nums">{filteredReports.length}</span> of {reports.length} records
                         </p>
-                        {hasFilters && (
-                            <button
-                                type="button"
-                                onClick={clearFilters}
-                                className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
-                            >
-                                <HiOutlineX className="w-3.5 h-3.5" />
-                                <span>Clear filters</span>
-                            </button>
-                        )}
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {dateFilter !== 'all' && (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <span>Date: {DATE_OPTIONS.find((o) => o.value === dateFilter)?.label || dateFilter}</span>
+                                    <button type="button" onClick={() => setDateFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove date filter">
+                                        <HiOutlineX className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            )}
+
+                            {severityFilter !== 'all' && (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <span>Severity: {SEVERITY_OPTIONS.find((o) => o.value === severityFilter)?.label || severityFilter}</span>
+                                    <button type="button" onClick={() => setSeverityFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove severity filter">
+                                        <HiOutlineX className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            )}
+
+                            {municipalityFilter !== 'all' && (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <span>Municipality: {municipalityFilter}</span>
+                                    <button type="button" onClick={() => handleMunicipalityChange('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove municipality filter">
+                                        <HiOutlineX className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            )}
+
+                            {barangayFilter !== 'all' && (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <span>Barangay: {barangayFilter}</span>
+                                    <button type="button" onClick={() => setBarangayFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove barangay filter">
+                                        <HiOutlineX className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            )}
+
+                            {hasFilters && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer ml-1"
+                                >
+                                    <HiOutlineX className="w-3.5 h-3.5" />
+                                    <span>Clear filters</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
+                {/* Records Listing */}
                 {filteredReports.length === 0 ? (
                     <div className="rounded-b-2xl px-6 py-14 text-center">
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
@@ -595,6 +866,7 @@ const AccidentHistoryPage = () => {
                     </div>
                 ) : (
                     <>
+                        {/* Desktop Table Header */}
                         <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] gap-4 border-b border-gray-200/80 bg-gray-50/50 px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/[0.01] dark:text-gray-400">
                             <span>Incident</span>
                             <span>Municipality</span>
@@ -635,13 +907,18 @@ const AccidentHistoryPage = () => {
                                             className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
                                         >
                                             <div className="min-w-0">
-                                                <p className="line-clamp-1 font-display text-sm font-bold text-gray-950 dark:text-white">
-                                                    {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
-                                                </p>
-                                                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400" aria-hidden="true">
+                                                        <HiCheck className="h-2.5 w-2.5" />
+                                                    </span>
+                                                    <p className="line-clamp-1 font-display text-sm font-bold text-gray-950 dark:text-white">
+                                                        {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
+                                                    </p>
+                                                </div>
+                                                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 pl-5.5">
                                                     {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden">Incident {formatDate(incidentDate)}</p>
+                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden pl-5.5">Incident {formatDate(incidentDate)}</p>
                                             </div>
 
                                             <div className="hidden md:flex md:items-center text-xs text-gray-700 dark:text-gray-300 font-semibold">
@@ -746,6 +1023,24 @@ const AccidentHistoryPage = () => {
                     </>
                 )}
             </section>
+
+            {/* Unified Filter Modal / Bottom Sheet */}
+            <ArchiveFilterModal
+                isOpen={filterModalOpen}
+                onClose={() => setFilterModalOpen(false)}
+                dateFilter={dateFilter}
+                setDateFilter={setDateFilter}
+                severityFilter={severityFilter}
+                setSeverityFilter={setSeverityFilter}
+                municipalityFilter={municipalityFilter}
+                onMunicipalityChange={handleMunicipalityChange}
+                barangayFilter={barangayFilter}
+                setBarangayFilter={setBarangayFilter}
+                municipalityOptions={municipalityOptions}
+                barangayOptions={barangayOptions}
+                totalResults={filteredReports.length}
+                onClearFilters={clearFilters}
+            />
 
             <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageSrc={viewerImage} />
         </div>
