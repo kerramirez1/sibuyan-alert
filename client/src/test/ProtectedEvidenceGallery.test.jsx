@@ -20,7 +20,7 @@ describe('ProtectedEvidenceGallery Component', () => {
         globalThis.URL.revokeObjectURL = vi.fn();
     });
 
-    test('1. Renders blurred preview with "Blurred for privacy" overlay for blurred access level', () => {
+    test('1. Renders face-redacted preview with "Faces blurred for privacy" overlay for blurred access level', () => {
         const evidence = {
             count: 1,
             accessLevel: 'blurred',
@@ -30,15 +30,15 @@ describe('ProtectedEvidenceGallery Component', () => {
                     index: 0,
                     previewUrl: '/api/reports/report-1/evidence/0/preview',
                     accessLevel: 'blurred',
-                    alt: 'Incident evidence photo 1, blurred for privacy',
+                    alt: 'Incident evidence photo 1, faces blurred for privacy',
                 },
             ],
         };
 
         render(<ProtectedEvidenceGallery evidence={evidence} accessLevel="blurred" />);
 
-        expect(screen.getByText('Blurred for privacy')).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: /Incident evidence photo 1, blurred for privacy/i }))
+        expect(screen.getByText('Faces blurred for privacy')).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: /Incident evidence photo 1, faces blurred for privacy/i }))
             .toHaveAttribute('src', '/api/reports/report-1/evidence/0/preview');
         expect(screen.getByText(/Original evidence is available only to the report owner and authorized municipal personnel/i))
             .toBeInTheDocument();

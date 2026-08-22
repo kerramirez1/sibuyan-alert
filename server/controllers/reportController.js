@@ -11,7 +11,7 @@ import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
-import { generateBlurredEvidenceSvg } from '../services/previewService.js';
+import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 
 const toValidatedCount = (value) => Number(value ?? 0);
@@ -562,9 +562,18 @@ export const getReportEvidencePreview = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Evidence integrity violation' });
         }
 
-        const etag = `W/"evidence-preview-${report._id}-${evidenceIndex}"`;
+        // Stream file from GridFS to buffer
+        const downloadStream = getGridFsBucket().openDownloadStream(file._id);
+        const chunks = [];
+        for await (const chunk of downloadStream) {
+            chunks.push(chunk);
+        }
+        const fileBuffer = Buffer.concat(chunks);
+        const derivative = await generateRedactedEvidenceDerivative(fileBuffer);
+
+        const etag = `W/"evidence-preview-${report._id}-${evidenceIndex}-${derivative.metadata.redactionVersion}"`;
         res.set({
-            'Content-Type': 'image/svg+xml',
+            'Content-Type': derivative.contentType || 'image/jpeg',
             'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
             'X-Content-Type-Options': 'nosniff',
             ETag: etag,
@@ -574,17 +583,7 @@ export const getReportEvidencePreview = async (req, res) => {
             return res.status(304).end();
         }
 
-        // Stream file from GridFS to sample buffer
-        const downloadStream = getGridFsBucket().openDownloadStream(file._id);
-        const chunks = [];
-        for await (const chunk of downloadStream) {
-            chunks.push(chunk);
-            if (chunks.reduce((acc, c) => acc + c.length, 0) > 65536) break;
-        }
-        const sampleBuffer = Buffer.concat(chunks);
-        const svgBuffer = generateBlurredEvidenceSvg(sampleBuffer);
-
-        res.send(svgBuffer);
+        res.send(derivative.buffer);
     } catch (error) {
         console.error('Evidence preview error:', error);
         if (!res.headersSent) {

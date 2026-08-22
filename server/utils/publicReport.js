@@ -55,6 +55,7 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
                 originalUrl: source,
                 accessLevel: 'original',
                 alt: `Incident evidence photo ${index + 1}`,
+                redactionType: 'none',
                 isOwner,
             })),
         };
@@ -68,7 +69,8 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
             index,
             previewUrl: `/api/reports/${reportId}/evidence/${index}/preview`,
             accessLevel: 'blurred',
-            alt: `Incident evidence photo ${index + 1}, blurred for privacy`,
+            alt: `Incident evidence photo ${index + 1}, faces blurred for privacy`,
+            redactionType: 'face_blur',
         })),
     };
 };

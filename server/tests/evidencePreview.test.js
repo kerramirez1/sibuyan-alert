@@ -2,6 +2,7 @@ import { describe, expect, test, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import mongoose from 'mongoose';
+import sharp from 'sharp';
 import reportRouter from '../routes/reports.js';
 import Report from '../models/Report.js';
 import * as gridFsService from '../services/gridFsService.js';
@@ -49,6 +50,7 @@ const createTestApp = (user = null) => {
 describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/preview)', () => {
     const reportId = new mongoose.Types.ObjectId('607f1f77bcf86cd799439011');
     const fileId = new mongoose.Types.ObjectId('707f1f77bcf86cd799439011');
+    let sampleImageBuffer;
 
     const sampleReport = {
         _id: reportId,
@@ -67,38 +69,45 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
         },
     };
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        sampleImageBuffer = await sharp({
+            create: {
+                width: 200,
+                height: 200,
+                channels: 4,
+                background: { r: 100, g: 140, b: 180, alpha: 1 },
+            },
+        }).jpeg().toBuffer();
+
         gridFsService.findGridFsFile.mockResolvedValue(mockGridFsFile);
         gridFsService.getGridFsBucket.mockReturnValue({
             openDownloadStream: vi.fn().mockReturnValue((async function* () {
-                yield Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+                yield sampleImageBuffer;
             })()),
         });
     });
 
-    test('1. Allows guest to access blurred SVG preview for verified reports', async () => {
+    test('1. Allows guest to access redacted JPEG preview for verified reports', async () => {
         vi.spyOn(Report, 'findById').mockResolvedValue(sampleReport);
 
         const app = createTestApp(null);
         const res = await request(app).get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
 
         expect(res.status).toBe(200);
-        expect(res.headers['content-type']).toContain('image/svg+xml');
+        expect(res.headers['content-type']).toContain('image/jpeg');
         expect(res.headers['etag']).toBeDefined();
-        const content = res.text || res.body?.toString('utf-8') || '';
-        expect(content).toContain('<svg');
-        expect(content).toContain('privacyBlurFilter');
+        expect(res.body).toBeDefined();
     });
 
-    test('2. Allows non-owner reporter to view blurred SVG preview for verified reports', async () => {
+    test('2. Allows non-owner reporter to view redacted preview for verified reports', async () => {
         vi.spyOn(Report, 'findById').mockResolvedValue(sampleReport);
 
         const app = createTestApp(otherUser);
         const res = await request(app).get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
 
         expect(res.status).toBe(200);
-        expect(res.headers['content-type']).toContain('image/svg+xml');
+        expect(res.headers['content-type']).toContain('image/jpeg');
     });
 
     test('3. Allows report owner to view preview even for pending reports', async () => {
@@ -109,7 +118,7 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
         const res = await request(app).get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
 
         expect(res.status).toBe(200);
-        expect(res.headers['content-type']).toContain('image/svg+xml');
+        expect(res.headers['content-type']).toContain('image/jpeg');
     });
 
     test('4. Denies guest access to evidence preview for unverified/pending reports', async () => {
@@ -182,7 +191,7 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
         const app = createTestApp(null);
         const res = await request(app)
             .get(`/api/reports/${reportId.toString()}/evidence/0/preview`)
-            .set('If-None-Match', `W/"evidence-preview-${reportId.toString()}-0"`);
+            .set('If-None-Match', `W/"evidence-preview-${reportId.toString()}-0-1.0"`);
 
         expect(res.status).toBe(304);
     });

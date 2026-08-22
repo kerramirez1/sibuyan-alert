@@ -80,21 +80,23 @@ const EvidenceThumbnail = ({
     if (isBlurred) {
         return (
             <div
-                className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-900 shadow-2xs dark:border-white/10"
-                title="Blurred for privacy · Original evidence is available only to the report owner and authorized municipal personnel."
-                aria-label={`Incident evidence photo ${index + 1}, blurred for privacy`}
+                className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200/90 bg-gray-900 shadow-2xs dark:border-white/10"
+                title="Faces blurred for privacy · Original evidence is available only to the report owner and authorized municipal personnel."
+                aria-label={`Incident evidence photo ${index + 1}, faces blurred for privacy`}
             >
                 <img
                     src={state.url}
-                    alt={`Incident evidence photo ${index + 1}, blurred for privacy`}
-                    className="h-full w-full object-cover filter blur-[4px] scale-110 opacity-75 transition-transform duration-200"
+                    alt={`Incident evidence photo ${index + 1}, faces blurred for privacy`}
+                    className="h-full w-full object-cover transition-transform duration-200"
                     loading="lazy"
                 />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950/45 p-2 text-center text-white backdrop-blur-[2px]">
-                    <HiOutlineEyeOff className="h-5 w-5 text-emerald-400 opacity-90 drop-shadow-xs" aria-hidden="true" />
-                    <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-white drop-shadow-xs">
-                        Blurred for privacy
-                    </span>
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1.5 bg-gradient-to-t from-gray-950/85 via-gray-950/40 to-transparent p-2 text-white">
+                    <div className="flex items-center gap-1 min-w-0">
+                        <HiOutlineEyeOff className="h-3.5 w-3.5 text-emerald-400 shrink-0 drop-shadow-xs" aria-hidden="true" />
+                        <span className="text-[9px] font-extrabold uppercase tracking-wider text-white truncate drop-shadow-xs">
+                            Faces blurred for privacy
+                        </span>
+                    </div>
                 </div>
             </div>
         );
