@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId, useMemo } from 'react';
 import { useNavigate } from '../../router';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import { notificationsAPI } from '../../services/api';
@@ -14,14 +13,73 @@ import { cleanNotificationTitle, cleanNotificationMessage } from '../../utils/no
 import {
     HiOutlineBell,
     HiOutlineCheck,
-    HiOutlineExclamation,
-    HiOutlineCheckCircle,
-    HiOutlineXCircle,
-    HiOutlineDocumentText,
+    HiOutlineChevronRight,
     HiOutlineInbox,
-    HiOutlineSwitchHorizontal,
-    HiOutlineStatusOnline,
+    HiOutlineX,
 } from 'react-icons/hi';
+
+const getEventMarker = (notification) => {
+    switch (notification.type) {
+        case 'report_verified':
+        case 'reporter_verified':
+        case 'report_resolved':
+            return {
+                dot: 'bg-emerald-500',
+                badge: 'text-emerald-700 dark:text-emerald-400',
+                label: notification.type === 'report_resolved' ? 'Incident resolved' : 'Report verified',
+            };
+        case 'report_responding':
+            return {
+                dot: 'bg-cyan-500',
+                badge: 'text-cyan-700 dark:text-cyan-400',
+                label: 'Response active',
+            };
+        case 'reporter_rejected':
+        case 'report_rejected':
+            return {
+                dot: 'bg-red-500',
+                badge: 'text-red-700 dark:text-red-400',
+                label: 'Report rejected',
+            };
+        case 'report_update': {
+            const updateMeta = getReportUpdateMeta(notification);
+            if (updateMeta.priority === 'urgent') {
+                return { dot: 'bg-red-500', badge: 'text-red-700 dark:text-red-400', label: 'Urgent help' };
+            }
+            if (updateMeta.priority === 'review') {
+                return { dot: 'bg-amber-500', badge: 'text-amber-700 dark:text-amber-400', label: 'Review needed' };
+            }
+            return { dot: 'bg-indigo-500', badge: 'text-indigo-700 dark:text-indigo-400', label: 'Situation update' };
+        }
+        case 'new_report':
+            return {
+                dot: 'bg-amber-500',
+                badge: 'text-amber-700 dark:text-amber-400',
+                label: 'New report',
+            };
+        case 'report_transferred':
+        case 'report_transfer_acknowledged':
+            return {
+                dot: 'bg-purple-500',
+                badge: 'text-purple-700 dark:text-purple-400',
+                label: 'Transferred',
+            };
+        default:
+            return {
+                dot: 'bg-gray-400',
+                badge: 'text-gray-600 dark:text-gray-400',
+                label: 'Notification',
+            };
+    }
+};
+
+const getRelativeTime = (dateValue) => {
+    if (!dateValue) return 'Just now';
+    const date = new Date(dateValue);
+    return Number.isNaN(date.getTime())
+        ? 'Just now'
+        : formatDistanceToNow(date, { addSuffix: true });
+};
 
 const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -32,8 +90,10 @@ const NotificationBell = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const dropdownRef = useRef(null);
+    const buttonRef = useRef(null);
+    const panelId = useId();
 
-    // Play notification sound
+    // Sound effect
     const playNotificationSound = () => {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -44,35 +104,33 @@ const NotificationBell = () => {
             gain.connect(ctx.destination);
 
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-            osc.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.1); // D6
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.1);
 
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
 
             osc.start();
-            osc.stop(ctx.currentTime + 0.3);
-        } catch (e) {
-            console.error('Audio play failed', e);
+            osc.stop(ctx.currentTime + 0.25);
+        } catch {
+            // Audio context silently ignored if autoplay policy blocked
         }
     };
 
-    // Play notification sound when new notification arrives (SocketContext handles state)
+    // Socket sync
     useEffect(() => {
         if (!socket) return;
 
-        const handleSound = () => {
-            playNotificationSound();
-        };
-
-        // Sync bell count for responder verified alerts
+        const handleSound = () => playNotificationSound();
         const handleVerifiedAlert = () => {
             if (user?.role !== 'responder') return;
             setTimeout(async () => {
                 try {
                     const response = await notificationsAPI.getUnreadCount();
                     setUnreadCount(response.data.data.unreadCount);
-                } catch { /* A later poll reconciles temporary fetch failures. */ }
+                } catch {
+                    // Poll reconciles failure
+                }
             }, 1000);
         };
 
@@ -85,46 +143,59 @@ const NotificationBell = () => {
         };
     }, [socket, setUnreadCount, user?.role]);
 
-    // Fetch notifications when opened
+    // Fetch on open
     useEffect(() => {
         if (isOpen) {
             fetchNotifications();
         }
     }, [isOpen]);
 
-    // Close on outside click
+    // Outside click & Escape handler
     useEffect(() => {
+        if (!isOpen) return undefined;
+
         const handleClickOutside = (e) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target) && !buttonRef.current?.contains(e.target)) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
-    // Fetch initial unread count + poll every 15s to stay in sync with DB
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setIsOpen(false);
+                buttonRef.current?.focus();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
+
+    // Periodic poll for unread count
     useEffect(() => {
-        const fetchUnreadCount = async () => {
+        const fetchCount = async () => {
             try {
                 const response = await notificationsAPI.getUnreadCount();
                 setUnreadCount(response.data.data.unreadCount);
-            } catch (error) {
-                console.error('Failed to fetch unread count:', error);
+            } catch {
+                // Ignore transient network errors during background poll
             }
         };
-        fetchUnreadCount();
-
-        // Poll every 15 seconds to catch any missed socket events
-        const interval = setInterval(fetchUnreadCount, 15000);
+        fetchCount();
+        const interval = setInterval(fetchCount, 15000);
         return () => clearInterval(interval);
     }, [setUnreadCount]);
 
     const fetchNotifications = async () => {
         setLoading(true);
         try {
-            const response = await notificationsAPI.getAll({ limit: 20 });
-            setNotifications(response.data.data.notifications);
+            const response = await notificationsAPI.getAll({ limit: 25 });
+            setNotifications(response.data.data.notifications || []);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         } finally {
@@ -146,7 +217,9 @@ const NotificationBell = () => {
 
     const handleNotificationClick = async (notification) => {
         const deferRead = shouldDeferNotificationRead(notification, user?.role);
-        if (!notification.isRead && !deferRead) await markAsRead(notification._id);
+        if (!notification.isRead && !deferRead) {
+            await markAsRead(notification._id);
+        }
         setIsOpen(false);
         const target = buildNotificationTarget(notification, user?.role);
         if (target) navigate(target);
@@ -162,191 +235,225 @@ const NotificationBell = () => {
         }
     };
 
-    const getNotificationVisual = (notification) => {
-        switch (notification.type) {
-            case 'reporter_verified':
-            case 'report_verified':
-            case 'report_resolved':
-                return { icon: HiOutlineCheckCircle, iconClass: 'text-brand-600' };
-            case 'reporter_rejected':
-            case 'report_rejected':
-                return { icon: HiOutlineXCircle, iconClass: 'text-red-600' };
-            case 'report_responding':
-                return { icon: HiOutlineStatusOnline, iconClass: 'text-cyan-600' };
-            case 'report_update': {
-                const updateMeta = getReportUpdateMeta(notification);
-                if (updateMeta.priority === 'urgent') return { icon: HiOutlineExclamation, iconClass: 'text-red-600' };
-                if (updateMeta.priority === 'review') return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
-                return { icon: HiOutlineDocumentText, iconClass: 'text-indigo-600' };
-            }
-            case 'new_report':
-                return { icon: HiOutlineExclamation, iconClass: 'text-amber-600' };
-            case 'report_transferred':
-            case 'report_transfer_acknowledged':
-                return { icon: HiOutlineSwitchHorizontal, iconClass: 'text-violet-600' };
-            default:
-                return { icon: HiOutlineDocumentText, iconClass: 'text-gray-500' };
-        }
-    };
+    const filteredNotifications = useMemo(() => (
+        notifications.filter((n) => (activeTab === 'all' ? true : !n.isRead))
+    ), [activeTab, notifications]);
 
-    const filteredNotifications = notifications.filter(n =>
-        activeTab === 'all' ? true : !n.isRead
-    );
+    const accessibleBellLabel = unreadCount > 0
+        ? `Notifications, ${unreadCount} unread`
+        : 'Notifications';
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative">
+            {/* Bell Trigger */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary-500/20"
+                ref={buttonRef}
+                type="button"
+                onClick={() => setIsOpen((prev) => !prev)}
+                aria-label={accessibleBellLabel}
+                aria-haspopup="dialog"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer"
             >
-                <motion.div
-                    animate={unreadCount > 0 ? { rotate: [0, 15, -15, 0] } : {}}
-                    transition={{ repeat: unreadCount > 0 ? Infinity : 0, duration: 2, repeatDelay: 3 }}
-                >
-                    <HiOutlineBell className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                </motion.div>
+                <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-danger-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900 shadow-sm transform translate-x-1 -translate-y-1">
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-extrabold text-white shadow-xs">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95, transformOrigin: 'top right' }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 ring-1 ring-black/5"
+            {/* Desktop Popover / Mobile Drawer */}
+            {isOpen && (
+                <>
+                    {/* Mobile Backdrop */}
+                    <div
+                        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs sm:hidden"
+                        onClick={() => setIsOpen(false)}
+                        aria-hidden="true"
+                    />
+
+                    {/* Popover / Drawer Content */}
+                    <div
+                        ref={dropdownRef}
+                        id={panelId}
+                        role="dialog"
+                        aria-label="Incident communications"
+                        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[500px] sm:w-[400px] md:w-[420px] sm:rounded-2xl sm:shadow-xl"
                     >
-                        {/* Header & Tabs */}
-                        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                            <div className="px-4 py-3 flex items-center justify-between">
-                                <h3 className="font-display font-semibold text-gray-900 dark:text-white">
-                                    Notifications
-                                </h3>
-                                {unreadCount > 0 && (
+                        {/* Header */}
+                        <div className="border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-display text-xs sm:text-sm font-bold text-gray-950 dark:text-white">
+                                        Incident communications
+                                    </h3>
+                                    {unreadCount > 0 && (
+                                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                            {unreadCount} unread
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    {unreadCount > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={markAllAsRead}
+                                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-white/5 cursor-pointer"
+                                        >
+                                            <HiOutlineCheck className="h-3.5 w-3.5" />
+                                            <span>Mark all read</span>
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={markAllAsRead}
-                                        className="text-xs text-primary-600 hover:text-primary-700 font-medium hover:underline flex items-center gap-1"
+                                        type="button"
+                                        onClick={() => setIsOpen(false)}
+                                        aria-label="Close notification panel"
+                                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
                                     >
-                                        <HiOutlineCheck className="w-3 h-3" />
-                                        Mark all read
+                                        <HiOutlineX className="h-4 w-4" />
                                     </button>
-                                )}
+                                </div>
                             </div>
 
-                            {/* Tabs */}
-                            <div className="flex px-4 gap-4">
+                            {/* Understated Segmented Tabs */}
+                            <div className="mt-2.5 flex items-center gap-3 text-xs font-semibold" role="tablist">
                                 <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={activeTab === 'all'}
                                     onClick={() => setActiveTab('all')}
-                                    className={`pb-3 text-sm font-medium border-b-2 transition-colors relative ${activeTab === 'all'
-                                        ? 'text-primary-600 border-transparent'
-                                        : 'text-gray-500 border-transparent hover:text-gray-700'
-                                        }`}
+                                    className={`relative pb-1 transition-colors cursor-pointer ${
+                                        activeTab === 'all'
+                                            ? 'text-emerald-700 dark:text-emerald-400'
+                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                    }`}
                                 >
-                                    All
+                                    <span>All</span>
+                                    {activeTab === 'all' && (
+                                        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
+                                    )}
                                 </button>
                                 <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={activeTab === 'unread'}
                                     onClick={() => setActiveTab('unread')}
-                                    className={`pb-3 text-sm font-medium border-b-2 transition-colors relative ${activeTab === 'unread'
-                                        ? 'text-primary-600 border-transparent'
-                                        : 'text-gray-500 border-transparent hover:text-gray-700'
-                                        }`}
+                                    className={`relative pb-1 transition-colors cursor-pointer ${
+                                        activeTab === 'unread'
+                                            ? 'text-emerald-700 dark:text-emerald-400'
+                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                    }`}
                                 >
-                                    Unread
-                                    {unreadCount > 0 && (
-                                        <span className="ml-1.5 px-1.5 py-0.5 bg-danger-100 text-danger-700 rounded-full text-[10px]">
-                                            {unreadCount}
-                                        </span>
+                                    <span>Unread</span>
+                                    {unreadCount > 0 && <span className="ml-1 text-[11px] font-bold">({unreadCount})</span>}
+                                    {activeTab === 'unread' && (
+                                        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
                                     )}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Notifications List */}
-                        <div className="max-h-[450px] overflow-y-auto bg-gray-50/50 dark:bg-gray-900/50">
+                        {/* Notification Items List */}
+                        <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5 max-h-[360px] sm:max-h-[380px]">
                             {loading && notifications.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <div className="spinner mx-auto" />
+                                <div className="space-y-3 p-4">
+                                    {[1, 2, 3].map((skeletonIndex) => (
+                                        <div key={skeletonIndex} className="animate-pulse space-y-2 py-1">
+                                            <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-white/10" />
+                                            <div className="h-2.5 w-1/2 rounded bg-gray-100 dark:bg-white/5" />
+                                        </div>
+                                    ))}
                                 </div>
                             ) : filteredNotifications.length === 0 ? (
-                                <div className="py-12 text-center flex flex-col items-center justify-center text-gray-500">
-                                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
-                                        <HiOutlineInbox className="w-8 h-8 text-gray-400" />
+                                <div className="py-10 text-center px-4">
+                                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500">
+                                        <HiOutlineInbox className="h-5 w-5" />
                                     </div>
-                                    <p className="font-medium text-gray-900 dark:text-gray-300">All caught up!</p>
-                                    <p className="text-sm mt-1">No {activeTab} notifications</p>
+                                    <p className="mt-2 text-xs font-bold text-gray-950 dark:text-white">
+                                        {activeTab === 'unread' ? 'You are up to date.' : 'No incident updates yet.'}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                        {activeTab === 'unread' ? 'No unread notifications in your feed.' : 'New report activity will appear here.'}
+                                    </p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {filteredNotifications.map((notification) => {
-                                        const visual = getNotificationVisual(notification);
-                                        const Icon = visual.icon;
-                                        return (
-                                            <motion.button
-                                                type="button"
-                                                key={notification._id}
-                                                layout
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className={`relative w-full px-4 py-4 text-left transition-all hover:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 dark:hover:bg-gray-700 ${!notification.isRead
-                                                    ? 'bg-white dark:bg-gray-800'
-                                                    : 'bg-gray-50/50 dark:bg-gray-900/50 opacity-75 hover:opacity-100'
-                                                    }`}
-                                                onClick={() => handleNotificationClick(notification)}
-                                            >
-                                                {!notification.isRead && (
-                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500" />
-                                                )}
+                                filteredNotifications.map((notification) => {
+                                    const marker = getEventMarker(notification);
+                                    const address = notification.data?.address;
+                                    const title = cleanNotificationTitle(notification.title);
+                                    const message = notification.data?.updatePreview || cleanNotificationMessage(notification.message);
+                                    const timeStr = getRelativeTime(notification.createdAt);
 
-                                                <div className="flex gap-3">
-                                                    <div className="flex-shrink-0 mt-1 w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                                        <Icon className={`w-5 h-5 ${visual.iconClass}`} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-start gap-2">
-                                                            <p className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
-                                                                }`}>
-                                                                {cleanNotificationTitle(notification.title)}
-                                                            </p>
-                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0 mt-0.5">
-                                                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                                            </span>
-                                                        </div>
-                                                        <p className={`text-sm mt-0.5 line-clamp-2 ${!notification.isRead ? 'text-gray-600 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'
-                                                            }`}>
-                                                            {cleanNotificationMessage(notification.message)}
-                                                        </p>
-                                                    </div>
+                                    return (
+                                        <button
+                                            key={notification._id}
+                                            type="button"
+                                            onClick={() => handleNotificationClick(notification)}
+                                            className={`group flex w-full items-start gap-3 p-3.5 text-left transition-colors cursor-pointer ${
+                                                !notification.isRead
+                                                    ? 'bg-emerald-50/25 hover:bg-emerald-50/50 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/25'
+                                                    : 'bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
+                                            }`}
+                                        >
+                                            {/* Leading Status Indicator Dot */}
+                                            <div className="pt-1 shrink-0">
+                                                <span className={`block h-2 w-2 rounded-full ${marker.dot}`} aria-hidden="true" />
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="min-w-0 flex-1 space-y-0.5">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${marker.badge}`}>
+                                                        {marker.label}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+                                                        {timeStr}
+                                                    </span>
                                                 </div>
-                                            </motion.button>
-                                        );
-                                    })}
-                                </div>
+
+                                                {/* Incident Context / Address */}
+                                                <p className={`text-xs font-bold leading-snug break-words ${
+                                                    !notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
+                                                }`}>
+                                                    {address || title}
+                                                </p>
+
+                                                {/* Supporting Message */}
+                                                {message && (
+                                                    <p className="line-clamp-2 text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
+                                                        {message}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Chevron Action */}
+                                            <div className="pt-1 shrink-0 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                                                <HiOutlineChevronRight className="h-3.5 w-3.5" />
+                                            </div>
+                                        </button>
+                                    );
+                                })
                             )}
                         </div>
 
-                        {/* Footer */}
-                        <div className="px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        {/* Quiet Footer */}
+                        <div className="border-t border-gray-200/80 bg-gray-50/70 p-2.5 sm:px-3.5 dark:border-white/10 dark:bg-white/[0.02] flex items-center justify-end">
                             <button
-                                onClick={() => setIsOpen(false)}
-                                className="text-sm text-gray-500 hover:text-gray-700 font-medium px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                type="button"
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    navigate('/notifications');
+                                }}
+                                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                             >
-                                Close
-                            </button>
-                            <button
-                                onClick={() => navigate('/notifications')} // Assuming there's a full page
-                                className="text-sm text-primary-600 hover:text-primary-700 font-medium px-2 py-1 rounded hover:bg-primary-50 transition-colors"
-                            >
-                                View all
+                                View full inbox &rarr;
                             </button>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

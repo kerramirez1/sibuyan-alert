@@ -7,6 +7,7 @@ import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
+import { HiOutlineShieldCheck } from 'react-icons/hi';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -425,27 +426,35 @@ const ReportPage = () => {
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
+            {/* Page Header */}
             <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                        Reporter workflow
-                    </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>Emergency Intake</span>
+                            <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
+                            <span className="hidden xs:inline text-emerald-700 dark:text-emerald-400 font-bold">Guided Incident Reporting</span>
+                        </span>
+                    </div>
+                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Submit incident report
                     </h1>
-                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         Pin the incident location and provide the information authorities need to verify and dispatch the report.
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <span className="inline-flex items-center rounded-lg border border-gray-200/90 bg-gray-50/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                        Required fields are marked *
+                        Required fields marked <span className="ml-1 text-emerald-700 dark:text-emerald-400 font-black">*</span>
                     </span>
                 </div>
             </header>
 
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
+            {/* Guided Form Layout */}
+            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
+                {/* Left Column: Location Map */}
                 <div className="lg:sticky lg:top-20">
                     <ReportLocationPanel
                         locationStatus={locationStatus}
@@ -471,19 +480,22 @@ const ReportPage = () => {
                     />
                 </div>
 
-                <ReportDetailsPanel
-                    formData={formData}
-                    setFormData={setFormData}
-                    handleChange={handleChange}
-                    errors={errors}
-                    maxDateTime={maxDateTime}
-                    images={images}
-                    imagePreviews={imagePreviews}
-                    fileInputRef={fileInputRef}
-                    handleImageChange={handleImageChange}
-                    removeImage={removeImage}
-                    loading={loading}
-                />
+                {/* Right Column: Incident Details, Casualties, Evidence, and Review */}
+                <div>
+                    <ReportDetailsPanel
+                        formData={formData}
+                        setFormData={setFormData}
+                        handleChange={handleChange}
+                        errors={errors}
+                        maxDateTime={maxDateTime}
+                        images={images}
+                        imagePreviews={imagePreviews}
+                        fileInputRef={fileInputRef}
+                        handleImageChange={handleImageChange}
+                        removeImage={removeImage}
+                        loading={loading}
+                    />
+                </div>
             </form>
         </div>
     );

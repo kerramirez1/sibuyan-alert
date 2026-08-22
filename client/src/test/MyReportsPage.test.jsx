@@ -236,4 +236,62 @@ describe('reporter situation update flow', () => {
         expect(await screen.findByText('Two tricycles collided near the intersection.')).toBeInTheDocument();
         expect(screen.queryByText('A motorcycle is blocking one lane.')).not.toBeInTheDocument();
     });
+
+    test('opens mobile filter modal and applies filter cleanly', async () => {
+        const resolvedReport = {
+            ...initialReport,
+            _id: 'report-2',
+            address: 'Magdiwang bridge area',
+            status: 'resolved',
+        };
+        mocks.getMyReports.mockResolvedValue({ data: { data: [initialReport, resolvedReport] } });
+
+        renderPage();
+
+        expect(await screen.findByText('Poblacion coastal road')).toBeInTheDocument();
+        const mobileFilterBtn = screen.getByRole('button', { name: /Filter reports/i });
+        fireEvent.click(mobileFilterBtn);
+
+        const dialog = await screen.findByRole('dialog', { name: 'Filter reports by status' });
+        expect(dialog).toBeInTheDocument();
+        
+        // Select Resolved in modal
+        const modalResolvedButtons = screen.getAllByRole('button', { name: /Resolved/i });
+        // The one inside dialog
+        const modalBtn = modalResolvedButtons.find((btn) => dialog.contains(btn));
+        fireEvent.click(modalBtn);
+
+        // Apply filters
+        const applyBtn = screen.getByRole('button', { name: 'Apply filters' });
+        fireEvent.click(applyBtn);
+
+        expect(await screen.findByText('Magdiwang bridge area')).toBeInTheDocument();
+        expect(screen.queryByText('Poblacion coastal road')).not.toBeInTheDocument();
+    });
+
+    test('renders empty state when reporter has no submissions', async () => {
+        mocks.getMyReports.mockResolvedValueOnce({ data: { data: [] } });
+
+        renderPage();
+
+        expect(await screen.findByText('You have not submitted an incident report yet.')).toBeInTheDocument();
+        const submitLinks = screen.getAllByRole('link', { name: /Submit incident report/i });
+        expect(submitLinks.length).toBeGreaterThanOrEqual(1);
+        expect(submitLinks[0]).toHaveAttribute('href', '/report');
+    });
+
+    test('renders error state and retries fetching reports on click', async () => {
+        mocks.getMyReports.mockRejectedValueOnce(new Error('Network failure'));
+
+        renderPage();
+
+        expect(await screen.findByText('Unable to load your submitted reports.')).toBeInTheDocument();
+        const retryBtn = screen.getByRole('button', { name: /Retry/i });
+        expect(retryBtn).toBeInTheDocument();
+
+        mocks.getMyReports.mockResolvedValueOnce({ data: { data: [initialReport] } });
+        fireEvent.click(retryBtn);
+
+        expect(await screen.findByText('Poblacion coastal road')).toBeInTheDocument();
+    });
 });

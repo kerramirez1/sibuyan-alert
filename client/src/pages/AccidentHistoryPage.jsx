@@ -17,7 +17,6 @@ import {
     HiOutlinePhotograph,
     HiOutlineSearch,
     HiOutlineShieldCheck,
-    HiOutlineSortDescending,
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
@@ -744,19 +743,20 @@ const AccidentHistoryPage = () => {
 
                             {/* Sort Selector */}
                             <div className="relative flex items-center">
-                                <label className="sr-only">Sort records</label>
-                                <div className="pointer-events-none absolute left-2.5 flex items-center text-gray-400 dark:text-gray-500" aria-hidden="true">
-                                    <HiOutlineSortDescending className="h-3.5 w-3.5" />
-                                </div>
+                                <label htmlFor="history-sort-select" className="sr-only">Sort records</label>
                                 <select
+                                    id="history-sort-select"
                                     value={sortOrder}
                                     onChange={(e) => setSortOrder(e.target.value)}
-                                    className="h-9 rounded-xl border border-gray-200/90 bg-white py-1 pl-7.5 pr-2.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition hover:bg-gray-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
+                                    className="h-9 appearance-none rounded-xl border border-gray-200/90 bg-white py-1 pl-3 pr-8 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition hover:bg-gray-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
                                 >
                                     {SORT_OPTIONS.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     ))}
                                 </select>
+                                <div className="pointer-events-none absolute right-2.5 flex items-center text-gray-400 dark:text-gray-500" aria-hidden="true">
+                                    <HiOutlineChevronDown className="h-3.5 w-3.5" />
+                                </div>
                             </div>
                         </div>
                     </div>
