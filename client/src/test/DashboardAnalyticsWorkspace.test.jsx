@@ -103,7 +103,7 @@ describe('DashboardAnalyticsWorkspace', () => {
             'sm:h-[360px]',
             'lg:h-[400px]',
         );
-        expect(screen.getByText(report.address)).toHaveClass('line-clamp-2');
+        expect(screen.getByText(report.address)).toHaveClass('truncate');
 
         const recentActivitySection = screen.getByLabelText('Recent activity');
         const activityBadge = within(recentActivitySection).getByText('Verified');

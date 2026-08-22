@@ -1,10 +1,7 @@
 import { useId } from 'react';
 import { format, formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import {
-    Bar,
-    BarChart,
     CartesianGrid,
-    Cell,
     Line,
     LineChart,
     ResponsiveContainer,
@@ -15,25 +12,18 @@ import {
 import {
     HiChevronLeft,
     HiChevronRight,
-    HiOutlineBadgeCheck,
-    HiOutlineClipboardList,
-    HiOutlineClock,
     HiOutlineDownload,
-    HiOutlineExclamation,
-    HiOutlineLightningBolt,
     HiOutlineMap,
-    HiOutlineTruck,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import { buildCsvDocument } from '../../utils/csvExport';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
-const MUNICIPALITY_COLORS = ['#2563eb', '#f97316', '#16a34a', '#dc2626', '#7c3aed'];
 const TREND_SERIES = Object.freeze({
     daily: Object.freeze({ label: 'Daily reports' }),
 });
 
-const PANEL_CLASS = 'rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
+const PANEL_CLASS = 'rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
 
 const formatActivityTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -58,10 +48,10 @@ export const formatXAxisDay = (value) => {
 const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-        <div className="rounded-xl border border-gray-200/90 bg-white/95 p-3 text-xs shadow-md backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95">
-            <p className="mb-1.5 font-bold text-gray-900 dark:text-white">{payload[0].payload.fullDate || label}</p>
+        <div className="rounded-lg border border-gray-200/90 bg-white/95 p-2.5 text-xs shadow-md backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95">
+            <p className="mb-1 font-bold text-gray-900 dark:text-white">{payload[0].payload.fullDate || label}</p>
             {payload.map((entry) => (
-                <div key={entry.dataKey} className="flex items-center justify-between gap-4 py-0.5">
+                <div key={entry.dataKey} className="flex items-center justify-between gap-3 py-0.5">
                     <span className="text-[11px] text-gray-500 dark:text-gray-400">{entry.name || entry.dataKey}</span>
                     <span className="font-bold text-gray-900 dark:text-white tabular-nums">{entry.value}</span>
                 </div>
@@ -70,21 +60,8 @@ const ChartTooltip = ({ active, payload, label }) => {
     );
 };
 
-const MetricCard = ({ label, value, helper, icon: Icon }) => (
-    <article className="flex min-w-0 flex-col justify-between rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-4.5 shadow-2xs transition-colors hover:border-gray-300 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:border-white/20">
-        <div>
-            <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
-                <Icon className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-            </div>
-            <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{value}</p>
-        </div>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">{helper}</p>
-    </article>
-);
-
 const EmptyChart = ({ message = 'No data for the selected period', detail }) => (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-xl bg-gray-50/80 px-4 py-6 text-center dark:bg-white/[0.02]">
+    <div className="flex min-h-24 flex-col items-center justify-center rounded-lg bg-gray-50/80 px-4 py-5 text-center dark:bg-white/[0.02]">
         <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{message}</p>
         {detail && <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{detail}</p>}
     </div>
@@ -101,15 +78,23 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
 
     return (
         <div className={`${PANEL_CLASS} lg:col-span-2`}>
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
                 <div>
-                    <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">Incident trend</h2>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily reports for {format(selectedMonth, 'MMMM yyyy')}</p>
+                    <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Incident trend</h2>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily volume for {format(selectedMonth, 'MMMM yyyy')}</p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-500" />
+                        {TREND_SERIES.daily.label}
+                    </span>
+                    <span>·</span>
+                    <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
                 </div>
             </div>
 
             {!hasTrendData ? (
-                <div className="mt-4">
+                <div className="mt-3">
                     <EmptyChart
                         message={reportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
                         detail={reportCount === 0
@@ -118,25 +103,18 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                     />
                 </div>
             ) : (
-                <div className="mt-4">
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400" aria-hidden="true">
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-500" />
-                            {TREND_SERIES.daily.label}
-                        </span>
-                        <span className="tabular-nums">{reportLabel} recorded</span>
-                    </div>
+                <div className="mt-3">
                     <p id={summaryId} className="sr-only">
                         {reportLabel} recorded. Reports by active day: {activeDaySummary}.
                     </p>
                     <div
-                        className="mt-3 h-52 min-w-0 w-full sm:h-56"
+                        className="h-44 min-w-0 w-full sm:h-48"
                         role="img"
                         aria-label={`Daily incident report trend for ${format(selectedMonth, 'MMMM yyyy')}`}
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                            <LineChart data={chartData} margin={{ top: 6, right: 8, left: -24, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
@@ -146,14 +124,14 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                                     tickFormatter={formatXAxisDay}
                                     interval="preserveStartEnd"
                                     minTickGap={16}
-                                    dy={8}
+                                    dy={6}
                                 />
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
                                     allowDecimals={false}
-                                    width={30}
+                                    width={28}
                                 />
                                 <Tooltip content={<ChartTooltip />} />
                                 <Line
@@ -177,53 +155,100 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
 
 const LifecyclePanel = ({ statusData, totalReports }) => (
     <div className={PANEL_CLASS}>
-        <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
-        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
+        <div className="border-b border-gray-100 pb-2 dark:border-white/5">
+            <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
+        </div>
         {statusData.length ? (
-            <div className="mt-4 space-y-3" aria-label="Report lifecycle distribution">
+            <div className="mt-3 space-y-2.5" aria-label="Report lifecycle distribution">
                 {statusData.map((item) => {
                     const percentage = totalReports ? Math.round((item.value / totalReports) * 100) : 0;
                     return (
-                        <div key={item.name}>
-                            <div className="flex items-center justify-between gap-3 text-xs">
+                        <div key={item.name} className="rounded-lg bg-gray-50/60 p-2 dark:bg-white/[0.02]">
+                            <div className="flex items-center justify-between gap-2 text-xs">
                                 <span className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</span>
                                 <span className="font-bold text-gray-700 dark:text-gray-300 tabular-nums">{item.value} · {percentage}%</span>
                             </div>
-                            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
-                                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percentage}%`, backgroundColor: item.color }} />
+                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-200/70 dark:bg-white/10">
+                                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${percentage}%`, backgroundColor: item.color }} />
                             </div>
                         </div>
                     );
                 })}
             </div>
         ) : (
-            <div className="mt-4"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
+            <div className="mt-3"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
         )}
     </div>
 );
 
-const BreakdownCard = ({ title, description, data, labelWidth = 100, colors = false, emptyDetail }) => {
-    const chartHeight = Math.max(160, Math.min(260, data.length * 38 + 40));
+const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicipality = false }) => {
+    const totalCount = data.reduce((sum, item) => sum + (item.count || 0), 0);
+
     return (
         <div className={PANEL_CLASS}>
-            <h2 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">{title}</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
+                <div>
+                    <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">{title}</h2>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                </div>
+                {data.length > 0 && (
+                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        {data.length} {isMunicipality ? 'municipalities' : 'recorded'}
+                    </span>
+                )}
+            </div>
+
             {data.length ? (
-                <div className="mt-4 w-full" style={{ height: chartHeight }} role="img" aria-label={`${title}: ${description}`}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
-                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis)', fontSize: 11 }} allowDecimals={false} />
-                            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-axis-strong)', fontSize: 11 }} width={labelWidth} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="count" name="Reports" radius={[0, 4, 4, 0]} barSize={16}>
-                                {data.map((entry, index) => <Cell key={entry.name} fill={colors ? MUNICIPALITY_COLORS[index % MUNICIPALITY_COLORS.length] : '#059669'} />)}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div className="mt-3 space-y-2" role="list" aria-label={`${title}: ${description}`}>
+                    {data.map((item, index) => {
+                        const count = item.count || 0;
+                        const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+                        const isTop = index === 0 && count > 0;
+
+                        return (
+                            <div
+                                key={item.name}
+                                className={`group rounded-lg px-2.5 py-1.5 transition-colors ${
+                                    isTop
+                                        ? 'bg-emerald-50/70 border border-emerald-200/60 dark:bg-emerald-950/25 dark:border-emerald-800/30'
+                                        : 'bg-gray-50/60 border border-transparent hover:bg-gray-100/70 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
+                                }`}
+                                role="listitem"
+                            >
+                                <div className="flex items-center justify-between gap-2 text-xs">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
+                                            isTop
+                                                ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-gray-950'
+                                                : 'bg-gray-200 text-gray-600 dark:bg-white/10 dark:text-gray-300'
+                                        }`}>
+                                            {index + 1}
+                                        </span>
+                                        <span className="truncate font-semibold text-gray-900 dark:text-gray-100">
+                                            {item.name}
+                                        </span>
+                                    </div>
+                                    <span className="shrink-0 font-bold tabular-nums text-gray-700 dark:text-gray-300">
+                                        {count} <span className="text-[10px] font-normal text-gray-400">({percentage}%)</span>
+                                    </span>
+                                </div>
+                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-200/70 dark:bg-white/10">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-300 ${
+                                            isTop ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-gray-400 dark:bg-gray-500'
+                                        }`}
+                                        style={{ width: `${Math.max(percentage, count > 0 ? 4 : 0)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
-                <div className="mt-4"><EmptyChart message={`No ${title.toLowerCase()} data`} detail={emptyDetail} /></div>
+                <div className="mt-3">
+                    <EmptyChart message={`No ${title.toLowerCase()} data`} detail={emptyDetail} />
+                </div>
             )}
         </div>
     );
@@ -343,77 +368,46 @@ const DashboardAnalyticsWorkspace = ({
         );
     };
 
-    const metrics = [
-        { label: 'New reports', value: reports.length, helper: format(selectedMonth, 'MMMM yyyy'), icon: HiOutlineClipboardList },
-        { label: 'Pending review', value: performanceMetrics.pendingCount, helper: 'Awaiting administrator review', icon: HiOutlineExclamation },
-        { label: 'Dispatch ready', value: performanceMetrics.dispatchReadyCount, helper: 'Verified or transferred, unassigned', icon: HiOutlineMap },
-        { label: 'Responding', value: performanceMetrics.respondingCount, helper: 'Active field response', icon: HiOutlineTruck },
-        { label: 'Resolved', value: performanceMetrics.resolvedCount, helper: `${performanceMetrics.resolutionRate}% resolution rate`, icon: HiOutlineBadgeCheck },
-        {
-            label: 'Median response',
-            value: performanceMetrics.medianResponseMin === null ? '—' : `${performanceMetrics.medianResponseMin}m`,
-            helper: performanceMetrics.responseSampleCount
-                ? `${performanceMetrics.responseSampleCount} responded incident${performanceMetrics.responseSampleCount === 1 ? '' : 's'}`
-                : 'No responded incidents',
-            icon: HiOutlineClock,
-        },
-        { label: 'Active risk zones', value: activeRiskZoneCount, helper: 'Currently mapped hazards', icon: HiOutlineLightningBolt },
-    ];
-
-    const primaryMetrics = metrics.slice(0, 4);
-    const secondaryMetrics = metrics.slice(4);
-
     if (loading) {
         return (
-            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5 animate-pulse" aria-label="Loading analytics">
-                <div className="h-20 rounded-2xl bg-gray-100 dark:bg-white/5" />
-                <div className="space-y-3 sm:space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        {[0, 1, 2, 3].map((item) => (
-                            <div key={item} className="h-28 rounded-2xl bg-gray-100 dark:bg-white/5" />
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4">
-                        {[4, 5, 6].map((item) => (
-                            <div key={item} className="h-28 rounded-2xl bg-gray-100 dark:bg-white/5" />
-                        ))}
-                    </div>
+            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3 sm:space-y-4 animate-pulse" aria-label="Loading analytics">
+                <div className="h-16 rounded-xl bg-gray-100 dark:bg-white/5" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    {[0, 1, 2, 3].map((item) => (
+                        <div key={item} className="h-24 rounded-xl bg-gray-100 dark:bg-white/5" />
+                    ))}
                 </div>
-                <div className="h-72 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                <div className="h-64 rounded-xl bg-gray-100 dark:bg-white/5" />
             </div>
         );
     }
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4">
+            {/* Header & Controls */}
+            <header className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                            Operational analytics
-                        </p>
-                        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                            Incident overview
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                            {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
+                        </span>
+                        <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                            Municipal Situation Overview
                         </h1>
                         <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                            {hasMunicipality ? `${user?.assignedMunicipality} performance and incident trends.` : 'Performance and incident trends across Sibuyan Island.'}
+                            {hasMunicipality
+                                ? `${user?.assignedMunicipality} incident status and response readiness for ${format(selectedMonth, 'MMMM yyyy')}.`
+                                : `Island-wide incident briefing and municipal comparisons for ${format(selectedMonth, 'MMMM yyyy')}.`}
                         </p>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Sibuyan Island · Alert System Active</span>
-                        </div>
                     </div>
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-h-10 w-full items-center justify-between rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 lg:w-52">
+                    <div className="flex min-h-9 w-full items-center justify-between rounded-lg border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 lg:w-52">
                         <button
                             type="button"
                             onClick={() => setSelectedMonth((current) => subMonths(current, 1))}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                             aria-label="Previous month"
                         >
                             <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -421,7 +415,7 @@ const DashboardAnalyticsWorkspace = ({
                         <button
                             type="button"
                             onClick={() => setSelectedMonth(new Date())}
-                            className="min-w-0 flex-1 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            className="min-w-0 flex-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                             aria-label="Return to current month"
                         >
                             {format(selectedMonth, 'MMM yyyy')}
@@ -433,7 +427,7 @@ const DashboardAnalyticsWorkspace = ({
                                 if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
                             }}
                             disabled={isSameMonth(selectedMonth, new Date())}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-30"
                             aria-label="Next month"
                         >
                             <HiChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -442,15 +436,15 @@ const DashboardAnalyticsWorkspace = ({
                     <button
                         type="button"
                         onClick={onOpenMap}
-                        className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-28"
+                        className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
                     >
-                        <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
+                        <HiOutlineMap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                         Map
                     </button>
                     <button
                         type="button"
                         onClick={exportDashboard}
-                        className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:w-auto lg:min-w-28"
+                        className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:w-auto lg:min-w-24"
                         aria-label="Export dashboard data as CSV"
                     >
                         <HiOutlineDownload className="h-4 w-4" aria-hidden="true" />
@@ -459,70 +453,148 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
             </header>
 
-            {error && <div role="alert" className="rounded-xl border border-red-200/90 bg-red-50/80 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
+            {error && <div role="alert" className="rounded-lg border border-red-200/90 bg-red-50/80 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            {/* Top Stat Cards Grid (2 Rows) */}
-            <section className="space-y-3 sm:space-y-4" aria-label="Analytics summary">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {primaryMetrics.map((metric) => (
-                        <MetricCard key={metric.label} {...metric} />
-                    ))}
+            {/* Situation Summary (Operational Status Strip) */}
+            <section className="space-y-2" aria-label="Analytics summary">
+                <div className="overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/60 px-3.5 py-2 sm:px-4 dark:border-white/5 dark:bg-white/[0.02]">
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                            Incident overview
+                        </h2>
+                        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                            Operational Status
+                        </span>
+                    </div>
+
+                    {/* 4-Column Operational Status Ledger */}
+                    <div className="grid grid-cols-1 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
+                        {/* 1. Pending Review */}
+                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
+                            <div className="absolute inset-x-0 top-0 h-0.5 bg-amber-500" aria-hidden="true" />
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                    Pending review
+                                </span>
+                                {performanceMetrics.pendingCount > 0 && (
+                                    <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                                )}
+                            </div>
+                            <div className="my-1.5 flex items-baseline">
+                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
+                                    {performanceMetrics.pendingCount}
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                                {performanceMetrics.pendingCount > 0 ? 'Awaiting review' : 'No pending reports'}
+                            </p>
+                        </div>
+
+                        {/* 2. Dispatch Ready */}
+                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
+                            <div className="absolute inset-x-0 top-0 h-0.5 bg-blue-500" aria-hidden="true" />
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                    Dispatch ready
+                                </span>
+                                {performanceMetrics.dispatchReadyCount > 0 && (
+                                    <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" aria-hidden="true" />
+                                )}
+                            </div>
+                            <div className="my-1.5 flex items-baseline">
+                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
+                                    {performanceMetrics.dispatchReadyCount}
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                                {performanceMetrics.dispatchReadyCount > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
+                            </p>
+                        </div>
+
+                        {/* 3. Responding */}
+                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
+                            <div className="absolute inset-x-0 top-0 h-0.5 bg-cyan-500" aria-hidden="true" />
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                    Responding
+                                </span>
+                                {performanceMetrics.respondingCount > 0 ? (
+                                    <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="my-1.5 flex items-baseline">
+                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
+                                    {performanceMetrics.respondingCount}
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                                {performanceMetrics.respondingCount > 0 ? 'Field response active' : 'No active field response'}
+                            </p>
+                        </div>
+
+                        {/* 4. Resolved */}
+                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
+                            <div className="absolute inset-x-0 top-0 h-0.5 bg-emerald-500/80" aria-hidden="true" />
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    Resolved
+                                </span>
+                            </div>
+                            <div className="my-1.5 flex items-baseline">
+                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-800 dark:text-gray-200">
+                                    {performanceMetrics.resolvedCount}
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                                {performanceMetrics.resolutionRate}% resolution rate
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {secondaryMetrics.map((metric) => (
-                        <MetricCard key={metric.label} {...metric} />
-                    ))}
+
+                {/* Secondary Inline Operational Facts */}
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg border border-gray-200/70 bg-gray-50/60 px-3.5 py-2 text-xs text-gray-600 dark:border-white/5 dark:bg-white/[0.02] dark:text-gray-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{reports.length}</span>
+                        </span>
+                        <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                                {performanceMetrics.medianResponseMin === null ? '—' : `${performanceMetrics.medianResponseMin}m`}
+                            </span>
+                            <span className="text-[11px] text-gray-400">
+                                {performanceMetrics.responseSampleCount
+                                    ? `(${performanceMetrics.responseSampleCount} responded incident${performanceMetrics.responseSampleCount === 1 ? '' : 's'})`
+                                    : 'No responded incidents'}
+                            </span>
+                        </span>
+                        <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Active risk zones</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
+                        </span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        {format(selectedMonth, 'MMMM yyyy')} scope
+                    </span>
                 </div>
             </section>
 
-            {/* Monthly Insights Section */}
-            <section className="grid gap-4 lg:grid-cols-3" aria-label="Monthly insights">
+            {/* Monthly Insights Section: Incident Trend & Lifecycle */}
+            <section className="grid gap-3 lg:grid-cols-3" aria-label="Monthly insights">
                 <TrendPanel chartData={chartData} selectedMonth={selectedMonth} reportCount={reports.length} />
                 <LifecyclePanel statusData={statusData} totalReports={reports.length} />
             </section>
 
-            {/* Operational Breakdown Section */}
-            <section className="grid gap-4 lg:grid-cols-2" aria-label="Operational breakdown">
-                {hasMunicipality ? (
-                    <>
-                        <BreakdownCard
-                            title="By barangay"
-                            description={`Reports within ${user?.assignedMunicipality || 'the assigned municipality'}`}
-                            data={barangayBarData.slice(0, 8)}
-                            labelWidth={112}
-                            emptyDetail="Barangay information was not supplied for reports in this period."
-                        />
-                        <BreakdownCard
-                            title="By incident type"
-                            description="Most reported incident classifications"
-                            data={incidentTypeBarData.slice(0, 8)}
-                            labelWidth={112}
-                            emptyDetail="Incident type information is unavailable for this period."
-                        />
-                    </>
-                ) : (
-                    <>
-                        <BreakdownCard
-                            title="By municipality"
-                            description="Reports per municipality"
-                            data={municipalityBarData}
-                            colors
-                            emptyDetail="No municipality totals are available for this period."
-                        />
-                        <BreakdownCard
-                            title="By barangay"
-                            description="Top barangays by report count"
-                            data={barangayBarData.slice(0, 8)}
-                            labelWidth={120}
-                            emptyDetail="Barangay information was not supplied for reports in this period."
-                        />
-                    </>
-                )}
-            </section>
-
-            {/* Map Preview Section */}
-            <section className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
-                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
+            {/* Incident Map Section */}
+            <section className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
+                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-3.5 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-4">
                     <div>
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Incident map</h2>
                         <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Current pending, verified, transferred, and responding incidents</p>
@@ -530,7 +602,7 @@ const DashboardAnalyticsWorkspace = ({
                     <button
                         type="button"
                         onClick={onOpenMap}
-                        className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+                        className="inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
                     >
                         <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                         Open full map
@@ -551,17 +623,53 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
             </section>
 
-            {/* Recent Activity Section */}
-            <section ref={historySectionRef} className="rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
-                <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3">
+            {/* Operational Breakdown Section: Ranked Barangay & Category Lists */}
+            <section className="grid gap-3 lg:grid-cols-2" aria-label="Operational breakdown">
+                {hasMunicipality ? (
+                    <>
+                        <RankedBreakdownPanel
+                            title="By barangay"
+                            description={`Reports within ${user?.assignedMunicipality || 'the assigned municipality'}`}
+                            data={barangayBarData.slice(0, 8)}
+                            emptyDetail="Barangay information was not supplied for reports in this period."
+                        />
+                        <RankedBreakdownPanel
+                            title="By incident type"
+                            description="Most reported incident classifications"
+                            data={incidentTypeBarData.slice(0, 8)}
+                            emptyDetail="Incident type information is unavailable for this period."
+                        />
+                    </>
+                ) : (
+                    <>
+                        <RankedBreakdownPanel
+                            title="By municipality"
+                            description="Reports per municipality"
+                            data={municipalityBarData}
+                            isMunicipality
+                            emptyDetail="No municipality totals are available for this period."
+                        />
+                        <RankedBreakdownPanel
+                            title="By barangay"
+                            description="Top barangays by report count"
+                            data={barangayBarData.slice(0, 8)}
+                            emptyDetail="Barangay information was not supplied for reports in this period."
+                        />
+                    </>
+                )}
+            </section>
+
+            {/* Recent Operational Activity Section */}
+            <section ref={historySectionRef} className="overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
+                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-3.5 py-2 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-4">
                     <div>
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity</h2>
-                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Latest report updates across the current scope</p>
+                        <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
                     </div>
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
                     >
                         View incident queue
                     </button>
@@ -574,13 +682,13 @@ const DashboardAnalyticsWorkspace = ({
                             return (
                                 <article
                                     key={reportItem._id}
-                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-4 py-3 sm:px-5 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/[0.02]"
+                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-3 py-2 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/[0.02] sm:grid-cols-[minmax(0,1fr)_116px] sm:px-4"
                                 >
-                                    <div className="min-w-0">
-                                        <p className="line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-sm">
                                             {reportItem.address || reportItem.title || 'Location unavailable'}
                                         </p>
-                                        <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                                        <p className="mt-0.5 truncate text-[10px] leading-4 text-gray-500 dark:text-gray-400 sm:text-[11px]">
                                             {reportItem.municipalityName || 'Unknown municipality'}
                                             <span aria-hidden="true"> · </span>
                                             {reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
@@ -588,10 +696,14 @@ const DashboardAnalyticsWorkspace = ({
                                             {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
                                         </p>
                                     </div>
-                                    <div className="flex justify-end">
-                                        <span className="inline-flex h-6 w-[104px] items-center justify-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                    <div className="flex w-[108px] shrink-0 justify-end sm:w-[116px]">
+                                        <span
+                                            className="inline-flex h-7 w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300"
+                                            title={`Status: ${statusConfig.label || status}`}
+                                            aria-label={`Status: ${statusConfig.label || status}`}
+                                        >
                                             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                                            <span className="truncate">{statusConfig.label || status}</span>
+                                            <span className="whitespace-nowrap">{statusConfig.label || status}</span>
                                         </span>
                                     </div>
                                 </article>
@@ -604,6 +716,6 @@ const DashboardAnalyticsWorkspace = ({
     );
 };
 
-const EmptyState = () => <div className="px-5 py-10 text-center text-xs text-gray-500 dark:text-gray-400">No recent activity available.</div>;
+const EmptyState = () => <div className="px-4 py-8 text-center text-xs text-gray-500 dark:text-gray-400">No recent activity available.</div>;
 
 export default DashboardAnalyticsWorkspace;

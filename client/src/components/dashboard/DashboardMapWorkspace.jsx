@@ -3,15 +3,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
+    HiChevronLeft,
+    HiChevronRight,
     HiOutlineBadgeCheck,
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
+    HiOutlineCheck,
     HiOutlineCheckCircle,
     HiOutlineClock,
     HiOutlineExclamation,
+    HiOutlineFilter,
     HiOutlineLightningBolt,
     HiOutlinePlus,
     HiOutlineTruck,
+    HiOutlineX,
 } from 'react-icons/hi';
 import { Link } from '../../router';
 import MapView from '../map/MapView';
@@ -204,7 +209,7 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
     );
 };
 
-const MetricStripItem = ({ label, value, helper, onClick, selected, loading = false }) => (
+const MetricStripItem = ({ label, value, helper, onClick, selected, loading = false, statusDot }) => (
     <button
         type="button"
         onClick={onClick}
@@ -219,15 +224,18 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
             }`}
     >
         <div className="flex items-center justify-between gap-3">
-            <p className={`text-[11px] font-bold uppercase tracking-wider transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
-                {label}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+                {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+                <p className={`truncate text-[11px] font-bold uppercase tracking-wider transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
+                    {label}
+                </p>
+            </div>
             <span className={`flex shrink-0 items-center transition-colors ${selected ? 'text-brand-700 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-400'}`} aria-hidden="true">
                 <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </span>
         </div>
-        <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
-        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+        <p className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white tabular-nums">{value}</p>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{helper}</p>
     </button>
 );
 
@@ -265,6 +273,9 @@ const DashboardMapWorkspace = ({
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
+    const filterScrollRef = useRef(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
     const [panelActionLoading, setPanelActionLoading] = useState(false);
@@ -358,6 +369,33 @@ const DashboardMapWorkspace = ({
         closeMapSummaryPanel();
     }, [closeMapSummaryPanel]);
 
+    const updateFilterScrollState = useCallback(() => {
+        const el = filterScrollRef.current;
+        if (!el) return;
+        const { scrollLeft, scrollWidth, clientWidth } = el;
+        setCanScrollLeft(scrollLeft > 2);
+        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
+    }, []);
+
+    const scrollFilterRail = useCallback((direction) => {
+        const el = filterScrollRef.current;
+        if (!el) return;
+        const scrollAmount = direction === 'left' ? -200 : 200;
+        el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }, []);
+
+    useEffect(() => {
+        const el = filterScrollRef.current;
+        if (!el) return undefined;
+        updateFilterScrollState();
+        el.addEventListener('scroll', updateFilterScrollState, { passive: true });
+        window.addEventListener('resize', updateFilterScrollState);
+        return () => {
+            el.removeEventListener('scroll', updateFilterScrollState);
+            window.removeEventListener('resize', updateFilterScrollState);
+        };
+    }, [updateFilterScrollState, reports, highRiskZones, responderMapFilter]);
+
     const metrics = isResponder
         ? [
             {
@@ -366,6 +404,7 @@ const DashboardMapWorkspace = ({
                 panelTitle: 'Awaiting response', panelDescription: `${pendingReports.length} ${pendingReports.length === 1 ? 'incident' : 'incidents'} available for response`,
                 records: pendingReports, mapFilter: 'pending', emptyTitle: 'No incidents awaiting response',
                 emptyDescription: 'All available incidents are assigned or already resolved.',
+                statusDot: 'bg-amber-500',
             },
             {
                 id: 'responder-active', label: 'Active response', value: respondingReports.length,
@@ -373,6 +412,7 @@ const DashboardMapWorkspace = ({
                 panelTitle: 'Active responses', panelDescription: `${respondingReports.length} assigned ${respondingReports.length === 1 ? 'incident' : 'incidents'}`,
                 records: respondingReports, mapFilter: 'responding', emptyTitle: 'No active responses',
                 emptyDescription: 'No incidents are currently assigned or in active response.',
+                statusDot: 'bg-cyan-500 animate-pulse',
             },
             {
                 id: 'responder-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
@@ -380,12 +420,14 @@ const DashboardMapWorkspace = ({
                 panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
                 records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
                 emptyDescription: 'You have not resolved any incidents today.',
+                statusDot: 'bg-emerald-500',
             },
             {
                 id: 'responder-risk-zones', label: 'Risk zones', value: highRiskZones.length,
                 helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
                 panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
                 loading: highRiskZonesLoading, error: highRiskZonesError,
+                statusDot: 'bg-red-500',
             },
         ]
         : isAdmin
@@ -396,6 +438,7 @@ const DashboardMapWorkspace = ({
                     panelTitle: 'Pending incidents', panelDescription: `${adminPendingReports.length} ${adminPendingReports.length === 1 ? 'report' : 'reports'} awaiting municipal review`,
                     records: adminPendingReports, mapFilter: 'pending', emptyTitle: 'No pending incidents',
                     emptyDescription: 'No incidents are currently awaiting municipal review.',
+                    statusDot: 'bg-amber-500',
                 },
                 {
                     id: 'admin-dispatchable', label: 'Verified / transferred', value: dispatchableReports.length,
@@ -403,6 +446,7 @@ const DashboardMapWorkspace = ({
                     panelTitle: 'Verified / transferred incidents', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} available for dispatch`,
                     records: dispatchableReports, mapFilter: 'all', emptyTitle: 'No incidents available for dispatch',
                     emptyDescription: 'No verified or transferred incidents are currently available for dispatch.',
+                    statusDot: 'bg-blue-500',
                 },
                 {
                     id: 'admin-responding', label: 'Responding', value: activeResponseReports.length,
@@ -410,6 +454,7 @@ const DashboardMapWorkspace = ({
                     panelTitle: 'Responding incidents', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} in active response`,
                     records: activeResponseReports, mapFilter: 'responding', emptyTitle: 'No responding incidents',
                     emptyDescription: 'No incidents are currently in active response.',
+                    statusDot: 'bg-cyan-500 animate-pulse',
                 },
                 {
                     id: 'admin-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
@@ -417,6 +462,7 @@ const DashboardMapWorkspace = ({
                     panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
                     records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
                     emptyDescription: 'No incidents have been resolved today.',
+                    statusDot: 'bg-emerald-500',
                 },
             ]
 
@@ -433,6 +479,7 @@ const DashboardMapWorkspace = ({
                     // suppresses the hazard layer, isolating incident pins.
                     mapFilter: 'incidents',
                     emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
+                    statusDot: 'bg-blue-500',
                 },
                 {
                     id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
@@ -442,6 +489,7 @@ const DashboardMapWorkspace = ({
                     mapFilter: 'responding',
                     emptyTitle: 'No active responses',
                     emptyDescription: 'No public incidents are currently in active response.',
+                    statusDot: 'bg-cyan-500 animate-pulse',
                 },
                 {
                     id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
@@ -451,12 +499,14 @@ const DashboardMapWorkspace = ({
                     mapFilter: 'transferred',
                     emptyTitle: 'No transferred incidents',
                     emptyDescription: 'No public incidents are currently transferred to another area.',
+                    statusDot: 'bg-violet-500',
                 },
                 {
                     id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
                     helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
                     panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
                     loading: highRiskZonesLoading, error: highRiskZonesError,
+                    statusDot: 'bg-red-500',
                 },
             ];
 
@@ -680,40 +730,117 @@ const DashboardMapWorkspace = ({
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (
-                        <div
-                            className="flex w-full sm:w-fit max-w-full items-center gap-1 sm:gap-1.5 rounded-xl border border-gray-200/80 bg-gray-100/90 p-1 dark:border-white/10 dark:bg-white/5 overflow-x-auto no-scrollbar"
-                            aria-label="Map status filter"
-                        >
-                            {mapExperience.filters.map((filter) => {
-                                const count = getFilterCount(filter.value);
-                                const isSelected = responderMapFilter === filter.value;
-                                const statusCfg = filter.value === 'risk-zones'
-                                    ? { dot: 'bg-red-500' }
-                                    : MAP_STATUS_CONFIG[filter.value];
-                                return (
+                        <div className="flex w-full min-w-0 max-w-full items-center gap-2 pt-1">
+                            {/* Fixed Filter by status badge */}
+                            <div className="inline-flex min-h-8 shrink-0 flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-700 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                <HiOutlineFilter className="h-3.5 w-3.5 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                <span>Filter by status</span>
+                            </div>
+
+                            {/* Scrollable Status-Buttons Container with Gradient Fades & Chevron Buttons */}
+                            <div className="relative min-w-0 flex-1 overflow-hidden">
+                                {/* Left Fade Gradient */}
+                                {canScrollLeft && (
+                                    <div
+                                        className="pointer-events-none absolute left-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-r from-gray-50/95 dark:from-[#091710]/95 to-transparent"
+                                        aria-hidden="true"
+                                    />
+                                )}
+
+                                {/* Left Chevron Button */}
+                                {canScrollLeft && (
                                     <button
-                                        key={filter.value}
                                         type="button"
-                                        onClick={() => setResponderMapFilter(filter.value)}
-                                        aria-pressed={isSelected}
-                                        className={`inline-flex min-h-8 sm:min-h-7 shrink-0 items-center gap-1.5 rounded-full sm:rounded-lg px-3 py-1 sm:px-2.5 sm:py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
-                                            ? 'bg-white text-gray-950 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40'
-                                            : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                            }`}
+                                        onClick={() => scrollFilterRail('left')}
+                                        aria-label="Scroll filter options left"
+                                        className="absolute left-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
                                     >
-                                        {statusCfg?.dot && (
-                                            <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                        )}
-                                        <span>{filter.label}</span>
-                                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none ${isSelected
-                                            ? 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-200'
-                                            : 'bg-gray-200/70 text-gray-600 dark:bg-white/5 dark:text-gray-400'
-                                            }`}>
-                                            {count}
-                                        </span>
+                                        <HiChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
                                     </button>
-                                );
-                            })}
+                                )}
+
+                                {/* Horizontally Scrollable Button Rail */}
+                                <div
+                                    ref={filterScrollRef}
+                                    className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 whitespace-nowrap scrollbar-hide no-scrollbar scroll-smooth"
+                                    aria-label="Map status filter"
+                                    role="group"
+                                >
+                                    {mapExperience.filters.map((filter) => {
+                                        const count = getFilterCount(filter.value);
+                                        const isSelected = responderMapFilter === filter.value;
+                                        const isAllActive = filter.value === 'all';
+                                        const statusCfg = filter.value === 'risk-zones'
+                                            ? { dot: 'bg-red-500' }
+                                            : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
+
+                                        return (
+                                            <button
+                                                key={filter.value}
+                                                type="button"
+                                                onClick={() => setResponderMapFilter(filter.value)}
+                                                aria-pressed={isSelected}
+                                                aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                className={`group relative inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 active:scale-[0.98] ${
+                                                    isSelected
+                                                        ? isAllActive
+                                                            ? 'border-brand-800 bg-brand-900 text-white shadow-xs ring-1 ring-brand-800 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-600/50'
+                                                            : 'border-brand-700 bg-brand-800 text-white shadow-xs ring-1 ring-brand-700 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200 dark:ring-emerald-700/40'
+                                                        : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
+                                                }`}
+                                            >
+                                                {isSelected ? (
+                                                    <HiOutlineCheck className="h-3.5 w-3.5 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
+                                                ) : (
+                                                    statusCfg?.dot && (
+                                                        <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                                    )
+                                                )}
+                                                <span>{filter.label}</span>
+                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${
+                                                    isSelected
+                                                        ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
+                                                        : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
+                                                }`}>
+                                                    {count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+
+                                    {responderMapFilter !== 'all' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setResponderMapFilter('all')}
+                                            aria-label="Clear active filter and show all"
+                                            className="inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-white/50 px-2 py-1 text-[11px] font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                        >
+                                            <HiOutlineX className="h-3 w-3" aria-hidden="true" />
+                                            <span>Clear filter</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Right Fade Gradient */}
+                                {canScrollRight && (
+                                    <div
+                                        className="pointer-events-none absolute right-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-l from-gray-50/95 dark:from-[#091710]/95 to-transparent"
+                                        aria-hidden="true"
+                                    />
+                                )}
+
+                                {/* Right Chevron Button */}
+                                {canScrollRight && (
+                                    <button
+                                        type="button"
+                                        onClick={() => scrollFilterRail('right')}
+                                        aria-label="Scroll filter options right"
+                                        className="absolute right-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
+                                    >
+                                        <HiChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -836,6 +963,7 @@ const DashboardMapWorkspace = ({
                             value={metric.value}
                             helper={metric.helper}
                             icon={metric.icon}
+                            statusDot={metric.statusDot}
                             onClick={() => openOverviewMetric(metric)}
                             selected={mapSummaryPanel === `${OVERVIEW_PANEL_PREFIX}${metric.id}`}
                             loading={metric.loading}
@@ -845,14 +973,23 @@ const DashboardMapWorkspace = ({
             </section>
 
             {!isAuthenticated && (
-                <section className="flex flex-col gap-4 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="font-display text-sm font-bold text-gray-950 sm:text-base dark:text-white">Report incidents in your community</h2>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 sm:text-sm">Create and verify a reporter account to submit incident reports.</p>
+                <section className="flex flex-col gap-4 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between" aria-label="Public safety and reporter registration">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-800 dark:bg-brand-950/60 dark:text-brand-300">
+                                Public Safety Portal
+                            </span>
+                        </div>
+                        <h2 className="mt-1 font-display text-sm font-bold text-gray-950 sm:text-base dark:text-white">
+                            Sibuyan Island Emergency Network
+                        </h2>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 sm:text-sm max-w-xl">
+                            Verified emergency incident feeds and active hazard maps are public. Citizen reporters must verify their identity to file real-time emergency reports.
+                        </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
                         <Button as={Link} to="/login" variant="secondary" className="rounded-xl border-gray-200 dark:border-white/10 text-xs font-semibold">Sign in</Button>
-                        <Button as={Link} to="/register" className="rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-2xs">Register</Button>
+                        <Button as={Link} to="/register" className="rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-2xs">Become a Reporter</Button>
                     </div>
                 </section>
             )}
