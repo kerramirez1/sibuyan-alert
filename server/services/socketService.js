@@ -2,6 +2,7 @@
  * Socket.IO Service for Alert Broadcasting
  * Centralized service for managing real-time notifications and alerts
  */
+import { buildReportEvidenceObject } from '../utils/publicReport.js';
 
 /**
  * Broadcast verified report alert to all responder units in a municipality
@@ -118,6 +119,8 @@ export const broadcastMultiUnitResponse = (io, report, responder, unitName, unit
 export const broadcastReportVerified = (io, report) => {
     if (!io) return;
 
+    const evidence = buildReportEvidenceObject(report);
+
     io.emit('reportVerified', {
         id: report._id,
         incidentCategory: report.incidentCategory,
@@ -135,6 +138,9 @@ export const broadcastReportVerified = (io, report) => {
         priority: report.priority,
         casualties: report.casualties,
         fireInvolved: Boolean(report.fireInvolved),
+        evidence,
+        evidenceCount: evidence.count,
+        images: evidence.items.map((item) => item.previewUrl),
     });
 
     // Notify municipality-specific channel (use municipalityName to match frontend rooms)
@@ -198,6 +204,8 @@ export const leaveResponderRoom = (socket, municipalityId) => {
 export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) => {
     if (!io) return;
 
+    const evidence = buildReportEvidenceObject(report);
+
     const eventData = {
         id: report._id,
         title: report.title,
@@ -215,6 +223,9 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
         toMunicipality: toMuni,
         municipalityName: toMuni,
         status: report.status,
+        evidence,
+        evidenceCount: evidence.count,
+        images: evidence.items.map((item) => item.previewUrl),
     };
 
     // 1. Emit to general dashboard channel (public update)

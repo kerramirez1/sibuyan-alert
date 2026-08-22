@@ -12,6 +12,7 @@ import {
     getCategories,
     searchLocations,
     geocodeLocation,
+    getReportEvidencePreview,
 } from '../controllers/reportController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
@@ -48,6 +49,7 @@ router.post(
 );  // ❌ Ordinary users CANNOT submit reports
 
 // Single report: public can view verified/responding, private for pending/rejected
+router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);
 router.post('/:id/updates', protect, requireVerifiedReporter, addReportUpdate);
 router.get('/:id', optionalAuth, getReportById);
 

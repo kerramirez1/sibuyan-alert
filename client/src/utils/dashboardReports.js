@@ -11,10 +11,24 @@ export const mergeDashboardReport = (existingReport, incomingReport) => {
     const incoming = incomingReport || {};
     const incomingResolverId = incoming.resolvedBy?._id ?? incoming.resolvedBy?.id;
 
+    // Preserves existing evidence metadata and descriptors if incoming payload omits them
+    const evidence = incoming.evidence !== undefined
+        ? incoming.evidence
+        : existing.evidence;
+    const evidenceCount = incoming.evidenceCount !== undefined
+        ? incoming.evidenceCount
+        : existing.evidenceCount;
+    const images = (Array.isArray(incoming.images) && incoming.images.length > 0)
+        ? incoming.images
+        : existing.images;
+
     return {
         ...existing,
         ...incoming,
         _id: id,
+        evidence,
+        evidenceCount,
+        images,
         createdAt: existing.createdAt
             || incoming.createdAt
             || incoming.timestamp

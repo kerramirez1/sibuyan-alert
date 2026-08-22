@@ -22,6 +22,7 @@ import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
 import MapOverlayPanel from '../map/MapOverlayPanel';
+import MapMobileFilterSheet from './MapMobileFilterSheet';
 import Button from '../ui/Button';
 import {
     getFilteredMapReports,
@@ -274,6 +275,8 @@ const DashboardMapWorkspace = ({
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const filterScrollRef = useRef(null);
+    const mobileFilterTriggerRef = useRef(null);
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
@@ -729,120 +732,196 @@ const DashboardMapWorkspace = ({
                             </p>
                         )}
                     </div>
-                    {mapExperience.filters.length > 0 && (
-                        <div className="flex w-full min-w-0 max-w-full items-center gap-2 pt-1">
-                            {/* Fixed Filter by status badge */}
-                            <div className="inline-flex min-h-8 shrink-0 flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-700 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                <HiOutlineFilter className="h-3.5 w-3.5 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
-                                <span>Filter by status</span>
-                            </div>
+                    {mapExperience.filters.length > 0 && (() => {
+                        const isFiltered = responderMapFilter && responderMapFilter !== 'all';
+                        const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
+                        const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active');
+                        const activeFilterCount = getFilterCount(responderMapFilter);
+                        const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
+                        const activeStatusDotClass = responderMapFilter === 'risk-zones'
+                            ? 'bg-red-500'
+                            : (MAP_STATUS_CONFIG[responderMapFilter]?.dot || (responderMapFilter === 'all' ? 'bg-emerald-500' : 'bg-gray-400'));
 
-                            {/* Scrollable Status-Buttons Container with Gradient Fades & Chevron Buttons */}
-                            <div className="relative min-w-0 flex-1 overflow-hidden">
-                                {/* Left Fade Gradient */}
-                                {canScrollLeft && (
-                                    <div
-                                        className="pointer-events-none absolute left-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-r from-gray-50/95 dark:from-[#091710]/95 to-transparent"
-                                        aria-hidden="true"
-                                    />
-                                )}
-
-                                {/* Left Chevron Button */}
-                                {canScrollLeft && (
+                        return (
+                            <>
+                                {/* 1. Mobile Filter Control Bar (< sm / < 640px) */}
+                                <div className="flex sm:hidden w-full items-center justify-between gap-2 pt-1">
+                                    {/* Filters Button */}
                                     <button
+                                        ref={mobileFilterTriggerRef}
                                         type="button"
-                                        onClick={() => scrollFilterRail('left')}
-                                        aria-label="Scroll filter options left"
-                                        className="absolute left-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
+                                        onClick={() => setIsMobileFilterOpen(true)}
+                                        aria-expanded={isMobileFilterOpen}
+                                        aria-haspopup="dialog"
+                                        aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
+                                        className={`inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                            isFiltered
+                                                ? 'border-brand-700 bg-brand-900 text-white dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100'
+                                                : 'border-gray-300/90 bg-white text-gray-900 dark:border-white/15 dark:bg-[#07130e] dark:text-gray-100'
+                                        }`}
                                     >
-                                        <HiChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                                        <HiOutlineFilter className={`h-4 w-4 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
+                                        <span>Filters</span>
+                                        {isFiltered && (
+                                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white text-brand-900 px-1.5 text-[10px] font-extrabold tabular-nums dark:bg-emerald-400 dark:text-gray-950">
+                                                1
+                                            </span>
+                                        )}
                                     </button>
-                                )}
 
-                                {/* Horizontally Scrollable Button Rail */}
-                                <div
-                                    ref={filterScrollRef}
-                                    className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 whitespace-nowrap scrollbar-hide no-scrollbar scroll-smooth"
-                                    aria-label="Map status filter"
-                                    role="group"
-                                >
-                                    {mapExperience.filters.map((filter) => {
-                                        const count = getFilterCount(filter.value);
-                                        const isSelected = responderMapFilter === filter.value;
-                                        const isAllActive = filter.value === 'all';
-                                        const statusCfg = filter.value === 'risk-zones'
-                                            ? { dot: 'bg-red-500' }
-                                            : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
-
-                                        return (
-                                            <button
-                                                key={filter.value}
-                                                type="button"
-                                                onClick={() => setResponderMapFilter(filter.value)}
-                                                aria-pressed={isSelected}
-                                                aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                className={`group relative inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 active:scale-[0.98] ${
-                                                    isSelected
-                                                        ? isAllActive
-                                                            ? 'border-brand-800 bg-brand-900 text-white shadow-xs ring-1 ring-brand-800 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-600/50'
-                                                            : 'border-brand-700 bg-brand-800 text-white shadow-xs ring-1 ring-brand-700 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200 dark:ring-emerald-700/40'
-                                                        : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
-                                                }`}
-                                            >
-                                                {isSelected ? (
-                                                    <HiOutlineCheck className="h-3.5 w-3.5 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
-                                                ) : (
-                                                    statusCfg?.dot && (
-                                                        <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                                    )
-                                                )}
-                                                <span>{filter.label}</span>
-                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${
-                                                    isSelected
-                                                        ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
-                                                        : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
-                                                }`}>
-                                                    {count}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-
-                                    {responderMapFilter !== 'all' && (
+                                    {/* Current Status Pill and Clear Action */}
+                                    <div className="flex items-center gap-1.5 min-w-0">
                                         <button
                                             type="button"
-                                            onClick={() => setResponderMapFilter('all')}
-                                            aria-label="Clear active filter and show all"
-                                            className="inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-white/50 px-2 py-1 text-[11px] font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                            onClick={() => setIsMobileFilterOpen(true)}
+                                            aria-label={`Current filter: ${activeFilterSummary}. Tap to change.`}
+                                            className="inline-flex min-h-[44px] min-w-0 max-w-[210px] items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-100/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-200/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                         >
-                                            <HiOutlineX className="h-3 w-3" aria-hidden="true" />
-                                            <span>Clear filter</span>
+                                            <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
+                                            <span className="truncate">{activeFilterSummary}</span>
                                         </button>
-                                    )}
+
+                                        {isFiltered && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setResponderMapFilter('all')}
+                                                aria-label="Clear active filter and show all"
+                                                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                                title="Clear filter"
+                                            >
+                                                <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Right Fade Gradient */}
-                                {canScrollRight && (
-                                    <div
-                                        className="pointer-events-none absolute right-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-l from-gray-50/95 dark:from-[#091710]/95 to-transparent"
-                                        aria-hidden="true"
-                                    />
-                                )}
+                                {/* Mobile Filter Bottom Sheet */}
+                                <MapMobileFilterSheet
+                                    isOpen={isMobileFilterOpen}
+                                    onClose={() => setIsMobileFilterOpen(false)}
+                                    filters={mapExperience.filters}
+                                    selectedFilter={responderMapFilter}
+                                    onSelectFilter={setResponderMapFilter}
+                                    getFilterCount={getFilterCount}
+                                    triggerRef={mobileFilterTriggerRef}
+                                />
 
-                                {/* Right Chevron Button */}
-                                {canScrollRight && (
-                                    <button
-                                        type="button"
-                                        onClick={() => scrollFilterRail('right')}
-                                        aria-label="Scroll filter options right"
-                                        className="absolute right-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
-                                    >
-                                        <HiChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                                {/* 2. Desktop / Tablet Inline Filter Rail (sm:flex) */}
+                                <div className="hidden sm:flex w-full min-w-0 max-w-full items-center gap-2 pt-1">
+                                    {/* Fixed Filter by status badge */}
+                                    <div className="inline-flex min-h-8 shrink-0 flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-700 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                        <HiOutlineFilter className="h-3.5 w-3.5 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                        <span>Filter by status</span>
+                                    </div>
+
+                                    {/* Scrollable Status-Buttons Container with Gradient Fades & Chevron Buttons */}
+                                    <div className="relative min-w-0 flex-1 overflow-hidden">
+                                        {/* Left Fade Gradient */}
+                                        {canScrollLeft && (
+                                            <div
+                                                className="pointer-events-none absolute left-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-r from-gray-50/95 dark:from-[#091710]/95 to-transparent"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+
+                                        {/* Left Chevron Button */}
+                                        {canScrollLeft && (
+                                            <button
+                                                type="button"
+                                                onClick={() => scrollFilterRail('left')}
+                                                aria-label="Scroll filter options left"
+                                                className="absolute left-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
+                                            >
+                                                <HiChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                                            </button>
+                                        )}
+
+                                        {/* Horizontally Scrollable Button Rail */}
+                                        <div
+                                            ref={filterScrollRef}
+                                            className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 whitespace-nowrap scrollbar-hide no-scrollbar scroll-smooth"
+                                            aria-label="Map status filter"
+                                            role="group"
+                                        >
+                                            {mapExperience.filters.map((filter) => {
+                                                const count = getFilterCount(filter.value);
+                                                const isSelected = responderMapFilter === filter.value;
+                                                const isAllActive = filter.value === 'all';
+                                                const statusCfg = filter.value === 'risk-zones'
+                                                    ? { dot: 'bg-red-500' }
+                                                    : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
+
+                                                return (
+                                                    <button
+                                                        key={filter.value}
+                                                        type="button"
+                                                        onClick={() => setResponderMapFilter(filter.value)}
+                                                        aria-pressed={isSelected}
+                                                        aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                        className={`group relative inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 active:scale-[0.98] ${
+                                                            isSelected
+                                                                ? isAllActive
+                                                                    ? 'border-brand-800 bg-brand-900 text-white shadow-xs ring-1 ring-brand-800 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-600/50'
+                                                                    : 'border-brand-700 bg-brand-800 text-white shadow-xs ring-1 ring-brand-700 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200 dark:ring-emerald-700/40'
+                                                                : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {isSelected ? (
+                                                            <HiOutlineCheck className="h-3.5 w-3.5 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
+                                                        ) : (
+                                                            statusCfg?.dot && (
+                                                                <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                                            )
+                                                        )}
+                                                        <span>{filter.label}</span>
+                                                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${
+                                                            isSelected
+                                                                ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
+                                                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
+                                                        }`}>
+                                                            {count}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+
+                                            {responderMapFilter !== 'all' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResponderMapFilter('all')}
+                                                    aria-label="Clear active filter and show all"
+                                                    className="inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-white/50 px-2 py-1 text-[11px] font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                                >
+                                                    <HiOutlineX className="h-3 w-3" aria-hidden="true" />
+                                                    <span>Clear filter</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Right Fade Gradient */}
+                                        {canScrollRight && (
+                                            <div
+                                                className="pointer-events-none absolute right-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-l from-gray-50/95 dark:from-[#091710]/95 to-transparent"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+
+                                        {/* Right Chevron Button */}
+                                        {canScrollRight && (
+                                            <button
+                                                type="button"
+                                                onClick={() => scrollFilterRail('right')}
+                                                aria-label="Scroll filter options right"
+                                                className="absolute right-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
+                                            >
+                                                <HiChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 <div className="relative aspect-square min-h-[360px] sm:min-h-0 w-full sm:aspect-auto sm:h-[480px] lg:h-[580px]">

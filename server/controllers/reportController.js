@@ -1,6 +1,7 @@
 import Report from '../models/Report.js';
 import mongoose from 'mongoose';
-import { toPublicReport } from '../utils/publicReport.js';
+import { toPublicReport, buildReportEvidenceObject } from '../utils/publicReport.js';
+import { canViewOperationalReport } from '../utils/reportAccess.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
@@ -9,7 +10,8 @@ import { processLocation, getResponseTimeEstimate } from '../services/locationSe
 import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
-import { deleteGridFsFilesByUrls, uploadFilesToGridFS } from '../services/gridFsService.js';
+import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
+import { generateBlurredEvidenceSvg } from '../services/previewService.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 
 const toValidatedCount = (value) => Number(value ?? 0);
@@ -392,6 +394,7 @@ export const getReports = async (req, res) => {
                 'casualties',
                 'responders.unitType',
                 'responderAgency',
+                'images',
                 'verifiedAt',
                 'respondedAt',
                 'resolvedAt',
@@ -430,7 +433,7 @@ export const getReports = async (req, res) => {
 /**
  * @desc    Get single report by ID
  * @route   GET /api/reports/:id
- * @access  Public (published) / Private (owner or in-scope municipal administrator)
+ * @access  Public (published) / Private (owner or in-scope municipal administrator/responder)
  */
 export const getReportById = async (req, res) => {
     try {
@@ -450,16 +453,14 @@ export const getReportById = async (req, res) => {
         const isOwner = Boolean(
             req.user && report.reporter?._id?.toString() === req.user._id.toString()
         );
-        const isMunicipalAdminInScope = Boolean(
-            req.user?.role === 'municipal_admin'
-            && req.user.assignedMunicipality
-            && report.municipalityName === req.user.assignedMunicipality
+        const isOperational = Boolean(
+            req.user && canViewOperationalReport(req.user, report)
         );
 
         // Match the public list visibility rules for individual report access.
         const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
         if (!publicViewableStatuses.includes(report.status)) {
-            if (!isOwner && !isMunicipalAdminInScope) {
+            if (!isOwner && !isOperational) {
                 return res.status(403).json({
                     success: false,
                     message: 'Not authorized to view this report',
@@ -471,9 +472,21 @@ export const getReportById = async (req, res) => {
         report.viewCount += 1;
         await report.save();
 
-        const responseData = isOwner || isMunicipalAdminInScope
-            ? report.toObject()
-            : toPublicReport(report, { viewerId: req.user?._id });
+        let responseData;
+        if (isOwner || isOperational) {
+            const reportObj = report.toObject();
+            const evidence = buildReportEvidenceObject(reportObj, { isOwner, isOperational });
+            responseData = {
+                ...reportObj,
+                isOwnedByCurrentUser: isOwner,
+                evidence,
+                evidenceCount: evidence.count,
+                detailAccess: isOperational ? 'operational' : 'owner',
+                detailCompleteness: 'full',
+            };
+        } else {
+            responseData = toPublicReport(report, { viewerId: req.user?._id });
+        }
 
         res.json({
             success: true,
@@ -485,6 +498,98 @@ export const getReportById = async (req, res) => {
             success: false,
             message: 'Failed to get report',
         });
+    }
+};
+
+/**
+ * @desc    Get server-generated blurred preview for a specific incident evidence photo
+ * @route   GET /api/reports/:id/evidence/:index/preview
+ * @access  Public (published reports) / Private (owner or in-scope operational user for unverified)
+ */
+export const getReportEvidencePreview = async (req, res) => {
+    try {
+        const { id, index } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(404).json({ success: false, message: 'Incident not found' });
+        }
+
+        const evidenceIndex = Number.parseInt(index, 10);
+        if (!Number.isFinite(evidenceIndex) || evidenceIndex < 0) {
+            return res.status(400).json({ success: false, message: 'Invalid evidence index' });
+        }
+
+        const report = await Report.findById(id);
+        if (!report) {
+            return res.status(404).json({ success: false, message: 'Incident not found' });
+        }
+
+        // Authorization check
+        const isOwner = Boolean(
+            req.user && report.reporter?.toString() === req.user._id.toString()
+        );
+        const isOperational = Boolean(
+            req.user && canViewOperationalReport(req.user, report)
+        );
+        const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
+
+        if (!publicViewableStatuses.includes(report.status) && !isOwner && !isOperational) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to view evidence for this incident',
+            });
+        }
+
+        const rawImages = Array.isArray(report.images) ? report.images : [];
+        if (evidenceIndex >= rawImages.length) {
+            return res.status(404).json({ success: false, message: 'Evidence not found' });
+        }
+
+        const imageRef = rawImages[evidenceIndex];
+        const match = typeof imageRef === 'string' && imageRef.match(/[0-9a-fA-F]{24}/);
+        const fileId = match ? match[0] : null;
+
+        if (!fileId) {
+            return res.status(404).json({ success: false, message: 'Evidence file not found' });
+        }
+
+        const file = await findGridFsFile(fileId);
+        if (!file) {
+            return res.status(404).json({ success: false, message: 'Evidence file not found' });
+        }
+
+        // Verify resource association
+        if (file.metadata?.resourceId && file.metadata.resourceId.toString() !== report._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Evidence integrity violation' });
+        }
+
+        const etag = `W/"evidence-preview-${report._id}-${evidenceIndex}"`;
+        res.set({
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'X-Content-Type-Options': 'nosniff',
+            ETag: etag,
+        });
+
+        if (req.headers['if-none-match'] === etag) {
+            return res.status(304).end();
+        }
+
+        // Stream file from GridFS to sample buffer
+        const downloadStream = getGridFsBucket().openDownloadStream(file._id);
+        const chunks = [];
+        for await (const chunk of downloadStream) {
+            chunks.push(chunk);
+            if (chunks.reduce((acc, c) => acc + c.length, 0) > 65536) break;
+        }
+        const sampleBuffer = Buffer.concat(chunks);
+        const svgBuffer = generateBlurredEvidenceSvg(sampleBuffer);
+
+        res.send(svgBuffer);
+    } catch (error) {
+        console.error('Evidence preview error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Failed to generate evidence preview' });
+        }
     }
 };
 

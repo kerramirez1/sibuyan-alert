@@ -1,28 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI, reportsAPI } from '../services/api';
 
-const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder']);
+const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder', 'admin', 'system_admin']);
 
 const getReportId = (report) => report?._id || report?.id || '';
+
 const getEvidenceCount = (report) => {
-    const declaredCount = Number(report?.evidenceCount);
+    const declaredCount = Number(report?.evidence?.count ?? report?.evidenceCount);
+    const itemArrayCount = Array.isArray(report?.evidence?.items)
+        ? report.evidence.items.length
+        : Array.isArray(report?.evidence)
+            ? report.evidence.length
+            : 0;
     const imageCount = Array.isArray(report?.images) ? report.images.length : 0;
-    return Math.max(Number.isFinite(declaredCount) && declaredCount > 0 ? Math.floor(declaredCount) : 0, imageCount);
+    return Math.max(
+        Number.isFinite(declaredCount) && declaredCount > 0 ? Math.floor(declaredCount) : 0,
+        itemArrayCount,
+        imageCount
+    );
 };
 
-const useOperationalIncidentDetails = (report, viewerRole) => {
+const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
     const reportId = getReportId(report);
     const isOperationalViewer = Boolean(reportId && OPERATIONAL_ROLES.has(viewerRole));
     const isOwnerViewer = Boolean(reportId && viewerRole === 'reporter' && report?.isOwnedByCurrentUser);
+
     const evidenceCount = getEvidenceCount(report);
     const loadedImageCount = Array.isArray(report?.images) ? report.images.length : 0;
-    const evidencePayloadIncomplete = evidenceCount > loadedImageCount;
-    const loadedReportIdRef = useRef(null);
+    const loadedItemCount = Array.isArray(report?.evidence?.items)
+        ? report.evidence.items.length
+        : Array.isArray(report?.evidence)
+            ? report.evidence.length
+            : 0;
+    const hasEvidenceDescriptors = loadedImageCount > 0 || loadedItemCount > 0;
+    const evidencePayloadIncomplete = evidenceCount > 0 && !hasEvidenceDescriptors;
 
     const shouldLoad = Boolean(
-        (isOperationalViewer || isOwnerViewer)
-        && (reportId !== loadedReportIdRef.current || evidencePayloadIncomplete)
-        && report?.detailCompleteness !== 'full'
+        reportId && (
+            report?.detailCompleteness !== 'full'
+            || evidencePayloadIncomplete
+            || (isOperationalViewer && !report?.detailAccess)
+        )
     );
 
     const [state, setState] = useState({
@@ -32,9 +50,11 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
         restricted: false,
     });
 
+    const activeReportIdRef = useRef(reportId);
+    activeReportIdRef.current = reportId;
+
     const load = useCallback(async (signal) => {
         if (!reportId) {
-            loadedReportIdRef.current = null;
             setState({ extraDetails: null, loading: false, error: '', restricted: false });
             return;
         }
@@ -49,26 +69,41 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
             return;
         }
 
-        setState((current) => ({
-            ...current,
+        setState({
+            extraDetails: null,
             loading: true,
             error: '',
             restricted: false,
-        }));
+        });
 
         try {
-            const response = isOperationalViewer
-                ? await adminAPI.getReportById(reportId, { signal })
-                : await reportsAPI.getById(reportId, { signal });
+            let response;
+            if (isOperationalViewer) {
+                try {
+                    response = await adminAPI.getReportById(reportId, { signal });
+                } catch (adminErr) {
+                    if (adminErr?.code === 'ERR_CANCELED' || adminErr?.name === 'CanceledError' || adminErr?.name === 'AbortError') return;
+                    if (adminErr?.response?.status === 403) {
+                        response = await reportsAPI.getById(reportId, { signal });
+                    } else {
+                        throw adminErr;
+                    }
+                }
+            } else {
+                response = await reportsAPI.getById(reportId, { signal });
+            }
+
+            if (activeReportIdRef.current !== reportId) return;
+
             const loadedReport = response.data?.data;
             if (!loadedReport) throw new Error('Incident detail response is empty');
             const normalizedReport = {
                 ...loadedReport,
                 evidenceCount: getEvidenceCount(loadedReport),
-                detailAccess: isOperationalViewer ? 'operational' : 'owner',
+                detailAccess: isOperationalViewer ? 'operational' : isOwnerViewer ? 'owner' : 'public',
                 detailCompleteness: 'full',
             };
-            loadedReportIdRef.current = reportId;
+
             setState({
                 extraDetails: normalizedReport,
                 loading: false,
@@ -77,6 +112,8 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
             });
         } catch (error) {
             if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
+            if (activeReportIdRef.current !== reportId) return;
+
             const restricted = error?.response?.status === 403;
             setState({
                 extraDetails: null,
@@ -85,14 +122,18 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
                 error: restricted
                     ? isOperationalViewer
                         ? 'Protected operational details are unavailable for this incident.'
-                        : 'Evidence photos are available only to the report owner.'
+                        : isOwnerViewer
+                            ? 'Evidence photos are available only to the report owner.'
+                            : 'This incident is restricted for privacy.'
                     : error?.response?.data?.message
                         || (isOperationalViewer
                             ? 'Unable to load operational incident details.'
-                            : 'Unable to load your evidence photos.'),
+                            : isOwnerViewer
+                                ? 'Unable to load your evidence photos.'
+                                : 'Unable to load incident details.'),
             });
         }
-    }, [isOperationalViewer, reportId, shouldLoad]);
+    }, [isOperationalViewer, isOwnerViewer, reportId, shouldLoad]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -101,33 +142,33 @@ const useOperationalIncidentDetails = (report, viewerRole) => {
     }, [load]);
 
     const retry = useCallback(() => {
-        loadedReportIdRef.current = null;
         return load(undefined);
     }, [load]);
 
     const resolvedReport = useMemo(() => {
-        if (!report) return null;
+        if (!report && !state.extraDetails) return null;
+        const base = report || { _id: reportId };
         if (!state.extraDetails || getReportId(state.extraDetails) !== reportId) {
-            return report;
+            return base;
         }
         return {
-            ...report,
+            ...base,
             ...state.extraDetails,
-            ...(report.status ? { status: report.status } : {}),
-            ...(report.rejectionReason !== undefined ? { rejectionReason: report.rejectionReason } : {}),
-            ...(report.verifiedBy !== undefined ? { verifiedBy: report.verifiedBy } : {}),
-            ...(report.verifiedAt !== undefined ? { verifiedAt: report.verifiedAt } : {}),
-            ...(report.respondedBy !== undefined ? { respondedBy: report.respondedBy } : {}),
-            ...(report.respondedAt !== undefined ? { respondedAt: report.respondedAt } : {}),
-            ...(report.responders !== undefined ? { responders: report.responders } : {}),
-            ...(report.resolvedBy !== undefined ? { resolvedBy: report.resolvedBy } : {}),
-            ...(report.resolvedAt !== undefined ? { resolvedAt: report.resolvedAt } : {}),
-            ...(report.resolutionNotes !== undefined ? { resolutionNotes: report.resolutionNotes } : {}),
-            ...(report.municipality !== undefined ? { municipality: report.municipality } : {}),
-            ...(report.municipalityName !== undefined ? { municipalityName: report.municipalityName } : {}),
-            ...(report.transferredAt !== undefined ? { transferredAt: report.transferredAt } : {}),
-            ...(report.transferHistory !== undefined ? { transferHistory: report.transferHistory } : {}),
-            ...(report.reportUpdates !== undefined ? { reportUpdates: report.reportUpdates } : {}),
+            ...(base.status ? { status: base.status } : {}),
+            ...(base.rejectionReason !== undefined ? { rejectionReason: base.rejectionReason } : {}),
+            ...(base.verifiedBy !== undefined ? { verifiedBy: base.verifiedBy } : {}),
+            ...(base.verifiedAt !== undefined ? { verifiedAt: base.verifiedAt } : {}),
+            ...(base.respondedBy !== undefined ? { respondedBy: base.respondedBy } : {}),
+            ...(base.respondedAt !== undefined ? { respondedAt: base.respondedAt } : {}),
+            ...(base.responders !== undefined ? { responders: base.responders } : {}),
+            ...(base.resolvedBy !== undefined ? { resolvedBy: base.resolvedBy } : {}),
+            ...(base.resolvedAt !== undefined ? { resolvedAt: base.resolvedAt } : {}),
+            ...(base.resolutionNotes !== undefined ? { resolutionNotes: base.resolutionNotes } : {}),
+            ...(base.municipality !== undefined ? { municipality: base.municipality } : {}),
+            ...(base.municipalityName !== undefined ? { municipalityName: base.municipalityName } : {}),
+            ...(base.transferredAt !== undefined ? { transferredAt: base.transferredAt } : {}),
+            ...(base.transferHistory !== undefined ? { transferHistory: base.transferHistory } : {}),
+            ...(base.reportUpdates !== undefined ? { reportUpdates: base.reportUpdates } : {}),
         };
     }, [report, reportId, state.extraDetails]);
 

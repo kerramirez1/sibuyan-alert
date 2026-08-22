@@ -737,4 +737,150 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(summary).getByRole('button', { name: /View 1 transferred/i })).toBeInTheDocument();
         expect(within(summary).getByRole('button', { name: /View 1 risk zones/i })).toBeInTheDocument();
     });
+
+    describe('Mobile Map Dashboard Filter Controls & Bottom Sheet', () => {
+        const now = new Date().toISOString();
+        const reports = [
+            { _id: 'rep-1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 }, createdAt: now },
+            { _id: 'rep-2', status: 'responding', coordinates: { lat: 12.41, lng: 122.61 }, createdAt: now },
+            { _id: 'rep-3', status: 'pending', coordinates: { lat: 12.42, lng: 122.62 }, createdAt: now },
+        ];
+        const highRiskZones = [
+            { _id: 'zone-1', name: 'Cambijang Risk Zone', type: 'landslide_prone', coordinates: { lat: 12.43, lng: 122.63 }, radius: 100 },
+        ];
+
+        test('1. Renders compact Filters button and status pill on mobile', () => {
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'all',
+            }));
+
+            const filterBtn = screen.getByRole('button', { name: /^filters$/i });
+            expect(filterBtn).toBeInTheDocument();
+            expect(screen.getByText(/All Active · 3/i)).toBeInTheDocument();
+        });
+
+        test('2. Opens bottom sheet when tapping Filters button and displays operational status rows', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            const filterBtn = screen.getByRole('button', { name: /^filters$/i });
+            fireEvent.click(filterBtn);
+
+            const dialog = screen.getByRole('dialog', { name: /Map filters/i });
+            expect(dialog).toBeInTheDocument();
+            expect(screen.getByText('Control which incidents and hazard layers appear on the map.')).toBeInTheDocument();
+            expect(screen.getByText(/Showing all active · 3 incidents/i)).toBeInTheDocument();
+
+            // Distinct operational sections
+            expect(screen.getByText(/Incident scope/i)).toBeInTheDocument();
+            expect(screen.getByText(/Incident status/i)).toBeInTheDocument();
+            expect(screen.getByText(/Map layers/i)).toBeInTheDocument();
+
+            const radioGroup = within(dialog).getByRole('radiogroup', { name: /Incident filter options/i });
+            expect(within(radioGroup).getByRole('radio', { name: /all active/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /pending/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /verified/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /responding/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
+        });
+
+        test('3. Selecting a status and tapping Apply filters updates the active filter', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            fireEvent.click(screen.getByRole('button', { name: /^filters$/i }));
+            const dialog = screen.getByRole('dialog', { name: /Map filters/i });
+
+            fireEvent.click(within(dialog).getByRole('radio', { name: /pending/i }));
+            expect(screen.getByText(/Showing pending · 1 incident/i)).toBeInTheDocument();
+
+            fireEvent.click(within(dialog).getByRole('button', { name: /show 1 incident/i }));
+
+            expect(setResponderMapFilter).toHaveBeenCalledWith('pending');
+            expect(screen.queryByRole('dialog', { name: /Map filters/i })).not.toBeInTheDocument();
+        });
+
+        test('4. Tapping Clear all in bottom sheet resets filter to all', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'responding',
+                setResponderMapFilter,
+            }));
+
+            fireEvent.click(screen.getByRole('button', { name: /filters, 1 filter applied/i }));
+            const dialog = screen.getByRole('dialog', { name: /Map filters/i });
+
+            fireEvent.click(within(dialog).getByRole('button', { name: /clear all/i }));
+
+            expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+            expect(screen.queryByRole('dialog', { name: /Map filters/i })).not.toBeInTheDocument();
+        });
+
+        test('5. Dismisses bottom sheet with Escape key without applying changes', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            fireEvent.click(screen.getByRole('button', { name: /^filters$/i }));
+            expect(screen.getByRole('dialog', { name: /Map filters/i })).toBeInTheDocument();
+
+            fireEvent.keyDown(window, { key: 'Escape' });
+            expect(screen.queryByRole('dialog', { name: /Map filters/i })).not.toBeInTheDocument();
+            expect(setResponderMapFilter).not.toHaveBeenCalled();
+        });
+
+        test('6. Shows active filter badge and quick-clear action when non-default filter is active', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAdmin: true,
+                isReporter: false,
+                reports,
+                highRiskZones,
+                responderMapFilter: 'pending',
+                setResponderMapFilter,
+            }));
+
+            expect(screen.getByRole('button', { name: /filters, 1 filter applied/i })).toBeInTheDocument();
+            expect(screen.getByText(/Pending · 1/i)).toBeInTheDocument();
+
+            const quickClearBtns = screen.getAllByRole('button', { name: /clear active filter and show all/i });
+            expect(quickClearBtns.length).toBeGreaterThan(0);
+            fireEvent.click(quickClearBtns[0]);
+            expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+        });
+    });
 });

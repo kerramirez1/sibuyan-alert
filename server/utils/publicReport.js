@@ -29,15 +29,63 @@ const getRespondingAgencies = (report) => {
 };
 
 /**
+ * Builds normalized evidence descriptor based strictly on server authorization.
+ */
+export const buildReportEvidenceObject = (report, { isOwner = false, isOperational = false } = {}) => {
+    const rawImages = Array.isArray(report?.images) ? report.images : [];
+    const count = rawImages.length;
+    const reportId = getEntityId(report?._id || report?.id);
+
+    if (count === 0) {
+        return {
+            count: 0,
+            accessLevel: 'none',
+            items: [],
+        };
+    }
+
+    if (isOwner || isOperational) {
+        return {
+            count,
+            accessLevel: 'original',
+            items: rawImages.map((source, index) => ({
+                id: String(index),
+                index,
+                previewUrl: source,
+                originalUrl: source,
+                accessLevel: 'original',
+                alt: `Incident evidence photo ${index + 1}`,
+                isOwner,
+            })),
+        };
+    }
+
+    return {
+        count,
+        accessLevel: 'blurred',
+        items: rawImages.map((_, index) => ({
+            id: String(index),
+            index,
+            previewUrl: `/api/reports/${reportId}/evidence/${index}/preview`,
+            accessLevel: 'blurred',
+            alt: `Incident evidence photo ${index + 1}, blurred for privacy`,
+        })),
+    };
+};
+
+/**
  * Build the only report representation allowed on public feeds.
  * The allowlist is intentional: new private model fields do not become public
  * automatically when the Report schema evolves.
  */
-export const toPublicReport = (report, { viewerId } = {}) => {
+export const toPublicReport = (report, { viewerId, isOperational = false } = {}) => {
     const reporterId = getEntityId(getDocumentValue(report, 'reporter'));
     const currentViewerId = getEntityId(viewerId);
+    const isOwner = Boolean(currentViewerId && reporterId && currentViewerId === reporterId);
     const municipality = getPublicMunicipality(getDocumentValue(report, 'municipality'));
     const casualties = getDocumentValue(report, 'casualties') || {};
+    const evidence = buildReportEvidenceObject(report, { isOwner, isOperational });
+
     const publicReport = {
         _id: getEntityId(getDocumentValue(report, '_id')),
         incidentCategory: getDocumentValue(report, 'incidentCategory'),
@@ -63,8 +111,14 @@ export const toPublicReport = (report, { viewerId } = {}) => {
         resolvedAt: getDocumentValue(report, 'resolvedAt'),
         createdAt: getDocumentValue(report, 'createdAt'),
         updatedAt: getDocumentValue(report, 'updatedAt'),
-        isOwnedByCurrentUser: Boolean(currentViewerId && reporterId && currentViewerId === reporterId),
+        isOwnedByCurrentUser: isOwner,
+        evidence,
+        evidenceCount: evidence.count,
     };
+
+    if (isOwner || isOperational) {
+        publicReport.images = Array.isArray(report?.images) ? report.images : [];
+    }
 
     if (municipality) publicReport.municipality = municipality;
     return publicReport;
