@@ -193,7 +193,8 @@ const AdminReportsPage = () => {
 
             <ImageViewer
                 isOpen={Boolean(viewerImage)}
-                imageSrc={viewerImage}
+                item={typeof viewerImage === 'object' && viewerImage !== null ? viewerImage : null}
+                imageSrc={typeof viewerImage === 'string' ? viewerImage : (viewerImage?.src || '')}
                 alt="Incident evidence"
                 onClose={() => setViewerImage(null)}
             />

@@ -451,7 +451,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getByRole('dialog', { name: 'Incident details' })).toHaveClass('sm:w-[min(24rem,42%)]');
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
         expect(screen.getByText(report.description)).toBeInTheDocument();
-        expect(screen.getByText(/Personal identities, evidence, and internal coordination details are not displayed/i)).toBeInTheDocument();
+        expect(screen.getByText(/Personal identities, evidence, and internal coordination details are protected/i)).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Back to active incidents' }));
         expect(screen.getByRole('dialog', { name: 'Active incidents' })).toBeInTheDocument();

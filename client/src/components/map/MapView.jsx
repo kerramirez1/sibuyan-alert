@@ -916,9 +916,10 @@ const MapView = ({
         : null;
 
     return (
-        <div className={`relative isolate min-h-0 overflow-hidden rounded-lg ${className}`}>
+        <div className={`relative min-h-0 rounded-lg ${className}`}>
             <div
                 ref={mapContainerRef}
+                className="absolute inset-0 overflow-hidden rounded-lg"
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
 

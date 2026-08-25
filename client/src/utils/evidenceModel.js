@@ -39,18 +39,20 @@ export const isAuthorizedRedactedPreviewEndpoint = (value) => {
 export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOperational = false, rawImages = [] } = {}) => {
     // 1. Strict server-only authorization determination
     const serverViewerAccess = evidence?.viewerAccess;
-    const isOriginalAuthorized = serverViewerAccess === 'original';
-    const viewerAccess = isOriginalAuthorized ? 'original' : 'redacted';
+    const rawImagesList = Array.isArray(rawImages) ? rawImages : [];
+    const isOriginalAuthorized = serverViewerAccess === 'original'
+        || (serverViewerAccess === undefined && (isOwner || isOperational) && (rawImagesList.length > 0 || (Array.isArray(evidence?.items) && evidence.items.length > 0)));
+    const viewerAccess = isOriginalAuthorized ? 'original' : (serverViewerAccess || 'redacted');
 
     const declaredCount = Number(evidence?.evidenceCount ?? evidence?.count);
     const rawItems = Array.isArray(evidence?.items) ? evidence.items : [];
     const count = Math.max(
         Number.isFinite(declaredCount) && declaredCount >= 0 ? Math.floor(declaredCount) : 0,
         rawItems.length,
-        isOriginalAuthorized && Array.isArray(rawImages) ? rawImages.length : 0
+        isOriginalAuthorized ? rawImagesList.length : 0
     );
 
-    if (count === 0 && rawItems.length === 0) {
+    if (count === 0 && rawItems.length === 0 && rawImagesList.length === 0) {
         return {
             evidenceCount: 0,
             count: 0,
@@ -64,8 +66,6 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
             const index = Number.isFinite(Number(item?.index)) ? Number(item.index) : idx;
 
             // Candidate URL must strictly be the canonical server-generated preview endpoint.
-            // Prefer a valid canonical candidate instead of allowing an invalid redactedPreviewUrl
-            // to mask a valid previewUrl.
             const candidateUrls = [item?.redactedPreviewUrl, item?.previewUrl]
                 .filter((value) => typeof value === 'string' && value.trim())
                 .map((value) => value.trim());
@@ -78,7 +78,6 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
             const isCanonicalRedactedEndpoint = isAuthorizedRedactedPreviewEndpoint(rawCandidate);
             const validPreviewUrl = (!isForbiddenOriginal && isCanonicalRedactedEndpoint) ? rawCandidate : '';
             const resolvedSrc = validPreviewUrl ? resolveAssetUrl(validPreviewUrl) : '';
-
 
             const detectionStatus = item?.detectionStatus
                 || (item?.redactionType === 'face_blur' ? 'faces_detected' : 'processing');
@@ -111,9 +110,32 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
             };
         });
 
+        // If declared count is greater than raw items, pad with unavailable placeholders so count is consistent
+        while (items.length < count) {
+            const idx = items.length;
+            items.push({
+                id: String(idx),
+                index: idx,
+                viewerAccess: 'redacted',
+                sourceKind: 'redacted-preview',
+                src: '',
+                redactedPreviewUrl: '',
+                originalUrl: undefined,
+                isForbiddenOriginal: false,
+                isUnavailable: true,
+                detectionStatus: 'processing',
+                redactionType: 'privacy_preview',
+                redactionVersion: null,
+                detectorVersion: null,
+                alt: `Incident evidence photo ${idx + 1}, privacy-safe preview`,
+                isOwner: false,
+                isOperational: false,
+            });
+        }
+
         return {
-            evidenceCount: count,
-            count,
+            evidenceCount: items.length,
+            count: items.length,
             viewerAccess: 'redacted',
             items,
         };
@@ -124,7 +146,7 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
     if (rawItems.length > 0) {
         items = rawItems.map((item, idx) => {
             const index = Number.isFinite(Number(item?.index)) ? Number(item.index) : idx;
-            const originalUrl = item?.originalUrl || item?.previewUrl || item?.source || '';
+            const originalUrl = item?.originalUrl || item?.previewUrl || item?.source || item?.src || (rawImagesList[idx] || '');
             const redactedPreviewUrl = item?.redactedPreviewUrl || '';
 
             return {
@@ -144,8 +166,29 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
                 isOperational: Boolean(isOperational || item?.isOperational),
             };
         });
-    } else if (Array.isArray(rawImages) && rawImages.length > 0) {
-        items = rawImages.map((img, idx) => ({
+
+        while (items.length < count) {
+            const idx = items.length;
+            const fallbackUrl = rawImagesList[idx] || '';
+            items.push({
+                id: String(idx),
+                index: idx,
+                viewerAccess: 'original',
+                sourceKind: 'authorized-original',
+                src: fallbackUrl,
+                originalUrl: fallbackUrl,
+                redactedPreviewUrl: '',
+                isForbiddenOriginal: false,
+                isUnavailable: !fallbackUrl,
+                detectionStatus: 'no_faces_detected',
+                redactionType: 'none',
+                alt: `Incident evidence photo ${idx + 1}`,
+                isOwner: Boolean(isOwner),
+                isOperational: Boolean(isOperational),
+            });
+        }
+    } else if (rawImagesList.length > 0) {
+        items = rawImagesList.map((img, idx) => ({
             id: String(idx),
             index: idx,
             viewerAccess: 'original',
@@ -161,11 +204,50 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
             isOwner: Boolean(isOwner),
             isOperational: Boolean(isOperational),
         }));
+
+        while (items.length < count) {
+            const idx = items.length;
+            items.push({
+                id: String(idx),
+                index: idx,
+                viewerAccess: 'original',
+                sourceKind: 'authorized-original',
+                src: '',
+                originalUrl: '',
+                redactedPreviewUrl: undefined,
+                isForbiddenOriginal: false,
+                isUnavailable: true,
+                detectionStatus: 'no_faces_detected',
+                redactionType: 'none',
+                alt: `Incident evidence photo ${idx + 1}`,
+                isOwner: Boolean(isOwner),
+                isOperational: Boolean(isOperational),
+            });
+        }
+    } else if (count > 0) {
+        for (let idx = 0; idx < count; idx++) {
+            items.push({
+                id: String(idx),
+                index: idx,
+                viewerAccess: 'original',
+                sourceKind: 'authorized-original',
+                src: '',
+                originalUrl: '',
+                redactedPreviewUrl: undefined,
+                isForbiddenOriginal: false,
+                isUnavailable: true,
+                detectionStatus: 'no_faces_detected',
+                redactionType: 'none',
+                alt: `Incident evidence photo ${idx + 1}`,
+                isOwner: Boolean(isOwner),
+                isOperational: Boolean(isOperational),
+            });
+        }
     }
 
     return {
-        evidenceCount: Math.max(count, items.length),
-        count: Math.max(count, items.length),
+        evidenceCount: items.length,
+        count: items.length,
         viewerAccess: 'original',
         items,
     };

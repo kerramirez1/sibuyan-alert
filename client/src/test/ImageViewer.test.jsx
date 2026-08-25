@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import ImageViewer from '../components/ui/ImageViewer';
 
 describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () => {
-    test('1. Renders face-redacted preview and labeled redacted download anchor for redacted viewer access', () => {
+    test('1. Renders face-redacted preview for redacted viewer access without any download controls', () => {
         const onClose = vi.fn();
         const item = {
             id: '0',
@@ -26,24 +26,23 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         // Header and labels
-        expect(screen.getByText('Evidence photo 1 (Faces blurred for privacy)')).toBeInTheDocument();
+        expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
         expect(screen.getByText(/Faces redacted for privacy · Scene details preserved/i)).toBeInTheDocument();
 
         // Image rendered with exact redacted source
         const img = screen.getByRole('img', { name: /Incident evidence photo 1, faces blurred for privacy/i });
         expect(img).toHaveAttribute('src', '/api/reports/report-1/evidence/0/preview');
 
-        // Download anchor uses redacted derivative with explicit safe filename
-        const downloadAnchor = screen.getByRole('link', { name: /Download preview image with faces blurred for privacy/i });
-        expect(downloadAnchor).toHaveAttribute('href', '/api/reports/report-1/evidence/0/preview');
-        expect(downloadAnchor).toHaveAttribute('download', 'evidence-1-redacted.jpg');
+        // Confirm NO download link or button exists
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Download/i })).not.toBeInTheDocument();
 
         // Close on escape key
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(onClose).toHaveBeenCalled();
     });
 
-    test('2. Refuses to render and refuses to expose download when a protected GridFS URL is passed with redacted access', () => {
+    test('2. Refuses to render when a protected GridFS URL is passed with redacted access', () => {
         const onClose = vi.fn();
         const item = {
             id: '0',
@@ -118,6 +117,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         expect(screen.getByText(/Clean scene preview · Scene details preserved/i)).toBeInTheDocument();
         const img = screen.getByRole('img', { name: /Document evidence photo 1/i });
         expect(img).toHaveAttribute('src', '/api/reports/report-1/evidence/0/preview');
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
     });
 
     test('5. Renders privacy-safe limited preview label on full-image fallback or detector error', () => {
@@ -142,11 +142,11 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
             />
         );
 
-        // Accurately states that visibility is limited rather than claiming only faces were blurred
         expect(screen.getByText(/Privacy-safe preview · Detail visibility limited/i)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
     });
 
-    test('6. Renders original evidence and authorized download anchor for authorized report owner', () => {
+    test('6. Renders original evidence for authorized report owner without download control', () => {
         const onClose = vi.fn();
         const item = {
             id: '0',
@@ -167,14 +167,14 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
-        expect(screen.getByText(/Your upload · Viewing original unredacted evidence/i)).toBeInTheDocument();
+        expect(screen.getByText(/Original evidence · Report owner/i)).toBeInTheDocument();
 
         const img = screen.getByRole('img', { name: /Incident evidence photo 1/i });
         expect(img).toHaveAttribute('src', 'blob:http://localhost/owner-original-blob');
 
-        const downloadAnchor = screen.getByRole('link', { name: /Download original evidence photo/i });
-        expect(downloadAnchor).toHaveAttribute('href', 'blob:http://localhost/owner-original-blob');
-        expect(downloadAnchor).toHaveAttribute('download', 'evidence-1.jpg');
+        // Confirm NO download control is rendered for owner in map view
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Download/i })).not.toBeInTheDocument();
     });
 
     test('7. Renders operational badge and zoom controls for in-scope operational personnel', () => {
@@ -196,13 +196,16 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
             />
         );
 
-        expect(screen.getByText(/Operational access · Viewing official unredacted evidence/i)).toBeInTheDocument();
+        expect(screen.getByText(/Original evidence · Operational access/i)).toBeInTheDocument();
 
         const zoomBtn = screen.getByRole('button', { name: /Zoom in image/i });
         expect(zoomBtn).toBeInTheDocument();
 
         fireEvent.click(zoomBtn);
         expect(screen.getByRole('button', { name: /Zoom out image/i })).toBeInTheDocument();
+
+        // Confirm NO download control is rendered
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
     });
 
     test('8. Rejects raw GridFS imageSrc when viewerAccess is redacted', () => {
@@ -220,5 +223,222 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
 
         expect(screen.getByRole('alert')).toHaveTextContent(/Original evidence is protected/i);
         expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    });
+
+    test('9. Preserves image aspect ratio with object-contain and does not crop document evidence', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/document-evidence.jpg',
+            isOperational: true,
+            alt: 'Document evidence',
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const img = screen.getByRole('img', { name: /Document evidence/i });
+        expect(img).toHaveClass('object-contain');
+    });
+
+    test('10. Supports keyboard zoom shortcuts (+, -, 0, r) and reset zoom control', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/test-image.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        expect(img).toHaveClass('scale-100');
+
+        // Zoom in with '+'
+        fireEvent.keyDown(window, { key: '+' });
+        expect(img).toHaveClass('scale-125');
+
+        // Zoom out with '-'
+        fireEvent.keyDown(window, { key: '-' });
+        expect(img).toHaveClass('scale-100');
+
+        // Zoom in with '=' and reset with '0'
+        fireEvent.keyDown(window, { key: '=' });
+        expect(img).toHaveClass('scale-125');
+        fireEvent.keyDown(window, { key: '0' });
+        expect(img).toHaveClass('scale-100');
+
+        // Zoom in and reset with reset button
+        fireEvent.keyDown(window, { key: '+' });
+        expect(img).toHaveClass('scale-125');
+        const resetBtn = screen.getByRole('button', { name: /Reset image zoom/i });
+        fireEvent.click(resetBtn);
+        expect(img).toHaveClass('scale-100');
+    });
+
+    test('11. Displays accessible error state when image fails to load', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/broken-image.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        fireEvent.error(img);
+
+        expect(screen.getByRole('alert')).toHaveTextContent(/Unable to load image/i);
+    });
+
+    test('12. Renders accessible dialog attributes and footer privacy status', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'redacted',
+            sourceKind: 'redacted-preview',
+            src: '/api/reports/123/evidence/0/preview',
+            redactedPreviewUrl: '/api/reports/123/evidence/0/preview',
+            detectionStatus: 'privacy_derivative',
+            redactionType: 'public_soft_blur',
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const dialog = screen.getByRole('dialog', { name: /Enlarged evidence image viewer/i });
+        expect(dialog).toHaveAttribute('aria-modal', 'true');
+        expect(screen.getByText(/Privacy-safe preview · Original evidence restricted/i)).toBeInTheDocument();
+    });
+
+    test('13. Renders full multi-item evidence title without truncation classes', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            total: 4,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/evidence-1.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const titleHeading = screen.getByRole('heading', { level: 3 });
+        expect(titleHeading).toHaveTextContent('Evidence photo 1 of 4');
+        expect(titleHeading).not.toHaveClass('truncate');
+        expect(titleHeading).toHaveClass('break-words');
+        expect(titleHeading).toHaveClass('line-clamp-2');
+    });
+
+    test('14. Responsive header keeps toolbar controls shrink-0 and fully clickable', () => {
+        const onClose = vi.fn();
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/evidence-1.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+                onClose={onClose}
+            />
+        );
+
+        const closeBtn = screen.getByRole('button', { name: /Close image viewer/i });
+        expect(closeBtn).toBeInTheDocument();
+        fireEvent.click(closeBtn);
+        expect(onClose).toHaveBeenCalled();
+
+        const zoomBtn = screen.getByRole('button', { name: /Zoom in image/i });
+        expect(zoomBtn).toBeInTheDocument();
+        fireEvent.click(zoomBtn);
+
+        const resetBtn = screen.getByRole('button', { name: /Reset image zoom/i });
+        expect(resetBtn).not.toBeDisabled();
+    });
+
+    test('15. Sizing and layout handles portrait documents and landscape photos with object-contain', () => {
+        const item = {
+            id: 'doc-1',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/portrait-doc.jpg',
+            isOperational: true,
+            alt: 'Portrait incident document',
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const img = screen.getByRole('img', { name: /Portrait incident document/i });
+        expect(img).toHaveClass('object-contain');
+        expect(img).not.toHaveClass('object-cover');
+        expect(img).not.toHaveClass('object-fill');
+    });
+
+    test('16. Header displays clean title without duplicate operational access badge', () => {
+        const item = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/evidence-1.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        // Header has the title
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+
+        // Status is displayed in footer once
+        const statusBadges = screen.getAllByText(/Original evidence · Operational access/i);
+        expect(statusBadges).toHaveLength(1);
     });
 });

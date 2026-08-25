@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from './router';
+import { Routes, Route, Navigate, useLocation } from './router';
 import { useAuth } from './context/AuthContext';
+import { getDefaultRoleRoute, resolvePostLoginRedirect } from './utils/authUtils';
 
 // Layouts
 import AuthLayout from './components/layout/AuthLayout';
@@ -38,10 +39,15 @@ const PageLoader = () => (
 
 function App() {
     const { isAuthenticated, loading, user } = useAuth();
+    const location = useLocation();
 
     if (loading) {
         return <PageLoader />;
     }
+
+    const redirectQuery = new URLSearchParams(location.search).get('redirect')
+        || new URLSearchParams(location.search).get('next');
+    const authRedirectTarget = resolvePostLoginRedirect(user, redirectQuery);
 
     return (
         <Suspense fallback={<PageLoader />}>
@@ -52,12 +58,12 @@ function App() {
                 {/* Auth Routes */}
                 <Route path="/login" element={(
                     <AuthLayout variant="login">
-                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/reporter' : '/dashboard'} /> : <LoginPage />}
+                        {isAuthenticated ? <Navigate to={authRedirectTarget} /> : <LoginPage />}
                     </AuthLayout>
                 )} />
                 <Route path="/register" element={(
                     <AuthLayout variant="registration">
-                        {isAuthenticated ? <Navigate to={user?.role === 'reporter' ? '/reporter' : '/dashboard'} /> : <RegisterPage />}
+                        {isAuthenticated ? <Navigate to={getDefaultRoleRoute(user)} /> : <RegisterPage />}
                     </AuthLayout>
                 )} />
                 <Route path="/registration-submitted" element={(

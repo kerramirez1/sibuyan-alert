@@ -219,21 +219,41 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group min-w-0 px-3.5 py-3 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-4 sm:py-3.5 ${selected
-            ? 'bg-brand-50/70 shadow-[inset_0_-2px_0_0_theme(colors.brand.600)] dark:bg-brand-950/40 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.400)]'
-            : 'bg-white hover:bg-gray-50/80 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
-            }`}
+        className={`group relative flex min-w-0 cursor-pointer flex-col justify-between p-3.5 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] sm:p-4 ${
+            selected
+                ? 'bg-brand-50/80 shadow-[inset_0_-3px_0_0_theme(colors.brand.700)] dark:bg-emerald-950/45 dark:shadow-[inset_0_-3px_0_0_theme(colors.emerald.400)]'
+                : 'bg-white hover:bg-gray-50/90 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
+        }`}
     >
-        <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex w-full items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
                 {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <p className={`truncate text-[11px] font-bold uppercase tracking-wider transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
+                <span className={`truncate text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                    selected
+                        ? 'text-brand-900 dark:text-emerald-300'
+                        : 'text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-gray-200'
+                }`}>
                     {label}
-                </p>
+                </span>
             </div>
+            <HiChevronRight
+                className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${
+                    selected
+                        ? 'text-brand-700 dark:text-emerald-400'
+                        : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
+                }`}
+                aria-hidden="true"
+            />
         </div>
-        <p className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white tabular-nums">{value}</p>
-        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{helper}</p>
+
+        <div className="mt-2 min-w-0">
+            <p className="font-display text-xl font-bold tracking-tight text-gray-950 sm:text-2xl lg:text-3xl dark:text-white tabular-nums">
+                {value}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
+                {helper}
+            </p>
+        </div>
     </button>
 );
 
@@ -918,7 +938,7 @@ const DashboardMapWorkspace = ({
                     })()}
                 </div>
 
-                <div className="relative aspect-square min-h-[360px] sm:min-h-0 w-full sm:aspect-auto sm:h-[480px] lg:h-[580px]">
+                <div className="relative aspect-square min-h-[360px] sm:min-h-0 w-full sm:aspect-auto sm:h-[520px] lg:h-[620px]">
                     {loading && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">

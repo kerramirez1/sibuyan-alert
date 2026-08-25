@@ -142,7 +142,12 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                         )}
                     </div>
                 ) : (
-                    <ProtectedEvidenceGallery images={images} />
+                    <ProtectedEvidenceGallery
+                        images={images}
+                        evidence={report.evidence}
+                        accessLevel="original"
+                        isOperational={true}
+                    />
                 )}
             </DisclosureSection>
 

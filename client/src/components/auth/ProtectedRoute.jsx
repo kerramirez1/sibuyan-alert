@@ -22,7 +22,9 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
 
     // Not authenticated
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        const returnUrl = `${location.pathname}${location.search}${location.hash}`;
+        const redirectParam = encodeURIComponent(returnUrl);
+        return <Navigate to={`/login?redirect=${redirectParam}`} state={{ from: location }} replace />;
     }
 
     // Check role access

@@ -7,6 +7,9 @@ import {
     subscribeToPush,
     unsubscribeFromPush,
 } from '../services/pushNotifications';
+import {
+    resolvePostLoginRedirect,
+} from '../utils/authUtils';
 
 const AuthContext = createContext(null);
 
@@ -93,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     }, [user?.id, user?.role, user?.verificationStatus]);
 
     // Login with email/password
-    const login = useCallback(async (email, password) => {
+    const login = useCallback(async (email, password, requestedTarget) => {
         try {
             const response = await api.post('/auth/login', { email, password });
             const { user } = response.data.data;
@@ -101,15 +104,8 @@ export const AuthProvider = ({ children }) => {
 
             toast.success(`Welcome back, ${user.name}!`);
 
-            if (user.role === 'responder') {
-                navigate('/admin/reports?view=dispatch-queue');
-            } else if (user.role === 'municipal_admin') {
-                navigate('/admin');
-            } else if (user.role === 'reporter') {
-                navigate('/reporter');
-            } else {
-                navigate('/dashboard');
-            }
+            const targetDestination = resolvePostLoginRedirect(user, requestedTarget);
+            navigate(targetDestination);
 
             return { success: true };
         } catch (error) {

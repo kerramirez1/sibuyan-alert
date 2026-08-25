@@ -64,13 +64,18 @@ export const getIncidentVisibilityRules = ({
     const admin = isAdminRole(viewerRole);
 
     const hasImages = Array.isArray(report.images) && report.images.length > 0;
-    const declaredEvidenceCount = Number(report.evidenceCount) || 0;
-    const hasEvidence = hasImages || declaredEvidenceCount > 0;
+    const declaredEvidenceCount = Number(report.evidenceCount ?? report.evidence?.evidenceCount ?? report.evidence?.count) || 0;
+    const hasEvidenceItems = Array.isArray(report.evidence?.items) && report.evidence.items.length > 0;
+    const hasEvidence = hasImages || declaredEvidenceCount > 0 || hasEvidenceItems;
+    const viewerAccess = (report.evidence?.viewerAccess === 'original' || ((operationalRole || isOwnerComputed) && (hasImages || hasEvidenceItems)))
+        ? 'original'
+        : (report.evidence?.viewerAccess || (hasEvidence ? 'redacted' : 'none'));
 
     return {
         isOperational: operationalRole,
         isAdmin: admin,
         isOwner: isOwnerComputed,
+        viewerAccess,
         showCoordinates: canViewExactCoordinates(viewerRole, isOwnerComputed),
         showReporterInfo: canViewReporterIdentity(viewerRole, isOwnerComputed),
         showReporterContact: canViewReporterContact(viewerRole, isOwnerComputed, Boolean(report.isAssignedResponder)),

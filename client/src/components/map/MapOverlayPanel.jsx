@@ -153,10 +153,10 @@ const MapOverlayPanel = ({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             className={isContextual
-                ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white/95 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95
+                ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white/95 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95
                    max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80] max-sm:rounded-t-2xl max-sm:border-t max-sm:border-gray-200/90 max-sm:shadow-2xl max-sm:transition-[height,max-height] max-sm:duration-300 max-sm:ease-out
                    sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] sm:rounded-2xl sm:border sm:border-gray-200/90 ${widthClass}
-                   ${isMobileExpanded ? 'max-sm:h-[90vh] max-sm:max-h-[92vh]' : 'max-sm:h-[40vh] max-sm:max-h-[42vh]'}`
+                   ${isMobileExpanded ? 'max-sm:h-[88vh] max-sm:max-h-[92vh]' : 'max-sm:h-[38vh] max-sm:max-h-[42vh]'}`
                 : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-white/10 dark:bg-[#0c1813]/95 ${widthClass}`}
         >
             {/* Mobile Drag Handle */}
@@ -173,7 +173,12 @@ const MapOverlayPanel = ({
             )}
 
             <header
-                className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5"
+                className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5 max-sm:cursor-pointer select-none"
+                onClick={(e) => {
+                    if (isContextual && !e.defaultPrevented) {
+                        setIsMobileExpanded((prev) => !prev);
+                    }
+                }}
                 onTouchStart={isContextual ? handleTouchStart : undefined}
                 onTouchEnd={isContextual ? handleTouchEnd : undefined}
             >
@@ -188,7 +193,7 @@ const MapOverlayPanel = ({
                     )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     {/* Expand/Collapse Toggle on Mobile */}
                     {isContextual && (
                         <button
@@ -221,7 +226,7 @@ const MapOverlayPanel = ({
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'}`}
+                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'} pb-[max(1rem,env(safe-area-inset-bottom))]`}
             >
                 {children}
             </div>
@@ -230,10 +235,10 @@ const MapOverlayPanel = ({
 
     if (isContextual) {
         return (
-            <div className="pointer-events-none absolute inset-0 z-[40] flex items-end justify-end p-3 sm:items-start sm:p-4">
+            <div className="pointer-events-none absolute inset-0 z-[40] flex items-end justify-end p-0 sm:items-start sm:p-4 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80]">
                 {isMobileExpanded && (
                     <div
-                        className="fixed inset-0 z-[75] bg-black/25 backdrop-blur-[1px] transition-opacity duration-200 sm:hidden pointer-events-auto"
+                        className="fixed inset-0 z-[75] bg-black/40 backdrop-blur-xs transition-opacity duration-200 sm:hidden pointer-events-auto"
                         onClick={() => setIsMobileExpanded(false)}
                         aria-hidden="true"
                     />

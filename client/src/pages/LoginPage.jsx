@@ -19,7 +19,16 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    const isExpired = new URLSearchParams(location.search).get('expired');
+    const searchParams = new URLSearchParams(location.search);
+    const isExpired = searchParams.get('expired');
+    const redirectQuery = searchParams.get('redirect') || searchParams.get('next');
+    const stateFrom = location.state?.from;
+    const stateTarget = stateFrom
+        ? (typeof stateFrom === 'string'
+            ? stateFrom
+            : `${stateFrom.pathname || ''}${stateFrom.search || ''}${stateFrom.hash || ''}`)
+        : null;
+    const intendedTarget = redirectQuery || stateTarget;
 
     const validate = () => {
         const newErrors = {};
@@ -41,7 +50,7 @@ const LoginPage = () => {
 
         setLoading(true);
         try {
-            const result = await login(formData.email, formData.password);
+            const result = await login(formData.email, formData.password, intendedTarget);
             if (!result?.success) {
                 setErrors({ form: result?.message || 'Unable to sign in. Please check your credentials and try again.' });
             }
@@ -105,7 +114,7 @@ const LoginPage = () => {
                 )}
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} data-testid="login-form" className="space-y-4">
                     {/* Email Field */}
                     <div>
                         <label htmlFor="login-email" className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">

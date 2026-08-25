@@ -47,7 +47,7 @@ const EvidenceThumbnail = ({
                 // Original mode (server-authorized report owner or operational personnel)
                 const originalSource = item?.originalUrl || item?.src;
                 if (!originalSource) {
-                    setState({ url: '', loading: false, error: 'Photo unavailable' });
+                    setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
                     return;
                 }
 
@@ -66,7 +66,7 @@ const EvidenceThumbnail = ({
                 setState({ url: objectUrl, loading: false, error: '' });
             } catch (error) {
                 if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
-                setState({ url: '', loading: false, error: 'Unable to load photo' });
+                setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
             }
         };
 
@@ -169,18 +169,20 @@ const ProtectedEvidenceGallery = ({
     evidence = null,
     accessLevel = null,
     isOwner = false,
+    isOperational = false,
     onViewImage,
 }) => {
     const [viewer, setViewer] = useState(null);
 
     // 1. Authoritative normalization from server evidence descriptor ONLY
     const normalizedDescriptor = useMemo(() => {
+        const isOperationalEffective = accessLevel === 'original' || isOperational;
         return normalizeEvidenceDescriptor(evidence, {
             isOwner,
-            isOperational: accessLevel === 'original',
-            rawImages: accessLevel === 'original' ? images : [],
+            isOperational: isOperationalEffective,
+            rawImages: (isOperationalEffective || isOwner) ? images : [],
         });
-    }, [evidence, accessLevel, isOwner, images]);
+    }, [evidence, accessLevel, isOwner, isOperational, images]);
 
     const isOriginalAuthorized = normalizedDescriptor.viewerAccess === 'original';
     const viewerAccess = isOriginalAuthorized ? 'original' : 'redacted';

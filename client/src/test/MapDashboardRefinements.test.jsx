@@ -82,17 +82,17 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
 
             const dialog = screen.getByRole('dialog', { name: 'Incident brief' });
             // Initially collapsed peek state
-            expect(dialog).toHaveClass('max-sm:h-[40vh]');
+            expect(dialog).toHaveClass('max-sm:h-[38vh]');
 
             const expandBtn = screen.getByRole('button', { name: /Expand incident details/i });
             fireEvent.click(expandBtn);
 
             // Now expanded
-            expect(dialog).toHaveClass('max-sm:h-[90vh]');
+            expect(dialog).toHaveClass('max-sm:h-[88vh]');
 
             // Pressing Escape while expanded collapses to peek state first
             fireEvent.keyDown(window, { key: 'Escape' });
-            expect(dialog).toHaveClass('max-sm:h-[40vh]');
+            expect(dialog).toHaveClass('max-sm:h-[38vh]');
             expect(onClose).not.toHaveBeenCalled();
 
             // Pressing Escape while collapsed calls onClose
@@ -236,14 +236,13 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             fireEvent.click(thumbnailBtn);
 
             // Lightbox renders truthful title and footer badge
-            expect(screen.getByText('Evidence photo 1 (Privacy-safe preview)')).toBeInTheDocument();
-            expect(screen.getByText('Privacy-safe preview · Details limited')).toBeInTheDocument();
+            expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
+            expect(screen.getByText(/Privacy-safe preview · Original evidence restricted/i)).toBeInTheDocument();
             expect(screen.queryByText(/Faces redacted for privacy/i)).not.toBeInTheDocument();
 
-            // Lightbox download button uses safe redacted filename
-            const downloadAnchor = screen.getByRole('link', { name: /Download privacy-safe preview image/i });
-            expect(downloadAnchor).toHaveAttribute('href', '/api/reports/rep-123/evidence/0/preview?rv=3.4');
-            expect(downloadAnchor).toHaveAttribute('download', 'evidence-1-redacted.jpg');
+            // Lightbox strictly NEVER renders a download control
+            expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Download/i })).not.toBeInTheDocument();
 
             unmount();
         });
@@ -340,7 +339,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(workspaceProps.setResponderMapFilter).toHaveBeenCalledWith('verified');
         });
 
-        test('renders 4 slim overview items with aligned values and accessible buttons', () => {
+        test('renders 4 slim overview items with aligned values, chevrons, and accessible button semantics', () => {
             render(
                 <MemoryRouter>
                     <DashboardMapWorkspace {...workspaceProps} />
@@ -353,8 +352,231 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             const buttons = within(summaryRegion).getAllByRole('button');
             expect(buttons).toHaveLength(4);
             buttons.forEach((btn) => {
+                expect(btn).toHaveAttribute('type', 'button');
                 expect(btn).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
+                expect(btn).toHaveAttribute('aria-pressed');
+                expect(btn).toHaveAttribute('aria-expanded');
+                expect(btn).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-inset');
             });
+
+            // Verify the 4 labeled actions exist with full text
+            expect(within(summaryRegion).getAllByText('Active incidents').length).toBeGreaterThanOrEqual(1);
+            expect(within(summaryRegion).getByText('Active response')).toBeInTheDocument();
+            expect(within(summaryRegion).getByText('Transferred')).toBeInTheDocument();
+            expect(within(summaryRegion).getByText('Risk zones')).toBeInTheDocument();
+        });
+
+        test('navigates and synchronizes selection state when overview metric buttons are clicked', () => {
+            const setMapSummaryPanel = vi.fn();
+            const { rerender } = render(
+                <MemoryRouter>
+                    <DashboardMapWorkspace
+                        {...workspaceProps}
+                        setMapSummaryPanel={setMapSummaryPanel}
+                        mapSummaryPanel=""
+                    />
+                </MemoryRouter>
+            );
+
+            const summaryRegion = screen.getByRole('region', { name: 'Map summary' });
+            const activeIncidentsBtn = within(summaryRegion).getByRole('button', { name: /Active incidents/i });
+            const riskZonesBtn = within(summaryRegion).getByRole('button', { name: /Risk zones/i });
+
+            expect(activeIncidentsBtn).toHaveAttribute('aria-pressed', 'false');
+
+            fireEvent.click(activeIncidentsBtn);
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-active');
+
+            fireEvent.click(riskZonesBtn);
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-risk-zones');
+
+            // Rerender with active panel to verify visual and accessibility selected state
+            rerender(
+                <MemoryRouter>
+                    <DashboardMapWorkspace
+                        {...workspaceProps}
+                        setMapSummaryPanel={setMapSummaryPanel}
+                        mapSummaryPanel="overview:public-active"
+                    />
+                </MemoryRouter>
+            );
+
+            const updatedActiveBtn = within(screen.getByRole('region', { name: 'Map summary' })).getByRole('button', { name: /Active incidents/i });
+            expect(updatedActiveBtn).toHaveAttribute('aria-pressed', 'true');
+            expect(updatedActiveBtn).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        test('shows Clear filter button only when a non-default filter is active', () => {
+            const { rerender } = render(
+                <MemoryRouter>
+                    <DashboardMapWorkspace {...workspaceProps} responderMapFilter="all" />
+                </MemoryRouter>
+            );
+
+            expect(screen.queryByRole('button', { name: /Clear active filter and show all/i })).not.toBeInTheDocument();
+
+            rerender(
+                <MemoryRouter>
+                    <DashboardMapWorkspace {...workspaceProps} responderMapFilter="verified" />
+                </MemoryRouter>
+            );
+
+            const clearBtns = screen.getAllByRole('button', { name: /Clear active filter and show all/i });
+            expect(clearBtns.length).toBeGreaterThanOrEqual(1);
+            fireEvent.click(clearBtns[0]);
+            expect(workspaceProps.setResponderMapFilter).toHaveBeenCalledWith('all');
+        });
+    });
+
+    describe('5. ImageViewer Zoom Controls & Keyboard Navigation', () => {
+        test('zooms in and out with + and - keyboard shortcuts and provides Escape-to-close', () => {
+            const onClose = vi.fn();
+            render(
+                <ImageViewer
+                    isOpen={true}
+                    item={{
+                        id: '0',
+                        index: 0,
+                        viewerAccess: 'original',
+                        sourceKind: 'authorized-original',
+                        src: 'blob:http://localhost/photo.jpg',
+                        isOwner: true,
+                    }}
+                    onClose={onClose}
+                />
+            );
+
+            const zoomBtn = screen.getByRole('button', { name: /Zoom in image/i });
+            expect(zoomBtn).toBeInTheDocument();
+
+            // Press '+' to zoom in
+            fireEvent.keyDown(window, { key: '+' });
+            expect(screen.getByRole('button', { name: /Zoom out image/i })).toBeInTheDocument();
+
+            // Press '-' to zoom out
+            fireEvent.keyDown(window, { key: '-' });
+            expect(screen.getByRole('button', { name: /Zoom in image/i })).toBeInTheDocument();
+
+            // Press 'Escape' to close
+            fireEvent.keyDown(window, { key: 'Escape' });
+            expect(onClose).toHaveBeenCalled();
+        });
+    });
+
+    describe('6. Empty, Loading, and Unrecorded State Handling in Inspector', () => {
+        test('renders quiet indicator when no casualties or impacts are recorded', () => {
+            const cleanReport = {
+                _id: 'report-clean',
+                title: 'Minor Road Hazard in Magdiwang',
+                incidentType: 'road_hazard',
+                status: 'verified',
+                severity: 'minor',
+                address: 'Main Street, Magdiwang',
+                barangay: 'Poblacion',
+                municipalityName: 'Magdiwang',
+                incidentTime: '2026-08-24T10:00:00.000Z',
+                description: '',
+                coordinates: { lat: 12.48, lng: 122.51 },
+                casualties: { injured: 0, fatalities: 0, missing: 0 },
+                affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
+                detailAccess: 'public',
+                detailCompleteness: 'full',
+            };
+
+            render(
+                <MemoryRouter>
+                    <MapIncidentDetails
+                        report={cleanReport}
+                        viewerRole="guest"
+                    />
+                </MemoryRouter>
+            );
+
+            expect(screen.getByText(/No description provided\./i)).toBeInTheDocument();
+            expect(screen.getByText(/No casualties or affected-area impacts recorded\./i)).toBeInTheDocument();
+        });
+    });
+
+    describe('7. Mobile Map Layout & Incident Details Bottom Sheet MVP', () => {
+        const fullReport = {
+            _id: 'report-mobile-test',
+            title: 'Bridge Obstruction in Cajidiocan',
+            incidentType: 'road_hazard',
+            status: 'responding',
+            severity: 'severe',
+            address: 'National Highway, Cajidiocan',
+            barangay: 'Sugod',
+            municipalityName: 'Cajidiocan',
+            incidentTime: '2026-08-25T08:30:00.000Z',
+            description: 'Fallen tree blocking both lanes near bridge approach.',
+            coordinates: { lat: 12.38, lng: 122.56 },
+            casualties: { injured: 1, fatalities: 0, missing: 0 },
+            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 25 },
+            responderAgency: 'MDRRMO - Cajidiocan',
+            evidence: {
+                count: 1,
+                viewerAccess: 'redacted',
+                items: [{
+                    id: '0',
+                    index: 0,
+                    redactedPreviewUrl: '/api/reports/report-mobile-test/evidence/0/preview',
+                    redactionType: 'public_soft_blur',
+                    detectionStatus: 'privacy_derivative',
+                    alt: 'Bridge obstruction photo',
+                }],
+            },
+        };
+
+        test('renders collapsed bottom sheet and expands to 88-92vh with internal scroll and fixed header', () => {
+            const onClose = vi.fn();
+            render(
+                <MemoryRouter>
+                    <div className="relative">
+                        <MapOverlayPanel
+                            title="Incident details"
+                            description="Live operational report"
+                            presentation="contextual"
+                            onClose={onClose}
+                        >
+                            <MapIncidentDetails
+                                report={fullReport}
+                                viewerRole="guest"
+                            />
+                        </MapOverlayPanel>
+                    </div>
+                </MemoryRouter>
+            );
+
+            const dialog = screen.getByRole('dialog', { name: 'Incident details' });
+            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+
+            const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
+            expect(scrollRegion).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+
+            // Header is fixed at top
+            const header = dialog.querySelector('header');
+            expect(header).toHaveClass('shrink-0', 'max-sm:cursor-pointer');
+
+            // Tap header to expand
+            fireEvent.click(header);
+            expect(dialog).toHaveClass('max-sm:h-[88vh]', 'max-sm:max-h-[92vh]');
+
+            // All incident sections are accessible
+            expect(screen.getByText('Bridge Obstruction in Cajidiocan')).toBeInTheDocument();
+            expect(screen.getByText('Fallen tree blocking both lanes near bridge approach.')).toBeInTheDocument();
+            expect(screen.getByText('MDRRMO - Cajidiocan')).toBeInTheDocument();
+            expect(screen.getByText(/Original evidence is available only to the report owner/i)).toBeInTheDocument();
+
+            // Swipe down collapses to peek
+            fireEvent.touchStart(header, { touches: [{ clientY: 100 }] });
+            fireEvent.touchEnd(header, { changedTouches: [{ clientY: 160 }] });
+            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+            expect(onClose).not.toHaveBeenCalled();
+
+            // Swipe down from peek closes sheet
+            fireEvent.touchStart(header, { touches: [{ clientY: 200 }] });
+            fireEvent.touchEnd(header, { changedTouches: [{ clientY: 260 }] });
+            expect(onClose).toHaveBeenCalledTimes(1);
         });
     });
 });

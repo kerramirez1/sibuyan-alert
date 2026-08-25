@@ -123,7 +123,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByText(/Original evidence is available only to the report owner and authorized municipal personnel/i)).toBeInTheDocument();
 
         // Privacy Notice
-        expect(screen.getByText(/Personal identities, evidence, and internal coordination details are not displayed/i)).toBeInTheDocument();
+        expect(screen.getByText(/Personal identities and original evidence are protected\. A privacy-safe preview may be shown\./i)).toBeInTheDocument();
 
         // Sensitive details hidden
         expect(screen.queryByText('Private Reporter')).not.toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByRole('link', { name: /open my full report/i }))
             .toHaveAttribute('href', '/my-reports?report=report-1');
         expect(screen.getByRole('heading', { name: /Your evidence photos · 1/i })).toBeInTheDocument();
-        expect(screen.getByText(/This owner view keeps responder identities and internal coordination details private/i)).toBeInTheDocument();
+        expect(screen.getByText(/Sensitive responder identities and internal coordination details are protected\./i)).toBeInTheDocument();
     });
 
     test('3. Renders blurred evidence for non-owner authenticated reporter', async () => {
@@ -351,5 +351,102 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
         // Viewer must be closed and not retain previous image state
         expect(screen.queryByRole('dialog', { name: /Enlarged evidence image viewer/i })).not.toBeInTheDocument();
+    });
+
+    describe('14. Privacy Notice Wording & Conditional Rendering', () => {
+        test('renders accurate privacy notice for guest with privacy-safe preview', () => {
+            const reportWithPreview = {
+                ...sampleReport,
+                updatedAt: '2026-08-25T10:00:00.000Z',
+                evidence: {
+                    count: 1,
+                    viewerAccess: 'redacted',
+                    items: [{ id: '0', redactedPreviewUrl: '/api/reports/1/evidence/0/preview' }],
+                },
+            };
+
+            renderDetails({ report: reportWithPreview, viewerRole: 'guest' });
+
+            expect(screen.getByText(/This is verified public safety information\. Personal identities and original evidence are protected\. A privacy-safe preview may be shown\./i)).toBeInTheDocument();
+            expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
+            expect(screen.queryByText(/evidence are not displayed/i)).not.toBeInTheDocument();
+        });
+
+        test('renders accurate privacy notice for guest without evidence preview', () => {
+            const reportWithoutEvidence = {
+                ...sampleReport,
+                updatedAt: '2026-08-25T10:00:00.000Z',
+                evidenceCount: 0,
+                evidence: { count: 0, items: [] },
+                images: [],
+            };
+
+            renderDetails({ report: reportWithoutEvidence, viewerRole: 'guest' });
+
+            expect(screen.getByText(/This is verified public safety information\. Personal identities, evidence, and internal coordination details are protected\./i)).toBeInTheDocument();
+            expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
+            expect(screen.queryByText(/A privacy-safe preview may be shown/i)).not.toBeInTheDocument();
+        });
+
+        test('renders accurate privacy notice for report owner with original access', () => {
+            const ownerReport = {
+                ...sampleReport,
+                isOwnedByCurrentUser: true,
+                updatedAt: '2026-08-25T10:00:00.000Z',
+                images: ['/api/files/photo.jpg'],
+                evidence: {
+                    viewerAccess: 'original',
+                    count: 1,
+                    items: [{ id: '0', originalUrl: '/api/files/photo.jpg', accessLevel: 'original' }],
+                },
+            };
+
+            renderDetails({ report: ownerReport, viewerRole: 'reporter' });
+
+            expect(screen.getByText(/This is verified public safety information\. Sensitive responder identities and internal coordination details are protected\./i)).toBeInTheDocument();
+            expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
+        });
+
+        test('renders operational privacy notice for responder and municipal admin', () => {
+            const operationalReport = {
+                ...sampleReport,
+                detailAccess: 'operational',
+                detailCompleteness: 'full',
+            };
+
+            const { unmount } = render(
+                <MemoryRouter>
+                    <MapIncidentDetails report={operationalReport} viewerRole="responder" />
+                </MemoryRouter>
+            );
+
+            expect(screen.getByText(/This operational view contains protected incident information\. Access to original evidence and sensitive coordination details is restricted by role\./i)).toBeInTheDocument();
+            unmount();
+
+            render(
+                <MemoryRouter>
+                    <MapIncidentDetails report={operationalReport} viewerRole="municipal_admin" />
+                </MemoryRouter>
+            );
+
+            expect(screen.getByText(/This operational view contains protected incident information\. Access to original evidence and sensitive coordination details is restricted by role\./i)).toBeInTheDocument();
+        });
+
+        test('gracefully handles missing timestamp without appending broken text', () => {
+            const noTimestampReport = {
+                ...sampleReport,
+                updatedAt: null,
+                verifiedAt: null,
+                evidenceCount: 0,
+                evidence: { count: 0, items: [] },
+                images: [],
+            };
+
+            renderDetails({ report: noTimestampReport, viewerRole: 'guest' });
+
+            const notice = screen.getByText(/This is verified public safety information\. Personal identities, evidence, and internal coordination details are protected\./i);
+            expect(notice).toBeInTheDocument();
+            expect(notice.textContent).not.toContain('Last updated');
+        });
     });
 });

@@ -81,6 +81,28 @@ describe('LoginPage system-accurate content', () => {
         await waitFor(() => {
             expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials');
         });
-        expect(mocks.login).toHaveBeenCalledWith('reporter@example.com', 'wrong-password');
+        expect(mocks.login).toHaveBeenCalledWith('reporter@example.com', 'wrong-password', null);
+    });
+
+    test('extracts redirect query parameter and passes to login', async () => {
+        render(
+            <MemoryRouter initialEntries={['/login?redirect=%2Fadmin%2Fzones']}>
+                <Routes>
+                    <Route path="/login" element={<AuthLayout variant="login"><LoginPage /></AuthLayout>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        fireEvent.change(screen.getByLabelText('Email Address'), {
+            target: { value: 'admin@cajidiocan.gov.ph' },
+        });
+        fireEvent.change(screen.getByLabelText('Password'), {
+            target: { value: 'AdminPass123!' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Sign in/i }));
+
+        await waitFor(() => {
+            expect(mocks.login).toHaveBeenCalledWith('admin@cajidiocan.gov.ph', 'AdminPass123!', '/admin/zones');
+        });
     });
 });

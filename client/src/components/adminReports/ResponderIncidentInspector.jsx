@@ -391,6 +391,11 @@ const ResponderIncidentInspector = ({
         const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
+                if (event.defaultPrevented) return;
+                // If evidence lightbox or higher-priority modal is active, let it handle Escape
+                if (document.querySelector('[role="dialog"][aria-label="Enlarged evidence image viewer"]')) {
+                    return;
+                }
                 if (actionsRef.current?.reviewDialog?.open) {
                     actionsRef.current.closeReview();
                     return;

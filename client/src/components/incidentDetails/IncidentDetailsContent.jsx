@@ -199,11 +199,15 @@ const IncidentDetailsContent = ({
             {/* 5. Evidence Photos (when permitted) */}
             {visibility.showEvidence && (
                 <IncidentDetailsEvidenceSection
-                    images={report.images || []}
-                    evidenceCount={Number(report.evidenceCount) || 0}
+                    evidence={report.evidence}
+                    images={visibility.isOperational || visibility.isOwner ? (report.images || []) : []}
+                    evidenceCount={Number(report.evidenceCount ?? report.evidence?.evidenceCount ?? report.evidence?.count) || 0}
+                    accessLevel={visibility.isOperational || visibility.isOwner ? 'original' : (report.evidence?.viewerAccess || 'redacted')}
+                    isOwner={visibility.isOwner}
+                    isOperational={visibility.isOperational}
                     onViewImage={onViewImage}
                     collapsible
-                    defaultOpen={Boolean(report.images?.length)}
+                    defaultOpen={Boolean(report.images?.length || report.evidence?.items?.length || report.evidenceCount)}
                 />
             )}
 

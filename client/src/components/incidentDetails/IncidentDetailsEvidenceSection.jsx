@@ -3,13 +3,20 @@ import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 
 const IncidentDetailsEvidenceSection = ({
     images = [],
+    evidence = null,
     evidenceCount = 0,
+    accessLevel = null,
+    isOwner = false,
+    isOperational = false,
     onViewImage,
     collapsible = true,
     defaultOpen = true,
     className = '',
 }) => {
-    const totalCount = Math.max(images.length, evidenceCount);
+    const rawImagesCount = Array.isArray(images) ? images.length : 0;
+    const evidenceItemsCount = Array.isArray(evidence?.items) ? evidence.items.length : 0;
+    const declaredCount = Number(evidenceCount ?? evidence?.evidenceCount ?? evidence?.count) || 0;
+    const totalCount = Math.max(rawImagesCount, evidenceItemsCount, declaredCount);
 
     if (totalCount === 0) {
         return null;
@@ -17,7 +24,14 @@ const IncidentDetailsEvidenceSection = ({
 
     const content = (
         <div className="mt-2.5">
-            <ProtectedEvidenceGallery images={images} onViewImage={onViewImage} />
+            <ProtectedEvidenceGallery
+                images={images}
+                evidence={evidence}
+                accessLevel={accessLevel}
+                isOwner={isOwner}
+                isOperational={isOperational}
+                onViewImage={onViewImage}
+            />
         </div>
     );
 
