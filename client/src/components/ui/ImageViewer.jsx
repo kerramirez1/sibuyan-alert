@@ -99,9 +99,9 @@ const ImageViewer = ({
             return undefined;
         }
 
-        const effectiveAccess = currentItem?.viewerAccess
-            ? currentItem.viewerAccess
-            : (viewerAccess === 'original' ? 'original' : 'redacted');
+        const effectiveAccess = currentItem?.viewerAccess === 'original'
+            ? 'original'
+            : (viewerAccess === 'original' && (!currentItem || currentItem.viewerAccess === 'original') ? 'original' : 'redacted');
 
         if (effectiveAccess === 'redacted') {
             setBlobUrl('');
@@ -240,16 +240,16 @@ const ImageViewer = ({
 
     if (!isOpen) return null;
 
-    // 1. Authoritative access determination strictly from server item descriptor
-    const effectiveViewerAccess = currentItem?.viewerAccess
-        ? currentItem.viewerAccess
-        : (viewerAccess === 'original' ? 'original' : 'redacted');
+    // 1. Authoritative access determination strictly from server item descriptor (fail-closed)
+    const effectiveViewerAccess = currentItem?.viewerAccess === 'original'
+        ? 'original'
+        : (viewerAccess === 'original' && (!currentItem || currentItem.viewerAccess === 'original') ? 'original' : 'redacted');
     const isRedacted = effectiveViewerAccess === 'redacted';
 
     // 2. Resolve normalized model fields
     const sourceKind = currentItem?.sourceKind || (isRedacted ? 'redacted-preview' : 'authorized-original');
     const rawCandidateSrc = isRedacted
-        ? (currentItem ? (currentItem.redactedPreviewUrl || '') : imageSrc || '')
+        ? (currentItem?.redactedPreviewUrl || '')
         : (currentItem?.src || currentItem?.originalUrl || imageSrc || '');
     const displayIndexNumber = activeIndex + 1;
 
@@ -399,7 +399,7 @@ const ImageViewer = ({
         >
             {/* Dedicated Operational Inspection Surface with Stable, Predictable Layout */}
             <div
-                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[820px] sm:min-h-[480px] md:min-h-[520px] sm:w-[92vw] md:w-[85vw] sm:max-w-4xl rounded-none sm:rounded-xl border-0 sm:border border-[#334047] bg-[#151A1F] shadow-xl overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
+                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[760px] sm:min-h-[460px] md:min-h-[480px] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] sm:max-w-2xl rounded-none sm:rounded-xl border-0 sm:border border-[#334047] bg-[#151A1F] shadow-xl overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
                 onClick={(e) => e.stopPropagation()}
                 data-testid="evidence-viewer-surface"
             >

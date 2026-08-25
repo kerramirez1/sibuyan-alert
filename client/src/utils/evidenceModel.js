@@ -37,13 +37,10 @@ export const isAuthorizedRedactedPreviewEndpoint = (value) => {
  * @returns {{ evidenceCount: number, viewerAccess: 'redacted'|'original'|'none', items: Array<Object> }}
  */
 export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOperational = false, rawImages = [] } = {}) => {
-    // 1. Strict server-only authorization determination
+    // 1. Strict server-only authorization determination (fail-closed model)
     const serverViewerAccess = evidence?.viewerAccess;
     const rawImagesList = Array.isArray(rawImages) ? rawImages : [];
-    const isOriginalAuthorized = serverViewerAccess === 'original'
-        || (serverViewerAccess === undefined && (isOwner || isOperational) && (rawImagesList.length > 0 || (Array.isArray(evidence?.items) && evidence.items.length > 0)));
-    const viewerAccess = isOriginalAuthorized ? 'original' : (serverViewerAccess || 'redacted');
-
+    const isOriginalAuthorized = serverViewerAccess === 'original';
     const declaredCount = Number(evidence?.evidenceCount ?? evidence?.count);
     const rawItems = Array.isArray(evidence?.items) ? evidence.items : [];
     const count = Math.max(
@@ -52,7 +49,13 @@ export const normalizeEvidenceDescriptor = (evidence, { isOwner = false, isOpera
         isOriginalAuthorized ? rawImagesList.length : 0
     );
 
-    if (count === 0 && rawItems.length === 0 && rawImagesList.length === 0) {
+    const viewerAccess = isOriginalAuthorized
+        ? 'original'
+        : ((serverViewerAccess === 'none' || (count === 0 && rawItems.length === 0 && rawImagesList.length === 0))
+            ? 'none'
+            : 'redacted');
+
+    if (viewerAccess === 'none' || (count === 0 && rawItems.length === 0 && rawImagesList.length === 0)) {
         return {
             evidenceCount: 0,
             count: 0,

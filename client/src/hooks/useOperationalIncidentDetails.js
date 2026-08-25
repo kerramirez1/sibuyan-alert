@@ -204,8 +204,14 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
         const base = (typeof report === 'object' && report !== null) ? report : { _id: reportId };
         if (!state.extraDetails || getReportId(state.extraDetails) !== reportId) {
             const copy = { ...base };
-            if (!isOperationalViewer && !isOwnerViewer && copy.evidence?.viewerAccess === 'redacted') {
+            if (!isOperationalViewer && !isOwnerViewer) {
                 delete copy.images;
+                if (copy.evidence && typeof copy.evidence === 'object' && copy.evidence.viewerAccess === 'original') {
+                    copy.evidence = {
+                        ...copy.evidence,
+                        viewerAccess: 'redacted',
+                    };
+                }
             }
             return copy;
         }
@@ -231,6 +237,12 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
 
         if (!isOperationalViewer && !isOwnerViewer) {
             delete merged.images;
+            if (merged.evidence && typeof merged.evidence === 'object' && merged.evidence.viewerAccess === 'original') {
+                merged.evidence = {
+                    ...merged.evidence,
+                    viewerAccess: 'redacted',
+                };
+            }
         }
 
         return merged;

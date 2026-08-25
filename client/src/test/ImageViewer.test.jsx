@@ -702,7 +702,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         // 1. Surface and canvas maintain stable layout during loading
         const surface = screen.getByTestId('evidence-viewer-surface');
         expect(surface).toHaveClass('sm:h-[82vh]');
-        expect(surface).toHaveClass('sm:max-w-4xl');
+        expect(surface).toHaveClass('sm:max-w-2xl');
 
         const canvas = screen.getByTestId('evidence-viewer-canvas');
         expect(canvas).toHaveClass('flex-1');
@@ -826,5 +826,116 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         // Click next again to reach item 3
         fireEvent.click(nextBtn);
         expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 3 of 3');
+    });
+
+    test('28. Desktop uses compact purposeful max-width while mobile preserves full-screen layout', () => {
+        const item = {
+            id: 'ev-0',
+            index: 0,
+            viewerAccess: 'redacted',
+            sourceKind: 'redacted-preview',
+            redactedPreviewUrl: '/api/reports/rep-1/evidence/0/preview',
+            alt: 'Document evidence',
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const surface = screen.getByTestId('evidence-viewer-surface');
+        // Mobile layout: full width and height with safe area insets
+        expect(surface).toHaveClass('w-full');
+        expect(surface).toHaveClass('h-full');
+
+        // Desktop layout: compact purposeful review size (max-w-2xl / responsive width)
+        expect(surface).toHaveClass('sm:max-w-2xl');
+        expect(surface).toHaveClass('sm:w-[88vw]');
+        expect(surface).toHaveClass('md:w-[72vw]');
+        expect(surface).toHaveClass('lg:w-[56vw]');
+        expect(surface).toHaveClass('sm:h-[82vh]');
+        expect(surface).toHaveClass('sm:max-h-[760px]');
+    });
+
+    test('29. Preserves object-contain and canvas stability when switching between portrait and landscape evidence', () => {
+        const items = [
+            {
+                id: 'ev-0',
+                index: 0,
+                viewerAccess: 'redacted',
+                sourceKind: 'redacted-preview',
+                redactedPreviewUrl: '/api/reports/rep-1/evidence/0/preview',
+                alt: 'Portrait document photo 1',
+            },
+            {
+                id: 'ev-1',
+                index: 1,
+                viewerAccess: 'redacted',
+                sourceKind: 'redacted-preview',
+                redactedPreviewUrl: '/api/reports/rep-1/evidence/1/preview',
+                alt: 'Landscape scene photo 2',
+            },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        const canvas = screen.getByTestId('evidence-viewer-canvas');
+        const img = screen.getByRole('img');
+
+        // Portrait photo item 1
+        expect(img).toHaveClass('object-contain');
+        expect(img).toHaveClass('max-h-full');
+        expect(img).toHaveClass('max-w-full');
+        expect(canvas).toHaveClass('flex-1');
+        expect(canvas).toHaveClass('min-h-0');
+
+        // Navigate to landscape photo item 2
+        const nextBtn = screen.getAllByRole('button', { name: /Next evidence photo/i })[0];
+        fireEvent.click(nextBtn);
+
+        const updatedImg = screen.getByRole('img');
+        expect(updatedImg).toHaveAttribute('alt', 'Landscape scene photo 2');
+        expect(updatedImg).toHaveClass('object-contain');
+        expect(canvas).toHaveClass('flex-1');
+        expect(canvas).toHaveClass('min-h-0');
+    });
+
+    test('30. Restrained background overlay prevents background interaction and locks body scroll', () => {
+        const onClose = vi.fn();
+        const item = {
+            id: 'ev-0',
+            index: 0,
+            viewerAccess: 'redacted',
+            sourceKind: 'redacted-preview',
+            redactedPreviewUrl: '/api/reports/rep-1/evidence/0/preview',
+        };
+
+        const { unmount } = render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+                onClose={onClose}
+            />
+        );
+
+        const dialog = screen.getByRole('dialog', { name: /Enlarged evidence image viewer/i });
+        expect(dialog).toHaveAttribute('aria-modal', 'true');
+        expect(dialog).toHaveClass('bg-black/80');
+        expect(document.body.style.overflow).toBe('hidden');
+
+        // Clicking backdrop closes viewer
+        fireEvent.click(dialog);
+        expect(onClose).toHaveBeenCalledTimes(1);
+
+        unmount();
+        expect(document.body.style.overflow).not.toBe('hidden');
     });
 });
