@@ -199,10 +199,16 @@ const ProtectedEvidenceGallery = ({
 
     const viewImage = (item, index) => {
         if (!item) return;
+        const payload = {
+            ...item,
+            index,
+            items: rawList,
+            total: rawList.length,
+        };
         if (onViewImage) {
-            onViewImage(item);
+            onViewImage(payload, index, rawList);
         } else {
-            setViewer({ ...item, index });
+            setViewer(payload);
         }
     };
 

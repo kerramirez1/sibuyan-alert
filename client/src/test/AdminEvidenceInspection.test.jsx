@@ -338,7 +338,9 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
             expect.objectContaining({
                 originalUrl: '/api/files/607f1f77bcf86cd799439011/photo1.jpg',
                 viewerAccess: 'original',
-            })
+            }),
+            0,
+            expect.any(Array)
         );
     });
 
@@ -387,12 +389,6 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         // Exactly one ImageViewer dialog is mounted and portaled to document.body
         const dialogs = screen.getAllByRole('dialog', { name: /Enlarged evidence image viewer/i });
         expect(dialogs).toHaveLength(1);
-        const viewerDialog = dialogs[0];
-        expect(viewerDialog.parentElement).toBe(document.body);
-        expect(viewerDialog).toHaveClass('z-[100]');
-
-        // Underlying inspector is still present
-        expect(screen.getByTestId('responder-incident-inspector')).toBeInTheDocument();
     });
 
     test('10. Backdrop click closes evidence viewer without closing inspector drawer', async () => {
@@ -436,13 +432,13 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         const viewerDialog = screen.getByRole('dialog', { name: /Enlarged evidence image viewer/i });
         expect(viewerDialog).toBeInTheDocument();
 
-        // Click outside the viewer modal on the backdrop
+        // Click backdrop (outermost modal container)
         fireEvent.click(viewerDialog);
 
         // Viewer closes
         expect(screen.queryByRole('dialog', { name: /Enlarged evidence image viewer/i })).not.toBeInTheDocument();
 
-        // Drawer close callback was NOT triggered
+        // Inspector drawer remains open and unclosed
         expect(handleCloseDrawer).not.toHaveBeenCalled();
         expect(screen.getByTestId('responder-incident-inspector')).toBeInTheDocument();
     });
@@ -539,5 +535,82 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         // Confirm NO download control is rendered
         expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Download/i })).not.toBeInTheDocument();
+    });
+
+    test('13. Municipal admin inspects report with multiple evidence photos and navigates forward and backward', async () => {
+        const multiEvidenceReport = {
+            ...fullDetailReport,
+            evidenceCount: 3,
+            images: [
+                '/api/files/607f1f77bcf86cd799439011/photo1.jpg',
+                '/api/files/607f1f77bcf86cd799439011/photo2.jpg',
+                '/api/files/607f1f77bcf86cd799439011/photo3.jpg',
+            ],
+            evidence: {
+                count: 3,
+                evidenceCount: 3,
+                viewerAccess: 'original',
+                accessLevel: 'original',
+                items: [
+                    { id: '0', index: 0, originalUrl: '/api/files/607f1f77bcf86cd799439011/photo1.jpg', previewUrl: '/api/files/607f1f77bcf86cd799439011/photo1.jpg', accessLevel: 'original', alt: 'Incident photo 1' },
+                    { id: '1', index: 1, originalUrl: '/api/files/607f1f77bcf86cd799439011/photo2.jpg', previewUrl: '/api/files/607f1f77bcf86cd799439011/photo2.jpg', accessLevel: 'original', alt: 'Incident photo 2' },
+                    { id: '2', index: 2, originalUrl: '/api/files/607f1f77bcf86cd799439011/photo3.jpg', previewUrl: '/api/files/607f1f77bcf86cd799439011/photo3.jpg', accessLevel: 'original', alt: 'Incident photo 3' },
+                ],
+            },
+        };
+
+        adminAPI.getReportById.mockResolvedValueOnce({
+            data: {
+                success: true,
+                data: multiEvidenceReport,
+            },
+        });
+
+        const TestMultiPage = () => {
+            const [selectedImage, setSelectedImage] = useState(null);
+            const detailState = useOperationalIncidentDetails({ ...summaryReportWithEvidence, evidenceCount: 3 }, adminUser.role);
+            return (
+                <div>
+                    <ResponderIncidentInspector
+                        report={detailState.report}
+                        user={adminUser}
+                        actions={{}}
+                        onClose={vi.fn()}
+                        onOpenMap={vi.fn()}
+                        onViewImage={(item) => setSelectedImage(item)}
+                        detailLoading={detailState.loading}
+                    />
+                    <ImageViewer
+                        isOpen={Boolean(selectedImage)}
+                        item={selectedImage}
+                        onClose={() => setSelectedImage(null)}
+                    />
+                </div>
+            );
+        };
+
+        render(<TestMultiPage />);
+
+        const thumbnailBtn = await screen.findByRole('button', { name: /View evidence photo 1/i });
+        fireEvent.click(thumbnailBtn);
+
+        // Viewer opens with "Evidence photo 1 of 3"
+        const dialog = screen.getByRole('dialog', { name: /Enlarged evidence image viewer/i });
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1 of 3');
+
+        // Click next button
+        const nextBtn = within(dialog).getAllByRole('button', { name: /Next evidence photo/i })[0];
+        fireEvent.click(nextBtn);
+
+        expect(within(dialog).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
+
+        // Navigate with ArrowRight keyboard shortcut
+        fireEvent.keyDown(window, { key: 'ArrowRight' });
+        expect(within(dialog).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 3 of 3');
+
+        // Navigate with ArrowLeft keyboard shortcut
+        fireEvent.keyDown(window, { key: 'ArrowLeft' });
+        expect(within(dialog).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
     });
 });

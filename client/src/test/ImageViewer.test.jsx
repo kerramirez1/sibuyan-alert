@@ -1,8 +1,29 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import ImageViewer from '../components/ui/ImageViewer';
+import { filesAPI } from '../services/api';
+
+vi.mock('../services/api', () => ({
+    filesAPI: {
+        getProtected: vi.fn(),
+    },
+    default: {
+        get: vi.fn(),
+        post: vi.fn(),
+        put: vi.fn(),
+        delete: vi.fn(),
+    },
+}));
 
 describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        filesAPI.getProtected.mockResolvedValue({
+            data: new Blob(['mock-binary'], { type: 'image/jpeg' }),
+        });
+        globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/mock-blob-image');
+        globalThis.URL.revokeObjectURL = vi.fn();
+    });
     test('1. Renders face-redacted preview for redacted viewer access without any download controls', () => {
         const onClose = vi.fn();
         const item = {
@@ -440,5 +461,370 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         // Status is displayed in footer once
         const statusBadges = screen.getAllByText(/Original evidence · Operational access/i);
         expect(statusBadges).toHaveLength(1);
+    });
+
+    test('17. Single evidence item does not show active multi-evidence navigation buttons', () => {
+        const singleItem = {
+            id: '0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/single-photo.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={singleItem}
+            />
+        );
+
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+        expect(screen.queryByRole('button', { name: /Previous evidence photo/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Next evidence photo/i })).not.toBeInTheDocument();
+    });
+
+    test('18. Multiple evidence items render previous and next buttons with correct disable bounds and counter', () => {
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-0.jpg', alt: 'Scene overview photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-1.jpg', alt: 'Vehicle damage photo 2' },
+            { id: 'ev-2', index: 2, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-2.jpg', alt: 'Skid marks photo 3' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        // Header counter shows "Evidence photo 1 of 3"
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1 of 3');
+
+        // Previous button is disabled at index 0
+        const prevBtns = screen.getAllByRole('button', { name: /Previous evidence photo/i });
+        prevBtns.forEach(btn => expect(btn).toBeDisabled());
+
+        // Next button is enabled at index 0
+        const nextBtns = screen.getAllByRole('button', { name: /Next evidence photo/i });
+        expect(nextBtns[0]).not.toBeDisabled();
+
+        // Image displays item 0
+        expect(screen.getByRole('img', { name: /Scene overview photo 1/i })).toHaveAttribute('src', 'blob:http://localhost/ev-0.jpg');
+    });
+
+    test('19. Navigates forward and backward with Next and Previous buttons and updates counter and image', () => {
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-0.jpg', alt: 'Scene overview photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-1.jpg', alt: 'Vehicle damage photo 2' },
+            { id: 'ev-2', index: 2, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-2.jpg', alt: 'Skid marks photo 3' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        const nextBtn = screen.getAllByRole('button', { name: /Next evidence photo/i })[0];
+        fireEvent.click(nextBtn);
+
+        // Counter updates to "Evidence photo 2 of 3"
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
+        expect(screen.getByRole('img', { name: /Vehicle damage photo 2/i })).toHaveAttribute('src', 'blob:http://localhost/ev-1.jpg');
+
+        // Click next again to reach last item
+        fireEvent.click(nextBtn);
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 3 of 3');
+        expect(screen.getByRole('img', { name: /Skid marks photo 3/i })).toHaveAttribute('src', 'blob:http://localhost/ev-2.jpg');
+
+        // Next button is now disabled
+        expect(nextBtn).toBeDisabled();
+
+        // Click previous to return to item 2
+        const prevBtn = screen.getAllByRole('button', { name: /Previous evidence photo/i })[0];
+        fireEvent.click(prevBtn);
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
+    });
+
+    test('20. Navigates forward and backward via ArrowLeft and ArrowRight keyboard shortcuts', () => {
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-0.jpg', alt: 'Photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-1.jpg', alt: 'Photo 2' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1 of 2');
+
+        // Press ArrowRight
+        fireEvent.keyDown(window, { key: 'ArrowRight' });
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 2');
+        expect(screen.getByRole('img', { name: /Photo 2/i })).toBeInTheDocument();
+
+        // Press ArrowLeft
+        fireEvent.keyDown(window, { key: 'ArrowLeft' });
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1 of 2');
+    });
+
+    test('21. Resets zoom level when navigating between evidence items', () => {
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-0.jpg', alt: 'Photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ev-1.jpg', alt: 'Photo 2' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        expect(img).toHaveClass('scale-100');
+
+        // Zoom in on item 0
+        fireEvent.keyDown(window, { key: '+' });
+        expect(img).toHaveClass('scale-125');
+
+        // Navigate to item 1 -> Zoom should reset to scale-100
+        fireEvent.keyDown(window, { key: 'ArrowRight' });
+        const nextImg = screen.getByRole('img');
+        expect(nextImg).toHaveClass('scale-100');
+    });
+
+    test('22. Displays item-specific error state while keeping Previous and Next navigation buttons active', () => {
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/broken-photo.jpg', alt: 'Broken photo' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/valid-photo.jpg', alt: 'Valid photo' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        fireEvent.error(img);
+
+        // Error message is displayed for item 0
+        expect(screen.getByRole('alert')).toHaveTextContent(/Unable to load image/i);
+
+        // Navigation to next item is still available
+        const nextBtn = screen.getAllByRole('button', { name: /Next evidence photo/i })[0];
+        expect(nextBtn).not.toBeDisabled();
+        fireEvent.click(nextBtn);
+
+        // Item 1 renders successfully
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 2');
+        expect(screen.getByRole('img', { name: /Valid photo/i })).toBeInTheDocument();
+    });
+
+    test('23. In redacted mode, navigating between items maintains strict redacted preview security and never exposes original files', () => {
+        const redactedItems = [
+            {
+                id: '0',
+                index: 0,
+                viewerAccess: 'redacted',
+                sourceKind: 'redacted-preview',
+                src: '/api/reports/123/evidence/0/preview',
+                redactedPreviewUrl: '/api/reports/123/evidence/0/preview',
+                detectionStatus: 'faces_detected',
+                redactionType: 'face_blur',
+            },
+            {
+                id: '1',
+                index: 1,
+                viewerAccess: 'redacted',
+                sourceKind: 'redacted-preview',
+                src: '/api/reports/123/evidence/1/preview',
+                redactedPreviewUrl: '/api/reports/123/evidence/1/preview',
+                detectionStatus: 'no_faces_detected',
+                redactionType: 'none',
+            },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={redactedItems}
+                initialIndex={0}
+            />
+        );
+
+        // Item 0: faces redacted label
+        expect(screen.getByText(/Faces redacted for privacy · Scene details preserved/i)).toBeInTheDocument();
+
+        // Navigate to Item 1
+        fireEvent.keyDown(window, { key: 'ArrowRight' });
+
+        // Item 1: clean scene preview label
+        expect(screen.getByText(/Clean scene preview · Scene details preserved/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 2');
+
+        // Zero download controls
+        expect(screen.queryByRole('link', { name: /Download/i })).not.toBeInTheDocument();
+    });
+
+    test('24. Modal surface and image canvas maintain stable reserved dimensions during protected evidence loading', async () => {
+        let resolveProtected;
+        filesAPI.getProtected.mockImplementation(() => new Promise((resolve) => {
+            resolveProtected = resolve;
+        }));
+
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/111/photo1.jpg', alt: 'Photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/222/photo2.jpg', alt: 'Photo 2' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        // 1. Surface and canvas maintain stable layout during loading
+        const surface = screen.getByTestId('evidence-viewer-surface');
+        expect(surface).toHaveClass('sm:h-[82vh]');
+        expect(surface).toHaveClass('sm:max-w-4xl');
+
+        const canvas = screen.getByTestId('evidence-viewer-canvas');
+        expect(canvas).toHaveClass('flex-1');
+        expect(canvas).toHaveClass('min-h-0');
+        expect(canvas).toHaveClass('w-full');
+
+        // Loading indicator is present inside the canvas
+        expect(screen.getByTestId('evidence-loading-indicator')).toBeInTheDocument();
+        expect(screen.getByText(/Loading protected evidence/i)).toBeInTheDocument();
+
+        // 2. Resolve image fetch
+        await resolveProtected({
+            data: new Blob(['binary-data'], { type: 'image/jpeg' }),
+        });
+
+        // Image canvas still maintains the exact same layout classes
+        expect(canvas).toHaveClass('flex-1');
+        expect(canvas).toHaveClass('min-h-0');
+        expect(canvas).toHaveClass('w-full');
+    });
+
+    test('25. Centered loading indicator displays clear accessible loading message without collapsing modal height', () => {
+        filesAPI.getProtected.mockReturnValue(new Promise(() => {})); // Never resolves (stays in loading state)
+
+        const item = {
+            id: 'ev-0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            originalUrl: '/api/files/111/photo.jpg',
+            alt: 'Photo 1',
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const loadingIndicator = screen.getByRole('status');
+        expect(loadingIndicator).toBeInTheDocument();
+        expect(loadingIndicator).toHaveAttribute('aria-live', 'polite');
+        expect(loadingIndicator).toHaveTextContent(/Loading protected evidence/i);
+
+        // Header and close controls remain accessible and positioned
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+        expect(screen.getByRole('button', { name: /Close image viewer/i })).toBeInTheDocument();
+    });
+
+    test('26. Discards stale image response when user navigates quickly between evidence items', async () => {
+        let resolveFirst;
+        let resolveSecond;
+
+        filesAPI.getProtected
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveFirst = resolve;
+            }))
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveSecond = resolve;
+            }));
+
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/111/photo1.jpg', alt: 'Photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/222/photo2.jpg', alt: 'Photo 2' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        // Immediately navigate to Item 2 before Item 1 resolves
+        const nextBtn = screen.getAllByRole('button', { name: /Next evidence photo/i })[0];
+        fireEvent.click(nextBtn);
+
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 2');
+
+        // Resolve Item 2 first
+        await resolveSecond({
+            data: new Blob(['item-2-data'], { type: 'image/jpeg' }),
+        });
+
+        // Later, Item 1 resolves (stale response)
+        await resolveFirst({
+            data: new Blob(['item-1-stale-data'], { type: 'image/jpeg' }),
+        });
+
+        // Header remains on Item 2, not overridden by Item 1
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 2');
+    });
+
+    test('27. Previous and Next navigation buttons remain interactive and clickable during active loading', async () => {
+        filesAPI.getProtected.mockReturnValue(new Promise(() => {})); // Never resolves (stays loading)
+
+        const items = [
+            { id: 'ev-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/111/photo1.jpg', alt: 'Photo 1' },
+            { id: 'ev-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/222/photo2.jpg', alt: 'Photo 2' },
+            { id: 'ev-2', index: 2, viewerAccess: 'original', sourceKind: 'authorized-original', originalUrl: '/api/files/333/photo3.jpg', alt: 'Photo 3' },
+        ];
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+            />
+        );
+
+        // During loading on item 0, Next button is interactive
+        const nextBtn = screen.getAllByRole('button', { name: /Next evidence photo/i })[0];
+        expect(nextBtn).not.toBeDisabled();
+
+        // Click next while loading
+        fireEvent.click(nextBtn);
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
+
+        // Click next again to reach item 3
+        fireEvent.click(nextBtn);
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 3 of 3');
     });
 });
