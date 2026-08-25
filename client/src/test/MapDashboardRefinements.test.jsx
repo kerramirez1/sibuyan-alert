@@ -184,7 +184,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(onLocate).toHaveBeenCalledWith(expect.objectContaining({ _id: '607f1f77bcf86cd799439011' }));
         });
 
-        test('renders owner link when current user owns the report', () => {
+        test('does not render full report link when current user owns the report on the map', () => {
             render(
                 <MemoryRouter>
                     <MapIncidentDetails
@@ -198,7 +198,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 </MemoryRouter>
             );
 
-            expect(screen.getByRole('link', { name: /Open my full report/i })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /Open my full report/i })).not.toBeInTheDocument();
         });
     });
 

@@ -188,4 +188,119 @@ describe('Admin and Responder Casualty and Affected-Area Inspection Flow', () =>
         expect(screen.getByText('Fire or explosion involved')).toBeInTheDocument();
         expect(screen.queryByText(/4 injured/i)).not.toBeInTheDocument();
     });
+
+    test('8. Pending report with { injured: 0, fatalities: 2, missing: 4 } renders exact numbers with section note (screenshot scenario)', () => {
+        const pendingReport = {
+            ...baseReport,
+            status: 'pending',
+            casualties: {
+                injured: 0,
+                fatalities: 2,
+                missing: 4,
+            },
+            affectedArea: {
+                householdsAffected: 0,
+                evacuees: 0,
+                radius: 0,
+            },
+        };
+
+        render(
+            <IncidentDetailsCasualtiesSection
+                report={pendingReport}
+            />
+        );
+
+        // Section-level verification note is present
+        expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+
+        // Total reported people affected is 6 (0 + 2 + 4)
+        expect(screen.getByText(/Reported people affected:/i)).toBeInTheDocument();
+        expect(screen.getByText('6')).toBeInTheDocument();
+
+        // Individual metric values: 0 is preserved as 0, never converted to "Pending verification"
+        expect(screen.getByText('Injured')).toBeInTheDocument();
+        expect(screen.getByText('0')).toBeInTheDocument();
+        expect(screen.queryByText('Pending verification')).not.toBeInTheDocument();
+
+        expect(screen.getByText('Fatalities')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
+
+        expect(screen.getByText('Missing')).toBeInTheDocument();
+        expect(screen.getByText('4')).toBeInTheDocument();
+    });
+
+    test('9. Missing or null casualty fields render "Not recorded" consistently without crashing', () => {
+        const emptyCasualtiesReport = {
+            ...baseReport,
+            status: 'pending',
+            casualties: {
+                injured: null,
+                fatalities: undefined,
+                missing: '',
+            },
+        };
+
+        render(
+            <IncidentDetailsCasualtiesSection
+                report={emptyCasualtiesReport}
+            />
+        );
+
+        // Section-level verification note is present
+        expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+
+        const notRecordedCards = screen.getAllByText('Not recorded');
+        expect(notRecordedCards.length).toBe(3); // Injured, Fatalities, Missing
+    });
+
+    test('10. Invalid non-numeric strings or negative numbers normalize to "Not recorded"', () => {
+        const invalidCasualtiesReport = {
+            ...baseReport,
+            casualties: {
+                injured: 'Pending verification',
+                fatalities: -2,
+                missing: 'N/A',
+            },
+        };
+
+        render(
+            <IncidentDetailsCasualtiesSection
+                report={invalidCasualtiesReport}
+            />
+        );
+
+        const notRecordedCards = screen.getAllByText('Not recorded');
+        expect(notRecordedCards.length).toBe(3);
+    });
+
+    test('11. Verified report does not render the "Report pending verification" section note', () => {
+        const verifiedReport = {
+            ...baseReport,
+            status: 'verified',
+            casualties: {
+                injured: 1,
+                fatalities: 0,
+                missing: 0,
+            },
+            affectedArea: {
+                householdsAffected: 0,
+                evacuees: 0,
+                radius: 0,
+            },
+        };
+
+        render(
+            <IncidentDetailsCasualtiesSection
+                report={verifiedReport}
+            />
+        );
+
+        expect(screen.queryByText('Report pending verification')).not.toBeInTheDocument();
+        // Injured is 1 (card and header total)
+        expect(screen.getAllByText('1').length).toBe(2);
+        // Fatalities and missing are 0
+        expect(screen.getAllByText('0').length).toBe(2);
+    });
 });
+

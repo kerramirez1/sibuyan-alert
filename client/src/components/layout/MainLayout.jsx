@@ -26,8 +26,6 @@ const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-emerald-500 bg-brand-900/40 text-brand-100'
     : 'border-transparent text-brand-300/60 hover:bg-brand-900/20 hover:text-brand-100'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-emerald-300';
-const SECTION_CLASS = 'mt-3 pt-1';
-const SECTION_HEADING_CLASS = 'mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/40 select-none';
 
 const getAccountContext = (user) => {
     const roleLabels = {
@@ -165,8 +163,8 @@ const MainLayout = ({ children }) => {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3 pt-2">
-                        {/* Operations Section */}
+                    <nav className="hide-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 pb-3 pt-2.5">
+                        {/* Primary Home / Dashboard link */}
                         {(() => {
                             const homeHref = !isAuthenticated
                                 ? '/'
@@ -194,137 +192,117 @@ const MainLayout = ({ children }) => {
                                             : 'Home';
 
                             return (
-                                <div>
-                                    <h3 className={SECTION_HEADING_CLASS}>
-                                        Operations
-                                    </h3>
-                                    <div className="space-y-0.5">
-                                        <NavLink
-                                            to={homeHref}
-                                            end={!isAuthenticated}
-                                            aria-current={isHomeActive ? 'page' : undefined}
-                                            className={() => getNavLinkClass(isHomeActive)}
-                                            onClick={closeDrawer}
-                                        >
-                                            <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
-                                            <span className="truncate">{homeLabel}</span>
-                                        </NavLink>
-
-                                        {/* Admin & Responder Incident Reports link */}
-                                        {isAuthenticated && (user?.role === 'municipal_admin' || user?.role === 'responder') && (
-                                            <NavLink
-                                                to={user?.role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/admin/reports'}
-                                                aria-current={location.pathname === '/admin/reports' ? 'page' : undefined}
-                                                className={() => {
-                                                    const isReportsActive = location.pathname === '/admin/reports';
-                                                    return getNavLinkClass(isReportsActive);
-                                                }}
-                                                onClick={closeDrawer}
-                                            >
-                                                <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
-                                                <span className="truncate">Incident Reports</span>
-                                            </NavLink>
-                                        )}
-
-                                        {/* Admin User Management Link */}
-                                        {isAuthenticated && user?.role === 'municipal_admin' && (
-                                            <NavLink
-                                                to="/admin/users"
-                                                aria-current={location.pathname === '/admin/users' ? 'page' : undefined}
-                                                className={({ isActive }) => getNavLinkClass(isActive)}
-                                                onClick={closeDrawer}
-                                            >
-                                                <HiOutlineUsers className={NAV_ICON_CLASS} aria-hidden="true" />
-                                                <span className="truncate">Users</span>
-                                            </NavLink>
-                                        )}
-
-                                        {/* Reporter Navigation */}
-                                        {isAuthenticated && filteredNav.map((item) => (
-                                            <NavLink
-                                                key={item.name}
-                                                to={item.href}
-                                                aria-current={location.pathname === item.href ? 'page' : undefined}
-                                                className={({ isActive }) => getNavLinkClass(isActive)}
-                                                onClick={closeDrawer}
-                                            >
-                                                <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
-                                                <span className="truncate">{item.name}</span>
-                                            </NavLink>
-                                        ))}
-                                    </div>
-                                </div>
+                                <NavLink
+                                    to={homeHref}
+                                    end={!isAuthenticated}
+                                    aria-current={isHomeActive ? 'page' : undefined}
+                                    className={() => getNavLinkClass(isHomeActive)}
+                                    onClick={closeDrawer}
+                                >
+                                    <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
+                                    <span className="truncate">{homeLabel}</span>
+                                </NavLink>
                             );
                         })()}
 
-                        {/* Mapping Section */}
-                        <div className={SECTION_CLASS}>
-                            <h3 className={SECTION_HEADING_CLASS}>
-                                Mapping
-                            </h3>
-                            <div className="space-y-0.5">
-                                <NavLink
-                                    to="/dashboard?view=map"
-                                    aria-current={location.pathname === '/dashboard' && currentView === 'map' && !currentPanel ? 'page' : undefined}
-                                    className={() => {
-                                        const isMapActive = location.pathname === '/dashboard'
-                                            && currentView === 'map'
-                                            && !currentPanel;
-                                        return getNavLinkClass(isMapActive);
-                                    }}
-                                    onClick={closeDrawer}
-                                >
-                                    <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
-                                    <span className="truncate">Map</span>
-                                </NavLink>
+                        {/* Admin & Responder Incident Reports link */}
+                        {isAuthenticated && (user?.role === 'municipal_admin' || user?.role === 'responder') && (
+                            <NavLink
+                                to={user?.role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/admin/reports'}
+                                aria-current={location.pathname === '/admin/reports' ? 'page' : undefined}
+                                className={() => {
+                                    const isReportsActive = location.pathname === '/admin/reports';
+                                    return getNavLinkClass(isReportsActive);
+                                }}
+                                onClick={closeDrawer}
+                            >
+                                <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
+                                <span className="truncate">Incident Reports</span>
+                            </NavLink>
+                        )}
 
-                                {isAuthenticated && user?.role === 'municipal_admin' && (
-                                    <NavLink
-                                        to="/admin/zones"
-                                        aria-current={location.pathname === '/admin/zones' ? 'page' : undefined}
-                                        className={({ isActive }) => getNavLinkClass(isActive)}
-                                        onClick={closeDrawer}
-                                    >
-                                        <HiOutlineLocationMarker className={NAV_ICON_CLASS} aria-hidden="true" />
-                                        <span className="truncate">Risk Zones</span>
-                                    </NavLink>
-                                )}
-                            </div>
-                        </div>
+                        {/* Admin User Management Link */}
+                        {isAuthenticated && user?.role === 'municipal_admin' && (
+                            <NavLink
+                                to="/admin/users"
+                                aria-current={location.pathname === '/admin/users' ? 'page' : undefined}
+                                className={({ isActive }) => getNavLinkClass(isActive)}
+                                onClick={closeDrawer}
+                            >
+                                <HiOutlineUsers className={NAV_ICON_CLASS} aria-hidden="true" />
+                                <span className="truncate">Users</span>
+                            </NavLink>
+                        )}
 
-                        {/* History & Analytics Section */}
-                        <div className={SECTION_CLASS}>
-                            <h3 className={SECTION_HEADING_CLASS}>
-                                History
-                            </h3>
-                            <div className="space-y-0.5">
-                                {isAuthenticated && user?.role === 'municipal_admin' && (
-                                    <NavLink
-                                        to="/dashboard"
-                                        aria-current={location.pathname === '/dashboard' && currentView !== 'map' ? 'page' : undefined}
-                                        className={() => {
-                                            const isAnalyticsActive = location.pathname === '/dashboard' && currentView !== 'map';
-                                            return getNavLinkClass(isAnalyticsActive);
-                                        }}
-                                        onClick={closeDrawer}
-                                    >
-                                        <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
-                                        <span className="truncate">Analytics Dashboard</span>
-                                    </NavLink>
-                                )}
+                        {/* Reporter Navigation */}
+                        {isAuthenticated && filteredNav.map((item) => (
+                            <NavLink
+                                key={item.name}
+                                to={item.href}
+                                aria-current={location.pathname === item.href ? 'page' : undefined}
+                                className={({ isActive }) => getNavLinkClass(isActive)}
+                                onClick={closeDrawer}
+                            >
+                                <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
+                                <span className="truncate">{item.name}</span>
+                            </NavLink>
+                        ))}
 
-                                <NavLink
-                                    to="/accident-history"
-                                    aria-current={location.pathname === '/accident-history' ? 'page' : undefined}
-                                    className={({ isActive }) => getNavLinkClass(isActive)}
-                                    onClick={closeDrawer}
-                                >
-                                    <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
-                                    <span className="truncate">Accident History</span>
-                                </NavLink>
-                            </div>
-                        </div>
+                        {/* Mapping Link */}
+                        <NavLink
+                            to="/dashboard?view=map"
+                            aria-current={location.pathname === '/dashboard' && currentView === 'map' && !currentPanel ? 'page' : undefined}
+                            className={() => {
+                                const isMapActive = location.pathname === '/dashboard'
+                                    && currentView === 'map'
+                                    && !currentPanel;
+                                return getNavLinkClass(isMapActive);
+                            }}
+                            onClick={closeDrawer}
+                        >
+                            <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
+                            <span className="truncate">Map</span>
+                        </NavLink>
 
+                        {/* Admin Risk Zones link */}
+                        {isAuthenticated && user?.role === 'municipal_admin' && (
+                            <NavLink
+                                to="/admin/zones"
+                                aria-current={location.pathname === '/admin/zones' ? 'page' : undefined}
+                                className={({ isActive }) => getNavLinkClass(isActive)}
+                                onClick={closeDrawer}
+                            >
+                                <HiOutlineLocationMarker className={NAV_ICON_CLASS} aria-hidden="true" />
+                                <span className="truncate">Risk Zones</span>
+                            </NavLink>
+                        )}
+
+                        {/* Admin Analytics Dashboard link */}
+                        {isAuthenticated && user?.role === 'municipal_admin' && (
+                            <NavLink
+                                to="/dashboard"
+                                aria-current={location.pathname === '/dashboard' && currentView !== 'map' ? 'page' : undefined}
+                                className={() => {
+                                    const isAnalyticsActive = location.pathname === '/dashboard' && currentView !== 'map';
+                                    return getNavLinkClass(isAnalyticsActive);
+                                }}
+                                onClick={closeDrawer}
+                            >
+                                <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
+                                <span className="truncate">Analytics Dashboard</span>
+                            </NavLink>
+                        )}
+
+                        {/* Accident History link */}
+                        <NavLink
+                            to="/accident-history"
+                            aria-current={location.pathname === '/accident-history' ? 'page' : undefined}
+                            className={({ isActive }) => getNavLinkClass(isActive)}
+                            onClick={closeDrawer}
+                        >
+                            <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
+                            <span className="truncate">Accident History</span>
+                        </NavLink>
                     </nav>
 
                     {/* Account Footer */}

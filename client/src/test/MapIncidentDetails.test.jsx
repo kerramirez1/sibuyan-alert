@@ -161,8 +161,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             report: ownerReport,
         });
 
-        expect(screen.getByRole('link', { name: /open my full report/i }))
-            .toHaveAttribute('href', '/my-reports?report=report-1');
+        expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Your evidence photos · 1/i })).toBeInTheDocument();
         expect(screen.getByText(/Sensitive responder identities and internal coordination details are protected\./i)).toBeInTheDocument();
     });
@@ -449,4 +448,167 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(notice.textContent).not.toContain('Last updated');
         });
     });
+
+    describe('15. Casualty Semantics and Separation of Verification Status', () => {
+        test('pending report with { injured: 0, fatalities: 2, missing: 4 } renders exact numbers (screenshot scenario)', () => {
+            const pendingScreenshotReport = {
+                ...sampleReport,
+                status: 'pending',
+                casualties: {
+                    injured: 0,
+                    fatalities: 2,
+                    missing: 4,
+                },
+                affectedArea: {
+                    householdsAffected: 0,
+                    evacuees: 0,
+                    radius: 0,
+                },
+            };
+
+            renderDetails({ report: pendingScreenshotReport, viewerRole: 'municipal_admin' });
+
+            // Header contains section-level status note
+            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+
+            // Injured metric displays numeric 0, NOT "Pending verification"
+            expect(screen.getByText('Injured')).toBeInTheDocument();
+            expect(screen.getByText('0')).toBeInTheDocument();
+            expect(screen.queryByText('Pending verification')).not.toBeInTheDocument();
+
+            // Fatalities and Missing display exact counts
+            expect(screen.getByText('Fatalities')).toBeInTheDocument();
+            expect(screen.getByText('2')).toBeInTheDocument();
+
+            expect(screen.getByText('Missing')).toBeInTheDocument();
+            expect(screen.getByText('4')).toBeInTheDocument();
+        });
+
+        test('pending report with all zeros preserves 0s without replacing with status string', () => {
+            const pendingZeroReport = {
+                ...sampleReport,
+                status: 'pending',
+                casualties: {
+                    injured: 0,
+                    fatalities: 0,
+                    missing: 0,
+                },
+            };
+
+            renderDetails({ report: pendingZeroReport, viewerRole: 'responder' });
+
+            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+            const zeroMetrics = screen.getAllByText('0');
+            expect(zeroMetrics.length).toBe(3); // Injured, Fatalities, Missing
+            expect(screen.queryByText('Pending verification')).not.toBeInTheDocument();
+        });
+
+        test('missing or null casualty fields render "Not recorded" cleanly', () => {
+            const nullCasualtiesReport = {
+                ...sampleReport,
+                status: 'pending',
+                casualties: {
+                    injured: null,
+                    fatalities: undefined,
+                    missing: '',
+                },
+            };
+
+            renderDetails({ report: nullCasualtiesReport, viewerRole: 'guest' });
+
+            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+            const notRecordedMetrics = screen.getAllByText('Not recorded');
+            expect(notRecordedMetrics.length).toBe(3);
+        });
+
+        test('invalid string casualty values normalize to "Not recorded"', () => {
+            const invalidCasualtiesReport = {
+                ...sampleReport,
+                status: 'verified',
+                casualties: {
+                    injured: 'pending_check',
+                    fatalities: -1,
+                    missing: NaN,
+                },
+            };
+
+            renderDetails({ report: invalidCasualtiesReport, viewerRole: 'guest' });
+
+            expect(screen.queryByText('Report pending verification')).not.toBeInTheDocument();
+            const notRecordedMetrics = screen.getAllByText('Not recorded');
+            expect(notRecordedMetrics.length).toBe(3);
+        });
+    });
+
+    describe('16. Contextual Action Filtering for Report Owner on Map', () => {
+        test('owner reporter on map does not see "Open my full report" and empty footer is collapsed', () => {
+            const ownerReport = {
+                ...sampleReport,
+                _id: 'report-owner-1',
+                id: 'report-owner-1',
+                isOwnedByCurrentUser: true,
+                evidence: {
+                    viewerAccess: 'original',
+                    count: 1,
+                    items: [{ id: '0', previewUrl: '/api/files/photo.jpg', originalUrl: '/api/files/photo.jpg', accessLevel: 'original', isOwner: true }],
+                },
+                images: ['/api/files/photo.jpg'],
+            };
+
+            renderDetails({
+                report: ownerReport,
+                viewerRole: 'reporter',
+            });
+
+            // "Open my full report" link is absent
+            expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+
+            // All valid map details remain accessible
+            expect(screen.getByText('J. Rizal Street, Poblacion, Cajidiocan')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: /Your evidence photos · 1/i })).toBeInTheDocument();
+
+            // When no action buttons (onLocate, canRespond, canResolve) are provided, no action buttons exist
+            expect(screen.queryByRole('button', { name: /View on map/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Respond to incident/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Review resolution/i })).not.toBeInTheDocument();
+        });
+
+        test('owner reporter with onLocate provided renders only the "View on map" button without the full-report link', () => {
+            const onLocate = vi.fn();
+            const ownerReport = {
+                ...sampleReport,
+                _id: 'report-owner-1',
+                isOwnedByCurrentUser: true,
+            };
+
+            renderDetails({
+                report: ownerReport,
+                viewerRole: 'reporter',
+                onLocate,
+            });
+
+            expect(screen.getByRole('button', { name: /View on map/i })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+        });
+
+        test('responder and admin retain operational action capabilities', () => {
+            const onRespond = vi.fn();
+            const onResolve = vi.fn();
+
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'responder',
+                canRespond: true,
+                canResolve: true,
+                onRespond,
+                onResolve,
+            });
+
+            expect(screen.getByRole('button', { name: /Respond to incident/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Review resolution/i })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+        });
+    });
 });
+
+

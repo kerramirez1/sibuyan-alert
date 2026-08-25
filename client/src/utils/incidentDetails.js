@@ -8,6 +8,56 @@ export const formatIncidentLabel = (value, fallback = 'Incident') => {
         .replace(TITLE_CASE_PATTERN, (letter) => letter.toUpperCase());
 };
 
+/**
+ * Normalizes a single casualty metric value.
+ * - Non-negative finite number (or string representation of integer): returns integer >= 0.
+ * - Explicit 0 is preserved as 0.
+ * - null, undefined, '', NaN, negative, or invalid non-numeric string: returns 'Not recorded'.
+ */
+export const formatCasualtyMetric = (value) => {
+    if (value === null || value === undefined || value === '') {
+        return 'Not recorded';
+    }
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 0) {
+        return 'Not recorded';
+    }
+    return Math.floor(num);
+};
+
+/**
+ * Normalizes a complete casualties object into individual metric values and aggregates.
+ * Used across MapIncidentDetails, IncidentDetailsCasualtiesSection, and IncidentDetailsCoreSection.
+ */
+export const normalizeCasualties = (casualties) => {
+    const raw = casualties && typeof casualties === 'object' ? casualties : {};
+    const injured = formatCasualtyMetric(raw.injured);
+    const fatalities = formatCasualtyMetric(raw.fatalities);
+    const missing = formatCasualtyMetric(raw.missing);
+
+    const injuredNum = typeof injured === 'number' ? injured : 0;
+    const fatalitiesNum = typeof fatalities === 'number' ? fatalities : 0;
+    const missingNum = typeof missing === 'number' ? missing : 0;
+    const totalPeopleAffected = injuredNum + fatalitiesNum + missingNum;
+
+    const hasRecordedValue = typeof injured === 'number' || typeof fatalities === 'number' || typeof missing === 'number';
+    const hasAnyNonZero = injuredNum > 0 || fatalitiesNum > 0 || missingNum > 0;
+    const isAllZeroOrUnrecorded = !hasAnyNonZero;
+
+    return {
+        injured,
+        fatalities,
+        missing,
+        injuredNum,
+        fatalitiesNum,
+        missingNum,
+        totalPeopleAffected,
+        hasRecordedValue,
+        hasAnyNonZero,
+        isAllZeroOrUnrecorded,
+    };
+};
+
 export const getIncidentDetailViewModel = (report = {}) => {
     const typeLabel = formatIncidentLabel(
         report.incidentType || report.accidentType,

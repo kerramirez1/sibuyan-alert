@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { formatIncidentLabel } from '../../utils/incidentDetails';
+import { formatIncidentLabel, normalizeCasualties } from '../../utils/incidentDetails';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
@@ -29,11 +29,8 @@ const IncidentDetailsCoreSection = ({
     );
     const municipality = report.municipalityName || report.municipality?.name || '';
     const barangay = report.barangay || 'Not specified';
-    const casualties = report.casualties || {};
-    const injured = Number(casualties.injured) || 0;
-    const fatalities = Number(casualties.fatalities) || 0;
-    const missing = Number(casualties.missing) || 0;
-    const totalPeopleAffected = injured + fatalities + missing;
+    const normalizedCasualties = normalizeCasualties(report.casualties);
+    const { injured, fatalities, missing, totalPeopleAffected } = normalizedCasualties;
 
     return (
         <section aria-labelledby="incident-overview-heading">

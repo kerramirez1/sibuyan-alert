@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import { format, formatDistanceToNow } from 'date-fns';
 import {
-    HiOutlineArrowRight,
     HiOutlineChevronUp,
     HiOutlineExclamationCircle,
     HiOutlineLocationMarker,
@@ -10,9 +9,8 @@ import {
     HiOutlineShieldCheck,
     HiOutlineTruck,
 } from 'react-icons/hi';
-import { Link } from '../../router';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
-import { getIncidentDetailViewModel } from '../../utils/incidentDetails';
+import { getIncidentDetailViewModel, normalizeCasualties } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import Button from '../ui/Button';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
@@ -42,20 +40,6 @@ const formatRelativeDate = (value) => {
 const toPositiveNumber = (value) => {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
-};
-
-const formatCasualtyDisplay = (value, isPending = false) => {
-    if (isPending) {
-        if (value !== undefined && value !== null && value !== '' && Number(value) > 0) {
-            return Number(value);
-        }
-        return 'Pending verification';
-    }
-    if (value === undefined || value === null || value === '') {
-        return 'Not recorded';
-    }
-    const num = Number(value);
-    return Number.isFinite(num) ? Math.max(0, Math.floor(num)) : 'Not recorded';
 };
 
 const MapIncidentDetailsSkeleton = () => (
@@ -125,26 +109,21 @@ const MapIncidentDetails = ({
         && (displayedReport?.isOwnedByCurrentUser || details.isOwnedByCurrentUser)
     );
     const isOperational = operational.isOperationalViewer;
-    const hasActions = Boolean(onLocate || (ownsReport && details.id) || canRespond || canResolve);
+    const hasActions = Boolean(onLocate || canRespond || canResolve);
     const statusCfg = MAP_STATUS_CONFIG[details.status] || MAP_STATUS_CONFIG.verified;
 
-    const casualties = displayedReport?.casualties || {};
+    const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
     const affectedArea = displayedReport?.affectedArea || {};
     const isPending = details.status === 'pending';
 
-    const injuredDisplay = formatCasualtyDisplay(casualties.injured, isPending);
-    const fatalitiesDisplay = formatCasualtyDisplay(casualties.fatalities, isPending);
-    const missingDisplay = formatCasualtyDisplay(casualties.missing, isPending);
+    const { injured, fatalities, missing, isAllZeroOrUnrecorded } = normalizedCasualties;
 
     const households = toPositiveNumber(affectedArea.householdsAffected);
     const evacuees = toPositiveNumber(affectedArea.evacuees);
     const radius = toPositiveNumber(affectedArea.radius);
 
     const hasImpactRecorded = households > 0 || evacuees > 0 || radius > 0;
-    const allZeroOrUnrecorded = (injuredDisplay === 0 || injuredDisplay === 'Not recorded')
-        && (fatalitiesDisplay === 0 || fatalitiesDisplay === 'Not recorded')
-        && (missingDisplay === 0 || missingDisplay === 'Not recorded')
-        && !hasImpactRecorded;
+    const allZeroOrUnrecorded = isAllZeroOrUnrecorded && !hasImpactRecorded;
 
     const evidenceDescriptor = displayedReport?.evidence;
     const effectiveViewerAccess = evidenceDescriptor?.viewerAccess === 'original' ? 'original' : 'redacted';
@@ -335,27 +314,34 @@ const MapIncidentDetails = ({
 
                 {/* 5. Casualties and Affected Area */}
                 <section className="border-t border-gray-200/80 pt-3 dark:border-white/10" aria-labelledby="map-incident-casualties-heading">
-                    <h4 id="map-incident-casualties-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                        Casualties and affected area
-                    </h4>
+                    <div className="flex items-center justify-between gap-2">
+                        <h4 id="map-incident-casualties-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                            Casualties and affected area
+                        </h4>
+                        {isPending && (
+                            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                                Report pending verification
+                            </span>
+                        )}
+                    </div>
 
                     <div className="mt-1.5 grid grid-cols-3 divide-x divide-gray-200/80 overflow-hidden rounded-lg border border-gray-200/90 bg-gray-50/60 dark:divide-white/10 dark:border-white/10 dark:bg-[#07130e]">
                         <div className="p-2 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Injured</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof injuredDisplay === 'number' && injuredDisplay > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
-                                {injuredDisplay}
+                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof injured === 'number' && injured > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
+                                {injured}
                             </p>
                         </div>
                         <div className="p-2 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Fatalities</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof fatalitiesDisplay === 'number' && fatalitiesDisplay > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-white'}`}>
-                                {fatalitiesDisplay}
+                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof fatalities === 'number' && fatalities > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-white'}`}>
+                                {fatalities}
                             </p>
                         </div>
                         <div className="p-2 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Missing</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof missingDisplay === 'number' && missingDisplay > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
-                                {missingDisplay}
+                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof missing === 'number' && missing > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
+                                {missing}
                             </p>
                         </div>
                     </div>
@@ -442,16 +428,6 @@ const MapIncidentDetails = ({
                         </div>
 
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                            {ownsReport && details.id && (
-                                <Link
-                                    to={`/my-reports?report=${encodeURIComponent(details.id)}`}
-                                    className="group inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md py-2 px-3 sm:py-1.5 sm:px-2 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer min-h-[44px] sm:min-h-0"
-                                >
-                                    <span>Open my full report</span>
-                                    <HiOutlineArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" />
-                                </Link>
-                            )}
-
                             {canRespond && (
                                 <Button
                                     onClick={() => onRespond?.(displayedReport)}

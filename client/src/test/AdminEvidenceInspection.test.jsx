@@ -147,7 +147,7 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         });
 
         // Must render the authorized thumbnail button
-        const thumbnailBtn = screen.getByRole('button', { name: /View evidence photo 1/i });
+        const thumbnailBtn = await screen.findByRole('button', { name: /View evidence photo 1/i });
         expect(thumbnailBtn).toBeInTheDocument();
         const img = within(thumbnailBtn).getByRole('img');
         expect(img).toHaveAttribute('src', 'blob:http://localhost/mock-blob-image');
