@@ -377,13 +377,17 @@ const DashboardPage = () => {
 
     // Real-time map updates (including public viewers)
     useEffect(() => {
+        const isOperationalUser = Boolean(
+            user?.role && ['municipal_admin', 'responder', 'admin', 'system_admin'].includes(user.role)
+        );
+
         const normalizeIncomingReport = (report) => {
             if (!report) return null;
             const id = report._id || report.id;
             if (!id) return null;
 
             const now = new Date().toISOString();
-            return {
+            const sanitized = {
                 ...report,
                 _id: id,
                 incidentCategory: report.incidentCategory || report.category,
@@ -392,7 +396,46 @@ const DashboardPage = () => {
                 createdAt: report.createdAt || report.timestamp || report.incidentTime || now,
                 incidentTime: report.incidentTime || report.createdAt || report.timestamp || now,
             };
+
+            // Public / guest / unauthorized client sanitization
+            if (!isOperationalUser) {
+                const currentUserId = user?._id || user?.id;
+                const reporterId = report.reporter?._id || report.reporter?.id || report.reporter;
+                const isOwner = Boolean(currentUserId && reporterId && String(currentUserId) === String(reporterId));
+
+                if (!isOwner) {
+                    delete sanitized.images;
+                    if (sanitized.evidence) {
+                        sanitized.evidence = {
+                            ...sanitized.evidence,
+                            viewerAccess: 'redacted',
+                            items: Array.isArray(sanitized.evidence.items)
+                                ? sanitized.evidence.items.map((it, idx) => {
+                                    const redactionVersion = '3.4';
+                                    const previewUrl = `/api/reports/${id}/evidence/${it.index ?? idx}/preview?rv=${redactionVersion}`;
+
+                                    return {
+                                        id: String(it.id ?? idx),
+                                        index: it.index ?? idx,
+                                        redactedPreviewUrl: previewUrl,
+                                        previewUrl,
+                                        accessLevel: 'redacted',
+                                        detectionStatus: 'privacy_derivative',
+                                        redactionType: 'public_soft_blur',
+                                        redactionVersion,
+                                        detectorVersion,
+                                        alt: it.alt || `Incident evidence photo ${idx + 1}, privacy-safe preview`,
+                                    };
+                                })
+                                : [],
+                        };
+                    }
+                }
+            }
+
+            return sanitized;
         };
+
 
         const unsub0 = subscribe('newReport', (data) => {
             const normalized = normalizeIncomingReport(data);

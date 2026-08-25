@@ -35,19 +35,22 @@ const sampleReport = {
     reporter: { name: 'Private Reporter', email: 'private@example.com' },
     evidenceCount: 1,
     evidence: {
-        accessLevel: 'blurred',
+        viewerAccess: 'redacted',
+        accessLevel: 'redacted',
         count: 1,
         items: [
             {
                 id: '0',
                 index: 0,
-                previewUrl: '/api/reports/report-1/evidence/0/preview',
-                alt: 'Blurred evidence preview',
-                accessLevel: 'blurred',
-            },
+                redactedPreviewUrl: '/api/reports/report-1/evidence/0/preview',
+                 previewUrl: '/api/reports/report-1/evidence/0/preview',
+                 alt: 'Blurred evidence preview',
+                 accessLevel: 'redacted',
+                 detectionStatus: 'faces_detected',
+                 redactionType: 'face_blur',
+             },
         ],
     },
-    images: ['/api/reports/report-1/evidence/0/preview'],
 };
 
 const renderDetails = (props = {}) => render(
@@ -67,9 +70,10 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
                     ...sampleReport,
                     images: ['/operational-evidence.jpg'],
                     evidence: {
+                        viewerAccess: 'original',
                         accessLevel: 'original',
                         count: 1,
-                        items: [{ id: '0', previewUrl: '/operational-evidence.jpg', accessLevel: 'original' }],
+                        items: [{ id: '0', previewUrl: '/operational-evidence.jpg', originalUrl: '/operational-evidence.jpg', accessLevel: 'original' }],
                     },
                     detailAccess: 'operational',
                     detailCompleteness: 'full',
@@ -111,9 +115,11 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByText('Injured')).toBeInTheDocument();
         expect(screen.getByText('2')).toBeInTheDocument();
 
-        // Evidence: Blurred for privacy
+        // Evidence: Blurred for privacy — thumbnail must be a clickable button
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
-        expect(screen.getByText(/Blurred for privacy/i)).toBeInTheDocument();
+        expect(screen.getByText(/Faces blurred for privacy/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Incident evidence photo 1, faces blurred for privacy/i }))
+            .toBeInTheDocument();
         expect(screen.getByText(/Original evidence is available only to the report owner and authorized municipal personnel/i)).toBeInTheDocument();
 
         // Privacy Notice
@@ -134,9 +140,10 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             isOwnedByCurrentUser: true,
             images: ['/api/files/my-evidence.jpg'],
             evidence: {
+                viewerAccess: 'original',
                 accessLevel: 'original',
                 count: 1,
-                items: [{ id: '0', previewUrl: '/api/files/my-evidence.jpg', accessLevel: 'original', isOwner: true }],
+                items: [{ id: '0', previewUrl: '/api/files/my-evidence.jpg', originalUrl: '/api/files/my-evidence.jpg', accessLevel: 'original', isOwner: true }],
             },
         };
         mocks.getPublicReportById.mockResolvedValue({
@@ -167,13 +174,22 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         });
 
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
-        expect(screen.getByText(/Blurred for privacy/i)).toBeInTheDocument();
+        expect(screen.getByText(/Faces blurred for privacy/i)).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
     });
 
     test('4. Renders operational unblurred evidence and capability-based actions for responder', async () => {
         const onRespond = vi.fn();
-        const fullReport = { ...sampleReport, detailAccess: 'operational', detailCompleteness: 'full' };
+        const fullReport = {
+            ...sampleReport,
+            detailAccess: 'operational',
+            detailCompleteness: 'full',
+            evidence: {
+                viewerAccess: 'original',
+                count: 1,
+                items: [{ id: '0', originalUrl: '/api/files/full-evidence.jpg', previewUrl: '/api/files/full-evidence.jpg', accessLevel: 'original' }],
+            },
+        };
         renderDetails({
             report: fullReport,
             viewerRole: 'responder',
@@ -185,6 +201,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         fireEvent.click(screen.getByRole('button', { name: /respond to incident/i }));
         expect(onRespond).toHaveBeenCalledWith(fullReport);
     });
+
 
     test('5. Renders clear empty state when report has no evidence', () => {
         const noEvidenceReport = {
@@ -217,7 +234,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             viewerRole: 'guest',
         });
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(/Unable to load incident details/i);
+        expect(await screen.findByRole('alert')).toHaveTextContent(/Connection problem/i);
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
@@ -257,5 +274,82 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
         expect(screen.getByText('Operational incident brief')).toBeInTheDocument();
         expect(screen.getByText('Critical incident indicators')).toBeInTheDocument();
+    });
+
+    test('11. Hides safety indicators when only casualties exist, keeping casualty counts single source of truth', () => {
+        const casualtiesOnlyReport = {
+            ...sampleReport,
+            fireInvolved: false,
+            casualties: { injured: 4, fatalities: 2, missing: 1 },
+            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
+        };
+        renderDetails({ report: casualtiesOnlyReport, viewerRole: 'guest' });
+
+        // Safety indicator section must not render
+        expect(screen.queryByText(/Public safety indicators/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Critical incident indicators/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/4 injured/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/2 fatalities/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/1 missing/i)).not.toBeInTheDocument();
+
+        // Casualty counts render exactly once in the dedicated section
+        expect(screen.getByText('Injured')).toBeInTheDocument();
+        expect(screen.getByText('4')).toBeInTheDocument();
+        expect(screen.getByText('Fatalities')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
+        expect(screen.getByText('Missing')).toBeInTheDocument();
+        expect(screen.getByText('1')).toBeInTheDocument();
+    });
+
+    test('12. Renders non-casualty indicators without repeating casualty counts', () => {
+        const multiIndicatorReport = {
+            ...sampleReport,
+            fireInvolved: true,
+            roadBlocked: true,
+            hazardousCondition: true,
+            casualties: { injured: 5, fatalities: 0, missing: 0 },
+        };
+        renderDetails({ report: multiIndicatorReport, viewerRole: 'guest' });
+
+        // Non-casualty indicators render
+        expect(screen.getByText(/Public safety indicators/i)).toBeInTheDocument();
+        expect(screen.getByText('Fire or explosion involved')).toBeInTheDocument();
+        expect(screen.getByText('Hazardous condition')).toBeInTheDocument();
+        expect(screen.getByText('Road blocked')).toBeInTheDocument();
+
+        // Casualty count is NOT inside safety indicators
+        expect(screen.queryByText(/5 injured/i)).not.toBeInTheDocument();
+
+        // Casualty count is in the dedicated section
+        expect(screen.getByText('5')).toBeInTheDocument();
+    });
+
+    test('13. Clears open ImageViewer lightbox state when switching to another incident report', () => {
+        const { rerender } = render(
+            <MemoryRouter initialEntries={['/dashboard?view=map']}>
+                <MapIncidentDetails report={sampleReport} viewerRole="guest" />
+            </MemoryRouter>
+        );
+
+        // Open viewer on sampleReport
+        const btn = screen.getByRole('button', { name: /Incident evidence photo 1, faces blurred for privacy/i });
+        fireEvent.click(btn);
+        expect(screen.getByRole('dialog', { name: /Enlarged evidence image viewer/i })).toBeInTheDocument();
+
+        // Switch to a new incident report
+        const newReport = {
+            ...sampleReport,
+            _id: 'report-2',
+            title: 'Different Incident',
+        };
+
+        rerender(
+            <MemoryRouter initialEntries={['/dashboard?view=map']}>
+                <MapIncidentDetails report={newReport} viewerRole="guest" />
+            </MemoryRouter>
+        );
+
+        // Viewer must be closed and not retain previous image state
+        expect(screen.queryByRole('dialog', { name: /Enlarged evidence image viewer/i })).not.toBeInTheDocument();
     });
 });

@@ -71,6 +71,7 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
 
     beforeEach(async () => {
         vi.clearAllMocks();
+        vi.spyOn(Report, 'updateOne').mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
         sampleImageBuffer = await sharp({
             create: {
                 width: 200,
@@ -82,7 +83,7 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
 
         gridFsService.findGridFsFile.mockResolvedValue(mockGridFsFile);
         gridFsService.getGridFsBucket.mockReturnValue({
-            openDownloadStream: vi.fn().mockReturnValue((async function* () {
+            openDownloadStream: vi.fn().mockImplementation(() => (async function* () {
                 yield sampleImageBuffer;
             })()),
         });
@@ -189,10 +190,29 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
         vi.spyOn(Report, 'findById').mockResolvedValue(sampleReport);
 
         const app = createTestApp(null);
+        const firstResponse = await request(app)
+            .get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
         const res = await request(app)
             .get(`/api/reports/${reportId.toString()}/evidence/0/preview`)
-            .set('If-None-Match', `W/"evidence-preview-${reportId.toString()}-0-1.0"`);
+            .set('If-None-Match', firstResponse.headers.etag);
 
         expect(res.status).toBe(304);
+        expect(['hit', 'miss']).toContain(firstResponse.headers['x-evidence-cache']);
+        expect(res.headers['x-evidence-cache']).toBe('hit');
+    });
+
+    test('11. Returns X-Evidence-Variant and X-Evidence-Detection-Status response headers', async () => {
+        vi.spyOn(Report, 'findById').mockResolvedValue(sampleReport);
+
+        const app = createTestApp(null);
+        const res = await request(app).get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
+
+        expect(res.status).toBe(200);
+        expect(res.headers['x-evidence-variant']).toBe('redacted');
+        expect(res.headers['x-evidence-detection-status']).toBeDefined();
+        expect(res.headers['x-evidence-redaction-type']).toBeDefined();
+        expect(res.headers['x-evidence-redaction-version']).toBe('3.4');
+        expect(res.headers['x-evidence-detector-version']).toBe('picojs-facefinder-2.3');
+        expect(res.headers['cache-control']).toContain('no-store');
     });
 });

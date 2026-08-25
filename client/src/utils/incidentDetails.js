@@ -8,11 +8,6 @@ export const formatIncidentLabel = (value, fallback = 'Incident') => {
         .replace(TITLE_CASE_PATTERN, (letter) => letter.toUpperCase());
 };
 
-const toCount = (value) => {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
-};
-
 export const getIncidentDetailViewModel = (report = {}) => {
     const typeLabel = formatIncidentLabel(
         report.incidentType || report.accidentType,
@@ -26,15 +21,12 @@ export const getIncidentDetailViewModel = (report = {}) => {
         ...(Array.isArray(report.respondingAgencies) ? report.respondingAgencies : []),
         report.responderAgency,
     ].filter(Boolean)));
-    const injured = toCount(report.casualties?.injured);
-    const fatalities = toCount(report.casualties?.fatalities);
-    const missing = toCount(report.casualties?.missing);
     const safetyIndicators = [];
 
-    if (injured > 0) safetyIndicators.push(`${injured} injured`);
-    if (fatalities > 0) safetyIndicators.push(`${fatalities} fatal${fatalities === 1 ? 'ity' : 'ities'}`);
-    if (missing > 0) safetyIndicators.push(`${missing} missing`);
     if (report.fireInvolved) safetyIndicators.push('Fire or explosion involved');
+    if (report.hazardousCondition || report.hazardInvolved) safetyIndicators.push('Hazardous condition');
+    if (report.roadBlocked) safetyIndicators.push('Road blocked');
+    if (report.warningIssued || report.publicWarning) safetyIndicators.push('Immediate public-safety warning');
 
     return {
         id: report._id || report.id || '',

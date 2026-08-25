@@ -189,7 +189,9 @@ const MainLayout = ({ children }) => {
                                     ? 'Operations Dashboard'
                                     : user?.role === 'responder'
                                         ? 'Responder Dashboard'
-                                        : 'Home';
+                                        : user?.role === 'reporter'
+                                            ? 'Reporter Dashboard'
+                                            : 'Home';
 
                             return (
                                 <div>

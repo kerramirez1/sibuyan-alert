@@ -220,20 +220,17 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
         className={`group min-w-0 px-3.5 py-3 text-left transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-4 sm:py-3.5 ${selected
-            ? 'bg-brand-50/80 shadow-[inset_0_-2px_0_0_theme(colors.brand.600)] dark:bg-brand-900/40 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.500)]'
+            ? 'bg-brand-50/70 shadow-[inset_0_-2px_0_0_theme(colors.brand.600)] dark:bg-brand-950/40 dark:shadow-[inset_0_-2px_0_0_theme(colors.brand.400)]'
             : 'bg-white hover:bg-gray-50/80 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
             }`}
     >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
                 {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
                 <p className={`truncate text-[11px] font-bold uppercase tracking-wider transition-colors ${selected ? 'text-brand-900 dark:text-brand-300' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`}>
                     {label}
                 </p>
             </div>
-            <span className={`flex shrink-0 items-center transition-colors ${selected ? 'text-brand-700 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-400'}`} aria-hidden="true">
-                <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-            </span>
         </div>
         <p className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white tabular-nums">{value}</p>
         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{helper}</p>
@@ -846,7 +843,6 @@ const DashboardMapWorkspace = ({
                                             {mapExperience.filters.map((filter) => {
                                                 const count = getFilterCount(filter.value);
                                                 const isSelected = responderMapFilter === filter.value;
-                                                const isAllActive = filter.value === 'all';
                                                 const statusCfg = filter.value === 'risk-zones'
                                                     ? { dot: 'bg-red-500' }
                                                     : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
@@ -860,9 +856,7 @@ const DashboardMapWorkspace = ({
                                                         aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
                                                         className={`group relative inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 active:scale-[0.98] ${
                                                             isSelected
-                                                                ? isAllActive
-                                                                    ? 'border-brand-800 bg-brand-900 text-white shadow-xs ring-1 ring-brand-800 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-600/50'
-                                                                    : 'border-brand-700 bg-brand-800 text-white shadow-xs ring-1 ring-brand-700 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200 dark:ring-emerald-700/40'
+                                                                ? 'border-gray-900 bg-gray-900 text-white shadow-xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
                                                                 : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
                                                         }`}
                                                     >

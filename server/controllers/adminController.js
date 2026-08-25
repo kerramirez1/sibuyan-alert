@@ -557,6 +557,7 @@ export const getOperationalReportById = async (req, res) => {
         if (!mongoose.isValidObjectId(req.params.id)) {
             return res.status(400).json({
                 success: false,
+                code: 'INVALID_REPORT_ID',
                 message: 'Invalid incident report identifier',
             });
         }
@@ -573,12 +574,17 @@ export const getOperationalReportById = async (req, res) => {
             .populate('municipality', 'name code');
 
         if (!report) {
-            return res.status(404).json({ success: false, message: 'Report not found' });
+            return res.status(404).json({
+                success: false,
+                code: 'REPORT_NOT_FOUND',
+                message: 'Report not found',
+            });
         }
 
         if (!canViewOperationalReport(req.user, report)) {
             return res.status(403).json({
                 success: false,
+                code: 'REPORT_RESTRICTED',
                 message: req.user.role === 'responder'
                     ? 'Operational details are available only for verified in-scope incidents or incidents assigned to you'
                     : 'Not authorized to view this incident record',
@@ -593,9 +599,15 @@ export const getOperationalReportById = async (req, res) => {
             }),
         });
     } catch (error) {
-        console.error('Get operational report error:', error);
+        console.error('Get operational report error:', {
+            reportId: String(req.params.id || ''),
+            status: error?.status,
+            name: error?.name,
+            message: error?.message,
+        });
         return res.status(500).json({
             success: false,
+            code: 'REPORT_DETAILS_UNAVAILABLE',
             message: 'Failed to load operational incident details',
         });
     }

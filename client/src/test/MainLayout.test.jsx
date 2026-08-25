@@ -104,6 +104,21 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByRole('link', { name: 'Response Queue' })).not.toBeInTheDocument();
     });
 
+    test('labels the reporter operational home route as Reporter Dashboard', () => {
+        mocks.user = {
+            _id: 'reporter-1',
+            name: 'Juan Reporter',
+            role: 'reporter',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        renderLayout('/reporter');
+
+        const reporterDashboardLink = screen.getByRole('link', { name: 'Reporter Dashboard' });
+        expect(reporterDashboardLink).toHaveAttribute('href', '/reporter');
+        expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
+    });
+
     test('opens and closes the fluid mobile navigation drawer accessibly', () => {
         renderLayout();
         const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });

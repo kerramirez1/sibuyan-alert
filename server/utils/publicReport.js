@@ -11,6 +11,15 @@ const getEntityId = (entity) => {
     return id?.toString?.() || String(id);
 };
 
+const CURRENT_REDACTION_VERSION = '3.4';
+const CURRENT_DETECTOR_VERSION = 'picojs-facefinder-2.3';
+
+const buildRedactedPreviewUrl = (reportId, index, redactionVersion = CURRENT_REDACTION_VERSION) => (
+    `/api/reports/${reportId}/evidence/${index}/preview?rv=${encodeURIComponent(
+        redactionVersion === CURRENT_REDACTION_VERSION ? redactionVersion : CURRENT_REDACTION_VERSION
+    )}`
+);
+
 const getPublicMunicipality = (municipality) => {
     if (!municipality || typeof municipality !== 'object') return undefined;
     const value = {};
@@ -22,7 +31,8 @@ const getPublicMunicipality = (municipality) => {
 const getRespondingAgencies = (report) => {
     const agencies = new Set();
     if (report?.responderAgency) agencies.add(report.responderAgency);
-    for (const responder of report?.responders || []) {
+    const responders = Array.isArray(report?.responders) ? report.responders : [];
+    for (const responder of responders) {
         if (responder?.unitType) agencies.add(responder.unitType);
     }
     return [...agencies];
@@ -38,7 +48,9 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
 
     if (count === 0) {
         return {
+            evidenceCount: 0,
             count: 0,
+            viewerAccess: 'none',
             accessLevel: 'none',
             items: [],
         };
@@ -46,33 +58,69 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
 
     if (isOwner || isOperational) {
         return {
+            evidenceCount: count,
             count,
+            viewerAccess: 'original',
             accessLevel: 'original',
             items: rawImages.map((source, index) => ({
                 id: String(index),
                 index,
+                redactedPreviewUrl: buildRedactedPreviewUrl(reportId, index),
                 previewUrl: source,
                 originalUrl: source,
                 accessLevel: 'original',
                 alt: `Incident evidence photo ${index + 1}`,
                 redactionType: 'none',
+                detectionStatus: 'no_faces_detected',
                 isOwner,
             })),
         };
     }
 
     return {
+        evidenceCount: count,
         count,
-        accessLevel: 'blurred',
-        items: rawImages.map((_, index) => ({
-            id: String(index),
-            index,
-            previewUrl: `/api/reports/${reportId}/evidence/${index}/preview`,
-            accessLevel: 'blurred',
-            alt: `Incident evidence photo ${index + 1}, faces blurred for privacy`,
-            redactionType: 'face_blur',
-        })),
+        viewerAccess: 'redacted',
+        accessLevel: 'redacted',
+        items: rawImages.map((_, index) => {
+            const evidenceMetadata = Array.isArray(report?.evidenceMetadata) ? report.evidenceMetadata : [];
+            const meta = evidenceMetadata.find((m) => Number(m?.index) === index) || evidenceMetadata[index];
+            const metadataIsCurrent = meta?.redactionVersion === CURRENT_REDACTION_VERSION
+                && meta?.detectorVersion === CURRENT_DETECTOR_VERSION;
+            const detectionStatus = metadataIsCurrent ? (meta?.detectionStatus || 'processing') : 'processing';
+            const redactionType = metadataIsCurrent
+                ? (meta?.redactionType || (detectionStatus === 'no_faces_detected' ? 'none' : 'privacy_preview'))
+                : 'privacy_preview';
+
+            let alt = `Incident evidence photo ${index + 1}`;
+            if (detectionStatus === 'faces_detected') {
+                alt = `Incident evidence photo ${index + 1}, faces blurred for privacy`;
+            } else if (
+                detectionStatus === 'detector_failed'
+                || detectionStatus === 'derivative_failed'
+                || detectionStatus === 'invalid_image'
+                || redactionType === 'fallback_blur'
+                || redactionType === 'svg_fallback'
+            ) {
+                alt = `Incident evidence photo ${index + 1}, privacy-safe preview`;
+            }
+
+            return {
+                id: String(index),
+                index,
+                redactedPreviewUrl: buildRedactedPreviewUrl(reportId, index, meta?.redactionVersion),
+                previewUrl: buildRedactedPreviewUrl(reportId, index, meta?.redactionVersion),
+                accessLevel: 'redacted',
+                alt,
+                redactionType: 'public_soft_blur',
+                detectionStatus,
+                redactionVersion: metadataIsCurrent ? meta.redactionVersion : CURRENT_REDACTION_VERSION,
+                detectorVersion: metadataIsCurrent ? meta.detectorVersion : CURRENT_DETECTOR_VERSION,
+            };
+        }),
     };
+
+
 };
 
 /**
@@ -115,7 +163,7 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
         updatedAt: getDocumentValue(report, 'updatedAt'),
         isOwnedByCurrentUser: isOwner,
         evidence,
-        evidenceCount: evidence.count,
+        evidenceCount: evidence.evidenceCount,
     };
 
     if (isOwner || isOperational) {

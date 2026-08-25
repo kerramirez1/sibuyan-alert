@@ -56,6 +56,23 @@ const reportSchema = new mongoose.Schema(
         images: [{
             type: String, // Public GridFS delivery URLs for uploaded images
         }],
+        evidenceMetadata: [{
+            index: Number,
+            detectionStatus: {
+                type: String,
+                enum: ['faces_detected', 'no_faces_detected', 'processing', 'detector_failed', 'invalid_image', 'derivative_failed'],
+            },
+            redactionType: {
+                type: String,
+                enum: ['face_blur', 'none', 'privacy_preview', 'fallback_blur', 'svg_fallback'],
+            },
+            facesDetected: Number,
+            redactedRegions: Number,
+            redactionVersion: String,
+            detectorVersion: String,
+            sourceHash: String,
+            derivativeHash: String,
+        }],
 
         // Location Information
         address: {
@@ -63,6 +80,7 @@ const reportSchema = new mongoose.Schema(
             required: [true, 'Address is required'],
             trim: true,
         },
+
         barangay: {
             type: String,
             trim: true,

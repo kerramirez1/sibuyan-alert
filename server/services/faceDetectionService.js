@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // Path to pre-trained cascade file
 const CASCADE_PATH = path.resolve(__dirname, '../cascades/facefinder');
+const DETECTOR_VERSION = 'picojs-facefinder-2.3';
 
 let classifierFunction = null;
 let cascadeLoadPromise = null;
@@ -26,7 +27,6 @@ export const initFaceDetector = async () => {
                 if (fs.existsSync(CASCADE_PATH)) {
                     cascadeBuffer = fs.readFileSync(CASCADE_PATH);
                 } else {
-                    // Fetch if missing during initial setup
                     const res = await fetch('https://raw.githubusercontent.com/nenadmarkus/pico/master/rnt/cascades/facefinder');
                     const arrayBuffer = await res.arrayBuffer();
                     cascadeBuffer = Buffer.from(arrayBuffer);
@@ -53,116 +53,357 @@ const rgbaToGrayscale = (rgbaBuffer, width, height) => {
     const gray = new Uint8Array(width * height);
     for (let i = 0; i < gray.length; i++) {
         const offset = i * 4;
-        // Standard luminance weights: 0.299 R + 0.587 G + 0.114 B (approx (2R + 7G + 1B)/10)
-        gray[i] = (2 * rgbaBuffer[offset] + 7 * rgbaBuffer[offset + 1] + rgbaBuffer[offset + 2]) / 10;
+        // Standard ITU-R BT.601 luminance weights: 0.299 R + 0.587 G + 0.114 B
+        gray[i] = (299 * rgbaBuffer[offset] + 587 * rgbaBuffer[offset + 1] + 114 * rgbaBuffer[offset + 2]) / 1000;
     }
     return gray;
 };
 
 /**
- * Detects faces in an image buffer using local picojs decision-tree cascade.
+ * Runs a single detection pass over a grayscale image buffer.
+ */
+const runSingleScanPass = (grayPixels, width, height, classify, cascadeParams) => {
+    const imageObj = {
+        pixels: grayPixels,
+        nrows: height,
+        ncols: width,
+        ldim: width,
+    };
+    return pico.run_cascade(imageObj, classify, cascadeParams) || [];
+};
+
+const mapRotatedDetectionToStandardScan = (detection, angle, standardWidth, standardHeight) => {
+    const [row, col, size, confidence] = detection;
+    const x = col - (size / 2);
+    const y = row - (size / 2);
+    let mappedX = x;
+    let mappedY = y;
+
+    if (angle === 90) {
+        mappedX = y;
+        mappedY = standardHeight - (x + size);
+    } else if (angle === 270) {
+        mappedX = standardWidth - (y + size);
+        mappedY = x;
+    } else if (angle === 180) {
+        mappedX = standardWidth - (x + size);
+        mappedY = standardHeight - (y + size);
+    }
+
+    return [mappedY + (size / 2), mappedX + (size / 2), size, confidence];
+};
+
+/**
+ * Detects faces in an image buffer using local picojs decision-tree cascade with
+ * multi-scale scanning, EXIF-orientation safety, and contrast-normalized secondary passes.
+ * 
+ * Returns a structured result:
+ * {
+ *   status: 'faces_detected' | 'no_faces_detected' | 'detector_failed' | 'invalid_image',
+ *   faces: Array<{ x: number, y: number, width: number, height: number, confidence: number }>,
+ *   detectorVersion: string,
+ *   confidenceSummary: { maxConfidence: number, faceCount: number, averageConfidence: number },
+ *   diagnostics: { ... }
+ * }
  * 
  * @param {Buffer} imageBuffer - Raw image buffer (JPEG, PNG, WebP, etc.)
  * @param {Object} options - Detection configuration
- * @returns {Promise<Array<{ x: number, y: number, width: number, height: number, confidence: number }>>}
+ * @returns {Promise<Object>} Structured detection result
  */
 export const detectFaces = async (imageBuffer, options = {}) => {
     const {
-        maxDimension = 800,
-        shiftFactor = 0.08,
-        minSize = 24,
-        maxSize = 1000,
-        scaleFactor = 1.1,
+        maxDimension = 1200,
+        shiftFactor = 0.05,
+        minSize = 16,
+        maxSize = 1200,
+        scaleFactor = 1.08,
         iouThreshold = 0.2,
-        minConfidence = 2.0,
+        // picojs returns a raw cascade score. Values below 5 are usually weak
+        // background false positives and must not be treated as a verified face.
+        minConfidence = 5,
+        minConfirmedConfidence = 6,
     } = options;
 
-    if (!imageBuffer || imageBuffer.length === 0) {
-        return [];
+    if (!imageBuffer || !Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+        return {
+            status: 'invalid_image',
+            faces: [],
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+            diagnostics: { error: 'Empty or invalid image buffer' },
+        };
     }
 
-    const classify = await initFaceDetector();
+    let classify;
+    try {
+        classify = await initFaceDetector();
+    } catch (initErr) {
+        console.error('Face detector initialization failed:', initErr);
+        return {
+            status: 'detector_failed',
+            faces: [],
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+            diagnostics: { error: initErr.message },
+        };
+    }
+
     if (!classify) {
-        throw new Error('Face detector classifier not available');
+        return {
+            status: 'detector_failed',
+            faces: [],
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+            diagnostics: { error: 'Cascade classifier function unavailable' },
+        };
     }
 
-    // 1. Load and auto-orient with sharp
-    const sharpInstance = sharp(imageBuffer).rotate();
-    const metadata = await sharpInstance.metadata();
-    const origWidth = metadata.width || 800;
-    const origHeight = metadata.height || 600;
+    let orientedWidth = 800;
+    let orientedHeight = 600;
+    let orientedBuffer;
+    let sourceOrientation = 1;
 
-    // 2. Scale down for fast, accurate scanning if larger than maxDimension
-    let scanWidth = origWidth;
-    let scanHeight = origHeight;
-    let scaleRatio = 1.0;
+    try {
+        // 1. Auto-orient according to EXIF and get true rotated dimensions
+        sourceOrientation = (await sharp(imageBuffer).metadata()).orientation || 1;
+        const { data: rotatedBytes, info: rotatedInfo } = await sharp(imageBuffer)
+            .rotate()
+            .toBuffer({ resolveWithObject: true });
 
-    if (Math.max(origWidth, origHeight) > maxDimension) {
-        if (origWidth >= origHeight) {
-            scanWidth = maxDimension;
-            scanHeight = Math.round((origHeight * maxDimension) / origWidth);
-        } else {
-            scanHeight = maxDimension;
-            scanWidth = Math.round((origWidth * maxDimension) / origHeight);
+        orientedBuffer = rotatedBytes;
+        orientedWidth = rotatedInfo.width;
+        orientedHeight = rotatedInfo.height;
+
+        if (!orientedWidth || !orientedHeight || orientedWidth <= 0 || orientedHeight <= 0) {
+            return {
+                status: 'invalid_image',
+                faces: [],
+                detectorVersion: DETECTOR_VERSION,
+                confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+                diagnostics: { error: 'Invalid rotated image dimensions' },
+            };
         }
-        scaleRatio = origWidth / scanWidth;
+    } catch (sharpErr) {
+        console.warn('Failed to decode/orient image for face detection:', sharpErr.message);
+        return {
+            status: 'invalid_image',
+            faces: [],
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+            diagnostics: { error: sharpErr.message },
+        };
     }
 
-    const { data: rgbaData, info } = await sharpInstance
-        .resize(scanWidth, scanHeight, { fit: 'fill' })
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+    try {
+        // 2. Scale down proportionally for fast and accurate multi-scale scanning
+        let scanWidth = orientedWidth;
+        let scanHeight = orientedHeight;
+        let scaleRatioX = 1.0;
+        let scaleRatioY = 1.0;
 
-    // 3. Convert to grayscale
-    const grayPixels = rgbaToGrayscale(rgbaData, info.width, info.height);
-
-    const imageObj = {
-        pixels: grayPixels,
-        nrows: info.height,
-        ncols: info.width,
-        ldim: info.width,
-    };
-
-    const cascadeParams = {
-        shiftfactor: shiftFactor,
-        minsize: minSize,
-        maxsize: maxSize,
-        scalefactor: scaleFactor,
-    };
-
-    // 4. Run cascade across scan scales
-    const rawDetections = pico.run_cascade(imageObj, classify, cascadeParams);
-
-    // 5. Cluster overlapping candidate detections
-    const clusteredDetections = pico.cluster_detections(rawDetections, iouThreshold);
-
-    // 6. Filter by confidence and project coordinates back to original image size
-    const faces = [];
-    for (const det of clusteredDetections) {
-        const [row, col, size, confidence] = det;
-
-        if (confidence >= minConfidence) {
-            const scanRadius = size / 2;
-            const scanX = Math.max(0, col - scanRadius);
-            const scanY = Math.max(0, row - scanRadius);
-
-            // Project back to original dimensions
-            const origX = Math.round(scanX * scaleRatio);
-            const origY = Math.round(scanY * scaleRatio);
-            const origSize = Math.round(size * scaleRatio);
-
-            faces.push({
-                x: Math.max(0, Math.min(origX, origWidth - 1)),
-                y: Math.max(0, Math.min(origY, origHeight - 1)),
-                width: Math.min(origSize, origWidth - origX),
-                height: Math.min(origSize, origHeight - origY),
-                confidence: Math.round(confidence * 100) / 100,
-            });
+        if (Math.max(orientedWidth, orientedHeight) > maxDimension) {
+            if (orientedWidth >= orientedHeight) {
+                scanWidth = maxDimension;
+                scanHeight = Math.max(1, Math.round((orientedHeight * maxDimension) / orientedWidth));
+            } else {
+                scanHeight = maxDimension;
+                scanWidth = Math.max(1, Math.round((orientedWidth * maxDimension) / orientedHeight));
+            }
+            scaleRatioX = orientedWidth / scanWidth;
+            scaleRatioY = orientedHeight / scanHeight;
         }
-    }
 
-    return faces;
+        const cascadeParams = {
+            shiftfactor: shiftFactor,
+            minsize: Math.max(16, minSize),
+            maxsize: Math.min(maxSize, Math.min(scanWidth, scanHeight)),
+            scalefactor: scaleFactor,
+        };
+
+        const passesRun = [];
+        let allRawDetections = [];
+
+        // Pass 1: Standard contrast RGB -> Grayscale
+        const { data: rgbaData, info: scanInfo } = await sharp(orientedBuffer)
+            .resize(scanWidth, scanHeight, { fit: 'fill' })
+            .ensureAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+
+        const grayPixels = rgbaToGrayscale(rgbaData, scanInfo.width, scanInfo.height);
+        const pass1Detections = runSingleScanPass(grayPixels, scanInfo.width, scanInfo.height, classify, cascadeParams);
+        passesRun.push('standard_grayscale');
+        allRawDetections = [...allRawDetections, ...pass1Detections];
+
+        const hasStrongCandidate = () => allRawDetections.some(([, , , confidence]) => confidence >= minConfidence);
+
+        // Pass 2: Enhanced contrast / normalization pass when the first pass
+        // only produced weak candidates. This prevents a weak background hit
+        // from suppressing a real face found after normalization.
+        if (!hasStrongCandidate() && (
+            sourceOrientation !== 1
+            || allRawDetections.length > 0
+            || Math.max(scanWidth, scanHeight) >= 900
+        )) {
+            try {
+                const { data: normRgba, info: normInfo } = await sharp(orientedBuffer)
+                    .resize(scanWidth, scanHeight, { fit: 'fill' })
+                    .normalize()
+                    .ensureAlpha()
+                    .raw()
+                    .toBuffer({ resolveWithObject: true });
+
+                const normGray = rgbaToGrayscale(normRgba, normInfo.width, normInfo.height);
+                const pass2Detections = runSingleScanPass(normGray, normInfo.width, normInfo.height, classify, cascadeParams);
+                if (pass2Detections && pass2Detections.length > 0) {
+                    passesRun.push('normalized_contrast');
+                    allRawDetections = [...allRawDetections, ...pass2Detections];
+                }
+            } catch {
+                // Secondary pass is best-effort enhancement
+            }
+        }
+
+        // Pass 3: Multi-rotation pass (in case image was saved sideways without EXIF tags).
+        // A sideways portrait needs the 90/270 passes even when the normal scan
+        // is empty. The 180 pass is reserved for larger real-world images to
+        // avoid spending several seconds rotating clean document photos.
+        if (!hasStrongCandidate() && (sourceOrientation !== 1 || allRawDetections.length > 0)) {
+            const rotationAngles = Math.max(scanWidth, scanHeight) >= 900 ? [90, 270, 180] : [90, 270];
+            for (const angle of rotationAngles) {
+                try {
+                    const rotationWidth = angle === 90 || angle === 270 ? scanHeight : scanWidth;
+                    const rotationHeight = angle === 90 || angle === 270 ? scanWidth : scanHeight;
+                    const { data: rotRgba, info: rotInfo } = await sharp(orientedBuffer)
+                        .rotate(angle)
+                        .resize(rotationWidth, rotationHeight, { fit: 'fill' })
+                        .ensureAlpha()
+                        .raw()
+                        .toBuffer({ resolveWithObject: true });
+
+                    const rotGray = rgbaToGrayscale(rotRgba, rotInfo.width, rotInfo.height);
+                    const rotDetections = runSingleScanPass(rotGray, rotInfo.width, rotInfo.height, classify, cascadeParams);
+
+                    if (rotDetections && rotDetections.length > 0) {
+                        passesRun.push(`rotated_${angle}deg`);
+                        // Map the complete square detection box from rotated
+                        // scan space back into the standard scan coordinate space.
+                        for (const detection of rotDetections) {
+                            allRawDetections.push(mapRotatedDetectionToStandardScan(
+                                detection,
+                                angle,
+                                scanWidth,
+                                scanHeight,
+                            ));
+                        }
+                        if (hasStrongCandidate()) break;
+                    }
+                } catch {
+                    // Best-effort orientation scan
+                }
+            }
+        }
+
+        // 3. Cluster overlapping candidate detections
+        const clusteredDetections = pico.cluster_detections(allRawDetections, iouThreshold);
+
+        // 4. Filter by confidence and project coordinates back to original oriented image size
+        const faces = [];
+        const rejectedDetections = [];
+        const imageArea = orientedWidth * orientedHeight;
+        for (const det of clusteredDetections) {
+            const [row, col, size, confidence] = det;
+
+            if (confidence >= minConfidence) {
+                const scanRadius = size / 2;
+                const scanX = Math.max(0, col - scanRadius);
+                const scanY = Math.max(0, row - scanRadius);
+
+                // Project back to original oriented dimensions
+                const origX = Math.round(scanX * scaleRatioX);
+                const origY = Math.round(scanY * scaleRatioY);
+                const origWidth = Math.max(1, Math.round(size * scaleRatioX));
+                const origHeight = Math.max(1, Math.round(size * scaleRatioY));
+                const safeX = Math.max(0, Math.min(origX, orientedWidth - 1));
+                const safeY = Math.max(0, Math.min(origY, orientedHeight - 1));
+
+                const projectedWidth = Math.min(origWidth, orientedWidth - safeX);
+                const projectedHeight = Math.min(origHeight, orientedHeight - safeY);
+                const aspectRatio = projectedWidth / Math.max(1, projectedHeight);
+                const areaRatio = (projectedWidth * projectedHeight) / imageArea;
+                const qualityReasons = [];
+                if (confidence < minConfirmedConfidence) qualityReasons.push('weak_confidence');
+                if (projectedWidth < 18 || projectedHeight < 18) qualityReasons.push('too_small');
+                if (aspectRatio < 0.55 || aspectRatio > 1.8) qualityReasons.push('implausible_aspect_ratio');
+                if (projectedWidth > Math.min(orientedWidth, orientedHeight) * 0.55
+                    || projectedHeight > Math.min(orientedWidth, orientedHeight) * 0.55) {
+                    qualityReasons.push('oversized_candidate');
+                }
+                if (safeX + projectedWidth > orientedWidth || safeY + projectedHeight > orientedHeight) {
+                    qualityReasons.push('out_of_bounds');
+                }
+
+                const candidate = {
+                    x: safeX,
+                    y: safeY,
+                    width: projectedWidth,
+                    height: projectedHeight,
+                    confidence: Math.round(confidence * 100) / 100,
+                    aspectRatio: Math.round(aspectRatio * 1000) / 1000,
+                    areaRatio: Math.round(areaRatio * 100000) / 100000,
+                };
+
+                if (qualityReasons.length === 0) faces.push(candidate);
+                else rejectedDetections.push({ ...candidate, reasons: qualityReasons });
+            }
+        }
+
+        const maxConfidence = faces.reduce((max, f) => Math.max(max, f.confidence), 0);
+        const totalConfidence = faces.reduce((sum, f) => sum + f.confidence, 0);
+        const averageConfidence = faces.length > 0 ? Math.round((totalConfidence / faces.length) * 100) / 100 : 0;
+
+        const diagnostics = {
+            rawDetectionsCount: allRawDetections.length,
+            clusteredDetectionsCount: clusteredDetections.length,
+            acceptedDetectionsCount: faces.length,
+            maxConfidence,
+            averageConfidence,
+            orientedDimensions: { width: orientedWidth, height: orientedHeight },
+            scanDimensions: { width: scanWidth, height: scanHeight },
+            scaleRatio: scaleRatioX,
+            scaleRatioX,
+            scaleRatioY,
+            thresholdUsed: minConfidence,
+            confirmedThresholdUsed: minConfirmedConfidence,
+            rejectedDetections,
+            passesRun,
+        };
+
+        if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
+            console.log(`🔍 [FaceDetector] Scan complete: ${faces.length} face(s) found (raw: ${allRawDetections.length}, passes: ${passesRun.join(', ')})`);
+        }
+
+        return {
+            status: faces.length > 0 ? 'faces_detected' : 'no_faces_detected',
+            faces,
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: {
+                maxConfidence,
+                faceCount: faces.length,
+                averageConfidence,
+            },
+            diagnostics,
+        };
+    } catch (runErr) {
+        console.error('Error during face detection execution:', runErr);
+        return {
+            status: 'detector_failed',
+            faces: [],
+            detectorVersion: DETECTOR_VERSION,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+            diagnostics: { error: runErr.message },
+        };
+    }
 };
 
 export default {

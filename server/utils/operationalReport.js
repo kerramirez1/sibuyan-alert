@@ -1,4 +1,5 @@
 import { getEntityId } from './reportAccess.js';
+import { buildReportEvidenceObject } from './publicReport.js';
 
 const toPlainObject = (value) => (
     typeof value?.toObject === 'function' ? value.toObject({ virtuals: false }) : value || {}
@@ -99,6 +100,7 @@ const buildCore = (source) => ({
 
 export const toOperationalReportSummary = (report) => {
     const source = toPlainObject(report);
+    const evidence = buildReportEvidenceObject(source, { isOperational: true });
     return {
         ...buildCore(source),
         reporter: pickPerson(source.reporter),
@@ -106,7 +108,8 @@ export const toOperationalReportSummary = (report) => {
         resolvedBy: pickPerson(source.resolvedBy),
         responderAgency: source.responderAgency || null,
         responders: (source.responders || []).map(pickResponder),
-        evidenceCount: Array.isArray(source.images) ? source.images.length : 0,
+        evidence,
+        evidenceCount: evidence.evidenceCount,
         updateCount: Array.isArray(source.reportUpdates) ? source.reportUpdates.length : 0,
         transferCount: Array.isArray(source.transferHistory) ? source.transferHistory.length : 0,
         detailAccess: 'operational',
@@ -119,11 +122,13 @@ export const toOperationalReport = (
     { includeReporterContact = false, includeAdministrative = false } = {},
 ) => {
     const source = toPlainObject(report);
+    const evidence = buildReportEvidenceObject(source, { isOperational: true });
     return {
         ...buildCore(source),
         reporter: pickPerson(source.reporter, { includeEmail: includeReporterContact }),
         images: Array.isArray(source.images) ? source.images : [],
-        evidenceCount: Array.isArray(source.images) ? source.images.length : 0,
+        evidence,
+        evidenceCount: evidence.evidenceCount,
         verifiedBy: pickPerson(source.verifiedBy),
         respondedBy: pickPerson(source.respondedBy),
         resolvedBy: pickPerson(source.resolvedBy),
@@ -140,3 +145,4 @@ export const toOperationalReport = (
 };
 
 export default { toOperationalReport, toOperationalReportSummary };
+

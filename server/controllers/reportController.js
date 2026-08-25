@@ -16,6 +16,43 @@ import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 
 const toValidatedCount = (value) => Number(value ?? 0);
 
+const persistEvidenceMetadata = async (reportId, evidenceIndex, derivativeMetadata) => {
+    const metadata = {
+        index: evidenceIndex,
+        detectionStatus: derivativeMetadata.detectionStatus,
+        redactionType: derivativeMetadata.redactionType,
+        facesDetected: derivativeMetadata.facesDetected,
+        redactedRegions: derivativeMetadata.redactedRegions,
+        redactionVersion: derivativeMetadata.redactionVersion,
+        detectorVersion: derivativeMetadata.detectorVersion,
+        sourceHash: derivativeMetadata.sourceHash,
+        derivativeHash: derivativeMetadata.derivativeHash,
+    };
+
+    // Replace every entry for this exact index in one atomic update. This
+    // prevents duplicate metadata rows when two preview requests race while
+    // also replacing stale detector/redaction versions.
+    await Report.updateOne(
+        { _id: reportId },
+        [{
+            $set: {
+                evidenceMetadata: {
+                    $concatArrays: [
+                        {
+                            $filter: {
+                                input: { $ifNull: ['$evidenceMetadata', []] },
+                                as: 'entry',
+                                cond: { $ne: ['$$entry.index', evidenceIndex] },
+                            },
+                        },
+                        [metadata],
+                    ],
+                },
+            },
+        }],
+    );
+};
+
 /**
  * @desc    Create a new incident report
  * @route   POST /api/reports
@@ -137,8 +174,7 @@ export const createReport = async (req, res) => {
 
         const reportId = new mongoose.Types.ObjectId();
 
-        // Evidence is private by default. Its report id lets the delivery layer
-        // re-check current role, assignment, and municipal scope on every read.
+        let evidenceMetadata = [];
         if (req.files?.length) {
             const storedImages = await uploadFilesToGridFS(req.files, {
                 category: 'report_evidence',
@@ -148,6 +184,40 @@ export const createReport = async (req, res) => {
                 municipalityName: locationResult.municipalityName,
             });
             uploadedImageUrls = storedImages.map(({ url }) => url);
+
+            // Precompute evidence derivative metadata for accurate public descriptor serialization
+            try {
+                evidenceMetadata = await Promise.all(
+                    req.files.map(async (file, idx) => {
+                        try {
+                            const derivative = await generateRedactedEvidenceDerivative(file.buffer);
+                            return {
+                                index: idx,
+                                detectionStatus: derivative.metadata.detectionStatus,
+                                redactionType: derivative.metadata.redactionType,
+                                facesDetected: derivative.metadata.facesDetected,
+                                redactedRegions: derivative.metadata.redactedRegions,
+                                redactionVersion: derivative.metadata.redactionVersion,
+                                detectorVersion: derivative.metadata.detectorVersion,
+                                sourceHash: derivative.metadata.sourceHash,
+                                derivativeHash: derivative.metadata.derivativeHash,
+                            };
+                        } catch {
+                            return {
+                                index: idx,
+                                detectionStatus: 'detector_failed',
+                                redactionType: 'fallback_blur',
+                                facesDetected: 0,
+                                redactedRegions: 0,
+                                redactionVersion: '3.2',
+                                detectorVersion: 'picojs-facefinder-2.3',
+                            };
+                        }
+                    })
+                );
+            } catch (err) {
+                console.warn('Could not precompute evidence metadata:', err.message);
+            }
         }
 
         // Create the report with processed location data
@@ -176,12 +246,14 @@ export const createReport = async (req, res) => {
             casualties,
             affectedArea,
             images: uploadedImageUrls,
+            evidenceMetadata,
             status: 'pending',
             // Store location processing metadata
             locationSource: locationResult.source,
             locationCapture: capture.value,
             responseEstimate: responseEstimate || undefined,
         });
+
 
         // Populate reporter info
         await report.populate('reporter', 'name email avatar');
@@ -395,6 +467,7 @@ export const getReports = async (req, res) => {
                 'responders.unitType',
                 'responderAgency',
                 'images',
+                'evidenceMetadata',
                 'verifiedAt',
                 'respondedAt',
                 'resolvedAt',
@@ -437,6 +510,14 @@ export const getReports = async (req, res) => {
  */
 export const getReportById = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                code: 'INVALID_REPORT_ID',
+                message: 'Invalid incident report identifier',
+            });
+        }
+
         const report = await Report.findById(req.params.id)
             .populate('reporter', 'name avatar')
             .populate('verifiedBy', 'name')
@@ -446,6 +527,7 @@ export const getReportById = async (req, res) => {
         if (!report) {
             return res.status(404).json({
                 success: false,
+                code: 'REPORT_NOT_FOUND',
                 message: 'Report not found',
             });
         }
@@ -463,14 +545,18 @@ export const getReportById = async (req, res) => {
             if (!isOwner && !isOperational) {
                 return res.status(403).json({
                     success: false,
+                    code: 'REPORT_RESTRICTED',
                     message: 'Not authorized to view this report',
                 });
             }
         }
 
-        // Increment view count
-        report.viewCount += 1;
-        await report.save();
+        // Increment view count atomically without triggering full-document validation
+        Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } }).catch((viewErr) => {
+            if (process.env.NODE_ENV !== 'production') {
+                console.warn(`[getReportById] Failed to increment viewCount for report ${report._id}:`, viewErr?.message);
+            }
+        });
 
         let responseData;
         if (isOwner || isOperational) {
@@ -478,6 +564,7 @@ export const getReportById = async (req, res) => {
             const evidence = buildReportEvidenceObject(reportObj, { isOwner, isOperational });
             responseData = {
                 ...reportObj,
+                viewCount: (reportObj.viewCount || 0) + 1,
                 isOwnedByCurrentUser: isOwner,
                 evidence,
                 evidenceCount: evidence.count,
@@ -485,17 +572,29 @@ export const getReportById = async (req, res) => {
                 detailCompleteness: 'full',
             };
         } else {
-            responseData = toPublicReport(report, { viewerId: req.user?._id });
+            const publicReport = toPublicReport(report, { viewerId: req.user?._id });
+            responseData = {
+                ...publicReport,
+                viewCount: (report.viewCount || 0) + 1,
+                detailAccess: 'public',
+                detailCompleteness: 'full',
+            };
         }
 
-        res.json({
+        return res.json({
             success: true,
             data: responseData,
         });
     } catch (error) {
-        console.error('Get report error:', error);
-        res.status(500).json({
+        console.error('Get report error:', {
+            reportId: String(req.params.id || ''),
+            status: error?.status,
+            name: error?.name,
+            message: error?.message,
+        });
+        return res.status(500).json({
             success: false,
+            code: 'REPORT_DETAILS_UNAVAILABLE',
             message: 'Failed to get report',
         });
     }
@@ -569,21 +668,60 @@ export const getReportEvidencePreview = async (req, res) => {
             chunks.push(chunk);
         }
         const fileBuffer = Buffer.concat(chunks);
-        const derivative = await generateRedactedEvidenceDerivative(fileBuffer);
+        const derivative = await generateRedactedEvidenceDerivative(fileBuffer, { publicSoftBlur: true });
 
-        const etag = `W/"evidence-preview-${report._id}-${evidenceIndex}-${derivative.metadata.redactionVersion}"`;
+        const sourceHash = derivative.metadata.sourceHash || 'unknown-source';
+        const derivativeHash = derivative.metadata.derivativeHash || 'unknown-derivative';
+        const redactionVersion = derivative.metadata.redactionVersion || '3.4';
+        const detectorVersion = derivative.metadata.detectorVersion || 'unknown-detector';
+        const detectionStatus = derivative.metadata.detectionStatus || 'processing';
+        const redactionType = derivative.metadata.redactionType || 'privacy_preview';
+        const cacheHit = Boolean(derivative.metadata.cacheHit);
+        const etag = `W/"evidence-preview-${report._id}-${evidenceIndex}-${sourceHash.slice(0, 16)}-${derivativeHash.slice(0, 16)}-${redactionVersion}-${detectorVersion}-${detectionStatus}-${redactionType}"`;
         res.set({
             'Content-Type': derivative.contentType || 'image/jpeg',
-            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+            'Pragma': 'no-cache',
+            'Vary': 'Cookie',
             'X-Content-Type-Options': 'nosniff',
+            'X-Evidence-Variant': 'redacted',
+            'X-Evidence-Detection-Status': detectionStatus,
+            'X-Evidence-Redaction-Type': redactionType,
+            'X-Evidence-Redaction-Version': redactionVersion,
+            'X-Evidence-Detector-Version': detectorVersion,
+            'X-Evidence-Redacted-Regions': String(derivative.metadata.redactedRegions || 0),
+            'X-Evidence-Cache': cacheHit ? 'hit' : 'miss',
             ETag: etag,
         });
 
-        if (req.headers['if-none-match'] === etag) {
+        if (process.env.NODE_ENV === 'development') {
+            console.debug('[EvidencePreviewAudit]', JSON.stringify({
+                reportId: String(report._id),
+                evidenceIndex,
+                sourceHash,
+                derivativeHash,
+                detectorVersion,
+                detectionStatus,
+                facesDetected: derivative.metadata.facesDetected || 0,
+                redactionRegions: derivative.metadata.redactionDiagnostics || [],
+                redactionVersion,
+                etag,
+                cache: cacheHit ? 'hit' : 'miss',
+                finalPreviewEndpoint: req.originalUrl,
+            }));
+        }
+
+        await persistEvidenceMetadata(report._id, evidenceIndex, derivative.metadata);
+
+        const ifNoneMatch = String(req.headers['if-none-match'] || '')
+            .split(',')
+            .map((value) => value.trim());
+        if (ifNoneMatch.includes('*') || ifNoneMatch.includes(etag)) {
             return res.status(304).end();
         }
 
         res.send(derivative.buffer);
+
     } catch (error) {
         console.error('Evidence preview error:', error);
         if (!res.headersSent) {
@@ -606,9 +744,22 @@ export const getMyReports = async (req, res) => {
             .populate('reportUpdates.author', 'name role agency')
             .sort({ createdAt: -1 });
 
+        const serialized = reports.map((report) => {
+            const reportObj = typeof report.toObject === 'function' ? report.toObject() : report;
+            const evidence = buildReportEvidenceObject(reportObj, { isOwner: true });
+            return {
+                ...reportObj,
+                isOwnedByCurrentUser: true,
+                evidence,
+                evidenceCount: evidence.evidenceCount,
+                detailAccess: 'owner',
+                detailCompleteness: 'full',
+            };
+        });
+
         res.json({
             success: true,
-            data: reports,
+            data: serialized,
         });
     } catch (error) {
         console.error('Get my reports error:', error);
@@ -618,6 +769,7 @@ export const getMyReports = async (req, res) => {
         });
     }
 };
+
 
 const REPORT_UPDATE_NOTIFICATION_TITLES = {
     general: 'Situation update received',

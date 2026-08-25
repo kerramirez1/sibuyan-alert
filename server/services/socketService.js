@@ -139,9 +139,9 @@ export const broadcastReportVerified = (io, report) => {
         casualties: report.casualties,
         fireInvolved: Boolean(report.fireInvolved),
         evidence,
-        evidenceCount: evidence.count,
-        images: evidence.items.map((item) => item.previewUrl),
+        evidenceCount: evidence.evidenceCount,
     });
+
 
     // Notify municipality-specific channel (use municipalityName to match frontend rooms)
     if (report.municipalityName) {
@@ -224,9 +224,10 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
         municipalityName: toMuni,
         status: report.status,
         evidence,
-        evidenceCount: evidence.count,
-        images: evidence.items.map((item) => item.previewUrl),
+        evidenceCount: evidence.evidenceCount,
     };
+
+
 
     // 1. Emit to general dashboard channel (public update)
     io.emit('reportTransferred', eventData);

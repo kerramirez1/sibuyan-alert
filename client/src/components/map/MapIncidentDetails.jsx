@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
 import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineArrowRight,
@@ -97,7 +98,12 @@ const MapIncidentDetails = ({
     const operational = useOperationalIncidentDetails(report, viewerRole);
     const displayedReport = operational.report || report;
     const details = getIncidentDetailViewModel(displayedReport);
-    const [viewerImage, setViewerImage] = useState(null);
+    const [viewerItem, setViewerItem] = useState(null);
+
+    const incidentId = displayedReport?._id || displayedReport?.id;
+    useEffect(() => {
+        setViewerItem(null);
+    }, [incidentId]);
 
     if (!displayedReport && !operational.loading) {
         return (
@@ -112,6 +118,7 @@ const MapIncidentDetails = ({
     if (operational.loading && !displayedReport) {
         return <MapIncidentDetailsSkeleton />;
     }
+
 
     const ownsReport = Boolean(
         viewerRole === 'reporter'
@@ -139,23 +146,24 @@ const MapIncidentDetails = ({
         && (missingDisplay === 0 || missingDisplay === 'Not recorded')
         && !hasImpactRecorded;
 
-    const rawEvidenceItems = Array.isArray(displayedReport?.evidence?.items)
-        ? displayedReport.evidence.items
-        : Array.isArray(displayedReport?.evidence) && displayedReport.evidence.length > 0
-            ? displayedReport.evidence
-            : Array.isArray(displayedReport?.images)
+    const evidenceDescriptor = displayedReport?.evidence;
+    const effectiveViewerAccess = evidenceDescriptor?.viewerAccess === 'original' ? 'original' : 'redacted';
+    const isOriginalAllowed = effectiveViewerAccess === 'original';
+
+    const rawEvidenceItems = Array.isArray(evidenceDescriptor?.items)
+        ? evidenceDescriptor.items
+        : Array.isArray(evidenceDescriptor) && evidenceDescriptor.length > 0
+            ? evidenceDescriptor
+            : isOriginalAllowed && Array.isArray(displayedReport?.images)
                 ? displayedReport.images
                 : [];
 
-    const declaredEvidenceCount = Number(displayedReport?.evidence?.count ?? displayedReport?.evidenceCount);
+    const declaredEvidenceCount = Number(evidenceDescriptor?.evidenceCount ?? evidenceDescriptor?.count ?? displayedReport?.evidenceCount);
     const totalEvidenceCount = Math.max(
         Number.isFinite(declaredEvidenceCount) && declaredEvidenceCount > 0 ? Math.floor(declaredEvidenceCount) : 0,
         rawEvidenceItems.length,
     );
 
-    const evidenceAccessLevel = isOperational || ownsReport
-        ? 'original'
-        : 'blurred';
 
     const coordinates = displayedReport?.coordinates;
     const coordinatesText = Number.isFinite(Number(coordinates?.lat)) && Number.isFinite(Number(coordinates?.lng))
@@ -172,7 +180,7 @@ const MapIncidentDetails = ({
 
     return (
         <div className="flex min-h-full flex-col">
-            <div className="space-y-3.5 px-4 py-3 sm:px-5 sm:py-5">
+            <div className="space-y-4 px-4 py-3 sm:px-5 sm:py-4">
                 {/* 1. Incident Brief Header */}
                 <div>
                     <div className="flex items-center justify-between gap-2">
@@ -202,7 +210,7 @@ const MapIncidentDetails = ({
                         )}
                     </div>
 
-                    <h3 className="mt-2 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug">
+                    <h3 className="mt-2 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug break-words">
                         {details.title}
                     </h3>
                     <div className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-600 dark:text-gray-300">
@@ -217,7 +225,7 @@ const MapIncidentDetails = ({
                         <button
                             type="button"
                             onClick={onToggleExpand}
-                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/80 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3.5 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                             aria-label="Expand full incident brief"
                         >
                             <span className="flex items-center gap-1.5">
@@ -235,7 +243,7 @@ const MapIncidentDetails = ({
                 {operational.error && (
                     <div className="flex flex-col gap-2.5 rounded-xl border border-red-200/80 bg-red-50/80 p-3 text-xs text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200" role="alert">
                         <span>{operational.error}</span>
-                        {!operational.restricted && (
+                        {operational.retryable && (
                             <Button variant="dangerOutline" size="sm" onClick={operational.retry}>Retry</Button>
                         )}
                     </div>
@@ -307,7 +315,7 @@ const MapIncidentDetails = ({
                 </section>
 
                 {/* 5. Casualties and Affected Area */}
-                <section className="border-t border-gray-200/80 pt-3 dark:border-white/10" aria-labelledby="map-incident-casualties-heading">
+                <section className="border-t border-gray-200/80 pt-3.5 dark:border-white/10" aria-labelledby="map-incident-casualties-heading">
                     <h4 id="map-incident-casualties-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                         Casualties and affected area
                     </h4>
@@ -364,14 +372,14 @@ const MapIncidentDetails = ({
                 </section>
 
                 {/* 6. Evidence Photos */}
-                <section className="border-t border-gray-200/80 pt-3 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
+                <section className="border-t border-gray-200/80 pt-3.5 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
                     <h4 id="map-incident-evidence-heading" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                         <HiOutlinePhotograph className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                         <span>
                             {totalEvidenceCount > 0
-                                ? ownsReport
+                                ? ownsReport && isOriginalAllowed
                                     ? `Your evidence photos · ${totalEvidenceCount}`
-                                    : evidenceAccessLevel === 'blurred'
+                                    : effectiveViewerAccess === 'redacted'
                                         ? `Evidence preview · ${totalEvidenceCount}`
                                         : `Evidence photos · ${totalEvidenceCount}`
                                 : 'Evidence photos'}
@@ -380,11 +388,11 @@ const MapIncidentDetails = ({
 
                     <div className="mt-2">
                         <ProtectedEvidenceGallery
-                            images={displayedReport?.images || []}
-                            evidence={displayedReport?.evidence}
-                            accessLevel={evidenceAccessLevel}
-                            isOwner={ownsReport}
-                            onViewImage={(url) => setViewerImage(url)}
+                            images={isOriginalAllowed ? (displayedReport?.images || []) : []}
+                            evidence={evidenceDescriptor}
+                            accessLevel={effectiveViewerAccess}
+                            isOwner={ownsReport && isOriginalAllowed}
+                            onViewImage={(item) => setViewerItem(item)}
                         />
                     </div>
                 </section>
@@ -394,7 +402,7 @@ const MapIncidentDetails = ({
                     <div className="flex items-start gap-2 border-t border-gray-200/80 pt-3 text-[11px] leading-relaxed text-gray-500 dark:border-white/10 dark:text-gray-400">
                         <HiOutlineShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                         <p>
-                            {ownsReport
+                            {ownsReport && isOriginalAllowed
                                 ? 'This owner view keeps responder identities and internal coordination details private.'
                                 : 'This is verified public safety information. Personal identities, evidence, and internal coordination details are not displayed here.'}
                             {details.updatedAt ? ` Last updated ${formatRelativeDate(details.updatedAt)}.` : ''}
@@ -460,10 +468,11 @@ const MapIncidentDetails = ({
             )}
 
             <ImageViewer
-                isOpen={Boolean(viewerImage)}
-                imageSrc={viewerImage || ''}
-                onClose={() => setViewerImage(null)}
+                isOpen={Boolean(viewerItem)}
+                item={viewerItem}
+                onClose={() => setViewerItem(null)}
             />
+
         </div>
     );
 };

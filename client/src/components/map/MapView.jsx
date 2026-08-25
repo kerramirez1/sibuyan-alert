@@ -231,6 +231,26 @@ const MapView = ({
         if (externalContextPanelOpen) closeMapSelection();
     }, [closeMapSelection, externalContextPanelOpen]);
 
+    // A live map refresh can remove or replace the report that opened the
+    // inspector. Close only after a non-empty dataset is available so a
+    // transient loading reset does not interrupt an active detail request.
+    useEffect(() => {
+        if (!mapModal || !Array.isArray(reports) || reports.length === 0) return;
+
+        const selectedReports = mapModal.type === 'reportGroup'
+            ? mapModal.data
+            : mapModal.type === 'report'
+                ? [mapModal.data]
+                : [];
+        if (selectedReports.length === 0) return;
+
+        const reportIds = new Set(reports.map((report) => String(report?._id || report?.id || '')).filter(Boolean));
+        const hasCurrentSelection = selectedReports.some((report) => (
+            reportIds.has(String(report?._id || report?.id || ''))
+        ));
+        if (!hasCurrentSelection) closeMapSelection();
+    }, [closeMapSelection, mapModal, reports]);
+
     useEffect(() => {
         let active = true;
 

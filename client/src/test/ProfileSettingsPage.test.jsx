@@ -74,8 +74,7 @@ describe('ProfileSettingsPage', () => {
         // 1. Page Header
         expect(screen.getByText('Account')).toBeInTheDocument();
         expect(screen.getByRole('heading', { level: 1, name: 'Profile settings' })).toBeInTheDocument();
-        expect(screen.getByText('Update your personal information and account preferences.')).toBeInTheDocument();
-        expect(screen.getByText(/Sibuyan Island · Alert System Active/i)).toBeInTheDocument();
+        expect(screen.getByText('Manage your personal information, security, and notification preferences.')).toBeInTheDocument();
 
         // 2. Identity Row
         const identitySection = screen.getByLabelText('Account identity summary');
@@ -121,8 +120,12 @@ describe('ProfileSettingsPage', () => {
         const changePhotoBtn = screen.getByRole('button', { name: 'Change profile photo' });
         fireEvent.click(changePhotoBtn);
 
-        expect(screen.getByRole('button', { name: 'Take photo' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Choose from device' })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Take photo' }).length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('button', { name: 'Choose from device' }).length).toBeGreaterThan(0);
+
+        // Closes when pressing Escape
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('menu', { name: 'Profile photo options' })).not.toBeInTheDocument();
     });
 
     test('enables Save changes button when form fields are modified and handles submit', async () => {

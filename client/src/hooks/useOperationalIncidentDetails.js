@@ -3,10 +3,15 @@ import { adminAPI, reportsAPI } from '../services/api';
 
 const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder', 'admin', 'system_admin']);
 
-const getReportId = (report) => report?._id || report?.id || '';
+const getReportId = (report) => {
+    if (!report) return '';
+    if (typeof report === 'string') return report;
+    return report._id || report.id || '';
+};
 
 const getEvidenceCount = (report) => {
-    const declaredCount = Number(report?.evidence?.count ?? report?.evidenceCount);
+    if (!report || typeof report !== 'object') return 0;
+    const declaredCount = Number(report?.evidence?.count ?? report?.evidence?.evidenceCount ?? report?.evidenceCount);
     const itemArrayCount = Array.isArray(report?.evidence?.items)
         ? report.evidence.items.length
         : Array.isArray(report?.evidence)
@@ -18,6 +23,45 @@ const getEvidenceCount = (report) => {
         itemArrayCount,
         imageCount
     );
+};
+
+const getRequestError = (error, isOperationalViewer, isOwnerViewer) => {
+    const status = error?.response?.status;
+    const code = error?.response?.data?.code;
+    if (status === 400 || code === 'INVALID_REPORT_ID') {
+        return { message: 'This incident reference is invalid.', restricted: false, retryable: false };
+    }
+    if (status === 404 || code === 'REPORT_NOT_FOUND') {
+        return { message: 'This incident is no longer available.', restricted: false, retryable: false };
+    }
+    if (status === 403 || code === 'REPORT_RESTRICTED') {
+        return {
+            message: isOperationalViewer
+                ? 'You do not have permission to view this incident.'
+                : isOwnerViewer
+                    ? 'Evidence photos are available only to the report owner.'
+                    : 'You do not have permission to view this incident.',
+            restricted: true,
+            retryable: false,
+        };
+    }
+    if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') {
+        return { message: '', restricted: false, retryable: false, canceled: true };
+    }
+    if (error?.code === 'ERR_NETWORK' || error?.code === 'ECONNABORTED' || !error?.response) {
+        return { message: 'Connection problem. Check your network and try again.', restricted: false, retryable: true };
+    }
+    if (code === 'REPORT_DETAILS_UNAVAILABLE' || status >= 500) {
+        return { message: 'Incident details are temporarily unavailable.', restricted: false, retryable: true };
+    }
+    if (error?.message === 'Incident detail response is empty') {
+        return { message: 'The incident details response was incomplete.', restricted: false, retryable: true };
+    }
+    return {
+        message: error?.response?.data?.message || 'Incident details are temporarily unavailable.',
+        restricted: false,
+        retryable: true,
+    };
 };
 
 const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
@@ -48,14 +92,22 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
         loading: shouldLoad,
         error: '',
         restricted: false,
+        retryable: false,
     });
 
     const activeReportIdRef = useRef(reportId);
+    const requestSequenceRef = useRef(0);
     activeReportIdRef.current = reportId;
 
     const load = useCallback(async (signal) => {
+        const requestSequence = requestSequenceRef.current + 1;
+        requestSequenceRef.current = requestSequence;
+        const isCurrentRequest = () => (
+            activeReportIdRef.current === reportId
+            && requestSequenceRef.current === requestSequence
+        );
         if (!reportId) {
-            setState({ extraDetails: null, loading: false, error: '', restricted: false });
+            setState({ extraDetails: null, loading: false, error: '', restricted: false, retryable: false });
             return;
         }
 
@@ -65,6 +117,7 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
                 loading: false,
                 error: '',
                 restricted: false,
+                retryable: false,
             }));
             return;
         }
@@ -74,34 +127,35 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
             loading: true,
             error: '',
             restricted: false,
+            retryable: false,
         });
 
         try {
             let response;
             if (isOperationalViewer) {
                 try {
-                    response = await adminAPI.getReportById(reportId, { signal });
+                    response = await adminAPI.getReportById(reportId, signal ? { signal } : {});
                 } catch (adminErr) {
                     if (adminErr?.code === 'ERR_CANCELED' || adminErr?.name === 'CanceledError' || adminErr?.name === 'AbortError') return;
                     if (adminErr?.response?.status === 403) {
-                        response = await reportsAPI.getById(reportId, { signal });
+                        response = await reportsAPI.getById(reportId, signal ? { signal } : {});
                     } else {
                         throw adminErr;
                     }
                 }
             } else {
-                response = await reportsAPI.getById(reportId, { signal });
+                response = await reportsAPI.getById(reportId, signal ? { signal } : {});
             }
 
-            if (activeReportIdRef.current !== reportId) return;
+            if (!isCurrentRequest()) return;
 
             const loadedReport = response.data?.data;
             if (!loadedReport) throw new Error('Incident detail response is empty');
             const normalizedReport = {
                 ...loadedReport,
                 evidenceCount: getEvidenceCount(loadedReport),
-                detailAccess: isOperationalViewer ? 'operational' : isOwnerViewer ? 'owner' : 'public',
-                detailCompleteness: 'full',
+                detailAccess: loadedReport.detailAccess || (isOperationalViewer ? 'operational' : isOwnerViewer ? 'owner' : 'public'),
+                detailCompleteness: loadedReport.detailCompleteness || 'full',
             };
 
             setState({
@@ -109,31 +163,31 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
                 loading: false,
                 error: '',
                 restricted: false,
+                retryable: false,
             });
         } catch (error) {
-            if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
-            if (activeReportIdRef.current !== reportId) return;
+            if (!isCurrentRequest()) return;
+            const normalizedError = getRequestError(error, isOperationalViewer, isOwnerViewer);
+            if (normalizedError.canceled) return;
 
-            const restricted = error?.response?.status === 403;
+            if (import.meta.env?.DEV) {
+                console.debug('[MapIncidentDetails] report request failed', {
+                    reportId,
+                    endpoint: isOperationalViewer ? '/api/admin/reports/:id -> /api/reports/:id' : '/api/reports/:id',
+                    status: error?.response?.status || null,
+                    code: error?.response?.data?.code || null,
+                    viewerRole,
+                });
+            }
             setState({
                 extraDetails: null,
                 loading: false,
-                restricted,
-                error: restricted
-                    ? isOperationalViewer
-                        ? 'Protected operational details are unavailable for this incident.'
-                        : isOwnerViewer
-                            ? 'Evidence photos are available only to the report owner.'
-                            : 'This incident is restricted for privacy.'
-                    : error?.response?.data?.message
-                        || (isOperationalViewer
-                            ? 'Unable to load operational incident details.'
-                            : isOwnerViewer
-                                ? 'Unable to load your evidence photos.'
-                                : 'Unable to load incident details.'),
+                restricted: normalizedError.restricted,
+                error: normalizedError.message,
+                retryable: normalizedError.retryable,
             });
         }
-    }, [isOperationalViewer, isOwnerViewer, reportId, shouldLoad]);
+    }, [isOperationalViewer, isOwnerViewer, reportId, shouldLoad, viewerRole]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -147,11 +201,15 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
 
     const resolvedReport = useMemo(() => {
         if (!report && !state.extraDetails) return null;
-        const base = report || { _id: reportId };
+        const base = (typeof report === 'object' && report !== null) ? report : { _id: reportId };
         if (!state.extraDetails || getReportId(state.extraDetails) !== reportId) {
-            return base;
+            const copy = { ...base };
+            if (!isOperationalViewer && !isOwnerViewer && copy.evidence?.viewerAccess === 'redacted') {
+                delete copy.images;
+            }
+            return copy;
         }
-        return {
+        const merged = {
             ...base,
             ...state.extraDetails,
             ...(base.status ? { status: base.status } : {}),
@@ -170,13 +228,21 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
             ...(base.transferHistory !== undefined ? { transferHistory: base.transferHistory } : {}),
             ...(base.reportUpdates !== undefined ? { reportUpdates: base.reportUpdates } : {}),
         };
-    }, [report, reportId, state.extraDetails]);
+
+        if (!isOperationalViewer && !isOwnerViewer) {
+            delete merged.images;
+        }
+
+        return merged;
+    }, [report, reportId, state.extraDetails, isOperationalViewer, isOwnerViewer]);
+
 
     return {
         report: resolvedReport,
         loading: state.loading,
         error: state.error,
         restricted: state.restricted,
+        retryable: state.retryable,
         retry,
         isOperationalViewer,
         isOwnerViewer,

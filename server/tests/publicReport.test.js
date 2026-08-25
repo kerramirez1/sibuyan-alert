@@ -46,6 +46,14 @@ describe('public report representation', () => {
         expect(result).not.toHaveProperty('rejectionReason');
         expect(result).not.toHaveProperty('resolutionNotes');
         expect(result).not.toHaveProperty('responders');
+
+        // Evidence descriptor isolation: guest receives ONLY redactedPreviewUrl and never originalUrl or GridFS IDs
+        expect(result.evidence).toBeDefined();
+        expect(result.evidence.viewerAccess).toBe('redacted');
+        expect(result.evidence.items).toHaveLength(1);
+        expect(result.evidence.items[0].redactedPreviewUrl).toBe('/api/reports/report-1/evidence/0/preview?rv=3.4');
+        expect(result.evidence.items[0]).not.toHaveProperty('originalUrl');
+        expect(JSON.stringify(result.evidence)).not.toContain('private-image');
     });
 
     test('adds an ownership capability flag without exposing the reporter identifier', () => {
@@ -54,6 +62,22 @@ describe('public report representation', () => {
         expect(result.isOwnedByCurrentUser).toBe(true);
         expect(JSON.stringify(result)).not.toContain('reporter-1');
         expect(JSON.stringify(result)).not.toContain('private@example.com');
+        expect(result.evidence.viewerAccess).toBe('original');
+        expect(result.evidence.items[0].originalUrl).toBe('/api/files/private-image');
+    });
+
+    test('always points public evidence at the current redaction contract when stored metadata is stale', () => {
+        const result = toPublicReport({
+            ...report,
+            evidenceMetadata: [{
+                index: 0,
+                detectionStatus: 'faces_detected',
+                redactionType: 'face_blur',
+                redactionVersion: '2.0',
+                detectorVersion: 'picojs-facefinder-2.0',
+            }],
+        });
+
+        expect(result.evidence.items[0].redactedPreviewUrl).toBe('/api/reports/report-1/evidence/0/preview?rv=3.4');
     });
 });
-
