@@ -42,7 +42,7 @@ describe('IncidentDetailsContent', () => {
 
         expect(screen.getByText('Two motorcycles collided at the intersection.')).toBeInTheDocument();
         expect(screen.getByText('Crossing Poblacion, Cajidiocan')).toBeInTheDocument();
-        expect(screen.getByText('2 injured')).toBeInTheDocument();
+        expect(screen.getByText(/2 injured · 0 fatalities · 0 missing/i)).toBeInTheDocument();
 
         // Coordinates, evidence, reporter name, contact should NOT be shown to guests
         expect(screen.queryByText('12.404400, 122.689700')).not.toBeInTheDocument();
@@ -146,5 +146,64 @@ describe('IncidentDetailsContent', () => {
 
         expect(screen.getByText('Awaiting Admin Verification')).toBeInTheDocument();
         expect(screen.getByText(/pending formal verification by a municipal administrator/i)).toBeInTheDocument();
+    });
+
+    test('renders single authoritative casualty section and removes duplicate overview row for operational viewers', () => {
+        const multiCasualtyReport = {
+            ...sampleReport,
+            casualties: { injured: 3, fatalities: 1, missing: 2 },
+            affectedArea: { householdsAffected: 5, evacuees: 12, radius: 100 },
+        };
+
+        render(
+            <IncidentDetailsContent
+                report={multiCasualtyReport}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        // Heading exists
+        expect(screen.getByText('Casualties and affected area')).toBeInTheDocument();
+        expect(screen.getByText(/Reported people affected:/i)).toBeInTheDocument();
+        expect(screen.getByText('6')).toBeInTheDocument(); // 3 + 1 + 2
+
+        // Casualty metrics render
+        expect(screen.getByText('Injured')).toBeInTheDocument();
+        expect(screen.getByText('3')).toBeInTheDocument();
+        expect(screen.getByText('Fatalities')).toBeInTheDocument();
+        expect(screen.getByText('1')).toBeInTheDocument();
+        expect(screen.getByText('Missing')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
+
+        // Affected area fields render
+        expect(screen.getByText('Households')).toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
+        expect(screen.getByText('Evacuees')).toBeInTheDocument();
+        expect(screen.getByText('12')).toBeInTheDocument();
+        expect(screen.getByText('Affected radius')).toBeInTheDocument();
+        expect(screen.getByText('100 meters')).toBeInTheDocument();
+
+        // Overview does NOT contain duplicate casualties summary row
+        const overviewSection = screen.getByRole('region', { name: /Overview/i });
+        expect(overviewSection).not.toHaveTextContent(/Casualties/i);
+    });
+
+    test('renders empty affected-area state cleanly when affected area is zero', () => {
+        const casualtiesOnlyReport = {
+            ...sampleReport,
+            casualties: { injured: 0, fatalities: 0, missing: 0 },
+            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
+        };
+
+        render(
+            <IncidentDetailsContent
+                report={casualtiesOnlyReport}
+                viewerRole="responder"
+                user={{ role: 'responder' }}
+            />
+        );
+
+        expect(screen.getByText('No casualties or affected-area impacts recorded.')).toBeInTheDocument();
     });
 });

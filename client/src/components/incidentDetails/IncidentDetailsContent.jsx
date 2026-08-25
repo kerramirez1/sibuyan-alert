@@ -71,12 +71,6 @@ const IncidentDetailsContent = ({
     const highlightedUpdateMeta = highlightedUpdate ? getReportUpdateMeta(highlightedUpdate.tag) : null;
 
     const safetyIndicators = [];
-    const injured = Number(report.casualties?.injured) || 0;
-    const fatalities = Number(report.casualties?.fatalities) || 0;
-    const missing = Number(report.casualties?.missing) || 0;
-    if (injured > 0) safetyIndicators.push(`${injured} injured`);
-    if (fatalities > 0) safetyIndicators.push(`${fatalities} fatal${fatalities === 1 ? 'ity' : 'ities'}`);
-    if (missing > 0) safetyIndicators.push(`${missing} missing`);
     if (report.fireInvolved) safetyIndicators.push('Fire or explosion involved');
 
     return (
@@ -173,7 +167,7 @@ const IncidentDetailsContent = ({
                 showOperationalFields={visibility.showOperationalDetails}
                 showReporterVerification={visibility.showReporterInfo}
                 showReporterName={visibility.showReporterInfo}
-                showCasualtiesSummary={true}
+                showCasualtiesSummary={!visibility.showOperationalDetails}
             />
 
             {/* 2. Description */}

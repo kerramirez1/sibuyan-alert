@@ -28,52 +28,68 @@ const IncidentDetailsCasualtiesSection = ({
     const injured = toPositiveNumber(casualties.injured);
     const fatalities = toPositiveNumber(casualties.fatalities);
     const missing = toPositiveNumber(casualties.missing);
+    const totalPeopleAffected = injured + fatalities + missing;
+
     const households = toPositiveNumber(affectedArea.householdsAffected);
     const evacuees = toPositiveNumber(affectedArea.evacuees);
     const radius = toPositiveNumber(affectedArea.radius);
-
-    const hasCasualtiesOrImpact = injured > 0 || fatalities > 0 || missing > 0 || households > 0 || evacuees > 0 || radius > 0;
+    const hasAffectedArea = households > 0 || evacuees > 0 || radius > 0;
+    const hasCasualtiesOrImpact = totalPeopleAffected > 0 || hasAffectedArea;
 
     return (
         <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`} aria-labelledby="incident-casualties-heading">
-            <h3 id="incident-casualties-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                Casualties and affected area
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+                <h3 id="incident-casualties-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                    Casualties and affected area
+                </h3>
+                {totalPeopleAffected > 0 && (
+                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                        Reported people affected: <span className="font-semibold text-gray-900 dark:text-white">{totalPeopleAffected}</span>
+                    </span>
+                )}
+            </div>
 
+            {/* 1. Casualty Breakdown (3 columns) */}
             <div className="mt-2.5 grid grid-cols-3 gap-2">
                 <CasualtyStatCard label="Injured" count={injured} tone={injured > 0 ? 'warning' : 'default'} />
                 <CasualtyStatCard label="Fatalities" count={fatalities} tone={fatalities > 0 ? 'danger' : 'default'} />
                 <CasualtyStatCard label="Missing" count={missing} tone={missing > 0 ? 'warning' : 'default'} />
             </div>
 
-            {(households > 0 || evacuees > 0 || radius > 0) && (
-                <dl className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {households > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
-                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Households</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{households}</dd>
-                        </div>
-                    )}
-                    {evacuees > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
-                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Evacuees</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{evacuees}</dd>
-                        </div>
-                    )}
-                    {radius > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
-                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Affected radius</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{radius} meters</dd>
-                        </div>
-                    )}
-                </dl>
-            )}
-
-            {!hasCasualtiesOrImpact && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    No casualties or affected-area impacts recorded.
-                </p>
-            )}
+            {/* 2. Affected Area Subsection */}
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/5">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Affected area
+                </h4>
+                {hasAffectedArea ? (
+                    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {households > 0 && (
+                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Households</dt>
+                                <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{households}</dd>
+                            </div>
+                        )}
+                        {evacuees > 0 && (
+                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Evacuees</dt>
+                                <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{evacuees}</dd>
+                            </div>
+                        )}
+                        {radius > 0 && (
+                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Affected radius</dt>
+                                <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{radius} meters</dd>
+                            </div>
+                        )}
+                    </dl>
+                ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {hasCasualtiesOrImpact
+                            ? 'No affected-area impact recorded.'
+                            : 'No casualties or affected-area impacts recorded.'}
+                    </p>
+                )}
+            </div>
         </section>
     );
 };

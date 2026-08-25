@@ -30,7 +30,10 @@ const IncidentDetailsCoreSection = ({
     const municipality = report.municipalityName || report.municipality?.name || '';
     const barangay = report.barangay || 'Not specified';
     const casualties = report.casualties || {};
-    const casualtyCount = Number(casualties.injured || 0) + Number(casualties.fatalities || 0);
+    const injured = Number(casualties.injured) || 0;
+    const fatalities = Number(casualties.fatalities) || 0;
+    const missing = Number(casualties.missing) || 0;
+    const totalPeopleAffected = injured + fatalities + missing;
 
     return (
         <section aria-labelledby="incident-overview-heading">
@@ -69,9 +72,9 @@ const IncidentDetailsCoreSection = ({
 
                 {showCasualtiesSummary && (
                     <DetailItem label="Casualties">
-                        {casualtyCount > 0 ? (
+                        {totalPeopleAffected > 0 ? (
                             <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                {casualties.injured || 0} injured, {casualties.fatalities || 0} fatal
+                                {injured} injured · {fatalities} fatalities · {missing} missing
                             </span>
                         ) : (
                             'None recorded'
