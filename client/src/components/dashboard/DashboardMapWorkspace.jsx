@@ -21,6 +21,7 @@ import {
 import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
+import HighRiskZoneDetails from '../map/HighRiskZoneDetails';
 import MapOverlayPanel from '../map/MapOverlayPanel';
 import MapMobileFilterSheet from './MapMobileFilterSheet';
 import Button from '../ui/Button';
@@ -145,7 +146,7 @@ const TrustPointsSummary = ({ value = 0 }) => (
     </div>
 );
 
-const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry }) => {
+const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '', onRetry }) => {
     if (loading) {
         return (
             <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-xs font-medium text-gray-600 dark:text-gray-300" role="status">
@@ -164,7 +165,7 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
                     <button
                         type="button"
                         onClick={onRetry}
-                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
                     >
                         Retry
                     </button>
@@ -181,28 +182,38 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
         <div className="divide-y divide-gray-100 dark:divide-white/5">
             {zones.map((zone) => {
                 const config = getMapRiskTypeConfig(zone.type);
+                const coordinates = getMapCoordinates(zone);
                 return (
                     <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
                             <h3 className="line-clamp-2 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
                             <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 break-words">{config.label}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words">{zone.address || zone.description || 'Address unavailable'}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words">{zone.address || zone.description || 'No description provided.'}</p>
                             <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 break-words">
-                                {zone.municipality || zone.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
+                                {zone.municipality || zone.municipalityName || 'Sibuyan Island'}{zone.barangay ? ` · ${zone.barangay}` : ''} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) && Number(zone.radius) > 0 ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
                             </p>
                         </div>
-                        {getMapCoordinates(zone) && (
-                            <div className="mt-2.5 flex min-h-8 items-center justify-end border-t border-gray-100/80 pt-2 dark:border-white/5">
+                        <div className="mt-2.5 flex min-h-8 items-center justify-between gap-3 border-t border-gray-100/80 pt-2 dark:border-white/5">
+                            {onInspect && (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(zone)}
+                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                                >
+                                    View details
+                                </button>
+                            )}
+                            {coordinates && (
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                                 </button>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </article>
                 );
             })}
@@ -297,6 +308,7 @@ const DashboardMapWorkspace = ({
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
+    const [selectedActiveRiskZoneId, setSelectedActiveRiskZoneId] = useState('');
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
     const [panelActionLoading, setPanelActionLoading] = useState(false);
     const createFocusRequestId = () => {
@@ -373,6 +385,7 @@ const DashboardMapWorkspace = ({
 
     const closeMapSummaryPanel = useCallback((options = {}) => {
         setSelectedActiveIncidentId('');
+        setSelectedActiveRiskZoneId('');
         setMapSummaryPanel('');
         const isOverviewPanel = mapSummaryPanel.startsWith(OVERVIEW_PANEL_PREFIX);
         if (!options.preserveNavigation && !isOverviewPanel && ['incidents', 'zones'].includes(activePanel)) {
@@ -382,6 +395,7 @@ const DashboardMapWorkspace = ({
 
     const openMapSummaryPanel = useCallback((panel) => {
         setSelectedActiveIncidentId('');
+        setSelectedActiveRiskZoneId('');
         setMapSummaryPanel(panel);
     }, [setMapSummaryPanel]);
 
@@ -533,6 +547,11 @@ const DashboardMapWorkspace = ({
     const activeOverviewMetric = metrics.find(
         (metric) => `${OVERVIEW_PANEL_PREFIX}${metric.id}` === mapSummaryPanel,
     ) || null;
+    const isIncidentSummaryPanel = mapSummaryPanel === 'incidents' || activeOverviewMetric?.panelType === 'incidents';
+    const isRiskZoneSummaryPanel = mapSummaryPanel === 'zones' || activeOverviewMetric?.panelType === 'risk-zones';
+    const isTrustPointsPanel = activeOverviewMetric?.panelType === 'trust-points';
+    const hasSummaryPanel = Boolean(isIncidentSummaryPanel || isRiskZoneSummaryPanel || isTrustPointsPanel);
+
     const panelIncidentReports = mapSummaryPanel === 'incidents'
         ? displayedMapReports
         : activeOverviewMetric?.panelType === 'incidents'
@@ -541,6 +560,9 @@ const DashboardMapWorkspace = ({
     const selectedActiveIncident = panelIncidentReports.find(
         (report) => String(report._id || report.id) === selectedActiveIncidentId,
     ) || null;
+    const selectedActiveRiskZone = isRiskZoneSummaryPanel
+        ? highRiskZones.find((zone) => String(zone._id || zone.id) === selectedActiveRiskZoneId) || null
+        : null;
     const displayedMapReportIds = new Set(
         displayedMapReports.map((report) => String(report._id || report.id)),
     );
@@ -576,6 +598,7 @@ const DashboardMapWorkspace = ({
     const locateZone = (zone) => {
         const coordinates = getMapCoordinates(zone);
         if (!coordinates) return;
+        setSelectedActiveRiskZoneId('');
         closeMapSummaryPanel({ preserveNavigation: true });
         setMapLocateRequest({
             type: 'risk-zone',
@@ -607,15 +630,13 @@ const DashboardMapWorkspace = ({
         }
     };
 
-    const isIncidentSummaryPanel = mapSummaryPanel === 'incidents' || activeOverviewMetric?.panelType === 'incidents';
-    const isRiskZoneSummaryPanel = mapSummaryPanel === 'zones' || activeOverviewMetric?.panelType === 'risk-zones';
-    const isTrustPointsPanel = activeOverviewMetric?.panelType === 'trust-points';
-    const hasSummaryPanel = Boolean(isIncidentSummaryPanel || isRiskZoneSummaryPanel || isTrustPointsPanel);
     const panelTitle = selectedActiveIncident
         ? 'Incident details'
-        : activeOverviewMetric?.panelTitle
-        || (mapSummaryPanel === 'incidents' ? 'Active incidents' : 'High-risk zones');
-    const panelDescription = selectedActiveIncident
+        : selectedActiveRiskZone
+            ? 'High-risk zone details'
+            : activeOverviewMetric?.panelTitle
+            || (mapSummaryPanel === 'incidents' ? 'Active incidents' : 'High-risk zones');
+    const panelDescription = (selectedActiveIncident || selectedActiveRiskZone)
         ? undefined
         : activeOverviewMetric
             ? activeOverviewMetric.loading
@@ -633,11 +654,15 @@ const DashboardMapWorkspace = ({
                     : highRiskZonesError
                         ? 'Risk zone data unavailable'
                         : `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`;
-    const panelCloseLabel = mapSummaryPanel === 'incidents'
-        ? 'Close incidents panel'
-        : mapSummaryPanel === 'zones'
-            ? 'Close risk zones panel'
-            : `Close ${activeOverviewMetric?.panelTitle?.toLowerCase() || 'overview'} panel`;
+    const panelCloseLabel = selectedActiveIncident
+        ? 'Close incident details'
+        : selectedActiveRiskZone
+            ? 'Close risk zone details'
+            : mapSummaryPanel === 'incidents'
+                ? 'Close incidents panel'
+                : mapSummaryPanel === 'zones'
+                    ? 'Close risk zones panel'
+                    : `Close ${activeOverviewMetric?.panelTitle?.toLowerCase() || 'overview'} panel`;
     const isReportInResponderMunicipality = (report) => {
         if (!user?.assignedMunicipality) return true;
         if (!report?.municipalityName) return true;
@@ -975,7 +1000,7 @@ const DashboardMapWorkspace = ({
                             onClose={closeMapSummaryPanel}
                             closeLabel={panelCloseLabel}
                             presentation="contextual"
-                            contentKey={`${mapSummaryPanel}:${selectedActiveIncidentId || 'list'}`}
+                            contentKey={`${mapSummaryPanel}:${selectedActiveIncidentId || selectedActiveRiskZoneId || 'list'}`}
                         >
                             {isIncidentSummaryPanel && selectedActiveIncident && (
                                 <>
@@ -983,7 +1008,7 @@ const DashboardMapWorkspace = ({
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveIncidentId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400"
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
                                         >
                                             <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active incidents'}
@@ -1027,9 +1052,28 @@ const DashboardMapWorkspace = ({
                                     canLocate={canLocatePanelReport}
                                 />
                             )}
-                            {isRiskZoneSummaryPanel && (
+                            {isRiskZoneSummaryPanel && selectedActiveRiskZone && (
+                                <>
+                                    <div className="border-b border-gray-200 px-4 py-2 dark:border-gray-800 sm:px-5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedActiveRiskZoneId('')}
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
+                                        >
+                                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
+                                            Back to {activeOverviewMetric?.label || 'active risk zones'}
+                                        </button>
+                                    </div>
+                                    <HighRiskZoneDetails
+                                        zone={selectedActiveRiskZone}
+                                        viewerRole={user?.role || 'guest'}
+                                    />
+                                </>
+                            )}
+                            {isRiskZoneSummaryPanel && !selectedActiveRiskZone && (
                                 <RiskZoneList
                                     zones={highRiskZones}
+                                    onInspect={(zone) => setSelectedActiveRiskZoneId(String(zone._id || zone.id))}
                                     onLocate={locateZone}
                                     loading={highRiskZonesLoading}
                                     error={highRiskZonesError}

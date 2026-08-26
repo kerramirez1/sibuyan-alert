@@ -270,25 +270,119 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(panel).queryByText(/Medical.*Transferred/i)).not.toBeInTheDocument();
     });
 
-    test('opens risk-zone overview metrics in the same contextual map panel', () => {
+    test('opens risk-zone overview metrics in the same contextual map panel and supports View details and Locate', () => {
         const zone = {
             _id: 'zone-1',
             name: 'Cambijang Risk Zone',
+            description: 'Prone to rockfall and landslide debris during heavy rains.',
             type: 'landslide_prone',
+            severity: 'high',
+            radius: 150,
+            municipality: 'Cajidiocan',
+            barangay: 'Cambijang',
             coordinates: { lat: 12.405, lng: 122.69 },
+            photos: [],
         };
+        const setMapSummaryPanel = vi.fn();
         renderWorkspace(createProps({
             user: null,
             isAuthenticated: false,
             isReporter: false,
             highRiskZones: [zone],
             mapSummaryPanel: 'overview:public-risk-zones',
+            setMapSummaryPanel,
         }));
 
         const panel = screen.getByRole('dialog', { name: 'Active risk zones' });
         expect(panel.closest('[aria-label="Live incident map"]')).toBeInTheDocument();
         expect(within(panel).getByText('Cambijang Risk Zone')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /View 1 risk zones\. Mapped hazards/i })).toHaveAttribute('aria-pressed', 'true');
+
+        // Both View details and Locate buttons are present
+        const viewDetailsBtn = within(panel).getByRole('button', { name: 'View details' });
+        const locateBtn = within(panel).getByRole('button', { name: 'Locate' });
+        expect(viewDetailsBtn).toBeInTheDocument();
+        expect(locateBtn).toBeInTheDocument();
+
+        // Clicking View details transitions panel to High-Risk Zone Details
+        fireEvent.click(viewDetailsBtn);
+        const detailsPanel = screen.getByRole('dialog', { name: 'High-risk zone details' });
+        expect(detailsPanel).toBeInTheDocument();
+        expect(within(detailsPanel).getByText('High severity')).toBeInTheDocument();
+        expect(within(detailsPanel).getByText('150 m radius')).toBeInTheDocument();
+        expect(within(detailsPanel).getByRole('heading', { level: 4, name: 'Field reference' })).toBeInTheDocument();
+
+        // Back button returns to list of zones
+        const backBtn = within(detailsPanel).getByRole('button', { name: /Back to/i });
+        expect(backBtn).toBeInTheDocument();
+        fireEvent.click(backBtn);
+
+        expect(screen.getByRole('dialog', { name: 'Active risk zones' })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog', { name: 'Active risk zones' })).getByText('Cambijang Risk Zone')).toBeInTheDocument();
+    });
+
+    test('supports inspecting multiple different risk zones sequentially in the summary panel', () => {
+        const zone1 = {
+            _id: 'zone-1',
+            name: 'Cambajao River Overflow',
+            description: 'Prone to flash floods during monsoon storms.',
+            type: 'landslide_prone',
+            severity: 'critical',
+            radius: 200,
+            municipality: 'Cajidiocan',
+            barangay: 'Cambajao',
+            coordinates: { lat: 12.38, lng: 122.54 },
+            photos: [{ _id: 'p1', url: '/api/files/123/p1.jpg', filename: 'p1.jpg' }],
+        };
+        const zone2 = {
+            _id: 'zone-2',
+            name: 'Magdiwang Coastal Erosion Area',
+            description: 'Wave surge hazard zone along coastal highway.',
+            type: 'accident_prone',
+            severity: 'medium',
+            radius: 120,
+            municipality: 'Magdiwang',
+            barangay: 'Poblacion',
+            coordinates: { lat: 12.48, lng: 122.52 },
+            photos: [],
+        };
+
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            highRiskZones: [zone1, zone2],
+            mapSummaryPanel: 'zones',
+        }));
+
+        const panel = screen.getByRole('dialog', { name: 'High-risk zones' });
+        expect(within(panel).getByText('Cambajao River Overflow')).toBeInTheDocument();
+        expect(within(panel).getByText('Magdiwang Coastal Erosion Area')).toBeInTheDocument();
+
+        // 1. Inspect Zone 1
+        const viewDetailsButtons = within(panel).getAllByRole('button', { name: 'View details' });
+        expect(viewDetailsButtons).toHaveLength(2);
+        fireEvent.click(viewDetailsButtons[0]);
+
+        const detailsPanel1 = screen.getByRole('dialog', { name: 'High-risk zone details' });
+        expect(within(detailsPanel1).getByText('Critical severity')).toBeInTheDocument();
+        expect(within(detailsPanel1).getByText('200 m radius')).toBeInTheDocument();
+        expect(within(detailsPanel1).getByText('1 photo')).toBeInTheDocument();
+
+        // 2. Go back to list
+        const backBtn1 = within(detailsPanel1).getByRole('button', { name: /Back to/i });
+        fireEvent.click(backBtn1);
+
+        // 3. Inspect Zone 2
+        const updatedPanel = screen.getByRole('dialog', { name: 'High-risk zones' });
+        const updatedButtons = within(updatedPanel).getAllByRole('button', { name: 'View details' });
+        fireEvent.click(updatedButtons[1]);
+
+        const detailsPanel2 = screen.getByRole('dialog', { name: 'High-risk zone details' });
+        expect(within(detailsPanel2).getByText('Medium severity')).toBeInTheDocument();
+        expect(within(detailsPanel2).getByText('120 m radius')).toBeInTheDocument();
+        expect(within(detailsPanel2).getByText('0 photos')).toBeInTheDocument();
+        expect(within(detailsPanel2).getByText('No reference photos attached for this hazard zone.')).toBeInTheDocument();
     });
 
     test('enables claim and resolve actions only for responders', () => {
