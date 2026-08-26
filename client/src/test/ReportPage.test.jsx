@@ -76,6 +76,8 @@ describe('ReportPage workflow', () => {
             }),
             clearWatch: vi.fn(),
         };
+        globalThis.URL.createObjectURL = vi.fn((file) => `blob:mock/${file?.name || 'file'}`);
+        globalThis.URL.revokeObjectURL = vi.fn();
         Object.defineProperty(window.navigator, 'geolocation', {
             configurable: true,
             value: geolocation,

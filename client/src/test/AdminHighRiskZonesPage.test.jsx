@@ -12,6 +12,13 @@ const mockZones = [
         municipality: 'Cajidiocan',
         coordinates: { lat: 12.3785, lng: 122.5432 },
         isActive: true,
+        photos: [
+            {
+                url: '/api/files/607f1f77bcf86cd799439012/hazard1.png',
+                filename: 'hazard1.png',
+                displayOrder: 0,
+            },
+        ],
     },
     {
         _id: 'zone-2',
@@ -23,11 +30,32 @@ const mockZones = [
         municipality: 'Magdiwang',
         coordinates: { lat: 12.4821, lng: 122.5189 },
         isActive: true,
+        photos: [],
     },
 ];
 
-const mockRefresh = vi.fn();
-const mockUseGlobalHighRiskZones = vi.fn();
+const {
+    mockRefresh,
+    mockUseGlobalHighRiskZones,
+    mockToast,
+    mockMapViewProps,
+    mockHighRiskZonesAPI,
+} = vi.hoisted(() => ({
+    mockRefresh: vi.fn(),
+    mockUseGlobalHighRiskZones: vi.fn(),
+    mockToast: {
+        error: vi.fn(),
+        success: vi.fn(),
+        loading: vi.fn(),
+        dismiss: vi.fn(),
+    },
+    mockMapViewProps: vi.fn(),
+    mockHighRiskZonesAPI: {
+        create: vi.fn().mockResolvedValue({ data: { success: true } }),
+        update: vi.fn().mockResolvedValue({ data: { success: true } }),
+        delete: vi.fn().mockResolvedValue({ data: { success: true } }),
+    },
+}));
 
 vi.mock('../hooks/useGlobalHighRiskZones', () => ({
     default: () => mockUseGlobalHighRiskZones(),
@@ -39,7 +67,9 @@ vi.mock('../context/AuthContext', () => ({
     }),
 }));
 
-const mockMapViewProps = vi.fn();
+vi.mock('../utils/appToast', () => ({
+    default: mockToast,
+}));
 
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
@@ -69,11 +99,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 vi.mock('../services/api', () => ({
-    highRiskZonesAPI: {
-        create: vi.fn().mockResolvedValue({ data: { success: true } }),
-        update: vi.fn().mockResolvedValue({ data: { success: true } }),
-        delete: vi.fn().mockResolvedValue({ data: { success: true } }),
-    },
+    highRiskZonesAPI: mockHighRiskZonesAPI,
     reportsAPI: {
         geocodeLocation: vi.fn().mockResolvedValue({
             data: {
@@ -101,6 +127,8 @@ import AdminHighRiskZonesPage from '../pages/AdminHighRiskZonesPage';
 describe('AdminHighRiskZonesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        globalThis.URL.createObjectURL = vi.fn((file) => `blob:http://localhost/${file.name}`);
+        globalThis.URL.revokeObjectURL = vi.fn();
         mockUseGlobalHighRiskZones.mockReturnValue({
             zones: mockZones,
             loading: false,
@@ -141,7 +169,7 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByText('View only')).toBeInTheDocument();
     });
 
-    test('opens zone creation form when clicking Add zone and allows cancelling', () => {
+    test('opens zone creation form with reference photos section and allows cancelling', () => {
         render(<AdminHighRiskZonesPage />);
 
         fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
@@ -151,11 +179,63 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByRole('radiogroup', { name: 'Zone type' })).toBeInTheDocument();
         expect(screen.getByRole('radiogroup', { name: 'Severity level' })).toBeInTheDocument();
         expect(screen.getByLabelText(/Radius \(meters\)/i)).toBeInTheDocument();
+        expect(screen.getByText('0/5 photos')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Attach reference photos' })).toBeInTheDocument();
+        expect(screen.getByText(/JPEG, PNG, WebP up to 5 MB each/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Create zone' })).toBeDisabled();
 
         // Cancel returns to list
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         expect(screen.getByRole('region', { name: 'Marked high-risk zones' })).toBeInTheDocument();
+    });
+
+    test('allows attaching reference photos, displaying previews, reordering and removing photos', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+
+        const fileInput = screen.getByLabelText('Upload reference photos');
+        const fileA = new File(['image-data-1'], 'hazard-a.png', { type: 'image/png' });
+        const fileB = new File(['image-data-2'], 'hazard-b.jpg', { type: 'image/jpeg' });
+
+        fireEvent.change(fileInput, { target: { files: [fileA, fileB] } });
+
+        expect(screen.getByText('2/5 photos')).toBeInTheDocument();
+        expect(screen.getByAltText('Hazard reference photo 1')).toBeInTheDocument();
+        expect(screen.getByAltText('Hazard reference photo 2')).toBeInTheDocument();
+        expect(screen.getByText('#1')).toBeInTheDocument();
+        expect(screen.getByText('#2')).toBeInTheDocument();
+
+        // Reorder photos: move photo 1 right
+        const moveRightBtn = screen.getByRole('button', { name: 'Move photo 1 right' });
+        fireEvent.click(moveRightBtn);
+
+        // Remove a photo
+        const removeButtons = screen.getAllByRole('button', { name: /Remove reference photo/i });
+        fireEvent.click(removeButtons[0]);
+
+        expect(screen.getByText('1/5 photos')).toBeInTheDocument();
+        expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
+    });
+
+    test('validates file size and image file type for reference photos', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+
+        const fileInput = screen.getByLabelText('Upload reference photos');
+
+        // Invalid file type
+        const textFile = new File(['text'], 'report.txt', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [textFile] } });
+        expect(mockToast.error).toHaveBeenCalledWith('report.txt is not an image');
+
+        // Oversized file (> 5 MB)
+        const oversizedFile = new File([new ArrayBuffer(6 * 1024 * 1024)], 'huge.png', {
+            type: 'image/png',
+        });
+        fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+        expect(mockToast.error).toHaveBeenCalledWith('huge.png is too large (max 5MB)');
     });
 
     test('populates editor when clicking edit on an assigned zone', () => {
@@ -166,6 +246,7 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByRole('heading', { name: 'Edit high-risk zone' })).toBeInTheDocument();
         expect(screen.getByLabelText(/Zone name/i)).toHaveValue('Cambajao River Overflow');
         expect(screen.getByLabelText(/Radius \(meters\)/i)).toHaveValue(150);
+        expect(screen.getByText('1/5 photos')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Update zone' })).toBeInTheDocument();
 
         // Close button exits editor
@@ -173,13 +254,18 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByRole('region', { name: 'Marked high-risk zones' })).toBeInTheDocument();
     });
 
-    test('allows selecting a location from the map and submitting a new zone', async () => {
+    test('allows selecting location, attaching photos, and submitting multipart form', async () => {
         render(<AdminHighRiskZonesPage />);
 
         fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
 
         const nameInput = screen.getByLabelText(/Zone name/i);
         fireEvent.change(nameInput, { target: { value: 'New Landslide Hazard' } });
+
+        // Attach reference photo
+        const fileInput = screen.getByLabelText('Upload reference photos');
+        const photoFile = new File(['img'], 'hazard.png', { type: 'image/png' });
+        fireEvent.change(fileInput, { target: { files: [photoFile] } });
 
         // Select point on map
         fireEvent.click(screen.getByText('Select mock map point'));
@@ -193,7 +279,9 @@ describe('AdminHighRiskZonesPage', () => {
         fireEvent.click(submitBtn);
 
         await waitFor(() => {
+            expect(mockHighRiskZonesAPI.create).toHaveBeenCalledWith(expect.any(FormData));
             expect(mockRefresh).toHaveBeenCalled();
+            expect(mockToast.success).toHaveBeenCalledWith('High-risk zone created');
         });
     });
 });

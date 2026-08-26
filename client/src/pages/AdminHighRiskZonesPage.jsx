@@ -18,6 +18,9 @@ import {
     HiOutlineX,
     HiOutlineCheck,
     HiOutlineSearch,
+    HiOutlinePhotograph,
+    HiOutlineArrowLeft,
+    HiOutlineArrowRight,
 } from 'react-icons/hi';
 
 const ZONE_TYPES = [
@@ -51,6 +54,9 @@ const AdminHighRiskZonesPage = () => {
         radius: 100,
         municipality: user?.assignedMunicipality || MUNICIPALITIES[0],
     });
+    const [photos, setPhotos] = useState([]);
+    const [photoPreviews, setPhotoPreviews] = useState([]);
+    const photoInputRef = useRef(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResolvingLocation, setIsResolvingLocation] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -203,6 +209,80 @@ const AdminHighRiskZonesPage = () => {
         mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current);
     };
 
+    const handlePhotoChange = (e) => {
+        const selectedFiles = Array.from(e.target.files || []);
+        if (!selectedFiles.length) return;
+
+        const remainingSlots = 5 - photos.length;
+        if (remainingSlots <= 0) {
+            toast.error('Maximum 5 reference photos allowed');
+            e.target.value = '';
+            return;
+        }
+
+        const validNewFiles = [];
+        const newPreviews = [];
+
+        for (const file of selectedFiles) {
+            if (validNewFiles.length >= remainingSlots) {
+                toast.error('Only up to 5 reference photos can be attached');
+                break;
+            }
+
+            if (!file.type || !file.type.startsWith('image/')) {
+                toast.error(`${file.name} is not an image`);
+                continue;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error(`${file.name} is too large (max 5MB)`);
+                continue;
+            }
+
+            validNewFiles.push(file);
+            newPreviews.push({
+                url: URL.createObjectURL(file),
+                isNew: true,
+                file,
+            });
+        }
+
+        if (validNewFiles.length > 0) {
+            setPhotos((prev) => [...prev, ...validNewFiles]);
+            setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+        }
+
+        e.target.value = '';
+    };
+
+    const removePhoto = (index) => {
+        const target = photoPreviews[index];
+        if (target?.isNew && target.url.startsWith('blob:')) {
+            URL.revokeObjectURL(target.url);
+        }
+        setPhotos((prev) => prev.filter((_, i) => i !== index));
+        setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const movePhoto = (index, direction) => {
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= photoPreviews.length) return;
+
+        setPhotos((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(index, 1);
+            next.splice(newIndex, 0, moved);
+            return next;
+        });
+
+        setPhotoPreviews((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(index, 1);
+            next.splice(newIndex, 0, moved);
+            return next;
+        });
+    };
+
     const handleZoneClick = (zone) => {
         focusMapLocation(zone?.coordinates, zone);
     };
@@ -222,16 +302,30 @@ const AdminHighRiskZonesPage = () => {
 
         setIsSubmitting(true);
         try {
-            const data = {
-                ...formData,
-                coordinates: selectedLocation || editingZone?.coordinates,
-            };
+            const formDataToSend = new FormData();
+            formDataToSend.append('name', formData.name);
+            formDataToSend.append('description', formData.description || '');
+            formDataToSend.append('type', formData.type);
+            formDataToSend.append('severity', formData.severity);
+            formDataToSend.append('radius', String(formData.radius));
+            formDataToSend.append('municipality', formData.municipality);
+            formDataToSend.append(
+                'coordinates',
+                JSON.stringify(selectedLocation || editingZone?.coordinates)
+            );
+
+            // Append reference photos
+            photos.forEach((file) => {
+                if (file instanceof File) {
+                    formDataToSend.append('photos', file);
+                }
+            });
 
             if (editingZone) {
-                await highRiskZonesAPI.update(editingZone._id, data);
+                await highRiskZonesAPI.update(editingZone._id, formDataToSend);
                 toast.success('High-risk zone updated');
             } else {
-                await highRiskZonesAPI.create(data);
+                await highRiskZonesAPI.create(formDataToSend);
                 toast.success('High-risk zone created');
             }
 
@@ -259,6 +353,15 @@ const AdminHighRiskZonesPage = () => {
             radius: zone.radius,
             municipality: zone.municipality,
         });
+        if (zone.photos && zone.photos.length > 0) {
+            setPhotoPreviews(
+                zone.photos.map((p) => ({ url: p.url, isNew: false, filename: p.filename }))
+            );
+            setPhotos(zone.photos);
+        } else {
+            setPhotos([]);
+            setPhotoPreviews([]);
+        }
         setSelectedLocation(zone.coordinates);
         setShowForm(true);
         handleZoneClick(zone);
@@ -293,6 +396,12 @@ const AdminHighRiskZonesPage = () => {
         setShowForm(false);
         setEditingZone(null);
         setSelectedLocation(null);
+        photoPreviews.forEach((p) => {
+            if (p?.isNew && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url);
+        });
+        setPhotos([]);
+        setPhotoPreviews([]);
+        if (photoInputRef.current) photoInputRef.current.value = '';
         setFormData({
             name: '',
             description: '',
@@ -566,6 +675,110 @@ const AdminHighRiskZonesPage = () => {
                                             className="w-full rounded-xl border border-gray-200/90 bg-white p-2.5 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                             placeholder="Brief description of the hazard..."
                                         />
+                                    </div>
+
+                                    {/* Reference Photos (Optional) */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                                                Reference photos <span className="text-[10px] font-normal text-gray-400 lowercase">(optional)</span>
+                                            </label>
+                                            <span className={`text-[11px] font-medium ${photos.length === 5 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                {photos.length === 5 ? 'Max 5 photos reached' : `${photos.length}/5 photos`}
+                                            </span>
+                                        </div>
+
+                                        {/* Previews Grid with Reorder and Remove */}
+                                        {photoPreviews.length > 0 && (
+                                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                {photoPreviews.map((preview, index) => (
+                                                    <div
+                                                        key={`${preview.url.slice(0, 32)}-${index}`}
+                                                        className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200/90 bg-gray-100 dark:border-white/10 dark:bg-gray-800 shadow-2xs"
+                                                    >
+                                                        <img
+                                                            src={preview.url}
+                                                            alt={`Hazard reference photo ${index + 1}`}
+                                                            className="h-full w-full object-cover"
+                                                        />
+
+                                                        {/* Overlay Controls: Move Left, Move Right, Remove */}
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1">
+                                                            {index > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => movePhoto(index, -1)}
+                                                                    aria-label={`Move photo ${index + 1} left`}
+                                                                    title="Move left"
+                                                                    className="rounded-md bg-white/90 hover:bg-white p-1 text-gray-800 shadow-xs dark:bg-gray-900/90 dark:hover:bg-gray-900 dark:text-gray-200 cursor-pointer active:scale-95 transition-transform"
+                                                                >
+                                                                    <HiOutlineArrowLeft className="h-3 w-3" />
+                                                                </button>
+                                                            )}
+                                                            {index < photoPreviews.length - 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => movePhoto(index, 1)}
+                                                                    aria-label={`Move photo ${index + 1} right`}
+                                                                    title="Move right"
+                                                                    className="rounded-md bg-white/90 hover:bg-white p-1 text-gray-800 shadow-xs dark:bg-gray-900/90 dark:hover:bg-gray-900 dark:text-gray-200 cursor-pointer active:scale-95 transition-transform"
+                                                                >
+                                                                    <HiOutlineArrowRight className="h-3 w-3" />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removePhoto(index)}
+                                                                aria-label={`Remove reference photo ${index + 1}`}
+                                                                title="Remove photo"
+                                                                className="rounded-md bg-red-600 hover:bg-red-700 p-1 text-white shadow-xs cursor-pointer active:scale-95 transition-transform"
+                                                            >
+                                                                <HiOutlineTrash className="h-3 w-3" />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Mobile Direct Remove Button */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removePhoto(index)}
+                                                            aria-label={`Remove reference photo ${index + 1}`}
+                                                            className="sm:hidden absolute right-1 top-1 rounded-md bg-black/60 p-0.5 text-white backdrop-blur-xs cursor-pointer active:scale-95"
+                                                        >
+                                                            <HiOutlineTrash className="h-3 w-3" />
+                                                        </button>
+
+                                                        <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
+                                                            #{index + 1}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Add Photos Button */}
+                                        {photos.length < 5 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200/90 bg-gray-50/50 p-2.5 text-xs font-semibold text-gray-700 hover:border-emerald-500 hover:bg-emerald-50/30 hover:text-emerald-800 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300 dark:hover:border-emerald-700/50 dark:hover:bg-emerald-950/20 dark:hover:text-emerald-300 transition-colors cursor-pointer min-h-[38px]"
+                                            >
+                                                <HiOutlinePhotograph className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                                <span>{photos.length > 0 ? 'Add more reference photos' : 'Attach reference photos'}</span>
+                                            </button>
+                                        )}
+
+                                        <input
+                                            ref={photoInputRef}
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            multiple
+                                            onChange={handlePhotoChange}
+                                            className="sr-only"
+                                            aria-label="Upload reference photos"
+                                        />
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                            JPEG, PNG, WebP up to 5 MB each. Maximum 5 photos.
+                                        </p>
                                     </div>
 
                                     {/* Location Feedback Box */}

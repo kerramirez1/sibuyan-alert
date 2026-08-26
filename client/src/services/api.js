@@ -170,8 +170,16 @@ export const adminAPI = {
 // High Risk Zones API
 export const highRiskZonesAPI = {
     getAll: () => api.get('/high-risk-zones'),
-    create: (data) => api.post('/high-risk-zones', data),
-    update: (id, data) => api.put(`/high-risk-zones/${id}`, data),
+    create: (data, config = {}) => api.post(
+        '/high-risk-zones',
+        data,
+        data instanceof FormData ? { ...config, headers: { 'Content-Type': 'multipart/form-data', ...config.headers } } : config
+    ),
+    update: (id, data, config = {}) => api.put(
+        `/high-risk-zones/${id}`,
+        data,
+        data instanceof FormData ? { ...config, headers: { 'Content-Type': 'multipart/form-data', ...config.headers } } : config
+    ),
     delete: (id) => api.delete(`/high-risk-zones/${id}`),
 };
 

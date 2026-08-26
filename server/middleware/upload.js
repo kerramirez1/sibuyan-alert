@@ -170,6 +170,15 @@ export const uploadReportImages = multer({
     ),
 }).array('images', 5);
 
+export const uploadRiskZonePhotos = multer({
+    storage: memoryStorage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+    fileFilter: createFileFilter(
+        IMAGE_MIME_TYPES,
+        'Reference photos must be JPEG, PNG, or WebP images'
+    ),
+}).array('photos', 5);
+
 export const uploadAvatar = multer({
     storage: memoryStorage,
     limits: { fileSize: 5 * 1024 * 1024, files: 1 },
@@ -203,6 +212,7 @@ export const handleMulterError = (error, req, res, next) => {
 export default {
     uploadIdDocument,
     uploadReportImages,
+    uploadRiskZonePhotos,
     uploadAvatar,
     handleMulterError,
     validateUploadContent,

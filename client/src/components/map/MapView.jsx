@@ -34,9 +34,10 @@ import {
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
 import MapIncidentDetails from './MapIncidentDetails';
+import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
 import MapLegend from './MapLegend';
-import { getMapRiskTypeConfig, isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import {
     createOperationalMarkerElement,
     createRiskZoneMarkerElement,
@@ -65,13 +66,6 @@ const ZONE_COLORS = {
     accident_prone: MAP_RISK_ZONE_CONFIG.markerColor,
     fire_risk: MAP_RISK_ZONE_CONFIG.markerColor,
     other: MAP_RISK_ZONE_CONFIG.markerColor,
-};
-
-const SEVERITY_CONFIG = {
-    critical: 'bg-red-100 text-red-700',
-    high: 'bg-orange-100 text-orange-700',
-    medium: 'bg-amber-100 text-amber-700',
-    low: 'bg-emerald-100 text-emerald-700',
 };
 
 // Operational incident and hazard pins remain fully visible over the imagery.
@@ -911,10 +905,6 @@ const MapView = ({
         setActionLoading(false);
     };
 
-    const selectedZoneCoordinates = mapModal?.type === 'zone'
-        ? getMapCoordinates(mapModal.data)
-        : null;
-
     return (
         <div className={`relative min-h-0 rounded-lg ${className}`}>
             <div
@@ -999,36 +989,10 @@ const MapView = ({
                         )}
 
                         {mapModal.type === 'zone' && (
-                            <div className="px-4 py-4 sm:px-5">
-                                <div className="mb-3 flex flex-wrap items-center gap-2">
-                                    <span className={`rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wider ${SEVERITY_CONFIG[mapModal.data.severity] || SEVERITY_CONFIG.low}`}>
-                                        {mapModal.data.severity || 'Low'}
-                                    </span>
-                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{mapModal.data.municipality || mapModal.data.municipalityName || 'Sibuyan Island'}</span>
-                                </div>
-                                <h4 className="text-[15px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">{mapModal.data.name || 'High-risk zone'}</h4>
-                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{mapModal.data.description || 'No description provided.'}</p>
-                                <dl className="mt-4 divide-y divide-gray-300 border-y border-gray-300 dark:divide-gray-700 dark:border-gray-700">
-                                    <div className="flex items-center justify-between gap-4 py-3">
-                                        <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Hazard type</dt>
-                                        <dd className="text-right text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white">{getMapRiskTypeConfig(mapModal.data.type).label}</dd>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-4 py-3">
-                                        <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Coverage</dt>
-                                        <dd className="text-right text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white">{Number.isFinite(Number(mapModal.data.radius)) ? `${Number(mapModal.data.radius)} m radius` : 'Not specified'}</dd>
-                                    </div>
-                                </dl>
-                                {selectedZoneCoordinates && (
-                                    <a
-                                        href={`https://www.google.com/maps?q=${selectedZoneCoordinates.lat},${selectedZoneCoordinates.lng}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="mt-4 inline-flex min-h-[42px] w-full items-center justify-center rounded-sm border border-gray-300 bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                        Open in Google Maps
-                                    </a>
-                                )}
-                            </div>
+                            <HighRiskZoneDetails
+                                zone={mapModal.data}
+                                viewerRole={viewerRole}
+                            />
                         )}
                 </MapOverlayPanel>
             )}

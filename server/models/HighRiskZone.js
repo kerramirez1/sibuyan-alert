@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * High Risk Zone Schema
- * Allows municipal admins to mark danger zones on the map
+ * Allows municipal admins to mark danger zones on the map and attach reference photos
  */
 const highRiskZoneSchema = new mongoose.Schema(
     {
@@ -58,6 +58,38 @@ const highRiskZoneSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        photos: [
+            {
+                url: {
+                    type: String,
+                    required: true,
+                },
+                filename: {
+                    type: String,
+                    required: true,
+                },
+                originalName: {
+                    type: String,
+                    default: null,
+                },
+                displayOrder: {
+                    type: Number,
+                    default: 0,
+                },
+                uploadedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                mimeType: {
+                    type: String,
+                    default: null,
+                },
+                size: {
+                    type: Number,
+                    default: null,
+                },
+            },
+        ],
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
