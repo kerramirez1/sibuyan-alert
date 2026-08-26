@@ -91,8 +91,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
     });
 
     test('1. Renders canonical structure and blurred evidence for guest users', async () => {
-        const onLocate = vi.fn();
-        renderDetails({ viewerRole: 'guest', onLocate });
+        renderDetails({ viewerRole: 'guest' });
 
         // Incident Header
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
@@ -125,13 +124,10 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         // Privacy Notice
         expect(screen.getByText(/Personal identities and original evidence are protected\. A privacy-safe preview may be shown\./i)).toBeInTheDocument();
 
-        // Sensitive details hidden
+        // Sensitive details hidden and no redundant map/report actions
         expect(screen.queryByText('Private Reporter')).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
-
-        // Locate action
-        fireEvent.click(screen.getByRole('button', { name: /view on map/i }));
-        expect(onLocate).toHaveBeenCalledWith(sampleReport);
+        expect(screen.queryByRole('button', { name: /view on map/i })).not.toBeInTheDocument();
     });
 
     test('2. Renders original evidence and full-report deep link for report owner', async () => {
@@ -567,14 +563,13 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.getByText('J. Rizal Street, Poblacion, Cajidiocan')).toBeInTheDocument();
             expect(screen.getByRole('heading', { name: /Your evidence photos · 1/i })).toBeInTheDocument();
 
-            // When no action buttons (onLocate, canRespond, canResolve) are provided, no action buttons exist
+            // When no action buttons (canRespond, canResolve) apply, no action footer exists
             expect(screen.queryByRole('button', { name: /View on map/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Respond to incident/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Review resolution/i })).not.toBeInTheDocument();
         });
 
-        test('owner reporter with onLocate provided renders only the "View on map" button without the full-report link', () => {
-            const onLocate = vi.fn();
+        test('owner reporter viewing map incident details renders cleanly ending after privacy notice without "View on map" or "Open my full report"', () => {
             const ownerReport = {
                 ...sampleReport,
                 _id: 'report-owner-1',
@@ -584,11 +579,12 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             renderDetails({
                 report: ownerReport,
                 viewerRole: 'reporter',
-                onLocate,
             });
 
-            expect(screen.getByRole('button', { name: /View on map/i })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /View on map/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Respond to incident/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Review resolution/i })).not.toBeInTheDocument();
         });
 
         test('responder and admin retain operational action capabilities', () => {

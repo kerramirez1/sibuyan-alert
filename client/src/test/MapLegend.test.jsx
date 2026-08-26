@@ -18,6 +18,7 @@ describe('MapLegend', () => {
 
         expect(screen.getByText('High-risk zone')).toBeInTheDocument();
         expect(screen.getByText('Verified')).toBeInTheDocument();
+        expect(screen.getByText('Transferred')).toBeInTheDocument();
         expect(screen.getByText('Responding')).toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
     });
@@ -46,6 +47,17 @@ describe('MapLegend', () => {
         expect(screen.getByText('Verified')).toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+    });
+
+    test('shows only transferred status for the transferred filter and hides the hazard indicator', () => {
+        render(<MapLegend filterStatus="transferred" />);
+
+        expect(screen.getByText('Transferred')).toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
     });
 

@@ -143,14 +143,12 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             detailCompleteness: 'full',
         };
 
-        test('renders clear visual hierarchy: header, badges, location, time, casualties, and actions', () => {
-            const onLocate = vi.fn();
+        test('renders clear visual hierarchy: header, badges, location, time, casualties, and privacy notice without redundant map actions', () => {
             render(
                 <MemoryRouter>
                     <MapIncidentDetails
                         report={sampleReport}
                         viewerRole="guest"
-                        onLocate={onLocate}
                     />
                 </MemoryRouter>
             );
@@ -178,10 +176,11 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(screen.getByText('Missing')).toBeInTheDocument();
             expect(screen.getByText(/50 meters/i)).toBeInTheDocument();
 
-            // 6. Action button
-            const locateBtn = screen.getByRole('button', { name: /View on map/i });
-            fireEvent.click(locateBtn);
-            expect(onLocate).toHaveBeenCalledWith(expect.objectContaining({ _id: '607f1f77bcf86cd799439011' }));
+            // 6. Privacy notice and no redundant action buttons
+            expect(screen.getByText(/Personal identities and original evidence are protected/i)).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /View on map/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Respond to incident/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Review resolution/i })).not.toBeInTheDocument();
         });
 
         test('does not render full report link when current user owns the report on the map', () => {
@@ -404,6 +403,32 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             const updatedActiveBtn = within(screen.getByRole('region', { name: 'Map summary' })).getByRole('button', { name: /Active incidents/i });
             expect(updatedActiveBtn).toHaveAttribute('aria-pressed', 'true');
             expect(updatedActiveBtn).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        test('overview metric items do not use truncate on essential labels and enable natural text wrapping', () => {
+            render(
+                <MemoryRouter>
+                    <DashboardMapWorkspace {...workspaceProps} />
+                </MemoryRouter>
+            );
+
+            const summaryRegion = screen.getByRole('region', { name: 'Map summary' });
+            const buttons = within(summaryRegion).getAllByRole('button');
+
+            buttons.forEach((btn) => {
+                const labelSpan = btn.querySelector('span.uppercase');
+                expect(labelSpan).toBeInTheDocument();
+                // Labels must have break-words and leading-tight for responsive reflow without truncation
+                expect(labelSpan.className).toContain('break-words');
+                expect(labelSpan.className).not.toContain('truncate');
+
+                // Helper text must also wrap cleanly without single-line clipping
+                const helperP = btn.querySelector('p.text-gray-500, p.text-gray-400');
+                if (helperP) {
+                    expect(helperP.className).toContain('break-words');
+                    expect(helperP.className).not.toContain('truncate');
+                }
+            });
         });
 
         test('shows Clear filter button only when a non-default filter is active', () => {

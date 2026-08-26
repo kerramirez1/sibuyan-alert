@@ -25,8 +25,8 @@ describe('shared role-aware map experience', () => {
 
         expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
         expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
-        expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'resolved', 'risk-zones']);
-        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'resolved', 'risk-zones']);
+        expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
 
         expect(responder.filterMode).toBe('response');
         expect(admin.filterMode).toBe('review');

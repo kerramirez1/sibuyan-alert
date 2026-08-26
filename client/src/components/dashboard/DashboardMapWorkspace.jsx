@@ -74,13 +74,13 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                 return (
                     <article key={report._id || report.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="line-clamp-1 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">
+                            <h3 className="line-clamp-2 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
                                 {location}
                             </h3>
-                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300 break-words">
                                 {formatIncidentType(report)} <span aria-hidden="true">·</span> {status.label}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 break-words">
                                 {report.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
                             </p>
                         </div>
@@ -89,7 +89,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onInspect(report)}
-                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white"
+                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                                 >
                                     View details
                                 </button>
@@ -98,7 +98,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -122,12 +122,12 @@ const PanelLoadingState = ({ label }) => (
 const PanelErrorState = ({ title, description, onRetry }) => (
     <div className="px-4 py-8 text-center sm:px-5" role="alert">
         <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{description}</p>
+        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400 leading-relaxed break-words">{description}</p>
         {onRetry && (
             <button
                 type="button"
                 onClick={onRetry}
-                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
             >
                 Retry
             </button>
@@ -135,8 +135,8 @@ const PanelErrorState = ({ title, description, onRetry }) => (
     </div>
 );
 
-const TrustPointsSummary = ({ value }) => (
-    <div className="px-4 py-4 sm:px-5">
+const TrustPointsSummary = ({ value = 0 }) => (
+    <div className="p-4 sm:p-5 text-center">
         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current score</p>
         <p className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">{value}</p>
         <p className="mt-2.5 border-t border-gray-100/80 pt-2.5 text-xs leading-relaxed text-gray-600 dark:border-white/5 dark:text-gray-300">
@@ -184,10 +184,10 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
                 return (
                     <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="line-clamp-1 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">{zone.name || 'Unnamed zone'}</h3>
-                            <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">{config.label}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{zone.address || zone.description || 'Address unavailable'}</p>
-                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                            <h3 className="line-clamp-2 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
+                            <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 break-words">{config.label}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words">{zone.address || zone.description || 'Address unavailable'}</p>
+                            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 break-words">
                                 {zone.municipality || zone.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
                             </p>
                         </div>
@@ -196,7 +196,7 @@ const RiskZoneList = ({ zones, onLocate, loading = false, error = '', onRetry })
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
+                                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -219,16 +219,16 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group relative flex min-w-0 cursor-pointer flex-col justify-between p-3.5 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] sm:p-4 ${
+        className={`group relative flex min-w-0 min-h-[96px] sm:min-h-[110px] cursor-pointer flex-col justify-between p-3 sm:p-4 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] ${
             selected
                 ? 'bg-brand-50/80 shadow-[inset_0_-3px_0_0_theme(colors.brand.700)] dark:bg-emerald-950/45 dark:shadow-[inset_0_-3px_0_0_theme(colors.emerald.400)]'
                 : 'bg-white hover:bg-gray-50/90 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
         }`}
     >
-        <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-                {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span className={`truncate text-[11px] font-bold uppercase tracking-wider transition-colors ${
+        <div className="flex w-full items-start justify-between gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 items-start gap-1.5 flex-1">
+                {statusDot && <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+                <span className={`text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors break-words leading-tight flex-1 ${
                     selected
                         ? 'text-brand-900 dark:text-emerald-300'
                         : 'text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-gray-200'
@@ -237,7 +237,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
                 </span>
             </div>
             <HiChevronRight
-                className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${
+                className={`mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${
                     selected
                         ? 'text-brand-700 dark:text-emerald-400'
                         : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
@@ -247,10 +247,10 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         </div>
 
         <div className="mt-2 min-w-0">
-            <p className="font-display text-xl font-bold tracking-tight text-gray-950 sm:text-2xl lg:text-3xl dark:text-white tabular-nums">
+            <p className="font-display text-xl font-bold tracking-tight text-gray-950 sm:text-2xl lg:text-3xl dark:text-white tabular-nums leading-none break-all sm:break-normal">
                 {value}
             </p>
-            <p className="mt-0.5 truncate text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
+            <p className="mt-1 text-[11px] text-gray-500 sm:text-xs dark:text-gray-400 break-words leading-tight">
                 {helper}
             </p>
         </div>
@@ -787,15 +787,15 @@ const DashboardMapWorkspace = ({
                                     </button>
 
                                     {/* Current Status Pill and Clear Action */}
-                                    <div className="flex items-center gap-1.5 min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                         <button
                                             type="button"
                                             onClick={() => setIsMobileFilterOpen(true)}
                                             aria-label={`Current filter: ${activeFilterSummary}. Tap to change.`}
-                                            className="inline-flex min-h-[44px] min-w-0 max-w-[210px] items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-100/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-200/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                            className="inline-flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-100/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-200/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
                                         >
                                             <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
-                                            <span className="truncate">{activeFilterSummary}</span>
+                                            <span className="break-words leading-tight flex-1 text-left">{activeFilterSummary}</span>
                                         </button>
 
                                         {isFiltered && (
@@ -995,7 +995,6 @@ const DashboardMapWorkspace = ({
                                         canRespond={selectedIncidentCanRespond}
                                         canResolve={selectedIncidentCanResolve}
                                         actionLoading={panelActionLoading}
-                                        onLocate={canLocatePanelReport(selectedActiveIncident) ? locateActiveIncident : undefined}
                                         onRespond={selectedIncidentCanRespond
                                             ? (report) => runPanelIncidentAction(handleMapRespond, report, 'Now responding to incident')
                                             : undefined}

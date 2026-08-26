@@ -468,7 +468,7 @@ function MyReportsPage() {
                                 return (
                                     <div
                                         key={label}
-                                        className={`p-3.5 sm:p-4 flex flex-col justify-between transition-colors ${
+                                        className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between transition-colors ${
                                             isAmber
                                                 ? 'bg-amber-50/40 dark:bg-amber-950/15'
                                                 : isCyan
@@ -476,15 +476,15 @@ function MyReportsPage() {
                                                     : 'bg-white dark:bg-[#0c1813]/90'
                                         }`}
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        <div className="flex items-start justify-between gap-1">
+                                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight flex-1">
                                                 {label}
                                             </p>
-                                            {isAmber && <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />}
-                                            {isCyan && <span className="h-2 w-2 rounded-full bg-cyan-500 animate-pulse" aria-hidden="true" />}
+                                            {isAmber && <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />}
+                                            {isCyan && <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500 animate-pulse" aria-hidden="true" />}
                                         </div>
                                         <p
-                                            className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums ${
+                                            className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none ${
                                                 isAmber
                                                     ? 'text-amber-800 dark:text-amber-300'
                                                     : isCyan
@@ -494,7 +494,7 @@ function MyReportsPage() {
                                         >
                                             {value}
                                         </p>
-                                        <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+                                        <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{helper}</p>
                                     </div>
                                 );
                             })}

@@ -271,41 +271,41 @@ const ReporterDashboardPage = () => {
                         <h2 id="my-reports-overview" className="sr-only">My Reports Overview</h2>
                         <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
                             {/* Total Reports */}
-                            <div className="p-3.5 sm:p-4 flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total reports</p>
-                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums">{summary.total}</p>
-                                <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">All submissions</p>
+                            <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
+                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">Total reports</p>
+                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-none">{summary.total}</p>
+                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All submissions</p>
                             </div>
 
                             {/* Pending Review */}
-                            <div className={`p-3.5 sm:p-4 flex flex-col justify-between transition-colors ${summary.pending > 0 ? 'bg-amber-50/40 dark:bg-amber-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pending review</p>
+                            <div className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between transition-colors ${summary.pending > 0 ? 'bg-amber-50/40 dark:bg-amber-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
+                                <div className="flex items-start justify-between gap-1">
+                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight flex-1">Pending review</p>
                                     {summary.pending > 0 && (
-                                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+                                        <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
                                     )}
                                 </div>
-                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums ${summary.pending > 0 ? 'text-amber-800 dark:text-amber-300' : 'text-gray-950 dark:text-white'}`}>{summary.pending}</p>
-                                <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Waiting review</p>
+                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none ${summary.pending > 0 ? 'text-amber-800 dark:text-amber-300' : 'text-gray-950 dark:text-white'}`}>{summary.pending}</p>
+                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Waiting review</p>
                             </div>
 
                             {/* Active Cases */}
-                            <div className={`p-3.5 sm:p-4 flex flex-col justify-between transition-colors ${summary.responding > 0 ? 'bg-cyan-50/40 dark:bg-cyan-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active cases</p>
+                            <div className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between transition-colors ${summary.responding > 0 ? 'bg-cyan-50/40 dark:bg-cyan-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
+                                <div className="flex items-start justify-between gap-1">
+                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight flex-1">Active cases</p>
                                     {summary.responding > 0 && (
-                                        <span className="h-2 w-2 rounded-full bg-cyan-500 animate-pulse" aria-hidden="true" />
+                                        <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500 animate-pulse" aria-hidden="true" />
                                     )}
                                 </div>
-                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums ${summary.responding > 0 ? 'text-cyan-800 dark:text-cyan-300' : 'text-gray-950 dark:text-white'}`}>{summary.responding}</p>
-                                <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">In response</p>
+                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none ${summary.responding > 0 ? 'text-cyan-800 dark:text-cyan-300' : 'text-gray-950 dark:text-white'}`}>{summary.responding}</p>
+                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">In response</p>
                             </div>
 
                             {/* Resolved */}
-                            <div className="p-3.5 sm:p-4 flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Resolved</p>
-                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-emerald-800 dark:text-emerald-300 tabular-nums">{summary.resolved}</p>
-                                <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Closed incidents</p>
+                            <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
+                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">Resolved</p>
+                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-emerald-800 dark:text-emerald-300 tabular-nums leading-none">{summary.resolved}</p>
+                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Closed incidents</p>
                             </div>
                         </div>
                     </section>

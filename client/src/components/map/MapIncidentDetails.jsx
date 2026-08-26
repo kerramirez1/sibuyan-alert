@@ -74,7 +74,6 @@ const MapIncidentDetails = ({
     canRespond = false,
     canResolve = false,
     actionLoading = false,
-    onLocate,
     onRespond,
     onResolve,
     onToggleExpand,
@@ -109,7 +108,7 @@ const MapIncidentDetails = ({
         && (displayedReport?.isOwnedByCurrentUser || details.isOwnedByCurrentUser)
     );
     const isOperational = operational.isOperationalViewer;
-    const hasActions = Boolean(onLocate || canRespond || canResolve);
+    const hasActions = Boolean(canRespond || canResolve);
     const statusCfg = MAP_STATUS_CONFIG[details.status] || MAP_STATUS_CONFIG.verified;
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
@@ -412,45 +411,29 @@ const MapIncidentDetails = ({
             {/* 8. Sticky Actions Footer */}
             {hasActions && (
                 <div className="sticky bottom-0 z-10 border-t border-gray-200/80 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
-                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            {onLocate && (
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    icon={HiOutlineLocationMarker}
-                                    onClick={() => onLocate(displayedReport)}
-                                    className="w-full sm:w-auto cursor-pointer text-xs min-h-[44px] sm:min-h-8"
-                                >
-                                    View on map
-                                </Button>
-                            )}
-                        </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {canRespond && (
+                            <Button
+                                onClick={() => onRespond?.(displayedReport)}
+                                loading={actionLoading}
+                                loadingLabel="Please wait..."
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Respond to incident
+                            </Button>
+                        )}
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                            {canRespond && (
-                                <Button
-                                    onClick={() => onRespond?.(displayedReport)}
-                                    loading={actionLoading}
-                                    loadingLabel="Please wait..."
-                                    className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
-                                >
-                                    Respond to incident
-                                </Button>
-                            )}
-
-                            {canResolve && (
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => onResolve?.(displayedReport)}
-                                    loading={actionLoading}
-                                    loadingLabel="Please wait..."
-                                    className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
-                                >
-                                    Review resolution
-                                </Button>
-                            )}
-                        </div>
+                        {canResolve && (
+                            <Button
+                                variant="secondary"
+                                onClick={() => onResolve?.(displayedReport)}
+                                loading={actionLoading}
+                                loadingLabel="Please wait..."
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Review resolution
+                            </Button>
+                        )}
                     </div>
                 </div>
             )}

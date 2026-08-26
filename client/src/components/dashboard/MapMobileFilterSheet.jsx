@@ -278,9 +278,9 @@ const MapMobileFilterSheet = ({
                                                     : 'text-gray-800 hover:bg-gray-50/80 dark:text-gray-200 dark:hover:bg-white/5'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
-                                                <span className="text-xs font-bold uppercase tracking-wider truncate">
+                                                <span className="text-xs font-bold uppercase tracking-wider break-words leading-tight flex-1">
                                                     {filter.label}
                                                 </span>
                                             </div>

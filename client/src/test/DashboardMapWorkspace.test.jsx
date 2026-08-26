@@ -883,4 +883,101 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(setResponderMapFilter).toHaveBeenCalledWith('all');
         });
     });
+
+    describe('Public and Reporter Transferred Filter', () => {
+        const publicReports = [
+            {
+                _id: 'rep-v1',
+                status: 'verified',
+                title: 'Verified Accident',
+                coordinates: { lat: 12.35, lng: 122.51 },
+                municipalityName: 'Cajidiocan',
+            },
+            {
+                _id: 'rep-t1',
+                status: 'transferred',
+                title: 'Transferred Accident 1',
+                coordinates: { lat: 12.36, lng: 122.52 },
+                municipalityName: 'Magdiwang',
+            },
+            {
+                _id: 'rep-t2',
+                status: 'transferred',
+                title: 'Transferred Accident 2',
+                coordinates: { lat: 12.37, lng: 122.53 },
+                municipalityName: 'San Fernando',
+            },
+            {
+                _id: 'rep-r1',
+                status: 'responding',
+                title: 'Responding Accident',
+                coordinates: { lat: 12.38, lng: 122.54 },
+                municipalityName: 'Cajidiocan',
+            },
+        ];
+
+        test('1. Guest user sees Transferred filter with exact count in desktop filter rail', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+                reports: publicReports,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            const transferredBtn = screen.getByRole('button', { name: /Transferred filter \(2 records\)/i });
+            expect(transferredBtn).toBeInTheDocument();
+
+            fireEvent.click(transferredBtn);
+            expect(setResponderMapFilter).toHaveBeenCalledWith('transferred');
+        });
+
+        test('2. Reporter user sees Transferred filter with exact count and can apply it in mobile filter sheet', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'reporter-1', role: 'reporter' },
+                isAuthenticated: true,
+                isAdmin: false,
+                isReporter: true,
+                isResponder: false,
+                reports: publicReports,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            fireEvent.click(screen.getByRole('button', { name: /^filters$/i }));
+            const sheet = screen.getByRole('dialog', { name: /Map filters/i });
+            expect(sheet).toBeInTheDocument();
+
+            const transferredRadio = within(sheet).getByRole('radio', { name: /^transferred$/i });
+            expect(transferredRadio).toBeInTheDocument();
+            expect(within(transferredRadio).getByText('2')).toBeInTheDocument();
+
+            fireEvent.click(transferredRadio);
+            fireEvent.click(within(sheet).getByRole('button', { name: /Show 2 incidents/i }));
+
+            expect(setResponderMapFilter).toHaveBeenCalledWith('transferred');
+        });
+
+        test('3. Passes transferred filterStatus to MapView and filters reports correctly', () => {
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+                reports: publicReports,
+                responderMapFilter: 'transferred',
+            }));
+
+            const mapProps = mapPropsSpy.mock.lastCall[0];
+            expect(mapProps.filterStatus).toBe('transferred');
+            expect(mapProps.filterMode).toBe('public');
+            expect(mapProps.reports).toEqual(publicReports);
+        });
+    });
 });

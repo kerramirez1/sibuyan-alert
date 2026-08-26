@@ -39,27 +39,31 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
         return null;
     }
 
+    const itemClass = compact
+        ? 'flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-200'
+        : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-[11px] font-medium text-gray-700 dark:text-gray-200';
+
     return (
         <div className={compact ? 'space-y-2' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-3 sm:gap-x-3.5 gap-y-1'}>
             {showRiskZone && (
-                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                <div className={itemClass}>
                     <LegendSymbol status="risk" color={MAP_RISK_ZONE_CONFIG.markerColor} />
-                    <span>{MAP_RISK_ZONE_CONFIG.label}</span>
+                    <span className="break-words leading-tight">{MAP_RISK_ZONE_CONFIG.label}</span>
                 </div>
             )}
             {statusKeys.map((status) => {
                 const config = MAP_STATUS_CONFIG[status];
                 return (
-                    <div key={status} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                    <div key={status} className={itemClass}>
                         <LegendSymbol status={status} color={config.markerColor} />
-                        <span>{config.label}</span>
+                        <span className="break-words leading-tight">{config.label}</span>
                     </div>
                 );
             })}
             {hasGroupedReports && (
-                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                <div className={itemClass}>
                     <GroupedMarkerSymbol />
-                    <span>Multiple incidents</span>
+                    <span className="break-words leading-tight">Multiple incidents</span>
                 </div>
             )}
         </div>
@@ -139,7 +143,7 @@ const MapLegend = ({
                     <section
                         id={popoverId}
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4"
+                        className="absolute left-0 top-10 w-52 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4"
                     >
                         <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sm:pb-2 sm:text-[10px]">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />

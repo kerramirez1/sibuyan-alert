@@ -99,7 +99,7 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
     }
 
     if (filterMode === 'public') {
-        return ['verified', 'responding'];
+        return ['verified', 'transferred', 'responding'];
     }
 
     return ACTIVE_MAP_STATUS_KEYS.filter((status) => (showPending || status !== 'pending') && status !== 'resolved');
