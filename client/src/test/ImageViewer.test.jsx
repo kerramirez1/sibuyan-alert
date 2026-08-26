@@ -188,7 +188,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
-        expect(screen.getByText(/Original evidence · Report owner/i)).toBeInTheDocument();
+        expect(screen.getByText(/Owner access · Original evidence/i)).toBeInTheDocument();
 
         const img = screen.getByRole('img', { name: /Incident evidence photo 1/i });
         expect(img).toHaveAttribute('src', 'blob:http://localhost/owner-original-blob');

@@ -212,7 +212,7 @@ describe('reporter situation update flow', () => {
         });
     });
 
-    test('switches expanded state cleanly when clicking a different report', async () => {
+    test('switches expanded state and active styling cleanly when clicking a different report', async () => {
         const secondReport = {
             ...initialReport,
             _id: 'report-2',
@@ -221,20 +221,40 @@ describe('reporter situation update flow', () => {
         };
         mocks.getMyReports.mockResolvedValue({ data: { data: [initialReport, secondReport] } });
 
-        renderPage();
+        const { container } = renderPage();
 
         const firstReportBtn = await screen.findByText(initialReport.address);
         const secondReportBtn = screen.getByText(secondReport.address);
+        const articles = container.querySelectorAll('article');
+        expect(articles).toHaveLength(2);
 
-        // Expand first report
+        // Initially both collapsed / neutral
+        expect(articles[0].className).toContain('border-l-transparent');
+        expect(articles[1].className).toContain('border-l-transparent');
+
+        // Expand first report: article 0 active, article 1 neutral
         fireEvent.click(firstReportBtn);
         expect(await screen.findByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
         expect(screen.queryByText('Two tricycles collided near the intersection.')).not.toBeInTheDocument();
+        expect(articles[0].className).toContain('border-l-emerald-600');
+        expect(articles[0].className).toContain('bg-emerald-50/[0.15]');
+        expect(articles[1].className).toContain('border-l-transparent');
 
-        // Switch and expand second report
+        // Switch and expand second report: article 1 active, article 0 returns to neutral
         fireEvent.click(secondReportBtn);
         expect(await screen.findByText('Two tricycles collided near the intersection.')).toBeInTheDocument();
         expect(screen.queryByText('A motorcycle is blocking one lane.')).not.toBeInTheDocument();
+        expect(articles[0].className).toContain('border-l-transparent');
+        expect(articles[1].className).toContain('border-l-emerald-600');
+        expect(articles[1].className).toContain('bg-emerald-50/[0.15]');
+
+        // Click second report again to collapse: both neutral
+        fireEvent.click(secondReportBtn);
+        await waitFor(() => {
+            expect(screen.queryByText('Two tricycles collided near the intersection.')).not.toBeInTheDocument();
+        });
+        expect(articles[0].className).toContain('border-l-transparent');
+        expect(articles[1].className).toContain('border-l-transparent');
     });
 
     test('opens mobile filter modal and applies filter cleanly', async () => {

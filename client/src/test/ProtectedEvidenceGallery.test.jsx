@@ -215,5 +215,68 @@ describe('ProtectedEvidenceGallery Component', () => {
         expect(screen.getByText('Scene preview')).toBeInTheDocument();
         expect(screen.getByText('Privacy preview')).toBeInTheDocument();
     });
+
+    test('9. Renders compact variant with responsive thumbnail dimensions (180-220px desktop) and flex container', () => {
+        const evidence = {
+            count: 2,
+            viewerAccess: 'redacted',
+            items: [
+                {
+                    id: '0',
+                    index: 0,
+                    redactedPreviewUrl: '/api/reports/report-1/evidence/0/preview',
+                },
+                {
+                    id: '1',
+                    index: 1,
+                    redactedPreviewUrl: '/api/reports/report-1/evidence/1/preview',
+                },
+            ],
+        };
+
+        const { container } = render(<ProtectedEvidenceGallery evidence={evidence} variant="compact" />);
+
+        const flexContainer = container.querySelector('.flex.flex-wrap');
+        expect(flexContainer).toBeInTheDocument();
+
+        const buttons = screen.getAllByRole('button');
+        buttons.forEach((btn) => {
+            expect(btn.className).toContain('w-36');
+            expect(btn.className).toContain('lg:w-52');
+            expect(btn.className).toContain('lg:h-36');
+        });
+    });
+
+    test('10. Renders retry button in thumbnail on load error and allows reloading', async () => {
+        mocks.getProtected.mockRejectedValueOnce(new Error('Network error'));
+
+        const evidence = {
+            count: 1,
+            viewerAccess: 'original',
+            items: [
+                {
+                    id: '0',
+                    index: 0,
+                    originalUrl: '/api/files/607f1f77bcf86cd799439011/photo.jpg',
+                    accessLevel: 'original',
+                    isOwner: true,
+                },
+            ],
+        };
+
+        render(<ProtectedEvidenceGallery evidence={evidence} accessLevel="original" isOwner={true} />);
+
+        expect(await screen.findByText('Evidence preview unavailable')).toBeInTheDocument();
+        const retryBtn = screen.getByRole('button', { name: /Retry/i });
+        expect(retryBtn).toBeInTheDocument();
+
+        mocks.getProtected.mockResolvedValueOnce({
+            data: new Blob(['resolved-data'], { type: 'image/jpeg' }),
+        });
+
+        fireEvent.click(retryBtn);
+
+        expect(await screen.findByText('Your upload')).toBeInTheDocument();
+    });
 });
 

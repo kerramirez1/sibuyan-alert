@@ -61,6 +61,7 @@ const ImageViewer = ({
     const [hasLoadError, setHasLoadError] = useState(false);
     const [blobUrl, setBlobUrl] = useState('');
     const [isLoadingBlob, setIsLoadingBlob] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     const activeRequestIdRef = useRef(0);
     const closeButtonRef = useRef(null);
@@ -152,7 +153,7 @@ const ImageViewer = ({
             controller.abort();
             if (createdUrl) URL.revokeObjectURL(createdUrl);
         };
-    }, [isOpen, currentItem, activeIndex, viewerAccess, imageSrc]);
+    }, [isOpen, currentItem, activeIndex, viewerAccess, imageSrc, reloadKey]);
 
     // Navigation callbacks
     const handlePrev = useCallback(() => {
@@ -314,6 +315,24 @@ const ImageViewer = ({
         : `Evidence photo ${displayIndexNumber}`;
 
     const renderFooterBadge = () => {
+        // If there's an error, security violation, or no effective source, do not render a misleading "faces redacted" or "scene preview" message!
+        if (isSecurityViolation || hasLoadError || currentItem?.isUnavailable || !effectiveSrc) {
+            if (isRedacted) {
+                return (
+                    <div className="flex items-center gap-1.5 rounded-md border border-[#334047] bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                        <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                        <span>Evidence unavailable for privacy</span>
+                    </div>
+                );
+            }
+            return (
+                <div className="flex items-center gap-1.5 rounded-md border border-[#334047] bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                    <span>Evidence unavailable</span>
+                </div>
+            );
+        }
+
         if (isRedacted) {
             if (redactionType === 'public_soft_blur' || detectionStatus === 'privacy_derivative') {
                 return (
@@ -373,7 +392,7 @@ const ImageViewer = ({
             return (
                 <div className="flex items-center gap-1.5 rounded-md border border-[#334047] bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
                     <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
-                    <span>Original evidence · Report owner</span>
+                    <span>Owner access · Original evidence</span>
                 </div>
             );
         }
@@ -583,7 +602,19 @@ const ImageViewer = ({
                                 <HiOutlineLockClosed className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
                             </div>
                             <h4 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] mb-1">Unable to load image</h4>
-                            <p className="text-[11px] sm:text-xs text-[#AAB5B8]">The image could not be loaded or is temporarily unavailable.</p>
+                            <p className="text-[11px] sm:text-xs text-[#AAB5B8] mb-3">The image could not be loaded or is temporarily unavailable.</p>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setHasLoadError(false);
+                                    setReloadKey((k) => k + 1);
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[#334047] bg-[#151A1F] px-3 py-1.5 text-xs font-semibold text-[#F5F7F6] hover:bg-[#1C242B] transition-colors cursor-pointer"
+                            >
+                                <HiOutlineRefresh className="h-3.5 w-3.5 text-emerald-400" />
+                                <span>Retry</span>
+                            </button>
                         </div>
                     ) : (
                         <img

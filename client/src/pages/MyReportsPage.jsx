@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from '../router';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from '../utils/appToast';
-import { resolveAssetUrl } from '../utils/assets';
 import {
     HiCheck,
     HiOutlineBadgeCheck,
@@ -28,6 +27,7 @@ import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import ImageViewer from '../components/ui/ImageViewer';
+import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 
@@ -212,8 +212,7 @@ function MyReportsPage() {
     const [selectedReportId, setSelectedReportId] = useState(null);
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterModalOpen, setFilterModalOpen] = useState(false);
-    const [viewerOpen, setViewerOpen] = useState(false);
-    const [viewerImage, setViewerImage] = useState(null);
+    const [viewerItem, setViewerItem] = useState(null);
     const [updateDialogReportId, setUpdateDialogReportId] = useState(null);
     const [highlightedUpdates, setHighlightedUpdates] = useState({});
     const [submittingUpdateId, setSubmittingUpdateId] = useState(null);
@@ -244,8 +243,14 @@ function MyReportsPage() {
     useEffect(() => {
         if (!requestedReportId || !reports.some((report) => String(report._id) === requestedReportId)) return;
         setFilterStatus('all');
-        setSelectedReportId(requestedReportId);
+        setSelectedReportId(String(requestedReportId));
     }, [reports, requestedReportId]);
+
+    const toggleReportSelected = useCallback((id) => {
+        if (!id) return;
+        const strId = String(id);
+        setSelectedReportId((current) => (current && String(current) === strId ? null : strId));
+    }, []);
 
     useEffect(() => {
         if (!selectedReportId) return undefined;
@@ -260,7 +265,7 @@ function MyReportsPage() {
             try {
                 el.scrollIntoView({
                     behavior: prefersReducedMotion ? 'auto' : 'smooth',
-                    block: 'start',
+                    block: 'nearest',
                 });
             } catch {
                 el.scrollIntoView?.();
@@ -618,23 +623,27 @@ function MyReportsPage() {
                                             key={report._id}
                                             ref={(node) => {
                                                 if (node) {
-                                                    itemRefs.current[report._id] = node;
+                                                    itemRefs.current[String(report._id)] = node;
                                                 } else {
-                                                    delete itemRefs.current[report._id];
+                                                    delete itemRefs.current[String(report._id)];
                                                 }
                                             }}
-                                            className={`transition-colors duration-150 border-l-2 sm:border-l-[3px] scroll-mt-4 sm:scroll-mt-6 ${
+                                            style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #059669)' } : undefined}
+                                            className={`transition-colors duration-150 border-l-2 sm:border-l-[3px] scroll-mt-20 sm:scroll-mt-24 ${
                                                 isExpanded
-                                                    ? 'border-l-emerald-600 bg-emerald-50/[0.15] dark:border-l-emerald-500 dark:bg-[#07130e]/80'
+                                                    ? 'border-l-emerald-600 bg-emerald-50/[0.15] dark:border-l-emerald-500 dark:bg-[#07130e]/80 shadow-2xs'
                                                     : 'border-l-transparent bg-white hover:bg-gray-50/75 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                             }`}
                                         >
                                             {/* Collapsed Clickable Header Row */}
                                             <button
                                                 type="button"
-                                                onClick={() => setSelectedReportId(isExpanded ? null : report._id)}
+                                                onClick={() => toggleReportSelected(report._id)}
                                                 aria-expanded={isExpanded}
-                                                className="w-full flex flex-col gap-2 p-3.5 text-left transition-colors sm:grid sm:grid-cols-[minmax(0,1fr)_140px_96px_28px] sm:items-center sm:gap-4 sm:p-4 md:p-5 cursor-pointer min-h-[44px]"
+                                                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
+                                                className={`w-full flex flex-col gap-2 p-3.5 text-left transition-colors sm:grid sm:grid-cols-[minmax(0,1fr)_140px_96px_28px] sm:items-center sm:gap-4 sm:p-4 md:p-5 cursor-pointer min-h-[44px] ${
+                                                    isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''
+                                                }`}
                                             >
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
@@ -685,7 +694,7 @@ function MyReportsPage() {
 
                                             {/* Progressive Disclosure: Expanded Incident Dossier */}
                                             {isExpanded && (
-                                                <div className="border-t border-gray-200/70 p-4 sm:p-6 space-y-4 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.01]">
+                                                <div className="border-t border-gray-200/70 p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.01]">
                                                     {/* 1. Incident Description */}
                                                     <div>
                                                         <h4 className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
@@ -701,7 +710,7 @@ function MyReportsPage() {
                                                     </div>
 
                                                     {/* 2. Key Facts Grid */}
-                                                    <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4 border-t border-gray-200/60 dark:border-white/5">
+                                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 pt-2 border-t border-gray-200/60 dark:border-white/5">
                                                         {[
                                                             { label: 'Incident date', value: formatDate(report.incidentTime || report.accidentTime || report.createdAt) },
                                                             { label: 'Incident type', value: formatIncidentType(report) },
@@ -751,40 +760,22 @@ function MyReportsPage() {
 
                                                     {/* 4. Evidence Gallery */}
                                                     <div className="pt-2 border-t border-gray-200/60 dark:border-white/5">
-                                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mb-2">
                                                             <HiOutlinePhotograph className="h-3.5 w-3.5" />
-                                                            <span>Evidence photos ({report.images?.length || 0})</span>
+                                                            <span>Evidence photos ({report.evidence?.items?.length || report.images?.length || 0})</span>
                                                         </h4>
-                                                        {report.images?.length > 0 ? (
-                                                            <div className="mt-2 flex flex-wrap gap-2.5">
-                                                                {report.images.map((image, index) => (
-                                                                    <button
-                                                                        key={`${image}-${index}`}
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setViewerImage(resolveAssetUrl(image));
-                                                                            setViewerOpen(true);
-                                                                        }}
-                                                                        className="h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-100 shadow-2xs transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-white/10 dark:bg-gray-800 cursor-pointer"
-                                                                    >
-                                                                        <img
-                                                                            src={resolveAssetUrl(image)}
-                                                                            alt={`Incident evidence ${index + 1}`}
-                                                                            className="h-full w-full object-cover"
-                                                                        />
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <p className="mt-1 text-xs italic text-gray-400 dark:text-gray-500">
-                                                                No evidence photos attached to this report.
-                                                            </p>
-                                                        )}
+                                                        <ProtectedEvidenceGallery
+                                                            images={report.images}
+                                                            evidence={report.evidence || (report.images?.length ? { count: report.images.length, viewerAccess: 'original', items: report.images.map((img, i) => ({ id: String(i), index: i, originalUrl: img, previewUrl: img, isOwner: true })) } : null)}
+                                                            isOwner={true}
+                                                            variant="compact"
+                                                            onViewImage={(item) => setViewerItem(item)}
+                                                        />
                                                     </div>
 
                                                     {/* 5. Incident Activity Log */}
                                                     <div
-                                                        className="border-t border-gray-200/60 pt-3 dark:border-white/5"
+                                                        className="border-t border-gray-200/60 pt-2.5 dark:border-white/5"
                                                         aria-labelledby={`activity-heading-${report._id}`}
                                                     >
                                                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-2">
@@ -843,7 +834,13 @@ function MyReportsPage() {
                 onClose={() => setUpdateDialogReportId(null)}
                 onSubmit={(update) => handleSubmitUpdate(updateDialogReportId, update)}
             />
-            <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageSrc={viewerImage} />
+            <ImageViewer
+                isOpen={Boolean(viewerItem)}
+                item={viewerItem}
+                items={viewerItem?.items}
+                initialIndex={viewerItem?.index ?? 0}
+                onClose={() => setViewerItem(null)}
+            />
         </div>
     );
 }
