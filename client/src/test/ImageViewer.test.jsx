@@ -938,4 +938,73 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         unmount();
         expect(document.body.style.overflow).not.toBe('hidden');
     });
+
+    test('31. Refined toolbar controls feature borderless minimal styling with accessible contrast and focus rings', () => {
+        const onClose = vi.fn();
+        const item = {
+            id: 'ev-0',
+            index: 0,
+            total: 2,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/evidence-clean.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+                onClose={onClose}
+            />
+        );
+
+        const closeBtn = screen.getByRole('button', { name: /Close image viewer/i });
+        const zoomBtn = screen.getByRole('button', { name: /Zoom in image/i });
+        const rotateBtn = screen.getByRole('button', { name: /Rotate image/i });
+        const resetBtn = screen.getByRole('button', { name: /Reset image zoom/i });
+
+        // Ensure buttons have focus-visible rings and hover treatments
+        [closeBtn, zoomBtn, rotateBtn, resetBtn].forEach((btn) => {
+            expect(btn).toHaveClass('focus-visible:ring-2');
+            expect(btn).toHaveClass('focus-visible:ring-emerald-400');
+            expect(btn).not.toHaveClass('border');
+        });
+    });
+
+    test('32. Rotate button and keyboard shortcuts cycle image rotation by 90 degrees', () => {
+        const item = {
+            id: 'ev-0',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: 'blob:http://localhost/evidence-rot.jpg',
+            isOperational: true,
+        };
+
+        render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        const rotateBtn = screen.getByRole('button', { name: /Rotate image/i });
+        const resetBtn = screen.getByRole('button', { name: /Reset image zoom/i });
+
+        expect(img).not.toHaveStyle('transform: rotate(90deg)');
+
+        // Click rotate button
+        fireEvent.click(rotateBtn);
+        expect(img).toHaveStyle('transform: rotate(90deg)');
+
+        // Rotate again via keyboard shortcut 'r'
+        fireEvent.keyDown(window, { key: 'r' });
+        expect(img).toHaveStyle('transform: rotate(180deg)');
+
+        // Reset zoom & rotation with reset button
+        fireEvent.click(resetBtn);
+        expect(img.style.transform).toBe('');
+    });
 });
