@@ -1,4 +1,5 @@
 import {
+    HiOutlineCamera,
     HiOutlineClock,
     HiOutlineExclamation,
     HiOutlinePhotograph,
@@ -52,8 +53,10 @@ const ReportDetailsPanel = ({
     images,
     imagePreviews,
     fileInputRef,
+    cameraInputRef,
     handleImageChange,
     removeImage,
+    onRetakeImage,
     loading,
 }) => {
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
@@ -201,47 +204,111 @@ const ReportDetailsPanel = ({
                     id="evidence-heading"
                     step="4"
                     title="Evidence photos"
-                    description="Optional. Upload up to five images, maximum 5 MB each."
+                    description="Optional. Capture evidence directly with your camera or select existing photos (up to 5 images, max 5 MB each)."
                     icon={HiOutlinePhotograph}
                 />
 
                 <div className="p-3.5 sm:p-4 space-y-3">
+                    {/* Header Info & Count */}
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                            Attached photos ({images.length}/5)
+                        </span>
+                        <span className={`text-[11px] font-medium ${images.length === 5 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {images.length === 5 ? 'Maximum 5 photos reached' : `${5 - images.length} remaining`}
+                        </span>
+                    </div>
+
+                    {/* Previews List */}
                     {imagePreviews.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2.5">
                             {imagePreviews.map((preview, index) => (
                                 <div
-                                    key={`${preview.slice(0, 24)}-${index}`}
+                                    key={`${preview.slice(0, 32)}-${index}`}
                                     className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200/90 bg-gray-100 dark:border-white/10 dark:bg-gray-800 shadow-2xs"
                                 >
-                                    <img src={preview} alt={`Evidence preview ${index + 1}`} className="h-full w-full object-cover" />
+                                    <img
+                                        src={preview}
+                                        alt={`Evidence preview ${index + 1}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                                        {onRetakeImage && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onRetakeImage(index)}
+                                                aria-label={`Retake photo ${index + 1}`}
+                                                title="Retake photo"
+                                                className="rounded-lg bg-white/90 hover:bg-white p-1.5 text-gray-800 shadow-xs dark:bg-gray-900/90 dark:hover:bg-gray-900 dark:text-gray-200 cursor-pointer transition-transform active:scale-95"
+                                            >
+                                                <HiOutlineCamera className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(index)}
+                                            aria-label={`Remove photo ${index + 1}`}
+                                            title="Remove photo"
+                                            className="rounded-lg bg-red-600 hover:bg-red-700 p-1.5 text-white shadow-xs cursor-pointer transition-transform active:scale-95"
+                                        >
+                                            <HiOutlineTrash className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    {/* Mobile Quick-Remove Button */}
                                     <button
                                         type="button"
                                         onClick={() => removeImage(index)}
-                                        aria-label={`Remove evidence photo ${index + 1}`}
-                                        className="absolute right-1 top-1 rounded-lg bg-white/95 p-1 text-red-600 shadow-2xs hover:bg-white dark:bg-gray-900/95 dark:text-red-400 cursor-pointer"
+                                        aria-label={`Remove photo ${index + 1}`}
+                                        className="sm:hidden absolute right-1.5 top-1.5 rounded-md bg-black/60 p-1 text-white backdrop-blur-xs cursor-pointer active:scale-95"
                                     >
                                         <HiOutlineTrash className="h-3.5 w-3.5" />
                                     </button>
+                                    <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
+                                        #{index + 1}
+                                    </span>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {images.length < 5 && (
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200/90 p-4 text-center transition-colors hover:border-emerald-400 hover:bg-emerald-50/30 dark:border-white/10 dark:hover:border-emerald-700/50 dark:hover:bg-emerald-950/10 cursor-pointer min-h-[44px]"
-                        >
-                            <HiOutlinePhotograph className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
-                            <span className="mt-1.5 text-xs font-bold text-gray-800 dark:text-gray-200">
-                                {images.length ? 'Add more photos' : 'Choose photos'}
-                            </span>
-                            <span className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                                {images.length} of 5 selected
-                            </span>
-                        </button>
+                    {/* Compact Action Area */}
+                    {images.length < 5 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => cameraInputRef?.current?.click()}
+                                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 active:scale-[0.98] transition-all cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            >
+                                <HiOutlineCamera className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span>{images.length > 0 ? 'Take another' : 'Take photo'}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef?.current?.click()}
+                                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-gray-200/90 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 shadow-2xs hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 active:scale-[0.98] transition-all cursor-pointer dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/5"
+                            >
+                                <HiOutlinePhotograph className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <span>{images.length > 0 ? 'Choose more' : 'Choose photos'}</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                            <HiOutlineShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span>Maximum 5 evidence photos attached. Remove a photo to take or choose a replacement.</span>
+                        </div>
                     )}
+
+                    {/* Hidden Inputs for Camera Capture & File Upload */}
+                    <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleImageChange}
+                        className="sr-only"
+                        aria-label="Take evidence photo"
+                    />
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -252,7 +319,7 @@ const ReportDetailsPanel = ({
                         aria-label="Upload evidence photos"
                     />
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
-                        Evidence is protected and shown according to your access permissions.
+                        Evidence is protected and shown according to your access permissions. Photos are kept local until you submit.
                     </p>
                 </div>
             </section>

@@ -14,6 +14,7 @@ const LOCATION_TOAST_ID = 'location-acquisition';
 const ReportPage = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -359,27 +360,54 @@ const ReportPage = () => {
     }, []);
 
     const handleImageChange = (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
         if (images.length + files.length > 5) {
             toast.error('Maximum 5 images allowed');
+            e.target.value = '';
             return;
         }
+
         const validFiles = files.filter((file) => {
-            if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); return false; }
-            if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} is too large (max 5MB)`); return false; }
+            if (!file.type || !file.type.startsWith('image/')) {
+                toast.error(`${file.name || 'File'} is not an image`);
+                return false;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error(`${file.name || 'File'} is too large (max 5MB)`);
+                return false;
+            }
             return true;
         });
+
+        if (!validFiles.length) {
+            e.target.value = '';
+            return;
+        }
+
         setImages(prev => [...prev, ...validFiles]);
         validFiles.forEach((file) => {
             const reader = new FileReader();
-            reader.onload = (e) => { setImagePreviews(prev => [...prev, e.target.result]); };
+            reader.onload = (event) => {
+                setImagePreviews(prev => [...prev, event.target.result]);
+            };
             reader.readAsDataURL(file);
         });
+
+        e.target.value = '';
     };
 
     const removeImage = (index) => {
         setImages(prev => prev.filter((_, i) => i !== index));
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const retakeImage = (index) => {
+        removeImage(index);
+        setTimeout(() => {
+            cameraInputRef.current?.click();
+        }, 50);
     };
 
     const handleSubmit = async (e) => {
@@ -491,8 +519,10 @@ const ReportPage = () => {
                         images={images}
                         imagePreviews={imagePreviews}
                         fileInputRef={fileInputRef}
+                        cameraInputRef={cameraInputRef}
                         handleImageChange={handleImageChange}
                         removeImage={removeImage}
+                        onRetakeImage={retakeImage}
                         loading={loading}
                     />
                 </div>

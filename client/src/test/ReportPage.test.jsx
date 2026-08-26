@@ -210,4 +210,138 @@ describe('ReportPage workflow', () => {
             );
         });
     });
+
+    describe('Evidence Photos & Camera Capture MVP', () => {
+        test('renders Take photo and Choose photos actions and hidden capture inputs', () => {
+            renderPage();
+
+            const takePhotoButton = screen.getByRole('button', { name: /take photo/i });
+            const choosePhotosButton = screen.getByRole('button', { name: /choose photos/i });
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const uploadInput = screen.getByLabelText(/upload evidence photos/i);
+
+            expect(takePhotoButton).toBeInTheDocument();
+            expect(choosePhotosButton).toBeInTheDocument();
+            expect(cameraInput).toHaveAttribute('type', 'file');
+            expect(cameraInput).toHaveAttribute('accept', 'image/*');
+            expect(cameraInput).toHaveAttribute('capture', 'environment');
+            expect(uploadInput).toHaveAttribute('type', 'file');
+            expect(uploadInput).toHaveAttribute('accept', 'image/*');
+            expect(uploadInput).toHaveAttribute('multiple');
+            expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
+        });
+
+        test('handles photo capture and renders preview with updated count', async () => {
+            renderPage();
+
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const testFile = new File(['evidence-image-bytes'], 'accident-scene.jpg', { type: 'image/jpeg' });
+
+            fireEvent.change(cameraInput, { target: { files: [testFile] } });
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
+                expect(screen.getByAltText(/evidence preview 1/i)).toBeInTheDocument();
+            });
+
+            // Action buttons update labels to reflect additional photos
+            expect(screen.getByRole('button', { name: /take another/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /choose more/i })).toBeInTheDocument();
+        });
+
+        test('removes captured photo when clicking remove button', async () => {
+            renderPage();
+
+            const uploadInput = screen.getByLabelText(/upload evidence photos/i);
+            const file1 = new File(['image1'], 'evidence1.jpg', { type: 'image/jpeg' });
+            const file2 = new File(['image2'], 'evidence2.jpg', { type: 'image/jpeg' });
+
+            fireEvent.change(uploadInput, { target: { files: [file1, file2] } });
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(2\/5\)/i)).toBeInTheDocument();
+            });
+
+            const removeButtons = screen.getAllByRole('button', { name: /remove photo 1/i });
+            fireEvent.click(removeButtons[0]);
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
+            });
+        });
+
+        test('validates file format, rejecting non-image files', () => {
+            renderPage();
+
+            const uploadInput = screen.getByLabelText(/upload evidence photos/i);
+            const invalidFile = new File(['text-content'], 'notes.txt', { type: 'text/plain' });
+
+            fireEvent.change(uploadInput, { target: { files: [invalidFile] } });
+
+            expect(toastMock.error).toHaveBeenCalledWith(
+                'notes.txt is not an image',
+                expect.objectContaining({ id: 'app-notification' })
+            );
+            expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
+        });
+
+        test('validates file size, rejecting files over 5 MB', () => {
+            renderPage();
+
+            const uploadInput = screen.getByLabelText(/upload evidence photos/i);
+            const bigFile = new File(['large-content'], 'huge-photo.jpg', { type: 'image/jpeg' });
+            Object.defineProperty(bigFile, 'size', { value: 6 * 1024 * 1024 });
+
+            fireEvent.change(uploadInput, { target: { files: [bigFile] } });
+
+            expect(toastMock.error).toHaveBeenCalledWith(
+                'huge-photo.jpg is too large (max 5MB)',
+                expect.objectContaining({ id: 'app-notification' })
+            );
+            expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
+        });
+
+        test('enforces maximum 5 photos limit and displays limit banner when full', async () => {
+            renderPage();
+
+            const uploadInput = screen.getByLabelText(/upload evidence photos/i);
+            const files = Array.from({ length: 5 }, (_, i) =>
+                new File([`image-${i}`], `photo-${i}.jpg`, { type: 'image/jpeg' })
+            );
+
+            fireEvent.change(uploadInput, { target: { files } });
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(5\/5\)/i)).toBeInTheDocument();
+                expect(screen.getByText(/maximum 5 photos reached/i)).toBeInTheDocument();
+                expect(screen.getByText(/maximum 5 evidence photos attached/i)).toBeInTheDocument();
+            });
+
+            // Action buttons hidden when max reached
+            expect(screen.queryByRole('button', { name: /take photo|take another/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /choose photos|choose more/i })).not.toBeInTheDocument();
+        });
+
+        test('submits report with evidence photos in multipart FormData', async () => {
+            renderPage();
+
+            fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Barangay Road' } });
+            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const photo = new File(['captured-image'], 'camera-evidence.jpg', { type: 'image/jpeg' });
+            fireEvent.change(cameraInput, { target: { files: [photo] } });
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+
+            await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
+            const payload = createReportMock.mock.calls[0][0];
+            expect(payload.getAll('images')).toHaveLength(1);
+            expect(payload.getAll('images')[0].name).toBe('camera-evidence.jpg');
+        });
+    });
 });
