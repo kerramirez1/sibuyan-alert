@@ -1,6 +1,5 @@
 import {
     HiOutlineCamera,
-    HiOutlineClock,
     HiOutlineExclamation,
     HiOutlinePhotograph,
     HiOutlineShieldCheck,
@@ -75,7 +74,7 @@ const ReportDetailsPanel = ({
 
                 <div className="grid gap-3.5 p-3.5 sm:gap-4 sm:p-4 sm:grid-cols-2">
                     <label className="flex h-full flex-col min-w-0">
-                        <span className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                        <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 leading-none">
                             Accident type
                         </span>
                         <div className="mt-auto">
@@ -93,9 +92,8 @@ const ReportDetailsPanel = ({
                     </label>
 
                     <label className="flex h-full flex-col min-w-0">
-                        <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                            <HiOutlineClock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                            <span>Incident date and time <span className="text-emerald-700 dark:text-emerald-400">*</span></span>
+                        <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 leading-none">
+                            Incident date and <span className="whitespace-nowrap">time <span className="text-emerald-700 dark:text-emerald-400 font-black" aria-hidden="true">*</span></span>
                         </span>
                         <div className="mt-auto">
                             <input
@@ -185,11 +183,10 @@ const ReportDetailsPanel = ({
                                         onChange={handleChange}
                                         min="0"
                                         max="999"
-                                        className={`${inputClass} text-center font-bold ${
-                                            isNonZero
+                                        className={`${inputClass} text-center font-bold ${isNonZero
                                                 ? 'border-amber-400 bg-amber-50/40 text-amber-950 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
                                                 : ''
-                                        }`}
+                                            }`}
                                     />
                                 </div>
                             </label>

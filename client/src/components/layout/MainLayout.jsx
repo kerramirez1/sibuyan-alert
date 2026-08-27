@@ -397,17 +397,9 @@ const MainLayout = ({ children }) => {
                             </button>
 
                             <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">
-                                        Sibuyan Island Operations
-                                    </span>
-                                    <span className="hidden sm:inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" aria-hidden="true" />
-                                        <span>Live Coordination</span>
-                                        <span className="text-emerald-600 dark:text-emerald-400">·</span>
-                                        <span>{user?.assignedMunicipality ? `${user.assignedMunicipality} EOC` : 'Island-wide'}</span>
-                                    </span>
-                                </div>
+                                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                                    Sibuyan Island Operations
+                                </span>
                                 <p className="hidden md:block text-[11px] text-gray-500 dark:text-gray-400">
                                     Cajidiocan <span className="text-gray-300 dark:text-gray-700">·</span> Magdiwang <span className="text-gray-300 dark:text-gray-700">·</span> San Fernando Municipal Alert System
                                 </p>

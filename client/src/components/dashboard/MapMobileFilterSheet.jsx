@@ -133,7 +133,7 @@ const MapMobileFilterSheet = ({
         : `Show ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden sm:items-center sm:justify-center sm:p-4">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-gray-950/60 backdrop-blur-xs transition-opacity duration-200 animate-fadeIn"
@@ -141,17 +141,17 @@ const MapMobileFilterSheet = ({
                 aria-hidden="true"
             />
 
-            {/* Bottom Sheet Modal */}
+            {/* Bottom Sheet / Tablet Modal */}
             <section
                 ref={sheetRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
                 aria-describedby={descriptionId}
-                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl border-t border-gray-200/90 bg-white pb-safe shadow-2xl transition-transform dark:border-white/10 dark:bg-[#0c1813]"
+                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200/90 bg-white pb-safe shadow-2xl transition-transform sm:max-w-lg dark:border-white/10 dark:bg-[#0c1813]"
             >
-                {/* Drag Handle */}
-                <div className="flex w-full items-center justify-center pt-3 pb-1">
+                {/* Drag Handle (Mobile only) */}
+                <div className="flex w-full items-center justify-center pt-3 pb-1 sm:hidden">
                     <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-white/20" aria-hidden="true" />
                 </div>
 

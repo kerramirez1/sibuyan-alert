@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
-    HiChevronLeft,
     HiChevronRight,
     HiOutlineBadgeCheck,
     HiOutlineArrowLeft,
@@ -230,35 +229,38 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group relative flex min-w-0 min-h-[96px] cursor-pointer flex-col justify-between p-3.5 sm:p-4 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] ${selected
+        className={`group relative flex min-w-0 min-h-[96px] cursor-pointer flex-col justify-between p-3.5 sm:p-4 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] ${
+            selected
                 ? 'bg-brand-50/80 shadow-[inset_0_-3px_0_0_theme(colors.brand.700)] dark:bg-emerald-950/45 dark:shadow-[inset_0_-3px_0_0_theme(colors.emerald.400)]'
                 : 'bg-white hover:bg-gray-50/90 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
-            }`}
+        }`}
     >
-        <div className="flex w-full items-start justify-between gap-1.5 sm:gap-2">
-            <div className="flex min-w-0 items-start gap-1.5 flex-1">
-                {statusDot && <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span className={`text-xs font-bold uppercase tracking-wider transition-colors break-words leading-snug flex-1 ${selected
+        <div className="flex w-full items-center justify-between gap-1 sm:gap-2">
+            <div className="flex min-w-0 items-center gap-1.5 flex-1">
+                {statusDot && <span className={`h-1.5 w-1.5 sm:h-2 sm:w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+                <span className={`text-[10px] xs:text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap break-words leading-tight flex-1 ${
+                    selected
                         ? 'text-brand-900 dark:text-emerald-200'
                         : 'text-gray-700 group-hover:text-gray-950 dark:text-gray-300 dark:group-hover:text-white'
-                    }`}>
+                }`}>
                     {label}
                 </span>
             </div>
             <HiChevronRight
-                className={`mt-0.5 h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${selected
+                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${
+                    selected
                         ? 'text-brand-700 dark:text-emerald-400'
                         : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
-                    }`}
+                }`}
                 aria-hidden="true"
             />
         </div>
 
-        <div className="mt-2.5 min-w-0">
-            <p className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums leading-tight">
+        <div className="mt-2 min-w-0">
+            <p className="font-display text-xl xs:text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-tight">
                 {value}
             </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 break-words leading-normal">
+            <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">
                 {helper}
             </p>
         </div>
@@ -299,11 +301,8 @@ const DashboardMapWorkspace = ({
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
-    const filterScrollRef = useRef(null);
     const mobileFilterTriggerRef = useRef(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
     const [selectedActiveRiskZoneId, setSelectedActiveRiskZoneId] = useState('');
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
@@ -399,33 +398,6 @@ const DashboardMapWorkspace = ({
     const handleMapInspectorOpen = useCallback(() => {
         closeMapSummaryPanel();
     }, [closeMapSummaryPanel]);
-
-    const updateFilterScrollState = useCallback(() => {
-        const el = filterScrollRef.current;
-        if (!el) return;
-        const { scrollLeft, scrollWidth, clientWidth } = el;
-        setCanScrollLeft(scrollLeft > 2);
-        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
-    }, []);
-
-    const scrollFilterRail = useCallback((direction) => {
-        const el = filterScrollRef.current;
-        if (!el) return;
-        const scrollAmount = direction === 'left' ? -200 : 200;
-        el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }, []);
-
-    useEffect(() => {
-        const el = filterScrollRef.current;
-        if (!el) return undefined;
-        updateFilterScrollState();
-        el.addEventListener('scroll', updateFilterScrollState, { passive: true });
-        window.addEventListener('resize', updateFilterScrollState);
-        return () => {
-            el.removeEventListener('scroll', updateFilterScrollState);
-            window.removeEventListener('resize', updateFilterScrollState);
-        };
-    }, [updateFilterScrollState, reports, highRiskZones, responderMapFilter]);
 
     const metrics = isResponder
         ? [
@@ -694,24 +666,24 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
+            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
                             {mapExperience.eyebrow}
                         </span>
                     </div>
-                    <h1 className="mt-1.5 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
+                    <h1 className="mt-1 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
                         {mapExperience.title}
                     </h1>
-                    <p className="mt-1 max-w-2xl text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed break-words">
+                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed break-words">
                         {mapExperience.description}
                     </p>
                 </div>
                 {mapExperience.showSubmitReport && (
-                    <div className="flex shrink-0 items-center pt-1 sm:pt-0">
-                        <Button as={Link} to="/report" icon={HiOutlinePlus} className="w-full sm:w-auto shrink-0 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs min-h-[44px] sm:min-h-9 justify-center">
+                    <div className="flex shrink-0 items-center pt-0.5 sm:pt-0">
+                        <Button as={Link} to="/report" icon={HiOutlinePlus} className="w-full sm:w-auto shrink-0 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs min-h-[44px] sm:min-h-9 px-3 py-1.5 justify-center">
                             Submit report
                         </Button>
                     </div>
@@ -731,7 +703,7 @@ const DashboardMapWorkspace = ({
                         <button
                             type="button"
                             onClick={onRetryHighRiskZones}
-                            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50"
+                            className="inline-flex min-h-[44px] sm:min-h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
                         >
                             Retry risk zones
                         </button>
@@ -750,7 +722,7 @@ const DashboardMapWorkspace = ({
                             onClick={onReturnToReport}
                             variant="secondary"
                             icon={HiOutlineArrowLeft}
-                            className="rounded-lg text-xs"
+                            className="rounded-lg text-xs min-h-[44px] sm:min-h-9 px-3 py-1.5"
                         >
                             Back to incident
                         </Button>
@@ -783,8 +755,8 @@ const DashboardMapWorkspace = ({
 
                         return (
                             <>
-                                {/* 1. Mobile Filter Control Bar (< sm / < 640px) */}
-                                <div className="flex sm:hidden w-full items-center justify-between gap-2 pt-1">
+                                {/* 1. Mobile & Tablet Filter Control Bar (< lg / < 1024px) */}
+                                <div className="flex flex-wrap lg:hidden w-full items-center gap-1.5 pt-0.5">
                                     {/* Filters Button */}
                                     <button
                                         ref={mobileFilterTriggerRef}
@@ -793,15 +765,15 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${isFiltered
+                                        className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wider shadow-2xs transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${isFiltered
                                                 ? 'border-brand-700 bg-brand-900 text-white dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100'
-                                                : 'border-gray-300/90 bg-white text-gray-900 dark:border-white/15 dark:bg-[#07130e] dark:text-gray-100'
+                                                : 'border-gray-200/90 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
                                             }`}
                                     >
-                                        <HiOutlineFilter className={`h-4 w-4 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
+                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
                                         {isFiltered && (
-                                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white text-brand-900 px-1.5 text-xs font-extrabold tabular-nums dark:bg-emerald-400 dark:text-gray-950">
+                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-brand-900 px-1 text-[10px] font-extrabold tabular-nums dark:bg-emerald-400 dark:text-gray-950">
                                                 1
                                             </span>
                                         )}
@@ -813,10 +785,13 @@ const DashboardMapWorkspace = ({
                                             type="button"
                                             onClick={() => setIsMobileFilterOpen(true)}
                                             aria-label={`Current filter: ${activeFilterSummary}. Tap to change.`}
-                                            className="inline-flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-100/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-gray-200/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
+                                            className={`inline-flex min-h-[44px] min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${isFiltered
+                                                ? 'border-emerald-200/80 bg-emerald-50/90 text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-200'
+                                                : 'border-gray-200/90 bg-gray-100/90 text-gray-800 hover:bg-gray-200/80 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            }`}
                                         >
-                                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
-                                            <span className="break-words leading-snug flex-1 text-left">{activeFilterSummary}</span>
+                                            <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
+                                            <span className="truncate text-left">{activeFilterSummary}</span>
                                         </button>
 
                                         {isFiltered && (
@@ -824,16 +799,16 @@ const DashboardMapWorkspace = ({
                                                 type="button"
                                                 onClick={() => setResponderMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
-                                                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 cursor-pointer"
                                                 title="Clear filter"
                                             >
-                                                <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                                <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                                             </button>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Mobile Filter Bottom Sheet */}
+                                {/* Mobile & Tablet Filter Bottom Sheet */}
                                 <MapMobileFilterSheet
                                     isOpen={isMobileFilterOpen}
                                     onClose={() => setIsMobileFilterOpen(false)}
@@ -844,110 +819,66 @@ const DashboardMapWorkspace = ({
                                     triggerRef={mobileFilterTriggerRef}
                                 />
 
-                                {/* 2. Desktop / Tablet Inline Filter Rail (sm:flex) */}
-                                <div className="hidden sm:flex w-full min-w-0 max-w-full items-center gap-2 pt-1">
-                                    {/* Fixed Filter by status badge */}
-                                    <div className="inline-flex min-h-8 shrink-0 flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-gray-700 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                        <HiOutlineFilter className="h-3.5 w-3.5 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                {/* 2. Desktop Segmented Status-Filter Control Bar (hidden lg:flex) */}
+                                <div className="hidden lg:flex w-full min-w-0 max-w-full items-center gap-1.5 pt-0.5">
+                                    {/* Fixed Primary Filter by status badge */}
+                                    <div className="inline-flex h-7.5 shrink-0 items-center gap-1.5 rounded-md border border-gray-200/90 bg-gray-100/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
+                                        <HiOutlineFilter className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                                         <span>Filter by status</span>
                                     </div>
 
-                                    {/* Scrollable Status-Buttons Container with Gradient Fades & Chevron Buttons */}
-                                    <div className="relative min-w-0 flex-1 overflow-hidden">
-                                        {/* Left Fade Gradient */}
-                                        {canScrollLeft && (
-                                            <div
-                                                className="pointer-events-none absolute left-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-r from-gray-50/95 dark:from-[#091710]/95 to-transparent"
-                                                aria-hidden="true"
-                                            />
-                                        )}
+                                    {/* Segmented Filter Option Bar */}
+                                    <div
+                                        className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-visible"
+                                        aria-label="Map status filter"
+                                        role="group"
+                                    >
+                                        {mapExperience.filters.map((filter) => {
+                                            const count = getFilterCount(filter.value);
+                                            const isSelected = responderMapFilter === filter.value;
+                                            const statusCfg = filter.value === 'risk-zones'
+                                                ? { dot: 'bg-red-500' }
+                                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
 
-                                        {/* Left Chevron Button */}
-                                        {canScrollLeft && (
-                                            <button
-                                                type="button"
-                                                onClick={() => scrollFilterRail('left')}
-                                                aria-label="Scroll filter options left"
-                                                className="absolute left-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
-                                            >
-                                                <HiChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                                            </button>
-                                        )}
-
-                                        {/* Horizontally Scrollable Button Rail */}
-                                        <div
-                                            ref={filterScrollRef}
-                                            className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 whitespace-nowrap scrollbar-hide no-scrollbar scroll-smooth"
-                                            aria-label="Map status filter"
-                                            role="group"
-                                        >
-                                            {mapExperience.filters.map((filter) => {
-                                                const count = getFilterCount(filter.value);
-                                                const isSelected = responderMapFilter === filter.value;
-                                                const statusCfg = filter.value === 'risk-zones'
-                                                    ? { dot: 'bg-red-500' }
-                                                    : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
-
-                                                return (
-                                                    <button
-                                                        key={filter.value}
-                                                        type="button"
-                                                        onClick={() => setResponderMapFilter(filter.value)}
-                                                        aria-pressed={isSelected}
-                                                        aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                        className={`group relative inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 active:scale-[0.98] ${isSelected
-                                                                ? 'border-gray-900 bg-gray-900 text-white shadow-xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
-                                                                : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
-                                                            }`}
-                                                    >
-                                                        {isSelected ? (
-                                                            <HiOutlineCheck className="h-3.5 w-3.5 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
-                                                        ) : (
-                                                            statusCfg?.dot && (
-                                                                <span className={`h-2 w-2 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                                            )
-                                                        )}
-                                                        <span>{filter.label}</span>
-                                                        <span className={`rounded px-1.5 py-0.5 text-xs font-bold tabular-nums leading-none transition-colors ${isSelected
-                                                                ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
-                                                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
-                                                            }`}>
-                                                            {count}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-
-                                            {responderMapFilter !== 'all' && (
+                                            return (
                                                 <button
+                                                    key={filter.value}
                                                     type="button"
-                                                    onClick={() => setResponderMapFilter('all')}
-                                                    aria-label="Clear active filter and show all"
-                                                    className="inline-flex min-h-8 shrink-0 flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-white/50 px-2 py-1 text-xs font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                                    onClick={() => setResponderMapFilter(filter.value)}
+                                                    aria-pressed={isSelected}
+                                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                    className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                            ? 'border-gray-900 bg-gray-900 text-white font-bold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
+                                                            : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
+                                                        }`}
                                                 >
-                                                    <HiOutlineX className="h-3 w-3" aria-hidden="true" />
-                                                    <span>Clear filter</span>
+                                                    {isSelected ? (
+                                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
+                                                    ) : (
+                                                        statusCfg?.dot && (
+                                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                                        )
+                                                    )}
+                                                    <span>{filter.label}</span>
+                                                    <span className={`rounded px-1 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${isSelected
+                                                            ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
+                                                            : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
+                                                        }`}>
+                                                        {count}
+                                                    </span>
                                                 </button>
-                                            )}
-                                        </div>
+                                            );
+                                        })}
 
-                                        {/* Right Fade Gradient */}
-                                        {canScrollRight && (
-                                            <div
-                                                className="pointer-events-none absolute right-0 top-0 bottom-1 z-10 w-8 bg-gradient-to-l from-gray-50/95 dark:from-[#091710]/95 to-transparent"
-                                                aria-hidden="true"
-                                            />
-                                        )}
-
-                                        {/* Right Chevron Button */}
-                                        {canScrollRight && (
+                                        {responderMapFilter !== 'all' && (
                                             <button
                                                 type="button"
-                                                onClick={() => scrollFilterRail('right')}
-                                                aria-label="Scroll filter options right"
-                                                className="absolute right-0.5 top-1/2 -translate-y-1/2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-300/90 bg-white/95 text-gray-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/20 dark:bg-gray-900/95 dark:text-gray-200"
+                                                onClick={() => setResponderMapFilter('all')}
+                                                aria-label="Clear active filter and show all"
+                                                className="inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed border-gray-300 bg-white/60 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 before:absolute before:-inset-1 before:content-['']"
                                             >
-                                                <HiChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                                <HiOutlineX className="h-3 w-3" aria-hidden="true" />
+                                                <span>Clear filter</span>
                                             </button>
                                         )}
                                     </div>
@@ -957,7 +888,7 @@ const DashboardMapWorkspace = ({
                     })()}
                 </div>
 
-                <div className="relative aspect-square min-h-[360px] sm:min-h-0 w-full sm:aspect-auto sm:h-[520px] lg:h-[620px]">
+                <div className="relative aspect-square min-h-[340px] sm:min-h-0 w-full sm:aspect-auto sm:h-[460px] lg:h-[500px]">
                     {loading && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">

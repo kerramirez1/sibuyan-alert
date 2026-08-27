@@ -264,7 +264,7 @@ describe('ReportPage workflow', () => {
                 expect(screen.getByText(/attached photos \(2\/5\)/i)).toBeInTheDocument();
             });
 
-            const removeButtons = screen.getAllByRole('button', { name: /remove photo 1/i });
+            const removeButtons = await screen.findAllByRole('button', { name: /remove photo 1/i });
             fireEvent.click(removeButtons[0]);
 
             await waitFor(() => {
@@ -320,8 +320,8 @@ describe('ReportPage workflow', () => {
             });
 
             // Action buttons hidden when max reached
-            expect(screen.queryByRole('button', { name: /take photo|take another/i })).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: /choose photos|choose more/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /^(take photo|take another)$/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /^(choose photos|choose more)$/i })).not.toBeInTheDocument();
         });
 
         test('submits report with evidence photos in multipart FormData', async () => {

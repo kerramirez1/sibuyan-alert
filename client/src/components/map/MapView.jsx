@@ -74,17 +74,17 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-gray-200/90 bg-white/95 text-gray-700 backdrop-blur-md shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white';
+const MAP_TOOL_BUTTON_CLASS = 'relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 items-center justify-center rounded-lg border border-gray-200/90 bg-white/95 text-gray-700 backdrop-blur-md shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-1.5 before:content-[\'\']';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
         type="button"
         aria-label={label}
         title={label}
-        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-brand-400 !bg-brand-50/95 !text-brand-800 shadow-xs dark:!border-emerald-700/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
+        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-emerald-400/80 !bg-emerald-50/95 !text-emerald-800 shadow-xs dark:!border-emerald-600/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
         {...props}
     >
-        <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+        <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
     </button>
 );
 
@@ -999,7 +999,7 @@ const MapView = ({
 
             {/* Controls */}
             {!['incident-preview', 'report-location'].includes(mode) && (
-                <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-3 right-3 z-20 flex flex-col gap-2 sm:bottom-4 sm:right-4" role="group" aria-label="Map tools">
+                <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-2.5 right-2.5 z-20 flex flex-col gap-1.5 sm:bottom-4 sm:right-4 sm:gap-2" role="group" aria-label="Map tools">
                     <MapToolButton
                         label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
                         icon={HiOutlineMap}
@@ -1029,13 +1029,13 @@ const MapView = ({
                                 id="municipality-map-menu"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="absolute bottom-10 sm:bottom-12 right-0 min-w-[170px] rounded-xl border border-gray-200/90 bg-white/95 p-1.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95"
+                                className="absolute bottom-10 sm:bottom-10 right-0 min-w-[150px] rounded-lg border border-gray-200/90 bg-white/95 p-1 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95"
                             >
                                 {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
                                     <button
                                         key={key}
                                         onClick={() => goToMunicipality(muni.center)}
-                                        className="min-h-9 w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-white"
+                                        className="relative flex h-8 w-full items-center rounded-md px-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer before:absolute before:-inset-1 before:content-['']"
                                     >
                                         {muni.name}
                                     </button>
