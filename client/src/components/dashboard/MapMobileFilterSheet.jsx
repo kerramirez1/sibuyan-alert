@@ -185,8 +185,8 @@ const MapMobileFilterSheet = ({
                 </div>
 
                 {/* Live Status Summary Subhead */}
-                <div className="border-b border-gray-100 bg-gray-50/70 px-4 py-2 dark:border-white/5 dark:bg-white/[0.02]">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                <div className="border-b border-gray-100 bg-gray-50/70 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
                         {summaryText}
                     </p>
                 </div>
@@ -199,7 +199,7 @@ const MapMobileFilterSheet = ({
                         const count = getFilterCount('all');
                         return (
                             <div>
-                                <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
+                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                                     Incident scope
                                 </h3>
                                 <button
@@ -217,10 +217,10 @@ const MapMobileFilterSheet = ({
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                                         <div>
-                                            <span className="text-xs font-bold uppercase tracking-wider block">
+                                            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider block">
                                                 All active
                                             </span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400 block">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-normal">
                                                 Verified, responding, and active emergency operations
                                             </span>
                                         </div>
@@ -255,7 +255,7 @@ const MapMobileFilterSheet = ({
                     {/* 2. Incident Status Section */}
                     {statusOptions.length > 0 && (
                         <div>
-                            <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
+                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                                 Incident status
                             </h3>
                             <div className="divide-y divide-gray-100 dark:divide-white/5 rounded-xl border border-gray-200/90 dark:border-white/10 overflow-hidden bg-white dark:bg-[#07130e]">
@@ -280,7 +280,7 @@ const MapMobileFilterSheet = ({
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
-                                                <span className="text-xs font-bold uppercase tracking-wider break-words leading-tight flex-1">
+                                                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider break-words leading-tight flex-1">
                                                     {filter.label}
                                                 </span>
                                             </div>
@@ -319,7 +319,7 @@ const MapMobileFilterSheet = ({
                         const count = getFilterCount('risk-zones');
                         return (
                             <div>
-                                <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
+                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                                     Map layers
                                 </h3>
                                 <button
@@ -339,10 +339,10 @@ const MapMobileFilterSheet = ({
                                             <HiOutlineShieldExclamation className="h-4 w-4" aria-hidden="true" />
                                         </div>
                                         <div>
-                                            <span className="text-xs font-bold uppercase tracking-wider block">
+                                            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider block">
                                                 Risk zones
                                             </span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400 block">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-normal">
                                                 High-risk hazards and monitored risk zones
                                             </span>
                                         </div>

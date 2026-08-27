@@ -190,10 +190,10 @@ const HighRiskZoneDetails = ({
 
                 {/* 2. Zone Name & Description */}
                 <div>
-                    <h3 className="font-display text-base sm:text-lg font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h3 className="font-display text-base sm:text-lg font-bold tracking-tight text-gray-950 dark:text-white break-words leading-snug">
                         {zone?.name || 'High-Risk Zone'}
                     </h3>
-                    <p className="mt-1 text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                    <p className="mt-1 text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-300 break-words">
                         {zone?.description || 'No description provided for this hazard zone.'}
                     </p>
                 </div>
@@ -201,14 +201,14 @@ const HighRiskZoneDetails = ({
 
             {/* 3. Hazard Information Breakdown */}
             <div className="rounded-xl border border-gray-200/90 bg-gray-50/60 p-3 sm:p-3.5 space-y-2.5 dark:border-white/10 dark:bg-white/[0.02]">
-                <div className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-semibold text-gray-500 dark:text-gray-400">Hazard type</span>
                     <span className={`rounded-md border px-2 py-0.5 font-bold uppercase tracking-wider text-[10px] sm:text-[11px] ${riskTypeConfig.badge}`}>
                         {riskTypeConfig.label}
                     </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-semibold text-gray-500 dark:text-gray-400">Monitored coverage</span>
                     <span className="font-bold text-gray-900 dark:text-white">
                         {Number.isFinite(Number(zone?.radius)) && Number(zone?.radius) > 0
@@ -218,7 +218,7 @@ const HighRiskZoneDetails = ({
                 </div>
 
                 {coordinates && (
-                    <div className="flex items-center justify-between gap-2 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <span className="font-semibold text-gray-500 dark:text-gray-400">GPS location</span>
                         <span className="font-mono text-[11px] font-semibold text-gray-700 dark:text-gray-300">
                             {coordinates.lat.toFixed(4)}° N, {coordinates.lng.toFixed(4)}° E
@@ -267,7 +267,7 @@ const HighRiskZoneDetails = ({
                         href={`https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-2xs hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-2xs hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                     >
                         <span>Open in Google Maps</span>
                         <HiOutlineExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />

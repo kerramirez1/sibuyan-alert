@@ -182,12 +182,12 @@ const MapOverlayPanel = ({
                 onTouchStart={isContextual ? handleTouchStart : undefined}
                 onTouchEnd={isContextual ? handleTouchEnd : undefined}
             >
-                <div className="min-w-0 py-0.5">
-                    <h2 id={titleId} className="truncate font-display text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white">
+                <div className="min-w-0 py-0.5 flex-1">
+                    <h2 id={titleId} className="font-display text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white break-words leading-snug">
                         {title}
                     </h2>
                     {description && (
-                        <p id={descriptionId} className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <p id={descriptionId} className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">
                             {description}
                         </p>
                     )}
@@ -199,7 +199,7 @@ const MapOverlayPanel = ({
                         <button
                             type="button"
                             onClick={() => setIsMobileExpanded((prev) => !prev)}
-                            className="flex h-9 w-9 sm:hidden shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+                            className="flex h-10 w-10 sm:hidden shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
                             aria-label={isMobileExpanded ? 'Collapse incident details' : 'Expand incident details'}
                             aria-expanded={isMobileExpanded}
                         >
@@ -215,7 +215,7 @@ const MapOverlayPanel = ({
                         ref={closeButtonRef}
                         type="button"
                         onClick={() => onCloseRef.current?.()}
-                        className="flex h-9 w-9 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+                        className="flex h-10 w-10 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
                         aria-label={closeLabel}
                     >
                         <HiOutlineX className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
@@ -226,7 +226,7 @@ const MapOverlayPanel = ({
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'} pb-[max(1rem,env(safe-area-inset-bottom))]`}
+                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'} pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
             >
                 {children}
             </div>

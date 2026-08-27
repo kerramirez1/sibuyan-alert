@@ -232,19 +232,17 @@ const NotificationsPage = () => {
                             type="button"
                             onClick={() => setActiveFilter(filter.key)}
                             aria-pressed={active}
-                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer min-h-[44px] sm:min-h-0 ${
-                                active
+                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer min-h-[44px] sm:min-h-0 ${active
                                     ? 'bg-white text-gray-950 shadow-2xs dark:bg-white/10 dark:text-white'
                                     : 'text-gray-600 hover:bg-white/50 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white'
-                            }`}
+                                }`}
                         >
                             <span>{filter.label}</span>
                             <span
-                                className={`rounded-md px-1.5 py-0.2 text-[10px] font-bold ${
-                                    active
+                                className={`rounded-md px-1.5 py-0.2 text-[10px] font-bold ${active
                                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
                                         : 'bg-gray-200/70 text-gray-600 dark:bg-white/5 dark:text-gray-400'
-                                }`}
+                                    }`}
                             >
                                 {counts[filter.key]}
                             </span>
@@ -296,11 +294,10 @@ const NotificationsPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => handleNotificationClick(notification)}
-                                        className={`group flex w-full items-start gap-3 p-4 sm:p-5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 cursor-pointer min-h-[44px] ${
-                                            !notification.isRead
+                                        className={`group flex w-full items-start gap-3 p-4 sm:p-5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 cursor-pointer min-h-[44px] ${!notification.isRead
                                                 ? 'bg-emerald-50/20 hover:bg-emerald-50/40 dark:bg-emerald-950/10 dark:hover:bg-emerald-950/20'
                                                 : 'bg-white hover:bg-gray-50/80 dark:bg-transparent dark:hover:bg-white/[0.02]'
-                                        }`}
+                                            }`}
                                     >
                                         {/* Status Dot */}
                                         <div className="pt-1 shrink-0">
@@ -321,9 +318,8 @@ const NotificationsPage = () => {
                                                 </time>
                                             </div>
 
-                                            <h3 className={`text-xs sm:text-sm font-bold leading-snug break-words ${
-                                                !notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
-                                            }`}>
+                                            <h3 className={`text-xs sm:text-sm font-bold leading-snug break-words ${!notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
+                                                }`}>
                                                 {title}
                                             </h3>
 

@@ -75,6 +75,7 @@ describe('NotificationBell incident communications popover', () => {
     ];
 
     beforeEach(() => {
+        window.innerWidth = 1024;
         mocks.user = { role: 'reporter' };
         mocks.unreadCount = 1;
         mocks.getAll.mockReset();
@@ -163,7 +164,8 @@ describe('NotificationBell incident communications popover', () => {
     test('dismisses panel when pressing Escape key', async () => {
         renderBell();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+        const bellBtn = screen.getByRole('button', { name: 'Notifications, 1 unread' });
+        fireEvent.click(bellBtn);
         expect(await screen.findByRole('dialog', { name: 'Incident communications' })).toBeInTheDocument();
 
         fireEvent.keyDown(window, { key: 'Escape' });
@@ -171,5 +173,124 @@ describe('NotificationBell incident communications popover', () => {
         await waitFor(() => {
             expect(screen.queryByRole('dialog', { name: 'Incident communications' })).not.toBeInTheDocument();
         });
+    });
+
+    test('renders mobile bottom sheet with portaled backdrop at mobile viewport widths and dismisses on backdrop click', async () => {
+        window.innerWidth = 390;
+        renderBell();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+
+        const dialog = await screen.findByRole('dialog', { name: 'Incident communications' });
+        expect(dialog).toBeInTheDocument();
+
+        const backdrop = screen.getByTestId('notification-backdrop');
+        expect(backdrop).toBeInTheDocument();
+
+        fireEvent.click(backdrop);
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog', { name: 'Incident communications' })).not.toBeInTheDocument();
+        });
+    });
+
+    test('displays error message and recovers on clicking Try again', async () => {
+        mocks.getAll.mockRejectedValueOnce(new Error('Network error'));
+        renderBell();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+
+        expect(await screen.findByText(/Unable to load communications/i)).toBeInTheDocument();
+
+        const tryAgainBtn = screen.getByRole('button', { name: /Try again/i });
+        mocks.getAll.mockResolvedValueOnce({
+            data: {
+                data: {
+                    notifications: sampleNotifications,
+                    unreadCount: 1,
+                },
+            },
+        });
+
+        fireEvent.click(tryAgainBtn);
+
+        expect(await screen.findByText('Your report in Poblacion has been verified by MDRRMO.')).toBeInTheDocument();
+    });
+
+    test('renders full long incident titles, addresses, and messages without truncation', async () => {
+        const longNotification = {
+            _id: 'notif-long',
+            type: 'report_update',
+            title: 'Urgent assistance requested for multiple vehicle collision with blocked roadway',
+            message: 'Three passenger vehicles involved on slippery curve near mountain pass. Local responders and medical triage dispatched immediately.',
+            isRead: false,
+            createdAt: '2026-08-22T08:15:00.000Z',
+            data: {
+                reportId: '64b100000000000000000099',
+                address: 'Sitio Upper Crossing, Barangay Mabini Highway km 34, San Fernando, Sibuyan Island',
+                updatePreview: 'Three passenger vehicles involved on slippery curve near mountain pass. Local responders and medical triage dispatched immediately.',
+                priority: 'urgent',
+            },
+        };
+
+        mocks.getAll.mockResolvedValue({
+            data: {
+                data: {
+                    notifications: [longNotification],
+                    unreadCount: 1,
+                },
+            },
+        });
+
+        renderBell();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+
+        expect(await screen.findByRole('dialog', { name: 'Incident communications' })).toBeInTheDocument();
+        expect(screen.getByText('Sitio Upper Crossing, Barangay Mabini Highway km 34, San Fernando, Sibuyan Island')).toBeInTheDocument();
+        expect(screen.getByText(/Three passenger vehicles involved on slippery curve/i)).toBeInTheDocument();
+    });
+
+    test('navigates to /notifications when clicking View full inbox', async () => {
+        renderBell();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+        expect(await screen.findByRole('dialog', { name: 'Incident communications' })).toBeInTheDocument();
+
+        const viewInboxBtn = screen.getByRole('button', { name: /View full inbox/i });
+        fireEvent.click(viewInboxBtn);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('location')).toHaveTextContent('/notifications');
+            expect(screen.queryByRole('dialog', { name: 'Incident communications' })).not.toBeInTheDocument();
+        });
+    });
+
+    test('traps focus inside the dialog and cycles between interactive elements on Tab and Shift+Tab', async () => {
+        renderBell();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Incident communications' });
+        expect(dialog).toBeInTheDocument();
+
+        const interactiveElements = dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        expect(interactiveElements.length).toBeGreaterThan(1);
+
+        const firstElement = interactiveElements[0];
+        const lastElement = interactiveElements[interactiveElements.length - 1];
+
+        // Focus last element and press Tab -> should wrap to first element
+        lastElement.focus();
+        expect(document.activeElement).toBe(lastElement);
+
+        fireEvent.keyDown(window, { key: 'Tab', shiftKey: false });
+        expect(document.activeElement).toBe(firstElement);
+
+        // Focus first element and press Shift+Tab -> should wrap to last element
+        firstElement.focus();
+        expect(document.activeElement).toBe(firstElement);
+
+        fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(lastElement);
     });
 });

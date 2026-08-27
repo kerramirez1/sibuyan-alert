@@ -1074,4 +1074,89 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(mapProps.reports).toEqual(publicReports);
         });
     });
+
+    describe('Mobile-First Responsive Layout and Typography', () => {
+        test('1. Renders responsive header and submit report button with break-words and accessible sizing', () => {
+            renderWorkspace(createProps({
+                user: { _id: 'reporter-1', role: 'reporter' },
+                isAuthenticated: true,
+                isReporter: true,
+                isResponder: false,
+                isAdmin: false,
+            }));
+
+            const heading = screen.getByRole('heading', { level: 1 });
+            expect(heading).toHaveClass('break-words');
+            expect(heading).toHaveTextContent('Sibuyan Island incident map');
+
+            const submitBtn = screen.getByRole('link', { name: /Submit report/i });
+            expect(submitBtn).toBeInTheDocument();
+            expect(submitBtn).toHaveClass('min-h-[44px]', 'sm:min-h-9');
+        });
+
+        test('2. Overview metrics items render with tabular numbers, distinct labels, and wrap gracefully', () => {
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isReporter: false,
+                isResponder: false,
+                isAdmin: false,
+                reports: [
+                    { _id: 'r1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+                    { _id: 'r2', status: 'responding', coordinates: { lat: 12.41, lng: 122.61 } },
+                ],
+                highRiskZones: [
+                    { _id: 'z1', name: 'Very Long Zone Name In A Complex Terrain Area', type: 'flood', coordinates: { lat: 12.42, lng: 122.62 } },
+                ],
+            }));
+
+            const summary = screen.getByRole('region', { name: 'Map summary' });
+            const metricButtons = within(summary).getAllByRole('button');
+            expect(metricButtons).toHaveLength(4);
+
+            metricButtons.forEach((btn) => {
+                expect(btn).toHaveClass('min-h-[96px]');
+                expect(btn).toHaveClass('p-3.5', 'sm:p-4');
+                const num = btn.querySelector('.tabular-nums');
+                expect(num).toBeInTheDocument();
+            });
+        });
+
+        test('3. Long zone names, addresses, and hazard types render without layout breakage in summary panel', () => {
+            const longZone = {
+                _id: 'zone-long-1',
+                name: 'Hazardous Landslide Area along Mountain Highway km 42 with Ongoing Soil Instability',
+                type: 'landslide',
+                address: 'Sitio Upper Malindog, Barangay Poblacion, Municipality of San Fernando, Sibuyan Island',
+                description: 'Steep incline zone subject to sudden mudflows during continuous heavy rainfall periods.',
+                radius: 350,
+                coordinates: { lat: 12.35, lng: 122.55 },
+            };
+
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isReporter: false,
+                isResponder: false,
+                isAdmin: false,
+                highRiskZones: [longZone],
+                mapSummaryPanel: 'overview:public-risk-zones',
+            }));
+
+            const panel = screen.getByRole('dialog', { name: /Active Risk Zones/i });
+            expect(panel).toBeInTheDocument();
+            expect(within(panel).getByText(longZone.name)).toHaveClass('break-words');
+            expect(within(panel).getByText(longZone.address)).toHaveClass('break-words');
+
+            const viewDetailsBtn = within(panel).getByRole('button', { name: /View details/i });
+            const locateBtn = within(panel).getByRole('button', { name: /Locate/i });
+
+            expect(viewDetailsBtn).toBeInTheDocument();
+            expect(locateBtn).toBeInTheDocument();
+
+            // Distinct actions: clicking View details opens zone details
+            fireEvent.click(viewDetailsBtn);
+            expect(within(panel).getByRole('button', { name: /Back to (active )?risk zones/i })).toBeInTheDocument();
+        });
+    });
 });

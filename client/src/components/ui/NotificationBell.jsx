@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useId, useMemo } from 'react';
+import { useState, useEffect, useRef, useId, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from '../../router';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +16,7 @@ import {
     HiOutlineCheck,
     HiOutlineChevronRight,
     HiOutlineInbox,
+    HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
 
@@ -85,13 +87,27 @@ const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unread'
+    const [isMobile, setIsMobile] = useState(() => (
+        typeof window !== 'undefined' ? window.innerWidth < 640 : false
+    ));
     const { unreadCount, setUnreadCount, socket } = useSocket();
     const { user } = useAuth();
     const navigate = useNavigate();
     const dropdownRef = useRef(null);
     const buttonRef = useRef(null);
     const panelId = useId();
+
+    // Viewport resize tracking for mobile drawer vs desktop popover
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 640);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Sound effect
     const playNotificationSound = () => {
@@ -143,14 +159,28 @@ const NotificationBell = () => {
         };
     }, [socket, setUnreadCount, user?.role]);
 
+    const fetchNotifications = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await notificationsAPI.getAll({ limit: 25 });
+            setNotifications(response.data.data.notifications || []);
+        } catch (err) {
+            console.error('Failed to fetch notifications:', err);
+            setError('Unable to load communications. Please check your network connection.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Fetch on open
     useEffect(() => {
         if (isOpen) {
             fetchNotifications();
         }
-    }, [isOpen]);
+    }, [isOpen, fetchNotifications]);
 
-    // Outside click & Escape handler
+    // Outside click, Escape handler, and Focus Trap
     useEffect(() => {
         if (!isOpen) return undefined;
 
@@ -165,6 +195,29 @@ const NotificationBell = () => {
                 e.preventDefault();
                 setIsOpen(false);
                 buttonRef.current?.focus();
+                return;
+            }
+
+            if (e.key === 'Tab' && dropdownRef.current) {
+                const focusableElements = dropdownRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement || !dropdownRef.current.contains(document.activeElement)) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastElement || !dropdownRef.current.contains(document.activeElement)) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
             }
         };
 
@@ -191,18 +244,6 @@ const NotificationBell = () => {
         return () => clearInterval(interval);
     }, [setUnreadCount]);
 
-    const fetchNotifications = async () => {
-        setLoading(true);
-        try {
-            const response = await notificationsAPI.getAll({ limit: 25 });
-            setNotifications(response.data.data.notifications || []);
-        } catch (error) {
-            console.error('Failed to fetch notifications:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const markAsRead = async (id) => {
         try {
             await notificationsAPI.markAsRead(id);
@@ -210,8 +251,8 @@ const NotificationBell = () => {
                 prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
             );
             setUnreadCount((prev) => Math.max(0, prev - 1));
-        } catch (error) {
-            console.error('Failed to mark as read:', error);
+        } catch (err) {
+            console.error('Failed to mark as read:', err);
         }
     };
 
@@ -230,8 +271,8 @@ const NotificationBell = () => {
             await notificationsAPI.markAllAsRead();
             setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
             setUnreadCount(0);
-        } catch (error) {
-            console.error('Failed to mark all as read:', error);
+        } catch (err) {
+            console.error('Failed to mark all as read:', err);
         }
     };
 
@@ -243,9 +284,197 @@ const NotificationBell = () => {
         ? `Notifications, ${unreadCount} unread`
         : 'Notifications';
 
+    const renderPanelContent = () => (
+        <>
+            {/* Header */}
+            <div className="border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02] shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <h3 className="font-display text-xs sm:text-sm font-bold text-gray-950 dark:text-white truncate">
+                            Incident communications
+                        </h3>
+                        {unreadCount > 0 && (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                {unreadCount} unread
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                        {unreadCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={markAllAsRead}
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:bg-white/5 cursor-pointer min-h-[32px]"
+                            >
+                                <HiOutlineCheck className="h-3.5 w-3.5" />
+                                <span>Mark all read</span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                buttonRef.current?.focus();
+                            }}
+                            aria-label="Close notification panel"
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
+                        >
+                            <HiOutlineX className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Segmented Tabs */}
+                <div className="mt-2.5 flex items-center gap-3 text-xs font-semibold" role="tablist">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === 'all'}
+                        onClick={() => setActiveTab('all')}
+                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xs ${
+                            activeTab === 'all'
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                        }`}
+                    >
+                        <span>All</span>
+                        {activeTab === 'all' && (
+                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === 'unread'}
+                        onClick={() => setActiveTab('unread')}
+                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xs ${
+                            activeTab === 'unread'
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                        }`}
+                    >
+                        <span>Unread</span>
+                        {unreadCount > 0 && <span className="ml-1 text-[11px] font-bold">({unreadCount})</span>}
+                        {activeTab === 'unread' && (
+                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Notification Items List */}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain divide-y divide-gray-100 dark:divide-white/5">
+                {loading && notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center px-4 space-y-2">
+                        <HiOutlineRefresh className="h-6 w-6 animate-spin text-emerald-600 dark:text-emerald-400" />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            Loading communications...
+                        </p>
+                    </div>
+                ) : error ? (
+                    <div className="p-4 text-center space-y-2.5">
+                        <p className="text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>
+                        <button
+                            type="button"
+                            onClick={fetchNotifications}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
+                        >
+                            <HiOutlineRefresh className="h-3.5 w-3.5" />
+                            <span>Try again</span>
+                        </button>
+                    </div>
+                ) : filteredNotifications.length === 0 ? (
+                    <div className="py-10 text-center px-4">
+                        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500">
+                            <HiOutlineInbox className="h-5 w-5" />
+                        </div>
+                        <p className="mt-2 text-xs font-bold text-gray-950 dark:text-white">
+                            {activeTab === 'unread' ? 'You are up to date.' : 'No incident updates yet.'}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                            {activeTab === 'unread' ? 'No unread notifications in your feed.' : 'New report activity will appear here.'}
+                        </p>
+                    </div>
+                ) : (
+                    filteredNotifications.map((notification) => {
+                        const marker = getEventMarker(notification);
+                        const address = notification.data?.address;
+                        const title = cleanNotificationTitle(notification.title);
+                        const message = notification.data?.updatePreview || cleanNotificationMessage(notification.message);
+                        const timeStr = getRelativeTime(notification.createdAt);
+
+                        return (
+                            <button
+                                key={notification._id}
+                                type="button"
+                                onClick={() => handleNotificationClick(notification)}
+                                className={`group flex w-full items-start gap-3 p-3 sm:p-3.5 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
+                                    !notification.isRead
+                                        ? 'bg-emerald-50/30 hover:bg-emerald-50/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35'
+                                        : 'bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
+                                }`}
+                            >
+                                {/* Leading Status Dot */}
+                                <div className="pt-1 shrink-0">
+                                    <span className={`block h-2 w-2 rounded-full ${marker.dot}`} aria-hidden="true" />
+                                </div>
+
+                                {/* Content */}
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${marker.badge}`}>
+                                            {marker.label}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+                                            {timeStr}
+                                        </span>
+                                    </div>
+
+                                    {/* Primary Context: Address or Title */}
+                                    <p className={`text-xs font-bold leading-snug break-words ${
+                                        !notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
+                                    }`}>
+                                        {address || title}
+                                    </p>
+
+                                    {/* Supporting Message */}
+                                    {message && (
+                                        <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed break-words">
+                                            {message}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Navigation Affordance */}
+                                <div className="pt-1 shrink-0 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                                    <HiOutlineChevronRight className="h-3.5 w-3.5" />
+                                </div>
+                            </button>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200/80 bg-gray-50/70 p-2.5 sm:px-3.5 dark:border-white/10 dark:bg-white/[0.02] flex items-center justify-end shrink-0">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setIsOpen(false);
+                        navigate('/notifications');
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-sm dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer py-1 px-2"
+                >
+                    <span>View full inbox</span>
+                    <span aria-hidden="true">&rarr;</span>
+                </button>
+            </div>
+        </>
+    );
+
     return (
         <div className="relative">
-            {/* Bell Trigger */}
+            {/* Bell Trigger Button */}
             <button
                 ref={buttonRef}
                 type="button"
@@ -264,195 +493,46 @@ const NotificationBell = () => {
                 )}
             </button>
 
-            {/* Desktop Popover / Mobile Drawer */}
-            {isOpen && (
-                <>
-                    {/* Mobile Backdrop */}
+            {/* Mobile Bottom Sheet (Portaled to document.body to avoid header stacking-context traps) */}
+            {isOpen && isMobile && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    {/* Backdrop */}
                     <div
-                        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs sm:hidden"
+                        data-testid="notification-backdrop"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
                         onClick={() => setIsOpen(false)}
                         aria-hidden="true"
                     />
 
-                    {/* Popover / Drawer Content */}
+                    {/* Bottom Sheet Modal */}
                     <div
                         ref={dropdownRef}
                         id={panelId}
                         role="dialog"
+                        aria-modal="true"
                         aria-label="Incident communications"
-                        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[500px] sm:w-[400px] md:w-[420px] sm:rounded-2xl sm:shadow-xl"
+                        className="relative z-10 flex h-[min(540px,85dvh)] max-h-[85dvh] w-full flex-col rounded-t-2xl border-t border-x border-gray-200/90 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl dark:border-white/10 dark:bg-[#0c1813] overscroll-contain animate-in slide-in-from-bottom duration-200"
                     >
-                        {/* Header */}
-                        <div className="border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-display text-xs sm:text-sm font-bold text-gray-950 dark:text-white">
-                                        Incident communications
-                                    </h3>
-                                    {unreadCount > 0 && (
-                                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                            {unreadCount} unread
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    {unreadCount > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={markAllAsRead}
-                                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-white/5 cursor-pointer"
-                                        >
-                                            <HiOutlineCheck className="h-3.5 w-3.5" />
-                                            <span>Mark all read</span>
-                                        </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsOpen(false)}
-                                        aria-label="Close notification panel"
-                                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
-                                    >
-                                        <HiOutlineX className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Understated Segmented Tabs */}
-                            <div className="mt-2.5 flex items-center gap-3 text-xs font-semibold" role="tablist">
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={activeTab === 'all'}
-                                    onClick={() => setActiveTab('all')}
-                                    className={`relative pb-1 transition-colors cursor-pointer ${
-                                        activeTab === 'all'
-                                            ? 'text-emerald-700 dark:text-emerald-400'
-                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                    }`}
-                                >
-                                    <span>All</span>
-                                    {activeTab === 'all' && (
-                                        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={activeTab === 'unread'}
-                                    onClick={() => setActiveTab('unread')}
-                                    className={`relative pb-1 transition-colors cursor-pointer ${
-                                        activeTab === 'unread'
-                                            ? 'text-emerald-700 dark:text-emerald-400'
-                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                    }`}
-                                >
-                                    <span>Unread</span>
-                                    {unreadCount > 0 && <span className="ml-1 text-[11px] font-bold">({unreadCount})</span>}
-                                    {activeTab === 'unread' && (
-                                        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Notification Items List */}
-                        <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5 max-h-[360px] sm:max-h-[380px]">
-                            {loading && notifications.length === 0 ? (
-                                <div className="space-y-3 p-4">
-                                    {[1, 2, 3].map((skeletonIndex) => (
-                                        <div key={skeletonIndex} className="animate-pulse space-y-2 py-1">
-                                            <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-white/10" />
-                                            <div className="h-2.5 w-1/2 rounded bg-gray-100 dark:bg-white/5" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : filteredNotifications.length === 0 ? (
-                                <div className="py-10 text-center px-4">
-                                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500">
-                                        <HiOutlineInbox className="h-5 w-5" />
-                                    </div>
-                                    <p className="mt-2 text-xs font-bold text-gray-950 dark:text-white">
-                                        {activeTab === 'unread' ? 'You are up to date.' : 'No incident updates yet.'}
-                                    </p>
-                                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                        {activeTab === 'unread' ? 'No unread notifications in your feed.' : 'New report activity will appear here.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                filteredNotifications.map((notification) => {
-                                    const marker = getEventMarker(notification);
-                                    const address = notification.data?.address;
-                                    const title = cleanNotificationTitle(notification.title);
-                                    const message = notification.data?.updatePreview || cleanNotificationMessage(notification.message);
-                                    const timeStr = getRelativeTime(notification.createdAt);
-
-                                    return (
-                                        <button
-                                            key={notification._id}
-                                            type="button"
-                                            onClick={() => handleNotificationClick(notification)}
-                                            className={`group flex w-full items-start gap-3 p-3.5 text-left transition-colors cursor-pointer ${
-                                                !notification.isRead
-                                                    ? 'bg-emerald-50/25 hover:bg-emerald-50/50 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/25'
-                                                    : 'bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
-                                            }`}
-                                        >
-                                            {/* Leading Status Indicator Dot */}
-                                            <div className="pt-1 shrink-0">
-                                                <span className={`block h-2 w-2 rounded-full ${marker.dot}`} aria-hidden="true" />
-                                            </div>
-
-                                            {/* Content */}
-                                            <div className="min-w-0 flex-1 space-y-0.5">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${marker.badge}`}>
-                                                        {marker.label}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
-                                                        {timeStr}
-                                                    </span>
-                                                </div>
-
-                                                {/* Incident Context / Address */}
-                                                <p className={`text-xs font-bold leading-snug break-words ${
-                                                    !notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
-                                                }`}>
-                                                    {address || title}
-                                                </p>
-
-                                                {/* Supporting Message */}
-                                                {message && (
-                                                    <p className="line-clamp-2 text-[11px] text-gray-600 dark:text-gray-400 leading-normal">
-                                                        {message}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Chevron Action */}
-                                            <div className="pt-1 shrink-0 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
-                                                <HiOutlineChevronRight className="h-3.5 w-3.5" />
-                                            </div>
-                                        </button>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {/* Quiet Footer */}
-                        <div className="border-t border-gray-200/80 bg-gray-50/70 p-2.5 sm:px-3.5 dark:border-white/10 dark:bg-white/[0.02] flex items-center justify-end">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsOpen(false);
-                                    navigate('/notifications');
-                                }}
-                                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
-                            >
-                                View full inbox &rarr;
-                            </button>
-                        </div>
+                        {/* Drag Handle Indicator */}
+                        <div className="mx-auto mt-2.5 mb-1 h-1 w-10 shrink-0 rounded-full bg-gray-300 dark:bg-white/20" aria-hidden="true" />
+                        {renderPanelContent()}
                     </div>
-                </>
+                </div>,
+                document.body
+            )}
+
+            {/* Desktop Anchored Popover */}
+            {isOpen && !isMobile && (
+                <div
+                    ref={dropdownRef}
+                    id={panelId}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Incident communications"
+                    className="absolute right-0 top-full mt-2 z-50 flex max-h-[min(520px,calc(100dvh-5rem))] w-[380px] md:w-[400px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-gray-200/90 bg-white shadow-xl dark:border-white/10 dark:bg-[#0c1813]"
+                >
+                    {renderPanelContent()}
+                </div>
             )}
         </div>
     );

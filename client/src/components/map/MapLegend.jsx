@@ -40,8 +40,8 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
     }
 
     const itemClass = compact
-        ? 'flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-200'
-        : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-[11px] font-medium text-gray-700 dark:text-gray-200';
+        ? 'flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-gray-100'
+        : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-gray-700 dark:text-gray-200';
 
     return (
         <div className={compact ? 'space-y-2' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-3 sm:gap-x-3.5 gap-y-1'}>
@@ -122,7 +122,7 @@ const MapLegend = ({
         <>
             <section
                 aria-label="Map legend"
-                className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white/95 px-3 sm:px-3.5 py-1 backdrop-blur-md shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
+                className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white/95 px-3.5 py-1 backdrop-blur-md shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
             >
                 <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
             </section>
@@ -134,18 +134,18 @@ const MapLegend = ({
                     aria-expanded={mobileOpen}
                     aria-controls={popoverId}
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-800 backdrop-blur-md shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e]"
+                    className="inline-flex min-h-[38px] sm:min-h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-800 backdrop-blur-md shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e]"
                 >
-                    <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                    <HiOutlineMap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                     Map legend
                 </button>
                 {mobileOpen && (
                     <section
                         id={popoverId}
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-52 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4"
+                        className="absolute left-0 top-11 w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-3.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 sm:p-4 z-30"
                     >
-                        <p className="pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sm:pb-2 sm:text-[10px]">Map legend</p>
+                        <p className="pb-2 text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
                     </section>
                 )}
