@@ -184,8 +184,8 @@ const ReportDetailsPanel = ({
                                         min="0"
                                         max="999"
                                         className={`${inputClass} text-center font-bold ${isNonZero
-                                                ? 'border-amber-400 bg-amber-50/40 text-amber-950 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
-                                                : ''
+                                            ? 'border-amber-400 bg-amber-50/40 text-amber-950 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
+                                            : ''
                                             }`}
                                     />
                                 </div>

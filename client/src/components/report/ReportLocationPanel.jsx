@@ -27,7 +27,7 @@ const STATUS_CONFIG = {
         dot: 'bg-emerald-500',
     },
     confirmed: {
-        label: 'GPS location confirmed',
+        label: 'Location confirmed',
         badge: 'border-emerald-200/90 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300',
         dot: 'bg-emerald-500',
     },
@@ -69,57 +69,39 @@ const ReportLocationPanel = ({
             aria-labelledby="location-heading"
         >
             {/* Header & Controls */}
-            <div className="border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <HiOutlineLocationMarker className="h-4 w-4" />
+            <div className="border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                {/* Step 1 Title on Left, Status Badge on Right */}
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <HiOutlineLocationMarker className="h-3.5 w-3.5" />
                         </span>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 leading-none">
+                        <div className="min-w-0 flex flex-col justify-center">
+                            <p className="text-[9.5px] xs:text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 leading-none">
                                 Step 1 of 4
                             </p>
-                            <h2 id="location-heading" className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white leading-none">
+                            <h2 id="location-heading" className="mt-0.5 text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white leading-none truncate">
                                 Incident location
                             </h2>
                         </div>
                     </div>
 
-                    <div className="flex min-w-0 flex-nowrap items-center gap-1.5 sm:gap-2 sm:shrink-0">
-                        <span className={`inline-flex h-8 shrink items-center gap-1.5 rounded-lg border px-2 sm:px-2.5 text-[10.5px] xs:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap select-none ${status.badge}`}>
+                    <div className="flex shrink-0 items-center">
+                        <span className={`inline-flex h-6.5 sm:h-7 items-center gap-1.5 rounded-lg border px-2 sm:px-2.5 text-[10px] xs:text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap select-none ${status.badge}`}>
                             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot} ${locationStatus === 'detecting' ? 'animate-pulse' : ''}`} aria-hidden="true" />
-                            <span className="truncate">{status.label}</span>
+                            <span>{status.label}</span>
                         </span>
-
-                        {locationStatus === 'idle' ? (
-                            <button
-                                type="button"
-                                onClick={detectLocation}
-                                disabled={geoLoading}
-                                className="relative inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 sm:px-3 text-[10.5px] xs:text-[11px] font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer whitespace-nowrap before:absolute before:-inset-1.5 before:content-['']"
-                            >
-                                <HiOutlineLocationMarker className="h-3.5 w-3.5 shrink-0 text-emerald-200 dark:text-emerald-300" aria-hidden="true" />
-                                <span>Use my location</span>
-                            </button>
-                        ) : ['selected', 'confirmed'].includes(locationStatus) ? (
-                            <button
-                                type="button"
-                                onClick={retryLocation}
-                                className="relative inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-2.5 sm:px-3 text-[10.5px] xs:text-[11px] font-bold uppercase tracking-wider text-gray-700 shadow-2xs transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer whitespace-nowrap before:absolute before:-inset-1.5 before:content-['']"
-                            >
-                                <span>Change</span>
-                            </button>
-                        ) : null}
                     </div>
                 </div>
 
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed sm:leading-normal">
+                {/* Instructional Text */}
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed sm:leading-normal">
                     Pin the incident location so authorities can verify and dispatch the report.
                 </p>
 
-                {/* Search Bar */}
-                <div className="relative mt-3">
-                    <div className="flex gap-2" role="search">
+                {/* Search Bar & Actions */}
+                <div className="relative mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 gap-2" role="search">
                         <label className="relative min-w-0 flex-1">
                             <span className="sr-only">Search for an incident location</span>
                             <HiOutlineSearch className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -138,11 +120,31 @@ const ReportLocationPanel = ({
                             type="button"
                             onClick={submitSearch}
                             disabled={isSearching || !searchQuery.trim()}
-                            className="inline-flex h-9 items-center justify-center rounded-xl bg-gray-900 px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/10 dark:hover:bg-white/15 cursor-pointer"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-gray-900 px-3.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/10 dark:hover:bg-white/15 cursor-pointer"
                         >
                             {isSearching ? 'Searching…' : 'Search'}
                         </button>
                     </div>
+
+                    {locationStatus === 'idle' ? (
+                        <button
+                            type="button"
+                            onClick={detectLocation}
+                            disabled={geoLoading}
+                            className="relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-3 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer whitespace-nowrap before:absolute before:-inset-1 before:content-['']"
+                        >
+                            <HiOutlineLocationMarker className="h-3.5 w-3.5 shrink-0 text-emerald-200 dark:text-emerald-300" aria-hidden="true" />
+                            <span>{geoLoading ? 'Locating…' : 'Use my location'}</span>
+                        </button>
+                    ) : ['selected', 'confirmed'].includes(locationStatus) ? (
+                        <button
+                            type="button"
+                            onClick={retryLocation}
+                            className="relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3 text-xs font-bold uppercase tracking-wider text-gray-700 shadow-2xs transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer whitespace-nowrap before:absolute before:-inset-1 before:content-['']"
+                        >
+                            <span>Change</span>
+                        </button>
+                    ) : null}
 
                     {searchResults.length > 0 && (
                         <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200/90 bg-white shadow-lg dark:divide-white/5 dark:border-white/10 dark:bg-[#0c1813]">
@@ -174,7 +176,7 @@ const ReportLocationPanel = ({
             </div>
 
             {/* Interactive Map View */}
-            <div className="aspect-square w-full min-h-0 overflow-hidden sm:aspect-auto sm:h-[340px] lg:h-[380px]">
+            <div className="aspect-[4/3] w-full min-h-0 overflow-hidden sm:aspect-auto sm:h-[320px] lg:h-[360px]">
                 <MapView
                     mode="report-location"
                     onLocationSelect={handleLocationSelect}
