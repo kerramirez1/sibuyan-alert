@@ -149,7 +149,7 @@ describe('AccidentHistoryPage features and filters', () => {
 
         await screen.findByRole('heading', { level: 1, name: 'Accident history' });
 
-        const searchInput = screen.getByPlaceholderText('Search location, barangay, or incident type');
+        const searchInput = screen.getByPlaceholderText(/Search (location|archive)/i);
         fireEvent.change(searchInput, { target: { value: 'Today' } });
 
         expect(screen.getByText((_, element) => (
@@ -282,7 +282,7 @@ describe('AccidentHistoryPage features and filters', () => {
 
         await screen.findByRole('heading', { level: 1, name: 'Accident history' });
 
-        const searchInput = screen.getByPlaceholderText('Search location, barangay, or incident type');
+        const searchInput = screen.getByPlaceholderText(/Search (location|archive)/i);
         fireEvent.change(searchInput, { target: { value: 'NonExistentPlace' } });
 
         expect(screen.getByRole('heading', { level: 2, name: 'No accident records found' })).toBeInTheDocument();

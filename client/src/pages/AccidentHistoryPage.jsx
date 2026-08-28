@@ -297,7 +297,17 @@ const AccidentHistoryPage = () => {
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerImage, setViewerImage] = useState(null);
     const [filterModalOpen, setFilterModalOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => (
+        typeof window !== 'undefined' ? window.innerWidth < 640 : false
+    ));
     const itemRefs = useRef({});
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const handleResize = () => setIsMobile(window.innerWidth < 640);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const canViewFullDetails = useMemo(() => (
         Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
@@ -619,7 +629,7 @@ const AccidentHistoryPage = () => {
             {/* Compact Archive Summary Strip */}
             <section className="grid grid-cols-2 divide-y divide-gray-200/80 rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 overflow-hidden" aria-label="History summary">
                 {/* 1. Total Resolved */}
-                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineBadgeCheck className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total resolved</h2>
@@ -627,11 +637,11 @@ const AccidentHistoryPage = () => {
                     <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.total}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">All recorded incidents</p>
+                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All recorded incidents</p>
                 </div>
 
                 {/* 2. Last 7 Days */}
-                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineClock className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 7 days</h2>
@@ -639,11 +649,11 @@ const AccidentHistoryPage = () => {
                     <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.last7}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">Recently closed</p>
+                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Recently closed</p>
                 </div>
 
                 {/* 3. Last 30 Days */}
-                <div className="p-3 sm:p-3.5 flex flex-col justify-between">
+                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineCalendar className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 30 days</h2>
@@ -651,7 +661,7 @@ const AccidentHistoryPage = () => {
                     <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.last30}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">Monthly activity</p>
+                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Monthly activity</p>
                 </div>
 
                 {/* 4. Top Barangay Insight */}
@@ -666,7 +676,7 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`p-3 sm:p-3.5 flex flex-col justify-between text-left transition-colors relative ${
+                    className={`p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left transition-colors relative ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data'
                             ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30'
                             : ''
@@ -679,14 +689,14 @@ const AccidentHistoryPage = () => {
                         </div>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
                             <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
-                                {barangayFilter === topBarangayInfo.name ? 'Clear filter' : `View ${topBarangayInfo.name}`}
+                                {barangayFilter === topBarangayInfo.name ? 'Clear' : 'View'}
                             </span>
                         )}
                     </div>
                     <p className="mt-1 font-display font-bold text-base sm:text-lg text-gray-950 dark:text-white truncate tracking-tight">
                         {topBarangayInfo.name}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">{topBarangayInfo.helper}</p>
+                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{topBarangayInfo.helper}</p>
                 </div>
             </section>
 
@@ -698,12 +708,12 @@ const AccidentHistoryPage = () => {
                         {/* Primary Search Input */}
                         <label className="relative block flex-1 min-w-[200px]">
                             <span className="sr-only">Search accident history</span>
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
-                                placeholder="Search location, barangay, or incident type"
+                                placeholder={isMobile ? 'Search archive or barangay…' : 'Search location, barangay, or incident category…'}
                                 className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-8 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                             />
                             {searchQuery && (
