@@ -456,7 +456,7 @@ const ReportPage = () => {
     return (
         <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
             {/* Page Header */}
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -470,20 +470,18 @@ const ReportPage = () => {
                         Submit incident report
                     </h1>
                     <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                        Pin the incident location and provide the information authorities need to verify and dispatch the report.
+                        Pin the incident location and provide the details authorities need to verify and dispatch response units.
+                        <span className="mt-0.5 block text-[11px] text-gray-400 dark:text-gray-500">
+                            Required fields are marked with an asterisk (<span className="text-emerald-700 dark:text-emerald-400 font-bold">*</span>).
+                        </span>
                     </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    <span className="inline-flex items-center rounded-lg border border-gray-200/90 bg-gray-50/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                        Required fields marked <span className="ml-1 text-emerald-700 dark:text-emerald-400 font-black">*</span>
-                    </span>
                 </div>
             </header>
 
-            {/* Guided Form Layout */}
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
-                {/* Left Column: Location Map */}
-                <div className="lg:sticky lg:top-20">
+            {/* Guided Form Layout (2-column desktop/tablet, sequential mobile) */}
+            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
+                {/* Left Column: Interactive Location Map (Sticky on Desktop) */}
+                <div className="w-full lg:sticky lg:top-20 self-start">
                     <ReportLocationPanel
                         locationStatus={locationStatus}
                         geoLoading={geoLoading}
@@ -509,7 +507,7 @@ const ReportPage = () => {
                 </div>
 
                 {/* Right Column: Incident Details, Casualties, Evidence, and Review */}
-                <div>
+                <div className="w-full">
                     <ReportDetailsPanel
                         formData={formData}
                         setFormData={setFormData}

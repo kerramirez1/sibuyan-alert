@@ -338,13 +338,12 @@ const ReporterDashboardPage = () => {
                                     return (
                                         <div
                                             key={step.key}
-                                            className={`flex flex-col rounded-xl border p-2.5 transition-colors ${
-                                                isCurrent
+                                            className={`flex flex-col rounded-xl border p-2.5 transition-colors ${isCurrent
                                                     ? 'border-emerald-600/90 bg-emerald-50/80 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/30 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-200'
                                                     : isCompleted
                                                         ? 'border-gray-200/80 bg-gray-50/60 text-gray-800 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300'
                                                         : 'border-dashed border-gray-200/60 bg-transparent text-gray-400 dark:border-white/5 dark:text-gray-600 opacity-60'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-mono font-bold">{`0${idx + 1}`}</span>

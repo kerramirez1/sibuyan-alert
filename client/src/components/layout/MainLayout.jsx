@@ -383,38 +383,38 @@ const MainLayout = ({ children }) => {
                 {/* Main Content Area */}
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-950">
                     {/* Operational Header */}
-                    <header className="h-14 sm:h-16 flex items-center justify-between border-b border-gray-200/80 bg-white/90 px-4 backdrop-blur-md sticky top-0 z-30 dark:border-white/10 dark:bg-gray-950/90 sm:px-6 lg:px-8">
-                        <div className="flex items-center gap-3">
+                    <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-3 border-b border-gray-200/80 bg-white/90 px-2.5 sm:px-4 lg:px-8 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/90">
+                        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
                             <button
                                 ref={menuButtonRef}
                                 type="button"
                                 onClick={openDrawer}
                                 aria-label="Open navigation menu"
                                 aria-expanded={sidebarOpen}
-                                className="-ml-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg text-brand-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:hidden dark:text-gray-300 dark:hover:bg-white/10"
+                                className="inline-flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 active:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
                             >
-                                <HiOutlineMenu className="w-5 h-5" />
+                                <HiOutlineMenu className="h-5 w-5" />
                             </button>
 
-                            <div className="flex flex-col">
-                                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                            <div className="flex-1 min-w-0 px-1">
+                                <span className="block text-xs sm:text-sm font-bold font-display tracking-tight text-gray-900 truncate leading-tight uppercase dark:text-white">
                                     Sibuyan Island Operations
                                 </span>
-                                <p className="hidden md:block text-[11px] text-gray-500 dark:text-gray-400">
+                                <p className="hidden md:block text-[11px] text-gray-500 dark:text-gray-400 truncate">
                                     Cajidiocan <span className="text-gray-300 dark:text-gray-700">·</span> Magdiwang <span className="text-gray-300 dark:text-gray-700">·</span> San Fernando Municipal Alert System
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link
                                     to="/login"
-                                    className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 sm:px-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                                    className="inline-flex h-8 items-center justify-center gap-1 px-2.5 rounded-lg bg-brand-700 hover:bg-brand-800 active:bg-brand-900 text-xs font-bold text-white transition-colors whitespace-nowrap leading-none shrink-0 shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer"
                                 >
-                                    <HiOutlineLogin className="h-3.5 w-3.5" />
-                                    <span>Sign In</span>
+                                    <HiOutlineLogin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                    <span>SIGN IN</span>
                                 </Link>
                             )}
                         </div>

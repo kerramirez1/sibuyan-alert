@@ -509,14 +509,9 @@ function MyReportsPage() {
                         {/* Section Header & Filters Toolbar */}
                         <div className="border-b border-gray-200/80 bg-gray-50/70 p-3 sm:flex sm:items-center sm:justify-between sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
                             <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                                        Submitted incident records
-                                    </h2>
-                                    <span className="inline-flex items-center rounded-lg border border-gray-200/90 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-600 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                                        {filteredReports.length} {filteredReports.length === 1 ? 'record' : 'records'}
-                                    </span>
-                                </div>
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                                    Submitted incident records
+                                </h2>
                             </div>
 
                             {reports.length > 0 && (

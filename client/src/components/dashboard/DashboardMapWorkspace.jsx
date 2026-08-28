@@ -731,8 +731,8 @@ const DashboardMapWorkspace = ({
             )}
 
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
-                <div className="flex flex-col gap-2 sm:gap-2.5 border-b border-gray-200/80 bg-gray-50/70 p-2.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1.5 sm:gap-2 border-b border-gray-200/80 bg-gray-50/70 p-1.5 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between px-1 sm:px-1.5 pt-0.5">
                         <div>
                             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
                             <p className="hidden sm:block mt-0.5 text-xs text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
@@ -756,8 +756,8 @@ const DashboardMapWorkspace = ({
                         return (
                             <>
                                 {/* 1. Mobile & Tablet Filter Control Bar (< lg / < 1024px) */}
-                                <div className="flex flex-wrap lg:hidden w-full items-center gap-1.5 pt-0.5">
-                                    {/* Filters Button */}
+                                <div className="flex lg:hidden w-full items-center gap-1.5">
+                                    {/* Filters Trigger Button */}
                                     <button
                                         ref={mobileFilterTriggerRef}
                                         type="button"
@@ -765,12 +765,13 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wider shadow-2xs transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${isFiltered
+                                        className={`inline-flex min-h-[38px] sm:min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+                                            isFiltered
                                                 ? 'border-brand-700 bg-brand-900 text-white dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100'
-                                                : 'border-gray-200/90 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
-                                            }`}
+                                                : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
+                                        }`}
                                     >
-                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
+                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-brand-700 dark:text-emerald-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
                                         {isFiltered && (
                                             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-brand-900 px-1 text-[10px] font-extrabold tabular-nums dark:bg-emerald-400 dark:text-gray-950">
@@ -779,19 +780,20 @@ const DashboardMapWorkspace = ({
                                         )}
                                     </button>
 
-                                    {/* Current Status Pill and Clear Action */}
+                                    {/* Active Filter Status Pill and Clear Action */}
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                         <button
                                             type="button"
                                             onClick={() => setIsMobileFilterOpen(true)}
                                             aria-label={`Current filter: ${activeFilterSummary}. Tap to change.`}
-                                            className={`inline-flex min-h-[44px] min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${isFiltered
-                                                ? 'border-emerald-200/80 bg-emerald-50/90 text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-200'
-                                                : 'border-gray-200/90 bg-gray-100/90 text-gray-800 hover:bg-gray-200/80 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            className={`flex-1 min-w-0 inline-flex min-h-[38px] sm:min-h-[44px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold truncate transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+                                                isFiltered
+                                                    ? 'border-emerald-200/80 bg-white text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-200 hover:bg-white'
+                                                    : 'border-gray-200 bg-white/70 text-gray-700 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             }`}
                                         >
                                             <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
-                                            <span className="truncate text-left">{activeFilterSummary}</span>
+                                            <span className="text-[11px] sm:text-xs font-semibold tracking-wide uppercase text-gray-800 dark:text-gray-200 truncate text-left">{activeFilterSummary}</span>
                                         </button>
 
                                         {isFiltered && (
@@ -799,7 +801,7 @@ const DashboardMapWorkspace = ({
                                                 type="button"
                                                 onClick={() => setResponderMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
-                                                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 cursor-pointer"
+                                                className="flex min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 cursor-pointer"
                                                 title="Clear filter"
                                             >
                                                 <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />

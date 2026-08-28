@@ -125,7 +125,7 @@ const ReportDetailsPanel = ({
                                 ))}
                             </select>
                             <span className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                <span className={`h-2 w-2 rounded-full ${selectedSeverity?.dot || 'bg-gray-400'}`} />
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${selectedSeverity?.dot || 'bg-gray-400'}`} aria-hidden="true" />
                                 <span>{selectedSeverity?.description}</span>
                             </span>
                         </div>
@@ -143,7 +143,7 @@ const ReportDetailsPanel = ({
                                 rows={3}
                                 maxLength={2000}
                                 placeholder="Describe what happened, the road condition, direction of travel, or other useful details"
-                                className="w-full resize-y min-h-[80px] rounded-xl border border-gray-200/90 bg-white p-3 text-xs font-semibold text-gray-800 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                className="w-full resize-y min-h-[80px] sm:min-h-[96px] rounded-xl border border-gray-200/90 bg-white p-3 text-xs font-semibold text-gray-800 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
                             />
                             <span className="mt-1 block text-right text-[11px] text-gray-400 dark:text-gray-500">
                                 {formData.description?.length || 0}/2000
@@ -162,7 +162,7 @@ const ReportDetailsPanel = ({
                     description="Enter zero when none are known."
                     icon={HiOutlineUserGroup}
                 />
-                <div className="grid grid-cols-3 gap-2.5 p-3.5 sm:gap-3.5 sm:p-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3.5 p-3.5 sm:p-4">
                     {[
                         { name: 'casualties.injured', label: 'Injured', value: formData.casualties.injured, tone: formData.casualties.injured > 0 ? 'amber' : 'neutral' },
                         { name: 'casualties.fatalities', label: 'Fatalities', value: formData.casualties.fatalities, tone: formData.casualties.fatalities > 0 ? 'red' : 'neutral' },
@@ -170,26 +170,26 @@ const ReportDetailsPanel = ({
                     ].map((field) => {
                         const isNonZero = field.value > 0;
                         return (
-                            <label key={field.name} className="flex h-full flex-col">
-                                <span className="mb-1 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                            <div key={field.name} className="flex h-full flex-col rounded-xl border border-gray-200/90 bg-gray-50/50 p-2 sm:p-2.5 text-center dark:border-white/10 dark:bg-white/[0.02]">
+                                <label htmlFor={field.name} className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 cursor-pointer">
                                     {field.label}
-                                </span>
-                                <div className="mt-auto">
-                                    <input
-                                        type="number"
-                                        inputMode="numeric"
-                                        name={field.name}
-                                        value={field.value}
-                                        onChange={handleChange}
-                                        min="0"
-                                        max="999"
-                                        className={`${inputClass} text-center font-bold ${isNonZero
-                                            ? 'border-amber-400 bg-amber-50/40 text-amber-950 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
-                                            : ''
-                                            }`}
-                                    />
-                                </div>
-                            </label>
+                                </label>
+                                <input
+                                    id={field.name}
+                                    type="number"
+                                    inputMode="numeric"
+                                    name={field.name}
+                                    aria-label={field.label}
+                                    value={field.value}
+                                    onChange={handleChange}
+                                    min="0"
+                                    max="999"
+                                    className={`w-full text-center font-bold text-sm sm:text-base text-gray-900 bg-white border border-gray-200 rounded-lg py-1 shadow-2xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:bg-[#07130e] dark:border-white/10 dark:text-white ${isNonZero
+                                        ? 'border-amber-400 bg-amber-50/40 text-amber-950 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
+                                        : ''
+                                    }`}
+                                />
+                            </div>
                         );
                     })}
                 </div>
