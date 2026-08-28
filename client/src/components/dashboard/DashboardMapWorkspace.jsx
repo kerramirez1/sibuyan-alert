@@ -13,7 +13,6 @@ import {
     HiOutlineExclamation,
     HiOutlineFilter,
     HiOutlineLightningBolt,
-    HiOutlinePlus,
     HiOutlineTruck,
     HiOutlineX,
 } from 'react-icons/hi';
@@ -666,8 +665,8 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
-            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0 flex-1">
+            <header>
+                <div className="min-w-0">
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
@@ -681,13 +680,6 @@ const DashboardMapWorkspace = ({
                         {mapExperience.description}
                     </p>
                 </div>
-                {mapExperience.showSubmitReport && (
-                    <div className="flex shrink-0 items-center pt-0.5 sm:pt-0">
-                        <Button as={Link} to="/report" icon={HiOutlinePlus} className="w-full sm:w-auto shrink-0 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs min-h-[44px] sm:min-h-9 px-3 py-1.5 justify-center">
-                            Submit report
-                        </Button>
-                    </div>
-                )}
             </header>
 
             {error && (
@@ -732,15 +724,23 @@ const DashboardMapWorkspace = ({
 
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
                 <div className="flex flex-col gap-1.5 sm:gap-2 border-b border-gray-200/80 bg-gray-50/70 p-1.5 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between px-1 sm:px-1.5 pt-0.5">
+                    <div className="flex items-start justify-between gap-3 px-1 sm:px-1.5 pt-0.5">
                         <div>
-                            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Live map</h2>
+                            <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase font-display text-gray-900 dark:text-white">Live map</h2>
                             <p className="hidden sm:block mt-0.5 text-xs text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
+                            {displayedMapReports.length > displayedLocationCount && (
+                                <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                    Numbered markers group incidents reported at the same location.
+                                </p>
+                            )}
                         </div>
-                        {displayedMapReports.length > displayedLocationCount && (
-                            <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                                Numbered markers group incidents reported at the same location.
-                            </p>
+
+                        {/* Top-Right: Filter by Status Badge */}
+                        {mapExperience.filters.length > 0 && (
+                            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100/90 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 shrink-0 select-none">
+                                <HiOutlineFilter className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <span>Filter by status</span>
+                            </div>
                         )}
                     </div>
                     {mapExperience.filters.length > 0 && (() => {
@@ -821,69 +821,60 @@ const DashboardMapWorkspace = ({
                                     triggerRef={mobileFilterTriggerRef}
                                 />
 
-                                {/* 2. Desktop Segmented Status-Filter Control Bar (hidden lg:flex) */}
-                                <div className="hidden lg:flex w-full min-w-0 max-w-full items-center gap-1.5 pt-0.5">
-                                    {/* Fixed Primary Filter by status badge */}
-                                    <div className="inline-flex h-7.5 shrink-0 items-center gap-1.5 rounded-md border border-gray-200/90 bg-gray-100/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 select-none whitespace-nowrap dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
-                                        <HiOutlineFilter className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                                        <span>Filter by status</span>
-                                    </div>
+                                {/* 2. Desktop Full-Width Segmented Status-Filter Control Bar (hidden lg:flex) */}
+                                <div
+                                    className="hidden lg:flex min-w-0 flex-1 flex-wrap items-center gap-1.5 w-full pt-0.5"
+                                    aria-label="Map status filter"
+                                    role="group"
+                                >
+                                    {mapExperience.filters.map((filter) => {
+                                        const count = getFilterCount(filter.value);
+                                        const isSelected = responderMapFilter === filter.value;
+                                        const statusCfg = filter.value === 'risk-zones'
+                                            ? { dot: 'bg-red-500' }
+                                            : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
 
-                                    {/* Segmented Filter Option Bar */}
-                                    <div
-                                        className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-visible"
-                                        aria-label="Map status filter"
-                                        role="group"
-                                    >
-                                        {mapExperience.filters.map((filter) => {
-                                            const count = getFilterCount(filter.value);
-                                            const isSelected = responderMapFilter === filter.value;
-                                            const statusCfg = filter.value === 'risk-zones'
-                                                ? { dot: 'bg-red-500' }
-                                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
-
-                                            return (
-                                                <button
-                                                    key={filter.value}
-                                                    type="button"
-                                                    onClick={() => setResponderMapFilter(filter.value)}
-                                                    aria-pressed={isSelected}
-                                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                    className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                            ? 'border-gray-900 bg-gray-900 text-white font-bold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
-                                                            : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
-                                                        }`}
-                                                >
-                                                    {isSelected ? (
-                                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
-                                                    ) : (
-                                                        statusCfg?.dot && (
-                                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                                        )
-                                                    )}
-                                                    <span>{filter.label}</span>
-                                                    <span className={`rounded px-1 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${isSelected
-                                                            ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
-                                                            : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
-                                                        }`}>
-                                                        {count}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-
-                                        {responderMapFilter !== 'all' && (
+                                        return (
                                             <button
+                                                key={filter.value}
                                                 type="button"
-                                                onClick={() => setResponderMapFilter('all')}
-                                                aria-label="Clear active filter and show all"
-                                                className="inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed border-gray-300 bg-white/60 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 whitespace-nowrap transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 before:absolute before:-inset-1 before:content-['']"
+                                                onClick={() => setResponderMapFilter(filter.value)}
+                                                aria-pressed={isSelected}
+                                                aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                        ? 'border-gray-900 bg-gray-900 text-white font-bold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
+                                                        : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
+                                                    }`}
                                             >
-                                                <HiOutlineX className="h-3 w-3" aria-hidden="true" />
-                                                <span>Clear filter</span>
+                                                {isSelected ? (
+                                                    <HiOutlineCheck className="h-3 w-3 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
+                                                ) : (
+                                                    statusCfg?.dot && (
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                                    )
+                                                )}
+                                                <span>{filter.label}</span>
+                                                <span className={`rounded px-1 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${isSelected
+                                                        ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
+                                                        : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
+                                                    }`}>
+                                                    {count}
+                                                </span>
                                             </button>
-                                        )}
-                                    </div>
+                                        );
+                                    })}
+
+                                    {responderMapFilter !== 'all' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setResponderMapFilter('all')}
+                                            aria-label="Clear active filter and show all"
+                                            className="inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60 shadow-2xs"
+                                        >
+                                            <HiOutlineX className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
+                                            <span>Clear filter</span>
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         );

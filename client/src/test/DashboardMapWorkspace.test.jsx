@@ -475,7 +475,6 @@ describe('DashboardMapWorkspace permissions', () => {
         ];
         renderWorkspace(createProps({ reports, mapSummaryPanel: 'incidents', setMapSummaryPanel, setResponderMapFilter }));
 
-        expect(screen.getByRole('link', { name: /submit report/i })).toHaveAttribute('href', '/report');
         expect(screen.getByText(/Vehicular/i)).toHaveTextContent(/Vehicular.*Verified/i);
         expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Transferred/i);
         expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Responding/i);
@@ -1076,7 +1075,7 @@ describe('DashboardMapWorkspace permissions', () => {
     });
 
     describe('Mobile-First Responsive Layout and Typography', () => {
-        test('1. Renders responsive header and submit report button with break-words and accessible sizing', () => {
+        test('1. Renders responsive header with break-words', () => {
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
                 isAuthenticated: true,
@@ -1088,10 +1087,6 @@ describe('DashboardMapWorkspace permissions', () => {
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toHaveClass('break-words');
             expect(heading).toHaveTextContent('Sibuyan Island incident map');
-
-            const submitBtn = screen.getByRole('link', { name: /Submit report/i });
-            expect(submitBtn).toBeInTheDocument();
-            expect(submitBtn).toHaveClass('min-h-[44px]', 'sm:min-h-9');
         });
 
         test('2. Overview metrics items render with tabular numbers, distinct labels, and wrap gracefully', () => {

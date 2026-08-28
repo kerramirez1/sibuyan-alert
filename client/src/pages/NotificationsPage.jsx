@@ -263,9 +263,18 @@ const NotificationsPage = () => {
                 aria-label="Notification inbox"
             >
                 {loading && notifications.length === 0 ? (
-                    <div className="p-8 sm:p-12 text-center" role="status">
-                        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400 font-semibold">Loading notifications…</p>
+                    <div className="divide-y divide-gray-100 dark:divide-white/5 py-1" aria-label="Loading notifications" aria-busy="true">
+                        {[1, 2, 3, 4, 5].map((index) => (
+                            <div key={index} className="flex items-start gap-3.5 p-4 sm:p-5 animate-pulse">
+                                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                                <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="h-3.5 w-3/4 rounded-md bg-gray-200 dark:bg-white/15" />
+                                    <div className="h-3 w-5/6 rounded-md bg-gray-100 dark:bg-white/10" />
+                                    <div className="h-2.5 w-1/3 rounded-md bg-gray-100 dark:bg-white/10" />
+                                </div>
+                                <div className="mt-1 h-2 w-2 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                            </div>
+                        ))}
                     </div>
                 ) : filteredNotifications.length === 0 ? (
                     <div className="px-5 py-12 text-center sm:py-16">

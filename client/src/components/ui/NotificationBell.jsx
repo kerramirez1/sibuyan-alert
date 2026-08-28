@@ -365,11 +365,26 @@ const NotificationBell = () => {
             {/* Notification Items List */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain divide-y divide-gray-100 dark:divide-white/5">
                 {loading && notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center px-4 space-y-2">
-                        <HiOutlineRefresh className="h-6 w-6 animate-spin text-emerald-600 dark:text-emerald-400" />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                            Loading communications...
-                        </p>
+                    <div className="divide-y divide-gray-100 dark:divide-white/5 py-1" aria-label="Loading incident communications" aria-busy="true">
+                        {[1, 2, 3, 4].map((index) => (
+                            <div key={index} className="flex items-start gap-3 p-3.5 sm:px-4 animate-pulse">
+                                {/* Leading Status Indicator Dot */}
+                                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+
+                                {/* Notification Content Placeholder Bars */}
+                                <div className="flex-1 min-w-0 space-y-2">
+                                    {/* Title Line */}
+                                    <div className="h-3.5 w-3/4 rounded-md bg-gray-200 dark:bg-white/15" />
+                                    {/* Location / Message Subtext */}
+                                    <div className="h-3 w-5/6 rounded-md bg-gray-100 dark:bg-white/10" />
+                                    {/* Timestamp / Agency Tag */}
+                                    <div className="h-2.5 w-1/3 rounded-md bg-gray-100 dark:bg-white/10" />
+                                </div>
+
+                                {/* Trailing Unread Marker Placeholder */}
+                                <div className="mt-1 h-2 w-2 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                            </div>
+                        ))}
                     </div>
                 ) : error ? (
                     <div className="p-4 text-center space-y-2.5">
