@@ -38,7 +38,7 @@ describe('ProtectedEvidenceGallery Component', () => {
 
         render(<ProtectedEvidenceGallery evidence={evidence} />);
 
-        expect(screen.getByText('Faces blurred for privacy')).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         // Blurred thumbnail must be a clickable button
         expect(screen.getByRole('button', { name: /Incident evidence photo 1, faces blurred for privacy/i }))
             .toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('ProtectedEvidenceGallery Component', () => {
         render(<ProtectedEvidenceGallery evidence={evidence} isOwner={true} />);
 
         // Must still render in redacted mode with privacy overlay
-        expect(screen.getByText('Privacy-safe preview')).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         expect(mocks.getProtected).not.toHaveBeenCalled();
     });
 
@@ -212,8 +212,9 @@ describe('ProtectedEvidenceGallery Component', () => {
 
         render(<ProtectedEvidenceGallery evidence={evidence} />);
 
-        expect(screen.getByText('Scene preview')).toBeInTheDocument();
-        expect(screen.getByText('Privacy preview')).toBeInTheDocument();
+        const buttons = screen.getAllByRole('button');
+        expect(buttons[0]).toHaveAttribute('title', expect.stringContaining('Scene preview'));
+        expect(buttons[1]).toHaveAttribute('title', expect.stringContaining('Privacy preview'));
     });
 
     test('9. Renders compact variant with responsive thumbnail dimensions (180-220px desktop) and flex container', () => {
@@ -241,9 +242,9 @@ describe('ProtectedEvidenceGallery Component', () => {
 
         const buttons = screen.getAllByRole('button');
         buttons.forEach((btn) => {
-            expect(btn.className).toContain('w-36');
-            expect(btn.className).toContain('lg:w-52');
-            expect(btn.className).toContain('lg:h-36');
+            expect(btn.className).toContain('w-24');
+            expect(btn.className).toContain('sm:w-28');
+            expect(btn.className).toContain('shrink-0');
         });
     });
 
@@ -277,6 +278,40 @@ describe('ProtectedEvidenceGallery Component', () => {
         fireEvent.click(retryBtn);
 
         expect(await screen.findByText('Your upload')).toBeInTheDocument();
+    });
+
+    test('11. Renders stacked card deck (baraha) layout when variant="stacked" with multiple photos', async () => {
+        const multiEvidence = {
+            count: 3,
+            viewerAccess: 'redacted',
+            items: [
+                { id: '0', index: 0, redactedPreviewUrl: '/api/reports/1/evidence/0/preview', redactionType: 'face_blur' },
+                { id: '1', index: 1, redactedPreviewUrl: '/api/reports/1/evidence/1/preview', redactionType: 'face_blur' },
+                { id: '2', index: 2, redactedPreviewUrl: '/api/reports/1/evidence/2/preview', redactionType: 'face_blur' },
+            ],
+        };
+
+        const onViewImage = vi.fn();
+        render(
+            <ProtectedEvidenceGallery
+                evidence={multiEvidence}
+                variant="stacked"
+                onViewImage={onViewImage}
+            />
+        );
+
+        // Counter badge for +2 more photos
+        expect(screen.getByText('+2')).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
+
+        // Clicking the deck invokes onViewImage with first item and complete items array
+        const deckButton = screen.getByRole('button', { name: /Incident evidence photo 1/i });
+        fireEvent.click(deckButton);
+        expect(onViewImage).toHaveBeenCalledWith(
+            expect.objectContaining({ id: '0', index: 0, total: 3 }),
+            0,
+            expect.any(Array)
+        );
     });
 });
 

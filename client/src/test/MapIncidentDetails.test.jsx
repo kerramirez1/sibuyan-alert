@@ -116,7 +116,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
         // Evidence: Blurred for privacy — thumbnail must be a clickable button
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
-        expect(screen.getByText(/Faces blurred for privacy/i)).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Incident evidence photo 1, faces blurred for privacy/i }))
             .toBeInTheDocument();
         expect(screen.getByText(/Original evidence is available only to the report owner and authorized municipal personnel/i)).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         });
 
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
-        expect(screen.getByText(/Faces blurred for privacy/i)).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
     });
 

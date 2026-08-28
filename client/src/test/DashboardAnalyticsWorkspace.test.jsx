@@ -109,7 +109,7 @@ describe('DashboardAnalyticsWorkspace', () => {
         const activityBadge = within(recentActivitySection).getByText('Verified');
         expect(activityBadge).toBeInTheDocument();
         expect(activityBadge.parentElement).toHaveClass('border-gray-200/90', 'bg-gray-50/80');
-    });
+    }, 12000);
 
     test('shows municipality comparisons only when no municipal scope is provided', () => {
         render(

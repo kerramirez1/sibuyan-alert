@@ -325,8 +325,10 @@ describe('useOperationalIncidentDetails Hook', () => {
         // Rapidly switch to report-2
         rerender({ report: { _id: 'report-2', title: 'Second' } });
 
-        await waitFor(() => expect(result.current.report?._id).toBe('report-2'));
-        expect(result.current.report?.title).toBe('Second Incident (Fresh)');
+        await waitFor(() => {
+            expect(result.current.report?._id).toBe('report-2');
+            expect(result.current.report?.title).toBe('Second Incident (Fresh)');
+        });
 
         // Now late-resolve the first request
         act(() => {

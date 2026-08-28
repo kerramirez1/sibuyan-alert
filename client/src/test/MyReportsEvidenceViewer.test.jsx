@@ -268,9 +268,10 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         expect(redactedImg.className).toContain('object-cover');
 
         // Clicking redacted thumbnail opens modal in redacted mode
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         fireEvent.click(redactedBtn);
         const dialog = await screen.findByRole('dialog', { name: /Enlarged evidence image viewer/i });
         expect(dialog).toBeInTheDocument();
-        expect(screen.getByText('Privacy-safe preview')).toBeInTheDocument();
+        expect(within(dialog).getByText(/Privacy-safe preview/i)).toBeInTheDocument();
     });
 });

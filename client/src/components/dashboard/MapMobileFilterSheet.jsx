@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    HiOutlineCheck,
-    HiOutlineFilter,
+    HiCheck,
     HiOutlineShieldExclamation,
     HiOutlineX,
 } from 'react-icons/hi';
@@ -155,51 +154,48 @@ const MapMobileFilterSheet = ({
                     <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-white/20" aria-hidden="true" />
                 </div>
 
-                {/* Header */}
-                <div className="flex items-start justify-between border-b border-gray-200/80 px-4 py-3 dark:border-white/10">
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <HiOutlineFilter className="h-4 w-4" aria-hidden="true" />
-                        </div>
-                        <div>
-                            <h2
-                                id={titleId}
-                                className="font-display text-sm font-bold uppercase tracking-wider text-gray-950 dark:text-white"
-                            >
-                                Map filters
-                            </h2>
-                            <p id={descriptionId} className="text-xs text-gray-500 dark:text-gray-400">
-                                Control which incidents and hazard layers appear on the map.
-                            </p>
-                        </div>
+                {/* Simplified Header */}
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 px-4 py-3.5">
+                    <div>
+                        <h2
+                            id={titleId}
+                            className="font-display text-sm font-bold uppercase tracking-wider text-gray-950 dark:text-white"
+                        >
+                            Map filters
+                        </h2>
+                        <p id={descriptionId} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            Control which incidents and hazard layers appear on the map.
+                        </p>
                     </div>
                     <button
                         ref={closeBtnRef}
                         type="button"
                         onClick={onClose}
                         aria-label="Close filter sheet"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer"
                     >
-                        <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                        <HiOutlineX className="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
 
-                {/* Live Status Summary Subhead */}
-                <div className="border-b border-gray-100 bg-gray-50/70 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
-                        {summaryText}
-                    </p>
+                {/* Screen Reader Live Announcement */}
+                <div className="sr-only" aria-live="polite">
+                    {summaryText}
                 </div>
 
-                {/* Scrollable Grouped Content */}
-                <div className="overflow-y-auto px-4 py-3 space-y-4" role="radiogroup" aria-label="Incident filter options">
+                {/* Scrollable Edge-to-Edge Content List */}
+                <div
+                    className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5"
+                    role="radiogroup"
+                    aria-label="Incident filter options"
+                >
                     {/* 1. Incident Scope Section */}
                     {scopeOption && (() => {
                         const isSelected = pendingFilter === 'all';
                         const count = getFilterCount('all');
                         return (
                             <div>
-                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                                <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                     Incident scope
                                 </h3>
                                 <button
@@ -208,44 +204,37 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="All active"
                                     onClick={() => setPendingFilter('all')}
-                                    className={`group flex min-h-[48px] w-full cursor-pointer items-center justify-between rounded-xl border p-3 text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                         isSelected
-                                            ? 'border-brand-700 bg-brand-50/90 text-brand-950 ring-1 ring-brand-700/50 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:ring-emerald-600/40'
-                                            : 'border-gray-200/90 bg-white text-gray-800 hover:bg-gray-50/80 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5'
+                                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
+                                            : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                                         <div>
-                                            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider block">
+                                            <span className={`text-xs sm:text-sm uppercase tracking-wider block ${isSelected ? 'font-bold' : 'font-semibold'}`}>
                                                 All active
                                             </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-normal">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
                                                 Verified, responding, and active emergency operations
                                             </span>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2.5 shrink-0 ml-3">
                                         <span
-                                            className={`rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+                                            className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
                                                 isSelected
-                                                    ? 'bg-brand-900/15 text-brand-900 dark:bg-white/15 dark:text-emerald-100'
+                                                    ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
                                                     : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
                                             }`}
                                         >
                                             {count}
                                         </span>
-                                        <div
-                                            className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                                isSelected
-                                                    ? 'border-brand-800 bg-brand-800 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-gray-950'
-                                                    : 'border-gray-300 bg-transparent dark:border-white/20'
-                                            }`}
-                                            aria-hidden="true"
-                                        >
-                                            {isSelected && <HiOutlineCheck className="h-3 w-3 stroke-[3]" />}
-                                        </div>
+                                        {isSelected && (
+                                            <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                        )}
                                     </div>
                                 </button>
                             </div>
@@ -255,10 +244,10 @@ const MapMobileFilterSheet = ({
                     {/* 2. Incident Status Section */}
                     {statusOptions.length > 0 && (
                         <div>
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                 Incident status
                             </h3>
-                            <div className="divide-y divide-gray-100 dark:divide-white/5 rounded-xl border border-gray-200/90 dark:border-white/10 overflow-hidden bg-white dark:bg-[#07130e]">
+                            <div className="divide-y divide-gray-100 dark:divide-white/5">
                                 {statusOptions.map((filter) => {
                                     const count = getFilterCount(filter.value);
                                     const isSelected = pendingFilter === filter.value;
@@ -272,22 +261,22 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`group flex min-h-[48px] w-full cursor-pointer items-center justify-between px-3.5 py-3 text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                                 isSelected
-                                                    ? 'bg-emerald-50/80 text-emerald-950 border-l-4 border-l-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-100 dark:border-l-emerald-500'
-                                                    : 'text-gray-800 hover:bg-gray-50/80 dark:text-gray-200 dark:hover:bg-white/5'
+                                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
+                                                    : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
                                             }`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
-                                                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider break-words leading-tight flex-1">
+                                                <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+                                                <span className={`text-xs sm:text-sm uppercase tracking-wider break-words leading-tight flex-1 ${isSelected ? 'font-bold' : 'font-semibold'}`}>
                                                     {filter.label}
                                                 </span>
                                             </div>
 
-                                            <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex items-center gap-2.5 shrink-0 ml-3">
                                                 <span
-                                                    className={`rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+                                                    className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
                                                         isSelected
                                                             ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
                                                             : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
@@ -295,16 +284,9 @@ const MapMobileFilterSheet = ({
                                                 >
                                                     {count}
                                                 </span>
-                                                <div
-                                                    className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                                        isSelected
-                                                            ? 'border-emerald-700 bg-emerald-700 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-gray-950'
-                                                            : 'border-gray-300 bg-transparent dark:border-white/20'
-                                                    }`}
-                                                    aria-hidden="true"
-                                                >
-                                                    {isSelected && <HiOutlineCheck className="h-3 w-3 stroke-[3]" />}
-                                                </div>
+                                                {isSelected && (
+                                                    <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                                )}
                                             </div>
                                         </button>
                                     );
@@ -319,7 +301,7 @@ const MapMobileFilterSheet = ({
                         const count = getFilterCount('risk-zones');
                         return (
                             <div>
-                                <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                                <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                     Map layers
                                 </h3>
                                 <button
@@ -328,46 +310,39 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="Risk zones"
                                     onClick={() => setPendingFilter('risk-zones')}
-                                    className={`group flex min-h-[48px] w-full cursor-pointer items-center justify-between rounded-xl border p-3 text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                         isSelected
-                                            ? 'border-brand-700 bg-brand-50/90 text-brand-950 ring-1 ring-brand-700/50 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:ring-emerald-600/40'
-                                            : 'border-gray-200/90 bg-white text-gray-800 hover:bg-gray-50/80 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5'
+                                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
+                                            : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                                            <HiOutlineShieldExclamation className="h-4 w-4" aria-hidden="true" />
+                                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                                            <HiOutlineShieldExclamation className="h-3.5 w-3.5" aria-hidden="true" />
                                         </div>
                                         <div>
-                                            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider block">
+                                            <span className={`text-xs sm:text-sm uppercase tracking-wider block ${isSelected ? 'font-bold' : 'font-semibold'}`}>
                                                 Risk zones
                                             </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-normal">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
                                                 High-risk hazards and monitored risk zones
                                             </span>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2.5 shrink-0 ml-3">
                                         <span
-                                            className={`rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+                                            className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
                                                 isSelected
-                                                    ? 'bg-brand-900/15 text-brand-900 dark:bg-white/15 dark:text-emerald-100'
+                                                    ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
                                                     : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
                                             }`}
                                         >
                                             {count}
                                         </span>
-                                        <div
-                                            className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                                isSelected
-                                                    ? 'border-brand-800 bg-brand-800 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-gray-950'
-                                                    : 'border-gray-300 bg-transparent dark:border-white/20'
-                                            }`}
-                                            aria-hidden="true"
-                                        >
-                                            {isSelected && <HiOutlineCheck className="h-3 w-3 stroke-[3]" />}
-                                        </div>
+                                        {isSelected && (
+                                            <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                        )}
                                     </div>
                                 </button>
                             </div>
@@ -375,8 +350,8 @@ const MapMobileFilterSheet = ({
                     })()}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="flex items-center gap-3 border-t border-gray-200/80 bg-gray-50/90 p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                {/* Sticky Action Bar */}
+                <div className="shrink-0 flex items-center gap-3 border-t border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#0c1813]">
                     <button
                         type="button"
                         onClick={handleClear}

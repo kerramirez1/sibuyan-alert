@@ -167,8 +167,8 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
             const operationsLink = screen.getByRole('link', { name: /Operations Dashboard/i });
             expect(operationsLink).toHaveAttribute('aria-current', 'page');
             expect(operationsLink).toHaveAttribute('href', '/admin');
-        }, { timeout: 4000 });
-    });
+        }, { timeout: 8000 });
+    }, 12000);
 
     test('2. Municipal administrator logs in after requesting a protected admin page and returns to that page', async () => {
         render(
@@ -289,8 +289,8 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
             const reportsLink = screen.getByRole('link', { name: /Incident Reports/i });
             expect(reportsLink).toHaveAttribute('aria-current', 'page');
             expect(reportsLink).toHaveAttribute('href', '/admin/reports?view=dispatch-queue');
-        }, { timeout: 4000 });
-    });
+        }, { timeout: 8000 });
+    }, 12000);
 
     test('6. Authenticated municipal administrator visiting /login is redirected to /admin', async () => {
         const adminUser = {

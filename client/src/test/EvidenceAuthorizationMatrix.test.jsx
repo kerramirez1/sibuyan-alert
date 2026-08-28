@@ -190,7 +190,7 @@ describe('Evidence Privacy and Fail-Closed Authorization Matrix', () => {
             />
         );
 
-        expect(screen.getByText('Faces blurred for privacy')).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         expect(mocks.getProtected).not.toHaveBeenCalled();
 
         fireEvent.click(screen.getByRole('button', { name: /faces blurred for privacy/i }));
@@ -220,7 +220,7 @@ describe('Evidence Privacy and Fail-Closed Authorization Matrix', () => {
             />
         );
 
-        expect(screen.getByText('Privacy-safe preview')).toBeInTheDocument();
+        expect(screen.getByText('Protected')).toBeInTheDocument();
         expect(screen.getByText(/Original evidence is available only to the report owner and authorized municipal personnel/i)).toBeInTheDocument();
         expect(mocks.getProtected).not.toHaveBeenCalled();
     });

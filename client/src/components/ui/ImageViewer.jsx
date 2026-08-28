@@ -20,7 +20,7 @@ import {
 import { filesAPI } from '../../services/api';
 
 /**
- * High-performance, minimal viewport-portaled evidence inspection viewer with multi-evidence navigation.
+ * Modernized, distraction-free viewport-portaled evidence inspection viewer with multi-evidence navigation.
  * 
  * Security Boundary:
  * - When viewing in redacted mode (effectiveViewerAccess === 'redacted'), the viewer accepts
@@ -68,7 +68,7 @@ const ImageViewer = ({
     const closeButtonRef = useRef(null);
     const previousActiveElementRef = useRef(null);
 
-    // Sync activeIndex whenever modal opens or items list changes
+    // Sync activeIndex strictly whenever modal opens or initial target changes
     useEffect(() => {
         if (isOpen) {
             const targetIdx = typeof item?.index === 'number'
@@ -77,7 +77,7 @@ const ImageViewer = ({
             const clamped = Math.max(0, Math.min(targetIdx, Math.max(0, itemsList.length - 1)));
             setActiveIndex(clamped);
         }
-    }, [isOpen, item, items, initialIndex, itemsList.length]);
+    }, [isOpen, item?.index, initialIndex, itemsList.length]);
 
     // Active item resolution
     const currentItem = (itemsList.length > 0 && itemsList[activeIndex])
@@ -87,12 +87,47 @@ const ImageViewer = ({
     const canGoPrev = hasMultiple && activeIndex > 0;
     const canGoNext = hasMultiple && activeIndex < totalItems - 1;
 
-    // Reset zoom, rotation, and error states on item change
+    // Reset zoom, rotation, and error states on active item change
     useEffect(() => {
         setIsZoomed(false);
         setRotation(0);
         setHasLoadError(false);
     }, [activeIndex, currentItem?.id, currentItem?.src, currentItem?.originalUrl, currentItem?.redactedPreviewUrl]);
+
+    // Eager background preloading of adjacent images to eliminate navigation latency
+    useEffect(() => {
+        if (!isOpen || itemsList.length <= 1) return;
+
+        const preloadIndices = [];
+        if (activeIndex > 0) preloadIndices.push(activeIndex - 1);
+        if (activeIndex < itemsList.length - 1) preloadIndices.push(activeIndex + 1);
+
+        preloadIndices.forEach((idx) => {
+            const adjacentItem = itemsList[idx];
+            if (!adjacentItem) return;
+
+            const adjacentAccess = adjacentItem.viewerAccess === 'original' ? 'original' : 'redacted';
+            let targetUrl = '';
+
+            if (adjacentAccess === 'redacted') {
+                targetUrl = adjacentItem.redactedPreviewUrl || (isAuthorizedRedactedPreviewEndpoint(adjacentItem.src) ? adjacentItem.src : '');
+            } else {
+                const raw = adjacentItem.src || adjacentItem.originalUrl || '';
+                if (raw && !isProtectedOriginalFileUrl(raw)) {
+                    targetUrl = raw;
+                }
+            }
+
+            if (targetUrl && typeof window !== 'undefined' && typeof Image !== 'undefined') {
+                try {
+                    const preloadImg = new Image();
+                    preloadImg.src = resolveAssetUrl(targetUrl);
+                } catch {
+                    // Ignore background preload failures gracefully
+                }
+            }
+        });
+    }, [isOpen, activeIndex, itemsList]);
 
     // Fetch protected original binaries when navigating in original mode
     useEffect(() => {
@@ -329,14 +364,14 @@ const ImageViewer = ({
         if (isSecurityViolation || hasLoadError || currentItem?.isUnavailable || !effectiveSrc) {
             if (isRedacted) {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-400">
                         <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                         <span>Evidence unavailable for privacy</span>
                     </div>
                 );
             }
             return (
-                <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                <div className="inline-flex items-center gap-1.5 text-xs text-gray-400">
                     <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                     <span>Evidence unavailable</span>
                 </div>
@@ -346,7 +381,7 @@ const ImageViewer = ({
         if (isRedacted) {
             if (redactionType === 'public_soft_blur' || detectionStatus === 'privacy_derivative') {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                         <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                         <span>Privacy-safe preview · Original evidence restricted</span>
                     </div>
@@ -354,7 +389,7 @@ const ImageViewer = ({
             }
             if (detectionStatus === 'no_faces_detected' || redactionType === 'none') {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                         <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
                         <span>Clean scene preview · Scene details preserved</span>
                     </div>
@@ -363,7 +398,7 @@ const ImageViewer = ({
 
             if (detectionStatus === 'invalid_image') {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-400">
                         <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                         <span>Evidence unavailable for privacy</span>
                     </div>
@@ -372,7 +407,7 @@ const ImageViewer = ({
 
             if (isPrivacyFallback) {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                         <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                         <span>Privacy-safe preview · Detail visibility limited</span>
                     </div>
@@ -381,7 +416,7 @@ const ImageViewer = ({
 
             if (detectionStatus === 'processing' || redactionType === 'privacy_preview') {
                 return (
-                    <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                         <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
                         <span>Privacy-safe preview · Verification in progress</span>
                     </div>
@@ -390,7 +425,7 @@ const ImageViewer = ({
 
             // Default faces_detected / face_blur
             return (
-                <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                     <HiOutlineEyeOff className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
                     <span>Faces redacted for privacy · Scene details preserved</span>
                 </div>
@@ -400,7 +435,7 @@ const ImageViewer = ({
         // Original view
         if (currentItem?.isOwner) {
             return (
-                <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+                <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400/90 font-medium">
                     <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
                     <span>Owner access · Original evidence</span>
                 </div>
@@ -408,7 +443,7 @@ const ImageViewer = ({
         }
 
         return (
-            <div className="flex items-center gap-1.5 rounded-md bg-[#1C242B] px-3 py-1 text-xs text-[#F5F7F6]">
+            <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                 <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
                 <span>Original evidence · Operational access</span>
             </div>
@@ -417,7 +452,7 @@ const ImageViewer = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xs p-0 sm:p-4 md:p-6 select-none animate-fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:bg-gray-950/95 backdrop-blur-md p-0 sm:p-4 md:p-6 select-none animate-fade-in"
             onClick={(e) => {
                 e.stopPropagation();
                 onClose();
@@ -426,64 +461,32 @@ const ImageViewer = ({
             aria-modal="true"
             aria-label="Enlarged evidence image viewer"
         >
-            {/* Dedicated Operational Inspection Surface with Stable, Predictable Layout */}
+            {/* Dedicated Operational Inspection Surface with Distraction-Free Dark Presentation */}
             <div
-                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[760px] sm:min-h-[460px] md:min-h-[480px] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] sm:max-w-2xl rounded-none sm:rounded-xl border-0 sm:border border-[#334047] bg-[#151A1F] shadow-xl overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
+                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[760px] sm:min-h-[460px] md:min-h-[480px] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] sm:max-w-2xl rounded-none sm:rounded-2xl bg-[#12161A] shadow-2xl overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
                 onClick={(e) => e.stopPropagation()}
                 data-testid="evidence-viewer-surface"
             >
-                {/* 1. Restrained Header Bar with Title and Toolbar Controls */}
-                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3 border-b border-[#334047] bg-[#151A1F] z-10">
+                {/* 1. Streamlined Header Bar with Minimalist Counter & Utility Controls */}
+                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5 border-b border-white/5 bg-[#12161A]/80 z-10">
                     <div className="min-w-0 flex-1">
                         <h3
                             id="evidence-viewer-title"
-                            className="text-xs sm:text-sm font-semibold text-[#F5F7F6] tracking-wide break-words line-clamp-2"
+                            className="text-xs sm:text-sm font-semibold text-gray-300 tracking-wide break-words line-clamp-2"
                             title={headerTitle}
                         >
                             {headerTitle}
                         </h3>
                     </div>
 
-                    {/* Grouped Toolbar Controls (Navigation + Rotate + Zoom + Close) */}
-                    <div className="flex items-center justify-end gap-0.5 sm:gap-1 rounded-lg bg-[#1C242B]/90 p-1 text-[#F5F7F6] shrink-0 shadow-xs">
-                        {/* Multi-Evidence Previous Button */}
-                        {hasMultiple && (
-                            <button
-                                type="button"
-                                onClick={handlePrev}
-                                disabled={!canGoPrev}
-                                aria-label="Previous evidence photo"
-                                title="Previous evidence photo (Left Arrow)"
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-white/10 hover:text-[#F5F7F6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                            >
-                                <HiOutlineChevronLeft className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                        )}
-
-                        {/* Multi-Evidence Next Button */}
-                        {hasMultiple && (
-                            <button
-                                type="button"
-                                onClick={handleNext}
-                                disabled={!canGoNext}
-                                aria-label="Next evidence photo"
-                                title="Next evidence photo (Right Arrow)"
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-white/10 hover:text-[#F5F7F6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
-                            >
-                                <HiOutlineChevronRight className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                        )}
-
-                        {hasMultiple && (
-                            <div className="h-4 w-px bg-white/10 mx-0.5" aria-hidden="true" />
-                        )}
-
+                    {/* Grouped Utility Toolbar (Rotate + Zoom + Reset + Close) */}
+                    <div className="flex items-center justify-end gap-1 text-gray-300 shrink-0">
                         {/* Rotate Image */}
                         {!isSecurityViolation && !hasLoadError && !isLoadingBlob && (
                             <button
                                 type="button"
                                 onClick={handleRotate}
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-white/10 hover:text-[#F5F7F6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer"
                                 title="Rotate image 90° (R)"
                                 aria-label="Rotate image"
                             >
@@ -497,7 +500,7 @@ const ImageViewer = ({
                                 type="button"
                                 onClick={() => { setIsZoomed(false); setRotation(0); }}
                                 disabled={!isZoomed && rotation === 0}
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-white/10 hover:text-[#F5F7F6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
                                 title="Reset image zoom (0)"
                                 aria-label="Reset image zoom"
                             >
@@ -510,7 +513,7 @@ const ImageViewer = ({
                             <button
                                 type="button"
                                 onClick={() => setIsZoomed(!isZoomed)}
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-white/10 hover:text-[#F5F7F6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer"
                                 title={isZoomed ? 'Zoom out image (-)' : 'Zoom in image (+)'}
                                 aria-label={isZoomed ? 'Zoom out image' : 'Zoom in image'}
                             >
@@ -522,17 +525,12 @@ const ImageViewer = ({
                             </button>
                         )}
 
-                        {/* Divider */}
-                        {!isSecurityViolation && !hasLoadError && !isLoadingBlob && (
-                            <div className="h-4 w-px bg-white/10 mx-0.5" aria-hidden="true" />
-                        )}
-
                         {/* Close Button */}
                         <button
                             ref={closeButtonRef}
                             type="button"
                             onClick={onClose}
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-[#AAB5B8] hover:bg-red-500/20 hover:text-red-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-red-300 hover:bg-red-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer ml-1"
                             title="Close image viewer (Escape)"
                             aria-label="Close image viewer"
                         >
@@ -541,9 +539,9 @@ const ImageViewer = ({
                     </div>
                 </div>
 
-                {/* 2. Reserved Stable Image Canvas with Flanking Navigation */}
+                {/* 2. Floating Image Stage with Elegant Side Navigation Chevrons */}
                 <div
-                    className="relative flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden bg-[#1C242B] p-2 sm:p-4"
+                    className="relative flex-1 min-h-0 min-h-[300px] sm:min-h-[400px] w-full flex items-center justify-center overflow-hidden bg-transparent p-2 sm:p-4"
                     data-testid="evidence-viewer-canvas"
                     onClick={() => {
                         if (!isSecurityViolation && !hasLoadError && !isLoadingBlob) {
@@ -551,7 +549,7 @@ const ImageViewer = ({
                         }
                     }}
                 >
-                    {/* Flanking Previous Button on Desktop / Large Screen */}
+                    {/* Floating Side Previous Button */}
                     {hasMultiple && (
                         <button
                             type="button"
@@ -562,13 +560,13 @@ const ImageViewer = ({
                             disabled={!canGoPrev}
                             aria-label="Previous evidence photo"
                             title="Previous evidence photo (Left Arrow)"
-                            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[#151A1F]/90 text-[#F5F7F6] shadow-lg backdrop-blur-xs transition-all hover:bg-[#1C242B] hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-25 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
+                            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full text-white/80 drop-shadow-md hover:bg-black/50 hover:backdrop-blur-xs hover:text-white transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-20 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <HiOutlineChevronLeft className="h-5 w-5" aria-hidden="true" />
+                            <HiOutlineChevronLeft className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
                         </button>
                     )}
 
-                    {/* Flanking Next Button on Desktop / Large Screen */}
+                    {/* Floating Side Next Button */}
                     {hasMultiple && (
                         <button
                             type="button"
@@ -579,9 +577,9 @@ const ImageViewer = ({
                             disabled={!canGoNext}
                             aria-label="Next evidence photo"
                             title="Next evidence photo (Right Arrow)"
-                            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[#151A1F]/90 text-[#F5F7F6] shadow-lg backdrop-blur-xs transition-all hover:bg-[#1C242B] hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-25 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
+                            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full text-white/80 drop-shadow-md hover:bg-black/50 hover:backdrop-blur-xs hover:text-white transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-20 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <HiOutlineChevronRight className="h-5 w-5" aria-hidden="true" />
+                            <HiOutlineChevronRight className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
                         </button>
                     )}
 
@@ -589,27 +587,27 @@ const ImageViewer = ({
                         <div
                             role="status"
                             aria-live="polite"
-                            className="flex flex-col items-center justify-center p-6 text-center text-[#AAB5B8]"
+                            className="flex flex-col items-center justify-center p-6 text-center text-gray-400"
                             data-testid="evidence-loading-indicator"
                         >
                             <div className="relative mb-3 flex items-center justify-center">
-                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border-2 border-[#334047] border-t-emerald-400 animate-spin" aria-hidden="true" />
-                                <HiOutlinePhotograph className="absolute h-4 w-4 sm:h-5 sm:w-5 text-[#AAB5B8] opacity-70" aria-hidden="true" />
+                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border-2 border-white/10 border-t-emerald-400 animate-spin" aria-hidden="true" />
+                                <HiOutlinePhotograph className="absolute h-4 w-4 sm:h-5 sm:w-5 text-gray-400 opacity-70" aria-hidden="true" />
                             </div>
-                            <p className="text-xs sm:text-sm font-medium text-[#F5F7F6]">Loading protected evidence&hellip;</p>
-                            <p className="mt-1 text-[11px] text-[#AAB5B8]">Verifying and retrieving authorized asset</p>
+                            <p className="text-xs sm:text-sm font-medium text-gray-200">Loading protected evidence&hellip;</p>
+                            <p className="mt-1 text-[11px] text-gray-400">Verifying and retrieving authorized asset</p>
                         </div>
                     ) : isSecurityViolation ? (
                         <div
                             role="alert"
-                            className="flex flex-col items-center justify-center rounded-xl bg-[#151A1F] p-6 sm:p-8 text-center max-w-sm shadow-lg"
+                            className="flex flex-col items-center justify-center rounded-xl bg-[#151A1F] p-6 sm:p-8 text-center max-w-sm shadow-lg border border-white/5"
                             data-testid="evidence-security-alert"
                         >
                             <div className="rounded-full bg-amber-500/10 p-3 text-amber-400 mb-3">
                                 <HiOutlineLockClosed className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
                             </div>
-                            <h4 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] mb-1">{violationMessage}</h4>
-                            <p className="text-[11px] sm:text-xs text-[#AAB5B8]">
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-200 mb-1">{violationMessage}</h4>
+                            <p className="text-[11px] sm:text-xs text-gray-400">
                                 {isRedacted
                                     ? 'This evidence item is restricted for privacy or currently unavailable.'
                                     : 'Unable to load original photo. Please verify your network and permissions.'}
@@ -618,14 +616,14 @@ const ImageViewer = ({
                     ) : hasLoadError ? (
                         <div
                             role="alert"
-                            className="flex flex-col items-center justify-center rounded-xl bg-[#151A1F] p-6 sm:p-8 text-center max-w-sm shadow-lg"
+                            className="flex flex-col items-center justify-center rounded-xl bg-[#151A1F] p-6 sm:p-8 text-center max-w-sm shadow-lg border border-white/5"
                             data-testid="evidence-load-error-alert"
                         >
                             <div className="rounded-full bg-red-500/10 p-3 text-red-400 mb-3">
                                 <HiOutlineLockClosed className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
                             </div>
-                            <h4 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] mb-1">Unable to load image</h4>
-                            <p className="text-[11px] sm:text-xs text-[#AAB5B8] mb-3">The image could not be loaded or is temporarily unavailable.</p>
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-200 mb-1">Unable to load image</h4>
+                            <p className="text-[11px] sm:text-xs text-gray-400 mb-3">The image could not be loaded or is temporarily unavailable.</p>
                             <button
                                 type="button"
                                 onClick={(e) => {
@@ -633,7 +631,7 @@ const ImageViewer = ({
                                     setHasLoadError(false);
                                     setReloadKey((k) => k + 1);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#1C242B] hover:bg-[#334047] px-3.5 py-1.5 text-xs font-semibold text-[#F5F7F6] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                             >
                                 <HiOutlineRefresh className="h-3.5 w-3.5 text-emerald-400" />
                                 <span>Retry</span>
@@ -641,8 +639,11 @@ const ImageViewer = ({
                         </div>
                     ) : (
                         <img
+                            key={`${effectiveSrc}-${activeIndex}`}
                             src={effectiveSrc}
                             alt={displayAlt}
+                            loading="eager"
+                            decoding="async"
                             onError={() => setHasLoadError(true)}
                             style={rotation !== 0 ? { transform: `rotate(${rotation}deg)` } : undefined}
                             className={`max-h-full max-w-full rounded-sm object-contain select-none transition-transform duration-200 ${
@@ -652,8 +653,8 @@ const ImageViewer = ({
                     )}
                 </div>
 
-                {/* 3. Small Opaque Footer Status Area */}
-                <div className="shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 border-t border-[#334047] bg-[#151A1F] text-center pointer-events-none">
+                {/* 3. Streamlined Clean Inline Footer Status Area */}
+                <div className="shrink-0 px-4 py-2.5 sm:px-5 sm:py-3 border-t border-white/5 bg-[#12161A]/80 text-center pointer-events-none">
                     <div className="pointer-events-auto inline-flex items-center justify-center">
                         {renderFooterBadge()}
                     </div>

@@ -175,7 +175,7 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
             );
         });
 
-        expect(screen.getByRole('button', { name: /View evidence photo 1/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /View evidence photo 1/i })).toBeInTheDocument();
         expect(screen.queryByText('No evidence attached.')).not.toBeInTheDocument();
     });
 

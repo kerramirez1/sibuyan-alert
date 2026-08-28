@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-
-import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineChevronUp,
     HiOutlineExclamationCircle,
@@ -8,9 +6,12 @@ import {
     HiOutlinePhotograph,
     HiOutlineShieldCheck,
     HiOutlineTruck,
+    HiOutlineX,
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
 import { getIncidentDetailViewModel, normalizeCasualties } from '../../utils/incidentDetails';
+import { formatCleanAddress } from '../../utils/incidentAddress';
+import { formatIncidentTime, formatIncidentRelativeTime } from '../../utils/dateTimeUtils';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import Button from '../ui/Button';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
@@ -23,19 +24,7 @@ const SEVERITY_STYLES = {
     critical: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300',
 };
 
-const BADGE_BASE = 'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider';
-
-const formatDate = (value) => {
-    if (!value) return 'Not available';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Not available' : format(date, 'MMM d, yyyy, h:mm a');
-};
-
-const formatRelativeDate = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true });
-};
+const BADGE_BASE = 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold';
 
 const toPositiveNumber = (value) => {
     const number = Number(value);
@@ -50,7 +39,7 @@ const MapIncidentDetailsSkeleton = () => (
         </div>
         <div className="h-6 w-3/4 rounded bg-gray-200 dark:bg-white/10" />
         <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-white/10" />
-        <div className="rounded-xl border border-gray-200 p-3 dark:border-white/10">
+        <div className="border-t border-b border-gray-200 py-3 dark:border-white/10">
             <div className="grid grid-cols-2 gap-3">
                 <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
                 <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
@@ -71,12 +60,16 @@ const MapIncidentDetailsSkeleton = () => (
 const MapIncidentDetails = ({
     report,
     viewerRole = 'guest',
+    isOwner: explicitIsOwner = false,
+    isOperational: explicitIsOperational = false,
     canRespond = false,
     canResolve = false,
     actionLoading = false,
     onRespond,
     onResolve,
     onToggleExpand,
+    onClose,
+    onViewImage,
 }) => {
     const operational = useOperationalIncidentDetails(report, viewerRole);
     const displayedReport = operational.report || report;
@@ -102,12 +95,11 @@ const MapIncidentDetails = ({
         return <MapIncidentDetailsSkeleton />;
     }
 
-
     const ownsReport = Boolean(
-        viewerRole === 'reporter'
-        && (displayedReport?.isOwnedByCurrentUser || details.isOwnedByCurrentUser)
+        explicitIsOwner
+        || (viewerRole === 'reporter' && (displayedReport?.isOwnedByCurrentUser || details.isOwnedByCurrentUser))
     );
-    const isOperational = operational.isOperationalViewer;
+    const isOperational = explicitIsOperational || operational.isOperationalViewer;
     const hasActions = Boolean(canRespond || canResolve);
     const statusCfg = MAP_STATUS_CONFIG[details.status] || MAP_STATUS_CONFIG.verified;
 
@@ -142,7 +134,6 @@ const MapIncidentDetails = ({
         rawEvidenceItems.length,
     );
 
-
     const coordinates = displayedReport?.coordinates;
     const coordinatesText = Number.isFinite(Number(coordinates?.lat)) && Number.isFinite(Number(coordinates?.lng))
         ? `${Number(coordinates.lat).toFixed(4)}, ${Number(coordinates.lng).toFixed(4)}`
@@ -158,8 +149,8 @@ const MapIncidentDetails = ({
 
     // Privacy notice calculation based on viewer role, ownership, and evidence preview state
     const hasPrivacySafePreview = !isOperational && !ownsReport && totalEvidenceCount > 0;
-    const relativeTime = details.updatedAt ? formatRelativeDate(details.updatedAt) : null;
-    const lastUpdatedText = relativeTime ? ` Last updated ${relativeTime}.` : '';
+    const relativeTime = details.incidentTime ? formatIncidentRelativeTime(details.incidentTime) : null;
+    const lastUpdatedText = details.updatedAt ? ` Last updated ${formatIncidentRelativeTime(details.updatedAt)}.` : '';
 
     let privacyNotice = '';
     if (isOperational) {
@@ -172,35 +163,63 @@ const MapIncidentDetails = ({
         privacyNotice = `This is verified public safety information. Personal identities, evidence, and internal coordination details are protected.${lastUpdatedText}`;
     }
 
+    const cleanAddress = formatCleanAddress({
+        locationName: displayedReport?.locationName,
+        address: displayedReport?.address || details.location,
+        barangay: details.barangay,
+        municipality: details.municipality,
+        municipalityName: displayedReport?.municipalityName,
+    });
+
+    const severityLabel = details.severity
+        ? details.severity.charAt(0).toUpperCase() + details.severity.slice(1).toLowerCase()
+        : 'Moderate';
+
+    const categoryLabel = details.typeLabel || (details.incidentCategory
+        ? details.incidentCategory.charAt(0).toUpperCase() + details.incidentCategory.slice(1).toLowerCase()
+        : 'Incident');
+
     return (
         <div className="flex flex-col">
             <div className="space-y-3.5 px-4 py-3 sm:px-5 sm:py-4">
                 {/* 1. Incident Title & Key Categorization */}
                 <div>
                     <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                             {isOperational ? 'Operational incident brief' : 'Incident brief'}
                         </span>
-                        <span className="text-[10px] font-mono font-medium text-gray-400 dark:text-gray-500">
-                            {details.id ? `#${String(details.id).slice(-6).toUpperCase()}` : ''}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono font-medium text-gray-400 dark:text-gray-500">
+                                {details.id ? `Ref: #${String(details.id).slice(-6).toUpperCase()}` : ''}
+                            </span>
+                            {typeof onClose === 'function' && (
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    aria-label="Close incident details"
+                                    className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
+                                >
+                                    <HiOutlineX className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <h3 className="mt-1.5 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug break-words">
                         {details.title}
                     </h3>
 
-                    {/* Status and Severity Badges */}
+                    {/* Status, Severity & Category Badges in Sentence Case */}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <span className={`${BADGE_BASE} ${statusCfg.badge}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
                             <span className="capitalize">{details.status}</span>
                         </span>
                         <span className={`${BADGE_BASE} ${SEVERITY_STYLES[details.severity] || SEVERITY_STYLES.moderate}`}>
-                            <span className="capitalize">{details.severity}</span> severity
+                            <span>{severityLabel}</span>
                         </span>
-                        <span className={`${BADGE_BASE} border-gray-200/90 bg-gray-50 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300`}>
-                            {details.typeLabel}
+                        <span className={`${BADGE_BASE} border-gray-200/90 bg-gray-100 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300`}>
+                            <span>{categoryLabel}</span>
                         </span>
                         {details.status === 'pending' && (
                             <span className={`${BADGE_BASE} border-amber-300 bg-amber-100/80 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200`}>
@@ -209,10 +228,10 @@ const MapIncidentDetails = ({
                         )}
                     </div>
 
-                    {/* Location with Pin */}
+                    {/* Deduplicated Location Line with Pin */}
                     <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-gray-700 dark:text-gray-300">
                         <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                        <span className="min-w-0 break-words font-medium">{details.location}</span>
+                        <span className="min-w-0 break-words font-medium">{cleanAddress}</span>
                     </div>
                 </div>
 
@@ -222,7 +241,7 @@ const MapIncidentDetails = ({
                         <button
                             type="button"
                             onClick={onToggleExpand}
-                            className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3.5 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3.5 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300 cursor-pointer"
                             aria-label="Expand full incident brief"
                         >
                             <span className="flex items-center gap-1.5">
@@ -266,36 +285,36 @@ const MapIncidentDetails = ({
                     </section>
                 )}
 
-                {/* 3. Key Incident Metadata */}
-                <dl className="grid grid-cols-1 overflow-hidden rounded-lg border border-gray-200/90 bg-gray-50/60 sm:grid-cols-2 sm:divide-x sm:divide-gray-200/80 dark:border-white/10 dark:bg-[#07130e] dark:sm:divide-white/10">
-                    <div className="space-y-2 border-b border-gray-200/80 p-2.5 dark:border-white/10 sm:border-b-0 sm:p-3">
+                {/* 3. Borderless Metadata Grid */}
+                <dl className="grid grid-cols-1 border-t border-b border-gray-100 py-3 sm:grid-cols-2 gap-3 text-xs dark:border-white/10">
+                    <div className="space-y-1.5">
                         <div>
-                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Incident time</dt>
-                            <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white tabular-nums">{formatDate(details.incidentTime)}</dd>
-                            {formatRelativeDate(details.incidentTime) && (
-                                <dd className="text-[11px] text-gray-500 dark:text-gray-400">{formatRelativeDate(details.incidentTime)}</dd>
+                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Incident time</dt>
+                            <dd className="mt-0.5 font-semibold text-gray-900 dark:text-white tabular-nums">{formatIncidentTime(details.incidentTime)}</dd>
+                            {relativeTime && (
+                                <dd className="text-[11px] text-gray-500 dark:text-gray-400">{relativeTime}</dd>
                             )}
                         </div>
                         {respondingAgencies.length > 0 && (
-                            <div className="pt-0.5">
-                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responding agency</dt>
-                                <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white flex items-center gap-1">
+                            <div className="pt-1">
+                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Responding agency</dt>
+                                <dd className="mt-0.5 font-semibold text-gray-900 dark:text-white flex items-center gap-1">
                                     <HiOutlineTruck className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                                     <span>{respondingAgencies.join(', ')}</span>
                                 </dd>
                             </div>
                         )}
                     </div>
-                    <div className="space-y-1.5 p-2.5 sm:p-3">
+                    <div className="space-y-1.5">
                         <div>
-                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Barangay / municipality</dt>
-                            <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">{details.barangay}</dd>
-                            <dd className="text-xs text-gray-600 dark:text-gray-400">{details.municipality}</dd>
+                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Jurisdiction</dt>
+                            <dd className="mt-0.5 font-semibold text-gray-900 dark:text-white">{details.barangay}</dd>
+                            <dd className="text-[11px] text-gray-500 dark:text-gray-400">{details.municipality}</dd>
                         </div>
                         {coordinatesText && (
                             <div className="pt-0.5">
-                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Coordinates</dt>
-                                <dd className="mt-0.5 text-[11px] tabular-nums font-mono font-medium text-gray-600 dark:text-gray-300">GPS: {coordinatesText}</dd>
+                                <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Coordinates</dt>
+                                <dd className="mt-0.5 text-[11px] tabular-nums font-mono font-medium text-gray-500 dark:text-gray-400">GPS: {coordinatesText}</dd>
                             </div>
                         )}
                     </div>
@@ -303,18 +322,18 @@ const MapIncidentDetails = ({
 
                 {/* 4. Description */}
                 <section aria-labelledby="map-incident-description-heading">
-                    <h4 id="map-incident-description-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <h4 id="map-incident-description-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
                         {isOperational ? 'Operational description' : 'Public description'}
                     </h4>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-xs sm:text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                    <p className="whitespace-pre-wrap break-words text-xs sm:text-sm leading-relaxed text-gray-800 dark:text-gray-200">
                         {details.description || 'No incident description provided.'}
                     </p>
                 </section>
 
                 {/* 5. Casualties and Affected Area */}
-                <section className="border-t border-gray-200/80 pt-3 dark:border-white/10" aria-labelledby="map-incident-casualties-heading">
-                    <div className="flex items-center justify-between gap-2">
-                        <h4 id="map-incident-casualties-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                <section className="border-t border-gray-100 pt-3 dark:border-white/10" aria-labelledby="map-incident-casualties-heading">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <h4 id="map-incident-casualties-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                             Casualties and affected area
                         </h4>
                         {isPending && (
@@ -324,43 +343,43 @@ const MapIncidentDetails = ({
                         )}
                     </div>
 
-                    <div className="mt-1.5 grid grid-cols-3 divide-x divide-gray-200/80 overflow-hidden rounded-lg border border-gray-200/90 bg-gray-50/60 dark:divide-white/10 dark:border-white/10 dark:bg-[#07130e]">
-                        <div className="p-2 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Injured</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof injured === 'number' && injured > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
+                    <div className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200/80 bg-gray-50/50 p-2 text-center dark:border-white/10 dark:bg-[#07130e]">
+                        <div>
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Injured</span>
+                            <span className={`mt-0.5 block text-base font-bold tabular-nums ${typeof injured === 'number' && injured > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}>
                                 {injured}
-                            </p>
+                            </span>
                         </div>
-                        <div className="p-2 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Fatalities</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof fatalities === 'number' && fatalities > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-white'}`}>
+                        <div>
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Fatalities</span>
+                            <span className={`mt-0.5 block text-base font-bold tabular-nums ${typeof fatalities === 'number' && fatalities > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
                                 {fatalities}
-                            </p>
+                            </span>
                         </div>
-                        <div className="p-2 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Missing</p>
-                            <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums ${typeof missing === 'number' && missing > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
+                        <div>
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Missing</span>
+                            <span className={`mt-0.5 block text-base font-bold tabular-nums ${typeof missing === 'number' && missing > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`}>
                                 {missing}
-                            </p>
+                            </span>
                         </div>
                     </div>
 
                     {hasImpactRecorded && (
                         <dl className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {households > 0 && (
-                                <div className="rounded border border-gray-200/90 bg-gray-50/60 p-2 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/50 p-2 dark:border-white/10 dark:bg-white/[0.02]">
                                     <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Households</dt>
                                     <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white tabular-nums">{households}</dd>
                                 </div>
                             )}
                             {evacuees > 0 && (
-                                <div className="rounded border border-gray-200/90 bg-gray-50/60 p-2 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/50 p-2 dark:border-white/10 dark:bg-white/[0.02]">
                                     <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Evacuees</dt>
                                     <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white tabular-nums">{evacuees}</dd>
                                 </div>
                             )}
                             {radius > 0 && (
-                                <div className="rounded border border-gray-200/90 bg-gray-50/60 p-2 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/50 p-2 dark:border-white/10 dark:bg-white/[0.02]">
                                     <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Affected radius</dt>
                                     <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white tabular-nums">{radius} meters</dd>
                                 </div>
@@ -376,8 +395,8 @@ const MapIncidentDetails = ({
                 </section>
 
                 {/* 6. Evidence Photos / Previews */}
-                <section className="border-t border-gray-200/80 pt-3 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
-                    <h4 id="map-incident-evidence-heading" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                <section className="border-t border-gray-100 pt-3 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
+                    <h4 id="map-incident-evidence-heading" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-950 dark:text-white mb-2">
                         <HiOutlinePhotograph className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                         <span>
                             {totalEvidenceCount > 0
@@ -390,19 +409,21 @@ const MapIncidentDetails = ({
                         </span>
                     </h4>
 
-                    <div className="mt-1.5">
+                    <div>
                         <ProtectedEvidenceGallery
                             images={isOriginalAllowed ? (displayedReport?.images || []) : []}
                             evidence={evidenceDescriptor}
                             accessLevel={effectiveViewerAccess}
                             isOwner={ownsReport && isOriginalAllowed}
-                            onViewImage={(item) => setViewerItem(item)}
+                            isOperational={isOperational}
+                            variant="stacked"
+                            onViewImage={onViewImage || ((item) => setViewerItem(item))}
                         />
                     </div>
                 </section>
 
                 {/* 7. Privacy & Security Notice */}
-                <div className="flex items-start gap-2 border-t border-gray-200/80 pt-2.5 text-[11px] leading-relaxed text-gray-500 dark:border-white/10 dark:text-gray-400">
+                <div className="flex items-start gap-2 border-t border-gray-100 pt-3 text-[11px] leading-relaxed text-gray-500 dark:border-white/10 dark:text-gray-400">
                     <HiOutlineShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                     <p>{privacyNotice}</p>
                 </div>
@@ -438,12 +459,13 @@ const MapIncidentDetails = ({
                 </div>
             )}
 
-            <ImageViewer
-                isOpen={Boolean(viewerItem)}
-                item={viewerItem}
-                onClose={() => setViewerItem(null)}
-            />
-
+            {!onViewImage && (
+                <ImageViewer
+                    isOpen={Boolean(viewerItem)}
+                    item={viewerItem}
+                    onClose={() => setViewerItem(null)}
+                />
+            )}
         </div>
     );
 };

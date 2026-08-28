@@ -226,12 +226,13 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 />
             );
 
-            // Thumbnail displays Privacy-safe preview badge
-            expect(screen.getByText('Privacy-safe preview')).toBeInTheDocument();
+            // Thumbnail displays Protected badge and truthful title
+            expect(screen.getByText('Protected')).toBeInTheDocument();
             expect(screen.queryByText(/Faces blurred for privacy/i)).not.toBeInTheDocument();
 
             // Click thumbnail to open lightbox
             const thumbnailBtn = screen.getByRole('button', { name: /Incident evidence photo 1/i });
+            expect(thumbnailBtn).toHaveAttribute('title', expect.stringContaining('Privacy-safe preview'));
             fireEvent.click(thumbnailBtn);
 
             // Lightbox renders truthful title and footer badge

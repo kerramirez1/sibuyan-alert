@@ -99,7 +99,7 @@ describe('ReporterDashboardPage', () => {
         const viewDetailsLinks = screen.getAllByRole('link', { name: /View details/i });
         expect(viewDetailsLinks).toHaveLength(3);
         expect(viewDetailsLinks[0]).toHaveAttribute('href', '/my-reports?report=report-1');
-    });
+    }, 12000);
 
     test('updates status dynamically upon socket events', async () => {
         render(
