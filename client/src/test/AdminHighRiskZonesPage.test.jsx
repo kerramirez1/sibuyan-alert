@@ -114,11 +114,6 @@ vi.mock('../services/api', () => ({
                 },
             },
         }),
-        searchLocations: vi.fn().mockResolvedValue({
-            data: {
-                data: [{ lat: 12.3785, lng: 122.5432, address: 'Cambajao, Cajidiocan' }],
-            },
-        }),
     },
 }));
 
@@ -147,7 +142,6 @@ describe('AdminHighRiskZonesPage', () => {
 
         expect(screen.getByRole('region', { name: 'High-risk zones map workspace' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'High-risk zones map' })).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('Search place or landmark...')).toBeInTheDocument();
 
         expect(screen.getByRole('region', { name: 'Marked high-risk zones' })).toBeInTheDocument();
         expect(screen.getByText('Marked zones (2)')).toBeInTheDocument();

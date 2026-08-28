@@ -16,7 +16,6 @@ vi.mock('../models/Notification.js', () => ({
 
 vi.mock('../services/geocoding.js', () => ({
     isWithinSibuyanBounds: vi.fn(),
-    searchSibuyanLocations: vi.fn(),
 }));
 
 vi.mock('../services/locationService.js', () => ({

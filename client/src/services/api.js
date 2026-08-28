@@ -142,7 +142,6 @@ export const reportsAPI = {
     getMapConfig: () => api.get('/reports/map-config'),
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: () => api.get('/reports/municipalities'),
-    searchLocations: (query, config = {}) => api.get('/reports/location-search', { ...config, params: { ...config.params, q: query } }),
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
     create: (formData) => api.post('/reports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

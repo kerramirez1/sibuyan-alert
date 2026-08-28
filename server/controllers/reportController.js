@@ -5,7 +5,7 @@ import { canViewOperationalReport } from '../utils/reportAccess.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
-import { isWithinSibuyanBounds, searchSibuyanLocations } from '../services/geocoding.js';
+import { isWithinSibuyanBounds } from '../services/geocoding.js';
 import { processLocation, getResponseTimeEstimate } from '../services/locationService.js';
 import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
@@ -1068,24 +1068,6 @@ export const getCategories = async (req, res) => {
     }
 };
 
-/** Search Sibuyan locations through the server-side geocoding gateway. */
-export const searchLocations = async (req, res) => {
-    try {
-        const query = String(req.query.q || '').trim();
-        if (query.length < 2 || query.length > 160) {
-            return res.status(400).json({ success: false, message: 'Enter 2 to 160 characters to search for a location.' });
-        }
-
-        const results = await searchSibuyanLocations(query);
-        return res.json({ success: true, data: results });
-    } catch (error) {
-        console.error('Location search error:', error);
-        return res.status(503).json({ success: false, message: 'Location search is temporarily unavailable.' });
-    }
-};
-
-
-
 /**
  * @desc    Geocode an address and determine municipality
  * @route   POST /api/reports/geocode
@@ -1182,6 +1164,5 @@ export default {
     getStats,
     getMunicipalities,
     getCategories,
-    searchLocations,
     geocodeLocation,
 };

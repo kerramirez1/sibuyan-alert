@@ -17,7 +17,6 @@ import {
     HiOutlineLocationMarker,
     HiOutlineX,
     HiOutlineCheck,
-    HiOutlineSearch,
     HiOutlinePhotograph,
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
@@ -59,14 +58,11 @@ const AdminHighRiskZonesPage = () => {
     const photoInputRef = useRef(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResolvingLocation, setIsResolvingLocation] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const focusRequestSequenceRef = useRef(0);
     const locationRequestRef = useRef(0);
     const locationAbortRef = useRef(null);
-    const searchRequestRef = useRef(0);
-    const searchAbortRef = useRef(null);
 
     const canManageZone = (zone) => (
         !user?.assignedMunicipality || zone?.municipality === user.assignedMunicipality
@@ -138,53 +134,8 @@ const AdminHighRiskZonesPage = () => {
         }
     };
 
-    const handleLocationSearch = async (event) => {
-        event.preventDefault();
-        const query = String(new FormData(event.currentTarget).get('search') || '').trim();
-        if (!query) return;
-
-        searchAbortRef.current?.abort();
-        const requestId = searchRequestRef.current + 1;
-        searchRequestRef.current = requestId;
-        const controller = new AbortController();
-        searchAbortRef.current = controller;
-        setIsSearching(true);
-
-        try {
-            toast.loading('Searching Sibuyan locations...', { id: 'search' });
-            const response = await reportsAPI.searchLocations(query, { signal: controller.signal });
-            if (searchRequestRef.current !== requestId) return;
-
-            const result = response.data?.data?.[0];
-            if (!result) {
-                toast.error('Location not found. Try a different landmark or spelling.', { id: 'search' });
-                return;
-            }
-
-            const location = { lat: Number(result.lat), lng: Number(result.lng) };
-            focusMapLocation(location);
-            const verified = await handleLocationSelect(location);
-            if (verified) toast.success('Location found and verified', { id: 'search' });
-            else toast.dismiss('search');
-        } catch (error) {
-            const isCanceled = error?.code === 'ERR_CANCELED'
-                || error?.name === 'CanceledError'
-                || error?.name === 'AbortError';
-            if (!isCanceled) {
-                console.error('Location search error:', error);
-                toast.error(error.response?.data?.message || 'Location search failed', { id: 'search' });
-            }
-        } finally {
-            if (searchRequestRef.current === requestId) {
-                searchAbortRef.current = null;
-                setIsSearching(false);
-            }
-        }
-    };
-
     useEffect(() => () => {
         locationAbortRef.current?.abort();
-        searchAbortRef.current?.abort();
         mapScrollCleanupRef.current?.();
     }, []);
 
@@ -387,12 +338,8 @@ const AdminHighRiskZonesPage = () => {
     const resetForm = () => {
         locationAbortRef.current?.abort();
         locationRequestRef.current += 1;
-        searchAbortRef.current?.abort();
-        searchRequestRef.current += 1;
         toast.dismiss('geocoding');
-        toast.dismiss('search');
         setIsResolvingLocation(false);
-        setIsSearching(false);
         setShowForm(false);
         setEditingZone(null);
         setSelectedLocation(null);
@@ -469,33 +416,13 @@ const AdminHighRiskZonesPage = () => {
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
-                    <div className="flex flex-col gap-2.5 border-b border-gray-200/80 bg-gray-50/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 p-3 sm:px-4 sm:py-3 dark:border-white/10 dark:bg-white/[0.02]">
                         <div className="flex items-center gap-2">
                             <HiOutlineLocationMarker className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
                                 {showForm ? 'Select zone location' : 'High-risk zones map'}
                             </h2>
                         </div>
-
-                        {/* Location Search Bar */}
-                        <form onSubmit={handleLocationSearch} className="flex w-full items-center gap-1.5 sm:w-80">
-                            <div className="relative flex-1 min-w-0">
-                                <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" aria-hidden="true" />
-                                <input
-                                    type="text"
-                                    name="search"
-                                    placeholder="Search place or landmark..."
-                                    className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-10 pr-3 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={isSearching}
-                                className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-brand-700 px-3 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500"
-                            >
-                                {isSearching ? 'Searching...' : 'Search'}
-                            </button>
-                        </form>
                     </div>
 
                     {/* Map View Frame */}

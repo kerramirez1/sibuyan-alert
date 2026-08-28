@@ -83,10 +83,6 @@ const ReportPage = () => {
         }
     };
 
-    // Location Search State
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState([]);
     const reverseGeocodeRequestRef = useRef(0);
     const reverseGeocodeAbortRef = useRef(null);
 
@@ -140,39 +136,6 @@ const ReportPage = () => {
                 reverseGeocodeAbortRef.current = null;
             }
         }
-    };
-
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
-        setIsSearching(true);
-        try {
-            const response = await reportsAPI.searchLocations(searchQuery.trim());
-            const data = response.data?.data || [];
-            if (data.length === 0) {
-                toast.error('Location not found. Try a different keyword.');
-            } else {
-                setSearchResults(data);
-                if (data.length === 1) selectSearchResult(data[0]);
-            }
-        } catch (error) {
-            console.error('Search error:', error);
-            toast.error('Failed to search location');
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const selectSearchResult = (result) => {
-        const lat = Number(result.lat);
-        const lng = Number(result.lng);
-        const location = { lat, lng };
-        if (!isValidLocation(location)) {
-            toast.error('The selected search result has invalid coordinates.');
-            return;
-        }
-        setSearchResults([]);
-        setSearchQuery('');
-        handleLocationSelect(location, 'search');
     };
 
     const watchIdRef = useRef(null);
@@ -489,16 +452,9 @@ const ReportPage = () => {
                         selectedLocation={selectedLocation}
                         userLocation={userLocation}
                         focusLocation={focusLocation}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                        isSearching={isSearching}
-                        searchResults={searchResults}
-                        setSearchResults={setSearchResults}
                         detectLocation={detectLocation}
                         retryLocation={retryLocation}
                         confirmLocation={confirmLocation}
-                        handleSearch={handleSearch}
-                        selectSearchResult={selectSearchResult}
                         handleLocationSelect={handleLocationSelect}
                         formData={formData}
                         handleChange={handleChange}

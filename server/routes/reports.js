@@ -10,7 +10,6 @@ import {
     getStats,
     getMunicipalities,
     getCategories,
-    searchLocations,
     geocodeLocation,
     getReportEvidencePreview,
 } from '../controllers/reportController.js';
@@ -28,7 +27,6 @@ router.get('/map-config', getMapConfig);
 router.get('/stats', getStats);  // ✅ Ordinary users CAN access aggregated stats
 router.get('/municipalities', getMunicipalities);  // ✅ Ordinary users CAN access
 router.get('/categories', getCategories);
-router.get('/location-search', locationLookupLimiter, searchLocations);
 router.post('/geocode', locationLookupLimiter, geocodeLocation);
 
 // Public report listing for map visibility (verified/responding only by default)

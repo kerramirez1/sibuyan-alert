@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
 
-const { createReportMock, geocodeLocationMock, searchLocationsMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
+const { createReportMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
     createReportMock: vi.fn(),
     geocodeLocationMock: vi.fn(),
-    searchLocationsMock: vi.fn(),
     mapPropsSpy: vi.fn(),
     toastMock: {
         loading: vi.fn(),
@@ -19,7 +18,6 @@ vi.mock('../services/api', () => ({
     reportsAPI: {
         create: createReportMock,
         geocodeLocation: geocodeLocationMock,
-        searchLocations: searchLocationsMock,
     },
 }));
 
@@ -195,22 +193,6 @@ describe('ReportPage workflow', () => {
         expect(injuredInput).toHaveValue(3);
         expect(fatalitiesInput).toHaveValue(1);
         expect(missingInput).toHaveValue(0);
-    });
-
-    test('displays location search error when search yields no matches', async () => {
-        searchLocationsMock.mockResolvedValueOnce({ data: { data: [] } });
-        renderPage();
-
-        const searchInput = screen.getByPlaceholderText(/search landmark or place/i);
-        fireEvent.change(searchInput, { target: { value: 'Nonexistent Landmark 123' } });
-        fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
-
-        await waitFor(() => {
-            expect(toastMock.error).toHaveBeenCalledWith(
-                'Location not found. Try a different keyword.',
-                expect.objectContaining({ id: 'app-notification' })
-            );
-        });
     });
 
     describe('Evidence Photos & Camera Capture MVP', () => {
