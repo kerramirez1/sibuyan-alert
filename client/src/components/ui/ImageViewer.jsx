@@ -39,6 +39,7 @@ const ImageViewer = ({
     onClose = () => {},
     alt = '',
     viewerAccess = null,
+    entityLabel = 'Evidence photo',
 }) => {
     const itemsList = useMemo(() => {
         if (Array.isArray(items) && items.length > 0) return items;
@@ -355,9 +356,11 @@ const ImageViewer = ({
         || redactionType === 'fallback_blur'
         || redactionType === 'svg_fallback';
 
+    const resolvedEntityLabel = currentItem?.entityLabel || entityLabel || 'Evidence photo';
+
     const headerTitle = hasMultiple
-        ? `Evidence photo ${displayIndexNumber} of ${totalItems}`
-        : `Evidence photo ${displayIndexNumber}`;
+        ? `${resolvedEntityLabel} ${displayIndexNumber} of ${totalItems}`
+        : (currentItem?.title || `${resolvedEntityLabel} preview`);
 
     const renderFooterBadge = () => {
         // If there's an error, security violation, or no effective source, do not render a misleading "faces redacted" or "scene preview" message!
@@ -558,8 +561,8 @@ const ImageViewer = ({
                                 handlePrev();
                             }}
                             disabled={!canGoPrev}
-                            aria-label="Previous evidence photo"
-                            title="Previous evidence photo (Left Arrow)"
+                            aria-label={`Previous ${resolvedEntityLabel.toLowerCase()}`}
+                            title={`Previous ${resolvedEntityLabel.toLowerCase()} (Left Arrow)`}
                             className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full text-white/80 drop-shadow-md hover:bg-black/50 hover:backdrop-blur-xs hover:text-white transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-20 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
                         >
                             <HiOutlineChevronLeft className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
@@ -575,8 +578,8 @@ const ImageViewer = ({
                                 handleNext();
                             }}
                             disabled={!canGoNext}
-                            aria-label="Next evidence photo"
-                            title="Next evidence photo (Right Arrow)"
+                            aria-label={`Next ${resolvedEntityLabel.toLowerCase()}`}
+                            title={`Next ${resolvedEntityLabel.toLowerCase()} (Right Arrow)`}
                             className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full text-white/80 drop-shadow-md hover:bg-black/50 hover:backdrop-blur-xs hover:text-white transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-0 sm:disabled:opacity-20 disabled:pointer-events-none sm:disabled:pointer-events-auto sm:disabled:cursor-not-allowed cursor-pointer"
                         >
                             <HiOutlineChevronRight className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />

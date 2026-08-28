@@ -47,7 +47,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         // Header and labels
-        expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
+        expect(screen.getByText('Evidence photo preview')).toBeInTheDocument();
         expect(screen.getByText(/Faces redacted for privacy · Scene details preserved/i)).toBeInTheDocument();
 
         // Image rendered with exact redacted source
@@ -187,7 +187,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
             />
         );
 
-        expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
+        expect(screen.getByText('Evidence photo preview')).toBeInTheDocument();
         expect(screen.getByText(/Owner access · Original evidence/i)).toBeInTheDocument();
 
         const img = screen.getByRole('img', { name: /Incident evidence photo 1/i });
@@ -456,7 +456,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         // Header has the title
-        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo preview');
 
         // Status is displayed in footer once
         const statusBadges = screen.getAllByText(/Original evidence · Operational access/i);
@@ -480,7 +480,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
             />
         );
 
-        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo preview');
         expect(screen.queryByRole('button', { name: /Previous evidence photo/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Next evidence photo/i })).not.toBeInTheDocument();
     });
@@ -749,7 +749,7 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         expect(loadingIndicator).toHaveTextContent(/Loading protected evidence/i);
 
         // Header and close controls remain accessible and positioned
-        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 1');
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo preview');
         expect(screen.getByRole('button', { name: /Close image viewer/i })).toBeInTheDocument();
     });
 
@@ -1006,5 +1006,37 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         // Reset zoom & rotation with reset button
         fireEvent.click(resetBtn);
         expect(img.style.transform).toBe('');
+    });
+
+    test('33. Supports custom entityLabel prop for context-aware headers and navigation labels', () => {
+        const items = [
+            { id: 'ref-0', index: 0, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ref-0.jpg' },
+            { id: 'ref-1', index: 1, viewerAccess: 'original', sourceKind: 'authorized-original', src: 'blob:http://localhost/ref-1.jpg' },
+        ];
+
+        const { rerender } = render(
+            <ImageViewer
+                isOpen={true}
+                items={items}
+                initialIndex={0}
+                entityLabel="Field reference"
+            />
+        );
+
+        // Header and navigation for multiple items
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Field reference 1 of 2');
+        expect(screen.getByRole('button', { name: /Next field reference/i })).toBeInTheDocument();
+
+        // Single item with custom entityLabel
+        rerender(
+            <ImageViewer
+                isOpen={true}
+                items={[items[0]]}
+                initialIndex={0}
+                entityLabel="Site photo"
+            />
+        );
+
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Site photo preview');
     });
 });

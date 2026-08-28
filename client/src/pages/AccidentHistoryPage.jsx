@@ -10,13 +10,11 @@ import {
     HiOutlineCalendar,
     HiOutlineChevronDown,
     HiOutlineClock,
-    HiOutlineEye,
     HiOutlineFilter,
     HiOutlineLocationMarker,
     HiOutlineLockClosed,
     HiOutlinePhotograph,
     HiOutlineSearch,
-    HiOutlineShieldCheck,
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
@@ -591,33 +589,15 @@ const AccidentHistoryPage = () => {
     }
 
     return (
-        <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
-            {/* Header: Public Archive & Island Safety Records */}
-            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+            {/* Header: Clean Public Archive Title */}
+            <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <HiOutlineArchive className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Records</span>
-                            <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
-                            <span className="text-emerald-700 dark:text-emerald-400 font-bold">Public Archive</span>
-                        </span>
+                    <span className="text-xs font-bold tracking-wider text-emerald-700 dark:text-emerald-400 uppercase">
+                        Public Archive
+                    </span>
 
-                        <div
-                            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold select-none ${canViewFullDetails
-                                ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                : 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'
-                            }`}
-                            aria-label={canViewFullDetails ? 'Operational access level' : 'Public records access level'}
-                        >
-                            {canViewFullDetails
-                                ? <HiOutlineShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                : <HiOutlineEye className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />}
-                            <span>{canViewFullDetails ? 'Operational access' : 'Public records'}</span>
-                        </div>
-                    </div>
-
-                    <h1 className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
                         Accident history
                     </h1>
                     <p className="mt-0.5 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
@@ -626,42 +606,45 @@ const AccidentHistoryPage = () => {
                 </div>
             </header>
 
-            {/* Compact Archive Summary Strip */}
-            <section className="grid grid-cols-2 divide-y divide-gray-200/80 rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 overflow-hidden" aria-label="History summary">
+            {/* Flat Summary Metrics Grid with Hairline Dividers */}
+            <section
+                className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0"
+                aria-label="History summary"
+            >
                 {/* 1. Total Resolved */}
-                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
+                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineBadgeCheck className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total resolved</h2>
                     </div>
-                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.total}
                     </p>
-                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All recorded incidents</p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All recorded incidents</p>
                 </div>
 
                 {/* 2. Last 7 Days */}
-                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
+                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineClock className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 7 days</h2>
                     </div>
-                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.last7}
                     </p>
-                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Recently closed</p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Recently closed</p>
                 </div>
 
                 {/* 3. Last 30 Days */}
-                <div className="p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
+                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
                     <div className="flex items-center gap-1.5">
                         <HiOutlineCalendar className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
                         <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 30 days</h2>
                     </div>
-                    <p className="mt-1 font-display font-bold text-xl sm:text-2xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
                         {stats.last30}
                     </p>
-                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Monthly activity</p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Monthly activity</p>
                 </div>
 
                 {/* 4. Top Barangay Insight */}
@@ -676,11 +659,11 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`p-3 sm:p-3.5 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left transition-colors relative ${
+                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left transition-colors relative rounded-lg ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data'
-                            ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30'
+                            ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5'
                             : ''
-                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-500/10 dark:bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30' : ''}`}
+                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-inset ring-emerald-500/20' : ''}`}
                 >
                     <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -693,10 +676,10 @@ const AccidentHistoryPage = () => {
                             </span>
                         )}
                     </div>
-                    <p className="mt-1 font-display font-bold text-base sm:text-lg text-gray-950 dark:text-white truncate tracking-tight">
+                    <p className="mt-1 font-display font-bold text-lg sm:text-xl text-gray-950 dark:text-white truncate tracking-tight">
                         {topBarangayInfo.name}
                     </p>
-                    <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{topBarangayInfo.helper}</p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{topBarangayInfo.helper}</p>
                 </div>
             </section>
 
@@ -730,14 +713,14 @@ const AccidentHistoryPage = () => {
 
                         {/* Consolidated Toolbar Controls */}
                         <div className="flex items-center gap-2 shrink-0">
-                            {/* Unified Filters Button */}
+                            {/* Refined Ghost/Outlined Filters Button */}
                             <button
                                 type="button"
                                 onClick={() => setFilterModalOpen(true)}
-                                className={`flex h-9 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                                className={`flex h-9 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
                                     activeFilterCount > 0
                                         ? 'border-emerald-600/90 bg-emerald-50 text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300'
-                                        : 'border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5'
+                                        : 'bg-transparent border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
                                 }`}
                             >
                                 <span className="flex items-center gap-1.5">
@@ -801,8 +784,8 @@ const AccidentHistoryPage = () => {
 
                     {/* Results Counter & Removable Filter Chips */}
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Showing <span className="text-gray-900 dark:text-white font-black tabular-nums">{filteredReports.length}</span> of {reports.length} records
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Showing <span className="text-gray-900 dark:text-white font-bold tabular-nums">{filteredReports.length}</span> of {reports.length} records
                         </p>
 
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -905,7 +888,7 @@ const AccidentHistoryPage = () => {
                                         }}
                                         style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #059669)' } : undefined}
                                         className={`transition-colors duration-150 border-l-2 sm:border-l-[3px] scroll-mt-4 sm:scroll-mt-6 ${isExpanded
-                                            ? 'border-l-emerald-600 bg-emerald-50/20 shadow-2xs dark:border-l-emerald-500 dark:bg-[#07130e]/80 border-b border-gray-200/90 dark:border-white/10'
+                                            ? 'border-l-emerald-600 bg-emerald-50/15 shadow-2xs dark:border-l-emerald-500 dark:bg-[#07130e]/80 border-b border-gray-200/90 dark:border-white/10'
                                             : 'border-l-transparent bg-white hover:bg-gray-50/75 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                         }`}
                                     >
@@ -941,7 +924,7 @@ const AccidentHistoryPage = () => {
                                             </div>
 
                                             <div className="flex items-center justify-start">
-                                                <span className={`inline-flex h-5.5 sm:h-6 w-full max-w-[74px] sm:max-w-[88px] md:max-w-[96px] items-center gap-1 sm:gap-1.5 rounded-md border px-1 sm:px-2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold uppercase tracking-wider shadow-2xs ${severity.badge}`}>
+                                                <span className={`inline-flex h-5.5 sm:h-6 w-full max-w-[74px] sm:max-w-[88px] md:max-w-[96px] items-center gap-1 sm:gap-1.5 rounded-md border px-1 sm:px-2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold tracking-wider shadow-2xs ${severity.badge}`}>
                                                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
                                                     <span className="hidden md:inline truncate">{severity.label}</span>
                                                     <span className="md:hidden truncate">{severity.shortLabel || severity.label}</span>
@@ -953,15 +936,21 @@ const AccidentHistoryPage = () => {
                                             </div>
                                         </button>
 
-                                        {/* Structured Municipal Incident Dossier */}
+                                        {/* Structured Municipal Incident Dossier (Typography-Driven Flat Layout) */}
                                         {isExpanded && (
-                                            <div className="border-t border-gray-200/60 px-4 py-4 space-y-3.5 sm:px-6 dark:border-white/5">
+                                            <div className="border-t border-gray-100 px-4 py-4 space-y-4 sm:px-6 dark:border-white/5">
+                                                {/* Incident Summary */}
                                                 <div>
-                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Incident summary</h3>
-                                                    <p className="mt-1 text-xs leading-relaxed text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0c1813]/80 p-3 rounded-xl border border-gray-200/70 dark:border-white/10 break-words">{report.description || <span className="italic text-gray-400 dark:text-gray-500">No incident description was provided.</span>}</p>
+                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">
+                                                        Incident summary
+                                                    </h3>
+                                                    <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 break-words">
+                                                        {report.description || <span className="italic text-gray-400 dark:text-gray-500">No public description provided.</span>}
+                                                    </p>
                                                 </div>
 
-                                                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pt-1">
+                                                {/* Flat Metadata Grid */}
+                                                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pt-1 border-t border-gray-100 dark:border-white/5">
                                                     {[
                                                         ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a')],
                                                         ['Barangay', report.barangay || 'Not available'],
@@ -974,16 +963,17 @@ const AccidentHistoryPage = () => {
                                                             ['Views', String(report.viewCount || 0)],
                                                         ] : []),
                                                     ].map(([label, value]) => (
-                                                        <div key={label} className="rounded-xl border border-gray-200/70 bg-gray-50/60 p-2.5 dark:border-white/10 dark:bg-white/[0.02] min-w-0">
-                                                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">{label}</dt>
-                                                            <dd className="mt-0.5 text-xs font-bold text-gray-950 break-words dark:text-white tabular-nums truncate">{value}</dd>
+                                                        <div key={label} className="min-w-0">
+                                                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">{label}</dt>
+                                                            <dd className="text-xs font-medium text-gray-900 dark:text-gray-100 break-words tabular-nums">{value}</dd>
                                                         </div>
                                                     ))}
                                                 </dl>
 
-                                                <div className="flex flex-col gap-2 rounded-xl border border-gray-200/60 bg-gray-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.02]">
+                                                {/* Flat Responsive Privacy / Operational Footer */}
+                                                <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 dark:border-white/5 text-xs text-gray-500 dark:text-gray-400">
                                                     {(report.respondedBy || report.resolvedBy) ? (
-                                                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                                                        <div className="flex flex-wrap items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
                                                             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
                                                             <span className="text-[10px] font-bold uppercase tracking-wider">
                                                                 Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}
@@ -1018,7 +1008,7 @@ const AccidentHistoryPage = () => {
                                                             </div>
                                                         ) : null
                                                     ) : (
-                                                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                                             <HiOutlineLockClosed className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                                                             <span>Protected details restricted to authorized operational users.</span>
                                                         </div>

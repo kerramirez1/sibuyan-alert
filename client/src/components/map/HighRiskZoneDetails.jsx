@@ -48,7 +48,7 @@ const extractCoordinates = (item) => {
     return null;
 };
 
-const RiskZonePhotoThumbnail = ({ photo, index, onView }) => {
+const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) => {
     const [state, setState] = useState({ url: '', loading: true, error: false });
 
     useEffect(() => {
@@ -124,9 +124,11 @@ const RiskZonePhotoThumbnail = ({ photo, index, onView }) => {
                     <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
                 </span>
             </div>
-            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
-                #{index + 1}
-            </span>
+            {hasMultiple && (
+                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
+                    #{index + 1}
+                </span>
+            )}
         </button>
     );
 };
@@ -151,13 +153,13 @@ const HighRiskZoneDetails = ({
                 url,
                 src: url,
                 originalUrl: url,
-                title: photo?.originalName || `${zone?.name || 'High-Risk Zone'} - Photo ${idx + 1}`,
+                entityLabel: 'Field reference',
                 caption: photo?.originalName ? `Reference photo: ${photo.originalName}` : undefined,
                 sourceKind: 'authorized-original',
                 viewerAccess: 'original',
             };
         });
-    }, [photos, zone?.name]);
+    }, [photos]);
 
     const handleOpenViewer = (index) => {
         setViewerIndex(index);
@@ -172,17 +174,17 @@ const HighRiskZoneDetails = ({
             {/* 1. Header: Badges & Jurisdiction */}
             <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${severityConfig.badge}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold ${severityConfig.badge}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${severityConfig.dot}`} aria-hidden="true" />
                         <span>{severityConfig.label}</span>
                     </span>
 
-                    <span className="inline-flex items-center rounded-full border border-gray-200/90 bg-gray-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                    <span className="inline-flex items-center rounded-md border border-gray-200/90 bg-gray-50/80 px-2.5 py-0.5 text-[11px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
                         {zone?.municipality || 'Sibuyan Island'}
                         {zone?.barangay ? ` · ${zone.barangay}` : ''}
                     </span>
 
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span>Active zone</span>
                     </span>
@@ -199,33 +201,41 @@ const HighRiskZoneDetails = ({
                 </div>
             </div>
 
-            {/* 3. Hazard Information Breakdown */}
-            <div className="rounded-xl border border-gray-200/90 bg-gray-50/60 p-3 sm:p-3.5 space-y-2.5 dark:border-white/10 dark:bg-white/[0.02]">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="font-semibold text-gray-500 dark:text-gray-400">Hazard type</span>
-                    <span className={`rounded-md border px-2 py-0.5 font-bold uppercase tracking-wider text-[10px] sm:text-[11px] ${riskTypeConfig.badge}`}>
-                        {riskTypeConfig.label}
-                    </span>
+            {/* 3. Flat Borderless Metadata Grid */}
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 border-t border-gray-100 dark:border-white/5">
+                <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                        Hazard type
+                    </dt>
+                    <dd className="text-xs font-semibold text-gray-900 dark:text-white">
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${riskTypeConfig.badge}`}>
+                            {riskTypeConfig.label}
+                        </span>
+                    </dd>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="font-semibold text-gray-500 dark:text-gray-400">Monitored coverage</span>
-                    <span className="font-bold text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                        Coverage radius
+                    </dt>
+                    <dd className="text-xs font-semibold text-gray-900 dark:text-white tabular-nums">
                         {Number.isFinite(Number(zone?.radius)) && Number(zone?.radius) > 0
                             ? `${Number(zone.radius)} m radius`
                             : 'Not specified'}
-                    </span>
+                    </dd>
                 </div>
 
                 {coordinates && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <span className="font-semibold text-gray-500 dark:text-gray-400">GPS location</span>
-                        <span className="font-mono text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                    <div className="col-span-2 min-w-0">
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                            GPS location
+                        </dt>
+                        <dd className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
                             {coordinates.lat.toFixed(4)}° N, {coordinates.lng.toFixed(4)}° E
-                        </span>
+                        </dd>
                     </div>
                 )}
-            </div>
+            </dl>
 
             {/* 4. Field Reference Photos Section */}
             <div className="space-y-2.5 pt-1">
@@ -248,6 +258,7 @@ const HighRiskZoneDetails = ({
                                 key={photo?._id || photo?.filename || `photo-${index}`}
                                 photo={photo}
                                 index={index}
+                                hasMultiple={photos.length > 1}
                                 onView={handleOpenViewer}
                             />
                         ))}
@@ -283,6 +294,7 @@ const HighRiskZoneDetails = ({
                     initialIndex={viewerIndex}
                     onClose={handleCloseViewer}
                     viewerAccess="original"
+                    entityLabel="Field reference"
                 />
             )}
         </div>

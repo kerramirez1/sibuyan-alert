@@ -464,6 +464,7 @@ const MapIncidentDetails = ({
                     isOpen={Boolean(viewerItem)}
                     item={viewerItem}
                     onClose={() => setViewerItem(null)}
+                    entityLabel="Evidence photo"
                 />
             )}
         </div>

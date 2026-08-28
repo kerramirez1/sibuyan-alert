@@ -120,7 +120,7 @@ describe('AccidentHistoryPage features and filters', () => {
         );
 
         expect(await screen.findByRole('heading', { level: 1, name: 'Accident history' })).toBeInTheDocument();
-        expect(screen.getByText('Records')).toBeInTheDocument();
+        expect(screen.getByText(/Public Archive/i)).toBeInTheDocument();
 
         // Stat strip metrics
         const summary = screen.getByRole('region', { name: 'History summary' });

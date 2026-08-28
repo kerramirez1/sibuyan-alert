@@ -443,6 +443,7 @@ const ProtectedEvidenceGallery = ({
                         isOpen={Boolean(viewer)}
                         item={viewer}
                         onClose={() => setViewer(null)}
+                        entityLabel="Evidence photo"
                     />
                 )}
             </div>
@@ -482,6 +483,7 @@ const ProtectedEvidenceGallery = ({
                     isOpen={Boolean(viewer)}
                     item={viewer}
                     onClose={() => setViewer(null)}
+                    entityLabel="Evidence photo"
                 />
             )}
         </div>

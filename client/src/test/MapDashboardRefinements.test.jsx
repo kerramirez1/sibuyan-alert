@@ -236,7 +236,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             fireEvent.click(thumbnailBtn);
 
             // Lightbox renders truthful title and footer badge
-            expect(screen.getByText('Evidence photo 1')).toBeInTheDocument();
+            expect(screen.getByText('Evidence photo preview')).toBeInTheDocument();
             expect(screen.getByText(/Privacy-safe preview · Original evidence restricted/i)).toBeInTheDocument();
             expect(screen.queryByText(/Faces redacted for privacy/i)).not.toBeInTheDocument();
 

@@ -132,14 +132,14 @@ describe('HighRiskZoneDetails Component', () => {
         const dialog = await screen.findByRole('dialog', { name: /Enlarged evidence image viewer/i });
         expect(dialog).toBeInTheDocument();
 
-        // Displays count indicator in viewer header
-        expect(screen.getByText('Evidence photo 1 of 2')).toBeInTheDocument();
+        // Displays count indicator in viewer header with context-aware entityLabel
+        expect(screen.getByText('Field reference 1 of 2')).toBeInTheDocument();
 
         // Next button navigates to Photo 2
-        const nextButtons = screen.getAllByRole('button', { name: /Next evidence photo/i });
+        const nextButtons = screen.getAllByRole('button', { name: /Next field reference/i });
         expect(nextButtons.length).toBeGreaterThan(0);
         fireEvent.click(nextButtons[0]);
-        expect(screen.getByText('Evidence photo 2 of 2')).toBeInTheDocument();
+        expect(screen.getByText('Field reference 2 of 2')).toBeInTheDocument();
 
         // Close viewer
         const closeButton = screen.getByRole('button', { name: /Close image viewer/i });
@@ -181,5 +181,40 @@ describe('HighRiskZoneDetails Component', () => {
         expect(googleMapsLink).toHaveAttribute('rel', 'noopener noreferrer');
 
         await screen.findByRole('button', { name: /View reference photo 1:/i });
+    });
+
+    test('7. Single reference photo does not render #1 badge on thumbnail and uses clean preview header in Lightbox', async () => {
+        const singlePhotoZone = {
+            ...mockZoneWithPhotos,
+            photos: [
+                {
+                    _id: 'single-photo-1',
+                    url: '/api/files/607f1f77bcf86cd799439012/cambajao-river-1.jpg',
+                    filename: 'cambajao-river-1.jpg',
+                    originalName: 'Field reference preview',
+                    displayOrder: 0,
+                    uploadedAt: '2026-08-25T10:00:00Z',
+                },
+            ],
+        };
+
+        render(<HighRiskZoneDetails zone={singlePhotoZone} viewerRole="guest" />);
+
+        expect(screen.getByText('1 photo')).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /View reference photo 1:/i })).toBeInTheDocument();
+        });
+
+        // Does NOT render #1 badge overlay
+        expect(screen.queryByText('#1')).not.toBeInTheDocument();
+
+        // Open Lightbox
+        const photoBtn = screen.getByRole('button', { name: /View reference photo 1:/i });
+        fireEvent.click(photoBtn);
+
+        // Lightbox displays clean string instead of "Evidence photo 1"
+        expect(screen.getByText('Field reference preview')).toBeInTheDocument();
+        expect(screen.queryByText('Evidence photo 1')).not.toBeInTheDocument();
     });
 });
