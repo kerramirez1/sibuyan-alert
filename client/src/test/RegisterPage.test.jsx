@@ -280,7 +280,7 @@ describe('RegisterPage location reference and responsive form', () => {
             expect(screen.getByText(/Camera access was denied/i)).toBeInTheDocument();
         });
         expect(screen.getByRole('button', { name: /Try camera again/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Choose from device/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Choose from device/i })).not.toBeInTheDocument();
 
         Object.defineProperty(navigator, 'mediaDevices', {
             value: originalMediaDevices,

@@ -298,12 +298,6 @@ const RegisterPage = () => {
         }
     };
 
-    const openSelfiePicker = () => {
-        if (!selfieInputRef.current) return;
-        selfieInputRef.current.value = '';
-        selfieInputRef.current.click();
-    };
-
     const validate = () => {
         const nextErrors = {};
         if (step === 1) {
@@ -742,18 +736,23 @@ const RegisterPage = () => {
                                 <div className="border-t border-white/10 bg-gray-900 p-3">
                                     {selfiePreview && !selfieAccepted && (
                                         <div className="grid grid-cols-2 gap-2">
-                                            <button type="button" onClick={retakeSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another' : 'Retake'}</button>
+                                            <button type="button" onClick={retakeSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> Retake</button>
                                             <button ref={selfieConfirmButtonRef} type="button" onClick={acceptSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineCheck className="h-4 w-4" /> Use this photo</button>
                                         </div>
                                     )}
                                     {selfiePreview && selfieAccepted && (
-                                        <button type="button" onClick={retakeSelfie} className="mx-auto inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another photo' : 'Retake photo'}</button>
+                                        <button type="button" onClick={retakeSelfie} className="mx-auto inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> Retake photo</button>
                                     )}
                                     {!cameraActive && !selfiePreview && (
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                            <button type="button" onClick={startCamera} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-xs sm:text-sm font-semibold text-gray-950 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-60"><HiOutlineCamera className="h-4 w-4" /> {cameraRequesting ? 'Requesting camera…' : cameraError ? 'Try camera again' : 'Open camera'}</button>
-                                            <button type="button" onClick={openSelfiePicker} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60"><HiOutlineCloudUpload className="h-4 w-4" /> {selfiePreparing ? 'Preparing photo…' : 'Choose from device'}</button>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={startCamera}
+                                            disabled={cameraRequesting || selfiePreparing}
+                                            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs sm:text-sm font-semibold text-gray-950 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-60"
+                                        >
+                                            <HiOutlineCamera className="h-4.5 w-4.5" />
+                                            {cameraRequesting ? 'Requesting camera…' : cameraError ? 'Try camera again' : 'Open camera'}
+                                        </button>
                                     )}
                                 </div>
                             )}
