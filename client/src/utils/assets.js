@@ -1,11 +1,21 @@
 export const isGridFsAsset = (value) =>
-    typeof value === 'string' && /\/api\/files\/[a-f\d]{24}(?:\/|$)/i.test(value);
+    typeof value === 'string' && (
+        /\/api\/files\/[a-f\d]{24}(?:\/|$)/i.test(value)
+        || /^[a-f\d]{24}$/i.test(value.trim())
+    );
 
 export const toApiFilePath = (value) => {
     if (typeof value !== 'string') return value;
-    const path = /^https?:\/\//i.test(value)
-        ? new URL(value).pathname
-        : value.split('?')[0];
+    const trimmed = value.trim();
+    if (/^[0-9a-fA-F]{24}$/.test(trimmed)) {
+        return `/files/${trimmed}`;
+    }
+    const path = /^https?:\/\//i.test(trimmed)
+        ? new URL(trimmed).pathname
+        : trimmed.split('?')[0];
+    if (/^[0-9a-fA-F]{24}$/.test(path)) {
+        return `/files/${path}`;
+    }
     return path.startsWith('/api/') ? path.slice('/api'.length) : path;
 };
 

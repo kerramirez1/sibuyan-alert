@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 import MapIncidentDetails from '../components/map/MapIncidentDetails';
+import { clearBlobCache } from '../utils/blobCache';
 
 const mocks = vi.hoisted(() => ({
     getReportById: vi.fn(),
@@ -61,6 +62,7 @@ const renderDetails = (props = {}) => render(
 
 describe('MapIncidentDetails Component in Map Dashboard', () => {
     beforeEach(() => {
+        clearBlobCache();
         mocks.getReportById.mockReset();
         mocks.getPublicReportById.mockReset();
         mocks.getProtected.mockReset();

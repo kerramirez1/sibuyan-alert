@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HiOutlineEyeOff, HiOutlinePhotograph, HiOutlineRefresh, HiOutlineShieldCheck } from 'react-icons/hi';
-import { filesAPI } from '../../services/api';
 import {
     isAuthorizedRedactedPreviewEndpoint,
     isProtectedOriginalFileUrl,
     normalizeEvidenceDescriptor,
 } from '../../utils/evidenceModel';
+import {
+    fetchProtectedBlob,
+    getCachedBlobUrl,
+} from '../../utils/blobCache';
 import ImageViewer from '../ui/ImageViewer';
 
 const EvidenceThumbnail = ({
@@ -29,60 +32,72 @@ const EvidenceThumbnail = ({
         : 'aspect-square w-full';
 
     useEffect(() => {
+        let isMounted = true;
         const controller = new AbortController();
-        let objectUrl = '';
 
         const load = async () => {
             try {
                 if (isBlurred) {
                     // Security rule: In redacted mode, only a valid server-generated redacted preview endpoint is permitted
                     if (item?.isForbiddenOriginal) {
-                        setState({ url: '', loading: false, error: 'Original evidence is protected' });
+                        if (isMounted) setState({ url: '', loading: false, error: 'Original evidence is protected' });
                         return;
                     }
                     const redactedUrl = item?.redactedPreviewUrl;
                     if (!redactedUrl || !isAuthorizedRedactedPreviewEndpoint(redactedUrl) || isProtectedOriginalFileUrl(redactedUrl)) {
-                        setState({
-                            url: '',
-                            loading: false,
-                            error: item?.isForbiddenOriginal ? 'Original evidence is protected' : 'Evidence preview unavailable',
-                        });
+                        if (isMounted) {
+                            setState({
+                                url: '',
+                                loading: false,
+                                error: item?.isForbiddenOriginal ? 'Original evidence is protected' : 'Evidence preview unavailable',
+                            });
+                        }
                         return;
                     }
-                    setState({ url: redactedUrl, loading: false, error: '' });
+                    if (isMounted) setState({ url: redactedUrl, loading: false, error: '' });
                     return;
                 }
 
                 // Original mode (server-authorized report owner or operational personnel)
                 const originalSource = item?.originalUrl || item?.src;
                 if (!originalSource) {
-                    setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                    if (isMounted) setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
                     return;
                 }
 
                 if (!isProtectedOriginalFileUrl(originalSource)) {
-                    setState({ url: originalSource, loading: false, error: '' });
+                    if (isMounted) setState({ url: originalSource, loading: false, error: '' });
                     return;
                 }
 
                 if (!isOriginalAllowed) {
-                    setState({ url: '', loading: false, error: 'Not authorized' });
+                    if (isMounted) setState({ url: '', loading: false, error: 'Not authorized' });
                     return;
                 }
 
-                const response = await filesAPI.getProtected(originalSource, { signal: controller.signal });
-                objectUrl = URL.createObjectURL(response.data);
-                setState({ url: objectUrl, loading: false, error: '' });
+                // Synchronous cache hit
+                const cached = getCachedBlobUrl(originalSource);
+                if (cached) {
+                    if (isMounted) setState({ url: cached, loading: false, error: '' });
+                    return;
+                }
+
+                const result = await fetchProtectedBlob(originalSource, { signal: controller.signal });
+                if (isMounted) {
+                    setState({ url: result.url, loading: false, error: '' });
+                }
             } catch (error) {
                 if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
-                setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                if (isMounted) {
+                    setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                }
             }
         };
 
         load();
         return () => {
+            isMounted = false;
             controller.abort();
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [item?.redactedPreviewUrl, item?.originalUrl, item?.src, item?.isForbiddenOriginal, isBlurred, isOriginalAllowed, reloadKey]);
 
@@ -204,58 +219,70 @@ const StackedEvidenceDeck = ({
     const isBlurred = viewerAccess === 'redacted';
 
     useEffect(() => {
+        let isMounted = true;
         const controller = new AbortController();
-        let objectUrl = '';
 
         const load = async () => {
             try {
                 if (isBlurred) {
                     if (firstItem?.isForbiddenOriginal) {
-                        setState({ url: '', loading: false, error: 'Original evidence is protected' });
+                        if (isMounted) setState({ url: '', loading: false, error: 'Original evidence is protected' });
                         return;
                     }
                     const redactedUrl = firstItem?.redactedPreviewUrl;
                     if (!redactedUrl || !isAuthorizedRedactedPreviewEndpoint(redactedUrl) || isProtectedOriginalFileUrl(redactedUrl)) {
-                        setState({
-                            url: '',
-                            loading: false,
-                            error: firstItem?.isForbiddenOriginal ? 'Original evidence is protected' : 'Evidence preview unavailable',
-                        });
+                        if (isMounted) {
+                            setState({
+                                url: '',
+                                loading: false,
+                                error: firstItem?.isForbiddenOriginal ? 'Original evidence is protected' : 'Evidence preview unavailable',
+                            });
+                        }
                         return;
                     }
-                    setState({ url: redactedUrl, loading: false, error: '' });
+                    if (isMounted) setState({ url: redactedUrl, loading: false, error: '' });
                     return;
                 }
 
                 const originalSource = firstItem?.originalUrl || firstItem?.src;
                 if (!originalSource) {
-                    setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                    if (isMounted) setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
                     return;
                 }
 
                 if (!isProtectedOriginalFileUrl(originalSource)) {
-                    setState({ url: originalSource, loading: false, error: '' });
+                    if (isMounted) setState({ url: originalSource, loading: false, error: '' });
                     return;
                 }
 
                 if (!isOriginalAllowed) {
-                    setState({ url: '', loading: false, error: 'Not authorized' });
+                    if (isMounted) setState({ url: '', loading: false, error: 'Not authorized' });
                     return;
                 }
 
-                const response = await filesAPI.getProtected(originalSource, { signal: controller.signal });
-                objectUrl = URL.createObjectURL(response.data);
-                setState({ url: objectUrl, loading: false, error: '' });
+                // Synchronous cache hit
+                const cached = getCachedBlobUrl(originalSource);
+                if (cached) {
+                    if (isMounted) setState({ url: cached, loading: false, error: '' });
+                    return;
+                }
+
+                const result = await fetchProtectedBlob(originalSource, { signal: controller.signal });
+                if (isMounted) {
+                    setState({ url: result.url, loading: false, error: '' });
+                }
             } catch (error) {
                 if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
-                setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                if (isMounted) {
+                    setState({ url: '', loading: false, error: 'Evidence preview unavailable' });
+                }
             }
         };
 
         load();
         return () => {
+            isMounted = false;
             controller.abort();
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [firstItem?.redactedPreviewUrl, firstItem?.originalUrl, firstItem?.src, firstItem?.isForbiddenOriginal, isBlurred, isOriginalAllowed, reloadKey]);
 
@@ -305,8 +332,8 @@ const StackedEvidenceDeck = ({
             : 'Faces blurred for privacy';
 
     const buttonAriaLabel = isBlurred
-        ? `Incident evidence photo 1, faces blurred for privacy`
-        : (firstItem?.alt || 'View evidence photo 1');
+        ? 'Incident evidence photo 1, faces blurred for privacy'
+        : `View evidence photo 1: ${firstItem?.alt || firstItem?.filename || 'Incident scene'}`;
 
     return (
         <div className="relative inline-block pt-1 pb-1 pr-3">

@@ -30,6 +30,7 @@ const IncidentDetailsEvidenceSection = ({
                 accessLevel={accessLevel}
                 isOwner={isOwner}
                 isOperational={isOperational}
+                variant="stacked"
                 onViewImage={onViewImage}
             />
         </div>

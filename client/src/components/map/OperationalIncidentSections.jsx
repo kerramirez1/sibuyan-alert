@@ -147,6 +147,7 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                         evidence={report.evidence}
                         accessLevel="original"
                         isOperational={true}
+                        variant="stacked"
                     />
                 )}
             </DisclosureSection>

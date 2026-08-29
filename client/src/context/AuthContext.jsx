@@ -10,6 +10,7 @@ import {
 import {
     resolvePostLoginRedirect,
 } from '../utils/authUtils';
+import { clearBlobCache } from '../utils/blobCache';
 
 const AuthContext = createContext(null);
 
@@ -141,13 +142,17 @@ export const AuthProvider = ({ children }) => {
         } catch {
             // Local state must still be cleared when the network is unavailable.
         }
+        clearBlobCache();
         setUser(null);
         toast.success('Logged out successfully');
         navigate('/');
     }, [navigate]);
 
     useEffect(() => {
-        const handleExpiredSession = () => setUser(null);
+        const handleExpiredSession = () => {
+            clearBlobCache();
+            setUser(null);
+        };
         window.addEventListener('auth:session-expired', handleExpiredSession);
         return () => window.removeEventListener('auth:session-expired', handleExpiredSession);
     }, []);

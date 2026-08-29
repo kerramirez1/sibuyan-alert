@@ -58,13 +58,14 @@ const mockZoneWithoutPhotos = {
     radius: 100,
     municipality: 'Magdiwang',
     barangay: 'Poblacion',
-    coordinates: { lat: 12.4821, lng: 122.5189 },
-    isActive: true,
     photos: [],
 };
 
+import { clearBlobCache } from '../utils/blobCache';
+
 describe('HighRiskZoneDetails Component', () => {
     beforeEach(() => {
+        clearBlobCache();
         vi.clearAllMocks();
         globalThis.URL.createObjectURL = vi.fn((blob) => `blob:mock-url-${blob?.size || 'file'}`);
         globalThis.URL.revokeObjectURL = vi.fn();

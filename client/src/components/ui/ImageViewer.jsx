@@ -17,7 +17,11 @@ import {
     isAuthorizedRedactedPreviewEndpoint,
     isProtectedOriginalFileUrl,
 } from '../../utils/evidenceModel';
-import { filesAPI } from '../../services/api';
+import {
+    fetchProtectedBlob,
+    getCachedBlobUrl,
+    preloadProtectedBlob,
+} from '../../utils/blobCache';
 
 /**
  * Modernized, distraction-free viewport-portaled evidence inspection viewer with multi-evidence navigation.
@@ -108,23 +112,30 @@ const ImageViewer = ({
             if (!adjacentItem) return;
 
             const adjacentAccess = adjacentItem.viewerAccess === 'original' ? 'original' : 'redacted';
-            let targetUrl = '';
 
             if (adjacentAccess === 'redacted') {
-                targetUrl = adjacentItem.redactedPreviewUrl || (isAuthorizedRedactedPreviewEndpoint(adjacentItem.src) ? adjacentItem.src : '');
+                const targetUrl = adjacentItem.redactedPreviewUrl || (isAuthorizedRedactedPreviewEndpoint(adjacentItem.src) ? adjacentItem.src : '');
+                if (targetUrl && typeof window !== 'undefined' && typeof Image !== 'undefined') {
+                    try {
+                        const preloadImg = new Image();
+                        preloadImg.src = resolveAssetUrl(targetUrl);
+                    } catch {
+                        // Ignore background preload failures gracefully
+                    }
+                }
             } else {
                 const raw = adjacentItem.src || adjacentItem.originalUrl || '';
-                if (raw && !isProtectedOriginalFileUrl(raw)) {
-                    targetUrl = raw;
-                }
-            }
-
-            if (targetUrl && typeof window !== 'undefined' && typeof Image !== 'undefined') {
-                try {
-                    const preloadImg = new Image();
-                    preloadImg.src = resolveAssetUrl(targetUrl);
-                } catch {
-                    // Ignore background preload failures gracefully
+                if (raw) {
+                    if (isProtectedOriginalFileUrl(raw) || raw.startsWith('/api/files')) {
+                        preloadProtectedBlob(raw);
+                    } else if (typeof window !== 'undefined' && typeof Image !== 'undefined') {
+                        try {
+                            const preloadImg = new Image();
+                            preloadImg.src = resolveAssetUrl(raw);
+                        } catch {
+                            // Ignore background preload failures gracefully
+                        }
+                    }
                 }
             }
         });
@@ -156,24 +167,31 @@ const ImageViewer = ({
             return undefined;
         }
 
+        // Instant synchronous cache hit (0ms load without loading spinner)
+        const cachedUrl = getCachedBlobUrl(rawSrc);
+        if (cachedUrl) {
+            setBlobUrl(cachedUrl);
+            setIsLoadingBlob(false);
+            setHasLoadError(false);
+            return undefined;
+        }
+
         const currentRequestId = ++activeRequestIdRef.current;
         const controller = new AbortController();
-        let createdUrl = '';
 
         setIsLoadingBlob(true);
         setHasLoadError(false);
 
         const fetchProtected = async () => {
             try {
-                const response = await filesAPI.getProtected(rawSrc, { signal: controller.signal });
+                const result = await fetchProtectedBlob(rawSrc, { signal: controller.signal });
                 
                 // Discard stale responses if user already navigated to another item
                 if (currentRequestId !== activeRequestIdRef.current) {
                     return;
                 }
 
-                createdUrl = URL.createObjectURL(response.data);
-                setBlobUrl(createdUrl);
+                setBlobUrl(result.url);
             } catch (err) {
                 if (currentRequestId !== activeRequestIdRef.current) return;
                 if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
@@ -189,7 +207,6 @@ const ImageViewer = ({
 
         return () => {
             controller.abort();
-            if (createdUrl) URL.revokeObjectURL(createdUrl);
         };
     }, [isOpen, currentItem, activeIndex, viewerAccess, imageSrc, reloadKey]);
 

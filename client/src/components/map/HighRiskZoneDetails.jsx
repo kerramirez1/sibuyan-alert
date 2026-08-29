@@ -5,7 +5,10 @@ import {
     HiOutlinePhotograph,
 } from 'react-icons/hi';
 import { getMapRiskTypeConfig } from '../../config/mapVisuals';
-import { filesAPI } from '../../services/api';
+import {
+    fetchProtectedBlob,
+    getCachedBlobUrl,
+} from '../../utils/blobCache';
 import ImageViewer from '../ui/ImageViewer';
 
 const SEVERITY_BADGES = {
@@ -53,7 +56,6 @@ const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) =
 
     useEffect(() => {
         const controller = new AbortController();
-        let objectUrl = '';
 
         const loadPhoto = async () => {
             const rawUrl = photo?.url || photo?.src || (typeof photo === 'string' ? photo : '');
@@ -67,10 +69,16 @@ const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) =
                 return;
             }
 
+            // Synchronous cache hit
+            const cached = getCachedBlobUrl(rawUrl);
+            if (cached) {
+                setState({ url: cached, loading: false, error: false });
+                return;
+            }
+
             try {
-                const response = await filesAPI.getProtected(rawUrl, { signal: controller.signal });
-                objectUrl = URL.createObjectURL(response.data);
-                setState({ url: objectUrl, loading: false, error: false });
+                const result = await fetchProtectedBlob(rawUrl, { signal: controller.signal });
+                setState({ url: result.url, loading: false, error: false });
             } catch (err) {
                 if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
                 setState({ url: '', loading: false, error: true });
@@ -81,7 +89,6 @@ const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) =
 
         return () => {
             controller.abort();
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [photo?.url, photo?.src, photo]);
 

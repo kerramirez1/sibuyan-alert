@@ -3,6 +3,7 @@ import { describe, expect, test, vi, beforeEach } from 'vitest';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import ImageViewer from '../components/ui/ImageViewer';
 import { normalizeEvidenceDescriptor } from '../utils/evidenceModel';
+import { clearBlobCache } from '../utils/blobCache';
 
 const mocks = vi.hoisted(() => ({
     getProtected: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('../services/api', () => ({
 
 describe('Evidence Privacy and Fail-Closed Authorization Matrix', () => {
     beforeEach(() => {
+        clearBlobCache();
         mocks.getProtected.mockReset();
         mocks.getProtected.mockResolvedValue({
             data: new Blob(['raw-original-image-bytes'], { type: 'image/jpeg' }),

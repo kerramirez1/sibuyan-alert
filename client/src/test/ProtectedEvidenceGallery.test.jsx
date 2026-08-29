@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
+import { clearBlobCache } from '../utils/blobCache';
 
 const mocks = vi.hoisted(() => ({
     getProtected: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock('../services/api', () => ({
 
 describe('ProtectedEvidenceGallery Component', () => {
     beforeEach(() => {
+        clearBlobCache();
         mocks.getProtected.mockReset();
         mocks.getProtected.mockResolvedValue({
             data: new Blob(['fake image data'], { type: 'image/jpeg' }),

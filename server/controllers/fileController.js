@@ -1,16 +1,17 @@
 import mongoose from 'mongoose';
 import { findGridFsFile, getGridFsBucket, sanitizeFilename } from '../services/gridFsService.js';
 import Report from '../models/Report.js';
-import { canViewReportEvidence } from '../utils/reportAccess.js';
+import { canViewReportEvidence, getEntityId } from '../utils/reportAccess.js';
 
 export const canReadFile = async (file, user, { findReportById = Report.findById.bind(Report) } = {}) => {
     if (file.metadata?.visibility !== 'private') return true;
     if (!user) return false;
-    const ownerId = file.metadata?.ownerId?.toString();
-    if (ownerId && ownerId === user._id.toString()) return true;
+    const ownerId = getEntityId(file.metadata?.ownerId);
+    const userId = getEntityId(user);
+    if (ownerId && userId && ownerId === userId) return true;
 
     if (file.metadata?.category === 'report_evidence') {
-        const reportId = file.metadata?.resourceId;
+        const reportId = getEntityId(file.metadata?.resourceId);
         if (!reportId) return false;
 
         const report = await findReportById(reportId);

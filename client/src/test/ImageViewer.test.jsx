@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import ImageViewer from '../components/ui/ImageViewer';
 import { filesAPI } from '../services/api';
+import { clearBlobCache } from '../utils/blobCache';
 
 vi.mock('../services/api', () => ({
     filesAPI: {
@@ -17,6 +18,7 @@ vi.mock('../services/api', () => ({
 
 describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () => {
     beforeEach(() => {
+        clearBlobCache();
         vi.clearAllMocks();
         filesAPI.getProtected.mockResolvedValue({
             data: new Blob(['mock-binary'], { type: 'image/jpeg' }),
@@ -1038,5 +1040,51 @@ describe('ImageViewer Component Security, Privacy Boundary, and Provenance', () 
         );
 
         expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Site photo preview');
+    });
+
+    test('34. Instant reopening: Renders cached protected image immediately without showing loading spinner or sending duplicate network requests', async () => {
+        const item = {
+            id: 'ev-cached-1',
+            index: 0,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            src: '/api/files/607f1f77bcf86cd799439099/photo.jpg',
+            originalUrl: '/api/files/607f1f77bcf86cd799439099/photo.jpg',
+        };
+
+        const { rerender } = render(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        // 1st time opening: downloads from server
+        const img = await screen.findByRole('img');
+        expect(img).toBeInTheDocument();
+        expect(filesAPI.getProtected).toHaveBeenCalledTimes(1);
+
+        // Close viewer
+        rerender(
+            <ImageViewer
+                isOpen={false}
+                item={item}
+            />
+        );
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        // 2nd time opening: instant synchronous cache hit without loading spinner
+        rerender(
+            <ImageViewer
+                isOpen={true}
+                item={item}
+            />
+        );
+
+        // Loading spinner must NOT appear because it's synchronously resolved from cache
+        expect(screen.queryByTestId('evidence-loading-indicator')).not.toBeInTheDocument();
+        expect(screen.getByRole('img')).toBeInTheDocument();
+        expect(filesAPI.getProtected).toHaveBeenCalledTimes(1); // Still exactly 1 call!
     });
 });

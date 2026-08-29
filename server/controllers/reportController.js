@@ -1,7 +1,7 @@
 import Report from '../models/Report.js';
 import mongoose from 'mongoose';
 import { toPublicReport, buildReportEvidenceObject } from '../utils/publicReport.js';
-import { canViewOperationalReport } from '../utils/reportAccess.js';
+import { canViewOperationalReport, getEntityId } from '../utils/reportAccess.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
@@ -532,8 +532,10 @@ export const getReportById = async (req, res) => {
             });
         }
 
+        const reporterId = getEntityId(report.reporter);
+        const currentUserId = getEntityId(req.user);
         const isOwner = Boolean(
-            req.user && report.reporter?._id?.toString() === req.user._id.toString()
+            currentUserId && reporterId && currentUserId === reporterId
         );
         const isOperational = Boolean(
             req.user && canViewOperationalReport(req.user, report)
@@ -623,8 +625,10 @@ export const getReportEvidencePreview = async (req, res) => {
         }
 
         // Authorization check
+        const reporterId = getEntityId(report.reporter);
+        const currentUserId = getEntityId(req.user);
         const isOwner = Boolean(
-            req.user && report.reporter?.toString() === req.user._id.toString()
+            currentUserId && reporterId && currentUserId === reporterId
         );
         const isOperational = Boolean(
             req.user && canViewOperationalReport(req.user, report)

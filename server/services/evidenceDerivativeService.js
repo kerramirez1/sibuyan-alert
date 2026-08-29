@@ -110,8 +110,9 @@ const createFullImageFallback = async (orientedBuffer, maxPreviewWidth, maxPrevi
         .toBuffer()
 );
 
-const createPublicSoftBlurDerivative = async (orientedBuffer, maxPreviewWidth, maxPreviewHeight, quality) => (
-    sharp(orientedBuffer)
+const createPublicSoftBlurDerivative = async (sourceBuffer, maxPreviewWidth, maxPreviewHeight, quality) => (
+    sharp(sourceBuffer)
+        .rotate()
         .resize(maxPreviewWidth, maxPreviewHeight, { fit: 'inside', withoutEnlargement: true })
         .blur(11)
         .jpeg({ quality, mozjpeg: true })
@@ -125,11 +126,8 @@ const generatePublicSoftBlurResult = async (originalBuffer, options, sourceHash,
         quality = 85,
     } = options;
 
-    const { data: orientedBuffer } = await sharp(originalBuffer)
-        .rotate()
-        .toBuffer({ resolveWithObject: true });
     const derivativeBuffer = await createPublicSoftBlurDerivative(
-        orientedBuffer,
+        originalBuffer,
         maxPreviewWidth,
         maxPreviewHeight,
         quality,

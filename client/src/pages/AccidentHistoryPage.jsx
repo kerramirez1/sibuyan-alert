@@ -2,7 +2,6 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import toast from '../utils/appToast';
-import { resolveAssetUrl } from '../utils/assets';
 import {
     HiCheck,
     HiOutlineArchive,
@@ -13,14 +12,13 @@ import {
     HiOutlineFilter,
     HiOutlineLocationMarker,
     HiOutlineLockClosed,
-    HiOutlinePhotograph,
     HiOutlineSearch,
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
-import ImageViewer from '../components/ui/ImageViewer';
+import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import CustomSelect from '../components/ui/CustomSelect';
 import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
@@ -292,8 +290,6 @@ const AccidentHistoryPage = () => {
     const [barangayFilter, setBarangayFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('newest');
     const [expandedId, setExpandedId] = useState(null);
-    const [viewerOpen, setViewerOpen] = useState(false);
-    const [viewerImage, setViewerImage] = useState(null);
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(() => (
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
@@ -987,24 +983,15 @@ const AccidentHistoryPage = () => {
                                                     ) : <div />}
 
                                                     {canViewFullDetails ? (
-                                                        report.images?.length ? (
+                                                        (report.images?.length || report.evidence?.items?.length) ? (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                                                    <HiOutlinePhotograph className="h-3.5 w-3.5" />
-                                                                    Evidence ({report.images.length})
-                                                                </span>
-                                                                <div className="flex items-center gap-1.5">
-                                                                    {report.images.map((image, index) => (
-                                                                        <button
-                                                                            key={image}
-                                                                            type="button"
-                                                                            onClick={() => { setViewerImage(resolveAssetUrl(image)); setViewerOpen(true); }}
-                                                                            className="h-7 w-7 overflow-hidden rounded-md border border-gray-200/90 bg-gray-100 transition-transform hover:scale-105 dark:border-white/10 dark:bg-gray-800 cursor-pointer"
-                                                                        >
-                                                                            <img src={resolveAssetUrl(image)} alt={`Evidence ${index + 1}`} className="h-full w-full object-cover" />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
+                                                                <ProtectedEvidenceGallery
+                                                                    images={report.images}
+                                                                    evidence={report.evidence}
+                                                                    accessLevel="original"
+                                                                    isOperational={true}
+                                                                    variant="stacked"
+                                                                />
                                                             </div>
                                                         ) : null
                                                     ) : (
@@ -1041,8 +1028,6 @@ const AccidentHistoryPage = () => {
                 totalResults={filteredReports.length}
                 onClearFilters={clearFilters}
             />
-
-            <ImageViewer isOpen={viewerOpen} onClose={() => setViewerOpen(false)} imageSrc={viewerImage} />
         </div>
     );
 };

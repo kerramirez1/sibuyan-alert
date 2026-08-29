@@ -763,8 +763,7 @@ function MyReportsPage() {
                                                             images={report.images}
                                                             evidence={report.evidence || (report.images?.length ? { count: report.images.length, viewerAccess: 'original', items: report.images.map((img, i) => ({ id: String(i), index: i, originalUrl: img, previewUrl: img, isOwner: true })) } : null)}
                                                             isOwner={true}
-                                                            variant="compact"
-                                                            thumbnailSize="md"
+                                                            variant="stacked"
                                                             onViewImage={(item) => setViewerItem(item)}
                                                         />
                                                     </div>

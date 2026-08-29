@@ -6,6 +6,7 @@ import MapIncidentDetails from '../components/map/MapIncidentDetails';
 import ImageViewer from '../components/ui/ImageViewer';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
+import { clearBlobCache } from '../utils/blobCache';
 
 const { mapPropsSpy } = vi.hoisted(() => ({ mapPropsSpy: vi.fn() }));
 
@@ -33,6 +34,7 @@ vi.mock('../services/api', () => ({
 
 describe('Map Dashboard Refinements and Operational Workspace', () => {
     beforeEach(() => {
+        clearBlobCache();
         vi.clearAllMocks();
         globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/fake-image');
         globalThis.URL.revokeObjectURL = vi.fn();

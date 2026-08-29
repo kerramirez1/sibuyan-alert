@@ -6,6 +6,7 @@ import ReportLocationPanel from '../components/report/ReportLocationPanel';
 import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
+import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import { HiOutlineShieldCheck } from 'react-icons/hi';
 
@@ -322,41 +323,54 @@ const ReportPage = () => {
         };
     }, []);
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        if (images.length + files.length > 5) {
-            toast.error('Maximum 5 images allowed');
+        const remainingSlots = 5 - images.length;
+        if (remainingSlots <= 0) {
+            toast.error('Maximum 5 photos reached');
             e.target.value = '';
             return;
         }
 
-        const validFiles = files.filter((file) => {
-            if (!file.type || !file.type.startsWith('image/')) {
-                toast.error(`${file.name || 'File'} is not an image`);
-                return false;
+        if (files.length > remainingSlots) {
+            toast.error(`You can only add ${remainingSlots} more photo${remainingSlots > 1 ? 's' : ''}.`);
+        }
+
+        const candidateFiles = files.slice(0, remainingSlots);
+        const validFiles = [];
+
+        for (const file of candidateFiles) {
+            const validationError = validateEvidenceImageFile(file);
+            if (validationError) {
+                toast.error(`${file.name || 'File'} ${validationError}`);
+            } else {
+                validFiles.push(file);
             }
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error(`${file.name || 'File'} is too large (max 5MB)`);
-                return false;
-            }
-            return true;
-        });
+        }
 
         if (!validFiles.length) {
             e.target.value = '';
             return;
         }
 
-        setImages(prev => [...prev, ...validFiles]);
-        validFiles.forEach((file) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setImagePreviews(prev => [...prev, event.target.result]);
-            };
-            reader.readAsDataURL(file);
-        });
+        try {
+            const prepared = await prepareEvidenceImages(validFiles);
+            const optimizedFiles = prepared.map((p) => p.file);
+
+            setImages((prev) => [...prev, ...optimizedFiles]);
+
+            validFiles.forEach((file) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    setImagePreviews((prev) => [...prev, event.target.result]);
+                };
+                reader.readAsDataURL(file);
+            });
+        } catch {
+            toast.error('Could not prepare some photos. Please try again.');
+        }
 
         e.target.value = '';
     };

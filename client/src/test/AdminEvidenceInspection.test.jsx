@@ -6,6 +6,7 @@ import IncidentDetailsContent from '../components/incidentDetails/IncidentDetail
 import ImageViewer from '../components/ui/ImageViewer';
 import useOperationalIncidentDetails from '../hooks/useOperationalIncidentDetails';
 import { adminAPI, filesAPI } from '../services/api';
+import { clearBlobCache } from '../utils/blobCache';
 
 vi.mock('../services/api', () => ({
     adminAPI: {
@@ -117,6 +118,7 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
     };
 
     beforeEach(() => {
+        clearBlobCache();
         vi.clearAllMocks();
         filesAPI.getProtected.mockResolvedValue({
             data: new Blob(['mock-binary-evidence'], { type: 'image/jpeg' }),
@@ -210,8 +212,9 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         expect(screen.getByText('Evidence photos (2)')).toBeInTheDocument();
 
         await waitFor(() => {
-            const buttons = screen.getAllByRole('button', { name: /View evidence photo/i });
-            expect(buttons).toHaveLength(2);
+            const button = screen.getByRole('button', { name: /evidence photo 1/i });
+            expect(button).toBeInTheDocument();
+            expect(screen.getByText('+1')).toBeInTheDocument();
         });
     });
 

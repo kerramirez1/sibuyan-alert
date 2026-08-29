@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import MyReportsPage from '../pages/MyReportsPage';
+import { clearBlobCache } from '../utils/blobCache';
 
 const mocks = vi.hoisted(() => ({
     callbacks: {},
@@ -34,6 +35,7 @@ vi.mock('react-hot-toast', () => ({ default: mocks.toast }));
 
 describe('MyReports Evidence Inspection and Modal Experience', () => {
     beforeEach(() => {
+        clearBlobCache();
         mocks.callbacks = {};
         mocks.getMyReports.mockReset();
         mocks.addUpdate.mockReset();
@@ -121,7 +123,7 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         expect(ownerBadges.length).toBeGreaterThanOrEqual(1);
 
         // 3. Click the first evidence thumbnail to open the modal
-        const thumbnailButtons = screen.getAllByRole('button', { name: /View evidence photo 1/i });
+        const thumbnailButtons = screen.getAllByRole('button', { name: /evidence photo 1/i });
         fireEvent.click(thumbnailButtons[0]);
 
         // 4. Modal opens and displays the original photo with Owner access badge
@@ -198,7 +200,7 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         expect(screen.getByRole('button', { name: /Send situation update/i })).toBeInTheDocument();
     });
 
-    test('4. Compact thumbnail preview dimensions (180-220px desktop, responsive tablet/mobile) with object-cover', async () => {
+    test('4. Stacked evidence deck renders multi-photo counter badge (+N) and fanned card layers', async () => {
         mocks.getMyReports.mockResolvedValue({ data: { data: [reportWithOwnerEvidence] } });
 
         renderPage();
@@ -206,28 +208,17 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         const locationBtn = await screen.findByText('Poblacion national highway');
         fireEvent.click(locationBtn);
 
-        const thumbnailButtons = await screen.findAllByRole('button', { name: /View evidence photo/i });
-        expect(thumbnailButtons).toHaveLength(2);
+        // In stacked deck mode, a primary deck button is rendered with +1 counter badge for 2 photos
+        const deckButton = await screen.findByRole('button', { name: /evidence photo 1/i });
+        expect(deckButton).toBeInTheDocument();
+        expect(screen.getByText('+1')).toBeInTheDocument();
+        expect(screen.getByText('Your upload')).toBeInTheDocument();
 
-        // Verify responsive compact thumbnail dimensions:
-        // Mobile (w-36 h-24: 144x96px), Tablet (sm:w-44 sm:h-28 / md:w-48 md:h-32: 176-192px x 112-128px), Desktop (lg:w-52 lg:h-36: 208x144px)
-        thumbnailButtons.forEach((btn) => {
-            expect(btn.className).toContain('w-36');
-            expect(btn.className).toContain('sm:w-44');
-            expect(btn.className).toContain('md:w-48');
-            expect(btn.className).toContain('lg:w-52');
-            expect(btn.className).toContain('h-24');
-            expect(btn.className).toContain('sm:h-28');
-            expect(btn.className).toContain('md:h-32');
-            expect(btn.className).toContain('lg:h-36');
-            expect(btn.className).toContain('shrink-0');
-
-            const img = within(btn).getByRole('img');
-            expect(img.className).toContain('object-cover');
-        });
+        const img = within(deckButton).getByRole('img');
+        expect(img.className).toContain('object-cover');
     });
 
-    test('5. Non-owner / redacted evidence renders privacy-safe preview in compact dimensions without leaking original URL', async () => {
+    test('5. Non-owner / redacted evidence renders privacy-safe preview in stacked deck without leaking original URL', async () => {
         const reportWithRedactedEvidence = {
             ...reportWithOwnerEvidence,
             _id: 'report-redacted-1',
@@ -259,9 +250,6 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
 
         const redactedBtn = await screen.findByRole('button', { name: /faces blurred for privacy/i });
         expect(redactedBtn).toBeInTheDocument();
-        expect(redactedBtn.className).toContain('w-36');
-        expect(redactedBtn.className).toContain('lg:w-52');
-        expect(redactedBtn.className).toContain('lg:h-36');
 
         const redactedImg = within(redactedBtn).getByRole('img');
         expect(redactedImg).toHaveAttribute('src', '/api/reports/report-redacted-1/evidence/0/preview');
