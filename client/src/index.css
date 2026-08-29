@@ -705,7 +705,40 @@
     animation: none !important;
     display: none !important;
   }
+  .overlay-fade-in,
+  .page-enter {
+    animation: none !important;
+  }
 }
+
+/* Layout micro-animations (CSS replacement for framer-motion in MainLayout).
+   Enter-only animations: the old AnimatePresence "wait" mode blocked the next
+   page behind an exit animation; CSS keeps navigation instant while preserving
+   the fade-in feel. */
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay-fade-in {
+  animation: overlayFadeIn 150ms ease-out both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 
 @keyframes shimmer {
   100% {

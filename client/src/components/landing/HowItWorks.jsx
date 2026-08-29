@@ -1,21 +1,18 @@
-// The three high-level workflow stages. Each shows the responsible role,
-// an editorial stage label, and a concise public-facing description.
+// The three high-level workflow stages. The large stage numbers and bold
+// headings carry the hierarchy — no status pills.
 const steps = [
     {
         n: '01',
-        role: 'Report',
         title: 'Reporter submits',
         desc: 'Verified residents file an incident with its location, category, severity, and supporting photos.',
     },
     {
         n: '02',
-        role: 'Verify',
         title: 'Administrator verifies',
         desc: 'The responsible municipal administrator reviews the report before it is published for operational use.',
     },
     {
         n: '03',
-        role: 'Respond',
         title: 'Responders act',
         desc: 'Authorized municipal response units receive eligible incidents and coordinate field response.',
     },
@@ -45,44 +42,32 @@ const HowItWorks = () => (
                 </p>
             </div>
 
-            {/* ── Linear-inspired Structured Workflow Panels ── */}
+            {/* ── Flat structural grid — hairline dividers carry the structure ── */}
             <div
                 role="list"
                 aria-label="Incident workflow stages in order"
-                className="relative flex flex-col gap-5 sm:flex-row sm:gap-6"
+                className="grid grid-cols-1 divide-y divide-gray-200 md:grid-cols-3 md:divide-y-0 md:divide-x dark:divide-white/10"
             >
-                {/* Connecting hairline pipeline (desktop only) */}
-                <div className="pointer-events-none absolute left-0 top-1/2 hidden h-[1px] w-full -translate-y-1/2 bg-gray-200 dark:bg-white/10 sm:block" aria-hidden="true" />
-
-                {steps.map(({ n, role, title, desc }) => (
-                    <div key={n} role="listitem" className="relative min-w-0 flex-1">
-                        <div className="relative flex h-full flex-col justify-between rounded-xl border border-gray-200/80 bg-white p-5 sm:p-6 shadow-2xs transition-colors hover:border-gray-300 dark:border-white/10 dark:bg-[#0c1a14]/70 dark:hover:border-white/20">
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <span
-                                        aria-hidden="true"
-                                        className="font-mono text-2xl sm:text-3xl font-black tracking-tight text-gray-300 dark:text-gray-700"
-                                    >
-                                        {n}
-                                    </span>
-                                    <span className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                        {role}
-                                    </span>
-                                </div>
-                                <h3 className="mt-3 text-sm font-bold text-gray-950 dark:text-white sm:text-base">
-                                    {title}
-                                </h3>
-                                <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                                    {desc}
-                                </p>
-                            </div>
-                        </div>
+                {steps.map(({ n, title, desc }) => (
+                    <div key={n} role="listitem" className="relative min-w-0 p-5 sm:p-6">
+                        <span
+                            aria-hidden="true"
+                            className="font-mono text-2xl sm:text-3xl font-black tracking-tight text-gray-300 dark:text-gray-700"
+                        >
+                            {n}
+                        </span>
+                        <h3 className="mt-3 text-sm font-bold text-gray-950 dark:text-white sm:text-base">
+                            {title}
+                        </h3>
+                        <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                            {desc}
+                        </p>
                     </div>
                 ))}
             </div>
 
-            {/* ── Incident Journey Progression ── */}
-            <div className="mt-10 sm:mt-14 rounded-xl border border-gray-200/80 bg-white p-5 sm:p-6 dark:border-white/10 dark:bg-[#0c1a14]/70 shadow-2xs">
+            {/* ── Incident Journey — flat text ledger, no card chrome ── */}
+            <div className="mt-10 border-t border-gray-200 pt-5 sm:mt-14 dark:border-white/10">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
                         Typical incident journey

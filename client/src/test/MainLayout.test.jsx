@@ -27,14 +27,6 @@ vi.mock('../components/ui/NotificationBell', () => ({
     default: () => <button type="button" aria-label="Notifications" />,
 }));
 
-vi.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }) => <>{children}</>,
-    motion: {
-        button: ({ children, initial: _initial, animate: _animate, exit: _exit, ...props }) => <button {...props}>{children}</button>,
-        div: ({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }) => <div {...props}>{children}</div>,
-    },
-}));
-
 import MainLayout from '../components/layout/MainLayout';
 
 const renderLayout = (entry = '/accident-history') => render(

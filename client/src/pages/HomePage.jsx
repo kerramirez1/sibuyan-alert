@@ -129,7 +129,7 @@ const HomePage = () => {
                         {isAuthenticated ? (
                             <Link
                                 to={destination}
-                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-gray-950 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition-colors hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-gray-950 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600"
                             >
                                 <span className="hidden xs:inline">{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>
                                 <span className="xs:hidden">Open</span>
@@ -139,7 +139,7 @@ const HomePage = () => {
                             <Link
                                 to="/login"
                                 aria-label="Sign in"
-                                className="inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 xs:px-3.5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                                className="inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 xs:px-3.5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                             >
                                 <HiOutlineLogin className="h-4 w-4 xs:hidden" aria-hidden="true" />
                                 <span className="hidden xs:inline">Sign in</span>
@@ -154,7 +154,7 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="ml-1 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-all hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="ml-1 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 <HiOutlineExclamation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span className="hidden sm:inline">REPORT INCIDENT</span>

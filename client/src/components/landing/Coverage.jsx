@@ -22,9 +22,6 @@ const Coverage = ({ municipalities }) => {
 
     return (
         <section className="relative isolate bg-[#06150f] px-5 py-16 text-white sm:px-8 sm:py-20 dark:bg-[#040d0a]">
-            {/* Subtle background hairline pattern */}
-            <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px]" aria-hidden="true" />
-
             <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.72fr)] lg:gap-14 xl:gap-20">
                 <div>
                     <p className="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-400">Coverage</p>
@@ -33,11 +30,11 @@ const Coverage = ({ municipalities }) => {
                         The platform serves the island&apos;s three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.
                     </p>
 
-                    {/* Metric Tiles */}
+                    {/* Metric tiles — flat editorial grid with hairline dividers */}
                     <dl
                         data-testid="coverage-metrics"
                         aria-label="Island coverage totals"
-                        className="mb-8 grid grid-cols-1 gap-3 min-[400px]:grid-cols-3 sm:gap-3.5"
+                        className="mb-8 grid grid-cols-1 min-[400px]:grid-cols-3 divide-y min-[400px]:divide-y-0 min-[400px]:divide-x divide-green-900/50"
                     >
                         {[
                             [municipalities.length, 'Municipalities'],
@@ -46,19 +43,19 @@ const Coverage = ({ municipalities }) => {
                         ].map(([value, label]) => (
                             <div
                                 key={label}
-                                className="flex min-w-0 flex-col rounded-lg border border-emerald-900/30 bg-emerald-950/20 p-4 sm:p-4.5"
+                                className="flex min-w-0 flex-col p-4 text-left sm:p-4.5"
                             >
-                                <dt className="order-2 mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-50/75 sm:text-[11px]">{label}</dt>
+                                <dt className="order-2 mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-50/60 sm:text-[11px]">{label}</dt>
                                 <dd className="order-1 font-mono text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
                             </div>
                         ))}
                     </dl>
 
-                    {/* Municipality List */}
+                    {/* Municipality List — flat ledger with hairline row dividers */}
                     <ul
                         data-testid="municipality-coverage-list"
                         aria-label="Municipalities covered"
-                        className="flex flex-col gap-2.5"
+                        className="flex flex-col"
                     >
                         {municipalities.map((municipality) => {
                             const logo = logoConfig[municipality.name];
@@ -66,7 +63,7 @@ const Coverage = ({ municipalities }) => {
                             return (
                                 <li
                                     key={municipality.code}
-                                    className="flex min-w-0 items-center gap-4 rounded border border-emerald-900/30 bg-emerald-950/20 px-4 py-3 sm:px-5 sm:py-3.5 transition-colors hover:border-emerald-700/40"
+                                    className="flex min-w-0 items-center gap-4 border-b border-green-900/50 px-1 py-3 sm:px-2 sm:py-3.5"
                                 >
                                     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-11 sm:w-11">
                                         {logo
@@ -100,7 +97,7 @@ const Coverage = ({ municipalities }) => {
                         Every incident record passes through a structured review and response chain before public visibility.
                     </p>
 
-                    <div className="mt-6 rounded-xl border border-emerald-900/30 bg-emerald-950/20 p-5">
+                    <div className="mt-6">
                         <ul className="flex flex-col gap-3.5" role="list">
                             {TRUST_ITEMS.map((text) => (
                                 <li key={text} className="flex items-start gap-3">
@@ -113,7 +110,7 @@ const Coverage = ({ municipalities }) => {
                         </ul>
                     </div>
 
-                    <div data-testid="coverage-emergency-notice" className="mt-6 rounded-xl border border-amber-500/50 bg-amber-950/30 p-4">
+                    <div data-testid="coverage-emergency-notice" className="mt-6 rounded-none border-l-4 border-amber-500 bg-amber-500/10 p-4">
                         <div className="flex gap-3">
                             <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

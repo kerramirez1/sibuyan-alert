@@ -137,24 +137,29 @@ const NotificationBell = () => {
     useEffect(() => {
         if (!socket) return;
 
-        const handleSound = () => playNotificationSound();
-        const handleVerifiedAlert = () => {
-            if (user?.role !== 'responder') return;
-            setTimeout(async () => {
-                try {
-                    const response = await notificationsAPI.getUnreadCount();
-                    setUnreadCount(response.data.data.unreadCount);
-                } catch {
-                    // Poll reconciles failure
-                }
-            }, 1000);
+        const refreshUnreadCount = async () => {
+            try {
+                const response = await notificationsAPI.getUnreadCount();
+                setUnreadCount(response.data.data.unreadCount);
+            } catch {
+                // Badge refreshes on the next socket event after transient failures
+            }
         };
 
-        socket.on('notification', handleSound);
+        const handleNotification = () => {
+            playNotificationSound();
+            refreshUnreadCount();
+        };
+        const handleVerifiedAlert = () => {
+            if (user?.role !== 'responder') return;
+            setTimeout(refreshUnreadCount, 1000);
+        };
+
+        socket.on('notification', handleNotification);
         socket.on('reportVerifiedAlert', handleVerifiedAlert);
 
         return () => {
-            socket.off('notification', handleSound);
+            socket.off('notification', handleNotification);
             socket.off('reportVerifiedAlert', handleVerifiedAlert);
         };
     }, [socket, setUnreadCount, user?.role]);
@@ -165,13 +170,17 @@ const NotificationBell = () => {
         try {
             const response = await notificationsAPI.getAll({ limit: 25 });
             setNotifications(response.data.data.notifications || []);
+            // The list endpoint already returns the fresh unread count — reconcile for free.
+            if (typeof response.data.data.unreadCount === 'number') {
+                setUnreadCount(response.data.data.unreadCount);
+            }
         } catch (err) {
             console.error('Failed to fetch notifications:', err);
             setError('Unable to load communications. Please check your network connection.');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [setUnreadCount]);
 
     // Fetch on open
     useEffect(() => {
@@ -229,19 +238,22 @@ const NotificationBell = () => {
         };
     }, [isOpen]);
 
-    // Periodic poll for unread count
+    // Unread badge: fetched once on mount, then kept fresh by socket events,
+    // panel opens, and local mark-as-read actions — no periodic polling.
     useEffect(() => {
+        let cancelled = false;
         const fetchCount = async () => {
             try {
                 const response = await notificationsAPI.getUnreadCount();
-                setUnreadCount(response.data.data.unreadCount);
+                if (!cancelled) setUnreadCount(response.data.data.unreadCount);
             } catch {
-                // Ignore transient network errors during background poll
+                // Ignore transient network errors during initial fetch
             }
         };
         fetchCount();
-        const interval = setInterval(fetchCount, 15000);
-        return () => clearInterval(interval);
+        return () => {
+            cancelled = true;
+        };
     }, [setUnreadCount]);
 
     const markAsRead = async (id) => {

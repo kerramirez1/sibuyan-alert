@@ -97,7 +97,9 @@ describe('HomePage operational landing page', () => {
         expect(municipalityCoverage.tagName).toBe('UL');
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
-            expect(municipalityRow).toHaveClass('rounded', 'border');
+            // Municipal-grade flat ledger rows: hairline bottom divider, no card chrome.
+            expect(municipalityRow).toHaveClass('border-b', 'border-green-900/50');
+            expect(municipalityRow).not.toHaveClass('rounded');
         });
         expect(screen.getByRole('img', { name: 'Cajidiocan seal' })).toBeInTheDocument();
         expect(screen.getByRole('img', { name: 'Magdiwang seal' })).toBeInTheDocument();
@@ -109,7 +111,10 @@ describe('HomePage operational landing page', () => {
         expect(screen.queryByText('GPS-based incident location with barangay verification')).not.toBeInTheDocument();
         const emergencyNoticeLabel = screen.getByText('Important Notice');
         expect(emergencyNoticeLabel).toHaveClass('text-amber-500');
-        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-xl', 'border-amber-500/50');
+        // Sharp-cornered editorial callout: thick solid left border, subtle
+        // amber fill, no rounded outer border.
+        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-none', 'border-l-4', 'border-amber-500', 'bg-amber-500/10');
+        expect(screen.getByTestId('coverage-emergency-notice')).not.toHaveClass('rounded-xl');
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Built around real municipal workflows.' })).not.toBeInTheDocument();

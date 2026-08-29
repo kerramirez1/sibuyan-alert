@@ -401,7 +401,7 @@ const AdminPage = () => {
                                 >
                                     <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/90 bg-gray-100 text-xs font-bold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
                                         {activeUser.avatar ? (
-                                            <img src={resolveAssetUrl(activeUser.avatar)} alt={activeUser.name} className="h-full w-full object-cover" />
+                                            <img src={resolveAssetUrl(activeUser.avatar)} alt={activeUser.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                         ) : (
                                             activeUser.name?.charAt(0).toUpperCase() || '?'
                                         )}

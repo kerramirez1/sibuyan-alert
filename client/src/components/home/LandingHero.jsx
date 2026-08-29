@@ -39,11 +39,11 @@ const benefits = [
 ];
 
 const Metric = ({ value, label, sublabel = null }) => (
-    <div className="flex min-w-[120px] flex-1 flex-col items-center justify-center px-4 py-2.5 sm:px-8">
+    <div className="flex min-w-[120px] flex-1 flex-col px-4 py-2.5 text-left sm:px-8">
         <p className="font-display text-2xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
-        <p className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-400">{label}</p>
+        <p className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</p>
         {sublabel && (
-            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400">{sublabel}</p>
+            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-500">{sublabel}</p>
         )}
     </div>
 );
@@ -84,19 +84,10 @@ const LandingHero = ({
     const isLoading = publicStatsState === 'loading';
 
     return (
-        <section id="home" className="relative isolate overflow-hidden border-b border-gray-200/80 bg-gray-50/50 pt-[58px] dark:border-white/5 dark:bg-[#08120d]">
-            {/* ── Background layer 1: Subtle Linear Grid ── */}
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-20 bg-[linear-gradient(to_right,#80808010_1px,transparent_1px),linear-gradient(to_bottom,#80808010_1px,transparent_1px)] bg-[size:24px_24px] dark:bg-[linear-gradient(to_right,#ffffff06_1px,transparent_1px),linear-gradient(to_bottom,#ffffff06_1px,transparent_1px)]"
-            />
-
-            {/* ── Background layer 2: Faint radial emerald atmosphere ── */}
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(16,185,129,0.04),transparent_70%)] dark:bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(52,211,153,0.02),transparent_70%)]"
-            />
-
+        <section id="home" className="relative isolate overflow-hidden border-b border-gray-200/80 bg-[#f6fbf8] pt-[58px] dark:border-white/5 dark:bg-[#08120d]">
+            {/* Municipal-grade flat background: no decorative grid or radial
+                atmosphere layers — contrast comes from the dark metrics bar and
+                hairline dividers below. */}
             <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-8 lg:min-h-[calc(100svh-170px)] lg:px-10 lg:py-10 xl:px-14">
                 <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-3.5 gap-y-5 sm:gap-x-8 sm:gap-y-6 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
                     {/* ── Column 1: Copy and Actions ── */}
@@ -122,7 +113,7 @@ const LandingHero = ({
                                 {reportCta.show && (
                                     reportCta.disabled ? (
                                         <div
-                                            className="group relative inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-200 px-2 py-2.5 text-[10px] font-bold text-emerald-400 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-900/30 dark:text-emerald-500"
+                                            className="group relative inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-emerald-200 px-2 py-2.5 text-[10px] font-bold text-emerald-400 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-emerald-900/30 dark:text-emerald-500"
                                             aria-disabled="true"
                                             title={reportCta.reason}
                                         >
@@ -130,7 +121,7 @@ const LandingHero = ({
                                             Report an Incident
                                             <span
                                                 role="tooltip"
-                                                className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-1.5 text-center text-[11px] font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+                                                className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-sm bg-gray-900 px-3 py-1.5 text-center text-[11px] font-medium leading-snug text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
                                             >
                                                 {reportCta.reason}
                                             </span>
@@ -139,7 +130,7 @@ const LandingHero = ({
                                         <Link
                                             to={reportCta.to}
                                             id="hero-report-cta"
-                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-2 py-2.5 text-[10px] font-bold text-white shadow-xs transition-all hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
+                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
                                         >
                                             <HiExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
                                             Report an Incident
@@ -150,7 +141,7 @@ const LandingHero = ({
                                 {/* Secondary CTA: View live map */}
                                 <Link
                                     to="/dashboard?view=map"
-                                    className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-2 py-2.5 text-[10px] font-bold text-gray-800 shadow-xs ring-1 ring-gray-200 transition-all hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-white dark:ring-white/20 dark:hover:bg-white/15"
+                                    className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-white px-2 py-2.5 text-[10px] font-bold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-white dark:ring-white/20 dark:hover:bg-white/15"
                                 >
                                     <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     View live map
@@ -182,7 +173,7 @@ const LandingHero = ({
                         <ul className="flex flex-col gap-6 px-2 py-3 sm:px-0 lg:mt-2">
                             {benefits.map(({ Icon, title, description }) => (
                                 <li key={title} className="flex items-start gap-4">
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200/80 bg-white shadow-2xs dark:border-white/10 dark:bg-white/5">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200/80 bg-white dark:border-white/10 dark:bg-white/5">
                                         <Icon className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                                     </div>
                                     <div className="min-w-0">
@@ -196,9 +187,9 @@ const LandingHero = ({
                 </div>
             </div>
 
-            {/* ── Telemetry Readout (Linear Refined Bottom Bar) ── */}
+            {/* ── Telemetry Readout (strict borderless grid, left-aligned) ── */}
             <div data-testid="landing-hero-metrics" className="w-full border-t border-gray-200/80 bg-[#07130e] px-4 py-3.5 dark:border-white/10 dark:bg-[#050f0b]">
-                <div className="mx-auto flex max-w-[1440px] flex-row flex-wrap items-center justify-center divide-x divide-gray-800 dark:divide-white/10 sm:px-8 lg:px-10 xl:px-14">
+                <div className="mx-auto grid max-w-[1440px] grid-cols-1 divide-y divide-gray-800 sm:px-8 md:grid-cols-3 md:divide-y-0 md:divide-x lg:px-10 xl:px-14 dark:divide-white/10">
                     <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="VERIFIED REPORTS" sublabel={verifiedPeriodLabel} />
                     <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="ACTIVE RISK ZONES" />
                     <Metric value={municipalityCount} label="MUNICIPALITIES COVERED" />

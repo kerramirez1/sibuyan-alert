@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useLocation } from '../../router';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../ui/NotificationBell';
 import { resolveAssetUrl } from '../../utils/assets';
@@ -101,20 +100,16 @@ const MainLayout = ({ children }) => {
     return (
         <>
             <div className="fixed inset-0 flex min-h-0 overflow-hidden bg-white dark:bg-gray-950">
-                {/* Mobile Sidebar Overlay */}
-                <AnimatePresence>
-                    {sidebarOpen && (
-                        <motion.button
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            type="button"
-                            aria-label="Close navigation menu"
-                            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
-                            onClick={closeDrawer}
-                        />
-                    )}
-                </AnimatePresence>
+                {/* Mobile Sidebar Overlay: CSS fade avoids loading framer-motion
+                    (~99 kB) on every authenticated page just for one transition. */}
+                {sidebarOpen && (
+                    <button
+                        type="button"
+                        aria-label="Close navigation menu"
+                        className="overlay-fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+                        onClick={closeDrawer}
+                    />
+                )}
 
                 {/* Sidebar */}
                 <aside
@@ -420,19 +415,14 @@ const MainLayout = ({ children }) => {
                         </div>
                     </header>
 
-                    {/* Page Content Scrollable Area */}
+                    {/* Page Content Scrollable Area. The keyed div re-runs the CSS
+                        enter animation on navigation. Unlike the previous
+                        AnimatePresence "wait" mode there is no exit delay, so the
+                        next page mounts immediately and fades in. */}
                     <main data-map-scroll-container className="custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={location.pathname}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                            >
-                                {children}
-                            </motion.div>
-                        </AnimatePresence>
+                        <div key={location.pathname} className="page-enter">
+                            {children}
+                        </div>
                     </main>
                 </div>
             </div>

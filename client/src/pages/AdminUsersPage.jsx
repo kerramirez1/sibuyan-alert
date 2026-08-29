@@ -470,7 +470,7 @@ const AdminUsersPage = () => {
                                                     user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
                                                 }`}>
                                                     {user.avatar ? (
-                                                        <img src={resolveAssetUrl(user.avatar)} alt="" className="h-full w-full rounded-full object-cover" />
+                                                        <img src={resolveAssetUrl(user.avatar)} alt="" loading="lazy" decoding="async" className="h-full w-full rounded-full object-cover" />
                                                     ) : (
                                                         user.name?.charAt(0).toUpperCase() || 'U'
                                                     )}
@@ -598,7 +598,7 @@ const AdminUsersPage = () => {
                                             user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
                                         }`}>
                                             {user.avatar ? (
-                                                <img src={resolveAssetUrl(user.avatar)} alt="" className="h-full w-full rounded-full object-cover" />
+                                                <img src={resolveAssetUrl(user.avatar)} alt="" loading="lazy" decoding="async" className="h-full w-full rounded-full object-cover" />
                                             ) : (
                                                 user.name?.charAt(0).toUpperCase() || 'U'
                                             )}

@@ -741,12 +741,23 @@ export const getReportEvidencePreview = async (req, res) => {
  */
 export const getMyReports = async (req, res) => {
     try {
-        const reports = await Report.find({ reporter: req.user._id })
-            .populate('municipality', 'name code')
-            .populate('respondedBy', 'name agency assignedMunicipality')
-            .populate('resolvedBy', 'name agency assignedMunicipality')
-            .populate('reportUpdates.author', 'name role agency')
-            .sort({ createdAt: -1 });
+        // Hardened query: bounded page size + lean documents so this endpoint
+        // stays fast as a citizen's report history grows.
+        const safeLimit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+        const safePage = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+        const [reports, total] = await Promise.all([
+            Report.find({ reporter: req.user._id })
+                .populate('municipality', 'name code')
+                .populate('respondedBy', 'name agency assignedMunicipality')
+                .populate('resolvedBy', 'name agency assignedMunicipality')
+                .populate('reportUpdates.author', 'name role agency')
+                .sort({ createdAt: -1 })
+                .limit(safeLimit)
+                .skip((safePage - 1) * safeLimit)
+                .lean(),
+            Report.countDocuments({ reporter: req.user._id }),
+        ]);
 
         const serialized = reports.map((report) => {
             const reportObj = typeof report.toObject === 'function' ? report.toObject() : report;
@@ -764,6 +775,12 @@ export const getMyReports = async (req, res) => {
         res.json({
             success: true,
             data: serialized,
+            pagination: {
+                page: safePage,
+                limit: safeLimit,
+                total,
+                hasMore: safePage * safeLimit < total,
+            },
         });
     } catch (error) {
         console.error('Get my reports error:', error);

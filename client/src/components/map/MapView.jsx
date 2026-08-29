@@ -557,12 +557,13 @@ const MapView = ({
             return INCIDENT_COLORS[report.incidentCategory] || MAP_STATUS_CONFIG.verified.markerColor;
         };
 
-        // Clear existing report markers
-        reportMarkersRef.current.forEach(({ marker }) => marker.remove());
-        reportMarkersRef.current = [];
-        if (selectedOperationalMarkerRef.current?.classList.contains('report-marker')) {
-            selectedOperationalMarkerRef.current = null;
-        }
+        // Markers are diffed by group identity instead of being destroyed and
+        // recreated on every data change, so real-time presence updates and
+        // filter toggles no longer rebuild every DOM pin (flicker + jank).
+        const existingMarkers = new Map(
+            reportMarkersRef.current.map((entry) => [entry.key, entry])
+        );
+        const nextMarkers = [];
 
         // Co-located reports share one marker with a count badge so no incident is
         // silently hidden underneath another marker at the same coordinates.
@@ -577,18 +578,144 @@ const MapView = ({
                     report.status === 'responding' &&
                     (!canResolveReport || canResolveReport(report));
                 const markerColor = getReportMarkerColor(report);
-                const el = createOperationalMarkerElement({
-                    report,
-                    groupedReports,
+                // Identity: same location + same set of reports = same marker.
+                const key = [
+                    coords.lat.toFixed(6),
+                    coords.lng.toFixed(6),
+                    groupedReports.map((item) => String(item._id ?? item.id ?? '')).sort().join('|'),
+                ].join('::');
+                // Signature covers everything createOperationalMarkerElement renders
+                // plus the permission flags closed over by the click handlers, so a
+                // changed pin rebuilds while an unchanged pin keeps its DOM node.
+                const signature = [
+                    report?._id ?? report?.id ?? '',
+                    report?.status ?? '',
                     markerColor,
-                });
+                    report?.title ?? report?.incidentType ?? '',
+                    groupedReports.length,
+                    canRespondToThisReport,
+                    canResolveThisReport,
+                ].join('::');
+
+                const existing = existingMarkers.get(key);
+                let entry;
+                if (existing && existing.signature === signature) {
+                    // Unchanged: reuse the live marker element.
+                    existingMarkers.delete(key);
+                    entry = existing;
+                } else {
+                    if (existing) {
+                        existing.marker.remove();
+                        if (selectedOperationalMarkerRef.current === existing.element) {
+                            selectedOperationalMarkerRef.current = null;
+                        }
+                    }
+                    const el = createOperationalMarkerElement({
+                        report,
+                        groupedReports,
+                        markerColor,
+                    });
+
+                    const marker = new maplibregl.Marker({
+                        ...OPERATIONAL_MARKER_VISIBILITY,
+                        element: el,
+                        anchor: 'bottom',
+                    })
+                        .setLngLat([coords.lng, coords.lat])
+                        .addTo(map);
+
+                    // Open fixed modal instead of inline map popup
+                    const openMarker = (e) => {
+                        e.stopPropagation();
+                        onEntityInspectorOpenRef.current?.();
+                        selectOperationalMarker(el);
+                        markerFocusCleanupRef.current?.();
+                        markerFocusCleanupRef.current = focusExistingMapEntity(map, {
+                            type: 'incident',
+                            coordinates: coords,
+                        }, {
+                            duration: performanceProfile.navigationDuration === 0
+                                ? 0
+                                : MAP_FOCUS_CONFIG.duration,
+                        });
+                        if (groupedReports.length > 1) {
+                            setMapModal({ type: 'reportGroup', data: groupedReports });
+                            return;
+                        }
+                        setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport });
+                    };
+                    el.addEventListener('click', openMarker);
+                    el.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openMarker(event);
+                        }
+                    });
+
+                    entry = {
+                        key,
+                        signature,
+                        ids: groupedReports.map((item) => String(item._id ?? item.id ?? '')).filter(Boolean),
+                        marker,
+                        element: el,
+                    };
+                }
+                nextMarkers.push(entry);
+            });
+
+        // Remove stale markers that no longer exist in the new dataset.
+        existingMarkers.forEach((entry) => {
+            entry.marker.remove();
+            if (selectedOperationalMarkerRef.current === entry.element) {
+                selectedOperationalMarkerRef.current = null;
+            }
+        });
+        reportMarkersRef.current = nextMarkers;
+
+    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, selectOperationalMarker]);
+
+    // Risk zones use focused HTML pins so the imagery remains unobstructed.
+    // Markers are diffed by zone identity: unchanged zones keep their live DOM
+    // element instead of being rebuilt on every map data change.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
+
+        const existingZones = new Map(
+            zoneMarkersRef.current.map((entry) => [entry.key, entry])
+        );
+        const nextZones = [];
+
+        // Create unique HTML markers for high-risk zones (warning triangle style)
+        filteredRiskZones.forEach((zone, index) => {
+            const coordinates = getMapCoordinates(zone);
+            if (!coordinates) return;
+            const color = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
+            const key = String(zone._id ?? zone.id ?? `zone-${index}`);
+            // createRiskZoneMarkerElement renders only the name and the color.
+            const signature = `${color}::${zone?.name ?? ''}`;
+
+            const existing = existingZones.get(key);
+            let entry;
+            if (existing && existing.signature === signature) {
+                existingZones.delete(key);
+                entry = existing;
+            } else {
+                if (existing) {
+                    existing.marker.remove();
+                    if (selectedOperationalMarkerRef.current === existing.element) {
+                        selectedOperationalMarkerRef.current = null;
+                    }
+                }
+                const el = createRiskZoneMarkerElement({ zone, color });
 
                 const marker = new maplibregl.Marker({
                     ...OPERATIONAL_MARKER_VISIBILITY,
                     element: el,
                     anchor: 'bottom',
                 })
-                    .setLngLat([coords.lng, coords.lat])
+                    .setLngLat([coordinates.lng, coordinates.lat])
                     .addTo(map);
 
                 // Open fixed modal instead of inline map popup
@@ -598,18 +725,23 @@ const MapView = ({
                     selectOperationalMarker(el);
                     markerFocusCleanupRef.current?.();
                     markerFocusCleanupRef.current = focusExistingMapEntity(map, {
-                        type: 'incident',
-                        coordinates: coords,
+                        type: 'risk-zone',
+                        coordinates,
+                        bounds: getRiskZoneBounds(zone, {
+                            points: performanceProfile.riskZonePolygonPoints,
+                        }),
                     }, {
                         duration: performanceProfile.navigationDuration === 0
                             ? 0
                             : MAP_FOCUS_CONFIG.duration,
+                        padding: performanceProfile.compactViewport
+                            ? MAP_FOCUS_CONFIG.riskZonePadding.compact
+                            : MAP_FOCUS_CONFIG.riskZonePadding.default,
                     });
-                    if (groupedReports.length > 1) {
-                        setMapModal({ type: 'reportGroup', data: groupedReports });
-                        return;
-                    }
-                    setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport });
+                    setMapModal({
+                        type: 'zone',
+                        data: zone,
+                    });
                 };
                 el.addEventListener('click', openMarker);
                 el.addEventListener('keydown', (event) => {
@@ -619,86 +751,25 @@ const MapView = ({
                     }
                 });
 
-
-                reportMarkersRef.current.push({
-                    ids: groupedReports.map((item) => String(item._id ?? item.id ?? '')).filter(Boolean),
+                entry = {
+                    key,
+                    signature,
+                    id: key,
                     marker,
                     element: el,
-                });
-            });
-
-    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, selectOperationalMarker]);
-
-    // Risk zones use focused HTML pins so the imagery remains unobstructed.
-    useEffect(() => {
-        if (!mapReady || !mapInstanceRef.current) return;
-
-        const map = mapInstanceRef.current;
-
-        // Clear existing zone markers
-        zoneMarkersRef.current.forEach(({ marker }) => marker.remove());
-        zoneMarkersRef.current = [];
-        if (selectedOperationalMarkerRef.current?.classList.contains('zone-marker')) {
-            selectedOperationalMarkerRef.current = null;
-        }
-
-        if (filteredRiskZones.length === 0) return;
-
-        // Create unique HTML markers for high-risk zones (warning triangle style)
-        filteredRiskZones.forEach(zone => {
-            const coordinates = getMapCoordinates(zone);
-            if (!coordinates) return;
-            const color = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
-            const el = createRiskZoneMarkerElement({ zone, color });
-
-            const marker = new maplibregl.Marker({
-                ...OPERATIONAL_MARKER_VISIBILITY,
-                element: el,
-                anchor: 'bottom',
-            })
-                    .setLngLat([coordinates.lng, coordinates.lat])
-                    .addTo(map);
-
-            // Open fixed modal instead of inline map popup
-            const openMarker = (e) => {
-                e.stopPropagation();
-                onEntityInspectorOpenRef.current?.();
-                selectOperationalMarker(el);
-                markerFocusCleanupRef.current?.();
-                markerFocusCleanupRef.current = focusExistingMapEntity(map, {
-                    type: 'risk-zone',
-                    coordinates,
-                    bounds: getRiskZoneBounds(zone, {
-                        points: performanceProfile.riskZonePolygonPoints,
-                    }),
-                }, {
-                    duration: performanceProfile.navigationDuration === 0
-                        ? 0
-                        : MAP_FOCUS_CONFIG.duration,
-                    padding: performanceProfile.compactViewport
-                        ? MAP_FOCUS_CONFIG.riskZonePadding.compact
-                        : MAP_FOCUS_CONFIG.riskZonePadding.default,
-                });
-                setMapModal({
-                    type: 'zone',
-                    data: zone,
-                });
-            };
-            el.addEventListener('click', openMarker);
-            el.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openMarker(event);
-                }
-            });
-
-
-            zoneMarkersRef.current.push({
-                id: String(zone._id ?? zone.id ?? ''),
-                marker,
-                element: el,
-            });
+                };
+            }
+            nextZones.push(entry);
         });
+
+        // Remove stale zone markers that no longer exist in the new dataset.
+        existingZones.forEach((entry) => {
+            entry.marker.remove();
+            if (selectedOperationalMarkerRef.current === entry.element) {
+                selectedOperationalMarkerRef.current = null;
+            }
+        });
+        zoneMarkersRef.current = nextZones;
 
     }, [filteredRiskZones, mapReady, performanceProfile, selectOperationalMarker]);
 
