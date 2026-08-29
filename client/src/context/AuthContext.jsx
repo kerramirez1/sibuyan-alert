@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
             // Remove credentials left by the previous localStorage-based auth flow.
             localStorage.removeItem('token');
             try {
-                const response = await api.get('/auth/me');
+                const response = await api.get('/auth/me', { _skipAuthRefresh: true });
                 setUser(response.data.data);
             } catch {
                 setUser(null);

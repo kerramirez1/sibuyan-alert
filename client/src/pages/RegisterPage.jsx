@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { reportsAPI } from '../services/api';
 import { ID_IMAGE_ACCEPT, prepareIdentityImage, prepareVerificationImage } from '../utils/identityImage';
+import { useSelfieFaceDetection } from '../hooks/useSelfieFaceDetection';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
@@ -94,97 +95,6 @@ const RegisterPage = () => {
         setCameraActive(false);
     }, []);
 
-    const loadLocations = useCallback(async () => {
-        setLocationsLoading(true);
-        setLocationsError('');
-        try {
-            const response = await reportsAPI.getMunicipalities();
-            const records = response.data?.data;
-            if (!Array.isArray(records) || records.length === 0) {
-                throw new Error('No municipality records returned');
-            }
-            setMunicipalities(records);
-        } catch (error) {
-            console.error('Unable to load registration locations:', error);
-            setLocationsError('Municipality and barangay options could not be loaded.');
-        } finally {
-            setLocationsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadLocations();
-    }, [loadLocations]);
-
-    useEffect(() => {
-        if (cameraActive && streamRef.current && videoRef.current && !videoRef.current.srcObject) {
-            videoRef.current.srcObject = streamRef.current;
-            videoRef.current.play().catch((error) => {
-                console.error('Video play error:', error);
-                setCameraError('The camera preview could not start. Try again or choose a selfie from your device.');
-                stopCamera();
-            });
-        }
-    }, [cameraActive, stopCamera]);
-
-    useEffect(() => () => stopCamera(), [stopCamera]);
-
-    useEffect(() => () => {
-        if (idPreview) URL.revokeObjectURL(idPreview);
-    }, [idPreview]);
-
-    useEffect(() => () => {
-        if (selfiePreview) URL.revokeObjectURL(selfiePreview);
-    }, [selfiePreview]);
-
-    useEffect(() => {
-        if (!selfiePreview || selfieAccepted) return undefined;
-        const frame = requestAnimationFrame(() => selfieConfirmButtonRef.current?.focus());
-        return () => cancelAnimationFrame(frame);
-    }, [selfieAccepted, selfiePreview]);
-
-    const selectedBarangays = useMemo(() => {
-        const municipality = municipalities.find((item) => item.name === formData.municipality);
-        return municipality?.barangays || [];
-    }, [formData.municipality, municipalities]);
-
-    const startCamera = useCallback(async () => {
-        setCameraError('');
-        setCaptureAnnouncement('Requesting camera access.');
-        if (!navigator.mediaDevices?.getUserMedia) {
-            setCameraError('Camera access is not supported by this browser or connection.');
-            setCaptureAnnouncement('Camera is unavailable. Choose a selfie from your device instead.');
-            return;
-        }
-        setCameraRequesting(true);
-        const requestId = ++cameraRequestIdRef.current;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-                audio: false,
-            });
-            if (requestId !== cameraRequestIdRef.current) {
-                stream.getTracks().forEach((track) => track.stop());
-                return;
-            }
-            streamRef.current = stream;
-            setCameraActive(true);
-            setCaptureAnnouncement('Camera is live. Center your face, then take the photo.');
-        } catch (error) {
-            if (requestId !== cameraRequestIdRef.current) return;
-            console.error('Camera error:', error);
-            const messages = {
-                NotAllowedError: 'Camera access was denied. Allow camera permission, then try again.',
-                NotFoundError: 'No camera was found on this device.',
-                NotReadableError: 'The camera is being used by another application.',
-            };
-            setCameraError(messages[error.name] || 'The camera could not be opened. Try again or choose a selfie from your device.');
-            setCaptureAnnouncement('Camera could not be opened.');
-        } finally {
-            if (requestId === cameraRequestIdRef.current) setCameraRequesting(false);
-        }
-    }, []);
-
     const captureSelfie = useCallback(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -226,8 +136,117 @@ const RegisterPage = () => {
         }, 'image/jpeg', 0.9);
     }, [selfiePreview, stopCamera]);
 
+    const {
+        feedback: faceFeedback,
+        guideState: faceGuideState,
+        resetDetector,
+    } = useSelfieFaceDetection({
+        videoRef,
+        cameraActive: cameraActive && !selfiePreview,
+        onAutoCapture: captureSelfie,
+    });
+
+    const loadLocations = useCallback(async () => {
+        setLocationsLoading(true);
+        setLocationsError('');
+        try {
+            const response = await reportsAPI.getMunicipalities();
+            const records = response.data?.data;
+            if (!Array.isArray(records) || records.length === 0) {
+                throw new Error('No municipality records returned');
+            }
+            setMunicipalities(records);
+        } catch (error) {
+            console.error('Unable to load registration locations:', error);
+            setLocationsError('Municipality and barangay options could not be loaded.');
+        } finally {
+            setLocationsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadLocations();
+    }, [loadLocations]);
+
+    useEffect(() => {
+        if (cameraActive && streamRef.current && videoRef.current && !videoRef.current.srcObject) {
+            videoRef.current.srcObject = streamRef.current;
+            const playPromise = videoRef.current.play?.();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch((error) => {
+                    console.error('Video play error:', error);
+                    setCameraError('The camera preview could not start. Try again or choose a selfie from your device.');
+                    stopCamera();
+                });
+            }
+        }
+    }, [cameraActive, stopCamera]);
+
+    useEffect(() => () => {
+        resetDetector();
+        stopCamera();
+    }, [resetDetector, stopCamera]);
+
+    useEffect(() => () => {
+        if (idPreview) URL.revokeObjectURL(idPreview);
+    }, [idPreview]);
+
+    useEffect(() => () => {
+        if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+    }, [selfiePreview]);
+
+    useEffect(() => {
+        if (!selfiePreview || selfieAccepted) return undefined;
+        const frame = requestAnimationFrame(() => selfieConfirmButtonRef.current?.focus());
+        return () => cancelAnimationFrame(frame);
+    }, [selfieAccepted, selfiePreview]);
+
+    const selectedBarangays = useMemo(() => {
+        const municipality = municipalities.find((item) => item.name === formData.municipality);
+        return municipality?.barangays || [];
+    }, [formData.municipality, municipalities]);
+
+    const startCamera = useCallback(async () => {
+        resetDetector();
+        setCameraError('');
+        setCaptureAnnouncement('Requesting camera access.');
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setCameraError('Camera access is not supported by this browser or connection.');
+            setCaptureAnnouncement('Camera is unavailable. Choose a selfie from your device instead.');
+            return;
+        }
+        setCameraRequesting(true);
+        const requestId = ++cameraRequestIdRef.current;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false,
+            });
+            if (requestId !== cameraRequestIdRef.current) {
+                stream.getTracks().forEach((track) => track.stop());
+                return;
+            }
+            streamRef.current = stream;
+            setCameraActive(true);
+            setCaptureAnnouncement('Camera is live. Center your face, then hold still to capture.');
+        } catch (error) {
+            if (requestId !== cameraRequestIdRef.current) return;
+            console.error('Camera error:', error);
+            const messages = {
+                NotAllowedError: 'Camera access was denied. Allow camera permission, then try again.',
+                NotFoundError: 'No camera was found on this device.',
+                NotReadableError: 'The camera is being used by another application.',
+            };
+            setCameraError(messages[error.name] || 'The camera could not be opened. Try again or choose a selfie from your device.');
+            setCaptureAnnouncement('Camera could not be opened.');
+        } finally {
+            if (requestId === cameraRequestIdRef.current) setCameraRequesting(false);
+        }
+    }, [resetDetector]);
+
     const retakeSelfie = useCallback(() => {
         const previousSource = selfieSource;
+        resetDetector();
         if (selfiePreview) URL.revokeObjectURL(selfiePreview);
         setSelfieBlob(null);
         setSelfiePreview(null);
@@ -239,7 +258,7 @@ const RegisterPage = () => {
         } else {
             startCamera();
         }
-    }, [selfiePreview, selfieSource, startCamera]);
+    }, [resetDetector, selfiePreview, selfieSource, startCamera]);
 
     const acceptSelfie = () => {
         if (!selfieBlob) return;
@@ -662,9 +681,47 @@ const RegisterPage = () => {
                                 {cameraActive && !selfiePreview && (
                                     <>
                                         <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover [transform:scaleX(-1)]" />
-                                        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white"><span className="h-2 w-2 rounded-full bg-red-400 animate-pulse" /> Camera is live</span>
-                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true"><div className="h-[74%] w-[62%] rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.18)]" /></div>
-                                        <p className="absolute bottom-3 left-3 right-3 rounded-lg bg-black/65 px-3 py-1.5 text-center text-xs font-medium text-white">Center your full face inside the guide</p>
+                                        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white">
+                                            <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse" /> Camera is live
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={stopCamera}
+                                            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-all hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                            aria-label="Close camera"
+                                        >
+                                            <HiOutlineX className="h-4 w-4" />
+                                        </button>
+                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                                            <div
+                                                className={`relative h-[80%] aspect-[3/4] max-w-[66%] rounded-[50%] transition-all duration-200 ${
+                                                    faceGuideState === 'capturing'
+                                                        ? 'border-4 border-white bg-white/30 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.9)]'
+                                                        : faceGuideState === 'aligned'
+                                                            ? 'border-3 border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.7)]'
+                                                            : faceGuideState === 'warning'
+                                                                ? 'border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+                                                                : 'border-2 border-white/75 shadow-[0_0_0_999px_rgba(0,0,0,0.25)]'
+                                                }`}
+                                            >
+                                                <div className={`absolute inset-0 rounded-[50%] transition-opacity duration-200 ${faceGuideState === 'aligned' ? 'opacity-100 ring-2 ring-emerald-300/40' : 'opacity-0'}`} />
+                                            </div>
+                                        </div>
+                                        <div className="absolute bottom-4 left-4 right-4 flex justify-center">
+                                            <div className={`inline-flex items-center gap-2 rounded-full backdrop-blur-md px-4 py-1.5 text-center text-xs font-semibold shadow-lg transition-all duration-200 ${
+                                                faceGuideState === 'capturing'
+                                                    ? 'bg-emerald-600 text-white shadow-emerald-950/50'
+                                                    : faceGuideState === 'aligned'
+                                                        ? 'bg-emerald-950/90 text-emerald-200 border border-emerald-500/50 shadow-emerald-950/50'
+                                                        : faceGuideState === 'warning'
+                                                            ? 'bg-amber-950/90 text-amber-200 border border-amber-500/50'
+                                                            : 'bg-black/75 text-white border border-white/15'
+                                            }`}>
+                                                {faceGuideState === 'aligned' && <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />}
+                                                {faceGuideState === 'warning' && <span className="h-2 w-2 rounded-full bg-amber-400" />}
+                                                <span>{faceFeedback || 'Position your face inside the guide'}</span>
+                                            </div>
+                                        </div>
                                     </>
                                 )}
                                 {selfiePreview && (
@@ -681,26 +738,25 @@ const RegisterPage = () => {
                                 )}
                             </div>
 
-                            <div className="border-t border-white/10 bg-gray-900 p-3">
-                                {cameraActive && !selfiePreview && (
-                                    <button type="button" onClick={captureSelfie} className="mx-auto flex min-h-12 w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-xs sm:text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label="Take verification selfie"><HiOutlineCamera className="h-5 w-5" /> Take photo</button>
-                                )}
-                                {selfiePreview && !selfieAccepted && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button type="button" onClick={retakeSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another' : 'Retake'}</button>
-                                        <button ref={selfieConfirmButtonRef} type="button" onClick={acceptSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineCheck className="h-4 w-4" /> Use this photo</button>
-                                    </div>
-                                )}
-                                {selfiePreview && selfieAccepted && (
-                                    <button type="button" onClick={retakeSelfie} className="mx-auto inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another photo' : 'Retake photo'}</button>
-                                )}
-                                {!cameraActive && !selfiePreview && (
-                                    <div className="grid gap-2 sm:grid-cols-2">
-                                        <button type="button" onClick={startCamera} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-xs sm:text-sm font-semibold text-gray-950 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-60"><HiOutlineCamera className="h-4 w-4" /> {cameraRequesting ? 'Requesting camera…' : cameraError ? 'Try camera again' : 'Open camera'}</button>
-                                        <button type="button" onClick={openSelfiePicker} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60"><HiOutlineCloudUpload className="h-4 w-4" /> {selfiePreparing ? 'Preparing photo…' : 'Choose from device'}</button>
-                                    </div>
-                                )}
-                            </div>
+                            {(!cameraActive || selfiePreview) && (
+                                <div className="border-t border-white/10 bg-gray-900 p-3">
+                                    {selfiePreview && !selfieAccepted && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button type="button" onClick={retakeSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another' : 'Retake'}</button>
+                                            <button ref={selfieConfirmButtonRef} type="button" onClick={acceptSelfie} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineCheck className="h-4 w-4" /> Use this photo</button>
+                                        </div>
+                                    )}
+                                    {selfiePreview && selfieAccepted && (
+                                        <button type="button" onClick={retakeSelfie} className="mx-auto inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><HiOutlineRefresh className="h-4 w-4" /> {selfieSource === 'device' ? 'Choose another photo' : 'Retake photo'}</button>
+                                    )}
+                                    {!cameraActive && !selfiePreview && (
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <button type="button" onClick={startCamera} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-xs sm:text-sm font-semibold text-gray-950 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-wait disabled:opacity-60"><HiOutlineCamera className="h-4 w-4" /> {cameraRequesting ? 'Requesting camera…' : cameraError ? 'Try camera again' : 'Open camera'}</button>
+                                            <button type="button" onClick={openSelfiePicker} disabled={cameraRequesting || selfiePreparing} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 text-xs sm:text-sm font-semibold text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-60"><HiOutlineCloudUpload className="h-4 w-4" /> {selfiePreparing ? 'Preparing photo…' : 'Choose from device'}</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <canvas ref={canvasRef} className="hidden" />
                         <input ref={selfieInputRef} type="file" className="sr-only" accept={ID_IMAGE_ACCEPT} onChange={handleSelfieFileChange} aria-label="Choose a verification selfie from device" />

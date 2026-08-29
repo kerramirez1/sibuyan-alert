@@ -21,6 +21,7 @@ import {
 } from '../utils/pushSubscription.js';
 import { sendPushToUser } from '../services/pushService.js';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
+import { detectFaces } from '../services/faceDetectionService.js';
 
 /**
  * @desc    Register a new reporter with private ID-photo verification
@@ -56,6 +57,27 @@ export const register = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'A verification selfie is required for reporter registration',
+            });
+        }
+
+        // Authoritative server-side face validation
+        const selfieDetection = await detectFaces(selfiePhotoFile.buffer);
+        if (selfieDetection.status === 'invalid_image') {
+            return res.status(400).json({
+                success: false,
+                message: 'The selfie photo is corrupted or invalid. Please upload a clear photo.',
+            });
+        }
+        if (selfieDetection.status === 'no_faces_detected' || (selfieDetection.faces && selfieDetection.faces.length === 0)) {
+            return res.status(400).json({
+                success: false,
+                message: 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.',
+            });
+        }
+        if (selfieDetection.faces && selfieDetection.faces.length > 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Multiple faces detected in the verification selfie. Only one person must be visible.',
             });
         }
 

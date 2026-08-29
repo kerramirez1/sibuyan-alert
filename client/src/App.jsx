@@ -11,11 +11,13 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Public Pages (eager load)
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import RegistrationSubmittedPage from './pages/RegistrationSubmittedPage';
 import NotFoundPage from './pages/NotFoundPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
+
+// Lazy-loaded Public Auth Pages
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const RegistrationSubmittedPage = lazy(() => import('./pages/RegistrationSubmittedPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 // Protected Pages (lazy load)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));

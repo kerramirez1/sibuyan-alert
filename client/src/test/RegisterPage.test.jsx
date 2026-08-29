@@ -54,6 +54,8 @@ describe('RegisterPage location reference and responsive form', () => {
         vi.clearAllMocks();
         if (!URL.createObjectURL) URL.createObjectURL = vi.fn(() => 'blob:preview');
         if (!URL.revokeObjectURL) URL.revokeObjectURL = vi.fn();
+        HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue();
+        HTMLMediaElement.prototype.pause = vi.fn();
         mocks.getMunicipalities.mockResolvedValue({ data: { data: officialLocations } });
         mocks.register.mockResolvedValue({ success: true });
         mocks.prepareIdentityImage.mockImplementation(async (file) => ({ file }));
@@ -201,5 +203,88 @@ describe('RegisterPage location reference and responsive form', () => {
         expect(submittedData.get('name')).toBe('Juan Dela Cruz');
         expect(submittedData.get('municipality')).toBe('Cajidiocan');
         expect(submittedData.get('idDocument')).toBe(idPhoto);
+    });
+
+    test('handles camera opening, live face guide overlay, and manual capture', async () => {
+        const mockTracks = [{ stop: vi.fn() }];
+        const mockStream = { getTracks: () => mockTracks };
+        const originalMediaDevices = navigator.mediaDevices;
+        Object.defineProperty(navigator, 'mediaDevices', {
+            value: {
+                getUserMedia: vi.fn().mockResolvedValue(mockStream),
+            },
+            configurable: true,
+        });
+
+        renderRegister();
+        await screen.findByLabelText('Municipality');
+
+        fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Maria Santos' } });
+        fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'maria@example.com' } });
+        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
+        fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByRole('button', { name: /Continue to ID Upload/i }));
+
+        const idPhoto = new File(['id'], 'id.jpg', { type: 'image/jpeg' });
+        fireEvent.change(screen.getByLabelText('Choose an ID photo from device'), { target: { files: [idPhoto] } });
+        await screen.findByAltText('Selected identification preview');
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Selfie/i }));
+
+        const openCameraBtn = screen.getByRole('button', { name: /Open camera/i });
+        fireEvent.click(openCameraBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('Camera is live')).toBeInTheDocument();
+        });
+        expect(screen.getByRole('button', { name: /Close camera/i })).toBeInTheDocument();
+
+        Object.defineProperty(navigator, 'mediaDevices', {
+            value: originalMediaDevices,
+            configurable: true,
+        });
+    });
+
+    test('handles camera permission failure gracefully with non-blocking guidance', async () => {
+        const permissionError = new Error('Permission denied');
+        permissionError.name = 'NotAllowedError';
+        const originalMediaDevices = navigator.mediaDevices;
+        Object.defineProperty(navigator, 'mediaDevices', {
+            value: {
+                getUserMedia: vi.fn().mockRejectedValue(permissionError),
+            },
+            configurable: true,
+        });
+
+        renderRegister();
+        await screen.findByLabelText('Municipality');
+
+        fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Maria Santos' } });
+        fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'maria@example.com' } });
+        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'correct horse battery staple' } });
+        fireEvent.change(screen.getByLabelText('Municipality'), { target: { value: 'Cajidiocan' } });
+        fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: 'Gutivan' } });
+        fireEvent.click(screen.getByRole('button', { name: /Continue to ID Upload/i }));
+
+        const idPhoto = new File(['id'], 'id.jpg', { type: 'image/jpeg' });
+        fireEvent.change(screen.getByLabelText('Choose an ID photo from device'), { target: { files: [idPhoto] } });
+        await screen.findByAltText('Selected identification preview');
+        fireEvent.click(screen.getByRole('button', { name: /Continue to Selfie/i }));
+
+        const openCameraBtn = screen.getByRole('button', { name: /Open camera/i });
+        fireEvent.click(openCameraBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Camera access was denied/i)).toBeInTheDocument();
+        });
+        expect(screen.getByRole('button', { name: /Try camera again/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Choose from device/i })).toBeInTheDocument();
+
+        Object.defineProperty(navigator, 'mediaDevices', {
+            value: originalMediaDevices,
+            configurable: true,
+        });
     });
 });
