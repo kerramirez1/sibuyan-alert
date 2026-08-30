@@ -44,12 +44,12 @@ const sampleReport = {
                 id: '0',
                 index: 0,
                 redactedPreviewUrl: '/api/reports/report-1/evidence/0/preview',
-                 previewUrl: '/api/reports/report-1/evidence/0/preview',
-                 alt: 'Blurred evidence preview',
-                 accessLevel: 'redacted',
-                 detectionStatus: 'faces_detected',
-                 redactionType: 'face_blur',
-             },
+                previewUrl: '/api/reports/report-1/evidence/0/preview',
+                alt: 'Blurred evidence preview',
+                accessLevel: 'redacted',
+                detectionStatus: 'faces_detected',
+                redactionType: 'face_blur',
+            },
         ],
     },
 };
@@ -97,24 +97,40 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
         // Incident Header
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
-        expect(screen.getByText(/moderate/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/moderate/i).length).toBeGreaterThanOrEqual(1);
         expect(screen.getAllByText(/verified/i).length).toBeGreaterThanOrEqual(1);
 
-        // Location & Timing
+        // Overview section with 2-column metadata grid
+        const overviewHeading = screen.getByRole('heading', { name: /Overview/i });
+        expect(overviewHeading).toBeInTheDocument();
+        expect(screen.getByText('Incident type')).toBeInTheDocument();
+        expect(screen.getByText('Severity')).toBeInTheDocument();
+        expect(screen.getByText('Incident time')).toBeInTheDocument();
+        expect(screen.getByText('Submitted time')).toBeInTheDocument();
+        expect(screen.getByText('Barangay')).toBeInTheDocument();
+        expect(screen.getByText('Municipality')).toBeInTheDocument();
+        expect(screen.getByText('Responding agency')).toBeInTheDocument();
+        expect(screen.getByText('MDRRMO')).toBeInTheDocument();
+
+        // Casualty summary inside Overview
+        expect(screen.getByText('Casualty summary')).toBeInTheDocument();
+        expect(screen.getByText('Injured')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
+
+        // Human-readable location in Overview
         expect(screen.getByText('Poblacion')).toBeInTheDocument();
         expect(screen.getByText('Cajidiocan')).toBeInTheDocument();
-        expect(screen.getByText(/GPS: 12.4044, 122.6897/i)).toBeInTheDocument();
+
+        // Exact coordinates, duplicate location row, and expandable accordion are NOT visible for guest
+        expect(screen.queryByText(/Exact coordinates/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/12\.4044/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/GPS:/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/More incident information/i)).not.toBeInTheDocument();
+        expect(screen.queryByText('J. Rizal Street, Poblacion, Cajidiocan')).not.toBeInTheDocument();
 
         // Description & Indicators
         expect(screen.getByText('Motorcycle collision on road curve.')).toBeInTheDocument();
         expect(screen.getByText(/Fire or explosion involved/i)).toBeInTheDocument();
-
-        // Response Info
-        expect(screen.getByText('MDRRMO')).toBeInTheDocument();
-
-        // Casualties
-        expect(screen.getByText('Injured')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument();
 
         // Evidence: Blurred for privacy — thumbnail must be a clickable button
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
@@ -212,7 +228,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByText('No evidence attached.')).toBeInTheDocument();
     });
 
-    test('6. Renders clear empty state when no casualties or impacts are recorded', () => {
+    test('6. Renders clear zero values in 3-column casualties grid without placeholder text', () => {
         const noCasualtiesReport = {
             ...sampleReport,
             casualties: { injured: 0, fatalities: 0, missing: 0 },
@@ -220,7 +236,9 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         };
         renderDetails({ report: noCasualtiesReport, viewerRole: 'guest' });
 
-        expect(screen.getByText('No casualties or affected-area impacts recorded.')).toBeInTheDocument();
+        const zeros = screen.getAllByText('0');
+        expect(zeros.length).toBe(3); // Injured, Fatalities, Missing
+        expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
     });
 
     test('7. Renders error alert with retry button when loading fails', async () => {
@@ -235,7 +253,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
-    test('8. Renders populated casualties and affected area metrics correctly', () => {
+    test('8. Renders populated casualties in 3-column grid without affected area section', () => {
         const fullImpactReport = {
             ...sampleReport,
             casualties: { injured: 3, fatalities: 1, missing: 2 },
@@ -246,9 +264,9 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
         expect(screen.getByText('1')).toBeInTheDocument();
         expect(screen.getByText('2')).toBeInTheDocument();
-        expect(screen.getByText('15')).toBeInTheDocument();
-        expect(screen.getByText('45')).toBeInTheDocument();
-        expect(screen.getByText('250 meters')).toBeInTheDocument();
+        expect(screen.queryByText('Households')).not.toBeInTheDocument();
+        expect(screen.queryByText('Evacuees')).not.toBeInTheDocument();
+        expect(screen.queryByText('Affected radius')).not.toBeInTheDocument();
     });
 
     test('9. Handles long incident titles and missing descriptions gracefully', () => {
@@ -269,7 +287,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             viewerRole: 'responder',
         });
 
-        expect(screen.getByText('Operational incident brief')).toBeInTheDocument();
+        expect(screen.getByText('Incident brief')).toBeInTheDocument();
         expect(screen.getByText('Critical incident indicators')).toBeInTheDocument();
     });
 
@@ -466,8 +484,8 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             renderDetails({ report: pendingScreenshotReport, viewerRole: 'municipal_admin' });
 
-            // Header contains section-level status note
-            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+            // Header contains top-level review status note
+            expect(screen.getByText('Awaiting verification')).toBeInTheDocument();
 
             // Injured metric displays numeric 0, NOT "Pending verification"
             expect(screen.getByText('Injured')).toBeInTheDocument();
@@ -495,7 +513,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             renderDetails({ report: pendingZeroReport, viewerRole: 'responder' });
 
-            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+            expect(screen.getByText('Awaiting verification')).toBeInTheDocument();
             const zeroMetrics = screen.getAllByText('0');
             expect(zeroMetrics.length).toBe(3); // Injured, Fatalities, Missing
             expect(screen.queryByText('Pending verification')).not.toBeInTheDocument();
@@ -514,7 +532,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             renderDetails({ report: nullCasualtiesReport, viewerRole: 'guest' });
 
-            expect(screen.getByText('Report pending verification')).toBeInTheDocument();
+            expect(screen.getByText('Awaiting verification')).toBeInTheDocument();
             const notRecordedMetrics = screen.getAllByText('Not recorded');
             expect(notRecordedMetrics.length).toBe(3);
         });
@@ -532,7 +550,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             renderDetails({ report: invalidCasualtiesReport, viewerRole: 'guest' });
 
-            expect(screen.queryByText('Report pending verification')).not.toBeInTheDocument();
+            expect(screen.queryByText('Awaiting verification')).not.toBeInTheDocument();
             const notRecordedMetrics = screen.getAllByText('Not recorded');
             expect(notRecordedMetrics.length).toBe(3);
         });
@@ -562,7 +580,10 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
 
             // All valid map details remain accessible
-            expect(screen.getByText('J. Rizal Street, Poblacion, Cajidiocan')).toBeInTheDocument();
+            expect(screen.getByText('Poblacion')).toBeInTheDocument();
+            expect(screen.getByText('Cajidiocan')).toBeInTheDocument();
+            expect(screen.getByText('Exact coordinates')).toBeInTheDocument();
+            expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
             expect(screen.getByRole('heading', { name: /Your evidence photos · 1/i })).toBeInTheDocument();
 
             // When no action buttons (canRespond, canResolve) apply, no action footer exists
@@ -605,6 +626,106 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.getByRole('button', { name: /Respond to incident/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Review resolution/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
+        });
+    });
+
+    describe('17. Six-Decimal Coordinates, Location Cleanup & Accordion Removal', () => {
+        test('renders exact coordinates with 6 decimal places inside Overview for responder', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'responder',
+            });
+
+            expect(screen.getByText('Exact coordinates')).toBeInTheDocument();
+            expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
+        });
+
+        test('renders exact coordinates with 6 decimal places inside Overview for municipal admin', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'municipal_admin',
+            });
+
+            expect(screen.getByText('Exact coordinates')).toBeInTheDocument();
+            expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
+        });
+
+        test('renders exact coordinates with 6 decimal places inside Overview for report owner', () => {
+            renderDetails({
+                report: { ...sampleReport, isOwnedByCurrentUser: true },
+                viewerRole: 'reporter',
+            });
+
+            expect(screen.getByText('Exact coordinates')).toBeInTheDocument();
+            expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
+        });
+
+        test('does NOT render exact coordinates for guest user', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'guest',
+            });
+
+            expect(screen.queryByText(/Exact coordinates/i)).not.toBeInTheDocument();
+            expect(screen.queryByText('12.404400, 122.689700')).not.toBeInTheDocument();
+        });
+
+        test('does NOT render exact coordinates for non-owner reporter', () => {
+            renderDetails({
+                report: { ...sampleReport, isOwnedByCurrentUser: false },
+                viewerRole: 'reporter',
+            });
+
+            expect(screen.queryByText(/Exact coordinates/i)).not.toBeInTheDocument();
+            expect(screen.queryByText('12.404400, 122.689700')).not.toBeInTheDocument();
+        });
+
+        test('duplicate location row under title and "More incident information" accordion are absent', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'responder',
+            });
+
+            // No duplicate location row with full address
+            expect(screen.queryByText('J. Rizal Street, Poblacion, Cajidiocan')).not.toBeInTheDocument();
+
+            // No "More incident information" expandable accordion
+            expect(screen.queryByText(/More incident information/i)).not.toBeInTheDocument();
+
+            // Static privacy notice is present
+            expect(screen.getByText(/This operational view contains protected incident information/i)).toBeInTheDocument();
+        });
+
+        test('casualty data appears only once inside Overview', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'responder',
+            });
+
+            // "Casualty summary" heading rendered once
+            const casualtyHeadings = screen.getAllByText('Casualty summary');
+            expect(casualtyHeadings.length).toBe(1);
+
+            // Injured metric appears once with count 2
+            expect(screen.getByText('Injured')).toBeInTheDocument();
+            expect(screen.getByText('2')).toBeInTheDocument();
+        });
+
+        test('incident type badge is removed from header and appears only inside Overview', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'guest',
+            });
+
+            // Status and severity badges remain in header
+            expect(screen.getByText('verified')).toBeInTheDocument();
+            expect(screen.getByText('Moderate')).toBeInTheDocument();
+
+            // Incident type appears in Overview metadata grid (label and value)
+            expect(screen.getByText('Incident type')).toBeInTheDocument();
+            const motorcycleElements = screen.getAllByText('Motorcycle');
+            // Exactly 1 instance of 'Motorcycle' in the metadata grid (not duplicated in header badge)
+            expect(motorcycleElements.length).toBe(1);
         });
     });
 });

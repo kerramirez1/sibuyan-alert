@@ -259,8 +259,8 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                     {capabilities.canVerify && (
                         <button
                             type="button"
-                            onClick={() => actions.openReview(report, 'verified')}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400 sm:flex-initial"
+                            onClick={() => actions?.openReview?.(report, 'verified')}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
                             title="Verify report"
                             aria-label="Verify report"
                         >
@@ -271,7 +271,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                     {capabilities.canReject && (
                         <button
                             type="button"
-                            onClick={() => actions.openReview(report, 'rejected')}
+                            onClick={() => actions?.openReview?.(report, 'rejected')}
                             className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200/90 bg-red-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-red-700 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400 sm:flex-initial"
                             title="Reject report"
                             aria-label="Reject report"
@@ -283,20 +283,20 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                     {capabilities.canAcknowledgeTransfer && (
                         <button
                             type="button"
-                            onClick={() => actions.acknowledgeTransfer(report)}
-                            disabled={actions.acknowledgeLoadingId === report._id}
+                            onClick={() => actions?.acknowledgeTransfer?.(report)}
+                            disabled={actions?.acknowledgeLoadingId === report._id}
                             className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
                             title="Acknowledge transfer"
                             aria-label="Acknowledge transfer"
                         >
-                            <HiOutlineCheckCircle className={`h-4 w-4 ${actions.acknowledgeLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                            <HiOutlineCheckCircle className={`h-4 w-4 ${actions?.acknowledgeLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
                             <span>Acknowledge transfer</span>
                         </button>
                     )}
                     {capabilities.canTransfer && (
                         <button
                             type="button"
-                            onClick={() => actions.openTransfer(report)}
+                            onClick={() => actions?.openTransfer?.(report)}
                             className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-violet-200/90 bg-violet-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-violet-700 shadow-2xs transition-colors hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
                             title="Transfer report"
                             aria-label="Transfer report"
@@ -309,13 +309,13 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                 {capabilities.canDelete && (
                     <button
                         type="button"
-                        onClick={() => actions.deleteReport(report)}
-                        disabled={actions.deleteLoadingId === report._id}
+                        onClick={() => actions?.deleteReport?.(report)}
+                        disabled={actions?.deleteLoadingId === report._id}
                         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-400 shadow-2xs transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                         title="Delete report"
                         aria-label="Delete report"
                     >
-                        <HiOutlineTrash className={`h-4 w-4 ${actions.deleteLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                        <HiOutlineTrash className={`h-4 w-4 ${actions?.deleteLoadingId === report._id ? 'animate-pulse' : ''}`} aria-hidden="true" />
                     </button>
                 )}
             </div>

@@ -32,6 +32,23 @@ vi.mock('../services/api', () => ({
     },
 }));
 
+const mockMobileViewport = () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches: query === '(max-width: 639px)',
+        media: query,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+
+    return () => {
+        window.matchMedia = originalMatchMedia;
+    };
+};
+
 describe('Map Dashboard Refinements and Operational Workspace', () => {
     beforeEach(() => {
         clearBlobCache();
@@ -68,8 +85,9 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
         });
 
         test('handles mobile bottom sheet expand, collapse, and Escape interactions', () => {
+            const restoreMatchMedia = mockMobileViewport();
             const onClose = vi.fn();
-            render(
+            const { unmount } = render(
                 <div className="relative">
                     <MapOverlayPanel
                         id="dashboard-inspector"
@@ -83,23 +101,25 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             );
 
             const dialog = screen.getByRole('dialog', { name: 'Incident brief' });
-            // Initially collapsed peek state
-            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+            // Compact sheet remains scrollable without being translated off-screen.
+            expect(dialog).toHaveClass('max-sm:h-[38dvh]', 'max-sm:transition-[height]');
 
             const expandBtn = screen.getByRole('button', { name: /Expand incident details/i });
             fireEvent.click(expandBtn);
 
-            // Now expanded
-            expect(dialog).toHaveClass('max-sm:h-[88vh]');
+            expect(dialog).toHaveClass('max-sm:h-[88dvh]');
 
             // Pressing Escape while expanded collapses to peek state first
             fireEvent.keyDown(window, { key: 'Escape' });
-            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+            expect(dialog).toHaveClass('max-sm:h-[38dvh]');
             expect(onClose).not.toHaveBeenCalled();
 
             // Pressing Escape while collapsed calls onClose
             fireEvent.keyDown(window, { key: 'Escape' });
             expect(onClose).toHaveBeenCalledTimes(1);
+
+            unmount();
+            restoreMatchMedia();
         });
     });
 
@@ -158,12 +178,14 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             // 1. Header & Badges
             expect(screen.getByText('Incident brief')).toBeInTheDocument();
             expect(screen.getByText('Vehicular Collision at San Fernando Junction')).toBeInTheDocument();
-            expect(screen.getByText(/severe/i)).toBeInTheDocument();
+            expect(screen.getAllByText(/severe/i).length).toBeGreaterThanOrEqual(1);
             expect(screen.getByText('verified')).toBeInTheDocument();
 
-            // 2. Location & GPS
-            expect(screen.getByText(/National Highway, San Fernando/i)).toBeInTheDocument();
-            expect(screen.getByText(/GPS: 12.3854, 122.5642/i)).toBeInTheDocument();
+            // 2. Location in Overview (Barangay & Municipality, no coordinates for guest)
+            expect(screen.getByText('Poblacion')).toBeInTheDocument();
+            expect(screen.getByText('San Fernando')).toBeInTheDocument();
+            expect(screen.queryByText(/Exact coordinates/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/GPS:/i)).not.toBeInTheDocument();
 
             // 3. Responding Agency & Time
             expect(screen.getByText(/PNP - San Fernando/i)).toBeInTheDocument();
@@ -171,12 +193,12 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             // 4. Description
             expect(screen.getByText(/Two motorcycles collided at the junction/i)).toBeInTheDocument();
 
-            // 5. Casualties & Impact
+            // 5. Casualties in 3-column grid without affected area section
             expect(screen.getByText('Injured')).toBeInTheDocument();
             expect(screen.getByText('2')).toBeInTheDocument();
             expect(screen.getByText('Fatalities')).toBeInTheDocument();
             expect(screen.getByText('Missing')).toBeInTheDocument();
-            expect(screen.getByText(/50 meters/i)).toBeInTheDocument();
+            expect(screen.queryByText(/50 meters/i)).not.toBeInTheDocument();
 
             // 6. Privacy notice and no redundant action buttons
             expect(screen.getByText(/Personal identities and original evidence are protected/i)).toBeInTheDocument();
@@ -521,7 +543,9 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             );
 
             expect(screen.getByText(/No description provided\./i)).toBeInTheDocument();
-            expect(screen.getByText(/No casualties or affected-area impacts recorded\./i)).toBeInTheDocument();
+            expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
+            const zeroMetrics = screen.getAllByText('0');
+            expect(zeroMetrics.length).toBe(3); // Injured, Fatalities, Missing
         });
     });
 
@@ -556,8 +580,9 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
         };
 
         test('renders collapsed bottom sheet and expands to 88-92vh with internal scroll and fixed header', () => {
+            const restoreMatchMedia = mockMobileViewport();
             const onClose = vi.fn();
-            render(
+            const { unmount } = render(
                 <MemoryRouter>
                     <div className="relative">
                         <MapOverlayPanel
@@ -576,10 +601,10 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             );
 
             const dialog = screen.getByRole('dialog', { name: 'Incident details' });
-            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+            expect(dialog).toHaveClass('max-sm:h-[38dvh]');
 
             const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
-            expect(scrollRegion).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+            expect(scrollRegion).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto', 'overscroll-contain');
 
             // Header is fixed at top
             const header = dialog.querySelector('header');
@@ -587,7 +612,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
 
             // Tap header to expand
             fireEvent.click(header);
-            expect(dialog).toHaveClass('max-sm:h-[88vh]', 'max-sm:max-h-[92vh]');
+            expect(dialog).toHaveClass('max-sm:h-[88dvh]', 'max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-0.5rem)]');
 
             // All incident sections are accessible
             expect(screen.getByText('Bridge Obstruction in Cajidiocan')).toBeInTheDocument();
@@ -598,13 +623,16 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             // Swipe down collapses to peek
             fireEvent.touchStart(header, { touches: [{ clientY: 100 }] });
             fireEvent.touchEnd(header, { changedTouches: [{ clientY: 160 }] });
-            expect(dialog).toHaveClass('max-sm:h-[38vh]');
+            expect(dialog).toHaveClass('max-sm:h-[38dvh]');
             expect(onClose).not.toHaveBeenCalled();
 
             // Swipe down from peek closes sheet
             fireEvent.touchStart(header, { touches: [{ clientY: 200 }] });
             fireEvent.touchEnd(header, { changedTouches: [{ clientY: 260 }] });
             expect(onClose).toHaveBeenCalledTimes(1);
+
+            unmount();
+            restoreMatchMedia();
         });
     });
 });

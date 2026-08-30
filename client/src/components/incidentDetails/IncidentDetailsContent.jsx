@@ -5,9 +5,7 @@ import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import IncidentDetailsLocationSection from './IncidentDetailsLocationSection';
 import IncidentDetailsCoreSection from './IncidentDetailsCoreSection';
 import IncidentDetailsDescriptionSection from './IncidentDetailsDescriptionSection';
-import IncidentDetailsCasualtiesSection from './IncidentDetailsCasualtiesSection';
 import IncidentDetailsEvidenceSection from './IncidentDetailsEvidenceSection';
-import IncidentDetailsReporterSection from './IncidentDetailsReporterSection';
 import IncidentDetailsCoordinationSection from './IncidentDetailsCoordinationSection';
 import IncidentDetailsRestrictedNotice from './IncidentDetailsRestrictedNotice';
 
@@ -161,13 +159,15 @@ const IncidentDetailsContent = ({
                 </section>
             )}
 
-            {/* 1. Core overview */}
+            {/* 1. Core overview with internal Casualty Summary and single unified reporter entry */}
             <IncidentDetailsCoreSection
                 report={report}
                 showOperationalFields={visibility.showOperationalDetails}
                 showReporterVerification={visibility.showReporterInfo}
                 showReporterName={visibility.showReporterInfo}
+                showReporterContact={visibility.showReporterContact}
                 showCasualtiesSummary={!visibility.showOperationalDetails}
+                showCasualties={visibility.showOperationalDetails || visibility.isOwner}
             />
 
             {/* 2. Description */}
@@ -185,12 +185,7 @@ const IncidentDetailsContent = ({
                 onOpenMap={onOpenMap}
             />
 
-            {/* 4. Casualties & Affected Area */}
-            <IncidentDetailsCasualtiesSection
-                report={report}
-            />
-
-            {/* 5. Evidence Photos (when permitted) */}
+            {/* 4. Evidence Photos (when permitted) */}
             {visibility.showEvidence && (
                 <IncidentDetailsEvidenceSection
                     evidence={report.evidence}
@@ -205,15 +200,7 @@ const IncidentDetailsContent = ({
                 />
             )}
 
-            {/* 6. Reporter Info (when permitted) */}
-            {visibility.showReporterInfo && (
-                <IncidentDetailsReporterSection
-                    reporter={report.reporter}
-                    showContact={visibility.showReporterContact}
-                />
-            )}
-
-            {/* 7. Response Coordination (when permitted) */}
+            {/* 5. Response Coordination (when permitted) */}
             {visibility.showResponseCoordination && (
                 <IncidentDetailsCoordinationSection
                     report={report}
@@ -222,7 +209,7 @@ const IncidentDetailsContent = ({
                 />
             )}
 
-            {/* 8. Restricted Notice (for guest/public) */}
+            {/* 6. Restricted Notice (for guest/public) */}
             {visibility.showRestrictedNotice && (
                 <IncidentDetailsRestrictedNotice isOwner={isOwner} />
             )}

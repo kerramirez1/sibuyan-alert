@@ -240,4 +240,25 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Analytics Dashboard' })).not.toBeInTheDocument();
     });
+
+    test('promotes layout stacking context and applies mobile-sidebar-open class on body when drawer opens', () => {
+        renderLayout();
+
+        const menuButton = screen.getByRole('button', { name: 'Open navigation menu' });
+        const main = screen.getByRole('main');
+        const rootContainer = main.parentElement?.parentElement;
+
+        expect(document.body.classList.contains('mobile-sidebar-open')).toBe(false);
+        expect(rootContainer?.className).not.toContain('z-[95]');
+
+        // Open drawer
+        fireEvent.click(menuButton);
+        expect(document.body.classList.contains('mobile-sidebar-open')).toBe(true);
+        expect(rootContainer?.className).toContain('z-[95]');
+
+        // Close drawer
+        fireEvent.click(screen.getAllByRole('button', { name: 'Close navigation menu' })[0]);
+        expect(document.body.classList.contains('mobile-sidebar-open')).toBe(false);
+        expect(rootContainer?.className).not.toContain('z-[95]');
+    });
 });

@@ -2,6 +2,24 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import MapOverlayPanel from '../components/map/MapOverlayPanel';
 
+const mockMobileViewport = () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches: query === '(max-width: 639px)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+
+    return () => {
+        window.matchMedia = originalMatchMedia;
+    };
+};
+
 describe('MapOverlayPanel', () => {
     test('renders a viewport-safe centered dialog with one internal scroll region', () => {
         render(
@@ -98,7 +116,7 @@ describe('MapOverlayPanel', () => {
 
         const scrollRegion = screen.getByTestId('map-overlay-scroll-region');
         expect(scrollRegion).toHaveClass('overflow-y-auto');
-        expect(scrollRegion).not.toHaveClass('overscroll-contain', 'overscroll-none');
+        expect(scrollRegion).toHaveClass('min-w-0', 'overflow-x-hidden', 'overscroll-contain');
 
         const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 });
         scrollRegion.dispatchEvent(wheelEvent);
@@ -166,6 +184,30 @@ describe('MapOverlayPanel', () => {
         expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
     });
 
+    test('keeps mobile panels compact while preserving one scrollable content region', () => {
+        const restoreMatchMedia = mockMobileViewport();
+        const { unmount } = render(
+            <MapOverlayPanel
+                title="Incident details"
+                contentKey="overview:active:incident-1"
+                presentation="contextual"
+                onClose={vi.fn()}
+            >
+                <p>Overview</p>
+                <p>Evidence photos</p>
+            </MapOverlayPanel>,
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'Incident details' });
+        expect(screen.getByRole('button', { name: /Expand incident details/i })).toHaveAttribute('aria-expanded', 'false');
+        expect(dialog).toHaveClass('max-sm:h-[38dvh]');
+        expect(dialog).not.toHaveClass('max-sm:translate-y-[calc(88dvh-38dvh)]');
+        expect(screen.getByTestId('map-overlay-scroll-region')).toHaveClass('min-h-0', 'overflow-y-auto', 'overscroll-contain');
+
+        unmount();
+        restoreMatchMedia();
+    });
+
     test('supports touch swipe up to expand and swipe down to collapse/close', () => {
         const onClose = vi.fn();
         render(
@@ -201,8 +243,9 @@ describe('MapOverlayPanel', () => {
     });
 
     test('collapses expanded mobile sheet on Escape before closing', () => {
+        const restoreMatchMedia = mockMobileViewport();
         const onClose = vi.fn();
-        render(
+        const { unmount } = render(
             <div className="relative">
                 <MapOverlayPanel
                     title="Incident details"
@@ -226,5 +269,66 @@ describe('MapOverlayPanel', () => {
         // Second Escape closes the panel
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(onClose).toHaveBeenCalledTimes(1);
+
+        unmount();
+        restoreMatchMedia();
+    });
+
+    test('collapses expanded mobile sheet when tapping the backdrop overlay', () => {
+        const restoreMatchMedia = mockMobileViewport();
+        const onClose = vi.fn();
+        const { unmount } = render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Incident details"
+                    presentation="contextual"
+                    onClose={onClose}
+                >
+                    <p>Brief content</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        // Expand sheet
+        fireEvent.click(screen.getByRole('button', { name: /Expand incident details/i }));
+        expect(screen.getByRole('button', { name: /Collapse incident details/i })).toBeInTheDocument();
+
+        // Backdrop overlay should be rendered and have pointer-events-auto
+        const backdrop = document.body.querySelector('.bg-black\\/35');
+        expect(backdrop).toBeInTheDocument();
+        expect(backdrop).toHaveClass('pointer-events-auto');
+
+        // Clicking the backdrop collapses the sheet back to peek
+        fireEvent.click(backdrop);
+        expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+
+        unmount();
+        restoreMatchMedia();
+    });
+
+    test('portals to document.body when on mobile viewport', () => {
+        const restoreMatchMedia = mockMobileViewport();
+
+        const onClose = vi.fn();
+        render(
+            <div id="map-parent-container" className="relative">
+                <MapOverlayPanel
+                    title="Mobile Incident"
+                    presentation="contextual"
+                    onClose={onClose}
+                >
+                    <p>Mobile details</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'Mobile Incident' });
+        expect(dialog.closest('#map-parent-container')).toBeNull();
+        expect(document.body.contains(dialog)).toBe(true);
+        expect(dialog).toHaveClass('max-sm:h-[38dvh]');
+        expect(dialog).not.toHaveClass('max-sm:translate-y-[calc(88dvh-38dvh)]');
+
+        restoreMatchMedia();
     });
 });

@@ -36,16 +36,37 @@ const MapOverlayPanel = ({
     const isContextual = presentation === 'contextual';
 
     const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia ? window.matchMedia('(max-width: 639px)').matches : false;
+    });
+
     const touchStartY = useRef(null);
+    const touchStartTime = useRef(0);
 
     const isMobileExpandedRef = useRef(isMobileExpanded);
     isMobileExpandedRef.current = isMobileExpanded;
 
     useEffect(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+        const mediaQuery = window.matchMedia('(max-width: 639px)');
+        const handler = (e) => setIsMobileViewport(e.matches);
+        setIsMobileViewport(mediaQuery.matches);
+        if (mediaQuery.addEventListener) {
+            mediaQuery.addEventListener('change', handler);
+            return () => mediaQuery.removeEventListener('change', handler);
+        }
+        mediaQuery.addListener(handler);
+        return () => mediaQuery.removeListener(handler);
+    }, []);
+
+    useEffect(() => {
         onCloseRef.current = onClose;
     }, [onClose]);
 
-    // Reset mobile expansion when switching content/incidents
+    const isExpandedMobileSheet = isMobileViewport && isMobileExpanded;
+
+    // New panel content starts in the compact sheet state.
     useEffect(() => {
         setIsMobileExpanded(false);
     }, [contentKey, title]);
@@ -57,7 +78,7 @@ const MapOverlayPanel = ({
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
-                if (isContextual && isMobileExpandedRef.current) {
+                if (isContextual && isMobileViewport && isMobileExpandedRef.current) {
                     setIsMobileExpanded(false);
                 } else {
                     onCloseRef.current?.();
@@ -89,11 +110,11 @@ const MapOverlayPanel = ({
             window.removeEventListener('keydown', handleKeyDown);
             previousFocusRef.current?.focus?.({ preventScroll: true });
         };
-    }, [isContextual]);
+    }, [isContextual, isMobileViewport]);
 
     // Handle body scroll lock
     useEffect(() => {
-        if (!isContextual || isMobileExpanded) {
+        if (!isContextual || isExpandedMobileSheet) {
             const previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             return () => {
@@ -101,7 +122,7 @@ const MapOverlayPanel = ({
             };
         }
         return undefined;
-    }, [isContextual, isMobileExpanded]);
+    }, [isContextual, isExpandedMobileSheet]);
 
     useEffect(() => {
         if (isContextual && !panelRef.current?.contains(document.activeElement)) {
@@ -117,6 +138,7 @@ const MapOverlayPanel = ({
     const handleTouchStart = (e) => {
         if (e.touches && e.touches[0]) {
             touchStartY.current = e.touches[0].clientY;
+            touchStartTime.current = Date.now();
         }
     };
 
@@ -149,14 +171,15 @@ const MapOverlayPanel = ({
             ref={panelRef}
             tabIndex={-1}
             role="dialog"
-            aria-modal={isContextual ? (isMobileExpanded ? 'true' : undefined) : 'true'}
+            aria-modal={isContextual ? (isExpandedMobileSheet ? 'true' : undefined) : 'true'}
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             className={isContextual
-                ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white/95 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95
-                   max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80] max-sm:rounded-t-2xl max-sm:border-t max-sm:border-gray-200/90 max-sm:shadow-2xl max-sm:transition-[height,max-height] max-sm:duration-300 max-sm:ease-out
-                   sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] sm:rounded-2xl sm:border sm:border-gray-200/90 ${widthClass}
-                   ${isMobileExpanded ? 'max-sm:h-[88vh] max-sm:max-h-[92vh]' : 'max-sm:h-[38vh] max-sm:max-h-[42vh]'}`
+                ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white shadow-xl max-sm:backdrop-blur-none sm:bg-white/95 sm:backdrop-blur-md dark:bg-[#0c1813] sm:dark:bg-[#0c1813]/95 dark:border-white/10
+                   max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-0.5rem)] max-sm:rounded-t-2xl max-sm:border-t max-sm:border-gray-200/90 max-sm:shadow-2xl
+                   max-sm:transition-[height] max-sm:duration-300 max-sm:ease-out motion-reduce:max-sm:transition-none
+                   sm:translate-y-0 sm:transition-none sm:h-auto sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] sm:rounded-2xl sm:border sm:border-gray-200/90 ${widthClass}
+                    ${isMobileExpanded ? 'max-sm:h-[88dvh]' : 'max-sm:h-[38dvh]'}`
                 : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-white/10 dark:bg-[#0c1813]/95 ${widthClass}`}
         >
             {/* Mobile Drag Handle */}
@@ -175,7 +198,7 @@ const MapOverlayPanel = ({
             <header
                 className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5 max-sm:cursor-pointer select-none"
                 onClick={(e) => {
-                    if (isContextual && !e.defaultPrevented) {
+                    if (isContextual && isMobileViewport && !e.defaultPrevented) {
                         setIsMobileExpanded((prev) => !prev);
                     }
                 }}
@@ -226,7 +249,7 @@ const MapOverlayPanel = ({
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className={`custom-scrollbar min-h-0 flex-1 overflow-y-auto ${isContextual ? '' : 'overscroll-contain'} pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
+                className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]"
             >
                 {children}
             </div>
@@ -234,11 +257,27 @@ const MapOverlayPanel = ({
     );
 
     if (isContextual) {
+        if (isMobileViewport) {
+            return createPortal(
+                <div className="pointer-events-none fixed inset-0 z-[80] flex items-end justify-center">
+                    {isExpandedMobileSheet && (
+                        <div
+                            className="fixed inset-0 z-[75] bg-black/35 transition-opacity duration-200 sm:hidden pointer-events-auto"
+                            onClick={() => setIsMobileExpanded(false)}
+                            aria-hidden="true"
+                        />
+                    )}
+                    {panel}
+                </div>,
+                document.body,
+            );
+        }
+
         return (
             <div className="pointer-events-none absolute inset-0 z-[40] flex items-end justify-end p-0 sm:items-start sm:p-4 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80]">
-                {isMobileExpanded && (
+                {isExpandedMobileSheet && (
                     <div
-                        className="fixed inset-0 z-[75] bg-black/40 backdrop-blur-xs transition-opacity duration-200 sm:hidden pointer-events-auto"
+                        className="fixed inset-0 z-[75] bg-black/35 transition-opacity duration-200 sm:hidden pointer-events-auto"
                         onClick={() => setIsMobileExpanded(false)}
                         aria-hidden="true"
                     />

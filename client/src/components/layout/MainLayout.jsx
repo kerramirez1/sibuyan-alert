@@ -84,6 +84,18 @@ const MainLayout = ({ children }) => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [sidebarOpen, closeDrawer]);
 
+    useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
+        if (sidebarOpen) {
+            document.body.classList.add('mobile-sidebar-open');
+        } else {
+            document.body.classList.remove('mobile-sidebar-open');
+        }
+        return () => {
+            document.body.classList.remove('mobile-sidebar-open');
+        };
+    }, [sidebarOpen]);
+
     const navigation = [
         { name: 'Submit Report', href: '/report', icon: HiOutlineDocumentAdd, roles: ['reporter'], requireVerified: true },
         { name: 'My Reports', href: '/my-reports', icon: HiOutlineClipboardList, roles: ['reporter'] },
@@ -99,14 +111,14 @@ const MainLayout = ({ children }) => {
 
     return (
         <>
-            <div className="fixed inset-0 flex min-h-0 overflow-hidden bg-white dark:bg-gray-950">
+            <div className={`fixed inset-0 flex min-h-0 overflow-hidden bg-white dark:bg-gray-950 ${sidebarOpen ? 'z-[95]' : ''}`}>
                 {/* Mobile Sidebar Overlay: CSS fade avoids loading framer-motion
                     (~99 kB) on every authenticated page just for one transition. */}
                 {sidebarOpen && (
                     <button
                         type="button"
                         aria-label="Close navigation menu"
-                        className="overlay-fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+                        className="overlay-fade-in fixed inset-0 z-[90] bg-black/50 backdrop-blur-xs lg:hidden"
                         onClick={closeDrawer}
                     />
                 )}
@@ -114,7 +126,7 @@ const MainLayout = ({ children }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-50 flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-[#061e14] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:w-[240px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-[#061e14] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[240px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Brand Header */}
                     <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 lg:h-14 lg:px-4">

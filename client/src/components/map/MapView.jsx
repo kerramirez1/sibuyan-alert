@@ -322,8 +322,8 @@ const MapView = ({
             mapInstance,
             new maplibregl.AttributionControl({ compact: true }),
         );
-        
-        let removeCompassToggle = () => {};
+
+        let removeCompassToggle = () => { };
         if (mode === 'incident-preview') {
             const navigationControl = new maplibregl.NavigationControl({
                 showCompass: false,
@@ -995,14 +995,14 @@ const MapView = ({
                     ? filteredRiskZones.length === 0
                     : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0)
             ) && (
-                <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[calc(100%-5rem)] rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
-                    {filterStatus === 'risk-zones'
-                        ? 'No high-risk zones match the selected filter.'
-                        : filterStatus
-                            ? 'No incidents match the selected filter.'
-                            : 'No active incidents are currently visible.'}
-                </div>
-            )}
+                    <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[calc(100%-5rem)] rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
+                        {filterStatus === 'risk-zones'
+                            ? 'No high-risk zones match the selected filter.'
+                            : filterStatus
+                                ? 'No incidents match the selected filter.'
+                                : 'No active incidents are currently visible.'}
+                    </div>
+                )}
 
             {mapModal && (
                 <MapOverlayPanel
@@ -1015,56 +1015,57 @@ const MapView = ({
                     closeLabel={mapModal.type === 'zone' ? 'Close risk zone details' : 'Close incident details'}
                     size={mapModal.type === 'zone' ? 'md' : 'lg'}
                     presentation="contextual"
+                    contentKey={`${mapModal.type}:${mapModal.data?._id || mapModal.data?.id || 'list'}`}
                 >
 
-                        {mapModal.type === 'report' && (
-                            <MapIncidentDetails
-                                report={mapModal.data}
-                                viewerRole={viewerRole}
-                                canRespond={mapModal.canRespond}
-                                canResolve={mapModal.canResolve}
-                                actionLoading={actionLoading}
-                                onRespond={handleRespondFromModal}
-                                onResolve={handleResolveFromModal}
-                            />
-                        )}
+                    {mapModal.type === 'report' && (
+                        <MapIncidentDetails
+                            report={mapModal.data}
+                            viewerRole={viewerRole}
+                            canRespond={mapModal.canRespond}
+                            canResolve={mapModal.canResolve}
+                            actionLoading={actionLoading}
+                            onRespond={handleRespondFromModal}
+                            onResolve={handleResolveFromModal}
+                        />
+                    )}
 
-                        {mapModal.type === 'reportGroup' && (
-                            <div className="divide-y divide-gray-100 px-4 py-2 sm:px-5">
-                                {mapModal.data.map((report) => (
-                                    <button
-                                        key={report._id || report.id}
-                                        type="button"
-                                        onClick={() => setMapModal({
-                                            type: 'report',
-                                            data: report,
-                                            canRespond: canRespond && ['verified', 'transferred'].includes(report.status),
-                                            canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
-                                        })}
-                                        className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                                    >
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-[13px] font-bold uppercase tracking-wider text-gray-900">
-                                                {report.title || report.incidentType || 'Incident report'}
-                                            </span>
-                                            <span className="mt-1 block truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                                {report.address || 'Location unavailable'}
-                                            </span>
+                    {mapModal.type === 'reportGroup' && (
+                        <div className="divide-y divide-gray-100 px-4 py-2 sm:px-5">
+                            {mapModal.data.map((report) => (
+                                <button
+                                    key={report._id || report.id}
+                                    type="button"
+                                    onClick={() => setMapModal({
+                                        type: 'report',
+                                        data: report,
+                                        canRespond: canRespond && ['verified', 'transferred'].includes(report.status),
+                                        canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
+                                    })}
+                                    className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                >
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-[13px] font-bold uppercase tracking-wider text-gray-900">
+                                            {report.title || report.incidentType || 'Incident report'}
                                         </span>
-                                        <span className={`shrink-0 rounded-sm border px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
-                                            {report.status}
+                                        <span className="mt-1 block truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                                            {report.address || 'Location unavailable'}
                                         </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                                    </span>
+                                    <span className={`shrink-0 rounded-sm border px-2.5 py-1 text-[10px] font-bold uppercase ${getStatusBadgeClass(report.status)}`}>
+                                        {report.status}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                        {mapModal.type === 'zone' && (
-                            <HighRiskZoneDetails
-                                zone={mapModal.data}
-                                viewerRole={viewerRole}
-                            />
-                        )}
+                    {mapModal.type === 'zone' && (
+                        <HighRiskZoneDetails
+                            zone={mapModal.data}
+                            viewerRole={viewerRole}
+                        />
+                    )}
                 </MapOverlayPanel>
             )}
 

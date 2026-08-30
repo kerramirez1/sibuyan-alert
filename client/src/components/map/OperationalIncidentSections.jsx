@@ -52,7 +52,6 @@ const DisclosureSection = ({ id, icon: Icon, title, summary, defaultOpen = false
 
 const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
     const casualties = report.casualties || {};
-    const affectedArea = report.affectedArea || {};
     const updates = Array.isArray(report.reportUpdates)
         ? [...report.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         : [];
@@ -72,13 +71,10 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
         { label: 'Injured', value: toPositiveNumber(casualties.injured), unit: 'injured' },
         { label: 'Fatalities', value: toPositiveNumber(casualties.fatalities), unit: 'fatalities' },
         { label: 'Missing', value: toPositiveNumber(casualties.missing), unit: 'missing' },
-        { label: 'Households affected', value: toPositiveNumber(affectedArea.householdsAffected), unit: 'households affected' },
-        { label: 'Evacuees', value: toPositiveNumber(affectedArea.evacuees), unit: 'evacuees' },
-        { label: 'Affected radius', value: toPositiveNumber(affectedArea.radius), unit: 'm radius' },
     ].filter((detail) => detail.value > 0);
     const impactSummary = impactDetails.length
         ? impactDetails.map((detail) => `${detail.value} ${detail.unit}`).join(' · ')
-        : 'No casualties or affected-area impacts recorded';
+        : 'No casualties recorded';
     const responseSummary = responders.length
         ? `${responders.length} response unit${responders.length === 1 ? '' : 's'} recorded`
         : report.respondedBy
@@ -105,7 +101,7 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
             <DisclosureSection
                 id="casualty-details-heading"
                 icon={HiOutlineShieldCheck}
-                title="Casualties and affected area"
+                title="Casualties"
                 summary={impactSummary}
                 defaultOpen={impactDetails.length > 0}
             >
@@ -115,12 +111,12 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                             <Detail
                                 key={detail.label}
                                 label={detail.label}
-                                value={detail.label === 'Affected radius' ? `${detail.value} meters` : String(detail.value)}
+                                value={String(detail.value)}
                             />
                         ))}
                     </dl>
                 ) : (
-                    <p className="text-sm leading-6 text-gray-600">No casualties or affected-area impacts were recorded for this incident.</p>
+                    <p className="text-sm leading-6 text-gray-600">No casualties were recorded for this incident.</p>
                 )}
             </DisclosureSection>
 

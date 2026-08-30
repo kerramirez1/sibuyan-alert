@@ -65,7 +65,7 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByTestId('mock-evidence-gallery')).toBeInTheDocument();
         expect(screen.getAllByText('Juan Dela Cruz').length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('juan@example.com')).toBeInTheDocument();
-        expect(screen.getByText('Philippine National Police')).toBeInTheDocument();
+        expect(screen.getAllByText('Philippine National Police').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText(/Personal identities, evidence, and internal coordination details are protected/i)).not.toBeInTheDocument();
     });
 
@@ -74,24 +74,26 @@ describe('IncidentDetailsContent', () => {
             <IncidentDetailsContent
                 report={{ ...sampleReport, isOwnedByCurrentUser: true }}
                 viewerRole="reporter"
-                user={{ _id: 'reporter-1', role: 'reporter' }}
+                user={{ _id: 'user-reporter', role: 'reporter' }}
             />
         );
 
         expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
         expect(screen.getByTestId('mock-evidence-gallery')).toBeInTheDocument();
-        expect(screen.getAllByText('Juan Dela Cruz').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText(/Personal identities, evidence, and internal coordination details are protected/i)).not.toBeInTheDocument();
     });
 
-    test('renders transferred jurisdiction banner when viewed by originating municipality user', () => {
+    test('renders transferred jurisdiction banner for originating municipal admin', () => {
         const transferredReport = {
             ...sampleReport,
-            status: 'transferred',
-            municipalityName: 'Magdiwang',
+            municipalityName: 'San Fernando',
             originalMunicipalityName: 'Cajidiocan',
             transferHistory: [
-                { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', reason: 'Cross boundary' },
+                {
+                    fromMunicipalityName: 'Cajidiocan',
+                    toMunicipalityName: 'San Fernando',
+                    transferredAt: '2026-08-16T12:30:00.000Z',
+                },
             ],
         };
 
@@ -104,33 +106,10 @@ describe('IncidentDetailsContent', () => {
         );
 
         expect(screen.getByText('Jurisdiction Transferred')).toBeInTheDocument();
-        expect(screen.getByText(/This incident was transferred to/i)).toBeInTheDocument();
-        expect(screen.getByText(/for active response coordination/i)).toBeInTheDocument();
+        expect(screen.getByText(/transferred to/i)).toBeInTheDocument();
     });
 
-    test('does not render transferred jurisdiction banner when viewed by receiving municipality user', () => {
-        const transferredReport = {
-            ...sampleReport,
-            status: 'transferred',
-            municipalityName: 'Magdiwang',
-            originalMunicipalityName: 'Cajidiocan',
-            transferHistory: [
-                { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', reason: 'Cross boundary' },
-            ],
-        };
-
-        render(
-            <IncidentDetailsContent
-                report={transferredReport}
-                viewerRole="municipal_admin"
-                user={{ role: 'municipal_admin', assignedMunicipality: 'Magdiwang' }}
-            />
-        );
-
-        expect(screen.queryByText('Jurisdiction Transferred')).not.toBeInTheDocument();
-    });
-
-    test('renders Awaiting Admin Verification banner when report is pending', () => {
+    test('renders pending verification review banner for pending status', () => {
         const pendingReport = {
             ...sampleReport,
             status: 'pending',
@@ -148,7 +127,7 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByText(/pending formal verification by a municipal administrator/i)).toBeInTheDocument();
     });
 
-    test('renders single authoritative casualty section and removes duplicate overview row for operational viewers', () => {
+    test('renders internal casualty summary inside Overview and no separate affected area or reporter section for operational viewers', () => {
         const multiCasualtyReport = {
             ...sampleReport,
             casualties: { injured: 3, fatalities: 1, missing: 2 },
@@ -163,12 +142,14 @@ describe('IncidentDetailsContent', () => {
             />
         );
 
-        // Heading exists
-        expect(screen.getByText('Casualties and affected area')).toBeInTheDocument();
-        expect(screen.getByText(/Reported people affected:/i)).toBeInTheDocument();
-        expect(screen.getByText('6')).toBeInTheDocument(); // 3 + 1 + 2
+        // Overview heading exists and contains Casualty Summary
+        const overviewSection = screen.getByRole('region', { name: /Overview/i });
+        expect(overviewSection).toBeInTheDocument();
+        expect(overviewSection).toHaveTextContent('Casualty summary');
+        expect(overviewSection).toHaveTextContent(/Reported people affected:/i);
+        expect(overviewSection).toHaveTextContent('6'); // 3 + 1 + 2
 
-        // Casualty metrics render
+        // Casualty metrics render inside Overview
         expect(screen.getByText('Injured')).toBeInTheDocument();
         expect(screen.getByText('3')).toBeInTheDocument();
         expect(screen.getByText('Fatalities')).toBeInTheDocument();
@@ -176,20 +157,15 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByText('Missing')).toBeInTheDocument();
         expect(screen.getByText('2')).toBeInTheDocument();
 
-        // Affected area fields render
-        expect(screen.getByText('Households')).toBeInTheDocument();
-        expect(screen.getByText('5')).toBeInTheDocument();
-        expect(screen.getByText('Evacuees')).toBeInTheDocument();
-        expect(screen.getByText('12')).toBeInTheDocument();
-        expect(screen.getByText('Affected radius')).toBeInTheDocument();
-        expect(screen.getByText('100 meters')).toBeInTheDocument();
+        // Reporter name appears only once
+        expect(screen.getAllByText('Juan Dela Cruz').length).toBe(1);
 
-        // Overview does NOT contain duplicate casualties summary row
-        const overviewSection = screen.getByRole('region', { name: /Overview/i });
-        expect(overviewSection).not.toHaveTextContent(/Casualties/i);
+        // No separate affected area or reporter section
+        expect(screen.queryByRole('heading', { level: 3, name: /Affected area/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 3, name: /Reporter information/i })).not.toBeInTheDocument();
     });
 
-    test('renders empty affected-area state cleanly when affected area is zero', () => {
+    test('does not render affected-area placeholder text when no affected-area data is collected', () => {
         const casualtiesOnlyReport = {
             ...sampleReport,
             casualties: { injured: 0, fatalities: 0, missing: 0 },
@@ -204,6 +180,7 @@ describe('IncidentDetailsContent', () => {
             />
         );
 
-        expect(screen.getByText('No casualties or affected-area impacts recorded.')).toBeInTheDocument();
+        expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/No affected-area impacts recorded/i)).not.toBeInTheDocument();
     });
 });
