@@ -128,6 +128,7 @@ const MapView = ({
     const popupRef = useRef(null);
     const markerFocusCleanupRef = useRef(null);
     const streetLayersRef = useRef({ all: [], active: [], fallback: null });
+    const satelliteLayersRef = useRef({ all: [], vectorLabels: [] });
     const streetZoomRangeRef = useRef({ min: 0, max: OPERATIONAL_MAX_ZOOM });
     const streetFallbackActivatedRef = useRef(false);
     const [mapProvider, setMapProvider] = useState(null);
@@ -284,9 +285,13 @@ const MapView = ({
 
         const provider = mapProvider;
         streetLayersRef.current = {
-            all: provider.allStreetLayerIds,
-            active: provider.primaryStreetLayerIds,
+            all: provider.allStreetLayerIds || provider.streetLayerIds || [],
+            active: provider.primaryStreetLayerIds || [],
             fallback: provider.fallbackStreetLayerId,
+        };
+        satelliteLayersRef.current = {
+            all: provider.satelliteLayerIds || ['esri-imagery-layer', 'esri-reference-layer'],
+            vectorLabels: provider.satelliteVectorLabelLayerIds || [],
         };
         streetZoomRangeRef.current = {
             min: provider.streetMinZoom,
@@ -496,11 +501,19 @@ const MapView = ({
         };
 
         streetLayersRef.current.all.forEach((layerId) => setVisibility(layerId, false));
+        (satelliteLayersRef.current.all || []).forEach((layerId) => setVisibility(layerId, false));
 
         if (mapStyle === 'satellite') {
             map.setMaxZoom(OPERATIONAL_MAX_ZOOM);
             setVisibility('esri-imagery-layer', true);
-            setVisibility('esri-reference-layer', true);
+
+            const vectorLabels = satelliteLayersRef.current.vectorLabels;
+            if (vectorLabels && vectorLabels.length > 0) {
+                vectorLabels.forEach((layerId) => setVisibility(layerId, true));
+                setVisibility('esri-reference-layer', false);
+            } else {
+                setVisibility('esri-reference-layer', true);
+            }
         } else {
             const streetMaxZoom = streetZoomRangeRef.current.max;
             map.setMaxZoom(streetMaxZoom);
@@ -509,6 +522,7 @@ const MapView = ({
             }
             setVisibility('esri-imagery-layer', false);
             setVisibility('esri-reference-layer', false);
+            (satelliteLayersRef.current.vectorLabels || []).forEach((layerId) => setVisibility(layerId, false));
             streetLayersRef.current.active.forEach((layerId) => setVisibility(layerId, true));
         }
     }, [mapStyle, mapReady]);

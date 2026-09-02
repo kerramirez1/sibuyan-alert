@@ -132,4 +132,170 @@ describe('map provider configuration', () => {
         });
         expect(result.streetMaxZoom).toBe(14);
     });
+
+    test('creates explicit layer groups (streetLayerIds, satelliteLayerIds, satelliteVectorLabelLayerIds)', () => {
+        const result = createOperationalMapStyle({
+            includeStreet: true,
+            include3DLabels: true,
+            pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+        });
+
+        expect(Array.isArray(result.streetLayerIds)).toBe(true);
+        expect(Array.isArray(result.satelliteLayerIds)).toBe(true);
+        expect(Array.isArray(result.satelliteVectorLabelLayerIds)).toBe(true);
+
+        expect(result.satelliteLayerIds).toContain('esri-imagery-layer');
+        expect(result.satelliteLayerIds).toContain('esri-reference-layer');
+        result.satelliteVectorLabelLayerIds.forEach((id) => {
+            expect(result.satelliteLayerIds).toContain(id);
+            expect(result.streetLayerIds).not.toContain(id);
+        });
+
+        // Street mode contains street layers and fallback
+        expect(result.streetLayerIds).toContain('street-places_subplace');
+        expect(result.streetLayerIds).toContain('street-places_locality');
+        expect(result.streetLayerIds).toContain('street-roads_labels_major');
+        expect(result.streetLayerIds).toContain(STREET_FALLBACK_LAYER_ID);
+
+        // 3D vector labels contain place, road, and geographic labels
+        expect(result.satelliteVectorLabelLayerIds).toContain('3d-label-places_subplace');
+        expect(result.satelliteVectorLabelLayerIds).toContain('3d-label-places_locality');
+        expect(result.satelliteVectorLabelLayerIds).toContain('3d-label-roads_labels_major');
+        expect(result.satelliteVectorLabelLayerIds).toContain('3d-label-earth_label_islands');
+        expect(result.satelliteVectorLabelLayerIds).toContain('3d-label-water_label_ocean');
+    });
+
+    test('hides esri-reference-layer in 3D/satellite style when vector labels are active', () => {
+        const result = createOperationalMapStyle({
+            includeStreet: true,
+            include3DLabels: true,
+            pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+        });
+
+        expect(result.hasVectorLabels).toBe(true);
+        const refLayer = result.style.layers.find((l) => l.id === 'esri-reference-layer');
+        expect(refLayer).toBeDefined();
+        expect(refLayer.layout.visibility).toBe('none');
+
+        const imageryLayer = result.style.layers.find((l) => l.id === 'esri-imagery-layer');
+        expect(imageryLayer).toBeDefined();
+        expect(imageryLayer.layout.visibility).toBe('visible');
+    });
+
+    test('ensures every layer ID in the generated style is unique (no duplicates)', () => {
+        const result = createOperationalMapStyle({
+            includeStreet: true,
+            include3DLabels: true,
+            pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+        });
+
+        const layerIds = result.style.layers.map((l) => l.id);
+        const uniqueLayerIds = new Set(layerIds);
+        expect(layerIds.length).toBe(uniqueLayerIds.size);
+    });
+
+    test('separates street map provider from 3D vector label provider', () => {
+        // Only 3D labels configured; street map remains on standard provider (fallback)
+        const result3DOnly = createOperationalMapStyle({
+            pmtilesUrl: '',
+            labels3DPmtilesUrl: 'https://maps.example.gov/labels.pmtiles',
+            includeStreet: true,
+            include3DLabels: true,
+        });
+
+        expect(result3DOnly.hasSelfHostedStreetMap).toBe(false);
+        expect(result3DOnly.primaryStreetLayerIds).toEqual([STREET_FALLBACK_LAYER_ID]);
+        expect(result3DOnly.style.sources).not.toHaveProperty(PMTILES_SOURCE_ID);
+        expect(result3DOnly.style.sources).toHaveProperty('sibuyan-3d-labels');
+        expect(result3DOnly.hasVectorLabels).toBe(true);
+        expect(result3DOnly.satelliteVectorLabelLayerIds.length).toBeGreaterThan(0);
+
+        // Verify that 3D label layers use the dedicated 3D labels source
+        const subplace3DLayer = result3DOnly.style.layers.find((l) => l.id === '3d-label-places_subplace');
+        expect(subplace3DLayer).toBeDefined();
+        expect(subplace3DLayer.source).toBe('sibuyan-3d-labels');
+
+        // Verify that street mode has no 3D labels in its layer IDs
+        result3DOnly.satelliteVectorLabelLayerIds.forEach((id) => {
+            expect(result3DOnly.streetLayerIds).not.toContain(id);
+        });
+
+        // Only street map configured; 3D labels not configured
+        const resultStreetOnly = createOperationalMapStyle({
+            pmtilesUrl: 'https://maps.example.gov/streets.pmtiles',
+            labels3DPmtilesUrl: '',
+            includeStreet: true,
+            include3DLabels: true,
+        });
+
+        expect(resultStreetOnly.hasSelfHostedStreetMap).toBe(true);
+        expect(resultStreetOnly.style.sources).toHaveProperty(PMTILES_SOURCE_ID);
+        expect(resultStreetOnly.style.sources).not.toHaveProperty('sibuyan-3d-labels');
+        expect(resultStreetOnly.hasVectorLabels).toBe(false);
+        expect(resultStreetOnly.satelliteVectorLabelLayerIds).toEqual([]);
+        const refLayer = resultStreetOnly.style.layers.find((l) => l.id === 'esri-reference-layer');
+        expect(refLayer.layout.visibility).toBe('visible');
+    });
+
+    test('isolates failures: failed 3D labels archive does not break street map', async () => {
+        const bytes = createPmtilesHeader();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        // Mock fetch so labels URL returns 500 while street URL is empty
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+            if (url.includes('labels-fail.pmtiles')) {
+                return createRangeResponse(bytes, 500);
+            }
+            return createRangeResponse(bytes, 206);
+        }));
+
+        try {
+            const provider = await prepareOperationalMapStyle({
+                pmtilesUrl: '',
+                labels3DPmtilesUrl: 'https://maps.example.gov/labels-fail.pmtiles',
+            });
+
+            // Street map continues working normally
+            expect(provider.pmtilesError).toBeNull();
+            expect(provider.primaryStreetLayerIds).toEqual([STREET_FALLBACK_LAYER_ID]);
+            // 3D labels failed and fell back gracefully to raster reference
+            expect(provider.labels3DError).toMatch(/206 Partial Content/i);
+            expect(provider.hasVectorLabels).toBe(false);
+            const refLayer = provider.style.layers.find((l) => l.id === 'esri-reference-layer');
+            expect(refLayer.layout.visibility).toBe('visible');
+        } finally {
+            warnSpy.mockRestore();
+            vi.unstubAllGlobals();
+        }
+    });
+
+    test('isolates failures: failed street archive does not break 3D vector labels', async () => {
+        const bytes = createPmtilesHeader();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+            if (url.includes('streets-fail.pmtiles')) {
+                return createRangeResponse(bytes, 500);
+            }
+            return createRangeResponse(bytes, 206);
+        }));
+
+        try {
+            const provider = await prepareOperationalMapStyle({
+                pmtilesUrl: 'https://maps.example.gov/streets-fail.pmtiles',
+                labels3DPmtilesUrl: 'https://maps.example.gov/labels-ok.pmtiles',
+            });
+
+            // Street map fell back to fallback layer
+            expect(provider.pmtilesError).toMatch(/206 Partial Content/i);
+            expect(provider.primaryStreetLayerIds).toEqual([STREET_FALLBACK_LAYER_ID]);
+            // 3D vector labels succeeded and are active
+            expect(provider.labels3DError).toBeNull();
+            expect(provider.hasVectorLabels).toBe(true);
+            const refLayer = provider.style.layers.find((l) => l.id === 'esri-reference-layer');
+            expect(refLayer.layout.visibility).toBe('none');
+        } finally {
+            warnSpy.mockRestore();
+            vi.unstubAllGlobals();
+        }
+    });
 });
+

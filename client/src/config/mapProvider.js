@@ -3,6 +3,7 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import { bytesToHeader, PMTiles, Protocol, TileType } from 'pmtiles';
 
 export const PMTILES_SOURCE_ID = 'sibuyan-pmtiles';
+export const LABELS_3D_SOURCE_ID = 'sibuyan-3d-labels';
 export const STREET_FALLBACK_SOURCE_ID = 'osm-street-fallback';
 export const STREET_FALLBACK_LAYER_ID = 'osm-street-fallback-layer';
 // Level 17 is intentionally excluded because the production imagery coverage
@@ -15,7 +16,8 @@ const OSM_FALLBACK_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const PROTOMAPS_GLYPHS_URL = 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf';
 const PROTOMAPS_SPRITE_URL = 'https://protomaps.github.io/basemaps-assets/sprites/v4/light';
 
-const configuredPmtilesUrl = String(import.meta.env.VITE_PMTILES_URL || '').trim();
+export const getConfiguredPmtilesUrl = () => String(import.meta.env.VITE_PMTILES_URL || '').trim();
+export const getConfigured3DLabelsPmtilesUrl = () => String(import.meta.env.VITE_3D_LABELS_PMTILES_URL || '').trim();
 const PMTILES_HEADER_RANGE = 'bytes=0-16383';
 const MIN_PMTILES_HEADER_BYTES = 127;
 const SIBUYAN_BOUNDS = {
@@ -159,20 +161,79 @@ const createPmtilesStreetLayers = (sourceId, dark) => (
         .map((layer) => hiddenLayer(layer))
 );
 
+export const SATELLITE_VECTOR_LABEL_SOURCE_LAYER_IDS = [
+    'water_label_ocean',
+    'water_label_lakes',
+    'water_waterway_label',
+    'earth_label_islands',
+    'roads_labels_minor',
+    'roads_labels_major',
+    'pois',
+    'places_subplace',
+    'places_locality',
+    'places_region',
+    'places_country',
+];
+
+export const createPmtiles3DLabelLayers = (sourceId = LABELS_3D_SOURCE_ID) => {
+    const rawLayers = layers(sourceId, namedFlavor('light'), { lang: 'en' });
+    const labelSourceIds = new Set(SATELLITE_VECTOR_LABEL_SOURCE_LAYER_IDS);
+
+    return rawLayers
+        .filter((l) => labelSourceIds.has(l.id) && l.type === 'symbol')
+        .map((layer) => ({
+            ...layer,
+            id: `3d-label-${layer.id}`,
+            source: sourceId,
+            layout: {
+                ...layer.layout,
+                visibility: 'none',
+                'text-pitch-alignment': 'viewport',
+                'text-rotation-alignment': 'viewport',
+                'text-allow-overlap': false,
+                'text-ignore-placement': false,
+            },
+            paint: {
+                ...layer.paint,
+                'text-color': '#ffffff',
+                'text-halo-color': 'rgba(12, 24, 19, 0.90)',
+                'text-halo-width': 1.75,
+                'text-halo-blur': 0.5,
+            },
+        }));
+};
+
 export const createOperationalMapStyle = ({
     includeStreet = true,
+    include3DLabels = true,
     dark = false,
-    pmtilesUrl = configuredPmtilesUrl,
+    pmtilesUrl = getConfiguredPmtilesUrl(),
+    labels3DPmtilesUrl = getConfigured3DLabelsPmtilesUrl(),
     pmtilesInspection = null,
+    labels3DInspection = null,
 } = {}) => {
-    let normalizedPmtilesUrl = '';
-    try {
-        normalizedPmtilesUrl = includeStreet ? toPmtilesProtocolUrl(pmtilesUrl) : '';
-    } catch (error) {
-        console.warn('Ignoring invalid VITE_PMTILES_URL.', error);
+    const resolvedInclude3DLabels = include3DLabels !== false;
+
+    let normalizedStreetPmtilesUrl = '';
+    if (includeStreet && pmtilesUrl) {
+        try {
+            normalizedStreetPmtilesUrl = toPmtilesProtocolUrl(pmtilesUrl);
+        } catch (error) {
+            console.warn('Ignoring invalid VITE_PMTILES_URL.', error);
+        }
     }
 
-    if (normalizedPmtilesUrl) getPmtilesArchive(toPmtilesHttpUrl(pmtilesUrl));
+    let normalized3DLabelsUrl = '';
+    if (resolvedInclude3DLabels && labels3DPmtilesUrl) {
+        try {
+            normalized3DLabelsUrl = toPmtilesProtocolUrl(labels3DPmtilesUrl);
+        } catch (error) {
+            console.warn('Ignoring invalid VITE_3D_LABELS_PMTILES_URL.', error);
+        }
+    }
+
+    if (normalizedStreetPmtilesUrl) getPmtilesArchive(toPmtilesHttpUrl(pmtilesUrl));
+    if (normalized3DLabelsUrl) getPmtilesArchive(toPmtilesHttpUrl(labels3DPmtilesUrl));
 
     const sources = {
         'esri-imagery': {
@@ -199,6 +260,7 @@ export const createOperationalMapStyle = ({
 
     const primaryStreetLayerIds = [];
     const allStreetLayerIds = [];
+    const satelliteVectorLabelLayerIds = [];
 
     if (includeStreet) {
         sources[STREET_FALLBACK_SOURCE_ID] = {
@@ -209,10 +271,10 @@ export const createOperationalMapStyle = ({
             attribution: '&copy; OpenStreetMap contributors',
         };
 
-        if (normalizedPmtilesUrl) {
+        if (normalizedStreetPmtilesUrl) {
             sources[PMTILES_SOURCE_ID] = {
                 type: 'vector',
-                url: normalizedPmtilesUrl,
+                url: normalizedStreetPmtilesUrl,
                 attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
                 ...(pmtilesInspection
                     ? {
@@ -221,6 +283,7 @@ export const createOperationalMapStyle = ({
                     }
                     : {}),
             };
+
             const vectorLayers = createPmtilesStreetLayers(PMTILES_SOURCE_ID, dark);
             vectorLayers.forEach((layer) => {
                 mapLayers.push(layer);
@@ -239,17 +302,52 @@ export const createOperationalMapStyle = ({
         if (primaryStreetLayerIds.length === 0) primaryStreetLayerIds.push(STREET_FALLBACK_LAYER_ID);
     }
 
+    if (resolvedInclude3DLabels && normalized3DLabelsUrl) {
+        sources[LABELS_3D_SOURCE_ID] = {
+            type: 'vector',
+            url: normalized3DLabelsUrl,
+            attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+            ...(labels3DInspection
+                ? {
+                    minzoom: labels3DInspection.minZoom,
+                    maxzoom: labels3DInspection.maxZoom,
+                }
+                : {}),
+        };
+
+        const label3DLayers = createPmtiles3DLabelLayers(LABELS_3D_SOURCE_ID);
+        label3DLayers.forEach((layer) => {
+            mapLayers.push({
+                ...layer,
+                layout: {
+                    ...layer.layout,
+                    visibility: includeStreet ? 'none' : 'visible',
+                },
+            });
+            satelliteVectorLabelLayerIds.push(layer.id);
+        });
+    }
+
+    const hasVectorLabels = Boolean(resolvedInclude3DLabels && satelliteVectorLabelLayerIds.length > 0);
+
     mapLayers.push({
         id: 'esri-reference-layer',
         type: 'raster',
         source: 'esri-reference',
-        layout: { visibility: 'visible' },
+        layout: { visibility: hasVectorLabels ? 'none' : 'visible' },
     });
+
+    const streetLayerIds = includeStreet ? [...allStreetLayerIds] : [];
+    const satelliteLayerIds = [
+        'esri-imagery-layer',
+        'esri-reference-layer',
+        ...satelliteVectorLabelLayerIds,
+    ];
 
     return {
         style: {
             version: 8,
-            ...(normalizedPmtilesUrl
+            ...(normalizedStreetPmtilesUrl || normalized3DLabelsUrl
                 ? {
                     glyphs: PROTOMAPS_GLYPHS_URL,
                     sprite: PROTOMAPS_SPRITE_URL,
@@ -258,45 +356,76 @@ export const createOperationalMapStyle = ({
             sources,
             layers: mapLayers,
         },
-        hasSelfHostedStreetMap: Boolean(normalizedPmtilesUrl),
+        hasSelfHostedStreetMap: Boolean(normalizedStreetPmtilesUrl),
+        hasVectorLabels,
+        streetLayerIds,
+        satelliteLayerIds,
+        satelliteVectorLabelLayerIds,
         primaryStreetLayerIds,
         allStreetLayerIds,
         fallbackStreetLayerId: includeStreet ? STREET_FALLBACK_LAYER_ID : null,
         streetMinZoom: pmtilesInspection?.minZoom ?? 0,
-        streetMaxZoom: normalizedPmtilesUrl
+        streetMaxZoom: normalizedStreetPmtilesUrl
             ? Math.min(pmtilesInspection?.maxZoom ?? OPERATIONAL_MAX_ZOOM, OPERATIONAL_MAX_ZOOM)
             : OPERATIONAL_MAX_ZOOM,
         pmtilesInspection,
+        labels3DInspection,
         pmtilesError: null,
+        labels3DError: null,
     };
 };
 
 export const prepareOperationalMapStyle = async (options = {}) => {
     const includeStreet = options.includeStreet !== false;
-    const pmtilesUrl = options.pmtilesUrl ?? configuredPmtilesUrl;
-    if (!includeStreet || !String(pmtilesUrl || '').trim()) {
-        return createOperationalMapStyle(options);
+    const include3DLabels = options.include3DLabels !== false;
+    const pmtilesUrl = options.pmtilesUrl ?? getConfiguredPmtilesUrl();
+    const labels3DPmtilesUrl = options.labels3DPmtilesUrl ?? getConfigured3DLabelsPmtilesUrl();
+
+    let pmtilesInspection = null;
+    let pmtilesError = null;
+    if (includeStreet && Boolean(String(pmtilesUrl || '').trim())) {
+        try {
+            pmtilesInspection = await inspectPmtilesArchive(pmtilesUrl, options);
+        } catch (error) {
+            console.warn('Street PMTiles validation failed; using the fallback street map.', error);
+            pmtilesError = error instanceof Error ? error.message : 'Street PMTiles validation failed.';
+        }
     }
 
-    try {
-        const pmtilesInspection = await inspectPmtilesArchive(pmtilesUrl);
-        return createOperationalMapStyle({
-            ...options,
-            pmtilesUrl,
-            pmtilesInspection,
-        });
-    } catch (error) {
-        console.warn('PMTiles validation failed; using the fallback street map.', error);
-        return {
-            ...createOperationalMapStyle({ ...options, pmtilesUrl: '' }),
-            pmtilesError: error instanceof Error ? error.message : 'PMTiles validation failed.',
-        };
+    let labels3DInspection = null;
+    let labels3DError = null;
+    if (include3DLabels && Boolean(String(labels3DPmtilesUrl || '').trim())) {
+        try {
+            labels3DInspection = await inspectPmtilesArchive(labels3DPmtilesUrl, options);
+        } catch (error) {
+            console.warn('3D Labels PMTiles validation failed; falling back to Esri reference labels.', error);
+            labels3DError = error instanceof Error ? error.message : '3D Labels PMTiles validation failed.';
+        }
     }
+
+    const effectivePmtilesUrl = pmtilesError ? '' : pmtilesUrl;
+    const effectiveLabels3DUrl = labels3DError ? '' : labels3DPmtilesUrl;
+
+    const result = createOperationalMapStyle({
+        ...options,
+        pmtilesUrl: effectivePmtilesUrl,
+        labels3DPmtilesUrl: effectiveLabels3DUrl,
+        pmtilesInspection,
+        labels3DInspection,
+    });
+
+    return {
+        ...result,
+        pmtilesError,
+        labels3DError,
+    };
 };
 
 export const getMapProviderStatus = () => ({
-    pmtilesConfigured: Boolean(configuredPmtilesUrl),
-    pmtilesUrl: configuredPmtilesUrl,
+    pmtilesConfigured: Boolean(getConfiguredPmtilesUrl()),
+    pmtilesUrl: getConfiguredPmtilesUrl(),
+    labels3DConfigured: Boolean(getConfigured3DLabelsPmtilesUrl()),
+    labels3DPmtilesUrl: getConfigured3DLabelsPmtilesUrl(),
 });
 
 export default createOperationalMapStyle;
