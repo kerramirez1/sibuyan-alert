@@ -213,30 +213,30 @@ const MyReportsSkeleton = () => (
         <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
             {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                    <Skeleton variant="text" className="h-3 w-20 rounded" />
-                    <Skeleton variant="text" className="h-7 w-12 rounded mt-1" />
-                    <Skeleton variant="text" className="h-2.5 w-24 rounded mt-1 opacity-70" />
+                    <Skeleton variant="text" role={null} className="h-3 w-20 rounded" />
+                    <Skeleton variant="text" role={null} className="h-7 w-12 rounded mt-1" />
+                    <Skeleton variant="text" role={null} className="h-2.5 w-24 rounded mt-1 opacity-70" />
                 </div>
             ))}
         </div>
 
         {/* Filter bar & report cards */}
-        <SkeletonCard className="space-y-4">
+        <SkeletonCard role={null} className="space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/5">
-                <Skeleton variant="text" className="h-4 w-32" />
-                <Skeleton variant="button" className="h-8 w-24" />
+                <Skeleton variant="text" role={null} className="h-4 w-32" />
+                <Skeleton variant="button" role={null} className="h-8 w-24" />
             </div>
             <div className="space-y-3">
                 {[0, 1, 2].map((i) => (
                     <div key={i} className="p-4 rounded-xl border border-gray-100 dark:border-white/5 space-y-2.5">
                         <div className="flex justify-between items-center">
-                            <Skeleton variant="text" className="h-4 w-44" />
-                            <Skeleton variant="button" className="h-6 w-20 rounded-full" />
+                            <Skeleton variant="text" role={null} className="h-4 w-44" />
+                            <Skeleton variant="button" role={null} className="h-6 w-20 rounded-full" />
                         </div>
-                        <Skeleton variant="text" className="h-3 w-3/4" />
+                        <Skeleton variant="text" role={null} className="h-3 w-3/4" />
                         <div className="flex justify-between items-center pt-2 text-xs">
-                            <Skeleton variant="text" className="h-2.5 w-28" />
-                            <Skeleton variant="button" className="h-7 w-20" />
+                            <Skeleton variant="text" role={null} className="h-2.5 w-28" />
+                            <Skeleton variant="button" role={null} className="h-7 w-20" />
                         </div>
                     </div>
                 ))}

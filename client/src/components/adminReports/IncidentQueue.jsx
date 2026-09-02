@@ -432,11 +432,11 @@ const IncidentQueueSkeleton = () => (
         <span className="sr-only">Loading incident reports...</span>
         {[0, 1, 2].map((item) => (
             <div key={item} className="px-1 py-5 sm:px-2 space-y-3">
-                <Skeleton variant="text" className="h-3 w-36 rounded-md" />
-                <Skeleton variant="text" className="h-5 w-2/3 rounded-md" />
-                <Skeleton variant="text" className="h-3 w-1/2 rounded-md opacity-80" />
+                <Skeleton variant="text" role={null} className="h-3 w-36 rounded-md" />
+                <Skeleton variant="text" role={null} className="h-5 w-2/3 rounded-md" />
+                <Skeleton variant="text" role={null} className="h-3 w-1/2 rounded-md opacity-80" />
                 <div className="pt-2">
-                    <SkeletonButton size="h-9 w-32" />
+                    <SkeletonButton role={null} size="h-9 w-32" />
                 </div>
             </div>
         ))}
