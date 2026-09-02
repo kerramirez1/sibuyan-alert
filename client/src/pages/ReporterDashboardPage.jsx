@@ -17,6 +17,7 @@ import {
     HiOutlineTruck,
 } from 'react-icons/hi';
 import Button from '../components/ui/Button';
+import { Skeleton, SkeletonCard, SkeletonCircle, SkeletonRow } from '../components/ui/Skeleton';
 
 const STATUS_CONFIG = {
     pending: {
@@ -116,6 +117,55 @@ const getStatusHelp = (status) => {
             return 'Report submitted and logged in municipal safety system.';
     }
 };
+
+const ReporterDashboardSkeleton = () => (
+    <div className="space-y-4 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading reporter dashboard">
+        <span className="sr-only">Loading reporter dashboard</span>
+        {/* 4-Metric Strip Skeleton */}
+        <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
+            {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
+                    <Skeleton variant="text" className="h-3 w-20 rounded" />
+                    <Skeleton variant="text" className="h-7 w-12 rounded mt-1" />
+                    <Skeleton variant="text" className="h-2.5 w-24 rounded mt-1 opacity-70" />
+                </div>
+            ))}
+        </div>
+
+        {/* Active Report Tracker Skeleton */}
+        <SkeletonCard className="space-y-4">
+            <div className="flex items-center justify-between">
+                <Skeleton variant="text" className="h-4 w-36" />
+                <Skeleton variant="button" className="h-6 w-24 rounded-full" />
+            </div>
+            <div className="grid grid-cols-4 gap-2 pt-2">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="flex flex-col items-center gap-1.5">
+                        <SkeletonCircle size="h-7 w-7" />
+                        <Skeleton variant="text" className="h-2.5 w-16" />
+                    </div>
+                ))}
+            </div>
+            <div className="pt-2 border-t border-gray-100 dark:border-white/5 flex justify-between">
+                <Skeleton variant="text" className="h-3 w-32" />
+                <Skeleton variant="button" className="h-7 w-20" />
+            </div>
+        </SkeletonCard>
+
+        {/* Recent Submissions Skeleton */}
+        <SkeletonCard className="space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-white/5">
+                <Skeleton variant="text" className="h-4 w-40" />
+                <Skeleton variant="text" className="h-3.5 w-20" />
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-white/5">
+                {[0, 1, 2].map((i) => (
+                    <SkeletonRow key={i} lines={2} trailingAction className="px-0 py-3" />
+                ))}
+            </div>
+        </SkeletonCard>
+    </div>
+);
 
 const ReporterDashboardPage = () => {
     const [reports, setReports] = useState([]);
@@ -248,11 +298,7 @@ const ReporterDashboardPage = () => {
             </header>
 
             {loading ? (
-                <div className="space-y-3 sm:space-y-4 animate-pulse">
-                    <div className="h-20 w-full rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-white/5" />
-                    <div className="h-28 w-full rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-white/5" />
-                    <div className="h-64 w-full rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-white/5" />
-                </div>
+                <ReporterDashboardSkeleton />
             ) : error ? (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-red-200/90 bg-red-50/80 p-4 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     <div className="flex items-center gap-2">

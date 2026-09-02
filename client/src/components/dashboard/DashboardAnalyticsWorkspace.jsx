@@ -16,6 +16,7 @@ import {
     HiOutlineMap,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { buildCsvDocument } from '../../utils/csvExport';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
@@ -370,14 +371,18 @@ const DashboardAnalyticsWorkspace = ({
 
     if (loading) {
         return (
-            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3 sm:space-y-4 animate-pulse" aria-label="Loading analytics">
-                <div className="h-16 rounded-xl bg-gray-100 dark:bg-white/5" />
+            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3 sm:space-y-4" role="status" aria-busy="true" aria-label="Loading analytics">
+                <span className="sr-only">Loading analytics</span>
+                <SkeletonCard className="h-16" />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                     {[0, 1, 2, 3].map((item) => (
-                        <div key={item} className="h-24 rounded-xl bg-gray-100 dark:bg-white/5" />
+                        <SkeletonCard key={item} className="h-24 p-3 sm:p-4 flex flex-col justify-between">
+                            <Skeleton variant="text" className="h-3 w-16" />
+                            <Skeleton variant="text" className="h-6 w-10 mt-1" />
+                        </SkeletonCard>
                     ))}
                 </div>
-                <div className="h-64 rounded-xl bg-gray-100 dark:bg-white/5" />
+                <SkeletonCard className="h-64" />
             </div>
         );
     }

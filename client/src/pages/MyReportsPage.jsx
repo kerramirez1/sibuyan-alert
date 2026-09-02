@@ -26,6 +26,7 @@ import {
 import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 import ImageViewer from '../components/ui/ImageViewer';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
@@ -204,6 +205,45 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
         document.body,
     );
 }
+
+const MyReportsSkeleton = () => (
+    <div className="space-y-4 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading submitted reports">
+        <span className="sr-only">Loading submitted reports</span>
+        {/* 4-Metric Strip Skeleton */}
+        <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
+            {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
+                    <Skeleton variant="text" className="h-3 w-20 rounded" />
+                    <Skeleton variant="text" className="h-7 w-12 rounded mt-1" />
+                    <Skeleton variant="text" className="h-2.5 w-24 rounded mt-1 opacity-70" />
+                </div>
+            ))}
+        </div>
+
+        {/* Filter bar & report cards */}
+        <SkeletonCard className="space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/5">
+                <Skeleton variant="text" className="h-4 w-32" />
+                <Skeleton variant="button" className="h-8 w-24" />
+            </div>
+            <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                    <div key={i} className="p-4 rounded-xl border border-gray-100 dark:border-white/5 space-y-2.5">
+                        <div className="flex justify-between items-center">
+                            <Skeleton variant="text" className="h-4 w-44" />
+                            <Skeleton variant="button" className="h-6 w-20 rounded-full" />
+                        </div>
+                        <Skeleton variant="text" className="h-3 w-3/4" />
+                        <div className="flex justify-between items-center pt-2 text-xs">
+                            <Skeleton variant="text" className="h-2.5 w-28" />
+                            <Skeleton variant="button" className="h-7 w-20" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </SkeletonCard>
+    </div>
+);
 
 function MyReportsPage() {
     const [reports, setReports] = useState([]);
@@ -441,10 +481,7 @@ function MyReportsPage() {
             </header>
 
             {loading ? (
-                <div className="space-y-3 sm:space-y-4 animate-pulse">
-                    <div className="h-20 w-full rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-white/5" />
-                    <div className="h-64 w-full rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-white/5" />
-                </div>
+                <MyReportsSkeleton />
             ) : error ? (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-red-200/90 bg-red-50/80 p-4 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     <div className="flex items-center gap-2">

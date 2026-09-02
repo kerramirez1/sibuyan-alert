@@ -23,6 +23,7 @@ import HighRiskZoneDetails from '../map/HighRiskZoneDetails';
 import MapOverlayPanel from '../map/MapOverlayPanel';
 import MapMobileFilterSheet from './MapMobileFilterSheet';
 import Button from '../ui/Button';
+import { SkeletonRow } from '../ui/Skeleton';
 import {
     getFilteredMapReports,
     getMapCoordinates,
@@ -111,10 +112,12 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
     );
 };
 
-const PanelLoadingState = ({ label }) => (
-    <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-xs font-medium text-gray-600 dark:text-gray-300" role="status">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" aria-hidden="true" />
-        {label}
+const PanelLoadingState = ({ label = 'Loading panel content' }) => (
+    <div className="divide-y divide-gray-100 dark:divide-white/5 py-1" role="status" aria-busy="true">
+        <span className="sr-only">{label}</span>
+        {[0, 1, 2].map((i) => (
+            <SkeletonRow key={i} lines={2} trailingAction className="p-3 sm:p-4" role={null} />
+        ))}
     </div>
 );
 
@@ -146,12 +149,7 @@ const TrustPointsSummary = ({ value = 0 }) => (
 
 const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '', onRetry }) => {
     if (loading) {
-        return (
-            <div className="flex min-h-32 items-center justify-center gap-2 px-4 py-8 text-xs font-medium text-gray-600 dark:text-gray-300" role="status">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" aria-hidden="true" />
-                Loading risk zones&hellip;
-            </div>
-        );
+        return <PanelLoadingState label="Loading risk zones" />;
     }
 
     if (error) {

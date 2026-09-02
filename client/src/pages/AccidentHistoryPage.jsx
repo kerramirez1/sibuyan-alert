@@ -20,6 +20,7 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import CustomSelect from '../components/ui/CustomSelect';
+import { SkeletonRow } from '../components/ui/Skeleton';
 import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
 import {
@@ -836,7 +837,14 @@ const AccidentHistoryPage = () => {
                 </div>
 
                 {/* Records Listing */}
-                {filteredReports.length === 0 ? (
+                {loading ? (
+                    <div className="divide-y divide-gray-100 dark:divide-white/5 p-2 sm:p-4" role="status" aria-busy="true" aria-label="Loading accident records">
+                        <span className="sr-only">Loading accident records</span>
+                        {[0, 1, 2, 3, 4].map((i) => (
+                            <SkeletonRow key={i} lines={2} trailingAction className="px-3 py-3.5" />
+                        ))}
+                    </div>
+                ) : filteredReports.length === 0 ? (
                     <div className="rounded-b-2xl px-6 py-14 text-center">
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
                             <HiOutlineArchive className="h-5 w-5" />

@@ -19,6 +19,7 @@ import {
     SEVERITY_INDICATOR_STYLES,
 } from './incidentReportConfig';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
+import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
 const formatRelativeTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -427,14 +428,16 @@ const AdminIncidentRow = ({ report, user, actions, onInspect, isSelected = false
 };
 
 const IncidentQueueSkeleton = () => (
-    <div className="divide-y divide-gray-100 border-y border-gray-200/80 dark:divide-white/5 dark:border-white/10" role="status" aria-live="polite">
+    <div className="divide-y divide-gray-100 border-y border-gray-200/80 dark:divide-white/5 dark:border-white/10" role="status" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading incident reports...</span>
         {[0, 1, 2].map((item) => (
-            <div key={item} className="animate-pulse px-1 py-5 sm:px-2">
-                <div className="h-3 w-36 rounded-md bg-gray-200 dark:bg-white/10" />
-                <div className="mt-3 h-5 w-2/3 rounded-md bg-gray-200 dark:bg-white/10" />
-                <div className="mt-2 h-3 w-1/2 rounded-md bg-gray-100 dark:bg-white/5" />
-                <div className="mt-4 h-9 w-32 rounded-xl bg-gray-100 dark:bg-white/5" />
+            <div key={item} className="px-1 py-5 sm:px-2 space-y-3">
+                <Skeleton variant="text" className="h-3 w-36 rounded-md" />
+                <Skeleton variant="text" className="h-5 w-2/3 rounded-md" />
+                <Skeleton variant="text" className="h-3 w-1/2 rounded-md opacity-80" />
+                <div className="pt-2">
+                    <SkeletonButton size="h-9 w-32" />
+                </div>
             </div>
         ))}
     </div>

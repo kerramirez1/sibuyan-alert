@@ -10,6 +10,7 @@ import {
     getCachedBlobUrl,
 } from '../../utils/blobCache';
 import ImageViewer from '../ui/ImageViewer';
+import { SkeletonThumbnail } from '../ui/Skeleton';
 
 const EvidenceThumbnail = ({
     item,
@@ -103,9 +104,10 @@ const EvidenceThumbnail = ({
 
     if (state.loading) {
         return (
-            <div
-                className={`relative ${sizeClasses} animate-pulse rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5`}
-                aria-label={`Loading evidence photo ${index + 1}`}
+            <SkeletonThumbnail
+                sizeClasses={sizeClasses}
+                label={`Loading evidence photo ${index + 1}`}
+                className="border border-gray-200 dark:border-white/10"
             />
         );
     }

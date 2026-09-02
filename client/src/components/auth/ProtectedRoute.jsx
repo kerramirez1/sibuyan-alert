@@ -2,6 +2,8 @@ import { Navigate, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { HiOutlineExclamation, HiOutlineClock } from 'react-icons/hi';
 
+import { PageSkeleton } from '../ui/Skeleton';
+
 const FadeInSlide = ({ children }) => (
     <div className="animate-fade-in min-h-[60vh] flex items-center justify-center p-4" style={{ animationDuration: '0.35s' }}>
         {children}
@@ -14,8 +16,8 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="spinner" />
+            <div className="min-h-[70vh] flex items-center justify-center p-4 sm:p-6">
+                <PageSkeleton label="Loading secure page..." className="max-w-4xl" />
             </div>
         );
     }

@@ -14,6 +14,7 @@ import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import Button from '../ui/Button';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import ImageViewer from '../ui/ImageViewer';
+import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
 const SEVERITY_STYLES = {
     minor: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300',
@@ -38,38 +39,59 @@ const DetailItem = ({ label, value, children }) => (
 const CasualtyStatCard = ({ label, count, tone = 'default' }) => {
     const toneStyles = {
         default: 'border-gray-200/80 bg-gray-50/70 text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-white',
-        danger: 'border-red-200 bg-red-50/80 text-red-900 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200',
-        warning: 'border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200',
+        injured: 'border-amber-200/80 bg-amber-50/50 text-amber-950 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-200',
+        fatalities: 'border-red-200/80 bg-red-50/50 text-red-950 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-200',
+        missing: 'border-purple-200/80 bg-purple-50/50 text-purple-950 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-200',
     };
 
     return (
-        <div className={`rounded-xl border p-2 sm:p-2.5 text-center ${toneStyles[tone]}`}>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-75">{label}</p>
-            <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums">{count}</p>
+        <div className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-colors ${toneStyles[tone] || toneStyles.default}`}>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {label}
+            </span>
+            <span className="mt-0.5 font-display text-xl font-bold tabular-nums">
+                {count}
+            </span>
         </div>
     );
 };
 
 const MapIncidentDetailsSkeleton = () => (
-    <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5 animate-pulse" aria-label="Loading incident brief">
+    <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5" role="status" aria-busy="true" aria-label="Loading incident brief">
+        <span className="sr-only">Loading incident brief</span>
+        {/* Header badges */}
         <div className="flex gap-2">
-            <div className="h-5 w-24 rounded bg-gray-200 dark:bg-white/10" />
-            <div className="h-5 w-20 rounded bg-gray-200 dark:bg-white/10" />
+            <SkeletonButton size="h-6 w-20" className="rounded-full" />
+            <SkeletonButton size="h-6 w-24" className="rounded-full" />
         </div>
-        <div className="h-6 w-3/4 rounded bg-gray-200 dark:bg-white/10" />
-        <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-white/10" />
-        <div className="border-t border-b border-gray-200 py-3 dark:border-white/10">
-            <div className="grid grid-cols-2 gap-3">
-                <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
-                <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
-                <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
-                <div className="h-10 rounded bg-gray-100 dark:bg-white/5" />
+        {/* Title & Ref */}
+        <div className="space-y-1.5">
+            <Skeleton variant="text" className="h-6 w-4/5 rounded-lg" />
+            <Skeleton variant="text" className="h-3.5 w-1/3 rounded" />
+        </div>
+        {/* Overview dl grid */}
+        <div className="rounded-xl border border-gray-100 dark:border-white/5 p-3.5 space-y-3">
+            <Skeleton variant="text" className="h-3.5 w-24" />
+            <div className="grid grid-cols-2 gap-3 pt-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="space-y-1">
+                        <Skeleton variant="text" className="h-2.5 w-16" />
+                        <Skeleton variant="text" className="h-3.5 w-24" />
+                    </div>
+                ))}
             </div>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-            <div className="h-14 rounded-lg bg-gray-100 dark:bg-white/5" />
-            <div className="h-14 rounded-lg bg-gray-100 dark:bg-white/5" />
-            <div className="h-14 rounded-lg bg-gray-100 dark:bg-white/5" />
+            {/* Casualty summary 3-column */}
+            <div className="pt-2 border-t border-gray-100 dark:border-white/5 space-y-2">
+                <Skeleton variant="text" className="h-2.5 w-28" />
+                <div className="grid grid-cols-3 gap-2">
+                    {[0, 1, 2].map((i) => (
+                        <div key={i} className="h-14 rounded-xl border border-gray-100 dark:border-white/5 p-2 flex flex-col items-center justify-center">
+                            <Skeleton variant="text" className="h-2 w-12" />
+                            <Skeleton variant="text" className="h-5 w-6 mt-1" />
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     </div>
 );

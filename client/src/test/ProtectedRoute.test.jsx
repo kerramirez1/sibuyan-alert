@@ -106,14 +106,14 @@ describe('ProtectedRoute', () => {
         expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });
 
-    test('shows spinner when auth is loading', () => {
+    test('shows accessible skeleton when auth is loading', () => {
         mockAuthValue.user = null;
         mockAuthValue.isAuthenticated = false;
         mockAuthValue.loading = true;
 
-        const { container } = renderProtected();
+        renderProtected();
 
-        expect(container.querySelector('.spinner')).toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'Loading secure page...' })).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 });

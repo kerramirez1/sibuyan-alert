@@ -32,10 +32,12 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
 const AccidentHistoryPage = lazy(() => import('./pages/AccidentHistoryPage'));
 
+import { PageSkeleton } from './components/ui/Skeleton';
+
 // Loading Component
 const PageLoader = () => (
-    <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner" />
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-gray-950">
+        <PageSkeleton label="Loading application..." className="max-w-4xl" />
     </div>
 );
 

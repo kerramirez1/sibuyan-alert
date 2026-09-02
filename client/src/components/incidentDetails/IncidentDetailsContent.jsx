@@ -8,6 +8,7 @@ import IncidentDetailsDescriptionSection from './IncidentDetailsDescriptionSecti
 import IncidentDetailsEvidenceSection from './IncidentDetailsEvidenceSection';
 import IncidentDetailsCoordinationSection from './IncidentDetailsCoordinationSection';
 import IncidentDetailsRestrictedNotice from './IncidentDetailsRestrictedNotice';
+import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 
 const UPDATE_ALERT_STYLES = {
     red: 'border-red-200 bg-red-50 text-red-950 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100',
@@ -70,6 +71,26 @@ const IncidentDetailsContent = ({
 
     const safetyIndicators = [];
     if (report.fireInvolved) safetyIndicators.push('Fire or explosion involved');
+
+    if (!report?._id && loading) {
+        return (
+            <div className={`space-y-4 ${className}`} role="status" aria-busy="true" aria-label="Loading incident details">
+                <span className="sr-only">Loading incident details</span>
+                <SkeletonCard className="space-y-3">
+                    <Skeleton variant="text" className="h-4 w-32" />
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="space-y-1">
+                                <Skeleton variant="text" className="h-2.5 w-16" />
+                                <Skeleton variant="text" className="h-3.5 w-24" />
+                            </div>
+                        ))}
+                    </div>
+                </SkeletonCard>
+                <SkeletonCard className="h-28" />
+            </div>
+        );
+    }
 
     return (
         <div className={`space-y-4 ${className}`}>

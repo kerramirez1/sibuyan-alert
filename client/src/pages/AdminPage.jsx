@@ -11,6 +11,7 @@ import {
     HiOutlineExclamation,
     HiOutlineRefresh,
 } from 'react-icons/hi';
+import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
@@ -203,17 +204,30 @@ const AdminPage = () => {
 
     if (loading && !stats) {
         return (
-            <div className={`${DASHBOARD_CONTAINER_CLASS} animate-pulse`} role="status" aria-live="polite" aria-label="Loading municipal operations dashboard">
-                <div className="h-20 rounded-2xl bg-gray-100 dark:bg-white/5" />
-                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-gray-200/90 bg-gray-200/90 dark:border-white/10 dark:bg-white/10 xl:grid-cols-4">
+            <div className={DASHBOARD_CONTAINER_CLASS} role="status" aria-live="polite" aria-label="Loading municipal operations dashboard">
+                <span className="sr-only">Loading municipal operations dashboard</span>
+                <SkeletonCard className="h-20" />
+                <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
                     {[0, 1, 2, 3].map((item) => (
-                        <div key={item} className="h-28 bg-white p-4 dark:bg-[#0c1813]/90" />
+                        <div key={item} className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
+                            <Skeleton variant="text" className="h-3 w-20 rounded" />
+                            <Skeleton variant="text" className="h-7 w-12 rounded mt-1" />
+                            <Skeleton variant="text" className="h-2.5 w-24 rounded mt-1 opacity-70" />
+                        </div>
                     ))}
                 </div>
-                <div className="h-24 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                <SkeletonCard className="h-24" />
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <div className="h-64 rounded-2xl bg-gray-100 dark:bg-white/5" />
-                    <div className="h-64 rounded-2xl bg-gray-100 dark:bg-white/5" />
+                    <SkeletonCard className="h-64 space-y-3">
+                        <Skeleton variant="text" className="h-4 w-40" />
+                        <SkeletonRow lines={2} className="px-0 py-2" />
+                        <SkeletonRow lines={2} className="px-0 py-2" />
+                    </SkeletonCard>
+                    <SkeletonCard className="h-64 space-y-3">
+                        <Skeleton variant="text" className="h-4 w-40" />
+                        <SkeletonRow lines={2} className="px-0 py-2" />
+                        <SkeletonRow lines={2} className="px-0 py-2" />
+                    </SkeletonCard>
                 </div>
             </div>
         );

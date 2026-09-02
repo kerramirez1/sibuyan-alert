@@ -4,6 +4,7 @@ import { adminAPI, filesAPI } from '../services/api';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import { Skeleton, SkeletonCircle, SkeletonButton, SkeletonRow } from '../components/ui/Skeleton';
 import toast from '../utils/appToast';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -431,22 +432,22 @@ const AdminUsersPage = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                             {loading ? (
                                 [0, 1, 2, 3, 4].map((item) => (
-                                    <tr key={item} className="animate-pulse">
+                                    <tr key={item}>
                                         <td className="py-3.5 pl-4 pr-3 sm:pl-5">
                                             <div className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-full bg-gray-100 dark:bg-white/5 shrink-0" />
-                                                <div className="space-y-1.5">
-                                                    <div className="h-3.5 w-28 rounded bg-gray-100 dark:bg-white/5" />
-                                                    <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-white/5" />
+                                                <SkeletonCircle size="h-9 w-9" />
+                                                <div className="space-y-1.5 flex-1">
+                                                    <Skeleton variant="text" className="h-3.5 w-28" />
+                                                    <Skeleton variant="text" className="h-2.5 w-36 opacity-80" />
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-3 py-3.5"><div className="h-5 w-20 rounded-full bg-gray-100 dark:bg-white/5" /></td>
-                                        <td className="px-3 py-3.5"><div className="h-5 w-20 rounded-full bg-gray-100 dark:bg-white/5" /></td>
-                                        <td className="px-3 py-3.5"><div className="h-5 w-16 rounded bg-gray-100 dark:bg-white/5" /></td>
-                                        <td className="px-3 py-3.5"><div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-white/5" /></td>
-                                        <td className="px-3 py-3.5"><div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-white/5" /></td>
-                                        <td className="py-3.5 pl-3 pr-4 sm:pr-5 text-right"><div className="ml-auto h-7 w-14 rounded bg-gray-100 dark:bg-white/5" /></td>
+                                        <td className="px-3 py-3.5"><SkeletonButton size="h-5 w-20" className="rounded-full" /></td>
+                                        <td className="px-3 py-3.5"><SkeletonButton size="h-5 w-20" className="rounded-full" /></td>
+                                        <td className="px-3 py-3.5"><SkeletonButton size="h-5 w-16" className="rounded-full" /></td>
+                                        <td className="px-3 py-3.5"><Skeleton variant="text" className="h-3.5 w-16" /></td>
+                                        <td className="px-3 py-3.5"><Skeleton variant="text" className="h-3.5 w-16" /></td>
+                                        <td className="py-3.5 pl-3 pr-4 sm:pr-5 text-right"><SkeletonButton size="h-7 w-14" className="ml-auto" /></td>
                                     </tr>
                                 ))
                             ) : users.length === 0 ? (
@@ -571,16 +572,8 @@ const AdminUsersPage = () => {
                 {/* Mobile View: Compact Records List */}
                 <div className="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
                     {loading ? (
-                        [0, 1, 2].map((item) => (
-                            <div key={item} className="p-4 space-y-3 animate-pulse">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-9 w-9 rounded-full bg-gray-100 dark:bg-white/5 shrink-0" />
-                                    <div className="space-y-1.5 flex-1">
-                                        <div className="h-3.5 w-28 rounded bg-gray-100 dark:bg-white/5" />
-                                        <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-white/5" />
-                                    </div>
-                                </div>
-                            </div>
+                        [0, 1, 2, 3].map((item) => (
+                            <SkeletonRow key={item} hasAvatar lines={2} trailingAction />
                         ))
                     ) : users.length === 0 ? (
                         <div className="px-4 py-10 text-center">

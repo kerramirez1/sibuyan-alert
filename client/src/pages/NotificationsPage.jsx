@@ -12,6 +12,7 @@ import { useNavigate } from '../router';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
+import { Skeleton, SkeletonCircle } from '../components/ui/Skeleton';
 import { cleanNotificationTitle, cleanNotificationMessage } from '../utils/notificationFormatting';
 import {
     buildNotificationTarget,
@@ -263,16 +264,17 @@ const NotificationsPage = () => {
                 aria-label="Notification inbox"
             >
                 {loading && notifications.length === 0 ? (
-                    <div className="divide-y divide-gray-100 dark:divide-white/5 py-1" aria-label="Loading notifications" aria-busy="true">
+                    <div className="divide-y divide-gray-100 dark:divide-white/5 py-1" role="status" aria-label="Loading notifications" aria-busy="true">
+                        <span className="sr-only">Loading notifications...</span>
                         {[1, 2, 3, 4, 5].map((index) => (
-                            <div key={index} className="flex items-start gap-3.5 p-4 sm:p-5 animate-pulse">
-                                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                            <div key={index} className="flex items-start gap-3.5 p-4 sm:p-5">
+                                <SkeletonCircle size="h-2.5 w-2.5 mt-1" />
                                 <div className="flex-1 min-w-0 space-y-2">
-                                    <div className="h-3.5 w-3/4 rounded-md bg-gray-200 dark:bg-white/15" />
-                                    <div className="h-3 w-5/6 rounded-md bg-gray-100 dark:bg-white/10" />
-                                    <div className="h-2.5 w-1/3 rounded-md bg-gray-100 dark:bg-white/10" />
+                                    <Skeleton variant="text" className="h-3.5 w-3/4 rounded-md" />
+                                    <Skeleton variant="text" className="h-3 w-5/6 rounded-md opacity-80" />
+                                    <Skeleton variant="text" className="h-2.5 w-1/3 rounded-md opacity-70" />
                                 </div>
-                                <div className="mt-1 h-2 w-2 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                                <SkeletonCircle size="h-2 w-2 mt-1" />
                             </div>
                         ))}
                     </div>

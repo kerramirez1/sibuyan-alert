@@ -6,6 +6,7 @@ import {
     HiOutlineLocationMarker,
     HiOutlineChevronRight,
 } from 'react-icons/hi';
+import { SkeletonRow } from '../ui/Skeleton';
 import { MAP_FOCUS_PRESETS } from '../../utils/mapNavigation';
 
 // Zone type colors
@@ -99,9 +100,11 @@ const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
                         className="overflow-hidden"
                     >
                         {loading ? (
-                            <div className="p-4 text-center">
-                                <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                                <p className="text-sm text-gray-500 mt-2">Loading zones...</p>
+                            <div className="divide-y divide-gray-100 dark:divide-white/5" role="status" aria-busy="true" aria-label="Loading risk zones">
+                                <span className="sr-only">Loading risk zones</span>
+                                {[0, 1, 2].map((i) => (
+                                    <SkeletonRow key={i} lines={2} className="p-3" />
+                                ))}
                             </div>
                         ) : error ? (
                             <div className="p-4 text-center text-red-500 text-sm">
