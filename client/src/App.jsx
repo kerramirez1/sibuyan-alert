@@ -10,10 +10,10 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Public Pages (eager load)
 import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import NotFoundPage from './pages/NotFoundPage';
 
-// Lazy-loaded Public Auth Pages
+// Lazy-loaded Public Pages
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const RegistrationSubmittedPage = lazy(() => import('./pages/RegistrationSubmittedPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));

@@ -168,6 +168,7 @@ const EvidenceThumbnail = ({
                     alt={item.alt || `Incident evidence photo ${index + 1}, faces blurred for privacy`}
                     className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
+                    decoding="async"
                 />
                 <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-gray-200 whitespace-nowrap leading-none pointer-events-none shadow-2xs">
                     <HiOutlineEyeOff className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
@@ -195,6 +196,7 @@ const EvidenceThumbnail = ({
                 alt={item.alt || `Incident evidence photo ${index + 1}`}
                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                 loading="lazy"
+                decoding="async"
             />
             {isOwner && (
                 <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-white whitespace-nowrap leading-none pointer-events-none shadow-2xs">
@@ -377,6 +379,7 @@ const StackedEvidenceDeck = ({
                         alt={firstItem?.alt || 'Incident evidence photo 1'}
                         className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                         loading="lazy"
+                        decoding="async"
                     />
 
                     {/* Bottom-Right: Stack Count Overlay Pill */}

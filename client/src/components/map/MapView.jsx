@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { motion } from 'framer-motion';
 import toast from '../../utils/appToast';
 import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding, HiOutlineShieldExclamation } from 'react-icons/hi';
 import {
@@ -74,7 +73,7 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 items-center justify-center rounded-lg border border-gray-200/90 bg-white/95 text-gray-700 backdrop-blur-md shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-1.5 before:content-[\'\']';
+const MAP_TOOL_BUTTON_CLASS = 'relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-1.5 before:content-[\'\']';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
@@ -1111,11 +1110,9 @@ const MapView = ({
                             aria-controls="municipality-map-menu"
                         />
                         {showMuniMenu && (
-                            <motion.div
+                            <div
                                 id="municipality-map-menu"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="absolute bottom-10 sm:bottom-10 right-0 min-w-[150px] rounded-lg border border-gray-200/90 bg-white/95 p-1 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95"
+                                className="menu-enter absolute bottom-10 sm:bottom-10 right-0 min-w-[150px] rounded-lg border border-gray-200/90 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#0c1813]"
                             >
                                 {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
                                     <button
@@ -1126,7 +1123,7 @@ const MapView = ({
                                         {muni.name}
                                     </button>
                                 ))}
-                            </motion.div>
+                            </div>
                         )}
                     </div>
                     <MapToolButton

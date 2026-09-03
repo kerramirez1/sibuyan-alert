@@ -122,7 +122,7 @@ const MapLegend = ({
         <>
             <section
                 aria-label="Map legend"
-                className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white/95 px-3.5 py-1 backdrop-blur-md shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
+                className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white px-3.5 py-1 shadow-2xs dark:border-white/10 dark:bg-[#0c1813] sm:block"
             >
                 <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
             </section>
@@ -135,7 +135,7 @@ const MapLegend = ({
                     aria-controls={popoverId}
                     aria-label="Map legend"
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 backdrop-blur-md shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                    className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                 >
                     <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                     <span>Map legend</span>
@@ -144,7 +144,7 @@ const MapLegend = ({
                     <section
                         id={popoverId}
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2.5 backdrop-blur-md shadow-lg dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
+                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white p-2.5 shadow-lg dark:border-white/10 dark:bg-[#0c1813] z-30"
                     >
                         <p className="pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
