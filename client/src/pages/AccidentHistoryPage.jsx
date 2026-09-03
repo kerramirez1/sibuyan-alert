@@ -20,7 +20,7 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import CustomSelect from '../components/ui/CustomSelect';
-import { SkeletonRow } from '../components/ui/Skeleton';
+import { Skeleton, SkeletonCard, SkeletonRow, SkeletonTable } from '../components/ui/Skeleton';
 import { useSearchParams } from '../router';
 import { isSameManilaCalendarDay } from '../utils/reportResolution';
 import {
@@ -577,10 +577,40 @@ const AccidentHistoryPage = () => {
 
     if (loading) {
         return (
-            <div className="mx-auto max-w-6xl space-y-4 animate-pulse sm:space-y-5">
-                <div className="h-16 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
-                <div className="h-20 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
-                <div className="h-96 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+            <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading accident archive">
+                <span className="sr-only">Loading accident archive</span>
+                {/* Header Skeleton */}
+                <div className="space-y-2">
+                    <Skeleton variant="text" role={null} className="h-3 w-28 rounded" />
+                    <Skeleton variant="text" role={null} className="h-7 w-52 rounded" />
+                    <Skeleton variant="text" role={null} className="h-3.5 w-72 rounded opacity-75" />
+                </div>
+
+                {/* 4-Metric Strip Skeleton */}
+                <div className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0 rounded-xl border border-gray-200/90 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 shadow-2xs overflow-hidden">
+                    {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="p-3 sm:p-4 space-y-2">
+                            <Skeleton variant="text" role={null} className="h-3 w-16" />
+                            <Skeleton variant="text" role={null} className="h-6 w-10" />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Filter Controls Bar Skeleton */}
+                <SkeletonCard role={null} className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <Skeleton variant="button" role={null} className="h-9 w-full sm:w-64" />
+                        <div className="flex items-center gap-2 w-full sm:w-auto ml-auto">
+                            <Skeleton variant="button" role={null} className="h-9 w-28" />
+                            <Skeleton variant="button" role={null} className="h-9 w-28" />
+                        </div>
+                    </div>
+                </SkeletonCard>
+
+                {/* Table Skeleton */}
+                <SkeletonCard role={null} className="p-0 overflow-hidden">
+                    <SkeletonTable columns={5} rows={6} role={null} />
+                </SkeletonCard>
             </div>
         );
     }

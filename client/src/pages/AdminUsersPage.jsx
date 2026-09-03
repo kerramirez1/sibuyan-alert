@@ -15,6 +15,7 @@ import {
     HiOutlineTrash,
     HiOutlineLocationMarker,
     HiOutlineCamera,
+    HiOutlinePhotograph,
     HiOutlineUsers,
     HiOutlineX,
     HiOutlineZoomIn,
@@ -992,9 +993,13 @@ const AdminUsersPage = () => {
                                 data-testid="document-preview-stage"
                             >
                                 {documentViewer.loading && (
-                                    <div className="m-auto flex flex-col items-center justify-center gap-2 py-12 text-center text-xs text-gray-500 dark:text-gray-400">
-                                        <span className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" aria-hidden="true" />
-                                        <span>Loading protected document...</span>
+                                    <div className="m-auto flex w-full max-w-md flex-col items-center justify-center gap-3 py-10 text-center" role="status" aria-label="Loading document preview" aria-busy="true">
+                                        <span className="sr-only">Loading protected document...</span>
+                                        <div className="aspect-[4/3] w-full max-w-sm rounded-xl border border-gray-200/80 bg-gray-200/70 dark:border-white/10 dark:bg-white/[0.06] animate-pulse flex flex-col items-center justify-center gap-2 p-6">
+                                            <HiOutlinePhotograph className="h-8 w-8 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                                            <div className="h-3 w-32 rounded bg-gray-300 dark:bg-white/10" />
+                                            <div className="h-2 w-20 rounded bg-gray-300/80 dark:bg-white/10" />
+                                        </div>
                                     </div>
                                 )}
 
