@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from './router';
 import { useAuth } from './context/AuthContext';
 import { getDefaultRoleRoute, resolvePostLoginRedirect } from './utils/authUtils';
@@ -44,6 +44,39 @@ const PageLoader = () => (
 function App() {
     const { isAuthenticated, loading, user } = useAuth();
     const location = useLocation();
+
+    // Idle-prefetch the most likely next chunks so the 2nd navigation never
+    // waits on a dynamic import. Same import() as lazy() — Vite reuses the
+    // chunk, no double download. Failures are ignored (route still lazy-loads).
+    useEffect(() => {
+        if (loading) return;
+        const prefetch = () => {
+            const tasks = [];
+            if (!isAuthenticated) {
+                tasks.push(import('./pages/LoginPage'), import('./pages/DashboardPage'));
+            } else if (user?.role === 'reporter') {
+                tasks.push(
+                    import('./pages/ReporterDashboardPage'),
+                    import('./pages/MyReportsPage'),
+                    import('./pages/DashboardPage'),
+                );
+            } else if (user?.role === 'municipal_admin' || user?.role === 'responder') {
+                tasks.push(
+                    import('./pages/AdminPage'),
+                    import('./pages/AdminReportsPage'),
+                    import('./pages/DashboardPage'),
+                );
+                if (user?.role === 'municipal_admin') tasks.push(import('./pages/AdminUsersPage'));
+            }
+            Promise.allSettled(tasks).catch(() => {});
+        };
+        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+            const id = window.requestIdleCallback(prefetch, { timeout: 3000 });
+            return () => window.cancelIdleCallback?.(id);
+        }
+        const timer = setTimeout(prefetch, 1500);
+        return () => clearTimeout(timer);
+    }, [loading, isAuthenticated, user?.role]);
 
     if (loading) {
         return <PageLoader />;

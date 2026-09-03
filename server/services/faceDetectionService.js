@@ -108,6 +108,8 @@ const mapRotatedDetectionToStandardScan = (detection, angle, standardWidth, stan
  * 
  * @param {Buffer} imageBuffer - Raw image buffer (JPEG, PNG, WebP, etc.)
  * @param {Object} options - Detection configuration
+ * @param {boolean} [options.fastMode=false] - Single-pass ≤800px gate for
+ *   latency-sensitive flows (registration). Same fail-closed thresholds.
  * @returns {Promise<Object>} Structured detection result
  */
 export const detectFaces = async (imageBuffer, options = {}) => {
@@ -122,7 +124,14 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         // background false positives and must not be treated as a verified face.
         minConfidence = 5,
         minConfirmedConfidence = 6,
+        // Fast mode for latency-sensitive flows (e.g. registration selfie
+        // gate). Runs the single standard-grayscale pass at <=800px and skips
+        // the contrast-normalization and multi-rotation passes. Same
+        // confidence/quality gates are enforced — only recall on sideways or
+        // severely underexposed photos is reduced.
+        fastMode = false,
     } = options;
+    const effectiveMaxDimension = fastMode ? Math.min(maxDimension, 800) : maxDimension;
 
     if (!imageBuffer || !Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
         return {
@@ -201,13 +210,13 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         let scaleRatioX = 1.0;
         let scaleRatioY = 1.0;
 
-        if (Math.max(orientedWidth, orientedHeight) > maxDimension) {
+        if (Math.max(orientedWidth, orientedHeight) > effectiveMaxDimension) {
             if (orientedWidth >= orientedHeight) {
-                scanWidth = maxDimension;
-                scanHeight = Math.max(1, Math.round((orientedHeight * maxDimension) / orientedWidth));
+                scanWidth = effectiveMaxDimension;
+                scanHeight = Math.max(1, Math.round((orientedHeight * effectiveMaxDimension) / orientedWidth));
             } else {
-                scanHeight = maxDimension;
-                scanWidth = Math.max(1, Math.round((orientedWidth * maxDimension) / orientedHeight));
+                scanHeight = effectiveMaxDimension;
+                scanWidth = Math.max(1, Math.round((orientedWidth * effectiveMaxDimension) / orientedHeight));
             }
             scaleRatioX = orientedWidth / scanWidth;
             scaleRatioY = orientedHeight / scanHeight;
@@ -240,7 +249,9 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         // Pass 2: Enhanced contrast / normalization pass when the first pass
         // only produced weak candidates. This prevents a weak background hit
         // from suppressing a real face found after normalization.
-        if (!hasStrongCandidate() && (
+        // Skipped in fastMode: latency-sensitive gates accept the small
+        // recall trade-off and instruct the user to retake in good lighting.
+        if (!fastMode && !hasStrongCandidate() && (
             sourceOrientation !== 1
             || allRawDetections.length > 0
             || Math.max(scanWidth, scanHeight) >= 900
@@ -268,7 +279,8 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         // A sideways portrait needs the 90/270 passes even when the normal scan
         // is empty. The 180 pass is reserved for larger real-world images to
         // avoid spending several seconds rotating clean document photos.
-        if (!hasStrongCandidate() && (sourceOrientation !== 1 || allRawDetections.length > 0)) {
+        // Skipped in fastMode for the same latency reason as Pass 2.
+        if (!fastMode && !hasStrongCandidate() && (sourceOrientation !== 1 || allRawDetections.length > 0)) {
             const rotationAngles = Math.max(scanWidth, scanHeight) >= 900 ? [90, 270, 180] : [90, 270];
             for (const angle of rotationAngles) {
                 try {
@@ -377,6 +389,7 @@ export const detectFaces = async (imageBuffer, options = {}) => {
             confirmedThresholdUsed: minConfirmedConfidence,
             rejectedDetections,
             passesRun,
+            fastMode,
         };
 
         if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {

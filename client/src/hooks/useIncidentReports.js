@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI } from '../services/api';
 import { getRoleStatuses } from '../components/adminReports/incidentReportConfig';
+import {
+    QUERY_CACHE_TTLS,
+    dedupedFetch,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
+
+export const getIncidentQueueCacheKey = ({ role, responderView, status, page, appliedSearch, focusedReportId }) => (
+    `incident-queue:${role || 'unknown'}:${responderView || 'all'}:${status || ''}:p${page}:q${appliedSearch || ''}:f${focusedReportId || ''}`
+);
 
 const getErrorMessage = (error) => (
     error?.response?.data?.message || 'Unable to load incident reports. Please try again.'
@@ -10,9 +21,24 @@ const EMPTY_PAGINATION = Object.freeze({ page: 1, limit: 20, total: 0, pages: 0 
 
 const useIncidentReports = ({ subscribe, role, responderView = 'all', initialStatus = '', focusedReportId = '', reconnectVersion = 0 }) => {
     const validInitialStatus = getRoleStatuses(role).includes(initialStatus) ? initialStatus : '';
-    const [reports, setReports] = useState([]);
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [reports, setReports] = useState(() => {
+        const initialKey = getIncidentQueueCacheKey({
+            role, responderView, status: responderView === 'all' ? validInitialStatus : '', page: 1, appliedSearch: '', focusedReportId,
+        });
+        return getStaleData(initialKey)?.reports || [];
+    });
+    const [stats, setStats] = useState(() => {
+        const initialKey = getIncidentQueueCacheKey({
+            role, responderView, status: responderView === 'all' ? validInitialStatus : '', page: 1, appliedSearch: '', focusedReportId,
+        });
+        return getStaleData(initialKey)?.stats || null;
+    });
+    const [loading, setLoading] = useState(() => {
+        const initialKey = getIncidentQueueCacheKey({
+            role, responderView, status: responderView === 'all' ? validInitialStatus : '', page: 1, appliedSearch: '', focusedReportId,
+        });
+        return getStaleData(initialKey) === null;
+    });
     const [error, setError] = useState('');
     const [status, setStatusState] = useState(responderView === 'all' ? validInitialStatus : '');
     const [searchDraft, setSearchDraft] = useState('');
@@ -28,8 +54,29 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         setPage(1);
     }, [role, status]);
 
-    const fetchReports = useCallback(async ({ silent = false } = {}) => {
-        if (!silent) setLoading(true);
+    const fetchReports = useCallback(async ({ silent = false, force = false } = {}) => {
+        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, page, appliedSearch, focusedReportId });
+        // Explicit user actions (Refresh / Try again) bypass the fresh-cache
+        // shortcut; automatic mount fetches use it to kill the 2nd-visit skeleton.
+        if (!silent && !force) {
+            const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.queue);
+            if (fresh) {
+                setReports(fresh.reports || []);
+                setStats(fresh.stats || null);
+                setPagination(fresh.pagination || { ...EMPTY_PAGINATION, total: (fresh.reports || []).length });
+                setLastUpdatedAt(Date.now());
+                setLoading(false);
+                return;
+            }
+        }
+        const stale = getStaleData(cacheKey);
+        const hasStale = Boolean(stale);
+        if (hasStale && !silent) {
+            setReports(stale.reports || []);
+            setStats(stale.stats || null);
+            setPagination(stale.pagination || EMPTY_PAGINATION);
+        }
+        if (!silent && !hasStale) setLoading(true);
         setError('');
 
         try {
@@ -42,9 +89,15 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                     ...(responderView === 'all' && status ? { status } : {}),
                     ...(appliedSearch ? { search: appliedSearch } : {}),
                 };
-            const response = await adminAPI.getReports(params);
+            const response = await dedupedFetch(cacheKey, () => adminAPI.getReports(params));
             const data = response.data?.data || {};
             const nextReports = Array.isArray(data.reports) ? data.reports : [];
+            const nextStats = data.stats || null;
+            const nextPagination = data.pagination || {
+                ...EMPTY_PAGINATION,
+                total: nextReports.length,
+                pages: nextReports.length > 0 ? 1 : 0,
+            };
             setReports(nextReports);
             if (focusedReportId) {
                 const focusedReport = nextReports.find((report) => report._id === focusedReportId);
@@ -56,23 +109,31 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                     return matchingReport ? { ...current, ...matchingReport } : current;
                 });
             }
-            setStats(data.stats || null);
-            setPagination(data.pagination || {
-                ...EMPTY_PAGINATION,
-                total: nextReports.length,
-                pages: nextReports.length > 0 ? 1 : 0,
-            });
+            setStats(nextStats);
+            setPagination(nextPagination);
+            setCachedData(cacheKey, { reports: nextReports, stats: nextStats, pagination: nextPagination });
             setLastUpdatedAt(Date.now());
         } catch (requestError) {
-            setError(getErrorMessage(requestError));
+            // Keep stale queue on screen; only surface error when cache is empty.
+            if (getStaleData(cacheKey) === null) setError(getErrorMessage(requestError));
         } finally {
             if (!silent) setLoading(false);
+            else if (getStaleData(cacheKey) !== null) setLoading(false);
         }
-    }, [appliedSearch, focusedReportId, page, responderView, status]);
+    }, [appliedSearch, focusedReportId, page, responderView, role, status]);
 
     useEffect(() => {
+        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, page, appliedSearch, focusedReportId });
+        if (getCachedData(cacheKey, QUERY_CACHE_TTLS.queue) !== null) {
+            fetchReports();
+            return;
+        }
+        if (getStaleData(cacheKey) !== null) {
+            fetchReports({ silent: true });
+            return;
+        }
         fetchReports();
-    }, [fetchReports]);
+    }, [fetchReports, appliedSearch, focusedReportId, page, responderView, role, status]);
 
     const refreshRef = useRef(fetchReports);
     useEffect(() => {

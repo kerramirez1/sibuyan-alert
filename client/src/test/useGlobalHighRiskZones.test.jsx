@@ -23,9 +23,11 @@ vi.mock('../context/SocketContext', () => ({
 }));
 
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
+import { clearQueryCache } from '../utils/queryCache';
 
 describe('useGlobalHighRiskZones', () => {
     beforeEach(() => {
+        clearQueryCache();
         listeners.clear();
         socketState.reconnectVersion = 0;
         subscribeMock.mockClear();
@@ -115,5 +117,19 @@ describe('useGlobalHighRiskZones', () => {
             resolveRetry({ data: { data: [] } });
         });
         await waitFor(() => expect(result.current.loading).toBe(false));
+    });
+
+    test('renders instantly from cache on remount without refetching when fresh', async () => {
+        const { result, unmount } = renderHook(() => useGlobalHighRiskZones());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(getAllMock).toHaveBeenCalledTimes(1);
+
+        unmount();
+
+        const { result: second } = renderHook(() => useGlobalHighRiskZones());
+        // No skeleton on 2nd visit: cache hydrates synchronously.
+        expect(second.current.loading).toBe(false);
+        expect(second.current.zones).toHaveLength(2);
+        expect(getAllMock).toHaveBeenCalledTimes(1);
     });
 });

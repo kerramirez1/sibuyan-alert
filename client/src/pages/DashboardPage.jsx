@@ -24,7 +24,24 @@ import {
     getMillisecondsUntilNextManilaDay,
     getResolvedTodayReports,
 } from '../utils/reportResolution';
+import {
+    QUERY_CACHE_TTLS,
+    dedupedFetch,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { parseISO, differenceInMinutes, isSameMonth } from 'date-fns';
+
+const getDashboardCacheKey = ({ canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated }) => {
+    if (canViewReports && (isAdmin || isResponder) && activeMunicipality) {
+        return `dashboard:operational:${activeMunicipality}`;
+    }
+    if (isAuthenticated && (isReporter || isResponder)) return 'dashboard:public:member';
+    return 'dashboard:public:guest';
+};
+
+const getReporterOverviewCacheKey = (ownerId) => (ownerId ? `reporter-overview:${ownerId}` : null);
 
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
@@ -88,6 +105,10 @@ const DashboardPage = () => {
     const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
     const activeMunicipality = hasMunicipality ? user.assignedMunicipality : null;
 
+    const dashboardCacheKey = useMemo(() => getDashboardCacheKey({
+        canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated,
+    }), [canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated]);
+
     useEffect(() => {
         const ownerId = isReporter ? String(user?._id || user?.id || '') : '';
         if (reporterOverviewOwnerRef.current === ownerId) return;
@@ -95,23 +116,46 @@ const DashboardPage = () => {
         reporterOverviewOwnerRef.current = ownerId;
         reporterOverviewRequestRef.current = null;
         reporterOverviewReportsRef.current = null;
-        setReporterOverviewReports(null);
+        const overviewKey = getReporterOverviewCacheKey(ownerId);
+        const cachedOverview = ownerId && overviewKey ? getStaleData(overviewKey) : null;
+        // Instant render from cache on account switch; no spinner on 2nd visit.
+        setReporterOverviewReports(Array.isArray(cachedOverview) ? cachedOverview : null);
+        if (Array.isArray(cachedOverview)) reporterOverviewReportsRef.current = cachedOverview;
         setReporterOverviewReportsLoading(false);
         setReporterOverviewReportsError('');
     }, [isReporter, user?._id, user?.id]);
 
     const loadReporterOverviewReports = useCallback(({ force = false } = {}) => {
         if (!isReporter) return Promise.resolve([]);
-        if (!force && Array.isArray(reporterOverviewReportsRef.current)) {
-            return Promise.resolve(reporterOverviewReportsRef.current);
+        const ownerId = String(user?._id || user?.id || '');
+        if (!ownerId) return Promise.resolve([]);
+        const overviewKey = getReporterOverviewCacheKey(ownerId);
+        if (!force) {
+            if (Array.isArray(reporterOverviewReportsRef.current)) {
+                return Promise.resolve(reporterOverviewReportsRef.current);
+            }
+            const cached = overviewKey ? getCachedData(overviewKey, QUERY_CACHE_TTLS.reporterOverview) : null;
+            if (Array.isArray(cached)) {
+                reporterOverviewReportsRef.current = cached;
+                setReporterOverviewReports(cached);
+                setReporterOverviewReportsLoading(false);
+                return Promise.resolve(cached);
+            }
+            const stale = overviewKey ? getStaleData(overviewKey) : null;
+            if (Array.isArray(stale)) {
+                reporterOverviewReportsRef.current = stale;
+                setReporterOverviewReports(stale);
+            }
         }
         if (reporterOverviewRequestRef.current) return reporterOverviewRequestRef.current;
 
         const requestOwnerId = String(user?._id || user?.id || '');
-        setReporterOverviewReportsLoading(true);
+        const hasStaleOverview = overviewKey ? Array.isArray(getStaleData(overviewKey)) : false;
+        // Stale data on screen: silent refresh without a spinner.
+        if (!hasStaleOverview) setReporterOverviewReportsLoading(true);
         setReporterOverviewReportsError('');
 
-        const request = reportsAPI.getMyReports()
+        const request = dedupedFetch(overviewKey || `reporter-overview:${requestOwnerId}`, () => reportsAPI.getMyReports())
             .then((response) => {
                 if (reporterOverviewOwnerRef.current !== requestOwnerId) return [];
                 const payload = Array.isArray(response.data?.data) ? response.data.data : [];
@@ -122,6 +166,7 @@ const DashboardPage = () => {
                     detailCompleteness: 'full',
                 }));
                 reporterOverviewReportsRef.current = ownedReports;
+                if (overviewKey) setCachedData(overviewKey, ownedReports);
                 setReporterOverviewReports(ownedReports);
                 return ownedReports;
             })
@@ -152,6 +197,9 @@ const DashboardPage = () => {
             }
             const updated = upsertDashboardReport(current, incomingReport);
             reporterOverviewReportsRef.current = updated;
+            const ownerId = reporterOverviewOwnerRef.current;
+            const overviewKey = getReporterOverviewCacheKey(ownerId);
+            if (overviewKey) setCachedData(overviewKey, updated);
             return updated;
         });
     }, []);
@@ -161,6 +209,9 @@ const DashboardPage = () => {
             if (!Array.isArray(current)) return current;
             const updated = removeDashboardReport(current, reportId);
             reporterOverviewReportsRef.current = updated;
+            const ownerId = reporterOverviewOwnerRef.current;
+            const overviewKey = getReporterOverviewCacheKey(ownerId);
+            if (overviewKey) setCachedData(overviewKey, updated);
             return updated;
         });
     }, []);
@@ -269,13 +320,14 @@ const DashboardPage = () => {
 
             const refreshedReports = await fetchAllReportPages(adminAPI.getReports);
             setReports(refreshedReports);
+            setCachedData(dashboardCacheKey, refreshedReports);
             navigate(`/admin/reports?view=active-responses&report=${encodeURIComponent(report._id)}`);
 
             return { ok: true, message: response.data?.message || 'Now responding to incident' };
         } catch (error) {
             return { ok: false, message: error.response?.data?.message || 'Failed to respond to incident' };
         }
-    }, [isResponder, navigate, user]);
+    }, [dashboardCacheKey, isResponder, navigate, user]);
 
     const handleMapResolve = useCallback(async (report) => {
         if (!isResponder || !report?._id) {
@@ -291,26 +343,49 @@ const DashboardPage = () => {
     // Publishable reports render on the shared map for every audience; fetch
     // every page instead of a single capped page so the dataset is never
     // silently truncated by the server's per-page limit.
+    // Deduped by cache key so concurrent mounts share one network request.
     const loadPublicMapReports = useCallback(
-        () => fetchAllReportPages(reportsAPI.getAll, { status: 'all' }),
+        (cacheKey) => {
+            const fetchKey = cacheKey || 'dashboard:public:guest';
+            return dedupedFetch(fetchKey, () => fetchAllReportPages(reportsAPI.getAll, { status: 'all' }));
+        },
         []
     );
 
-    const loadDashboardReports = useCallback(async ({ silent = false } = {}) => {
+    const loadDashboardReports = useCallback(async ({ silent = false, force = false } = {}) => {
         setDashboardError('');
         const handleReportLoadError = (error) => {
             console.error(error);
-            setDashboardError('Some dashboard data could not be loaded. Please refresh and try again.');
+            // Keep stale map pins on screen; only block when we have nothing cached.
+            if (getStaleData(dashboardCacheKey) === null) {
+                setDashboardError('Some dashboard data could not be loaded. Please refresh and try again.');
+            }
         };
 
-        if (!silent) setLoading(true);
+        if (!force) {
+            const fresh = getCachedData(dashboardCacheKey, QUERY_CACHE_TTLS.dashboard);
+            if (Array.isArray(fresh)) {
+                setReports(fresh);
+                setLoading(false);
+                return;
+            }
+        }
+        const stale = getStaleData(dashboardCacheKey);
+        const hasStale = Array.isArray(stale);
+        if (hasStale && !silent) {
+            // Instant render, silent refresh — removes the 2nd-visit skeleton.
+            setReports(stale);
+        }
+
+        if (!silent && !hasStale) setLoading(true);
         try {
+            let nextReports;
             if (canViewReports) {
                 if (isAdmin || isResponder) {
-                    setReports(await fetchAllReportPages(adminAPI.getReports));
+                    nextReports = await dedupedFetch(dashboardCacheKey, () => fetchAllReportPages(adminAPI.getReports));
                 } else {
                     // Fallback fetch
-                    setReports(await loadPublicMapReports());
+                    nextReports = await loadPublicMapReports(dashboardCacheKey);
                 }
 
                 // Responder dashboard cards rely on roleStats; fetch it in this branch too.
@@ -321,7 +396,7 @@ const DashboardPage = () => {
                 }
             } else if (isAuthenticated && (isReporter || isResponder)) {
                 // Reporters & responders: fetch verified reports for the map display
-                setReports(await loadPublicMapReports());
+                nextReports = await loadPublicMapReports(dashboardCacheKey);
 
                 // Fetch role-specific analytics
                 if (isResponder) {
@@ -331,18 +406,31 @@ const DashboardPage = () => {
                 }
             } else {
                 // Public/ordinary users: fetch public map data
-                setReports(await loadPublicMapReports());
+                nextReports = await loadPublicMapReports(dashboardCacheKey);
             }
+            setReports(nextReports);
+            setCachedData(dashboardCacheKey, nextReports);
         } catch (error) {
             handleReportLoadError(error);
         } finally {
-            if (!silent) setLoading(false);
+            if (!silent && !hasStale) setLoading(false);
+            else setLoading(false);
         }
-    }, [activeMunicipality, canViewReports, isAuthenticated, isAdmin, isReporter, isResponder, loadPublicMapReports]);
+    }, [dashboardCacheKey, canViewReports, isAuthenticated, isAdmin, isReporter, isResponder, loadPublicMapReports]);
 
     useEffect(() => {
+        // Fresh cache: skip network. Stale cache: handled inside loader
+        // (instant render + silent refresh). No cache: full load with spinner.
+        if (getCachedData(dashboardCacheKey, QUERY_CACHE_TTLS.dashboard) !== null) {
+            loadDashboardReports({ force: false });
+            return;
+        }
+        if (getStaleData(dashboardCacheKey) !== null) {
+            loadDashboardReports({ silent: true });
+            return;
+        }
         loadDashboardReports();
-    }, [loadDashboardReports]);
+    }, [loadDashboardReports, dashboardCacheKey]);
 
     // Resync from the server after a socket reconnect so events missed while
     // offline self-heal without requiring a page refresh.
@@ -437,16 +525,32 @@ const DashboardPage = () => {
         };
 
 
-        const unsub0 = subscribe('newReport', (data) => {
-            const normalized = normalizeIncomingReport(data);
+        const upsertAndCache = (normalized) => {
             if (!normalized) return;
             setReports((previous) => upsertDashboardReport(previous, normalized));
+            const base = getStaleData(dashboardCacheKey) || [];
+            setCachedData(dashboardCacheKey, upsertDashboardReport(base, normalized));
+        };
+        const removeAndCache = (id) => {
+            if (!id) return;
+            setReports((previous) => removeDashboardReport(previous, id));
+            const base = getStaleData(dashboardCacheKey) || [];
+            setCachedData(dashboardCacheKey, removeDashboardReport(base, id));
+        };
+        const patchStatusAndCache = (id, status) => {
+            if (!id) return;
+            setReports((previous) => updateDashboardReportStatus(previous, id, status));
+            const base = getStaleData(dashboardCacheKey) || [];
+            setCachedData(dashboardCacheKey, updateDashboardReportStatus(base, id, status));
+        };
+
+        const unsub0 = subscribe('newReport', (data) => {
+            upsertAndCache(normalizeIncomingReport(data));
         });
 
         const unsub1 = subscribe('reportVerified', (report) => {
             const normalized = normalizeIncomingReport({ ...report, status: 'verified' });
-            if (!normalized) return;
-            setReports((previous) => upsertDashboardReport(previous, normalized));
+            upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
         });
         const unsub2 = subscribe('reportResponded', (data) => {
@@ -455,7 +559,7 @@ const DashboardPage = () => {
                 _id: data.id,
                 status: 'responding',
             };
-            setReports((previous) => upsertDashboardReport(previous, normalized));
+            upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
         });
         const unsub3 = subscribe('reportResolved', (data) => {
@@ -464,7 +568,7 @@ const DashboardPage = () => {
                 _id: data.id,
                 status: 'resolved',
             };
-            setReports((previous) => upsertDashboardReport(previous, normalized));
+            upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
@@ -473,11 +577,11 @@ const DashboardPage = () => {
                 _id: data.id,
                 status: 'resolved',
             };
-            setReports((previous) => upsertDashboardReport(previous, normalized));
+            upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
-            setReports((previous) => removeDashboardReport(previous, data?.id ?? data?._id));
+            removeAndCache(data?.id ?? data?._id);
             removeLoadedReporterOverviewReport(data?.id ?? data?._id);
         });
         const unsub8 = subscribe('reportTransferred', (data) => {
@@ -494,12 +598,12 @@ const DashboardPage = () => {
                 ],
             });
             if (!normalized) return;
-            setReports((previous) => upsertDashboardReport(previous, normalized));
+            upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
         });
         const unsub9 = subscribe('reportRejectedUpdate', (data) => {
             if (!data?.id) return;
-            setReports((previous) => updateDashboardReportStatus(previous, data.id, 'rejected'));
+            patchStatusAndCache(data.id, 'rejected');
             updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
         });
 
@@ -522,7 +626,7 @@ const DashboardPage = () => {
             unsub9();
             unsubReporterRejected();
         };
-    }, [removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
+    }, [dashboardCacheKey, removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
 
     useEffect(() => {
         if (panelView === 'incidents') {

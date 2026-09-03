@@ -13,6 +13,7 @@ import connectDB from './config/db.js';
 import { configureProductionClient } from './config/clientApp.js';
 import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
+import { initFaceDetector } from './services/faceDetectionService.js';
 import { authenticateAccessToken, protect } from './middleware/auth.js';
 import { requireRole } from './middleware/roleCheck.js';
 import { csrfProtection } from './middleware/csrf.js';
@@ -60,6 +61,13 @@ app.set('io', io);
 // Connect to MongoDB and seed data
 const initializeDatabase = async () => {
     await connectDB();
+    // Warm the pico face cascade so the first registration selfie check
+    // does not pay the cold-load cost (disk read or remote fetch).
+    try {
+        await initFaceDetector();
+    } catch (error) {
+        console.warn('⚠️ Face detector warm-up failed (will retry per-request):', error.message);
+    }
     // Seed data after DB connection
     try {
         await seedMunicipalities();

@@ -4,9 +4,15 @@ export const MAX_ID_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MIN_ID_IMAGE_WIDTH = 480;
 export const MIN_ID_IMAGE_HEIGHT = 300;
 
-const MAX_OUTPUT_EDGE = 2400;
+export const MAX_OUTPUT_EDGE = 1600;
+export const ID_MAX_OUTPUT_EDGE = 2000;
+export const SELFIE_MAX_OUTPUT_EDGE = 1280;
 const MAX_IMAGE_PIXELS = 40_000_000;
-const JPEG_QUALITY = 0.92;
+// Per-subject quality: ID text must stay readable for manual admin review,
+// selfies only need face clarity. Lower than the previous 0.92 to halve
+// upload size on slow island connections.
+export const ID_JPEG_QUALITY = 0.85;
+export const SELFIE_JPEG_QUALITY = 0.8;
 
 const validateVerificationImageFile = (file, subject) => {
     if (!file) return `Choose or take a photo of your ${subject}.`;
@@ -32,11 +38,11 @@ const loadImage = (file) => new Promise((resolve, reject) => {
     image.src = objectUrl;
 });
 
-const toBlob = (canvas) => new Promise((resolve, reject) => {
+const toBlob = (canvas, quality) => new Promise((resolve, reject) => {
     canvas.toBlob(
         (blob) => blob ? resolve(blob) : reject(new Error('The ID photo could not be prepared. Try again.')),
         'image/jpeg',
-        JPEG_QUALITY,
+        quality,
     );
 });
 
@@ -52,9 +58,15 @@ const buildOutputName = (originalName = 'verification-photo', fallbackName = 've
 export const prepareVerificationImage = async (sourceFile, {
     subject = 'verification',
     fallbackName = 'verification-photo',
+    maxOutputEdge,
+    jpegQuality,
 } = {}) => {
     const validationError = validateVerificationImageFile(sourceFile, subject);
     if (validationError) throw new Error(validationError);
+
+    const isSelfie = subject.toLowerCase().includes('selfie');
+    const outputEdgeLimit = maxOutputEdge ?? (isSelfie ? SELFIE_MAX_OUTPUT_EDGE : ID_MAX_OUTPUT_EDGE);
+    const outputQuality = jpegQuality ?? (isSelfie ? SELFIE_JPEG_QUALITY : ID_JPEG_QUALITY);
 
     const image = await loadImage(sourceFile);
     const width = image.naturalWidth;
@@ -68,7 +80,7 @@ export const prepareVerificationImage = async (sourceFile, {
         throw new Error('This photo has an unusually high resolution. Use a smaller image.');
     }
 
-    const scale = Math.min(1, MAX_OUTPUT_EDGE / Math.max(width, height));
+    const scale = Math.min(1, outputEdgeLimit / Math.max(width, height));
     const outputWidth = Math.round(width * scale);
     const outputHeight = Math.round(height * scale);
     const canvas = document.createElement('canvas');
@@ -81,7 +93,7 @@ export const prepareVerificationImage = async (sourceFile, {
     context.fillRect(0, 0, outputWidth, outputHeight);
     context.drawImage(image, 0, 0, outputWidth, outputHeight);
 
-    const blob = await toBlob(canvas);
+    const blob = await toBlob(canvas, outputQuality);
     if (blob.size > MAX_ID_IMAGE_BYTES) {
         throw new Error('The prepared ID photo is still larger than 5 MB. Use a lower-resolution photo.');
     }

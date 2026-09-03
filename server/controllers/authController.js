@@ -60,8 +60,16 @@ export const register = async (req, res) => {
             });
         }
 
-        // Authoritative server-side face validation
-        const selfieDetection = await detectFaces(selfiePhotoFile.buffer);
+        // Authoritative server-side face validation (fail-closed).
+        // Fast single-pass gate keeps Heroku single-dyno p95 low; the full
+        // multi-pass pipeline stays reserved for evidence redaction.
+        const selfieDetection = await detectFaces(selfiePhotoFile.buffer, { fastMode: true, maxDimension: 800 });
+        if (selfieDetection.status === 'detector_failed') {
+            return res.status(503).json({
+                success: false,
+                message: 'Face verification is temporarily unavailable. Please try again.',
+            });
+        }
         if (selfieDetection.status === 'invalid_image') {
             return res.status(400).json({
                 success: false,
@@ -96,20 +104,22 @@ export const register = async (req, res) => {
             ownerId: userId,
             municipalityName: municipality,
         };
-        const storedIdDocument = await uploadFileToGridFS(idDocumentFile, {
-            ...storageMetadata,
-            category: 'identity_document',
+        // Parallelize the two independent GridFS writes and track each URL
+        // as it lands so a partial failure still cleans up (no orphans).
+        const trackUpload = (promise) => promise.then((stored) => {
+            uploadedFileUrls.push(stored.url);
+            return stored;
         });
-        uploadedFileUrls.push(storedIdDocument.url);
-
-        let storedSelfie = null;
-        if (selfiePhotoFile) {
-            storedSelfie = await uploadFileToGridFS(selfiePhotoFile, {
+        const [storedIdDocument, storedSelfie] = await Promise.all([
+            trackUpload(uploadFileToGridFS(idDocumentFile, {
+                ...storageMetadata,
+                category: 'identity_document',
+            })),
+            trackUpload(uploadFileToGridFS(selfiePhotoFile, {
                 ...storageMetadata,
                 category: 'identity_selfie',
-            });
-            uploadedFileUrls.push(storedSelfie.url);
-        }
+            })),
+        ]);
 
         // Create reporter user (pending verification)
         const user = await User.create({
@@ -592,6 +602,31 @@ export const resubmitIdDocument = async (req, res) => {
 
         const selfieFile = req.files?.selfiePhoto?.[0] || null;
         if (selfieFile) {
+            const selfieDetection = await detectFaces(selfieFile.buffer, { fastMode: true, maxDimension: 800 });
+            if (selfieDetection.status === 'detector_failed') {
+                return res.status(503).json({
+                    success: false,
+                    message: 'Face verification is temporarily unavailable. Please try again.',
+                });
+            }
+            if (selfieDetection.status === 'invalid_image') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'The selfie photo is corrupted or invalid. Please upload a clear photo.',
+                });
+            }
+            if (selfieDetection.status === 'no_faces_detected' || (selfieDetection.faces && selfieDetection.faces.length === 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.',
+                });
+            }
+            if (selfieDetection.faces && selfieDetection.faces.length > 1) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Multiple faces detected in the verification selfie. Only one person must be visible.',
+                });
+            }
             if (user.selfiePhoto) previousFiles.push(user.selfiePhoto);
             const storedSelfie = await uploadFileToGridFS(selfieFile, {
                 ...storageMetadata,

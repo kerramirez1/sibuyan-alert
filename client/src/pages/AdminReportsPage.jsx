@@ -153,7 +153,7 @@ const AdminReportsPage = () => {
                 appliedSearch={reportState.appliedSearch}
                 applySearch={reportState.applySearch}
                 clearFilters={reportState.clearFilters}
-                onRefresh={() => reportState.refreshReports()}
+                onRefresh={() => reportState.refreshReports({ force: true })}
                 loading={reportState.loading}
             />
 
@@ -161,7 +161,7 @@ const AdminReportsPage = () => {
                 reports={reportState.visibleReports}
                 loading={reportState.loading}
                 error={reportState.error}
-                onRetry={() => reportState.refreshReports()}
+                onRetry={() => reportState.refreshReports({ force: true })}
                 user={user}
                 actions={queueActions}
                 onInspect={reportState.inspectReport}

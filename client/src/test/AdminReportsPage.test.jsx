@@ -69,6 +69,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 import AdminReportsPage from '../pages/AdminReportsPage';
+import { clearQueryCache } from '../utils/queryCache';
 
 const createReport = (overrides = {}) => ({
     _id: 'report-1',
@@ -601,6 +602,9 @@ describe('AdminReportsPage operational queue', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledTimes(callsBeforeRefresh + 1));
 
+        // Clearing back to a recently visited filter serves the fresh SWR cache
+        // instantly; drop it here so the test can assert the reset query params.
+        clearQueryCache();
         fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
         await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20 }));
     });
@@ -827,6 +831,9 @@ describe('AdminReportsPage operational queue', () => {
         expect(await screen.findByText('No incident reports found')).toBeInTheDocument();
         firstRender.unmount();
 
+        // Cold load with a failing network must surface the error state.
+        // (With a warm SWR cache the stale queue stays on screen instead.)
+        clearQueryCache();
         mocks.getReports.mockRejectedValueOnce({ response: { data: { message: 'Network unavailable' } } });
         renderPage();
         const alert = await screen.findByRole('alert');

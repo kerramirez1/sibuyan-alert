@@ -11,6 +11,7 @@ import {
     resolvePostLoginRedirect,
 } from '../utils/authUtils';
 import { clearBlobCache } from '../utils/blobCache';
+import { clearQueryCache } from '../utils/queryCache';
 
 const AuthContext = createContext(null);
 
@@ -153,6 +154,9 @@ export const AuthProvider = ({ children }) => {
             // Local state must still be cleared when the network is unavailable.
         }
         clearBlobCache();
+        // Municipal-scoped report/queue snapshots must not leak to the next
+        // account on a shared device.
+        clearQueryCache();
         setUser(null);
         toast.success('Logged out successfully');
         navigate('/');
@@ -161,6 +165,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const handleExpiredSession = () => {
             clearBlobCache();
+            clearQueryCache();
             setUser(null);
         };
         if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {

@@ -18,6 +18,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import useIncidentReports from '../hooks/useIncidentReports';
+import { clearQueryCache } from '../utils/queryCache';
 
 const fetchQueuePage = (reportIds) => Promise.resolve({
     data: {
@@ -31,6 +32,7 @@ const fetchQueuePage = (reportIds) => Promise.resolve({
 
 describe('useIncidentReports realtime synchronization', () => {
     beforeEach(() => {
+        clearQueryCache();
         listeners.clear();
         subscribeMock.mockClear();
         getReportsMock.mockReset();
