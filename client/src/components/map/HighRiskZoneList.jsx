@@ -13,7 +13,8 @@ import { MAP_FOCUS_PRESETS } from '../../utils/mapNavigation';
 const ZONE_COLORS = {
     landslide_prone: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-700', color: '#F59E0B' },
     accident_prone: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-700', color: '#EF4444' },
-    fire_risk: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-700', color: '#EA580C' },
+    flood_prone: { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-700', color: '#3B82F6' },
+    fire_risk: { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-700', color: '#3B82F6' },
     other: { bg: 'bg-gray-100', border: 'border-gray-400', text: 'text-gray-700', color: '#6B7280' },
 };
 
@@ -27,7 +28,8 @@ const SEVERITY_STYLES = {
 const ZONE_LABELS = {
     landslide_prone: 'Landslide Prone',
     accident_prone: 'Accident Prone',
-    fire_risk: 'Fire Risk',
+    flood_prone: 'Flood Prone',
+    fire_risk: 'Flood Prone',
     other: 'Other Hazard',
 };
 

@@ -17,7 +17,6 @@ import {
     HiOutlineLocationMarker,
     HiOutlineCamera,
     HiOutlinePhotograph,
-    HiOutlineUsers,
     HiOutlineX,
     HiOutlineZoomIn,
     HiOutlineZoomOut,
@@ -135,12 +134,14 @@ const AdminUsersPage = () => {
         };
     }, []);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (overrides = {}) => {
         setLoading(true);
         try {
+            const nextFilter = overrides.filter ?? filter;
+            const nextSearch = overrides.search ?? search;
             const params = {
-                ...filter,
-                search: search || undefined,
+                ...nextFilter,
+                search: nextSearch || undefined,
             };
             const response = await adminAPI.getUsers(params);
             setUsers(response.data.data.users);
@@ -149,6 +150,17 @@ const AdminUsersPage = () => {
             console.error('Failed to fetch users:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const hasActiveFilters = Boolean(search.trim() || filter.role || filter.verificationStatus);
+
+    const clearFilters = () => {
+        const alreadyDefault = !filter.role && !filter.verificationStatus;
+        setSearch('');
+        setFilter({ role: '', verificationStatus: '' });
+        if (alreadyDefault) {
+            fetchUsers({ search: '' });
         }
     };
 
@@ -317,7 +329,7 @@ const AdminUsersPage = () => {
     const renderRoleBadge = (role) => {
         const config = ROLE_BADGES[role] || { label: role || 'Unknown', dot: 'bg-gray-400' };
         return (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
                 <span>{config.label}</span>
             </span>
@@ -327,7 +339,7 @@ const AdminUsersPage = () => {
     const renderVerificationBadge = (status) => {
         const config = VERIFICATION_BADGES[status] || { label: 'N/A', dot: 'bg-gray-400' };
         return (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-gray-200/90 bg-gray-50/80 px-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
                 <span>{config.label}</span>
             </span>
@@ -335,97 +347,106 @@ const AdminUsersPage = () => {
     };
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5">
+        <div className="mx-auto w-full min-w-0 max-w-[1120px] space-y-6 sm:space-y-8">
             {/* Page Header */}
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                         Municipal administration
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
                         Manage users
                     </h1>
-                    <p className="mt-0.5 max-w-xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         View and verify reporter accounts.
                     </p>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 shadow-2xs">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Sibuyan Island · Alert System Active</span>
-                    </div>
-                </div>
+                <p className="flex shrink-0 items-center gap-1.5 text-xs text-gray-500 sm:pt-1 dark:text-gray-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
+                    <span>Sibuyan Island · Alert System Active</span>
+                </p>
             </header>
 
             {/* Summary Metrics Strip */}
             {stats && (
-                <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-gray-200/90 bg-gray-200/90 shadow-2xs md:grid-cols-4 dark:border-white/10 dark:bg-white/10" aria-label="User directory summary">
-                    <div className="bg-white p-4 sm:p-4.5 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total users</span>
-                            <HiOutlineUsers className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                        </div>
-                        <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{stats.totalUsers}</p>
+                <section className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 md:grid-cols-4 dark:border-white/10 dark:bg-white/10" aria-label="User directory summary">
+                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total users</span>
+                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.totalUsers}</p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Registered accounts</p>
                     </div>
 
-                    <div className="bg-white p-4 sm:p-4.5 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Reporters</span>
-                            </div>
+                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Reporters</span>
                         </div>
-                        <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{stats.reporters}</p>
+                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.reporters}</p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Field reporters</p>
                     </div>
 
-                    <div className="bg-white p-4 sm:p-4.5 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pending</span>
-                            </div>
+                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Pending</span>
                         </div>
-                        <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{stats.pendingVerification}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Awaiting verification</p>
+                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.pendingVerification}</p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
                     </div>
 
-                    <div className="bg-white p-4 sm:p-4.5 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Responders</span>
-                            </div>
+                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Responders</span>
                         </div>
-                        <p className="mt-2 font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white tabular-nums">{stats.responders}</p>
+                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.responders}</p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Emergency units</p>
                     </div>
                 </section>
             )}
 
             {/* Users Data Section */}
-            <section className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Users directory">
+            <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Users directory">
                 {/* Search & Filters Toolbar */}
-                <div className="border-b border-gray-200/80 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center">
-                        <div className="relative flex-1 min-w-[200px]">
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                            <input
-                                type="text"
-                                placeholder="Search by name or email..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
-                                className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-3 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
-                            />
+                <div className="border-b border-gray-200 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex flex-col gap-2.5 sm:gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="relative flex-1 min-w-0">
+                                <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name or email..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
+                                    className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => fetchUsers()}
+                                    className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                                >
+                                    Search
+                                </button>
+                                {hasActiveFilters && (
+                                    <button
+                                        type="button"
+                                        onClick={clearFilters}
+                                        className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5">
                             <select
                                 value={filter.role}
                                 onChange={(e) => setFilter({ ...filter, role: e.target.value })}
-                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                className="h-9 w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
                                 aria-label="Filter by role"
                             >
                                 <option value="">All Roles</option>
@@ -435,7 +456,7 @@ const AdminUsersPage = () => {
                             <select
                                 value={filter.verificationStatus}
                                 onChange={(e) => setFilter({ ...filter, verificationStatus: e.target.value })}
-                                className="h-9 w-full sm:w-auto rounded-xl border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                className="h-9 w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
                                 aria-label="Filter by verification status"
                             >
                                 <option value="">All Status</option>
@@ -493,11 +514,11 @@ const AdminUsersPage = () => {
                                 users.map((user) => (
                                     <tr
                                         key={user._id}
-                                        className="transition-colors hover:bg-gray-50/70 dark:hover:bg-white/[0.02]"
+                                        className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                                     >
                                         <td className="py-3 pl-4 pr-3 sm:pl-5">
                                             <div className="flex items-center gap-3">
-                                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-2xs ${
+                                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
                                                     user.role === 'municipal_admin' ? 'bg-indigo-600' :
                                                     user.role === 'responder' ? 'bg-cyan-600' :
                                                     user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
@@ -528,7 +549,7 @@ const AdminUsersPage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openDocumentPreview(user, 'idDocument', e)}
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200/90 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                                         title="View ID document"
                                                         aria-label={`View ID document for ${user.name}`}
                                                     >
@@ -540,7 +561,7 @@ const AdminUsersPage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openDocumentPreview(user, 'selfiePhoto', e)}
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200/90 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                                         title="View selfie photo"
                                                         aria-label={`View selfie photo for ${user.name}`}
                                                     >
@@ -566,7 +587,7 @@ const AdminUsersPage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => openVerifyModal(user, 'approved')}
-                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200/90 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                             title="Approve reporter"
                                                             aria-label={`Approve reporter ${user.name}`}
                                                         >
@@ -575,7 +596,7 @@ const AdminUsersPage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => openVerifyModal(user, 'rejected')}
-                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200/90 bg-red-50/80 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                             title="Reject reporter"
                                                             aria-label={`Reject reporter ${user.name}`}
                                                         >
@@ -586,7 +607,7 @@ const AdminUsersPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openDeleteModal(user)}
-                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition-colors"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                                                     title="Delete user"
                                                     aria-label={`Delete user ${user.name}`}
                                                 >
@@ -617,7 +638,7 @@ const AdminUsersPage = () => {
                             <article key={user._id} className="p-4 space-y-3">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-2xs ${
+                                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
                                             user.role === 'municipal_admin' ? 'bg-indigo-600' :
                                             user.role === 'responder' ? 'bg-cyan-600' :
                                             user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
@@ -633,7 +654,7 @@ const AdminUsersPage = () => {
                                             <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{user.email}</p>
                                         </div>
                                     </div>
-                                    <div className="flex shrink-0 gap-1">
+                                    <div className="flex shrink-0 flex-wrap justify-end gap-x-2 gap-y-1">
                                         {renderRoleBadge(user.role)}
                                         {renderVerificationBadge(user.verificationStatus)}
                                     </div>
@@ -652,7 +673,7 @@ const AdminUsersPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={(e) => openDocumentPreview(user, 'idDocument', e)}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200/90 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
+                                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
                                                 aria-label={`View ID document for ${user.name}`}
                                             >
                                                 <HiOutlineIdentification className="h-3 w-3 text-emerald-600" />
@@ -663,7 +684,7 @@ const AdminUsersPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={(e) => openDocumentPreview(user, 'selfiePhoto', e)}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200/90 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
+                                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
                                                 aria-label={`View selfie photo for ${user.name}`}
                                             >
                                                 <HiOutlineCamera className="h-3 w-3 text-emerald-600" />
@@ -681,28 +702,31 @@ const AdminUsersPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openVerifyModal(user, 'approved')}
-                                                    className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-200/90 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                     title="Approve reporter"
+                                                    aria-label={`Approve reporter ${user.name}`}
                                                 >
-                                                    <HiOutlineCheckCircle className="h-3.5 w-3.5" />
+                                                    <HiOutlineCheckCircle className="h-4 w-4" />
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => openVerifyModal(user, 'rejected')}
-                                                    className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-red-200/90 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                     title="Reject reporter"
+                                                    aria-label={`Reject reporter ${user.name}`}
                                                 >
-                                                    <HiOutlineXCircle className="h-3.5 w-3.5" />
+                                                    <HiOutlineXCircle className="h-4 w-4" />
                                                 </button>
                                             </>
                                         )}
                                         <button
                                             type="button"
                                             onClick={() => openDeleteModal(user)}
-                                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-400 hover:text-red-600 dark:border-white/10 dark:bg-white/5"
+                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5"
                                             title="Delete user"
+                                            aria-label={`Delete user ${user.name}`}
                                         >
-                                            <HiOutlineTrash className="h-3.5 w-3.5" />
+                                            <HiOutlineTrash className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>
@@ -721,7 +745,7 @@ const AdminUsersPage = () => {
             >
                 {selectedUser && (
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3 rounded-xl border border-gray-200/90 bg-gray-50/70 p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                        <div className="flex items-center gap-3 rounded-lg border border-gray-200/90 bg-gray-50/70 p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                                 <HiOutlineIdentification className="h-5 w-5" />
                             </div>
@@ -764,10 +788,10 @@ const AdminUsersPage = () => {
                                                     <img
                                                         src={verificationAssets.idDocument}
                                                         alt="ID Document"
-                                                        className="w-full max-h-48 rounded-xl border border-gray-200/90 object-contain bg-gray-50/50 shadow-2xs group-hover:border-emerald-500 transition-colors cursor-pointer dark:border-white/10 dark:bg-black/20"
+                                                        className="w-full max-h-48 rounded-lg border border-gray-200/90 object-contain bg-gray-50/50 group-hover:border-emerald-500 transition-colors cursor-pointer dark:border-white/10 dark:bg-black/20"
                                                     />
                                                 ) : (
-                                                    <span className="flex min-h-28 items-center justify-center rounded-xl border border-gray-200/90 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+                                                    <span className="flex min-h-28 items-center justify-center rounded-lg border border-gray-200/90 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                                                         Preview unavailable
                                                     </span>
                                                 )}
@@ -791,10 +815,10 @@ const AdminUsersPage = () => {
                                                     <img
                                                         src={verificationAssets.selfiePhoto}
                                                         alt="Selfie Verification"
-                                                        className="w-full max-h-48 rounded-xl border border-gray-200/90 object-contain bg-gray-50/50 shadow-2xs group-hover:border-emerald-500 transition-colors cursor-pointer dark:border-white/10 dark:bg-black/20"
+                                                        className="w-full max-h-48 rounded-lg border border-gray-200/90 object-contain bg-gray-50/50 group-hover:border-emerald-500 transition-colors cursor-pointer dark:border-white/10 dark:bg-black/20"
                                                     />
                                                 ) : (
-                                                    <span className="flex min-h-28 items-center justify-center rounded-xl border border-gray-200/90 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+                                                    <span className="flex min-h-28 items-center justify-center rounded-lg border border-gray-200/90 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                                                         Preview unavailable
                                                     </span>
                                                 )}
@@ -804,7 +828,7 @@ const AdminUsersPage = () => {
                                 </div>
 
                                 {selectedUser.idDocument && selectedUser.selfiePhoto && (
-                                    <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-2.5 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                                    <div className="rounded-lg border border-emerald-200/80 bg-emerald-50/70 p-2.5 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
                                         <p className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
                                             Compare the ID document with the selfie to confirm identity
                                         </p>
@@ -826,7 +850,7 @@ const AdminUsersPage = () => {
                                         : 'Any additional notes...'
                                 }
                                 rows={3}
-                                className="w-full rounded-xl border border-gray-200/90 bg-white p-2.5 text-xs text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white resize-none"
+                                className="w-full rounded-lg border border-gray-200/90 bg-white p-2.5 text-xs text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white resize-none"
                             />
                         </div>
 
@@ -923,13 +947,13 @@ const AdminUsersPage = () => {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.98, y: 6 }}
                                 transition={{ duration: 0.15, ease: 'easeOut' }}
-                                className="relative z-10 flex h-[min(620px,84vh)] max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                                className="relative z-10 flex h-[min(620px,84vh)] max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
                                 onClick={(e) => e.stopPropagation()}
                             >
                             {/* Structured Header */}
                             <div className="flex shrink-0 items-center justify-between border-b border-gray-200/80 bg-gray-50/90 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02]">
                                 <div className="min-w-0 flex items-center gap-2.5 pr-2">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-emerald-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-emerald-400">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-emerald-700 dark:border-white/10 dark:bg-white/5 dark:text-emerald-400">
                                         {documentViewer.docType === 'idDocument' ? (
                                             <HiOutlineIdentification className="h-4 w-4" />
                                         ) : (
@@ -982,7 +1006,7 @@ const AdminUsersPage = () => {
                                                 onClick={() => switchDocumentType('idDocument')}
                                                 className={`h-7 rounded-md px-2.5 sm:px-3 text-xs font-semibold transition-colors cursor-pointer ${
                                                     documentViewer.docType === 'idDocument'
-                                                        ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
+                                                        ? 'bg-white text-gray-950 dark:bg-[#0c1813] dark:text-white'
                                                         : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                 }`}
                                             >
@@ -995,7 +1019,7 @@ const AdminUsersPage = () => {
                                                 onClick={() => switchDocumentType('selfiePhoto')}
                                                 className={`h-7 rounded-md px-2.5 sm:px-3 text-xs font-semibold transition-colors cursor-pointer ${
                                                     documentViewer.docType === 'selfiePhoto'
-                                                        ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
+                                                        ? 'bg-white text-gray-950 dark:bg-[#0c1813] dark:text-white'
                                                         : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                 }`}
                                             >
@@ -1071,7 +1095,7 @@ const AdminUsersPage = () => {
                                 {documentViewer.loading && (
                                     <div className="m-auto flex w-full max-w-md flex-col items-center justify-center gap-3 py-10 text-center" role="status" aria-label="Loading document preview" aria-busy="true">
                                         <span className="sr-only">Loading protected document...</span>
-                                        <div className="aspect-[4/3] w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.04] animate-pulse flex flex-col items-center justify-center gap-2.5 p-6">
+                                        <div className="aspect-[4/3] w-full max-w-sm rounded-lg border border-white/10 bg-white/[0.04] animate-pulse flex flex-col items-center justify-center gap-2.5 p-6">
                                             <HiOutlinePhotograph className="h-8 w-8 text-gray-500 animate-pulse" aria-hidden="true" />
                                             <div className="h-3 w-32 rounded bg-white/10" />
                                             <div className="h-2 w-20 rounded bg-white/10" />
@@ -1130,7 +1154,7 @@ const AdminUsersPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => handleActionFromViewer('approved')}
-                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors cursor-pointer"
+                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-xs font-semibold text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors cursor-pointer"
                                         >
                                             <HiOutlineCheckCircle className="h-4 w-4" />
                                             Approve reporter

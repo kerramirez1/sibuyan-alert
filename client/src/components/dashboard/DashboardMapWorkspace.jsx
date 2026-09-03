@@ -13,7 +13,6 @@ import {
     HiOutlineExclamation,
     HiOutlineFilter,
     HiOutlineLightningBolt,
-    HiOutlineShieldCheck,
     HiOutlineTruck,
     HiOutlineX,
 } from 'react-icons/hi';
@@ -52,7 +51,7 @@ const formatIncidentType = (report) => (
 
 const EmptyState = ({ title, description }) => (
     <div className="px-4 py-10 text-center sm:px-5">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
             <HiOutlineCheckCircle className="h-5 w-5" />
         </div>
         <h3 className="mt-2.5 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">{title}</h3>
@@ -73,7 +72,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                 const locateAvailable = Boolean(coordinates && onLocate && (!canLocate || canLocate(report)));
                 const location = report.address || report.title || report.barangay || report.municipalityName || 'Location unavailable';
                 return (
-                    <article key={report._id || report.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
+                    <article key={report._id || report.id} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
                             <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
                                 {location}
@@ -90,7 +89,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onInspect(report)}
-                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                                 >
                                     View details
                                 </button>
@@ -99,10 +98,10 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/40 cursor-pointer"
                                 >
                                     <span>Locate</span>
-                                    <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </button>
                             )}
                         </div>
@@ -130,7 +129,7 @@ const PanelErrorState = ({ title, description, onRetry }) => (
             <button
                 type="button"
                 onClick={onRetry}
-                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
+                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
             >
                 Retry
             </button>
@@ -140,8 +139,8 @@ const PanelErrorState = ({ title, description, onRetry }) => (
 
 const TrustPointsSummary = ({ value = 0 }) => (
     <div className="p-4 sm:p-5 text-center">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current score</p>
-        <p className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">{value}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Current score</p>
+        <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{value}</p>
         <p className="mt-2.5 border-t border-gray-100/80 pt-2.5 text-xs leading-relaxed text-gray-600 dark:border-white/5 dark:text-gray-300">
             Your current reporter standing is calculated from reports that are presently verified or resolved.
         </p>
@@ -162,7 +161,7 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
                     <button
                         type="button"
                         onClick={onRetry}
-                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
+                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
                     >
                         Retry
                     </button>
@@ -181,7 +180,7 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
                 const config = getMapRiskTypeConfig(zone.type);
                 const coordinates = getMapCoordinates(zone);
                 return (
-                    <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-4.5 transition-colors hover:bg-gray-50/75 dark:hover:bg-white/[0.02]">
+                    <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
                             <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
                             <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 break-words leading-normal">{config.label}</p>
@@ -195,7 +194,7 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
                                 <button
                                     type="button"
                                     onClick={() => onInspect(zone)}
-                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                                 >
                                     View details
                                 </button>
@@ -204,10 +203,10 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/40 cursor-pointer"
                                 >
                                     <span>Locate</span>
-                                    <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                                    <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </button>
                             )}
                         </div>
@@ -227,35 +226,35 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        className={`group relative flex min-w-0 min-h-[96px] cursor-pointer flex-col justify-between p-3.5 sm:p-4 text-left transition-all duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 active:scale-[0.99] ${
+        className={`group relative flex min-w-0 min-h-[96px] cursor-pointer flex-col justify-between p-3.5 sm:p-4 text-left focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 ${
             selected
-                ? 'bg-brand-50/80 shadow-[inset_0_-3px_0_0_theme(colors.brand.700)] dark:bg-emerald-950/45 dark:shadow-[inset_0_-3px_0_0_theme(colors.emerald.400)]'
-                : 'bg-white hover:bg-gray-50/90 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
+                ? 'bg-emerald-50 dark:bg-emerald-950/45 shadow-[inset_0_-3px_0_0_theme(colors.emerald.600)] dark:shadow-[inset_0_-3px_0_0_theme(colors.emerald.400)]'
+                : 'bg-white hover:bg-gray-50 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
         }`}
     >
         <div className="flex w-full items-center justify-between gap-1.5 sm:gap-2">
             <div className="flex min-w-0 items-center gap-1.5 flex-1">
                 {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span className={`text-[10px] xs:text-[11px] sm:text-xs font-semibold uppercase tracking-wider transition-colors break-words leading-tight flex-1 ${
+                <span className={`text-[10px] xs:text-[11px] sm:text-xs font-semibold uppercase tracking-wide break-words leading-tight flex-1 ${
                     selected
-                        ? 'text-brand-900 dark:text-emerald-200 font-bold'
-                        : 'text-gray-700 group-hover:text-gray-950 dark:text-gray-300 dark:group-hover:text-white'
+                        ? 'text-emerald-900 dark:text-emerald-200'
+                        : 'text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white'
                 }`}>
                     {label}
                 </span>
             </div>
             {selected ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 shrink-0">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400 shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                     Active
                 </span>
             ) : (
-                <HiChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-emerald-700 dark:text-gray-500 dark:group-hover:text-emerald-400 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                <HiChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-emerald-700 dark:text-gray-500 dark:group-hover:text-emerald-400 shrink-0" aria-hidden="true" />
             )}
         </div>
 
         <div className="mt-1 flex items-baseline justify-between gap-2 min-w-0">
-            <p className="font-display text-xl sm:text-2xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-none">
+            <p className="text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white tabular-nums leading-none">
                 {value}
             </p>
             <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight line-clamp-2">
@@ -413,7 +412,7 @@ const DashboardMapWorkspace = ({
                 panelTitle: 'Active responses', panelDescription: `${respondingReports.length} assigned ${respondingReports.length === 1 ? 'incident' : 'incidents'}`,
                 records: respondingReports, mapFilter: 'responding', emptyTitle: 'No active responses',
                 emptyDescription: 'No incidents are currently assigned or in active response.',
-                statusDot: 'bg-cyan-500 animate-pulse',
+                statusDot: 'bg-cyan-500',
             },
             {
                 id: 'responder-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
@@ -455,7 +454,7 @@ const DashboardMapWorkspace = ({
                     panelTitle: 'Responding incidents', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} in active response`,
                     records: activeResponseReports, mapFilter: 'responding', emptyTitle: 'No responding incidents',
                     emptyDescription: 'No incidents are currently in active response.',
-                    statusDot: 'bg-cyan-500 animate-pulse',
+                    statusDot: 'bg-cyan-500',
                 },
                 {
                     id: 'admin-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
@@ -490,7 +489,7 @@ const DashboardMapWorkspace = ({
                     mapFilter: 'responding',
                     emptyTitle: 'No active responses',
                     emptyDescription: 'No public incidents are currently in active response.',
-                    statusDot: 'bg-cyan-500 animate-pulse',
+                    statusDot: 'bg-cyan-500',
                 },
                 {
                     id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
@@ -666,28 +665,26 @@ const DashboardMapWorkspace = ({
         <div className="mx-auto w-full max-w-[1500px] space-y-3 sm:space-y-5">
             <header>
                 <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200/90 bg-gray-50/90 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                            {mapExperience.eyebrow}
-                        </span>
-                    </div>
-                    <h1 className="mt-1 font-display text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        {mapExperience.eyebrow}
+                    </p>
+                    <h1 className="mt-0.5 text-lg sm:text-xl font-semibold tracking-tight text-gray-900 dark:text-white break-words">
                         {mapExperience.title}
                     </h1>
-                    <p className="hidden sm:block mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed break-words">
+                    <p className="hidden sm:block mt-0.5 max-w-2xl text-sm text-gray-600 dark:text-gray-300 break-words">
                         {mapExperience.description}
                     </p>
                 </div>
             </header>
 
             {error && (
-                <div role="alert" className="rounded-xl border border-red-200/90 bg-red-50/80 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     {error}
                 </div>
             )}
 
             {highRiskZonesError && !highRiskZonesLoading && (
-                <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3 text-xs sm:text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <div role="alert" className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs sm:text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                     <span>{highRiskZonesError}</span>
                     {onRetryHighRiskZones && (
                         <button
@@ -702,9 +699,9 @@ const DashboardMapWorkspace = ({
             )}
 
             {focusedReport && (
-                <section className="flex flex-col gap-3 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/50 dark:bg-emerald-950/30" aria-label="Focused incident context">
+                <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/50 dark:bg-emerald-950/30" aria-label="Focused incident context">
                     <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Focused incident</p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Focused incident</p>
                         <p className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{focusedReport.address || 'Selected incident'}</p>
                     </div>
                     {onReturnToReport && (
@@ -720,7 +717,7 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
                 <div className="flex flex-col gap-1.5 sm:gap-2 border-b border-gray-200/80 bg-gray-50/70 p-2 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
                     <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
                         <div className="flex items-center gap-2">
@@ -760,16 +757,16 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[38px] sm:min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+                                        className={`inline-flex min-h-[38px] sm:min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer ${
                                             isFiltered
-                                                ? 'border-brand-700 bg-brand-900 text-white dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100'
+                                                ? 'border-emerald-700 bg-emerald-700 text-white dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
                                                 : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
                                         }`}
                                     >
-                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-200 dark:text-emerald-300' : 'text-brand-700 dark:text-emerald-400'}`} aria-hidden="true" />
+                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-emerald-100 dark:text-white' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
                                         {isFiltered && (
-                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-brand-900 px-1 text-[10px] font-extrabold tabular-nums dark:bg-emerald-400 dark:text-gray-950">
+                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-emerald-800 px-1 text-[10px] font-bold tabular-nums dark:bg-white dark:text-emerald-800">
                                                 1
                                             </span>
                                         )}
@@ -781,7 +778,7 @@ const DashboardMapWorkspace = ({
                                             type="button"
                                             onClick={() => setIsMobileFilterOpen(true)}
                                             aria-label={`Current filter: ${activeFilterSummary}. Tap to change.`}
-                                            className={`flex-1 min-w-0 inline-flex min-h-[38px] sm:min-h-[44px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold truncate transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+                                            className={`flex-1 min-w-0 inline-flex min-h-[38px] sm:min-h-[44px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer ${
                                                 isFiltered
                                                     ? 'border-emerald-200/80 bg-white text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-200 hover:bg-white'
                                                     : 'border-gray-200 bg-white/70 text-gray-700 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
@@ -796,7 +793,7 @@ const DashboardMapWorkspace = ({
                                                 type="button"
                                                 onClick={() => setResponderMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
-                                                className="flex min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-300 cursor-pointer"
+                                                className="flex min-h-[38px] min-w-[38px] sm:min-h-[44px] sm:min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/20 dark:bg-transparent dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
                                                 title="Clear filter"
                                             >
                                                 <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
@@ -836,21 +833,21 @@ const DashboardMapWorkspace = ({
                                                 onClick={() => setResponderMapFilter(filter.value)}
                                                 aria-pressed={isSelected}
                                                 aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                        ? 'border-gray-900 bg-gray-900 text-white font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
-                                                        : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
+                                                className={`group relative inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                        ? 'border-emerald-700 bg-emerald-700 text-white font-semibold dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
+                                                        : `border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5${count === 0 ? ' opacity-60' : ''}`
                                                     }`}
                                             >
                                                 {isSelected ? (
-                                                    <HiOutlineCheck className="h-3 w-3 shrink-0 text-brand-200 dark:text-emerald-300" aria-hidden="true" />
+                                                    <HiOutlineCheck className="h-3 w-3 shrink-0 text-emerald-100 dark:text-white" aria-hidden="true" />
                                                 ) : (
                                                     statusCfg?.dot && (
                                                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
                                                     )
                                                 )}
                                                 <span>{filter.label}</span>
-                                                <span className={`rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none transition-colors ${isSelected
-                                                        ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
+                                                <span className={`rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none ${isSelected
+                                                        ? 'bg-black/25 text-white dark:bg-black/25 dark:text-white'
                                                         : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
                                                     }`}>
                                                     {count}
@@ -864,9 +861,9 @@ const DashboardMapWorkspace = ({
                                             type="button"
                                             onClick={() => setResponderMapFilter('all')}
                                             aria-label="Clear active filter and show all"
-                                            className="inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60 shadow-2xs"
+                                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-transparent dark:text-gray-300 dark:hover:bg-white/5"
                                         >
-                                            <HiOutlineX className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
+                                            <HiOutlineX className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden="true" />
                                             <span>Clear filter</span>
                                         </button>
                                     )}
@@ -922,7 +919,7 @@ const DashboardMapWorkspace = ({
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveIncidentId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
                                         >
                                             <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active incidents'}
@@ -972,7 +969,7 @@ const DashboardMapWorkspace = ({
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveRiskZoneId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 transition-colors duration-150 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
                                         >
                                             <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active risk zones'}
@@ -1002,14 +999,14 @@ const DashboardMapWorkspace = ({
 
             <section className="space-y-2" aria-label="Map summary">
                 <div className="flex items-center justify-between px-0.5">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Current overview</h2>
+                    <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">Current overview</h2>
                     <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                         <span className="hidden sm:inline">Select any metric to view matching records</span>
                         <span className="sm:hidden">Tap metric to view records</span>
                         <HiChevronRight className="h-3 w-3" aria-hidden="true" />
                     </span>
                 </div>
-                <div className="grid grid-cols-2 gap-px rounded-xl border border-gray-200/90 bg-gray-200/90 lg:grid-cols-4 dark:border-white/10 dark:bg-white/10 overflow-hidden shadow-2xs">
+                <div className="grid grid-cols-2 gap-px rounded-lg border border-gray-200 bg-gray-200 lg:grid-cols-4 dark:border-white/10 dark:bg-white/10 overflow-hidden">
                     {metrics.map((metric) => (
                         <MetricStripItem
                             key={metric.id}
@@ -1027,38 +1024,29 @@ const DashboardMapWorkspace = ({
             </section>
 
             {!isAuthenticated && (
-                <section className="flex flex-col gap-3 rounded-xl border border-gray-200/90 bg-gradient-to-b from-gray-50/70 to-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:from-white/[0.02] dark:to-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between" aria-label="Public safety and reporter registration">
+                <section className="border-t border-gray-200 py-3.5 sm:py-4 dark:border-white/10 sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Public safety and reporter registration">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                <HiOutlineShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                                Public Safety Portal
-                            </span>
-                        </div>
-                        <h2 className="mt-1 font-display text-xs sm:text-sm font-bold text-gray-950 dark:text-white break-words">
+                        <h2 className="text-[13px] sm:text-sm font-semibold text-gray-900 dark:text-white break-words">
                             Sibuyan Island Emergency Network
                         </h2>
-                        <p className="mt-0.5 text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words">
-                            Incident feeds are public. Verified citizen reporters can submit real-time reports directly to local emergency response units.
+                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400 break-words">
+                            Incident feeds are public. Join as a verified reporter to submit real-time reports.
                         </p>
                     </div>
-                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 pt-1 sm:pt-0 sm:shrink-0">
+                    <div className="mt-2.5 flex flex-row flex-wrap items-center gap-x-3 gap-y-2 sm:mt-0 sm:shrink-0">
                         <Button
                             as={Link}
                             to="/register"
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9 shadow-2xs transition-colors cursor-pointer"
+                            className="inline-flex items-center justify-center rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9"
                         >
-                            <HiOutlineShieldCheck className="h-3.5 w-3.5 text-emerald-200" aria-hidden="true" />
                             <span>Become a Reporter</span>
                         </Button>
-                        <Button
-                            as={Link}
+                        <Link
                             to="/login"
-                            variant="secondary"
-                            className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 dark:border-white/15 dark:bg-transparent dark:text-gray-200 dark:hover:bg-white/5 text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9 transition-colors cursor-pointer"
+                            className="inline-flex min-h-9 items-center text-xs font-medium text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400"
                         >
                             Sign in
-                        </Button>
+                        </Link>
                     </div>
                 </section>
             )}

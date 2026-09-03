@@ -19,7 +19,7 @@ const highRiskZoneSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['landslide_prone', 'accident_prone', 'fire_risk', 'other'],
+            enum: ['landslide_prone', 'accident_prone', 'flood_prone', 'fire_risk', 'other'],
             required: true,
         },
         coordinates: {

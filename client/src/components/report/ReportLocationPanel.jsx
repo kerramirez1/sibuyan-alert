@@ -125,21 +125,21 @@ const ReportLocationPanel = ({
                             Estimated accuracy: {gpsAccuracy ? `${Math.round(gpsAccuracy)} meters` : 'unavailable'}
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                    <div className="flex flex-col gap-2 xs:flex-row xs:flex-wrap xs:items-center sm:flex-nowrap">
                         <button
                             type="button"
                             onClick={retryLocation}
-                            className="relative inline-flex h-8 flex-1 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-amber-800 shadow-2xs transition-colors hover:bg-amber-50 sm:flex-none dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                            className="relative inline-flex h-8 w-full items-center justify-center whitespace-nowrap rounded-lg border border-amber-300 bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-amber-800 shadow-2xs transition-colors hover:bg-amber-50 xs:w-auto xs:flex-1 sm:flex-none dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                         >
                             Adjust
                         </button>
                         <button
                             type="button"
                             onClick={confirmLocation}
-                            className="relative inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-amber-700 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-amber-800 sm:flex-none dark:bg-amber-600 dark:hover:bg-amber-500 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                            className="relative inline-flex h-8 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-amber-700 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-amber-800 xs:w-auto xs:flex-1 sm:flex-none dark:bg-amber-600 dark:hover:bg-amber-500 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                         >
-                            <HiOutlineCheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Confirm location</span>
+                            <HiOutlineCheckCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="whitespace-nowrap">Confirm location</span>
                         </button>
                     </div>
                 </div>

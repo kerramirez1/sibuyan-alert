@@ -5,10 +5,7 @@ import toast from '../utils/appToast';
 import {
     HiCheck,
     HiOutlineArchive,
-    HiOutlineBadgeCheck,
-    HiOutlineCalendar,
     HiOutlineChevronDown,
-    HiOutlineClock,
     HiOutlineFilter,
     HiOutlineLocationMarker,
     HiOutlineLockClosed,
@@ -169,7 +166,7 @@ const ArchiveFilterModal = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="flex max-h-[88vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                className="flex max-h-[88vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-xl sm:rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
             >
                 {/* Mobile Drag Handle */}
                 <div className="flex sm:hidden cursor-grab flex-col items-center justify-center pt-3 pb-1" onClick={onClose} aria-hidden="true">
@@ -178,7 +175,7 @@ const ArchiveFilterModal = ({
 
                 <div className="flex items-center justify-between border-b border-gray-200/80 px-4 py-3.5 sm:px-5 dark:border-white/10">
                     <div>
-                        <h2 id={titleId} className="font-display text-sm sm:text-base font-bold uppercase tracking-wider text-gray-950 dark:text-white">
+                        <h2 id={titleId} className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                             Archive filters
                         </h2>
                         <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
@@ -258,14 +255,14 @@ const ArchiveFilterModal = ({
                     <button
                         type="button"
                         onClick={onClearFilters}
-                        className="text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                        className="text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                     >
                         Clear all
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-10 items-center justify-center rounded-xl bg-emerald-700 px-5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="flex h-10 items-center justify-center rounded-lg bg-emerald-700 px-5 text-[13px] font-medium text-white hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
                         Show {totalResults} {totalResults === 1 ? 'record' : 'records'}
                     </button>
@@ -587,7 +584,7 @@ const AccidentHistoryPage = () => {
                 </div>
 
                 {/* 4-Metric Strip Skeleton */}
-                <div className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0 rounded-xl border border-gray-200/90 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 shadow-2xs overflow-hidden">
+                <div className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 overflow-hidden">
                     {[0, 1, 2, 3].map((i) => (
                         <div key={i} className="p-3 sm:p-4 space-y-2">
                             <Skeleton variant="text" role={null} className="h-3 w-16" />
@@ -620,14 +617,14 @@ const AccidentHistoryPage = () => {
             {/* Header: Clean Public Archive Title */}
             <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <span className="text-xs font-bold tracking-wider text-emerald-700 dark:text-emerald-400 uppercase">
+                    <span className="text-xs font-semibold tracking-wide text-emerald-700 dark:text-emerald-400 uppercase">
                         Public Archive
                     </span>
 
-                    <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <h1 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                         Accident history
                     </h1>
-                    <p className="mt-0.5 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                         Resolved public-safety incidents across Sibuyan Island.
                     </p>
                 </div>
@@ -640,11 +637,8 @@ const AccidentHistoryPage = () => {
             >
                 {/* 1. Total Resolved */}
                 <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <HiOutlineBadgeCheck className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
-                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total resolved</h2>
-                    </div>
-                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total resolved</h2>
+                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.total === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                         {stats.total}
                     </p>
                     <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All recorded incidents</p>
@@ -652,11 +646,8 @@ const AccidentHistoryPage = () => {
 
                 {/* 2. Last 7 Days */}
                 <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <HiOutlineClock className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
-                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 7 days</h2>
-                    </div>
-                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Last 7 days</h2>
+                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.last7 === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                         {stats.last7}
                     </p>
                     <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Recently closed</p>
@@ -664,11 +655,8 @@ const AccidentHistoryPage = () => {
 
                 {/* 3. Last 30 Days */}
                 <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <HiOutlineCalendar className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />
-                        <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Last 30 days</h2>
-                    </div>
-                    <p className="mt-1 font-display font-bold text-2xl sm:text-3xl text-gray-950 dark:text-white tabular-nums tracking-tight">
+                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Last 30 days</h2>
+                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.last30 === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                         {stats.last30}
                     </p>
                     <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Monthly activity</p>
@@ -686,16 +674,16 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left transition-colors relative rounded-lg ${
+                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left relative rounded-lg ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data'
                             ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5'
                             : ''
-                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-inset ring-emerald-500/20' : ''}`}
+                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-inset ring-emerald-600/30' : ''}`}
                 >
                     <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                             <HiOutlineLocationMarker className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-                            <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
+                            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
                         </div>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
                             <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
@@ -703,7 +691,7 @@ const AccidentHistoryPage = () => {
                             </span>
                         )}
                     </div>
-                    <p className="mt-1 font-display font-bold text-lg sm:text-xl text-gray-950 dark:text-white truncate tracking-tight">
+                    <p className="mt-1 text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate tracking-tight">
                         {topBarangayInfo.name}
                     </p>
                     <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{topBarangayInfo.helper}</p>
@@ -711,9 +699,9 @@ const AccidentHistoryPage = () => {
             </section>
 
             {/* Resolved Incident Records Ledger */}
-            <section className="relative z-10 rounded-2xl border border-gray-200/90 bg-white shadow-xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
+            <section className="relative z-10 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
                 {/* Search-First Archive Toolbar */}
-                <div className="relative z-20 rounded-t-2xl border-b border-gray-200/80 bg-gray-50/70 p-3 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="relative z-20 rounded-t-lg border-b border-gray-200 bg-gray-50/70 p-3 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                         {/* Primary Search Input */}
                         <label className="relative block flex-1 min-w-[200px]">
@@ -724,7 +712,7 @@ const AccidentHistoryPage = () => {
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder={isMobile ? 'Search archive or barangay…' : 'Search location, barangay, or incident category…'}
-                                className="h-9 w-full rounded-xl border border-gray-200/90 bg-white py-1.5 pl-9 pr-8 text-xs font-medium text-gray-900 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                             />
                             {searchQuery && (
                                 <button
@@ -744,9 +732,9 @@ const AccidentHistoryPage = () => {
                             <button
                                 type="button"
                                 onClick={() => setFilterModalOpen(true)}
-                                className={`flex h-9 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
+                                className={`flex h-9 items-center justify-between gap-2 rounded-lg border px-3 text-[13px] font-medium cursor-pointer ${
                                     activeFilterCount > 0
-                                        ? 'border-emerald-600/90 bg-emerald-50 text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300'
                                         : 'bg-transparent border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
                                 }`}
                             >
@@ -768,7 +756,7 @@ const AccidentHistoryPage = () => {
                                     id="history-sort-select"
                                     value={sortOrder}
                                     onChange={(e) => setSortOrder(e.target.value)}
-                                    className="h-9 appearance-none rounded-xl border border-gray-200/90 bg-white py-1 pl-3 pr-8 text-xs font-semibold text-gray-700 shadow-2xs outline-none transition hover:bg-gray-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
+                                    className="h-9 appearance-none rounded-lg border border-gray-200 bg-white py-1 pl-3 pr-8 text-[13px] font-medium text-gray-700 outline-none hover:bg-gray-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
                                 >
                                     {SORT_OPTIONS.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -812,12 +800,12 @@ const AccidentHistoryPage = () => {
                     {/* Results Counter & Removable Filter Chips */}
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-2.5 dark:border-white/10">
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Showing <span className="text-gray-900 dark:text-white font-bold tabular-nums">{filteredReports.length}</span> of {reports.length} records
+                            Showing <span className="text-gray-900 dark:text-white font-semibold tabular-nums">{filteredReports.length}</span> of {reports.length} records
                         </p>
 
                         <div className="flex flex-wrap items-center gap-1.5">
                             {dateFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     <span>Date: {DATE_OPTIONS.find((o) => o.value === dateFilter)?.label || dateFilter}</span>
                                     <button type="button" onClick={() => setDateFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove date filter">
                                         <HiOutlineX className="h-3 w-3" />
@@ -826,7 +814,7 @@ const AccidentHistoryPage = () => {
                             )}
 
                             {severityFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     <span>Severity: {SEVERITY_OPTIONS.find((o) => o.value === severityFilter)?.label || severityFilter}</span>
                                     <button type="button" onClick={() => setSeverityFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove severity filter">
                                         <HiOutlineX className="h-3 w-3" />
@@ -835,7 +823,7 @@ const AccidentHistoryPage = () => {
                             )}
 
                             {municipalityFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     <span>Municipality: {municipalityFilter}</span>
                                     <button type="button" onClick={() => handleMunicipalityChange('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove municipality filter">
                                         <HiOutlineX className="h-3 w-3" />
@@ -844,7 +832,7 @@ const AccidentHistoryPage = () => {
                             )}
 
                             {barangayFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     <span>Barangay: {barangayFilter}</span>
                                     <button type="button" onClick={() => setBarangayFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove barangay filter">
                                         <HiOutlineX className="h-3 w-3" />
@@ -856,7 +844,7 @@ const AccidentHistoryPage = () => {
                                 <button
                                     type="button"
                                     onClick={clearFilters}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer ml-1"
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer ml-1"
                                 >
                                     <HiOutlineX className="w-3.5 h-3.5" />
                                     <span>Clear filters</span>
@@ -875,17 +863,17 @@ const AccidentHistoryPage = () => {
                         ))}
                     </div>
                 ) : filteredReports.length === 0 ? (
-                    <div className="rounded-b-2xl px-6 py-14 text-center">
-                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                    <div className="rounded-b-lg px-6 py-14 text-center">
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
                             <HiOutlineArchive className="h-5 w-5" />
                         </div>
-                        <h2 className="mt-3 font-display text-sm font-bold text-gray-950 dark:text-white">No accident records found</h2>
+                        <h2 className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">No accident records found</h2>
                         <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try adjusting the selected filters.</p>
                         {hasFilters && (
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className="mt-4 inline-flex h-9 items-center justify-center rounded-xl bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-[13px] font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 Clear filters
                             </button>
@@ -902,7 +890,7 @@ const AccidentHistoryPage = () => {
                             <span className="sr-only">Toggle details</span>
                         </div>
 
-                        <div className="rounded-b-2xl overflow-hidden divide-y divide-gray-100 dark:divide-white/5">
+                        <div className="rounded-b-lg overflow-hidden divide-y divide-gray-100 dark:divide-white/5">
                             {filteredReports.map((report) => {
                                 const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
                                 const isExpanded = Boolean(expandedId && String(expandedId) === String(report._id));
@@ -921,9 +909,9 @@ const AccidentHistoryPage = () => {
                                             }
                                         }}
                                         style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #059669)' } : undefined}
-                                        className={`transition-colors duration-150 border-l-2 sm:border-l-[3px] scroll-mt-4 sm:scroll-mt-6 ${isExpanded
-                                            ? 'border-l-emerald-600 bg-emerald-50/15 shadow-2xs dark:border-l-emerald-500 dark:bg-[#07130e]/80 border-b border-gray-200/90 dark:border-white/10'
-                                            : 'border-l-transparent bg-white hover:bg-gray-50/75 dark:bg-transparent dark:hover:bg-white/[0.02]'
+                                        className={`border-l-2 sm:border-l-2 scroll-mt-4 sm:scroll-mt-6 ${isExpanded
+                                            ? 'border-l-emerald-600 bg-emerald-50/15 dark:border-l-emerald-500 dark:bg-[#07130e]/80 border-b border-gray-200 dark:border-white/10'
+                                            : 'border-l-transparent bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                         }`}
                                     >
                                         <button
@@ -931,21 +919,21 @@ const AccidentHistoryPage = () => {
                                             onClick={() => setExpandedId(isExpanded ? null : report._id)}
                                             aria-expanded={isExpanded}
                                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
-                                            className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
+                                            className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
                                         >
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400" aria-hidden="true">
                                                         <HiCheck className="h-2.5 w-2.5" />
                                                     </span>
-                                                    <p className="line-clamp-1 font-display text-sm font-bold text-gray-950 dark:text-white">
+                                                    <p className="line-clamp-1 text-sm font-semibold text-gray-900 dark:text-white">
                                                         {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
                                                     </p>
                                                 </div>
-                                                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 pl-5.5">
+                                                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 pl-5">
                                                     {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
                                                 </p>
-                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden pl-5.5">Incident {formatDate(incidentDate)}</p>
+                                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden pl-5">Incident {formatDate(incidentDate)}</p>
                                             </div>
 
                                             <div className="hidden md:flex md:items-center text-xs text-gray-700 dark:text-gray-300 font-semibold">
@@ -958,15 +946,14 @@ const AccidentHistoryPage = () => {
                                             </div>
 
                                             <div className="flex items-center justify-start">
-                                                <span className={`inline-flex h-5.5 sm:h-6 w-full max-w-[74px] sm:max-w-[88px] md:max-w-[96px] items-center gap-1 sm:gap-1.5 rounded-md border px-1 sm:px-2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold tracking-wider shadow-2xs ${severity.badge}`}>
+                                                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
                                                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
-                                                    <span className="hidden md:inline truncate">{severity.label}</span>
-                                                    <span className="md:hidden truncate">{severity.shortLabel || severity.label}</span>
+                                                    <span className="truncate">{severity.label}</span>
                                                 </span>
                                             </div>
 
                                             <div className="flex items-center justify-center">
-                                                <HiOutlineChevronDown className={`h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-emerald-700 dark:text-emerald-400' : ''}`} />
+                                                <HiOutlineChevronDown className={`h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 ${isExpanded ? 'rotate-180 text-emerald-700 dark:text-emerald-400' : ''}`} />
                                             </div>
                                         </button>
 

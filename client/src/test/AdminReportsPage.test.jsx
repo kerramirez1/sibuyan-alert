@@ -439,7 +439,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(resolvedStatus).toHaveClass('text-gray-600');
         expect(resolvedStatus).not.toHaveClass('bg-green-50', 'text-green-700');
         expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('border-gray-300', 'bg-white', 'text-gray-700');
-        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('min-h-11', 'text-gray-700');
+        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('min-h-10', 'text-gray-600');
         expect(within(resolvedRow).getByRole('button', { name: 'Inspect report' })).toBeInTheDocument();
         expect(within(resolvedRow).queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
@@ -481,7 +481,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(panelBody).toHaveClass('min-h-0', 'flex-1', 'overflow-x-hidden', 'overflow-y-auto');
         expect(panelBody.scrollTop).toBe(0);
         expect(sourceRow).toHaveAttribute('data-selected', 'true');
-        expect(sourceRow).toHaveClass('border-gray-400', 'bg-gray-50');
+        expect(sourceRow).toHaveClass('bg-gray-50', 'border-l-emerald-700');
         expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-expanded', 'true');
         expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-controls', 'responder-incident-inspector');
         const openFullMap = within(inspector).getByRole('button', { name: 'Open full map' });
