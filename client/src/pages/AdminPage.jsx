@@ -3,7 +3,7 @@ import { Link } from '../router';
 import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { formatDistanceToNow } from 'date-fns';
+import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
 import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineShieldExclamation,
@@ -524,7 +524,7 @@ const AdminPage = () => {
                                                 {report.address || 'Location pending'}
                                             </p>
                                             <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
-                                                by {report.reporter?.name || 'Unknown'} · {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
+                                                by {report.reporter?.name || 'Unknown'}{formatIncidentRelativeTime(report.createdAt) ? ` · ${formatIncidentRelativeTime(report.createdAt)}` : ''}
                                             </p>
                                         </div>
                                         <div className="flex justify-end">

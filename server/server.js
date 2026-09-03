@@ -376,6 +376,14 @@ export const startServer = async () => {
 };
 
 if (process.env.NODE_ENV !== 'test') {
+    process.on('unhandledRejection', (reason) => {
+        console.error('❌ Unhandled Promise Rejection:', reason);
+    });
+
+    process.on('uncaughtException', (error) => {
+        console.error('❌ Uncaught Exception:', error);
+    });
+
     startServer().catch((error) => {
         console.error(`Failed to start server: ${error.message}`);
         process.exit(1);

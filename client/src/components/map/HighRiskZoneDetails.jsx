@@ -36,17 +36,25 @@ const SEVERITY_BADGES = {
 
 const extractCoordinates = (item) => {
     if (!item) return null;
-    if (typeof item.lat === 'number' && typeof item.lng === 'number') {
-        return { lat: item.lat, lng: item.lng };
+    let lat;
+    let lng;
+
+    if (item.coordinates && typeof item.coordinates.lat !== 'undefined' && typeof item.coordinates.lng !== 'undefined') {
+        lat = Number(item.coordinates.lat);
+        lng = Number(item.coordinates.lng);
+    } else if (typeof item.lat !== 'undefined' && typeof item.lng !== 'undefined') {
+        lat = Number(item.lat);
+        lng = Number(item.lng);
+    } else if (Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
+        lat = Number(item.coordinates[1]);
+        lng = Number(item.coordinates[0]);
+    } else if (item.location?.coordinates && Array.isArray(item.location.coordinates) && item.location.coordinates.length >= 2) {
+        lat = Number(item.location.coordinates[1]);
+        lng = Number(item.location.coordinates[0]);
     }
-    if (item.coordinates && typeof item.coordinates.lat === 'number' && typeof item.coordinates.lng === 'number') {
-        return { lat: item.coordinates.lat, lng: item.coordinates.lng };
-    }
-    if (Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
-        return { lat: Number(item.coordinates[1]), lng: Number(item.coordinates[0]) };
-    }
-    if (item.location?.coordinates && Array.isArray(item.location.coordinates)) {
-        return { lat: Number(item.location.coordinates[1]), lng: Number(item.location.coordinates[0]) };
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
     }
     return null;
 };
@@ -232,7 +240,7 @@ const HighRiskZoneDetails = ({
                     </dd>
                 </div>
 
-                {coordinates && (
+                {coordinates && Number.isFinite(coordinates.lat) && Number.isFinite(coordinates.lng) && (
                     <div className="col-span-2 min-w-0">
                         <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                             GPS location

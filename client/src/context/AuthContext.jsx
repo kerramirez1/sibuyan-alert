@@ -37,8 +37,12 @@ export const AuthProvider = ({ children }) => {
     // Restore the server-managed HttpOnly session on mount.
     useEffect(() => {
         const initAuth = async () => {
-            // Remove credentials left by the previous localStorage-based auth flow.
-            localStorage.removeItem('token');
+            // Remove credentials left by the previous localStorage-based auth flow if accessible.
+            try {
+                localStorage.removeItem('token');
+            } catch {
+                // Storage access restricted (e.g. strict private browsing or sandboxed context)
+            }
             try {
                 const response = await api.get('/auth/me', { _skipAuthRefresh: true });
                 setUser(response.data.data);

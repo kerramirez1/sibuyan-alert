@@ -20,6 +20,12 @@ const formatDate = (value) => {
     return Number.isNaN(date.getTime()) ? 'Not available' : format(date, 'MMM d, yyyy, h:mm a');
 };
 
+const formatRelativeTime = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true });
+};
+
 const toPositiveNumber = (value) => {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : 0;
@@ -181,7 +187,7 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                                     <span className="font-semibold text-gray-900">{update.author?.name || 'Reporter'}</span>
                                     <span className="rounded-full bg-gray-100 px-2 py-0.5 capitalize">{String(update.tag || 'general').replaceAll('_', ' ')}</span>
-                                    {update.createdAt && <span>{formatDistanceToNow(new Date(update.createdAt), { addSuffix: true })}</span>}
+                                    {formatRelativeTime(update.createdAt) && <span>{formatRelativeTime(update.createdAt)}</span>}
                                 </div>
                                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700">{update.message}</p>
                             </li>

@@ -6,10 +6,10 @@ export function formatIncidentTime(dateValue, pattern = 'MMM d, yyyy, h:mm a') {
     return Number.isNaN(date.getTime()) ? 'Not available' : format(date, pattern);
 }
 
-export function formatIncidentRelativeTime(dateValue) {
-    if (!dateValue) return '';
+export function formatIncidentRelativeTime(dateValue, fallback = '') {
+    if (!dateValue) return fallback;
     const date = new Date(dateValue);
-    return Number.isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true });
+    return Number.isNaN(date.getTime()) ? fallback : formatDistanceToNow(date, { addSuffix: true });
 }
 
 export default { formatIncidentTime, formatIncidentRelativeTime };

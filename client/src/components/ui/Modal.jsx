@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineX } from 'react-icons/hi';
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 const Modal = ({
     isOpen,
@@ -64,7 +65,7 @@ const Modal = ({
         };
     }, [isOpen]);
 
-    return (
+    const modalElement = (
         <AnimatePresence>
             {isOpen && (
                 <div className="modal-overlay">
@@ -122,6 +123,8 @@ const Modal = ({
             )}
         </AnimatePresence>
     );
+
+    return typeof document !== 'undefined' ? createPortal(modalElement, document.body) : modalElement;
 };
 
 export default Modal;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI, filesAPI } from '../services/api';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
@@ -6,7 +7,7 @@ import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import { Skeleton, SkeletonCircle, SkeletonButton, SkeletonRow } from '../components/ui/Skeleton';
 import toast from '../utils/appToast';
-import { formatDistanceToNow } from 'date-fns';
+import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
 import {
     HiOutlineSearch,
     HiOutlineCheckCircle,
@@ -20,6 +21,8 @@ import {
     HiOutlineX,
     HiOutlineZoomIn,
     HiOutlineZoomOut,
+    HiOutlineRefresh,
+    HiOutlineShieldCheck,
 } from 'react-icons/hi';
 
 const ROLE_BADGES = {
@@ -65,6 +68,7 @@ const AdminUsersPage = () => {
         error: '',
     });
     const [zoomLevel, setZoomLevel] = useState(1);
+    const [rotationDegree, setRotationDegree] = useState(0);
     const activeDocBlobRef = useRef(null);
     const lastFocusedTriggerRef = useRef(null);
 
@@ -121,18 +125,6 @@ const AdminUsersPage = () => {
             blobUrls.forEach((url) => URL.revokeObjectURL(url));
         };
     }, [verifyModalOpen, selectedUser]);
-
-    // Handle Escape key and focus return for document viewer
-    useEffect(() => {
-        if (!documentViewer.isOpen) return undefined;
-        const handleKeyDown = (event) => {
-            if (event.key === 'Escape') {
-                closeDocumentPreview();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [documentViewer.isOpen]);
 
     // Cleanup active document blob URL on unmount
     useEffect(() => {
@@ -204,6 +196,7 @@ const AdminUsersPage = () => {
         }
 
         setZoomLevel(1);
+        setRotationDegree(0);
         setDocumentViewer({
             isOpen: true,
             user: targetUser,
@@ -248,6 +241,7 @@ const AdminUsersPage = () => {
             activeDocBlobRef.current = null;
         }
         setZoomLevel(1);
+        setRotationDegree(0);
         setDocumentViewer((prev) => ({
             ...prev,
             isOpen: false,
@@ -263,8 +257,45 @@ const AdminUsersPage = () => {
     const switchDocumentType = useCallback((newType) => {
         if (!documentViewer.user || documentViewer.docType === newType) return;
         setZoomLevel(1);
+        setRotationDegree(0);
         openDocumentPreview(documentViewer.user, newType);
     }, [documentViewer.user, documentViewer.docType, openDocumentPreview]);
+
+    const handleActionFromViewer = useCallback((status) => {
+        const targetUser = documentViewer.user;
+        closeDocumentPreview();
+        openVerifyModal(targetUser, status);
+    }, [closeDocumentPreview, openVerifyModal]);
+
+    // Keyboard navigation & tools for document viewer
+    useEffect(() => {
+        if (!documentViewer.isOpen) return undefined;
+
+        const handleKeyDown = (event) => {
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)) return;
+
+            if (event.key === 'Escape') {
+                closeDocumentPreview();
+            } else if (event.key === 'r' || event.key === 'R') {
+                setRotationDegree((deg) => (deg + 90) % 360);
+            } else if (event.key === '+' || event.key === '=') {
+                setZoomLevel((z) => Math.min(z + 0.25, 2.5));
+            } else if (event.key === '-' || event.key === '_') {
+                setZoomLevel((z) => Math.max(z - 0.25, 0.75));
+            } else if (event.key === '0') {
+                setZoomLevel(1);
+                setRotationDegree(0);
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                if (documentViewer.user?.idDocument && documentViewer.user?.selfiePhoto) {
+                    const nextType = documentViewer.docType === 'idDocument' ? 'selfiePhoto' : 'idDocument';
+                    switchDocumentType(nextType);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [documentViewer.isOpen, documentViewer.docType, documentViewer.user, closeDocumentPreview, switchDocumentType]);
 
     const handleDelete = async () => {
         if (!userToDelete) return;
@@ -523,10 +554,10 @@ const AdminUsersPage = () => {
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                            {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
+                                            {formatIncidentRelativeTime(user.createdAt, 'Unknown date')}
                                         </td>
                                         <td className="px-3 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                            {user.lastLogin ? formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true }) : 'Never'}
+                                            {user.lastLogin ? formatIncidentRelativeTime(user.lastLogin, 'Never') : 'Never'}
                                         </td>
                                         <td className="py-3 pl-3 pr-4 sm:pr-5 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-1.5">
@@ -640,7 +671,7 @@ const AdminUsersPage = () => {
                                             </button>
                                         ) : null}
                                         {!user.idDocument && !user.selfiePhoto && (
-                                            <span>Joined {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}</span>
+                                            <span>Joined {formatIncidentRelativeTime(user.createdAt, 'recently')}</span>
                                         )}
                                     </div>
 
@@ -867,56 +898,89 @@ const AdminUsersPage = () => {
                 </div>
             </Modal>
 
-            {/* In-App Document Preview Lightbox */}
-            <AnimatePresence>
-                {documentViewer.isOpen && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="document-viewer-title"
-                    >
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={closeDocumentPreview}
-                            className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs transition-opacity"
-                        />
-
-                        {/* Bounded Responsive Modal Card */}
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="relative z-10 flex h-[min(640px,88vh)] max-h-[88vh] w-full max-w-[860px] flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
-                            onClick={(e) => e.stopPropagation()}
+            {/* In-App Document Preview Lightbox (Portaled to document.body to escape MainLayout stacking context) */}
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {documentViewer.isOpen && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="document-viewer-title"
                         >
-                            {/* Compact Fixed Header */}
-                            <div className="flex shrink-0 items-center justify-between border-b border-gray-200/80 bg-gray-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5">
-                                <div className="min-w-0 pr-2">
-                                    <h3 id="document-viewer-title" className="text-sm font-bold text-gray-950 dark:text-white truncate">
-                                        {documentViewer.docType === 'idDocument' ? 'Government ID' : 'Verification Selfie'}
-                                    </h3>
-                                    {documentViewer.user?.name && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                            {documentViewer.user.name}
-                                        </p>
-                                    )}
+                            {/* Backdrop */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={closeDocumentPreview}
+                                className="fixed inset-0 bg-gray-950/80 backdrop-blur-xs transition-opacity"
+                            />
+
+                            {/* Bounded Responsive Modal Card: perfectly centered with safe vertical boundaries */}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.98, y: 6 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.98, y: 6 }}
+                                transition={{ duration: 0.15, ease: 'easeOut' }}
+                                className="relative z-10 flex h-[min(620px,84vh)] max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                            {/* Structured Header */}
+                            <div className="flex shrink-0 items-center justify-between border-b border-gray-200/80 bg-gray-50/90 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="min-w-0 flex items-center gap-2.5 pr-2">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-emerald-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-emerald-400">
+                                        {documentViewer.docType === 'idDocument' ? (
+                                            <HiOutlineIdentification className="h-4 w-4" />
+                                        ) : (
+                                            <HiOutlineCamera className="h-4 w-4" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h3 id="document-viewer-title" className="text-xs sm:text-sm font-bold text-gray-950 dark:text-white truncate">
+                                                {documentViewer.docType === 'idDocument' ? 'Government ID' : 'Verification Selfie'}
+                                            </h3>
+                                            {documentViewer.user?.verificationStatus && (
+                                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                                    documentViewer.user.verificationStatus === 'approved'
+                                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                        : documentViewer.user.verificationStatus === 'rejected'
+                                                        ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                                                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                                }`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${
+                                                        documentViewer.user.verificationStatus === 'approved' ? 'bg-emerald-500' :
+                                                        documentViewer.user.verificationStatus === 'rejected' ? 'bg-red-500' : 'bg-amber-500'
+                                                    }`} />
+                                                    {documentViewer.user.verificationStatus}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {documentViewer.user?.name && (
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                                {documentViewer.user.name}
+                                                {documentViewer.user?.role && (
+                                                    <span className="capitalize"> · {documentViewer.user.role.replace('_', ' ')}</span>
+                                                )}
+                                                {documentViewer.user?.assignedMunicipality && (
+                                                    <span> · {documentViewer.user.assignedMunicipality}</span>
+                                                )}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                     {/* Segmented Document Switcher */}
                                     {documentViewer.user?.idDocument && documentViewer.user?.selfiePhoto && (
-                                        <div className="inline-flex rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5" role="tablist" aria-label="Document switcher">
+                                        <div className="inline-flex rounded-lg border border-gray-200/90 bg-gray-100/90 p-0.5 dark:border-white/10 dark:bg-white/5" role="tablist" aria-label="Document switcher">
                                             <button
                                                 type="button"
                                                 role="tab"
                                                 aria-selected={documentViewer.docType === 'idDocument'}
                                                 onClick={() => switchDocumentType('idDocument')}
-                                                className={`h-7 rounded-lg px-2.5 sm:px-3 text-xs font-semibold transition-colors ${
+                                                className={`h-7 rounded-md px-2.5 sm:px-3 text-xs font-semibold transition-colors cursor-pointer ${
                                                     documentViewer.docType === 'idDocument'
                                                         ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
                                                         : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
@@ -929,7 +993,7 @@ const AdminUsersPage = () => {
                                                 role="tab"
                                                 aria-selected={documentViewer.docType === 'selfiePhoto'}
                                                 onClick={() => switchDocumentType('selfiePhoto')}
-                                                className={`h-7 rounded-lg px-2.5 sm:px-3 text-xs font-semibold transition-colors ${
+                                                className={`h-7 rounded-md px-2.5 sm:px-3 text-xs font-semibold transition-colors cursor-pointer ${
                                                     documentViewer.docType === 'selfiePhoto'
                                                         ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
                                                         : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
@@ -940,46 +1004,58 @@ const AdminUsersPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Zoom Controls */}
+                                    {/* View Tools: Rotate & Zoom */}
                                     {!documentViewer.loading && !documentViewer.error && documentViewer.src && (
-                                        <div className="hidden sm:inline-flex items-center gap-0.5 rounded-xl border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5">
+                                        <>
                                             <button
                                                 type="button"
-                                                onClick={() => setZoomLevel((z) => Math.max(z - 0.25, 0.75))}
-                                                disabled={zoomLevel <= 0.75}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white disabled:opacity-40"
-                                                aria-label="Zoom out"
-                                                title="Zoom out"
+                                                onClick={() => setRotationDegree((r) => (r + 90) % 360)}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                                title="Rotate 90° (R)"
+                                                aria-label="Rotate document 90 degrees"
                                             >
-                                                <HiOutlineZoomOut className="h-4 w-4" />
+                                                <HiOutlineRefresh className="h-3.5 w-3.5" />
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setZoomLevel(1)}
-                                                className="h-7 px-1 text-[11px] font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white"
-                                                aria-label="Reset zoom"
-                                                title="Reset zoom"
-                                            >
-                                                {Math.round(zoomLevel * 100)}%
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setZoomLevel((z) => Math.min(z + 0.25, 2.5))}
-                                                disabled={zoomLevel >= 2.5}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white disabled:opacity-40"
-                                                aria-label="Zoom in"
-                                                title="Zoom in"
-                                            >
-                                                <HiOutlineZoomIn className="h-4 w-4" />
-                                            </button>
-                                        </div>
+
+                                            <div className="hidden sm:inline-flex items-center gap-0.5 rounded-lg border border-gray-200/90 bg-gray-100/90 p-0.5 dark:border-white/10 dark:bg-white/5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setZoomLevel((z) => Math.max(z - 0.25, 0.75))}
+                                                    disabled={zoomLevel <= 0.75}
+                                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+                                                    aria-label="Zoom out"
+                                                    title="Zoom out (-)"
+                                                >
+                                                    <HiOutlineZoomOut className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setZoomLevel(1); setRotationDegree(0); }}
+                                                    className="h-6 px-1.5 text-[10px] font-mono font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white tabular-nums cursor-pointer"
+                                                    aria-label="Reset zoom"
+                                                    title="Reset view (0)"
+                                                >
+                                                    {Math.round(zoomLevel * 100)}%
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setZoomLevel((z) => Math.min(z + 0.25, 2.5))}
+                                                    disabled={zoomLevel >= 2.5}
+                                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+                                                    aria-label="Zoom in"
+                                                    title="Zoom in (+)"
+                                                >
+                                                    <HiOutlineZoomIn className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
 
                                     {/* Close Button */}
                                     <button
                                         type="button"
                                         onClick={closeDocumentPreview}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200 transition-colors"
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200 transition-colors cursor-pointer"
                                         aria-label="Close document preview"
                                     >
                                         <HiOutlineX className="h-5 w-5" aria-hidden="true" />
@@ -987,29 +1063,29 @@ const AdminUsersPage = () => {
                                 </div>
                             </div>
 
-                            {/* Body / Dedicated Image Canvas (Perfect Horizontal & Vertical Centering) */}
+                            {/* Dedicated High-Contrast Inspection Canvas */}
                             <div
-                                className="relative flex flex-1 min-h-0 w-full flex-col overflow-auto bg-gray-100/60 p-4 sm:p-6 dark:bg-black/50"
+                                className="relative flex flex-1 min-h-0 w-full flex-col overflow-auto bg-[#090e11] p-3 sm:p-6"
                                 data-testid="document-preview-stage"
                             >
                                 {documentViewer.loading && (
                                     <div className="m-auto flex w-full max-w-md flex-col items-center justify-center gap-3 py-10 text-center" role="status" aria-label="Loading document preview" aria-busy="true">
                                         <span className="sr-only">Loading protected document...</span>
-                                        <div className="aspect-[4/3] w-full max-w-sm rounded-xl border border-gray-200/80 bg-gray-200/70 dark:border-white/10 dark:bg-white/[0.06] animate-pulse flex flex-col items-center justify-center gap-2 p-6">
-                                            <HiOutlinePhotograph className="h-8 w-8 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                                            <div className="h-3 w-32 rounded bg-gray-300 dark:bg-white/10" />
-                                            <div className="h-2 w-20 rounded bg-gray-300/80 dark:bg-white/10" />
+                                        <div className="aspect-[4/3] w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.04] animate-pulse flex flex-col items-center justify-center gap-2.5 p-6">
+                                            <HiOutlinePhotograph className="h-8 w-8 text-gray-500 animate-pulse" aria-hidden="true" />
+                                            <div className="h-3 w-32 rounded bg-white/10" />
+                                            <div className="h-2 w-20 rounded bg-white/10" />
                                         </div>
                                     </div>
                                 )}
 
                                 {documentViewer.error && (
                                     <div className="m-auto flex flex-col items-center justify-center gap-2.5 py-12 text-center">
-                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">{documentViewer.error}</p>
+                                        <p className="text-xs font-semibold text-red-400">{documentViewer.error}</p>
                                         <button
                                             type="button"
                                             onClick={() => openDocumentPreview(documentViewer.user, documentViewer.docType)}
-                                            className="inline-flex items-center gap-1 rounded-xl bg-white px-3.5 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs border border-gray-200/90 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
+                                            className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/20 transition-colors cursor-pointer"
                                         >
                                             Retry
                                         </button>
@@ -1021,23 +1097,53 @@ const AdminUsersPage = () => {
                                         <div
                                             className="flex items-center justify-center transition-transform duration-150 ease-out"
                                             style={{
-                                                transform: `scale(${zoomLevel})`,
+                                                transform: `scale(${zoomLevel}) rotate(${rotationDegree}deg)`,
                                                 transformOrigin: 'center center',
                                             }}
                                         >
                                             <img
                                                 src={documentViewer.src}
                                                 alt={`${documentViewer.docType === 'idDocument' ? 'Government ID' : 'Verification Selfie'} of ${documentViewer.user?.name || 'user'}`}
-                                                className="h-auto w-auto max-h-[calc(min(640px,88vh)-110px)] max-w-full rounded-xl object-contain shadow-md"
+                                                className="h-auto w-auto max-h-[calc(min(680px,88vh)-130px)] max-w-full rounded-lg object-contain shadow-2xl border border-white/10"
                                             />
                                         </div>
                                     </div>
                                 )}
                             </div>
+
+                            {/* Integrated Decision Bar for Pending Verification */}
+                            {documentViewer.user?.role === 'reporter' && documentViewer.user?.verificationStatus === 'pending' && (
+                                <div className="flex shrink-0 items-center justify-between border-t border-gray-200/80 bg-gray-50/95 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.03] sm:px-5">
+                                    <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <HiOutlineShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                        <span>Action required: review and verify this reporter</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleActionFromViewer('rejected')}
+                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg border border-red-200/90 bg-red-50/80 px-3 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 transition-colors cursor-pointer"
+                                        >
+                                            <HiOutlineXCircle className="h-4 w-4" />
+                                            Reject
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleActionFromViewer('approved')}
+                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors cursor-pointer"
+                                        >
+                                            <HiOutlineCheckCircle className="h-4 w-4" />
+                                            Approve reporter
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence>,
+            document.body
+        )}
         </div>
     );
 };
