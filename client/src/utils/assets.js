@@ -10,9 +10,16 @@ export const toApiFilePath = (value) => {
     if (/^[0-9a-fA-F]{24}$/.test(trimmed)) {
         return `/files/${trimmed}`;
     }
-    const path = /^https?:\/\//i.test(trimmed)
-        ? new URL(trimmed).pathname
-        : trimmed.split('?')[0];
+    let path;
+    if (/^https?:\/\//i.test(trimmed)) {
+        try {
+            path = new URL(trimmed).pathname;
+        } catch {
+            return trimmed;
+        }
+    } else {
+        path = trimmed.split('?')[0];
+    }
     if (/^[0-9a-fA-F]{24}$/.test(path)) {
         return `/files/${path}`;
     }

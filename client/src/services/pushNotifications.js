@@ -2,14 +2,21 @@ const SERVICE_WORKER_URL = '/sw.js';
 
 export const isPushSupported = () => (
     typeof window !== 'undefined'
+    && typeof navigator !== 'undefined'
     && 'serviceWorker' in navigator
     && 'PushManager' in window
     && 'Notification' in window
 );
 
 const urlBase64ToUint8Array = (base64String) => {
+    if (typeof base64String !== 'string' || !base64String) {
+        throw new TypeError('VAPID public key must be a non-empty string');
+    }
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    if (typeof window === 'undefined' || typeof window.atob !== 'function') {
+        throw new Error('Base64 decoding is not available in this environment');
+    }
     const rawData = window.atob(base64);
     return Uint8Array.from(rawData, (character) => character.charCodeAt(0));
 };

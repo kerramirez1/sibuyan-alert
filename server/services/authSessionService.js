@@ -55,9 +55,17 @@ const getRequestMetadata = (req) => ({
     ipAddress: req.ip?.slice(0, 128) || null,
 });
 
+const requireJwtSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || !secret.trim()) {
+        throw new Error('JWT_SECRET is not configured');
+    }
+    return secret;
+};
+
 export const signAccessToken = ({ userId, sessionId }) => jwt.sign(
     { sid: sessionId.toString(), typ: 'access' },
-    process.env.JWT_SECRET,
+    requireJwtSecret(),
     {
         algorithm: JWT_ALGORITHM,
         audience: JWT_AUDIENCE,
@@ -67,7 +75,7 @@ export const signAccessToken = ({ userId, sessionId }) => jwt.sign(
     }
 );
 
-export const verifyAccessToken = (token) => jwt.verify(token, process.env.JWT_SECRET, {
+export const verifyAccessToken = (token) => jwt.verify(token, requireJwtSecret(), {
     algorithms: [JWT_ALGORITHM],
     audience: JWT_AUDIENCE,
     issuer: JWT_ISSUER,

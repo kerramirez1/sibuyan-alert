@@ -148,8 +148,9 @@ const ReportPage = () => {
         locationRequestRef.current += 1;
         locationDetectionActiveRef.current = false;
 
-        if (watchIdRef.current !== null && navigator.geolocation) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
+        const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
+        if (watchIdRef.current !== null && geolocation) {
+            geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
         }
         if (locationTimeoutRef.current !== null) {
@@ -178,7 +179,8 @@ const ReportPage = () => {
     };
 
     const detectLocation = () => {
-        if (!navigator.geolocation) {
+        const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
+        if (!geolocation) {
             toast.error('Geolocation is not supported by your browser');
             return;
         }
@@ -197,7 +199,7 @@ const ReportPage = () => {
         locationTimeoutRef.current = setTimeout(() => {
             if (locationRequestRef.current !== requestId) return;
             if (watchIdRef.current !== null) {
-                navigator.geolocation.clearWatch(watchIdRef.current);
+                geolocation?.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
             locationTimeoutRef.current = null;
@@ -224,7 +226,7 @@ const ReportPage = () => {
             }
         }, 12000);
 
-        watchIdRef.current = navigator.geolocation.watchPosition(
+        watchIdRef.current = geolocation.watchPosition(
             (position) => {
                 if (locationRequestRef.current !== requestId) return;
                 const { latitude, longitude, accuracy } = position.coords;
@@ -244,7 +246,7 @@ const ReportPage = () => {
                     if (accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
                         toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                         if (watchIdRef.current !== null) {
-                            navigator.geolocation.clearWatch(watchIdRef.current);
+                            geolocation?.clearWatch(watchIdRef.current);
                             watchIdRef.current = null;
                         }
                         if (locationTimeoutRef.current !== null) {
@@ -265,7 +267,8 @@ const ReportPage = () => {
                 console.error('Geolocation error:', error);
                 if (bestAccuracy === Infinity) {
                     let errorMessage = 'Location error. Please pin manually.';
-                    if (!window.isSecureContext) {
+                    const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext : true;
+                    if (!isSecureContext) {
                         errorMessage = 'Mobile GPS requires HTTPS. Cannot use GPS on HTTP.';
                     } else if (error.code === 1) {
                         errorMessage = 'Location permission denied. Please enable GPS permissions.';
@@ -275,7 +278,7 @@ const ReportPage = () => {
                         errorMessage = 'Location request timed out.';
                     }
                     if (watchIdRef.current !== null) {
-                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        geolocation?.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
                     }
                     if (locationTimeoutRef.current !== null) {
@@ -364,7 +367,10 @@ const ReportPage = () => {
             validFiles.forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    setImagePreviews((prev) => [...prev, event.target.result]);
+                    const result = event?.target?.result;
+                    if (typeof result === 'string') {
+                        setImagePreviews((prev) => [...prev, result]);
+                    }
                 };
                 reader.readAsDataURL(file);
             });

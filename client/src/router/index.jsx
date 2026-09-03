@@ -41,15 +41,23 @@ export const Route = ({ element, children, ...props }) => (
     <WouterRoute {...props}>{element ?? children}</WouterRoute>
 );
 
+const toSafeInternalTarget = (target) => {
+    try {
+        return normalizeInternalTarget(target);
+    } catch {
+        return '/';
+    }
+};
+
 export const Navigate = ({ to, replace = false, state }) => (
-    <Redirect to={normalizeInternalTarget(to)} replace={replace} state={state} />
+    <Redirect to={toSafeInternalTarget(to)} replace={replace} state={state} />
 );
 
 export const useNavigate = () => {
     const [, navigate] = useWouterLocation();
 
     return useCallback((to, options) => {
-        navigate(normalizeInternalTarget(to), options);
+        navigate(toSafeInternalTarget(to), options);
     }, [navigate]);
 };
 
@@ -66,7 +74,7 @@ export const useLocation = () => {
 };
 
 export const Link = forwardRef(({ to, href, ...props }, ref) => (
-    <WouterLink ref={ref} to={normalizeInternalTarget(to ?? href)} {...props} />
+    <WouterLink ref={ref} to={toSafeInternalTarget(to ?? href)} {...props} />
 ));
 Link.displayName = 'Link';
 
@@ -78,7 +86,7 @@ export const NavLink = forwardRef(({
     ...props
 }, ref) => {
     const location = useLocation();
-    const target = normalizeInternalTarget(to);
+    const target = toSafeInternalTarget(to);
     const targetPathname = target.split(/[?#]/, 1)[0] || '/';
     const isActive = end
         ? location.pathname === targetPathname

@@ -13,14 +13,26 @@ const requestNominatim = (path, params) => {
         if (delay) await wait(delay);
         lastRequestTime = Date.now();
 
-        const response = await fetch(`${NOMINATIM_BASE_URL}${path}?${new URLSearchParams(params)}`, {
-            headers: {
-                'User-Agent': 'SibuyanAccidentAlert/1.0 (sibuyan.alert@gmail.com)',
-                Accept: 'application/json',
-            },
-        });
-        if (!response.ok) throw new Error(`Geocoding provider responded with ${response.status}`);
-        return response.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const response = await fetch(`${NOMINATIM_BASE_URL}${path}?${new URLSearchParams(params)}`, {
+                headers: {
+                    'User-Agent': 'SibuyanAccidentAlert/1.0 (sibuyan.alert@gmail.com)',
+                    Accept: 'application/json',
+                },
+                signal: controller.signal,
+            });
+            if (!response.ok) throw new Error(`Geocoding provider responded with ${response.status}`);
+            return response.json();
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                throw new Error('Geocoding provider timed out');
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeoutId);
+        }
     };
 
     const queued = requestQueue.then(run, run);

@@ -832,7 +832,12 @@ const MapView = ({
         const map = mapInstanceRef.current;
 
         // Handle HTML Marker for selected location (always visible on top)
-        if (selectedLocation) {
+        const hasValidSelectedLocation = Number.isFinite(selectedLocation?.lng)
+            && Number.isFinite(selectedLocation?.lat);
+        if (selectedLocation && !hasValidSelectedLocation) {
+            console.warn('Ignoring invalid selected location for map marker');
+        }
+        if (selectedLocation && hasValidSelectedLocation) {
             if (!selectedMarkerRef.current) {
                 // Create a custom marker element
                 const el = document.createElement('div');
@@ -867,7 +872,7 @@ const MapView = ({
                         onLocationSelectRef.current(location);
                     }
                 });
-            } else {
+            } else if (Number.isFinite(selectedLocation?.lng) && Number.isFinite(selectedLocation?.lat)) {
                 selectedMarkerRef.current.setLngLat([selectedLocation.lng, selectedLocation.lat]);
             }
         } else {
@@ -887,8 +892,10 @@ const MapView = ({
         const map = mapInstanceRef.current;
 
         // Update User Location Logic (Blue Dot)
+        const hasValidUserLocation = Number.isFinite(userLocation?.lng)
+            && Number.isFinite(userLocation?.lat);
         const userSource = map.getSource('user-location');
-        if (userSource && userLocation) {
+        if (userSource && hasValidUserLocation) {
             userSource.setData({
                 type: 'FeatureCollection',
                 features: [{
@@ -903,7 +910,7 @@ const MapView = ({
         // Update GPS Accuracy Circle (based on userLocation, NOT selectedLocation)
         const accuracySource = map.getSource('gps-accuracy');
         if (accuracySource) {
-            if (userLocation && gpsAccuracy) {
+            if (hasValidUserLocation && gpsAccuracy) {
                 const center = [userLocation.lng, userLocation.lat];
                 // Minimum visible radius to avoid tiny dots
                 const radiusKm = Math.max(gpsAccuracy, 10) / 1000;
@@ -1046,7 +1053,7 @@ const MapView = ({
 
                     {mapModal.type === 'reportGroup' && (
                         <div className="divide-y divide-gray-100 px-4 py-2 sm:px-5">
-                            {mapModal.data.map((report) => (
+                            {(Array.isArray(mapModal.data) ? mapModal.data : []).map((report) => (
                                 <button
                                     key={report._id || report.id}
                                     type="button"

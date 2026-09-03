@@ -1,33 +1,49 @@
 import mongoose from 'mongoose';
 
-const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI, {
-            serverSelectionTimeoutMS: 20000, // Increase timeout to 20s
-            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-            family: 4 // Use IPv4, skip trying IPv6
-        });
-
-        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-
-        // Handle connection events
-        mongoose.connection.on('error', (err) => {
-            console.error(`❌ MongoDB connection error: ${err}`);
-        });
-
-        mongoose.connection.on('disconnected', () => {
-            console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
-        });
-
-        mongoose.connection.on('reconnected', () => {
-            console.log('✅ MongoDB reconnected');
-        });
-
-        return conn;
-    } catch (error) {
-        console.error(`❌ MongoDB connection failed: ${error.message}`);
+const connectDB = async (retries = 3) => {
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri || !mongoUri.trim()) {
+        console.error('❌ MongoDB connection failed: MONGODB_URI is not configured');
         process.exit(1);
     }
+
+    let lastError = null;
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+        try {
+            const conn = await mongoose.connect(mongoUri, {
+                serverSelectionTimeoutMS: 20000, // Increase timeout to 20s
+                socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+                family: 4 // Use IPv4, skip trying IPv6
+            });
+
+            console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+
+            // Handle connection events
+            mongoose.connection.on('error', (err) => {
+                console.error(`❌ MongoDB connection error: ${err}`);
+            });
+
+            mongoose.connection.on('disconnected', () => {
+                console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
+            });
+
+            mongoose.connection.on('reconnected', () => {
+                console.log('✅ MongoDB reconnected');
+            });
+
+            return conn;
+        } catch (error) {
+            lastError = error;
+            console.error(`❌ MongoDB connection attempt ${attempt}/${retries} failed: ${error.message}`);
+            if (attempt < retries) {
+                const backoffMs = 1000 * attempt;
+                await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            }
+        }
+    }
+
+    console.error(`❌ MongoDB connection failed after ${retries} attempts: ${lastError?.message}`);
+    process.exit(1);
 };
 
 export default connectDB;

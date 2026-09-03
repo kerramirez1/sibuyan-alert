@@ -17,7 +17,13 @@ const isHttpUrl = (value) => {
 
 /** Fail fast instead of starting a production process with partial security configuration. */
 export const validateRuntimeConfig = (env = process.env) => {
-    if (env.NODE_ENV !== 'production') return;
+    if (env.NODE_ENV !== 'production') {
+        const missingDev = REQUIRED_PRODUCTION_VARIABLES.filter((name) => !env[name]?.trim());
+        if (missingDev.length > 0) {
+            console.warn(`⚠️ Missing configuration for local development: ${missingDev.join(', ')}`);
+        }
+        return;
+    }
 
     const missing = REQUIRED_PRODUCTION_VARIABLES.filter((name) => !env[name]?.trim());
     if (missing.length > 0) {

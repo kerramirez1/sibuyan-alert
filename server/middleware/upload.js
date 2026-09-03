@@ -151,7 +151,7 @@ export const requireRegistrationVerificationImages = (req, res, next) => {
 
 export const uploadIdDocument = multer({
     storage: memoryStorage,
-    limits: { fileSize: 5 * 1024 * 1024, files: 2 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 2, fields: 20, parts: 25, fieldSize: 1024 * 1024 },
     fileFilter: createFileFilter(
         IMAGE_MIME_TYPES,
         'ID and selfie uploads must be JPEG, PNG, or WebP images'
@@ -163,7 +163,7 @@ export const uploadIdDocument = multer({
 
 export const uploadReportImages = multer({
     storage: memoryStorage,
-    limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 30, parts: 40, fieldSize: 2 * 1024 * 1024 },
     fileFilter: createFileFilter(
         IMAGE_MIME_TYPES,
         'Report evidence must be JPEG, PNG, or WebP images'
@@ -172,7 +172,7 @@ export const uploadReportImages = multer({
 
 export const uploadRiskZonePhotos = multer({
     storage: memoryStorage,
-    limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 30, parts: 40, fieldSize: 2 * 1024 * 1024 },
     fileFilter: createFileFilter(
         IMAGE_MIME_TYPES,
         'Reference photos must be JPEG, PNG, or WebP images'
@@ -181,7 +181,7 @@ export const uploadRiskZonePhotos = multer({
 
 export const uploadAvatar = multer({
     storage: memoryStorage,
-    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 20, parts: 25, fieldSize: 1024 * 1024 },
     fileFilter: createFileFilter(
         IMAGE_MIME_TYPES,
         'Avatar must be a JPEG, PNG, or WebP image'

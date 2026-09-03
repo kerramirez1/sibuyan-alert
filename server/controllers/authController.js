@@ -310,6 +310,13 @@ export const updateProfile = async (req, res) => {
         const { name, email, currentPassword, newPassword, notificationPreferences } = req.body;
 
         const user = await User.findById(req.user._id).select('+password');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Account no longer exists',
+                code: 'ACCOUNT_DELETED',
+            });
+        }
         const normalizedEmail = email?.toLowerCase().trim();
         const emailChanged = Boolean(normalizedEmail && normalizedEmail !== user.email);
         const credentialsChanged = Boolean(emailChanged || newPassword);
@@ -629,6 +636,13 @@ export const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
 
+        if (typeof email !== 'string' || !email.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'A valid email address is required',
+            });
+        }
+
         const user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
@@ -776,10 +790,19 @@ export const logout = async (req, res) => {
 
 /** Revoke every browser/device session owned by the authenticated user. */
 export const logoutAll = async (req, res) => {
-    await revokeAllUserSessions(req.user._id, 'logout_all');
-    req.app.get('io')?.in(`user_${req.user._id}`).disconnectSockets(true);
-    clearAuthCookies(res);
-    return res.json({ success: true, message: 'All sessions have been signed out' });
+    try {
+        await revokeAllUserSessions(req.user._id, 'logout_all');
+        req.app.get('io')?.in(`user_${req.user._id}`).disconnectSockets(true);
+        clearAuthCookies(res);
+        return res.json({ success: true, message: 'All sessions have been signed out' });
+    } catch (error) {
+        console.error('Session logout-all error:', error);
+        clearAuthCookies(res);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to sign out all sessions',
+        });
+    }
 };
 
 export default {

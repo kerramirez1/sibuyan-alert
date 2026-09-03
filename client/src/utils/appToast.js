@@ -40,6 +40,7 @@ const show = (type, message, options = {}) => {
     if (shouldSuppress(type, message, options.dedupeKey)) return APP_TOAST_ID;
     const normalized = normalizeOptions(options);
     if (type === 'default') return hotToast(message, normalized);
+    if (typeof hotToast[type] !== 'function') return hotToast(message, normalized);
     return hotToast[type](message, normalized);
 };
 

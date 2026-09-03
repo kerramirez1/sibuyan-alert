@@ -221,7 +221,7 @@ const ReportDetailsPanel = ({
                         <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2.5">
                             {imagePreviews.map((preview, index) => (
                                 <div
-                                    key={`${preview.slice(0, 32)}-${index}`}
+                                    key={`${typeof preview === 'string' ? preview.slice(0, 32) : 'preview'}-${index}`}
                                     className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200/90 bg-gray-100 dark:border-white/10 dark:bg-gray-800 shadow-2xs"
                                 >
                                     <img

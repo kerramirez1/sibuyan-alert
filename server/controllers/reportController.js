@@ -668,8 +668,20 @@ export const getReportEvidencePreview = async (req, res) => {
         // Stream file from GridFS to buffer
         const downloadStream = getGridFsBucket().openDownloadStream(file._id);
         const chunks = [];
-        for await (const chunk of downloadStream) {
-            chunks.push(chunk);
+        try {
+            for await (const chunk of downloadStream) {
+                chunks.push(chunk);
+                if (chunks.length > 512) {
+                    throw new Error('Evidence file exceeds streaming safety limit');
+                }
+            }
+        } catch (streamError) {
+            try {
+                downloadStream.destroy(streamError);
+            } catch {
+                // Stream already closed; fall through to the outer handler.
+            }
+            throw streamError;
         }
         const fileBuffer = Buffer.concat(chunks);
         const derivative = await generateRedactedEvidenceDerivative(fileBuffer, { publicSoftBlur: true });

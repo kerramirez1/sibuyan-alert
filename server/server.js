@@ -167,9 +167,16 @@ io.on('connection', (socket) => {
     const getAuthenticatedUser = () => socket.data.user || null;
     // Join user-specific room and track online status
     socket.on('join', async () => {
-        const userData = await authenticateSocketRequest(socket);
+        let userData = null;
+        try {
+            userData = await authenticateSocketRequest(socket);
+        } catch (error) {
+            console.error('Socket authentication error:', error.message);
+            socket.emit('authError', { message: 'Authentication service unavailable' });
+            return;
+        }
 
-        if (!userData) {
+        if (!userData || !userData._id) {
             socket.emit('authError', { message: 'Invalid or missing socket token' });
             return;
         }

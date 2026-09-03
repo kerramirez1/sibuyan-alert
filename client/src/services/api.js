@@ -94,7 +94,9 @@ api.interceptors.response.use(
                 await refreshAuthSession();
                 return api(originalRequest);
             } catch {
-                window.dispatchEvent(new CustomEvent('auth:session-expired'));
+                if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+                }
             }
         }
         return Promise.reject(error);

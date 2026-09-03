@@ -104,7 +104,10 @@ export const AuthProvider = ({ children }) => {
     const login = useCallback(async (email, password, requestedTarget) => {
         try {
             const response = await api.post('/auth/login', { email, password });
-            const { user } = response.data.data;
+            const user = response.data?.data?.user;
+            if (!user) {
+                throw new Error('Login response did not include a user');
+            }
             setUser(user);
 
             toast.success(`Welcome back, ${user.name}!`);
@@ -126,7 +129,10 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/register', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            const { user } = response.data.data;
+            const user = response.data?.data?.user;
+            if (!user) {
+                throw new Error('Registration response did not include a user');
+            }
             setUser(user);
 
             navigate('/registration-submitted');
@@ -157,6 +163,9 @@ export const AuthProvider = ({ children }) => {
             clearBlobCache();
             setUser(null);
         };
+        if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+            return () => { };
+        }
         window.addEventListener('auth:session-expired', handleExpiredSession);
         return () => window.removeEventListener('auth:session-expired', handleExpiredSession);
     }, []);
@@ -165,7 +174,11 @@ export const AuthProvider = ({ children }) => {
     const updateProfile = useCallback(async (data) => {
         try {
             const response = await api.put('/auth/me', data);
-            setUser(response.data.data);
+            const updatedUser = response.data?.data;
+            if (!updatedUser) {
+                throw new Error('Profile response did not include a user');
+            }
+            setUser(updatedUser);
             toast.success('Profile updated successfully');
             return { success: true };
         } catch {
@@ -316,10 +329,17 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/resubmit-id', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            setUser((prev) => ({
-                ...prev,
-                verificationStatus: response.data.data.verificationStatus,
-            }));
+            const verificationStatus = response.data?.data?.verificationStatus;
+            if (!verificationStatus) {
+                throw new Error('Resubmit response did not include a verification status');
+            }
+            setUser((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    verificationStatus,
+                };
+            });
             toast.success('ID document resubmitted for verification');
             return { success: true };
         } catch {

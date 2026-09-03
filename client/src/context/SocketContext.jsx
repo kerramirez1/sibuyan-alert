@@ -29,10 +29,13 @@ export const SocketProvider = ({ children }) => {
 
     // Initialize socket connection
     useEffect(() => {
+        const browserOrigin = typeof window !== 'undefined' && window.location?.origin
+            ? window.location.origin
+            : undefined;
         const socketUrl = resolveSocketOrigin({
             socketUrl: import.meta.env.VITE_SOCKET_URL,
             apiUrl: import.meta.env.VITE_API_URL,
-            browserOrigin: window.location.origin,
+            browserOrigin,
         });
 
         const socketInstance = io(socketUrl, {

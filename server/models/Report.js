@@ -422,6 +422,10 @@ reportSchema.pre('save', async function (next) {
         maxLng: 122.70,
     };
 
+    if (!this.coordinates || typeof this.coordinates.lat === 'undefined' || typeof this.coordinates.lng === 'undefined') {
+        return next();
+    }
+
     const { lat, lng } = this.coordinates;
     if (
         lat < sibuyanBounds.minLat ||
