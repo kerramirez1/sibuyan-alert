@@ -113,8 +113,19 @@ describe('MapLegend', () => {
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
     });
 
-    test('returns null when both showIncidentStatus and showRiskZone are false', () => {
-        const { container } = render(<MapLegend showIncidentStatus={false} showRiskZone={false} />);
-        expect(container).toBeEmptyDOMElement();
+    test('allows collapsing and expanding the desktop legend', () => {
+        render(<MapLegend />);
+        expect(screen.getByRole('region', { name: 'Map legend' })).toBeInTheDocument();
+
+        const collapseBtn = screen.getByRole('button', { name: 'Collapse map legend' });
+        fireEvent.click(collapseBtn);
+
+        expect(screen.queryByRole('region', { name: 'Map legend' })).not.toBeInTheDocument();
+        const expandBtn = screen.getByRole('button', { name: 'Expand map legend' });
+        expect(expandBtn).toBeInTheDocument();
+
+        fireEvent.click(expandBtn);
+        expect(screen.getByRole('region', { name: 'Map legend' })).toBeInTheDocument();
     });
 });
+

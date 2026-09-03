@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { HiOutlineMap } from 'react-icons/hi';
+import { HiChevronDown, HiOutlineMap } from 'react-icons/hi';
 import {
     getMapLegendStatusKeys,
     isRiskZoneLayerVisibleForFilter,
@@ -19,7 +19,7 @@ const LEGEND_RING_CLASSES = {
 
 const LegendSymbol = ({ status, color }) => (
     <span
-        className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-white shadow-2xs ring-1 ${LEGEND_RING_CLASSES[status] || ''}`}
+        className={`inline-block h-2 w-2 shrink-0 rounded-full border border-white/90 shadow-2xs ring-1 ${LEGEND_RING_CLASSES[status] || ''}`}
         style={{ backgroundColor: color }}
         aria-hidden="true"
     />
@@ -27,7 +27,7 @@ const LegendSymbol = ({ status, color }) => (
 
 const GroupedMarkerSymbol = () => (
     <span
-        className="inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full border border-white bg-slate-900 px-0.5 text-[8px] font-bold leading-none text-white shadow-2xs ring-1 ring-gray-200 dark:border-gray-950 dark:bg-white dark:text-gray-950 dark:ring-gray-800"
+        className="inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full border border-white/90 bg-slate-900 px-0.5 text-[8px] font-bold leading-none text-white shadow-2xs ring-1 ring-gray-200 dark:border-gray-950 dark:bg-white dark:text-gray-950 dark:ring-gray-800"
         aria-hidden="true"
     >
         2
@@ -41,10 +41,10 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
 
     const itemClass = compact
         ? 'flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-gray-100'
-        : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-gray-700 dark:text-gray-200';
+        : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-gray-700 dark:text-gray-200';
 
     return (
-        <div className={compact ? 'space-y-2' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-3 sm:gap-x-3.5 gap-y-1'}>
+        <div className={compact ? 'space-y-2' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1'}>
             {showRiskZone && (
                 <div className={itemClass}>
                     <LegendSymbol status="risk" color={MAP_RISK_ZONE_CONFIG.markerColor} />
@@ -79,6 +79,7 @@ const MapLegend = ({
     showRiskZone = true,
     showDesktopLegend = true,
 }) => {
+    const [desktopCollapsed, setDesktopCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const popoverId = useId();
     const containerRef = useRef(null);
@@ -122,12 +123,36 @@ const MapLegend = ({
     return (
         <>
             {showDesktopLegend && (
-                <section
-                    aria-label="Map legend"
-                    className="pointer-events-auto absolute left-2.5 bottom-7 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] rounded-lg border border-gray-200/90 bg-white/95 px-3 py-1 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
-                >
-                    <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
-                </section>
+                desktopCollapsed ? (
+                    <button
+                        type="button"
+                        onClick={() => setDesktopCollapsed(false)}
+                        aria-label="Expand map legend"
+                        title="Show map legend"
+                        className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#0c1813] sm:inline-flex cursor-pointer"
+                    >
+                        <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        <span>Legend</span>
+                    </button>
+                ) : (
+                    <section
+                        aria-label="Map legend"
+                        className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden w-fit max-w-[calc(100%-2rem)] rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
+                    >
+                        <div className="flex items-center gap-2">
+                            <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
+                            <button
+                                type="button"
+                                onClick={() => setDesktopCollapsed(true)}
+                                aria-label="Collapse map legend"
+                                title="Collapse map legend"
+                                className="ml-1 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                            >
+                                <HiChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                        </div>
+                    </section>
+                )
             )}
 
             <div ref={containerRef} className="pointer-events-auto absolute left-2 top-2 z-20 sm:hidden">
@@ -138,7 +163,7 @@ const MapLegend = ({
                     aria-controls={popoverId}
                     aria-label="Map legend"
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="relative inline-flex h-7 items-center gap-1 rounded-md border border-gray-200/90 bg-white px-2 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                    className="relative inline-flex h-7 items-center gap-1 rounded-md border border-gray-200/90 bg-white/95 backdrop-blur-md px-2 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                 >
                     <HiOutlineMap className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                     <span>Map legend</span>
@@ -146,8 +171,9 @@ const MapLegend = ({
                 {mobileOpen && (
                     <section
                         id={popoverId}
+                        role="region"
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white p-2.5 shadow-lg dark:border-white/10 dark:bg-[#0c1813] z-30"
+                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2.5 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
                     >
                         <p className="pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
@@ -159,3 +185,4 @@ const MapLegend = ({
 };
 
 export default MapLegend;
+

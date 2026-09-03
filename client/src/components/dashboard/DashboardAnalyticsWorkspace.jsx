@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { format, formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import {
     CartesianGrid,
@@ -12,13 +12,26 @@ import {
 import {
     HiChevronLeft,
     HiChevronRight,
+    HiOutlineCheck,
     HiOutlineDownload,
+    HiOutlineFilter,
     HiOutlineMap,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { buildCsvDocument } from '../../utils/csvExport';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getFilteredMapReports } from '../../utils/mapReports';
+
+const MAP_STATUS_FILTERS = Object.freeze([
+    Object.freeze({ value: 'all', label: 'All Active' }),
+    Object.freeze({ value: 'pending', label: 'Pending' }),
+    Object.freeze({ value: 'verified', label: 'Verified' }),
+    Object.freeze({ value: 'responding', label: 'Responding' }),
+    Object.freeze({ value: 'transferred', label: 'Transferred' }),
+    Object.freeze({ value: 'resolved', label: 'Resolved' }),
+    Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
+]);
 
 const TREND_SERIES = Object.freeze({
     daily: Object.freeze({ label: 'Daily reports' }),
@@ -156,26 +169,52 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
 
 const LifecyclePanel = ({ statusData, totalReports }) => (
     <div className={PANEL_CLASS}>
-        <div className="border-b border-gray-100 pb-2 dark:border-white/5">
-            <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
+        <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
+            <div>
+                <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
+            </div>
+            {totalReports > 0 && (
+                <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                    {totalReports} total
+                </span>
+            )}
         </div>
         {statusData.length ? (
-            <div className="mt-3 space-y-2.5" aria-label="Report lifecycle distribution">
-                {statusData.map((item) => {
-                    const percentage = totalReports ? Math.round((item.value / totalReports) * 100) : 0;
-                    return (
-                        <div key={item.name} className="rounded-lg bg-gray-50/60 p-2 dark:bg-white/[0.02]">
-                            <div className="flex items-center justify-between gap-2 text-xs">
-                                <span className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</span>
-                                <span className="font-bold text-gray-700 dark:text-gray-300 tabular-nums">{item.value} · {percentage}%</span>
+            <div className="mt-3 space-y-3" aria-label="Report lifecycle distribution">
+                {/* Visual Segmented Proportional Distribution Track */}
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5 gap-0.5" aria-hidden="true">
+                    {statusData.map((item) => {
+                        const pct = totalReports ? (item.value / totalReports) * 100 : 0;
+                        if (pct <= 0) return null;
+                        return (
+                            <div
+                                key={item.name}
+                                style={{ width: `${pct}%`, backgroundColor: item.color }}
+                                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
+                                title={`${item.name}: ${item.value}`}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Status Breakdown Rows */}
+                <div className="divide-y divide-gray-100/80 dark:divide-white/5">
+                    {statusData.map((item) => {
+                        const percentage = totalReports ? Math.round((item.value / totalReports) * 100) : 0;
+                        return (
+                            <div key={item.name} className="flex items-center justify-between py-2 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{item.name}</span>
+                                </div>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 tabular-nums shrink-0">
+                                    {item.value} · {percentage}%
+                                </span>
                             </div>
-                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-200/70 dark:bg-white/10">
-                                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${percentage}%`, backgroundColor: item.color }} />
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         ) : (
             <div className="mt-3"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
@@ -201,7 +240,7 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
             </div>
 
             {data.length ? (
-                <div className="mt-3 space-y-2" role="list" aria-label={`${title}: ${description}`}>
+                <div className="mt-3 space-y-1.5" role="list" aria-label={`${title}: ${description}`}>
                     {data.map((item, index) => {
                         const count = item.count || 0;
                         const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -210,21 +249,15 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
                         return (
                             <div
                                 key={item.name}
-                                className={`group rounded-lg px-2.5 py-1.5 transition-colors ${
-                                    isTop
-                                        ? 'bg-emerald-50/70 border border-emerald-200/60 dark:bg-emerald-950/25 dark:border-emerald-800/30'
-                                        : 'bg-gray-50/60 border border-transparent hover:bg-gray-100/70 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
-                                }`}
+                                className="group relative rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                                 role="listitem"
                             >
-                                <div className="flex items-center justify-between gap-2 text-xs">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
-                                            isTop
-                                                ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-gray-950'
-                                                : 'bg-gray-200 text-gray-600 dark:bg-white/10 dark:text-gray-300'
+                                <div className="flex items-center justify-between gap-2 text-xs relative z-10">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <span className={`font-mono text-[11px] font-semibold shrink-0 ${
+                                            isTop ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
                                         }`}>
-                                            {index + 1}
+                                            {String(index + 1).padStart(2, '0')}
                                         </span>
                                         <span className="truncate font-semibold text-gray-900 dark:text-gray-100">
                                             {item.name}
@@ -234,10 +267,10 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
                                         {count} <span className="text-[10px] font-normal text-gray-400">({percentage}%)</span>
                                     </span>
                                 </div>
-                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-200/70 dark:bg-white/10">
+                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                                     <div
                                         className={`h-full rounded-full transition-all duration-300 ${
-                                            isTop ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-gray-400 dark:bg-gray-500'
+                                            isTop ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-gray-400 dark:bg-gray-600'
                                         }`}
                                         style={{ width: `${Math.max(percentage, count > 0 ? 4 : 0)}%` }}
                                     />
@@ -269,7 +302,7 @@ const DashboardAnalyticsWorkspace = ({
     municipalityBarData,
     barangayBarData,
     incidentTypeBarData,
-    dashboardReports,
+    dashboardReports: _dashboardReports,
     focusLocation,
     historySectionRef,
     loading,
@@ -278,6 +311,19 @@ const DashboardAnalyticsWorkspace = ({
     onOpenReports,
 }) => {
     const activeRiskZoneCount = highRiskZones.filter((zone) => zone.isActive !== false).length;
+    const [mapStatusFilter, setMapStatusFilter] = useState('all');
+
+    const getMapFilterCount = (filterValue) => {
+        if (filterValue === 'risk-zones') {
+            return activeRiskZoneCount;
+        }
+        return getFilteredMapReports(reports, {
+            includePending: true,
+            statusFilter: filterValue,
+            filterMode: 'review',
+        }).length;
+    };
+
     const recentReports = [...allReports]
         .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt))
         .slice(0, 5);
@@ -460,32 +506,36 @@ const DashboardAnalyticsWorkspace = ({
 
             {error && <div role="alert" className="rounded-lg border border-red-200/90 bg-red-50/80 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            {/* Situation Summary (Operational Status Strip) */}
-            <section className="space-y-2" aria-label="Analytics summary">
-                <div className="overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                    <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/60 px-3.5 py-2 sm:px-4 dark:border-white/5 dark:bg-white/[0.02]">
+            {/* Situation Summary (Unified Executive Operational Ledger) */}
+            <section aria-label="Analytics summary">
+                <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
                             Incident overview
                         </h2>
-                        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                             Operational Status
                         </span>
                     </div>
 
-                    {/* 4-Column Operational Status Ledger */}
+                    {/* 4-Column Operational Status Grid */}
                     <div className="grid grid-cols-1 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
                         {/* 1. Pending Review */}
-                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
-                            <div className="absolute inset-x-0 top-0 h-0.5 bg-amber-500" aria-hidden="true" />
+                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Pending review
                                 </span>
                                 {performanceMetrics.pendingCount > 0 && (
-                                    <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                        Action needed
+                                    </span>
                                 )}
                             </div>
-                            <div className="my-1.5 flex items-baseline">
+                            <div className="my-2 flex items-baseline">
                                 <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
                                     {performanceMetrics.pendingCount}
                                 </span>
@@ -496,17 +546,16 @@ const DashboardAnalyticsWorkspace = ({
                         </div>
 
                         {/* 2. Dispatch Ready */}
-                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
-                            <div className="absolute inset-x-0 top-0 h-0.5 bg-blue-500" aria-hidden="true" />
+                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Dispatch ready
                                 </span>
                                 {performanceMetrics.dispatchReadyCount > 0 && (
                                     <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" aria-hidden="true" />
                                 )}
                             </div>
-                            <div className="my-1.5 flex items-baseline">
+                            <div className="my-2 flex items-baseline">
                                 <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
                                     {performanceMetrics.dispatchReadyCount}
                                 </span>
@@ -517,10 +566,9 @@ const DashboardAnalyticsWorkspace = ({
                         </div>
 
                         {/* 3. Responding */}
-                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
-                            <div className="absolute inset-x-0 top-0 h-0.5 bg-cyan-500" aria-hidden="true" />
+                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Responding
                                 </span>
                                 {performanceMetrics.respondingCount > 0 ? (
@@ -530,7 +578,7 @@ const DashboardAnalyticsWorkspace = ({
                                     </span>
                                 ) : null}
                             </div>
-                            <div className="my-1.5 flex items-baseline">
+                            <div className="my-2 flex items-baseline">
                                 <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
                                     {performanceMetrics.respondingCount}
                                 </span>
@@ -541,14 +589,13 @@ const DashboardAnalyticsWorkspace = ({
                         </div>
 
                         {/* 4. Resolved */}
-                        <div className="group relative flex flex-col justify-between p-3 sm:p-3.5">
-                            <div className="absolute inset-x-0 top-0 h-0.5 bg-emerald-500/80" aria-hidden="true" />
+                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Resolved
                                 </span>
                             </div>
-                            <div className="my-1.5 flex items-baseline">
+                            <div className="my-2 flex items-baseline">
                                 <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-800 dark:text-gray-200">
                                     {performanceMetrics.resolvedCount}
                                 </span>
@@ -558,36 +605,36 @@ const DashboardAnalyticsWorkspace = ({
                             </p>
                         </div>
                     </div>
-                </div>
 
-                {/* Secondary Inline Operational Facts */}
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg border border-gray-200/70 bg-gray-50/60 px-3.5 py-2 text-xs text-gray-600 dark:border-white/5 dark:bg-white/[0.02] dark:text-gray-400">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
-                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{reports.length}</span>
-                        </span>
-                        <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
-                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                                {performanceMetrics.medianResponseMin === null ? '—' : `${performanceMetrics.medianResponseMin}m`}
+                    {/* Integrated Baseline Operational Facts Footer Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-t border-gray-100 bg-gray-50/70 px-4 py-2 text-xs text-gray-600 dark:border-white/5 dark:bg-white/[0.02] dark:text-gray-400">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
+                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{reports.length}</span>
                             </span>
-                            <span className="text-[11px] text-gray-400">
-                                {performanceMetrics.responseSampleCount
-                                    ? `(${performanceMetrics.responseSampleCount} responded incident${performanceMetrics.responseSampleCount === 1 ? '' : 's'})`
-                                    : 'No responded incidents'}
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
+                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                                    {performanceMetrics.medianResponseMin === null ? '—' : `${performanceMetrics.medianResponseMin}m`}
+                                </span>
+                                <span className="text-[11px] text-gray-400">
+                                    {performanceMetrics.responseSampleCount
+                                        ? `(${performanceMetrics.responseSampleCount} responded incident${performanceMetrics.responseSampleCount === 1 ? '' : 's'})`
+                                        : 'No responded incidents'}
+                                </span>
                             </span>
-                        </span>
-                        <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Active risk zones</span>
-                            <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Active risk zones</span>
+                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
+                            </span>
+                        </div>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                            {format(selectedMonth, 'MMMM yyyy')} scope
                         </span>
                     </div>
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                        {format(selectedMonth, 'MMMM yyyy')} scope
-                    </span>
                 </div>
             </section>
 
@@ -597,31 +644,92 @@ const DashboardAnalyticsWorkspace = ({
                 <LifecyclePanel statusData={statusData} totalReports={reports.length} />
             </section>
 
-            {/* Incident Map Section */}
+            {/* Incident Map Section (Live Map with Integrated Status Filter / Legend) */}
             <section className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
-                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-3.5 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-4">
-                    <div>
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Incident map</h2>
-                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Current pending, verified, transferred, and responding incidents</p>
+                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 p-2 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Monthly incident map</h2>
+                            <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                Geographic incident distribution for {format(selectedMonth, 'MMMM yyyy')}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-100/90 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 text-[11px] font-medium text-gray-700 dark:text-gray-200 shrink-0 select-none">
+                                <HiOutlineFilter className="h-3 w-3 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <span>Filter by status</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={onOpenMap}
+                                className="inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer"
+                            >
+                                <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                Open full map
+                            </button>
+                        </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onOpenMap}
-                        className="inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+
+                    {/* Filter Status Control Pills (Acts as Live Legend & Filter) */}
+                    <div
+                        className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 w-full pt-0.5 px-1 overflow-x-auto custom-scrollbar"
+                        aria-label="Map status filter"
+                        role="group"
                     >
-                        <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                        Open full map
-                    </button>
+                        {MAP_STATUS_FILTERS.map((filter) => {
+                            const count = getMapFilterCount(filter.value);
+                            const isSelected = mapStatusFilter === filter.value;
+                            const statusCfg = filter.value === 'risk-zones'
+                                ? { dot: 'bg-red-500' }
+                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
+
+                            return (
+                                <button
+                                    key={filter.value}
+                                    type="button"
+                                    onClick={() => setMapStatusFilter(filter.value)}
+                                    aria-pressed={isSelected}
+                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                    className={`group relative inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 ${
+                                        isSelected
+                                            ? 'border-emerald-700 bg-emerald-700 text-white font-semibold dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
+                                            : `border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5${count === 0 ? ' opacity-60' : ''}`
+                                    }`}
+                                >
+                                    {isSelected ? (
+                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-emerald-100 dark:text-white" aria-hidden="true" />
+                                    ) : (
+                                        statusCfg?.dot && (
+                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                        )
+                                    )}
+                                    <span>{filter.label}</span>
+                                    <span
+                                        className={`rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none ${
+                                            isSelected
+                                                ? 'bg-black/25 text-white dark:bg-black/25 dark:text-white'
+                                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
+                                        }`}
+                                    >
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
+
                 <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
                     <MapView
-                        reports={dashboardReports}
+                        reports={reports}
                         highRiskZones={highRiskZones}
                         showPending
                         filterMode="review"
+                        filterStatus={mapStatusFilter}
                         viewerRole={user?.role || 'guest'}
                         showDataState
                         enable3D
+                        showLegend={false}
                         className="h-full w-full"
                         focusLocation={focusLocation}
                     />
@@ -665,16 +773,16 @@ const DashboardAnalyticsWorkspace = ({
             </section>
 
             {/* Recent Operational Activity Section */}
-            <section ref={historySectionRef} className="overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
-                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-3.5 py-2 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <section ref={historySectionRef} className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
+                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity</h2>
-                        <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
+                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
                     </div>
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto"
+                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto cursor-pointer"
                     >
                         View incident queue
                     </button>
@@ -687,7 +795,8 @@ const DashboardAnalyticsWorkspace = ({
                             return (
                                 <article
                                     key={reportItem._id}
-                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-3 py-2 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/[0.02] sm:grid-cols-[minmax(0,1fr)_116px] sm:px-4"
+                                    onClick={onOpenReports}
+                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03] sm:grid-cols-[minmax(0,1fr)_116px] cursor-pointer"
                                 >
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-xs font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-sm">
