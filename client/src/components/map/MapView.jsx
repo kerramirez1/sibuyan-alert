@@ -116,6 +116,7 @@ const MapView = ({
     mode = 'full',
     showLegend = true,
     showIncidentStatusLegend = true,
+    showDesktopLegend = true,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -1142,6 +1143,7 @@ const MapView = ({
                     hasGroupedReports={hasGroupedReports}
                     showIncidentStatus={showIncidentStatusLegend}
                     showRiskZone={showHazardZones}
+                    showDesktopLegend={showDesktopLegend}
                 />
             )}
         </div>

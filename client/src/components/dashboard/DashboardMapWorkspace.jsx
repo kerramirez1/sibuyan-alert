@@ -13,6 +13,7 @@ import {
     HiOutlineExclamation,
     HiOutlineFilter,
     HiOutlineLightningBolt,
+    HiOutlineShieldCheck,
     HiOutlineTruck,
     HiOutlineX,
 } from 'react-icons/hi';
@@ -232,32 +233,32 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
                 : 'bg-white hover:bg-gray-50/90 dark:bg-[#0c1813]/90 dark:hover:bg-[#11221a]'
         }`}
     >
-        <div className="flex w-full items-center justify-between gap-1 sm:gap-2">
+        <div className="flex w-full items-center justify-between gap-1.5 sm:gap-2">
             <div className="flex min-w-0 items-center gap-1.5 flex-1">
-                {statusDot && <span className={`h-1.5 w-1.5 sm:h-2 sm:w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span className={`text-[10px] xs:text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors whitespace-nowrap break-words leading-tight flex-1 ${
+                {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+                <span className={`text-[10px] xs:text-[11px] sm:text-xs font-semibold uppercase tracking-wider transition-colors break-words leading-tight flex-1 ${
                     selected
-                        ? 'text-brand-900 dark:text-emerald-200'
+                        ? 'text-brand-900 dark:text-emerald-200 font-bold'
                         : 'text-gray-700 group-hover:text-gray-950 dark:text-gray-300 dark:group-hover:text-white'
                 }`}>
                     {label}
                 </span>
             </div>
-            <HiChevronRight
-                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${
-                    selected
-                        ? 'text-brand-700 dark:text-emerald-400'
-                        : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
-                }`}
-                aria-hidden="true"
-            />
+            {selected ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                    Active
+                </span>
+            ) : (
+                <HiChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-emerald-700 dark:text-gray-500 dark:group-hover:text-emerald-400 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            )}
         </div>
 
-        <div className="mt-2 min-w-0">
-            <p className="font-display text-xl xs:text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-tight">
+        <div className="mt-1 flex items-baseline justify-between gap-2 min-w-0">
+            <p className="font-display text-xl sm:text-2xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-none">
                 {value}
             </p>
-            <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">
+            <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight line-clamp-2">
                 {helper}
             </p>
         </div>
@@ -470,7 +471,7 @@ const DashboardMapWorkspace = ({
                 {
                     id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
                     helper: publicActiveReports.length === publicActiveLocationCount
-                        ? 'Active incidents'
+                        ? 'Verified in community'
                         : `Across ${publicActiveLocationCount} map locations`,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
                     panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
@@ -662,19 +663,18 @@ const DashboardMapWorkspace = ({
     };
 
     return (
-        <div className="mx-auto w-full max-w-[1500px] space-y-4 sm:space-y-5">
+        <div className="mx-auto w-full max-w-[1500px] space-y-3 sm:space-y-5">
             <header>
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200/90 bg-gray-50/90 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
                             {mapExperience.eyebrow}
                         </span>
                     </div>
-                    <h1 className="mt-1 font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
+                    <h1 className="mt-1 font-display text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
                         {mapExperience.title}
                     </h1>
-                    <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed break-words">
+                    <p className="hidden sm:block mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed break-words">
                         {mapExperience.description}
                     </p>
                 </div>
@@ -720,23 +720,20 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
-                <div className="flex flex-col gap-1.5 sm:gap-2 border-b border-gray-200/80 bg-gray-50/70 p-1.5 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex items-start justify-between gap-3 px-1 sm:px-1.5 pt-0.5">
-                        <div>
-                            <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase font-display text-gray-900 dark:text-white">Live map</h2>
-                            <p className="hidden sm:block mt-0.5 text-xs text-gray-500 dark:text-gray-400">Map markers update automatically when report status changes.</p>
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
+                <div className="flex flex-col gap-1.5 sm:gap-2 border-b border-gray-200/80 bg-gray-50/70 p-2 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Live map</h2>
                             {displayedMapReports.length > displayedLocationCount && (
                                 <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                                    Numbered markers group incidents reported at the same location.
+                                    Numbered markers group co-located incidents
                                 </p>
                             )}
                         </div>
-
-                        {/* Top-Right: Filter by Status Badge */}
                         {mapExperience.filters.length > 0 && (
-                            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100/90 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 shrink-0 select-none">
-                                <HiOutlineFilter className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-100/90 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 text-[11px] font-medium text-gray-700 dark:text-gray-200 shrink-0 select-none">
+                                <HiOutlineFilter className="h-3 w-3 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                                 <span>Filter by status</span>
                             </div>
                         )}
@@ -839,8 +836,8 @@ const DashboardMapWorkspace = ({
                                                 onClick={() => setResponderMapFilter(filter.value)}
                                                 aria-pressed={isSelected}
                                                 aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                        ? 'border-gray-900 bg-gray-900 text-white font-bold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
+                                                className={`group relative inline-flex h-7.5 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                        ? 'border-gray-900 bg-gray-900 text-white font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-1 dark:ring-emerald-500/40'
                                                         : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white'
                                                     }`}
                                             >
@@ -852,7 +849,7 @@ const DashboardMapWorkspace = ({
                                                     )
                                                 )}
                                                 <span>{filter.label}</span>
-                                                <span className={`rounded px-1 py-0.5 text-[10px] font-bold tabular-nums leading-none transition-colors ${isSelected
+                                                <span className={`rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none transition-colors ${isSelected
                                                         ? 'bg-black/25 text-white dark:bg-white/15 dark:text-emerald-100'
                                                         : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
                                                     }`}>
@@ -907,6 +904,7 @@ const DashboardMapWorkspace = ({
                         viewerRole={user?.role || 'guest'}
                         showDataState
                         enable3D
+                        showDesktopLegend={false}
                     />
                     {hasSummaryPanel && (
                         <MapOverlayPanel
@@ -1002,10 +1000,14 @@ const DashboardMapWorkspace = ({
                 </div>
             </section>
 
-            <section className="space-y-2.5" aria-label="Map summary">
-                <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Current overview</h2>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Key incident and response totals for the current map view.</p>
+            <section className="space-y-2" aria-label="Map summary">
+                <div className="flex items-center justify-between px-0.5">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">Current overview</h2>
+                    <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                        <span className="hidden sm:inline">Select any metric to view matching records</span>
+                        <span className="sm:hidden">Tap metric to view records</span>
+                        <HiChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </span>
                 </div>
                 <div className="grid grid-cols-2 gap-px rounded-xl border border-gray-200/90 bg-gray-200/90 lg:grid-cols-4 dark:border-white/10 dark:bg-white/10 overflow-hidden shadow-2xs">
                     {metrics.map((metric) => (
@@ -1025,23 +1027,38 @@ const DashboardMapWorkspace = ({
             </section>
 
             {!isAuthenticated && (
-                <section className="flex flex-col gap-4 rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between" aria-label="Public safety and reporter registration">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-brand-800 dark:bg-brand-950/60 dark:text-brand-300">
+                <section className="flex flex-col gap-3 rounded-xl border border-gray-200/90 bg-gradient-to-b from-gray-50/70 to-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:from-white/[0.02] dark:to-[#0c1813]/90 sm:flex-row sm:items-center sm:justify-between" aria-label="Public safety and reporter registration">
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <HiOutlineShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                                 Public Safety Portal
                             </span>
                         </div>
-                        <h2 className="mt-1 font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white break-words">
+                        <h2 className="mt-1 font-display text-xs sm:text-sm font-bold text-gray-950 dark:text-white break-words">
                             Sibuyan Island Emergency Network
                         </h2>
-                        <p className="mt-0.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300 max-w-xl leading-relaxed break-words">
-                            Verified emergency incident feeds and active hazard maps are public. Citizen reporters must verify their identity to file real-time emergency reports.
+                        <p className="mt-0.5 text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words">
+                            Incident feeds are public. Verified citizen reporters can submit real-time reports directly to local emergency response units.
                         </p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
-                        <Button as={Link} to="/login" variant="secondary" className="w-full sm:w-auto rounded-xl border-gray-200 dark:border-white/10 text-xs font-semibold min-h-[44px] sm:min-h-9 justify-center">Sign in</Button>
-                        <Button as={Link} to="/register" className="w-full sm:w-auto rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-2xs min-h-[44px] sm:min-h-9 justify-center">Become a Reporter</Button>
+                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 pt-1 sm:pt-0 sm:shrink-0">
+                        <Button
+                            as={Link}
+                            to="/register"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9 shadow-2xs transition-colors cursor-pointer"
+                        >
+                            <HiOutlineShieldCheck className="h-3.5 w-3.5 text-emerald-200" aria-hidden="true" />
+                            <span>Become a Reporter</span>
+                        </Button>
+                        <Button
+                            as={Link}
+                            to="/login"
+                            variant="secondary"
+                            className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 dark:border-white/15 dark:bg-transparent dark:text-gray-200 dark:hover:bg-white/5 text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9 transition-colors cursor-pointer"
+                        >
+                            Sign in
+                        </Button>
                     </div>
                 </section>
             )}

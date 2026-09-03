@@ -704,6 +704,10 @@
   z-index: 20 !important;
 }
 
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  max-width: calc(100vw - 2.5rem);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .report-marker,
   .zone-marker {

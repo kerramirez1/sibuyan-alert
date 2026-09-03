@@ -77,6 +77,7 @@ const MapLegend = ({
     hasGroupedReports = false,
     showIncidentStatus = true,
     showRiskZone = true,
+    showDesktopLegend = true,
 }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const popoverId = useId();
@@ -120,14 +121,16 @@ const MapLegend = ({
 
     return (
         <>
-            <section
-                aria-label="Map legend"
-                className="pointer-events-auto absolute left-1/2 top-2.5 sm:top-3 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border border-gray-200/90 bg-white px-3.5 py-1 shadow-2xs dark:border-white/10 dark:bg-[#0c1813] sm:block"
-            >
-                <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
-            </section>
+            {showDesktopLegend && (
+                <section
+                    aria-label="Map legend"
+                    className="pointer-events-auto absolute left-2.5 bottom-7 z-20 hidden w-fit max-w-[calc(100%-1.5rem)] rounded-lg border border-gray-200/90 bg-white/95 px-3 py-1 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
+                >
+                    <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
+                </section>
+            )}
 
-            <div ref={containerRef} className="pointer-events-auto absolute left-2.5 top-2.5 z-20 sm:hidden">
+            <div ref={containerRef} className="pointer-events-auto absolute left-2 top-2 z-20 sm:hidden">
                 <button
                     ref={triggerRef}
                     type="button"
@@ -135,9 +138,9 @@ const MapLegend = ({
                     aria-controls={popoverId}
                     aria-label="Map legend"
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                    className="relative inline-flex h-7 items-center gap-1 rounded-md border border-gray-200/90 bg-white px-2 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                 >
-                    <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                    <HiOutlineMap className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                     <span>Map legend</span>
                 </button>
                 {mobileOpen && (
