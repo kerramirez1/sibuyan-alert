@@ -14,12 +14,10 @@ import { configureProductionClient } from './config/clientApp.js';
 import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
 import { initFaceDetector } from './services/faceDetectionService.js';
-import { authenticateAccessToken, protect } from './middleware/auth.js';
-import { requireRole } from './middleware/roleCheck.js';
+import { authenticateAccessToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { ACCESS_COOKIE_NAME } from './config/authConfig.js';
 import { getCookieValue } from './services/authSessionService.js';
-import { getOperationalOnlineUsers } from './utils/onlineOperationalUsers.js';
 
 // Import seeds
 import { seedMunicipalities } from './seeds/municipalitySeed.js';
@@ -124,56 +122,18 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/high-risk-zones', highRiskZonesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
-// --- Online Users Tracking ---
-const onlineUsers = new Map(); // socketId -> { userId, name, role, assignedMunicipality, agency, avatar, connectedAt }
-
+// Socket.io connection handling
+// NOTE: Operational presence tracking (online-users Map, userOnline/userOffline
+// broadcasts, GET /api/admin/online-users) was removed as out of scope.
+// Room joins below serve incident alerts only.
 const authenticateSocketRequest = async (socket) => {
     const token = getCookieValue(socket.handshake.headers.cookie, ACCESS_COOKIE_NAME);
     const identity = await authenticateAccessToken(token);
     return identity?.user || null;
 };
-
-// API endpoint: Get online users (for admin dashboard)
-app.get('/api/admin/online-users', protect, requireRole('municipal_admin', 'responder'), async (req, res) => {
-    const { municipality: requestedMunicipality } = req.query;
-    const assignedMunicipality = req.user.assignedMunicipality;
-
-    if (!assignedMunicipality) {
-        return res.status(403).json({
-            success: false,
-            message: 'Municipality is not assigned to this account',
-        });
-    }
-
-    if (requestedMunicipality && requestedMunicipality !== assignedMunicipality) {
-        return res.status(403).json({
-            success: false,
-            message: 'Not authorized to view other municipalities',
-        });
-    }
-
-    const municipality = assignedMunicipality;
-
-    try {
-        const uniqueUsers = getOperationalOnlineUsers(Array.from(onlineUsers.values()), municipality);
-        res.json({
-            success: true,
-            data: uniqueUsers,
-            total: uniqueUsers.length,
-        });
-    } catch (error) {
-        console.error('Failed to load online users:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to get online users',
-        });
-    }
-});
-
-// Socket.io connection handling
 io.on('connection', (socket) => {
     const getAuthenticatedUser = () => socket.data.user || null;
-    // Join user-specific room and track online status
+    // Join user-specific room for incident alerts.
     socket.on('join', async () => {
         let userData = null;
         try {
@@ -209,26 +169,6 @@ io.on('connection', (socket) => {
                 socket.join(`municipality_${socket.data.user.assignedMunicipality}_responders`);
             }
         }
-
-        const userInfo = {
-            userId: socket.data.user.id,
-            socketId: socket.id,
-            name: userData.name,
-            role: userData.role,
-            assignedMunicipality: userData.assignedMunicipality,
-            agency: userData.agency,
-            avatar: userData.avatar,
-            connectedAt: new Date(),
-        };
-        onlineUsers.set(socket.id, userInfo);
-
-        if (userData.assignedMunicipality) {
-            io.to(`municipality_${userData.assignedMunicipality}`).emit('userOnline', userInfo);
-        }
-
-        io.emit('onlineUsersUpdate', {
-            onlineCount: new Set(Array.from(onlineUsers.values()).map((u) => u.userId)).size,
-        });
     });
 
     // Join municipality room for local alerts
@@ -279,48 +219,13 @@ io.on('connection', (socket) => {
                 socket.leave(`municipality_${user.assignedMunicipality}_responders`);
             }
 
-            const userInfo = onlineUsers.get(socket.id);
-            onlineUsers.delete(socket.id);
             socket.data.user = null;
-
-            const stillOnline = Array.from(onlineUsers.values()).some(
-                (entry) => entry.userId === user.id
-            );
-            if (!stillOnline && userInfo?.assignedMunicipality) {
-                io.to(`municipality_${userInfo.assignedMunicipality}`).emit('userOffline', {
-                    userId: userInfo.userId,
-                    name: userInfo.name,
-                });
-            }
-
-            io.emit('onlineUsersUpdate', {
-                onlineCount: new Set(Array.from(onlineUsers.values()).map((entry) => entry.userId)).size,
-            });
         }
     });
 
-    // Handle disconnection — remove from online tracking
+    // Handle disconnection — room membership is cleaned up automatically.
     socket.on('disconnect', () => {
-        const userData = onlineUsers.get(socket.id);
-        if (userData) {
-            onlineUsers.delete(socket.id);
-
-            // Check if user still has other active sockets
-            const stillOnline = Array.from(onlineUsers.values()).some(u => u.userId === userData.userId);
-
-            if (!stillOnline) {
-                // User fully disconnected — broadcast to municipality room
-                if (userData.assignedMunicipality) {
-                    io.to(`municipality_${userData.assignedMunicipality}`).emit('userOffline', {
-                        userId: userData.userId,
-                        name: userData.name,
-                    });
-                }
-                io.emit('onlineUsersUpdate', {
-                    onlineCount: new Set(Array.from(onlineUsers.values()).map(u => u.userId)).size,
-                });
-            }
-        }
+        socket.data.user = null;
     });
 });
 

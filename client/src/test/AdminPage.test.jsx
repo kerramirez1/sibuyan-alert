@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
     callbacks: {},
     getResponder: vi.fn(),
     getAdmin: vi.fn(),
-    getOnlineUsers: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -33,19 +32,15 @@ vi.mock('../services/api', () => ({
         getResponder: mocks.getResponder,
         getAdmin: mocks.getAdmin,
     },
-    adminAPI: {
-        getOnlineUsers: mocks.getOnlineUsers,
-    },
+    adminAPI: {},
 }));
 
 vi.mock('../components/dashboard/ResponderDashboardWorkspace', () => ({
-    default: ({ error, onlineUsersError, loading, stats, onlineUsers }) => (
+    default: ({ error, loading, stats }) => (
         <div>
             <span>loading:{String(loading)}</span>
             <span>active:{stats?.activeIncidents ?? 'none'}</span>
-            <span>online:{onlineUsers.length}</span>
             {error && <span>dashboard-error:{error}</span>}
-            {onlineUsersError && <span>presence-error:{onlineUsersError}</span>}
         </div>
     ),
 }));
@@ -64,18 +59,13 @@ describe('AdminPage responder dashboard orchestration', () => {
         mocks.getResponder.mockResolvedValue({
             data: { data: { activeIncidents: 3 } },
         });
-        mocks.getOnlineUsers.mockResolvedValue({
-            data: { data: [{ userId: 'responder-1', role: 'responder' }] },
-        });
     });
 
-    test('loads responder analytics and operational presence from the public auth user shape', async () => {
+    test('loads responder analytics from the public auth user shape', async () => {
         render(<AdminPage />);
 
         await waitFor(() => expect(screen.getByText('active:3')).toBeInTheDocument());
-        expect(screen.getByText('online:1')).toBeInTheDocument();
         expect(mocks.getResponder).toHaveBeenCalledOnce();
-        expect(mocks.getOnlineUsers).toHaveBeenCalledWith({ municipality: 'Cajidiocan' });
     });
 
     test('subscribes to report transfer and hazard lifecycle events', async () => {
@@ -87,6 +77,11 @@ describe('AdminPage responder dashboard orchestration', () => {
             'highRiskZoneCreated',
             'highRiskZoneUpdated',
             'highRiskZoneDeleted',
+        ]));
+        expect(Object.keys(mocks.callbacks)).not.toEqual(expect.arrayContaining([
+            'userOnline',
+            'userOffline',
+            'onlineUsersUpdate',
         ]));
 
         let scheduledRefresh;
@@ -107,18 +102,14 @@ describe('AdminPage responder dashboard orchestration', () => {
         expect(mocks.getResponder).toHaveBeenCalledTimes(2);
     });
 
-    test('exposes separate analytics and presence failures to the workspace', async () => {
+    test('exposes analytics failures to the workspace', async () => {
         mocks.getResponder.mockRejectedValue({
             response: { data: { message: 'Analytics temporarily unavailable' } },
-        });
-        mocks.getOnlineUsers.mockRejectedValue({
-            response: { data: { message: 'Presence temporarily unavailable' } },
         });
 
         render(<AdminPage />);
 
         expect(await screen.findByText('dashboard-error:Analytics temporarily unavailable')).toBeInTheDocument();
-        expect(screen.getByText('presence-error:Presence temporarily unavailable')).toBeInTheDocument();
         expect(screen.getByText('loading:false')).toBeInTheDocument();
     });
 });
@@ -173,14 +164,6 @@ describe('AdminPage municipal admin dashboard rendering', () => {
                 },
             },
         });
-        mocks.getOnlineUsers.mockResolvedValue({
-            data: {
-                data: [
-                    { userId: 'admin-1', name: 'Admin Chief', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
-                    { userId: 'resp-1', name: 'Officer Dalisay', role: 'responder', agency: 'PNP', assignedMunicipality: 'Cajidiocan' },
-                ],
-            },
-        });
     });
 
     test('renders the unified municipal operations dashboard layout and metrics', async () => {
@@ -207,11 +190,9 @@ describe('AdminPage municipal admin dashboard rendering', () => {
         expect(screen.getByText('Sugod')).toBeInTheDocument();
         expect(screen.getByText('4 incidents')).toBeInTheDocument();
 
-        // Active Personnel
-        expect(screen.getByText('Active personnel & users')).toBeInTheDocument();
-        expect(screen.getByText('2 online')).toBeInTheDocument();
-        expect(screen.getByText('Admin Chief')).toBeInTheDocument();
-        expect(screen.getByText('Officer Dalisay')).toBeInTheDocument();
+        // Presence section is removed (out of objectives).
+        expect(screen.queryByText('Active personnel & users')).not.toBeInTheDocument();
+        expect(screen.queryByText(/online$/i)).not.toBeInTheDocument();
 
         // Recent Reports & Recent Users
         expect(screen.getByText('Recent reports')).toBeInTheDocument();

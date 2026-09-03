@@ -43,39 +43,18 @@ const mockStats = {
     ],
 };
 
-const mockOnlineUsers = [
-    {
-        userId: 'admin-1',
-        name: 'Admin Santos',
-        role: 'municipal_admin',
-        assignedMunicipality: 'Cajidiocan',
-    },
-    {
-        userId: 'responder-2',
-        name: 'Fire Officer Reyes',
-        role: 'responder',
-        agency: 'BFP',
-        assignedMunicipality: 'Cajidiocan',
-    },
-    {
-        userId: 'responder-3',
-        name: 'Nurse Joy',
-        role: 'responder',
-        agency: 'SDH',
-        assignedMunicipality: 'Cajidiocan',
-    },
-];
+const renderWorkspace = (props = {}) => render(
+    <ResponderDashboardWorkspace
+        user={mockUser}
+        stats={mockStats}
+        loading={false}
+        {...props}
+    />
+);
 
 describe('ResponderDashboardWorkspace', () => {
     it('renders the operations header with agency and assigned municipality', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={mockOnlineUsers}
-                loading={false}
-            />
-        );
+        renderWorkspace();
 
         expect(screen.getByText(/Operations dashboard/i)).toBeInTheDocument();
         expect(screen.getByText(/Responder operations/i)).toBeInTheDocument();
@@ -104,14 +83,7 @@ describe('ResponderDashboardWorkspace', () => {
     });
 
     it('renders all 4 operational KPI metrics correctly', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={mockOnlineUsers}
-                loading={false}
-            />
-        );
+        renderWorkspace();
 
         const emergenciesCard = screen.getByText('Active emergencies').closest('a');
         expect(emergenciesCard).toBeInTheDocument();
@@ -151,14 +123,7 @@ describe('ResponderDashboardWorkspace', () => {
     });
 
     it('renders barangay incident distributions with casualty tags', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={mockOnlineUsers}
-                loading={false}
-            />
-        );
+        renderWorkspace();
 
         expect(screen.getByText('Barangay distribution')).toBeInTheDocument();
         expect(screen.getByText('Poblacion')).toBeInTheDocument();
@@ -173,14 +138,7 @@ describe('ResponderDashboardWorkspace', () => {
     });
 
     it('renders high-risk hazard zones with severity and type badges', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={mockOnlineUsers}
-                loading={false}
-            />
-        );
+        renderWorkspace();
 
         expect(screen.getByText('Hazard watchlist')).toBeInTheDocument();
         expect(screen.getByText('España Blind Curve')).toBeInTheDocument();
@@ -194,47 +152,12 @@ describe('ResponderDashboardWorkspace', () => {
         expect(screen.getByText('Accident Prone').closest('a')).toBe(zoneLinks[0]);
     });
 
-    it('renders multi-agency online personnel with categorized badges', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={mockOnlineUsers}
-                loading={false}
-            />
-        );
+    it('does not render the removed operational presence section', () => {
+        renderWorkspace();
 
-        expect(screen.getByText(/Multi-agency readiness/i)).toBeInTheDocument();
-        expect(screen.getByText('Admin Santos')).toBeInTheDocument();
-        expect(screen.getByText('Mun. Admin')).toBeInTheDocument();
-
-        expect(screen.getByText('Fire Officer Reyes')).toBeInTheDocument();
-        expect(screen.getByText('BFP Fire')).toBeInTheDocument();
-
-        expect(screen.getByText('Nurse Joy')).toBeInTheDocument();
-        expect(screen.getByText('SDH Health')).toBeInTheDocument();
-    });
-
-    it('defensively excludes non-operational online accounts', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={mockStats}
-                onlineUsers={[
-                    ...mockOnlineUsers,
-                    {
-                        userId: 'reporter-1',
-                        name: 'Citizen Reporter',
-                        role: 'reporter',
-                        assignedMunicipality: 'Cajidiocan',
-                    },
-                ]}
-                loading={false}
-            />
-        );
-
-        expect(screen.queryByText('Citizen Reporter')).not.toBeInTheDocument();
-        expect(screen.getByText('3 online')).toBeInTheDocument();
+        expect(screen.queryByText(/Multi-agency readiness/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/currently online/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Loading operational presence')).not.toBeInTheDocument();
     });
 
     it('shows a dedicated initial loading state instead of all-clear empty states', () => {
@@ -242,7 +165,6 @@ describe('ResponderDashboardWorkspace', () => {
             <ResponderDashboardWorkspace
                 user={mockUser}
                 stats={null}
-                onlineUsers={[]}
                 loading
             />
         );
@@ -257,7 +179,6 @@ describe('ResponderDashboardWorkspace', () => {
             <ResponderDashboardWorkspace
                 user={mockUser}
                 stats={null}
-                onlineUsers={[]}
                 loading={false}
                 error="Analytics service unavailable"
                 onRetry={onRetry}
@@ -270,45 +191,34 @@ describe('ResponderDashboardWorkspace', () => {
     });
 
     it('renders empty fallback states gracefully when stats arrays are empty', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={{
-                    activeIncidents: 0,
-                    availableIncidents: 0,
-                    myActiveDeployments: 0,
-                    resolvedToday: 0,
-                    activeRiskZones: 0,
-                    reportsByBarangay: [],
-                    criticalHighRiskZones: [],
-                }}
-                onlineUsers={[]}
-                loading={false}
-            />
-        );
+        renderWorkspace({
+            stats: {
+                activeIncidents: 0,
+                availableIncidents: 0,
+                myActiveDeployments: 0,
+                resolvedToday: 0,
+                activeRiskZones: 0,
+                reportsByBarangay: [],
+                criticalHighRiskZones: [],
+            },
+        });
 
         expect(screen.getByText('No incident hotspots recorded')).toBeInTheDocument();
         expect(screen.getByText('No critical or high-priority zones')).toBeInTheDocument();
-        expect(screen.getByText(/No operational personnel currently online in Cajidiocan/i)).toBeInTheDocument();
     });
 
     it('normalizes malformed analytics values without breaking the dashboard', () => {
-        render(
-            <ResponderDashboardWorkspace
-                user={mockUser}
-                stats={{
-                    activeIncidents: 'invalid',
-                    availableIncidents: -3,
-                    myActiveDeployments: null,
-                    resolvedToday: 1.8,
-                    activeRiskZones: Number.NaN,
-                    reportsByBarangay: null,
-                    criticalHighRiskZones: {},
-                }}
-                onlineUsers={null}
-                loading={false}
-            />
-        );
+        renderWorkspace({
+            stats: {
+                activeIncidents: 'invalid',
+                availableIncidents: -3,
+                myActiveDeployments: null,
+                resolvedToday: 1.8,
+                activeRiskZones: Number.NaN,
+                reportsByBarangay: null,
+                criticalHighRiskZones: {},
+            },
+        });
 
         expect(screen.getByText('Active emergencies').closest('a')).toHaveTextContent('0');
         expect(screen.getByText('Resolved today').closest('a')).toHaveTextContent('1');

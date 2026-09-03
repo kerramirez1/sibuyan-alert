@@ -14,7 +14,6 @@ vi.mock('../services/api', () => ({
         delete: vi.fn(),
     },
     adminAPI: {
-        getOnlineUsers: vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
         getReports: vi.fn().mockResolvedValue({ data: { success: true, data: { reports: [], total: 0 } } }),
         getStats: vi.fn().mockResolvedValue({ data: { success: true, data: {} } }),
         getUsers: vi.fn().mockResolvedValue({ data: { success: true, data: { users: [], total: 0 } } }),

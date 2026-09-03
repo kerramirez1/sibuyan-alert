@@ -34,16 +34,15 @@ const Coverage = ({ municipalities }) => {
                     <dl
                         data-testid="coverage-metrics"
                         aria-label="Island coverage totals"
-                        className="mb-8 grid grid-cols-1 min-[400px]:grid-cols-3 divide-y min-[400px]:divide-y-0 min-[400px]:divide-x divide-green-900/50"
+                        className="mb-8 grid max-w-md grid-cols-2 divide-x divide-green-900/50"
                     >
                         {[
                             [municipalities.length, 'Municipalities'],
                             [totalBarangays, 'Barangays'],
-                            [4, 'Response agencies'],
                         ].map(([value, label]) => (
                             <div
                                 key={label}
-                                className="flex min-w-0 flex-col p-4 text-left sm:p-4.5"
+                                className="flex min-w-0 flex-col p-4 text-left sm:p-5"
                             >
                                 <dt className="order-2 mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-50/60 sm:text-[11px]">{label}</dt>
                                 <dd className="order-1 font-mono text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>

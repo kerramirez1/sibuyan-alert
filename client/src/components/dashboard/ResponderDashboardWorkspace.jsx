@@ -1,5 +1,4 @@
 import { Link } from '../../router';
-import { resolveAssetUrl } from '../../utils/assets';
 import { buildRiskZoneMapTarget, getRiskZoneId } from '../../utils/riskZoneNavigation';
 import { getMapRiskTypeConfig } from '../../config/mapVisuals';
 import Button from '../ui/Button';
@@ -11,7 +10,6 @@ import {
     HiOutlineMap,
     HiOutlineArrowRight,
     HiOutlineExternalLink,
-    HiOutlineUsers,
     HiOutlineTrendingUp,
     HiOutlineRefresh,
 } from 'react-icons/hi';
@@ -124,48 +122,12 @@ const getSeverityBadgeConfig = (severity) => {
 
 const formatHazardType = (type) => getMapRiskTypeConfig(type).label.replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-const getAgencyBadge = (role, agency) => {
-    if (role === 'municipal_admin') {
-        return {
-            label: 'Mun. Admin',
-            dot: 'bg-indigo-500',
-        };
-    }
-    const cleanAgency = (agency || '').toUpperCase();
-    if (cleanAgency.includes('PNP') || cleanAgency.includes('POLICE')) {
-        return {
-            label: 'PNP Police',
-            dot: 'bg-blue-500',
-        };
-    }
-    if (cleanAgency.includes('BFP') || cleanAgency.includes('FIRE')) {
-        return {
-            label: 'BFP Fire',
-            dot: 'bg-amber-500',
-        };
-    }
-    if (cleanAgency.includes('SDH') || cleanAgency.includes('HOSPITAL') || cleanAgency.includes('HEALTH')) {
-        return {
-            label: 'SDH Health',
-            dot: 'bg-emerald-500',
-        };
-    }
-    return {
-        label: agency === 'LGU' ? 'MDRRMO' : agency || 'Responder',
-        dot: 'bg-orange-500',
-    };
-};
-
 const ResponderDashboardWorkspace = ({
     user,
     stats,
-    onlineUsers = [],
     loading = false,
     error = '',
     onRetry,
-    onlineUsersLoading = false,
-    onlineUsersError = '',
-    onRetryOnlineUsers,
 }) => {
     const municipalityName = user?.assignedMunicipality || 'Sibuyan Island';
     const agencyName = user?.agency === 'LGU' ? 'MDRRMO' : user?.agency || 'Responder Unit';
@@ -177,12 +139,6 @@ const ResponderDashboardWorkspace = ({
     const activeRiskZones = toCount(stats?.activeRiskZones);
     const reportsByBarangay = Array.isArray(stats?.reportsByBarangay) ? stats.reportsByBarangay : [];
     const criticalZones = Array.isArray(stats?.criticalHighRiskZones) ? stats.criticalHighRiskZones : [];
-    const operationalUsers = Array.isArray(onlineUsers)
-        ? onlineUsers.filter((activeUser) => (
-            activeUser?.userId
-            && ['municipal_admin', 'responder'].includes(activeUser.role)
-        ))
-        : [];
 
     if (loading && !stats) return <ResponderDashboardSkeleton />;
     if (error && !stats) return <ResponderDashboardError message={error} onRetry={onRetry} />;
@@ -243,7 +199,7 @@ const ResponderDashboardWorkspace = ({
                         Operations dashboard
                     </h1>
                     <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
-                        Operational readiness, barangay incident activity, and multi-agency coordination.
+                        Barangay incident activity and hazard monitoring.
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-400" aria-label="Operational context">
                         <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
@@ -449,95 +405,6 @@ const ResponderDashboardWorkspace = ({
                     </div>
                 </section>
             </div>
-
-            {/* 4. Multi-Agency Readiness & On-Duty Units (Active Now) */}
-            <section className={PANEL_CLASS} aria-labelledby="readiness-title">
-                <div className="flex flex-col items-start gap-2 border-b border-gray-200/80 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
-                    <div className="flex min-w-0 items-start gap-2">
-                        <HiOutlineUsers className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                        <div>
-                            <h2 id="readiness-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                                Multi-agency readiness
-                            </h2>
-                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                Online response units & coordination personnel
-                            </p>
-                        </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                        <span className={`h-1.5 w-1.5 rounded-full ${operationalUsers.length > 0 ? 'bg-emerald-500' : 'bg-gray-400'}`} aria-hidden="true" />
-                        {onlineUsersLoading && operationalUsers.length === 0 ? '...' : operationalUsers.length} online
-                    </span>
-                </div>
-
-                <div className="mt-2">
-                    {onlineUsersLoading && operationalUsers.length === 0 ? (
-                        <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Loading operational presence">
-                            {[0, 1, 2].map((item) => (
-                                <div key={item} className="py-2.5">
-                                    <div className="h-4 w-2/3 animate-pulse rounded-md bg-gray-100 dark:bg-white/5" />
-                                    <div className="mt-1.5 h-3 w-1/3 animate-pulse rounded-md bg-gray-100 dark:bg-white/5" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : onlineUsersError ? (
-                        <div className="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between" role="alert">
-                            <p className="text-sm text-red-700 dark:text-red-300">{onlineUsersError}</p>
-                            <Button size="sm" variant="dangerOutline" icon={HiOutlineRefresh} onClick={onRetryOnlineUsers}>
-                                Retry presence
-                            </Button>
-                        </div>
-                    ) : operationalUsers.length === 0 ? (
-                        <p className="py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                            No operational personnel currently online in {municipalityName}.
-                        </p>
-                    ) : (
-                        <ul className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-gray-100 dark:divide-white/5 sm:divide-y-0">
-                            {operationalUsers.map((activeUser) => {
-                                const agencyMeta = getAgencyBadge(activeUser.role, activeUser.agency);
-                                return (
-                                    <li
-                                        key={activeUser.userId}
-                                        className="flex items-center gap-3 py-2.5"
-                                    >
-                                        <div className="relative shrink-0">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-700 dark:bg-white/10 dark:text-gray-200">
-                                                {activeUser.avatar ? (
-                                                    <img
-                                                        src={resolveAssetUrl(activeUser.avatar)}
-                                                        alt=""
-                                                        className="h-full w-full rounded-lg object-cover"
-                                                    />
-                                                ) : (
-                                                    activeUser.name?.charAt(0).toUpperCase() || 'R'
-                                                )}
-                                            </div>
-                                            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 dark:border-[#0c1813]"></span>
-                                        </div>
-
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-semibold text-gray-950 dark:text-white">
-                                                {activeUser.name}
-                                            </p>
-                                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                                                <span className="inline-flex items-center gap-1 rounded-md border border-gray-200/90 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${agencyMeta.dot}`} aria-hidden="true" />
-                                                    {agencyMeta.label}
-                                                </span>
-                                                {activeUser.assignedMunicipality && (
-                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                                        · {activeUser.assignedMunicipality}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </div>
-            </section>
         </div>
     );
 };

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
-import { adminAPI, analyticsAPI } from '../services/api';
+import { analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
-import { resolveAssetUrl } from '../utils/assets';
 import {
     HiOutlineShieldExclamation,
     HiOutlineArrowRight,
@@ -32,26 +31,6 @@ const ROLE_CONFIG = {
     reporter: { label: 'Reporter', dot: 'bg-purple-500' },
 };
 
-const getOnlineUserBadge = (activeUser) => {
-    if (activeUser.role === 'municipal_admin') {
-        return { label: 'Mun. Admin', dot: 'bg-indigo-500' };
-    }
-    const cleanAgency = (activeUser.agency || '').toUpperCase();
-    if (cleanAgency.includes('PNP') || cleanAgency.includes('POLICE')) {
-        return { label: 'PNP Police', dot: 'bg-blue-500' };
-    }
-    if (cleanAgency.includes('BFP') || cleanAgency.includes('FIRE')) {
-        return { label: 'BFP Fire', dot: 'bg-amber-500' };
-    }
-    if (cleanAgency.includes('SDH') || cleanAgency.includes('HOSPITAL') || cleanAgency.includes('HEALTH')) {
-        return { label: 'SDH Health', dot: 'bg-emerald-500' };
-    }
-    if (activeUser.role === 'responder') {
-        return { label: 'Responder', dot: 'bg-cyan-500' };
-    }
-    return { label: 'Reporter', dot: 'bg-purple-500' };
-};
-
 const getRequestErrorMessage = (error, fallback) => (
     error?.response?.data?.message || error?.message || fallback
 );
@@ -63,43 +42,8 @@ const AdminPage = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
-    const [onlineUsers, setOnlineUsers] = useState([]);
-    const [onlineUsersLoading, setOnlineUsersLoading] = useState(true);
-    const [onlineUsersError, setOnlineUsersError] = useState('');
     const dashboardRequestIdRef = useRef(0);
-    const onlineUsersRequestIdRef = useRef(0);
     const dashboardRefreshTimerRef = useRef(null);
-    const onlineUsersRefreshTimerRef = useRef(null);
-
-    const fetchOnlineUsers = useCallback(async ({ showLoading = false } = {}) => {
-        if (!user?.assignedMunicipality) return;
-        const requestId = ++onlineUsersRequestIdRef.current;
-        if (showLoading) setOnlineUsersLoading(true);
-        setOnlineUsersError('');
-        try {
-            const params = { municipality: user.assignedMunicipality };
-            const response = await adminAPI.getOnlineUsers(params);
-            const nextUsers = response.data?.data;
-            if (!Array.isArray(nextUsers)) {
-                throw new Error('The operational presence response was invalid.');
-            }
-            if (requestId === onlineUsersRequestIdRef.current) {
-                setOnlineUsers(nextUsers);
-            }
-        } catch (error) {
-            console.error('Failed to fetch online users:', error);
-            if (requestId === onlineUsersRequestIdRef.current) {
-                setOnlineUsersError(getRequestErrorMessage(
-                    error,
-                    'Unable to load operational presence. Please try again.',
-                ));
-            }
-        } finally {
-            if (requestId === onlineUsersRequestIdRef.current) {
-                setOnlineUsersLoading(false);
-            }
-        }
-    }, [user?.assignedMunicipality]);
 
     const fetchDashboardStats = useCallback(async ({ showLoading = false } = {}) => {
         if (!user?.role) return;
@@ -136,15 +80,12 @@ const AdminPage = () => {
     useEffect(() => {
         if (!userId) return undefined;
         setStats(null);
-        setOnlineUsers([]);
         fetchDashboardStats({ showLoading: true });
-        fetchOnlineUsers({ showLoading: true });
 
         return () => {
             dashboardRequestIdRef.current += 1;
-            onlineUsersRequestIdRef.current += 1;
         };
-    }, [fetchDashboardStats, fetchOnlineUsers, userId]);
+    }, [fetchDashboardStats, userId]);
 
     const scheduleDashboardRefresh = useCallback(() => {
         window.clearTimeout(dashboardRefreshTimerRef.current);
@@ -152,13 +93,6 @@ const AdminPage = () => {
             fetchDashboardStats();
         }, 150);
     }, [fetchDashboardStats]);
-
-    const scheduleOnlineUsersRefresh = useCallback(() => {
-        window.clearTimeout(onlineUsersRefreshTimerRef.current);
-        onlineUsersRefreshTimerRef.current = window.setTimeout(() => {
-            fetchOnlineUsers();
-        }, 150);
-    }, [fetchOnlineUsers]);
 
     useEffect(() => {
         const dashboardEvents = [
@@ -172,18 +106,13 @@ const AdminPage = () => {
             'highRiskZoneUpdated',
             'highRiskZoneDeleted',
         ];
-        const onlineUserEvents = ['userOnline', 'userOffline', 'onlineUsersUpdate'];
-        const unsubscribers = [
-            ...dashboardEvents.map((eventName) => subscribe(eventName, scheduleDashboardRefresh)),
-            ...onlineUserEvents.map((eventName) => subscribe(eventName, scheduleOnlineUsersRefresh)),
-        ];
+        const unsubscribers = dashboardEvents.map((eventName) => subscribe(eventName, scheduleDashboardRefresh));
 
         return () => {
             unsubscribers.forEach((unsubscribe) => unsubscribe());
             window.clearTimeout(dashboardRefreshTimerRef.current);
-            window.clearTimeout(onlineUsersRefreshTimerRef.current);
         };
-    }, [scheduleDashboardRefresh, scheduleOnlineUsersRefresh, subscribe]);
+    }, [scheduleDashboardRefresh, subscribe]);
 
     // Specialized Responder Operations Hub
     if (user?.role === 'responder') {
@@ -191,13 +120,9 @@ const AdminPage = () => {
             <ResponderDashboardWorkspace
                 user={user}
                 stats={stats}
-                onlineUsers={onlineUsers}
                 loading={loading}
                 error={dashboardError}
                 onRetry={() => fetchDashboardStats({ showLoading: true })}
-                onlineUsersLoading={onlineUsersLoading}
-                onlineUsersError={onlineUsersError}
-                onRetryOnlineUsers={() => fetchOnlineUsers({ showLoading: true })}
             />
         );
     }
@@ -386,58 +311,6 @@ const AdminPage = () => {
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Recent 7-day volume</p>
                 </div>
             </section>
-
-            {/* Active Personnel Section */}
-            {onlineUsers.length > 0 && (
-                <section className={PANEL_CLASS} aria-labelledby="admin-active-personnel-title">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                            </span>
-                            <h2 id="admin-active-personnel-title" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
-                                Active personnel & users
-                            </h2>
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
-                            {onlineUsers.length} online
-                        </span>
-                    </div>
-
-                    <div className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {onlineUsers.map((activeUser) => {
-                            const badge = getOnlineUserBadge(activeUser);
-                            return (
-                                <div
-                                    key={activeUser.userId}
-                                    className="flex items-center gap-2.5 rounded-xl border border-gray-200/80 bg-gray-50/60 p-2.5 transition-colors hover:bg-gray-50 dark:border-white/5 dark:bg-white/[0.02]"
-                                >
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/90 bg-gray-100 text-xs font-bold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
-                                        {activeUser.avatar ? (
-                                            <img src={resolveAssetUrl(activeUser.avatar)} alt={activeUser.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                                        ) : (
-                                            activeUser.name?.charAt(0).toUpperCase() || '?'
-                                        )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-xs font-semibold text-gray-900 dark:text-gray-100">{activeUser.name}</p>
-                                        <div className="mt-0.5 flex items-center gap-1.5">
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
-                                                <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} aria-hidden="true" />
-                                                {badge.label}
-                                            </span>
-                                            {activeUser.assignedMunicipality && (
-                                                <span className="truncate text-[10px] text-gray-400 dark:text-gray-500">· {activeUser.assignedMunicipality}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            )}
 
             {/* Barangay Incidents Breakdown */}
             {stats?.reportsByBarangay && stats.reportsByBarangay.length > 0 && (

@@ -93,7 +93,7 @@ describe('HomePage operational landing page', () => {
         const coverageMetrics = screen.getByTestId('coverage-metrics');
         const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
         const guarantees = screen.getByTestId('system-guarantees');
-        expect(coverageMetrics).toHaveClass('grid', 'min-[400px]:grid-cols-3');
+        expect(coverageMetrics).toHaveClass('grid', 'grid-cols-2');
         expect(municipalityCoverage.tagName).toBe('UL');
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {

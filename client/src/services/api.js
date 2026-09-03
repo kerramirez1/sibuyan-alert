@@ -165,7 +165,6 @@ export const adminAPI = {
     acknowledgeTransfer: (id) => api.put(`/admin/reports/${id}/acknowledge-transfer`),
     deleteReport: (id) => api.delete(`/admin/reports/${id}`),
     deleteUser: (id) => api.delete(`/admin/users/${id}`),
-    getOnlineUsers: (params) => api.get('/admin/online-users', { params }),
 };
 
 // High Risk Zones API
