@@ -704,8 +704,17 @@
   z-index: 20 !important;
 }
 
-.maplibregl-ctrl-attrib.maplibregl-compact {
-  max-width: calc(100vw - 2.5rem);
+.sibuyan-map-credit {
+  max-width: min(70vw, 26rem);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #3f4750;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.sibuyan-map-credit a {
+  color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {

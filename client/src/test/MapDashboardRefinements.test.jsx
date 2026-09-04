@@ -348,15 +348,16 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             activePanel: null,
         };
 
-        test('renders compact filter toolbar and allows selecting filters', () => {
+        test('renders status filter tabs and allows selecting filters', () => {
             render(
                 <MemoryRouter>
                     <DashboardMapWorkspace {...workspaceProps} />
                 </MemoryRouter>
             );
 
-            expect(screen.getByText('Filter by status')).toBeInTheDocument();
-            const verifiedFilterBtn = screen.getByRole('button', { name: /Verified filter/i });
+            const tablist = screen.getByRole('group', { name: 'Map status filter' });
+            expect(tablist).toBeInTheDocument();
+            const verifiedFilterBtn = within(tablist).getByRole('button', { name: /Verified filter/i });
             expect(verifiedFilterBtn).toBeInTheDocument();
 
             fireEvent.click(verifiedFilterBtn);

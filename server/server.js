@@ -13,6 +13,7 @@ import connectDB from './config/db.js';
 import { configureProductionClient } from './config/clientApp.js';
 import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
+import { ensureAnalyticsView } from './services/analyticsViewService.js';
 import { initFaceDetector } from './services/faceDetectionService.js';
 import { authenticateAccessToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
@@ -74,6 +75,15 @@ const initializeDatabase = async () => {
         await seedResponderAccounts();
     } catch (error) {
         console.warn('⚠️ Seeding warning:', error.message);
+    }
+    // D7 Analytics / Historical Data is a read-only view on reports — ensure it
+    // exists without ever failing the boot (analytics degrades to live
+    // aggregation when the view cannot be created, e.g. restricted DB roles).
+    try {
+        const view = await ensureAnalyticsView(mongoose.connection);
+        console.log(`📊 Analytics view ready: ${view.name} (${view.action})`);
+    } catch (error) {
+        console.warn('⚠️ Analytics view warning:', error.message);
     }
 };
 

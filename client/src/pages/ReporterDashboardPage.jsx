@@ -6,78 +6,33 @@ import { formatDistanceToNow } from 'date-fns';
 import {
     HiCheck,
     HiOutlineChevronRight,
-    HiOutlineClipboardList,
-    HiOutlineClock,
-    HiOutlineDocumentAdd,
     HiOutlineExclamationCircle,
-    HiOutlineGlobe,
-    HiOutlineLocationMarker,
     HiOutlineRefresh,
-    HiOutlineShieldCheck,
-    HiOutlineTruck,
 } from 'react-icons/hi';
 import Button from '../components/ui/Button';
-import { Skeleton, SkeletonCard, SkeletonCircle, SkeletonRow } from '../components/ui/Skeleton';
+import { Skeleton } from '../components/ui/Skeleton';
 
+// Canonical lifecycle vocabulary shared by the stepper, status column, and
+// status line, so one state is never named three different ways.
 const STATUS_CONFIG = {
-    pending: {
-        label: 'Pending review',
-        shortLabel: 'Pending',
-        dot: 'bg-amber-500',
-        badge: 'border-amber-200/90 bg-amber-50/80 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300',
-        stepIndex: 1,
-    },
-    verified: {
-        label: 'Verified',
-        shortLabel: 'Verified',
-        dot: 'bg-blue-500',
-        badge: 'border-blue-200/90 bg-blue-50/80 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300',
-        stepIndex: 2,
-    },
-    transferred: {
-        label: 'Transferred',
-        shortLabel: 'Transferred',
-        dot: 'bg-purple-500',
-        badge: 'border-purple-200/90 bg-purple-50/80 text-purple-800 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300',
-        stepIndex: 2,
-    },
-    responding: {
-        label: 'Response active',
-        shortLabel: 'Active',
-        dot: 'bg-cyan-500',
-        badge: 'border-cyan-200/90 bg-cyan-50/80 text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-300',
-        stepIndex: 3,
-    },
-    resolved: {
-        label: 'Resolved',
-        shortLabel: 'Resolved',
-        dot: 'bg-emerald-500',
-        badge: 'border-emerald-200/90 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300',
-        stepIndex: 4,
-    },
-    rejected: {
-        label: 'Rejected',
-        shortLabel: 'Rejected',
-        dot: 'bg-gray-400',
-        badge: 'border-gray-200/90 bg-gray-50/80 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-400',
-        stepIndex: 1,
-    },
+    pending: { label: 'Pending review', stepIndex: 1 },
+    verified: { label: 'Verified', stepIndex: 2 },
+    transferred: { label: 'Transferred', stepIndex: 2 },
+    responding: { label: 'Responding', stepIndex: 3 },
+    resolved: { label: 'Resolved', stepIndex: 4 },
+    rejected: { label: 'Rejected', stepIndex: 1 },
 };
 
+// Hue is reserved for the severity scale only; status stays achromatic so the
+// two columns can never collide on the same color with different meanings.
 const SEVERITY_CONFIG = {
-    minor: { label: 'Minor', shortLabel: 'Minor', dot: 'bg-emerald-500' },
-    moderate: { label: 'Moderate', shortLabel: 'Moderate', dot: 'bg-amber-500' },
-    severe: { label: 'Severe', shortLabel: 'Severe', dot: 'bg-orange-500' },
-    critical: { label: 'Critical', shortLabel: 'Critical', dot: 'bg-red-500' },
+    minor: { label: 'Minor', dot: 'bg-emerald-500' },
+    moderate: { label: 'Moderate', dot: 'bg-amber-500' },
+    severe: { label: 'Severe', dot: 'bg-orange-500' },
+    critical: { label: 'Critical', dot: 'bg-red-500' },
 };
 
-const LIFECYCLE_STEPS = [
-    { key: 'submitted', label: 'Submitted', desc: 'Received by system' },
-    { key: 'review', label: 'Under review', desc: 'MDRRMO triage' },
-    { key: 'verified', label: 'Verified', desc: 'Incident confirmed' },
-    { key: 'responding', label: 'Response active', desc: 'Units on scene' },
-    { key: 'resolved', label: 'Resolved', desc: 'Safely closed' },
-];
+const LIFECYCLE_STEPS = ['Submitted', 'Pending review', 'Verified', 'Responding', 'Resolved'];
 
 const formatRelativeDate = (value) => {
     if (!value) return 'Unknown date';
@@ -99,6 +54,19 @@ const getLocation = (report) => (
     || 'Location unavailable'
 );
 
+// Avoid "Accident at E. Quirino Street · E. Quirino Street, Poblacion": when
+// title and location share significant words, show the longer one only.
+const getReportHeading = (report) => {
+    const title = (report?.title || '').trim();
+    const location = getLocation(report);
+    if (!title || title === location) return location;
+    const words = (value) => value.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
+    const titleWords = new Set(words(title));
+    const overlap = words(location).filter((word) => titleWords.has(word)).length;
+    if (overlap >= 2) return title.length >= location.length ? title : location;
+    return `${title} · ${location}`;
+};
+
 const getStatusHelp = (status) => {
     switch (status) {
         case 'pending':
@@ -119,51 +87,35 @@ const getStatusHelp = (status) => {
 };
 
 const ReporterDashboardSkeleton = () => (
-    <div className="space-y-4 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading reporter dashboard">
+    <div role="status" aria-busy="true" aria-label="Loading reporter dashboard">
         <span className="sr-only">Loading reporter dashboard</span>
-        {/* 4-Metric Strip Skeleton */}
-        <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
-            {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                    <Skeleton variant="text" role={null} className="h-3 w-20 rounded" />
-                    <Skeleton variant="text" role={null} className="h-7 w-12 rounded mt-1" />
-                    <Skeleton variant="text" role={null} className="h-2.5 w-24 rounded mt-1 opacity-70" />
-                </div>
-            ))}
-        </div>
-
-        {/* Active Report Tracker Skeleton */}
-        <SkeletonCard role={null} className="space-y-4">
-            <div className="flex items-center justify-between">
-                <Skeleton variant="text" role={null} className="h-4 w-36" />
-                <Skeleton variant="button" role={null} className="h-6 w-24 rounded-full" />
-            </div>
-            <div className="grid grid-cols-4 gap-2 pt-2">
+        <div className="border-t border-gray-200 py-6 dark:border-white/10">
+            <Skeleton variant="text" role={null} className="h-3 w-40" />
+            <div className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
                 {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className="flex flex-col items-center gap-1.5">
-                        <SkeletonCircle role={null} size="h-7 w-7" />
-                        <Skeleton variant="text" role={null} className="h-2.5 w-16" />
+                    <div key={i}>
+                        <Skeleton variant="text" role={null} className="h-3 w-20" />
+                        <Skeleton variant="text" role={null} className="mt-2 h-7 w-12" />
                     </div>
                 ))}
             </div>
-            <div className="pt-2 border-t border-gray-100 dark:border-white/5 flex justify-between">
-                <Skeleton variant="text" role={null} className="h-3 w-32" />
-                <Skeleton variant="button" role={null} className="h-7 w-20" />
-            </div>
-        </SkeletonCard>
-
-        {/* Recent Submissions Skeleton */}
-        <SkeletonCard role={null} className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-white/5">
-                <Skeleton variant="text" role={null} className="h-4 w-40" />
-                <Skeleton variant="text" role={null} className="h-3.5 w-20" />
-            </div>
-            <div className="divide-y divide-gray-100 dark:divide-white/5">
+        </div>
+        <div className="border-t border-gray-200 py-6 dark:border-white/10">
+            <Skeleton variant="text" role={null} className="h-3 w-32" />
+            <Skeleton variant="text" role={null} className="mt-3 h-4 w-2/3" />
+            <Skeleton variant="text" role={null} className="mt-2 h-3 w-1/2 opacity-70" />
+        </div>
+        <div className="border-t border-gray-200 py-6 dark:border-white/10">
+            <Skeleton variant="text" role={null} className="h-3 w-32" />
+            <div className="mt-4 space-y-4">
                 {[0, 1, 2].map((i) => (
-                    <SkeletonRow key={i} role={null} lines={2} trailingAction className="px-0 py-3" />
+                    <div key={i}>
+                        <Skeleton variant="text" role={null} className="h-4 w-3/4" />
+                        <Skeleton variant="text" role={null} className="mt-1.5 h-3 w-1/2 opacity-70" />
+                    </div>
                 ))}
             </div>
-        </SkeletonCard>
+        </div>
     </div>
 );
 
@@ -241,6 +193,23 @@ const ReporterDashboardPage = () => {
         };
     }, [reports]);
 
+    const headerSummary = useMemo(() => {
+        if (summary.total === 0) {
+            return 'Track your submitted reports and follow their response progress.';
+        }
+        const parts = [`${summary.total} ${summary.total === 1 ? 'report' : 'reports'}`];
+        if (summary.pending > 0) parts.push(`${summary.pending} awaiting review`);
+        if (summary.responding > 0) parts.push(`${summary.responding} in response`);
+        return parts.join(' · ');
+    }, [summary]);
+
+    const stats = useMemo(() => ([
+        { key: 'total', label: 'Total reports', value: summary.total, helper: 'All submissions' },
+        { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Awaiting review' },
+        { key: 'active', label: 'Active', value: summary.responding, helper: 'In response' },
+        { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed' },
+    ]), [summary]);
+
     const recentReports = useMemo(() => {
         return reports.slice(0, 5);
     }, [reports]);
@@ -258,41 +227,31 @@ const ReporterDashboardPage = () => {
     }, [latestActiveReport]);
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-6">
-            {/* Header: Citizen Reporting Workspace */}
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto w-full max-w-5xl">
+            {/* Single page title block: live subline replaces the static tagline */}
+            <header className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Reporter Overview</span>
-                            <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
-                            <span className="hidden xs:inline text-emerald-700 dark:text-emerald-400 font-bold">Citizen Workspace</span>
-                        </span>
-                    </div>
-                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Reporter dashboard
                     </h1>
-                    <p className="mt-0.5 max-w-xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                        Track your submitted reports and follow their response progress.
+                    <p className="mt-1 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                        {loading ? 'Loading your report overview.' : headerSummary}
                     </p>
                 </div>
 
-                {/* Primary & Secondary Header Actions */}
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2.5 sm:shrink-0 w-full sm:w-auto">
-                    <Link
-                        to="/dashboard?view=map"
-                        className="inline-flex h-9 w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:border-white/20 dark:hover:bg-[#07130e] dark:hover:text-white cursor-pointer min-h-[44px] sm:min-h-0"
-                    >
-                        <HiOutlineGlobe className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                        <span>Live incident map</span>
-                    </Link>
+                {/* One primary action; the map is a quiet secondary link */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex h-9 w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer min-h-[44px] sm:min-h-0"
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
-                        <HiOutlineDocumentAdd className="h-4 w-4" aria-hidden="true" />
-                        <span>Submit incident report</span>
+                        Submit incident report
+                    </Link>
+                    <Link
+                        to="/dashboard?view=map"
+                        className="self-center text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:self-auto dark:text-emerald-400 dark:hover:text-emerald-300"
+                    >
+                        Live incident map
                     </Link>
                 </div>
             </header>
@@ -300,246 +259,178 @@ const ReporterDashboardPage = () => {
             {loading ? (
                 <ReporterDashboardSkeleton />
             ) : error ? (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-red-200/90 bg-red-50/80 p-4 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                    <div className="flex items-center gap-2">
-                        <HiOutlineExclamationCircle className="h-5 w-5 shrink-0" />
+                <div className="flex flex-col gap-3 border-t border-gray-200 py-6 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                    <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-300">
+                        <HiOutlineExclamationCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
                         <span>{error}</span>
                     </div>
                     <Button variant="dangerOutline" size="sm" onClick={() => fetchReports(false)}>
-                        <HiOutlineRefresh className="mr-1.5 h-3.5 w-3.5" />
+                        <HiOutlineRefresh className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                         Retry
                     </Button>
                 </div>
             ) : (
-                <>
-                    {/* Compact Reporting Status Summary Strip */}
-                    <section aria-labelledby="my-reports-overview">
-                        <h2 id="my-reports-overview" className="sr-only">My Reports Overview</h2>
-                        <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
-                            {/* Total Reports */}
-                            <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">Total reports</p>
-                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white tabular-nums leading-none">{summary.total}</p>
-                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All submissions</p>
-                            </div>
-
-                            {/* Pending Review */}
-                            <div className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between transition-colors ${summary.pending > 0 ? 'bg-amber-50/40 dark:bg-amber-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
-                                <div className="flex items-start justify-between gap-1">
-                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight flex-1">Pending review</p>
-                                    {summary.pending > 0 && (
-                                        <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
-                                    )}
-                                </div>
-                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none ${summary.pending > 0 ? 'text-amber-800 dark:text-amber-300' : 'text-gray-950 dark:text-white'}`}>{summary.pending}</p>
-                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Waiting review</p>
-                            </div>
-
-                            {/* Active Cases */}
-                            <div className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between transition-colors ${summary.responding > 0 ? 'bg-cyan-50/40 dark:bg-cyan-950/15' : 'bg-white dark:bg-[#0c1813]/90'}`}>
-                                <div className="flex items-start justify-between gap-1">
-                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight flex-1">Active cases</p>
-                                    {summary.responding > 0 && (
-                                        <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500 animate-pulse" aria-hidden="true" />
-                                    )}
-                                </div>
-                                <p className={`mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none ${summary.responding > 0 ? 'text-cyan-800 dark:text-cyan-300' : 'text-gray-950 dark:text-white'}`}>{summary.responding}</p>
-                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">In response</p>
-                            </div>
-
-                            {/* Resolved */}
-                            <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[104px] flex flex-col justify-between bg-white dark:bg-[#0c1813]/90">
-                                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">Resolved</p>
-                                <p className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-emerald-800 dark:text-emerald-300 tabular-nums leading-none">{summary.resolved}</p>
-                                <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Closed incidents</p>
-                            </div>
-                        </div>
+                <div className="divide-y divide-gray-200 dark:divide-white/10">
+                    {/* Flat stat row: uniform ink numerals, hairline separators */}
+                    <section aria-label="Report summary" className="grid grid-cols-2 sm:grid-cols-4">
+                        {stats.map((stat, index) => (
+                            <Link
+                                key={stat.key}
+                                to="/my-reports"
+                                className={`group block px-1 py-4 transition-colors hover:bg-gray-50 sm:px-4 dark:hover:bg-white/[0.02] ${index > 0 ? 'border-l border-gray-200 pl-4 dark:border-white/10' : ''} ${index >= 2 ? 'max-sm:border-t max-sm:border-gray-200 max-sm:dark:border-white/10' : ''} ${index === 2 ? 'max-sm:border-l-0 max-sm:pl-1' : ''}`}
+                            >
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    {stat.label}
+                                </p>
+                                <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-3xl dark:text-white dark:group-hover:text-emerald-300">
+                                    {stat.value}
+                                </p>
+                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    {stat.helper}
+                                </p>
+                            </Link>
+                        ))}
                     </section>
 
-                    {/* Reporting Lifecycle Rail (when reports exist) */}
+                    {/* Latest update: one status line, one stepper */}
                     {latestActiveReport && (
-                        <section aria-labelledby="lifecycle-rail-heading" className="overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-5">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pb-3 border-b border-gray-200/70 dark:border-white/10">
-                                <div>
-                                    <h2 id="lifecycle-rail-heading" className="text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white flex items-center gap-1.5">
-                                        <HiOutlineClock className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
-                                        <span>Reporting lifecycle · Latest update</span>
-                                    </h2>
-                                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                        {latestActiveReport.title || formatIncidentType(latestActiveReport)} · {getLocation(latestActiveReport)}
-                                    </p>
-                                </div>
-                                <span className={`inline-flex self-start sm:self-auto items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CONFIG[latestActiveReport.status]?.badge || 'border-gray-200 bg-gray-50'}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[latestActiveReport.status]?.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                                    <span>{STATUS_CONFIG[latestActiveReport.status]?.label || latestActiveReport.status}</span>
-                                </span>
-                            </div>
+                        <section aria-labelledby="latest-update-heading" className="py-6">
+                            <h2 id="latest-update-heading" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                Latest update
+                            </h2>
+                            <p className="mt-1.5 truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                {getReportHeading(latestActiveReport)}
+                            </p>
 
-                            {/* Lifecycle Steps Horizontal Progress Rail */}
-                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-2">
-                                {LIFECYCLE_STEPS.map((step, idx) => {
+                            {/* Compact progress summary on mobile; full stepper on sm+ */}
+                            <p className="mt-1 text-xs text-gray-500 sm:hidden dark:text-gray-400">
+                                Step {activeStepIndex + 1} of {LIFECYCLE_STEPS.length} · {LIFECYCLE_STEPS[activeStepIndex] || LIFECYCLE_STEPS[0]}
+                            </p>
+                            <ol className="mt-4 hidden sm:flex" aria-label="Reporting progress">
+                                {LIFECYCLE_STEPS.map((label, idx) => {
                                     const isCurrent = activeStepIndex === idx;
                                     const isCompleted = activeStepIndex > idx;
-
                                     return (
-                                        <div
-                                            key={step.key}
-                                            className={`flex flex-col rounded-xl border p-2.5 transition-colors ${isCurrent
-                                                    ? 'border-emerald-600/90 bg-emerald-50/80 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/30 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-200'
-                                                    : isCompleted
-                                                        ? 'border-gray-200/80 bg-gray-50/60 text-gray-800 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300'
-                                                        : 'border-dashed border-gray-200/60 bg-transparent text-gray-400 dark:border-white/5 dark:text-gray-600 opacity-60'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-mono font-bold">{`0${idx + 1}`}</span>
-                                                {isCompleted ? (
-                                                    <HiCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                                ) : isCurrent ? (
-                                                    <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
-                                                ) : null}
+                                        <li key={label} className="min-w-0 flex-1" aria-current={isCurrent ? 'step' : undefined}>
+                                            <div className="flex items-center">
+                                                <span
+                                                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isCompleted || isCurrent
+                                                            ? 'bg-emerald-600 dark:bg-emerald-500'
+                                                            : 'border border-gray-300 dark:border-white/20'
+                                                        }`}
+                                                    aria-hidden="true"
+                                                >
+                                                    {isCompleted && <HiCheck className="h-2.5 w-2.5 text-white" />}
+                                                </span>
+                                                {idx < LIFECYCLE_STEPS.length - 1 && (
+                                                    <span className="mx-2 h-px flex-1 bg-gray-200 dark:bg-white/10" aria-hidden="true" />
+                                                )}
                                             </div>
-                                            <p className="mt-1 text-xs font-bold leading-tight">{step.label}</p>
-                                            <p className="mt-0.5 text-[10px] leading-tight text-gray-500 dark:text-gray-400 truncate">{step.desc}</p>
-                                        </div>
+                                            <p className={`mt-1.5 pr-2 text-xs leading-tight ${isCurrent
+                                                    ? 'font-semibold text-gray-900 dark:text-white'
+                                                    : isCompleted
+                                                        ? 'text-gray-600 dark:text-gray-300'
+                                                        : 'text-gray-400 dark:text-gray-500'
+                                                }`}>
+                                                {label}
+                                            </p>
+                                        </li>
                                     );
                                 })}
-                            </div>
+                            </ol>
 
-                            <div className="mt-3.5 flex items-center justify-between rounded-lg bg-gray-50/70 p-2.5 text-xs text-gray-600 dark:bg-white/[0.02] dark:text-gray-400">
-                                <span>{getStatusHelp(latestActiveReport.status)}</span>
+                            <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    <span className="font-semibold text-gray-900 dark:text-white">
+                                        {STATUS_CONFIG[latestActiveReport.status]?.label || latestActiveReport.status}.
+                                    </span>
+                                    {' '}
+                                    {getStatusHelp(latestActiveReport.status)}
+                                </p>
                                 <Link
                                     to={`/my-reports?report=${latestActiveReport._id}`}
-                                    className="font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 inline-flex items-center gap-1 shrink-0 ml-2"
+                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
                                 >
-                                    <span>Open report</span>
-                                    <HiOutlineChevronRight className="h-3 w-3" />
+                                    Open report
+                                    <HiOutlineChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </Link>
                             </div>
                         </section>
                     )}
 
-                    {/* Report Activity Ledger */}
-                    <section aria-labelledby="recent-reports-heading" className="overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02]">
-                            <div>
-                                <h2 id="recent-reports-heading" className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity log</h2>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 hidden sm:block">Latest citizen submissions and active response progress</p>
-                            </div>
+                    {/* Recent reports: rows are the links, no Action column */}
+                    <section aria-labelledby="recent-reports-heading" className="py-6">
+                        <div className="flex items-baseline justify-between gap-2">
+                            <h2 id="recent-reports-heading" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                Recent reports
+                            </h2>
                             {reports.length > 0 && (
                                 <Link
                                     to="/my-reports"
-                                    className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
                                 >
-                                    <span className="hidden sm:inline">View all records</span>
-                                    <span className="sm:hidden">View all</span>
+                                    Open all reports
                                     <HiOutlineChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </Link>
                             )}
                         </div>
 
-                        {recentReports.length > 0 && (
-                            <div className="hidden border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 sm:grid sm:grid-cols-[minmax(0,1fr)_140px_96px_116px] sm:items-center sm:gap-4 md:px-5 dark:border-white/10 dark:bg-white/[0.01] dark:text-gray-400">
-                                <span>Incident</span>
-                                <span>Status</span>
-                                <span>Severity</span>
-                                <span className="text-right">Action</span>
-                            </div>
-                        )}
-
                         {recentReports.length > 0 ? (
-                            <div className="divide-y divide-gray-100 dark:divide-white/5">
+                            <ul className="mt-2 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
                                 {recentReports.map((report) => {
-                                    const severityConfig = report.severity ? SEVERITY_CONFIG[report.severity] : SEVERITY_CONFIG.minor;
-                                    const severityLabel = report.severity ? (SEVERITY_CONFIG[report.severity]?.label || 'Minor') : 'Unknown';
-                                    const statusConfig = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
-
+                                    const statusLabel = STATUS_CONFIG[report.status]?.label || report.status || 'Pending review';
+                                    const severity = SEVERITY_CONFIG[report.severity] || { label: 'Unknown', dot: 'bg-gray-400' };
+                                    const location = getLocation(report);
                                     return (
-                                        <article
-                                            key={report._id}
-                                            className="group flex flex-col gap-2.5 p-3.5 transition-colors hover:bg-gray-50/75 sm:grid sm:grid-cols-[minmax(0,1fr)_140px_96px_116px] sm:items-center sm:gap-4 sm:p-4 md:p-5 dark:hover:bg-white/[0.02]"
-                                        >
-                                            {/* Location & Title */}
-                                            <div className="min-w-0">
-                                                <div className="flex items-start gap-1.5">
-                                                    <HiOutlineLocationMarker className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
-                                                    <p className="line-clamp-2 sm:line-clamp-1 font-display text-sm font-bold text-gray-950 sm:text-base dark:text-white">
-                                                        {getLocation(report)}
-                                                    </p>
-                                                </div>
-                                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 pl-5.5">
-                                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{formatIncidentType(report)}</span>
-                                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
-                                                    <span>Reported {formatRelativeDate(report.createdAt)}</span>
-                                                    {report.status === 'responding' && (
-                                                        <>
-                                                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
-                                                            <span className="text-cyan-700 dark:text-cyan-400 font-medium inline-flex items-center gap-1">
-                                                                <HiOutlineTruck className="h-3 w-3" />
-                                                                Units on scene
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Status & Severity Indicators (Inline dot + label, no bordered pill) */}
-                                            <div className="flex items-center justify-between pt-0.5 sm:contents">
-                                                <div className="flex items-center gap-3 sm:contents">
-                                                    {/* Status Indicator */}
-                                                    <div className="flex items-center sm:justify-start">
-                                                        <div className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                                                            <span className={`h-2 w-2 shrink-0 rounded-full ${statusConfig.dot}`} aria-hidden="true" />
-                                                            <span className="truncate">{statusConfig.label}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Severity Indicator */}
-                                                    <div className="flex items-center sm:justify-start">
-                                                        <div className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                                                            <span className={`h-2 w-2 shrink-0 rounded-full ${severityConfig?.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                                                            <span className="truncate">{severityLabel}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Action Link */}
-                                                <div className="flex items-center justify-end">
-                                                    <Link
-                                                        to={`/my-reports?report=${report._id}`}
-                                                        className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:h-8 sm:w-[116px] sm:justify-center sm:gap-1 sm:rounded-lg sm:border sm:border-gray-200/90 sm:bg-white sm:px-3 sm:text-gray-700 sm:shadow-2xs sm:hover:border-gray-300 sm:hover:bg-gray-50 sm:hover:text-gray-950 dark:text-emerald-400 dark:hover:text-emerald-300 sm:dark:border-white/10 sm:dark:bg-white/5 sm:dark:text-gray-200 sm:dark:hover:border-white/20 sm:dark:hover:bg-white/10 sm:dark:hover:text-white cursor-pointer min-h-[44px] sm:min-h-0"
-                                                    >
-                                                        <span>View details</span>
-                                                        <HiOutlineChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 text-current sm:text-gray-400 sm:dark:text-gray-500" aria-hidden="true" />
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                        </article>
+                                        <li key={report._id}>
+                                            <Link
+                                                to={`/my-reports?report=${report._id}`}
+                                                aria-label={`Open report: ${location}`}
+                                                className="group flex items-center gap-3 py-3.5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4 dark:hover:bg-white/[0.02]"
+                                            >
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {location}
+                                                    </span>
+                                                    <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-gray-400">
+                                                        {formatIncidentType(report)}
+                                                        {' · '}
+                                                        Reported {formatRelativeDate(report.createdAt)}
+                                                        {report.status === 'responding' && ' · Units on scene'}
+                                                    </span>
+                                                    <span className="mt-0.5 block text-[11px] text-gray-500 sm:hidden dark:text-gray-400">
+                                                        {statusLabel} · {severity.label}
+                                                    </span>
+                                                </span>
+                                                <span className="hidden w-28 shrink-0 truncate text-xs text-gray-600 sm:block dark:text-gray-400">
+                                                    {statusLabel}
+                                                </span>
+                                                <span className="hidden w-28 shrink-0 items-center gap-1.5 text-xs text-gray-600 sm:flex dark:text-gray-400">
+                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
+                                                    <span className="truncate">{severity.label}</span>
+                                                </span>
+                                                <HiOutlineChevronRight className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5 dark:text-gray-500" aria-hidden="true" />
+                                            </Link>
+                                        </li>
                                     );
                                 })}
-                            </div>
+                            </ul>
                         ) : (
-                            <div className="flex flex-col items-center justify-center p-10 text-center sm:p-14">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
-                                    <HiOutlineClipboardList className="h-6 w-6" aria-hidden="true" />
-                                </div>
-                                <h3 className="mt-3 font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">No activity logged</h3>
-                                <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                            <div className="py-10 text-center sm:text-left">
+                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">No activity logged</h3>
+                                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 sm:mx-0 dark:text-gray-400">
                                     There are currently no reports linked to your profile. Submit a new incident to see it tracked here.
                                 </p>
-                                <div className="mt-5">
-                                    <Link
-                                        to="/report"
-                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer min-h-[44px] sm:min-h-0"
-                                    >
-                                        <HiOutlineDocumentAdd className="h-4 w-4" aria-hidden="true" />
-                                        <span>Submit new incident</span>
-                                    </Link>
-                                </div>
+                                <Link
+                                    to="/report"
+                                    className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                >
+                                    Submit new incident
+                                </Link>
                             </div>
                         )}
                     </section>
-                </>
+                </div>
             )}
         </div>
     );

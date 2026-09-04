@@ -50,10 +50,7 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
 
         const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
         mapInstance.addControl(navigationControl, 'top-right');
-        const removeCompactAttribution = installCompactAttribution(
-            mapInstance,
-            new maplibregl.AttributionControl({ compact: true }),
-        );
+        const removeCompactAttribution = installCompactAttribution(mapInstance);
         const removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
             pitch: 55,
             bearing: -15,

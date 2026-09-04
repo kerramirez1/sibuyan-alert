@@ -265,35 +265,96 @@ describe('focusExistingMapEntity', () => {
 });
 
 describe('installCompactAttribution', () => {
-    test('starts collapsed and closes expanded credits when map interaction resumes', () => {
-        const container = document.createElement('div');
-        const attribution = document.createElement('details');
-        attribution.className = 'maplibregl-ctrl-attrib maplibregl-compact maplibregl-compact-show';
-        attribution.setAttribute('open', '');
-        const button = document.createElement('button');
-        button.className = 'maplibregl-ctrl-attrib-button';
-        attribution.append(button);
-        container.append(attribution);
-
+    const buildMap = (sources) => {
         const handlers = new Map();
-        const map = {
-            addControl: vi.fn(),
-            getContainer: vi.fn(() => container),
+        const controls = [];
+        return {
+            controls,
+            handlers,
+            addControl: vi.fn((control, position) => controls.push({ control, position })),
+            removeControl: vi.fn((control) => {
+                const index = controls.findIndex((entry) => entry.control === control);
+                if (index >= 0) controls.splice(index, 1);
+            }),
+            getStyle: vi.fn(() => ({ sources })),
             on: vi.fn((eventName, handler) => handlers.set(eventName, handler)),
             off: vi.fn((eventName) => handlers.delete(eventName)),
         };
-        const cleanup = installCompactAttribution(map, {}, 'bottom-left');
+    };
 
-        expect(map.addControl).toHaveBeenCalledWith({}, 'bottom-left');
-        expect(attribution).not.toHaveClass('maplibregl-compact-show');
-        expect(attribution).not.toHaveAttribute('open');
-        expect(button).toHaveAttribute('aria-label', 'Show map data attribution');
+    test('adds no control while credits are hidden by product decision', async () => {
+        const { mapCreditConfig, installCompactAttribution: install } = await import('../utils/mapNavigation.js');
+        expect(mapCreditConfig.showAttribution).toBe(false);
 
-        attribution.classList.add('maplibregl-compact-show');
-        handlers.get('movestart')();
-        expect(attribution).not.toHaveClass('maplibregl-compact-show');
+        const map = buildMap({ 'esri-imagery': { attribution: 'Tiles © Esri' } });
+        const cleanup = install(map, 'bottom-left');
 
-        cleanup();
-        expect(map.off).toHaveBeenCalledTimes(3);
+        expect(map.addControl).not.toHaveBeenCalled();
+        expect(() => cleanup()).not.toThrow();
+    });
+
+    test('installs one static credit line from live sources with duplicates removed', async () => {
+        const { mapCreditConfig, installCompactAttribution: install } = await import('../utils/mapNavigation.js');
+        mapCreditConfig.showAttribution = true;
+        try {
+            const map = buildMap({
+                'esri-imagery': { attribution: 'Tiles &copy; Esri and its data providers' },
+                streets: { attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; OpenStreetMap' },
+                labels: { attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; OpenStreetMap' },
+                reference: {},
+            });
+            const cleanup = install(map, 'bottom-left');
+
+            expect(map.addControl).toHaveBeenCalledOnce();
+            const [{ control, position }] = map.controls;
+            expect(position).toBe('bottom-left');
+            const element = control.onAdd();
+            expect(element).toHaveClass('sibuyan-map-credit');
+            expect(element).toHaveAttribute('aria-label', 'Map data attribution');
+            expect(element.textContent).toContain('Esri');
+            // Duplicate Protomaps source attribution renders once; provider link survives
+            expect(element.innerHTML.split('Protomaps').length - 1).toBe(1);
+            expect(element.querySelectorAll('a')).toHaveLength(1);
+            expect(element.style.display).not.toBe('none');
+
+            cleanup();
+            expect(map.off).toHaveBeenCalledWith('styledata', expect.any(Function));
+            expect(map.off).toHaveBeenCalledWith('sourcedata', expect.any(Function));
+            expect(map.removeControl).toHaveBeenCalledWith(control);
+        } finally {
+            mapCreditConfig.showAttribution = false;
+        }
+    });
+
+    test('refreshes credits on style changes and hides when sources carry none', async () => {
+        const { mapCreditConfig, installCompactAttribution: install } = await import('../utils/mapNavigation.js');
+        mapCreditConfig.showAttribution = true;
+        try {
+            let sources = { imagery: { attribution: 'Tiles © Esri' } };
+            const map = buildMap(sources);
+            // Rebind getStyle so style switches are observed live
+            map.getStyle.mockImplementation(() => ({ sources }));
+            install(map);
+            const [{ control }] = map.controls;
+            const element = control.onAdd();
+            expect(element.textContent).toContain('Esri');
+
+            sources = { imagery: {}, fallback: { attribution: '© OpenStreetMap contributors' } };
+            map.handlers.get('styledata')();
+            expect(element.textContent).toContain('OpenStreetMap contributors');
+            expect(element.textContent).not.toContain('Esri');
+
+            sources = {};
+            map.handlers.get('sourcedata')();
+            expect(element.style.display).toBe('none');
+            expect(element.innerHTML).toBe('');
+        } finally {
+            mapCreditConfig.showAttribution = false;
+        }
+    });
+
+    test('returns a noop cleanup when the map handle is missing', () => {
+        expect(() => installCompactAttribution(null)()).not.toThrow();
+        expect(() => installCompactAttribution({})()).not.toThrow();
     });
 });

@@ -106,9 +106,10 @@ describe('DashboardMapWorkspace permissions', () => {
         const cards = Array.from(summary.lastElementChild.children);
 
         expect(cards).toHaveLength(4);
-        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'gap-px', 'lg:grid-cols-4');
+        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
+        expect(summary.lastElementChild).not.toHaveClass('gap-px', 'rounded-lg', 'border');
         cards.forEach((card) => {
-            expect(card).not.toHaveClass('bg-gray-100', 'rounded-xl', 'shadow-sm');
+            expect(card).not.toHaveClass('bg-white', 'rounded-lg', 'shadow-sm');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });
@@ -1110,8 +1111,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(4);
 
             metricButtons.forEach((btn) => {
-                expect(btn).toHaveClass('min-h-[96px]');
-                expect(btn).toHaveClass('p-3.5', 'sm:p-4');
+                expect(btn).toHaveClass('py-4');
                 const num = btn.querySelector('.tabular-nums');
                 expect(num).toBeInTheDocument();
             });

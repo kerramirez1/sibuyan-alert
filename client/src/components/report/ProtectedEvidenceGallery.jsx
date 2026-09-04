@@ -348,18 +348,13 @@ const StackedEvidenceDeck = ({
                 title={isBlurred ? `${badgeLabel} · Click to view larger. Original evidence is available only to the report owner and authorized municipal personnel.` : 'Click to view evidence'}
                 aria-label={buttonAriaLabel}
             >
-                {/* Layer 3: Deepest Background Card (if >= 3 images) */}
-                {count >= 3 && (
-                    <div className="absolute inset-0 rounded-xl bg-gray-200/90 border border-gray-300/80 shadow-2xs transform rotate-6 translate-x-3 -translate-y-1 scale-90 opacity-60 transition-transform duration-200 group-hover:rotate-12 group-hover:translate-x-5 dark:bg-white/10 dark:border-white/20 pointer-events-none" />
-                )}
-
-                {/* Layer 2: Middle Background Card (if >= 2 images) */}
+                {/* Layered stack edge: a single offset outline implies depth without motion */}
                 {count >= 2 && (
-                    <div className="absolute inset-0 rounded-xl bg-gray-100 border border-gray-200/90 shadow-2xs transform rotate-3 translate-x-1.5 -translate-y-0.5 scale-95 opacity-85 transition-transform duration-200 group-hover:rotate-6 group-hover:translate-x-2.5 dark:bg-white/5 dark:border-white/10 pointer-events-none" />
+                    <div className="absolute inset-0 translate-x-1 rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5 pointer-events-none" aria-hidden="true" />
                 )}
 
                 {/* Layer 1: Front Primary Card */}
-                <div className="relative w-full h-full rounded-xl border border-gray-200/90 bg-white overflow-hidden shadow-xs transition-transform duration-200 group-hover:scale-[1.02] group-hover:border-brand-500 dark:border-white/10 dark:bg-[#07130e]">
+                <div className="relative w-full h-full rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-white/10 dark:bg-[#07130e]">
                     {/* Top-Left: Compact Privacy / Ownership Badge */}
                     {isOwner ? (
                         <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-white whitespace-nowrap leading-none pointer-events-none shadow-2xs">
@@ -377,21 +372,17 @@ const StackedEvidenceDeck = ({
                     <img
                         src={state.url || firstItem?.src}
                         alt={firstItem?.alt || 'Incident evidence photo 1'}
-                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        className="w-full h-full object-cover"
                         loading="lazy"
                         decoding="async"
                     />
 
-                    {/* Bottom-Right: Stack Count Overlay Pill */}
+                    {/* Bottom-Right: remaining-photo count */}
                     {count > 1 && (
-                        <span className="absolute bottom-1.5 right-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gray-950/80 backdrop-blur-xs text-[10px] font-bold text-white shadow-xs pointer-events-none">
-                            <HiOutlinePhotograph className="h-3 w-3 text-gray-300" />
+                        <span className="absolute bottom-1.5 right-1.5 z-10 px-1.5 py-0.5 rounded-md bg-gray-950/80 text-[10px] font-bold tabular-nums text-white pointer-events-none">
                             <span>+{count - 1}</span>
                         </span>
                     )}
-
-                    {/* Subtle Hover Highlight */}
-                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 </div>
             </button>
         </div>

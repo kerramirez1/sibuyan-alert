@@ -2,7 +2,6 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     HiCheck,
-    HiOutlineShieldExclamation,
     HiOutlineX,
 } from 'react-icons/hi';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
@@ -16,6 +15,7 @@ const FOCUSABLE_SELECTOR = [
     '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+// Dots double as map-legend swatches: each option shares its marker color.
 const getStatusDotClass = (filterValue) => {
     if (filterValue === 'risk-zones') return 'bg-red-500';
     if (filterValue === 'all') return 'bg-emerald-500';
@@ -132,10 +132,10 @@ const MapMobileFilterSheet = ({
         : `Show ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden sm:items-center sm:justify-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-4 lg:hidden">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-gray-950/60 backdrop-blur-xs transition-opacity duration-200 animate-fadeIn"
+                className="fixed inset-0 bg-gray-950/60"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -147,19 +147,14 @@ const MapMobileFilterSheet = ({
                 aria-modal="true"
                 aria-labelledby={titleId}
                 aria-describedby={descriptionId}
-                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200/90 bg-white pb-safe shadow-2xl transition-transform sm:max-w-lg dark:border-white/10 dark:bg-[#0c1813]"
+                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl border-t border-gray-200 bg-white pb-safe sm:rounded-2xl sm:border sm:max-w-lg dark:border-white/10 dark:bg-[#0c1813]"
             >
-                {/* Drag Handle (Mobile only) */}
-                <div className="flex w-full items-center justify-center pt-3 pb-1 sm:hidden">
-                    <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-white/20" aria-hidden="true" />
-                </div>
-
-                {/* Simplified Header */}
+                {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 px-4 py-3.5">
                     <div>
                         <h2
                             id={titleId}
-                            className="font-display text-sm font-bold uppercase tracking-wider text-gray-950 dark:text-white"
+                            className="text-sm font-semibold text-gray-900 dark:text-white"
                         >
                             Map filters
                         </h2>
@@ -195,7 +190,7 @@ const MapMobileFilterSheet = ({
                         const count = getFilterCount('all');
                         return (
                             <div>
-                                <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
+                                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                     Incident scope
                                 </h3>
                                 <button
@@ -204,16 +199,16 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="All active"
                                     onClick={() => setPendingFilter('all')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                         isSelected
-                                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
-                                            : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
+                                            ? 'text-emerald-800 dark:text-emerald-300'
+                                            : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                                         <div>
-                                            <span className={`text-xs sm:text-sm uppercase tracking-wider block ${isSelected ? 'font-bold' : 'font-semibold'}`}>
+                                            <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
                                                 All active
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
@@ -222,14 +217,8 @@ const MapMobileFilterSheet = ({
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2.5 shrink-0 ml-3">
-                                        <span
-                                            className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                                                isSelected
-                                                    ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
-                                                    : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
-                                            }`}
-                                        >
+                                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                                        <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                             {count}
                                         </span>
                                         {isSelected && (
@@ -244,7 +233,7 @@ const MapMobileFilterSheet = ({
                     {/* 2. Incident Status Section */}
                     {statusOptions.length > 0 && (
                         <div>
-                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
+                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                 Incident status
                             </h3>
                             <div className="divide-y divide-gray-100 dark:divide-white/5">
@@ -261,27 +250,21 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                                 isSelected
-                                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
-                                                    : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
+                                                    ? 'text-emerald-800 dark:text-emerald-300'
+                                                    : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                             }`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
-                                                <span className={`text-xs sm:text-sm uppercase tracking-wider break-words leading-tight flex-1 ${isSelected ? 'font-bold' : 'font-semibold'}`}>
+                                                <span className={`text-sm break-words leading-tight flex-1 ${isSelected ? 'font-semibold' : 'font-normal'}`}>
                                                     {filter.label}
                                                 </span>
                                             </div>
 
-                                            <div className="flex items-center gap-2.5 shrink-0 ml-3">
-                                                <span
-                                                    className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                                                        isSelected
-                                                            ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
-                                                            : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
-                                                    }`}
-                                                >
+                                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                                                <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                                     {count}
                                                 </span>
                                                 {isSelected && (
@@ -301,7 +284,7 @@ const MapMobileFilterSheet = ({
                         const count = getFilterCount('risk-zones');
                         return (
                             <div>
-                                <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
+                                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
                                     Map layers
                                 </h3>
                                 <button
@@ -310,18 +293,16 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="Risk zones"
                                     onClick={() => setPendingFilter('risk-zones')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                         isSelected
-                                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100'
-                                            : 'bg-transparent text-gray-900 hover:bg-gray-50/80 dark:text-gray-100 dark:hover:bg-white/5'
+                                            ? 'text-emerald-800 dark:text-emerald-300'
+                                            : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                                            <HiOutlineShieldExclamation className="h-3.5 w-3.5" aria-hidden="true" />
-                                        </div>
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
                                         <div>
-                                            <span className={`text-xs sm:text-sm uppercase tracking-wider block ${isSelected ? 'font-bold' : 'font-semibold'}`}>
+                                            <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
                                                 Risk zones
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
@@ -330,14 +311,8 @@ const MapMobileFilterSheet = ({
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2.5 shrink-0 ml-3">
-                                        <span
-                                            className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                                                isSelected
-                                                    ? 'bg-emerald-900/15 text-emerald-900 dark:bg-white/15 dark:text-emerald-100'
-                                                    : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
-                                            }`}
-                                        >
+                                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                                        <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                             {count}
                                         </span>
                                         {isSelected && (
@@ -355,14 +330,14 @@ const MapMobileFilterSheet = ({
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 rounded-lg cursor-pointer"
+                        className="px-3 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 rounded-lg cursor-pointer"
                     >
                         Clear all
                     </button>
                     <button
                         type="button"
                         onClick={handleApply}
-                        className="flex-1 min-h-[44px] rounded-xl border border-brand-800 bg-brand-900 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-emerald-600 dark:bg-emerald-700 dark:text-white dark:hover:bg-emerald-600 cursor-pointer"
+                        className="flex-1 min-h-[44px] rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
                     >
                         {applyLabel}
                     </button>

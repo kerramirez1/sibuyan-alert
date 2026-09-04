@@ -263,49 +263,76 @@ export const scheduleElementScroll = (element, options = {}) => {
 };
 
 /**
- * Keeps provider credits available behind MapLibre's compact info button while
- * preventing the expanded attribution strip from obscuring operational maps.
+ * Map credit visibility switch.
+ *
+ * NOTE: Esri, OpenStreetMap (ODbL), and Protomaps licences require visible
+ * credit. Hiding is a product decision — flip back to `true` if the panel or
+ * a provider review asks for attribution to be restored. One line, all maps.
  */
-export const installCompactAttribution = (map, attributionControl, position = 'bottom-left') => {
-    if (!map || !attributionControl) return () => { };
+export const mapCreditConfig = {
+    showAttribution: false,
+};
 
-    map.addControl(attributionControl, position);
-    const container = map.getContainer?.();
-    const attribution = container?.querySelector?.('.maplibregl-ctrl-attrib');
-    const button = attribution?.querySelector?.('.maplibregl-ctrl-attrib-button');
-    let collapseTimer = null;
+/**
+ * Static micro-attribution control shared by every operational map.
+ *
+ * Currently disabled via {@link mapCreditConfig} — this is intentionally kept
+ * as a working no-op path (not deleted) so credits can be restored without
+ * re-implementing provider attribution. When enabled, it renders one tiny
+ * always-visible, never-expanding credit line fed by the live style sources.
+ */
+export const installCompactAttribution = (map, position = 'bottom-left') => {
+    if (!map || typeof map.addControl !== 'function') return () => { };
+    // Credits hidden by product decision (see mapCreditConfig above).
+    if (!mapCreditConfig.showAttribution) return () => { };
+    const placement = typeof position === 'string' ? position : 'bottom-left';
 
-    const collapse = () => {
-        globalThis.clearTimeout(collapseTimer);
-        attribution?.classList.remove('maplibregl-compact-show');
-        attribution?.removeAttribute('open');
-        button?.setAttribute('aria-expanded', 'false');
+    const element = document.createElement('div');
+    element.className = 'sibuyan-map-credit';
+    element.setAttribute('aria-label', 'Map data attribution');
+    element.style.display = 'none';
+
+    const collectAttributions = () => {
+        let sources = {};
+        try {
+            sources = map.getStyle?.()?.sources || {};
+        } catch {
+            sources = {};
+        }
+        const credits = [];
+        for (const source of Object.values(sources)) {
+            const attribution = typeof source?.attribution === 'string' ? source.attribution.trim() : '';
+            if (attribution && !credits.includes(attribution)) credits.push(attribution);
+        }
+        return credits;
     };
 
-    const scheduleCollapse = () => {
-        globalThis.clearTimeout(collapseTimer);
-        collapseTimer = globalThis.setTimeout(collapse, 4000);
+    const refresh = () => {
+        const credits = collectAttributions();
+        if (credits.length === 0) {
+            element.style.display = 'none';
+            element.innerHTML = '';
+            return;
+        }
+        element.innerHTML = credits.join(' <span aria-hidden="true">|</span> ');
+        element.style.display = '';
     };
 
-    button?.setAttribute('aria-label', 'Show map data attribution');
-    button?.setAttribute('title', 'Map data attribution');
-    const observer = attribution && typeof MutationObserver !== 'undefined'
-        ? new MutationObserver(() => {
-            if (attribution.classList.contains('maplibregl-compact-show') || attribution.hasAttribute('open')) {
-                scheduleCollapse();
-            }
-        })
-        : null;
-    observer?.observe(attribution, { attributes: true, attributeFilter: ['class', 'open'] });
-
-    const collapseEvents = ['movestart', 'dragstart', 'zoomstart'];
-    collapseEvents.forEach((eventName) => map.on?.(eventName, collapse));
-    collapse();
+    const control = { onAdd: () => element, onRemove: () => element.remove() };
+    map.addControl(control, placement);
+    refresh();
+    map.on?.('styledata', refresh);
+    map.on?.('sourcedata', refresh);
 
     return () => {
-        globalThis.clearTimeout(collapseTimer);
-        observer?.disconnect();
-        collapseEvents.forEach((eventName) => map.off?.(eventName, collapse));
+        map.off?.('styledata', refresh);
+        map.off?.('sourcedata', refresh);
+        // Map containers are discarded on unmount; detach defensively.
+        try {
+            map.removeControl?.(control);
+        } catch {
+            /* already torn down */
+        }
     };
 };
 

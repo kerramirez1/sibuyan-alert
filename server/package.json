@@ -15,6 +15,7 @@
         "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
         "migrate:harden-report-evidence": "node scripts/hardenReportEvidencePrivacy.js",
         "migrate:remove-system-admins": "node scripts/removeSystemAdmins.js",
+        "db:analytics-view": "node scripts/createAnalyticsView.js",
         "lint": "oxlint . --deny-warnings --ignore-pattern coverage --ignore-pattern data",
         "test": "vitest run"
     },

@@ -324,10 +324,7 @@ const MapView = ({
             mapInstance.scrollZoom.disable();
         }
 
-        const removeCompactAttribution = installCompactAttribution(
-            mapInstance,
-            new maplibregl.AttributionControl({ compact: true }),
-        );
+        const removeCompactAttribution = installCompactAttribution(mapInstance);
 
         let removeCompassToggle = () => { };
         if (mode === 'incident-preview') {

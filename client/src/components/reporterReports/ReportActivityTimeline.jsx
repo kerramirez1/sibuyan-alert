@@ -10,12 +10,10 @@ const UPDATE_LABELS = {
     other: 'Other update',
 };
 
+// One neutral marker for lifecycle events; red is reserved for urgent help
+// requests, the only timeline event that is itself an alert.
 const getDotClass = (item) => {
-    if (item.type === 'reporter_update' && item.tag === 'need_help') return 'bg-red-500 ring-4 ring-red-50';
-    if (item.type === 'reporter_update') return 'bg-brand-500 ring-4 ring-brand-50';
-    if (item.type === 'resolved') return 'bg-emerald-500';
-    if (item.type === 'responding') return 'bg-blue-500';
-    if (item.type === 'submitted') return 'bg-gray-400';
+    if (item.type === 'reporter_update' && item.tag === 'need_help') return 'bg-red-500';
     return 'bg-gray-300';
 };
 
@@ -99,15 +97,15 @@ const ReportActivityTimeline = ({ report, highlightedUpdateId }) => {
                         <div className="relative mt-1 flex h-5 w-5 shrink-0 items-center justify-center bg-white">
                             <span className={`h-2 w-2 rounded-full ${dotClass}`} />
                         </div>
-                        <div className={`min-w-0 flex-1 ${highlighted ? 'rounded-lg bg-brand-50 p-2 ring-1 ring-brand-500/20' : ''}`}>
-                            <div className="flex flex-col gap-0.5 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between min-[420px]:gap-3">
+                        <div className={`min-w-0 flex-1 ${highlighted ? 'rounded-lg bg-gray-50 p-2' : ''}`}>
+                            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                 <p className="text-sm font-semibold text-gray-900">{item.title}</p>
                                 <time dateTime={item.date.toISOString()} className="shrink-0 text-xs text-gray-500">
                                     {formatDistanceToNow(item.date, { addSuffix: true })}
                                 </time>
                             </div>
                             {item.detail && <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-gray-600">{item.detail}</p>}
-                            {highlighted && <p className="mt-1 text-xs font-semibold text-brand-700">Sent successfully</p>}
+                            {highlighted && <p className="mt-1 text-xs font-semibold text-gray-700">Sent successfully</p>}
                         </div>
                     </li>
                 );

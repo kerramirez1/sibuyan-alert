@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 
@@ -69,7 +69,7 @@ describe('ReporterDashboardPage', () => {
         vi.restoreAllMocks();
     });
 
-    test('renders dashboard header, stat strip, and recent activity log', async () => {
+    test('renders single title block, flat stat row, and recent reports', async () => {
         render(
             <MemoryRouter>
                 <ReporterDashboardPage />
@@ -77,28 +77,29 @@ describe('ReporterDashboardPage', () => {
         );
 
         expect(await screen.findByRole('heading', { level: 1, name: 'Reporter dashboard' })).toBeInTheDocument();
-        expect(screen.getByText('Reporter Overview')).toBeInTheDocument();
+        // Live subline replaces the static tagline
+        expect(screen.getByText('3 reports · 1 awaiting review · 1 in response')).toBeInTheDocument();
 
-        // Stat strip metrics
-        expect(await screen.findByText('Total reports')).toBeInTheDocument();
+        // Stat strip metrics (canonical vocabulary, links into the full list)
+        expect(screen.getByText('Total reports')).toBeInTheDocument();
         expect(screen.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getByText('Active cases')).toBeInTheDocument();
+        expect(screen.getByText('Active')).toBeInTheDocument();
         expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
-
         expect(screen.getByText('3')).toBeInTheDocument(); // Total
 
-        // Actions in header
+        // Actions in header: one primary button, one quiet secondary link
         expect(screen.getByRole('link', { name: /Live incident map/i })).toHaveAttribute('href', '/dashboard?view=map');
         expect(screen.getByRole('link', { name: /Submit incident report/i })).toHaveAttribute('href', '/report');
 
-        // Recent activity items
+        // Recent report rows are the links (no Action column)
         expect(screen.getByText('Poblacion, San Fernando')).toBeInTheDocument();
         expect(screen.getByText('España, San Fernando')).toBeInTheDocument();
         expect(screen.getByText('Ambulong, Magdiwang')).toBeInTheDocument();
 
-        const viewDetailsLinks = screen.getAllByRole('link', { name: /View details/i });
-        expect(viewDetailsLinks).toHaveLength(3);
-        expect(viewDetailsLinks[0]).toHaveAttribute('href', '/my-reports?report=report-1');
+        const openLinks = screen.getAllByRole('link', { name: /Open report: /i });
+        expect(openLinks).toHaveLength(3);
+        expect(openLinks[0]).toHaveAttribute('href', '/my-reports?report=report-1');
+        expect(screen.getByRole('link', { name: /Open all reports/i })).toHaveAttribute('href', '/my-reports');
     }, 12000);
 
     test('updates status dynamically upon socket events', async () => {
@@ -137,16 +138,21 @@ describe('ReporterDashboardPage', () => {
         expect(screen.getByRole('link', { name: /Submit new incident/i })).toHaveAttribute('href', '/report');
     });
 
-    test('renders lifecycle progress rail for active reports', async () => {
+    test('renders single lifecycle stepper with canonical step names', async () => {
         render(
             <MemoryRouter>
                 <ReporterDashboardPage />
             </MemoryRouter>,
         );
 
-        expect(await screen.findByText(/Reporting lifecycle · Latest update/i)).toBeInTheDocument();
-        expect(screen.getByText('Under review')).toBeInTheDocument();
-        expect(screen.getAllByText('Response active').length).toBeGreaterThanOrEqual(1);
+        expect(await screen.findByText('Latest update')).toBeInTheDocument();
+        // Canonical vocabulary: Pending review (not Under review), Responding (not Response active)
+        expect(screen.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('Responding').length).toBeGreaterThanOrEqual(1);
+        expect(screen.queryByText('Under review')).not.toBeInTheDocument();
+        expect(screen.queryByText('Response active')).not.toBeInTheDocument();
+        // Merged status line carries the guidance text
+        expect(screen.getByText(/Awaiting municipal verification/i)).toBeInTheDocument();
     });
 
     test('handles report loading error with retry button', async () => {
@@ -173,7 +179,7 @@ describe('ReporterDashboardPage', () => {
         expect(await screen.findByText('Total reports')).toBeInTheDocument();
     });
 
-    test('renders inline dot and uppercase label for status and severity columns without pill styling', async () => {
+    test('renders plain-text status and severity without colliding encodings', async () => {
         render(
             <MemoryRouter>
                 <ReporterDashboardPage />
@@ -182,14 +188,17 @@ describe('ReporterDashboardPage', () => {
 
         await screen.findByRole('heading', { level: 1, name: 'Reporter dashboard' });
 
-        // Status indicators
-        expect(screen.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('Response active').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
+        const recentSection = screen.getByRole('region', { name: 'Recent reports' });
+        const scope = within(recentSection);
+
+        // Status indicators (canonical names)
+        expect(scope.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
+        expect(scope.getAllByText('Responding').length).toBeGreaterThanOrEqual(1);
+        expect(scope.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
 
         // Severity indicators
-        expect(screen.getByText('Severe')).toBeInTheDocument();
-        expect(screen.getByText('Moderate')).toBeInTheDocument();
-        expect(screen.getByText('Minor')).toBeInTheDocument();
+        expect(scope.getByText('Severe')).toBeInTheDocument();
+        expect(scope.getByText('Moderate')).toBeInTheDocument();
+        expect(scope.getByText('Minor')).toBeInTheDocument();
     });
 });
