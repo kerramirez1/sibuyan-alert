@@ -16,6 +16,7 @@
         "@protomaps/basemaps": "^5.7.2",
         "axios": "^1.6.2",
         "date-fns": "^3.0.6",
+        "exceljs": "^4.4.0",
         "file-saver": "^2.0.5",
         "framer-motion": "^10.16.16",
         "maplibre-gl": "^5.17.0",

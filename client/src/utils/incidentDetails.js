@@ -96,3 +96,25 @@ export const getIncidentDetailViewModel = (report = {}) => {
     };
 };
 
+/**
+ * Origin municipality for transferred incidents (display helper).
+ *
+ * Transfer rewrites the handling municipality so the receiving office owns
+ * the queue, RBAC scope, and alerts — but the physical incident location
+ * never moves. Returns the origin name only when the report actually went
+ * through a transfer and the origin differs from current handling;
+ * otherwise null (nothing to disambiguate).
+ */
+export const getTransferOrigin = (report = {}) => {
+    if (!report || !Array.isArray(report.transferHistory) || report.transferHistory.length === 0) {
+        return null;
+    }
+    const current = report.municipalityName || report.municipality?.name || '';
+    const origin = report.originalMunicipalityName
+        || report.transferHistory[0]?.fromMunicipalityName
+        || '';
+    if (!origin) return null;
+    if (current && origin.toLowerCase() === current.toLowerCase()) return null;
+    return origin;
+};
+

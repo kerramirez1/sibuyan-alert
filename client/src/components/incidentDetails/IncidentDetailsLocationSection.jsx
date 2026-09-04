@@ -1,5 +1,6 @@
 import { HiOutlineArrowRight, HiOutlineLocationMarker } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import { getTransferOrigin } from '../../utils/incidentDetails';
 import { getCoordinates } from '../adminReports/incidentReportConfig';
 
 const IncidentDetailsLocationSection = ({
@@ -11,6 +12,7 @@ const IncidentDetailsLocationSection = ({
 }) => {
     const coordinates = getCoordinates(report);
     const municipality = report.municipalityName || report.municipality?.name || '';
+    const transferOrigin = getTransferOrigin(report);
     const locationTitle = report.address || [report.barangay, municipality].filter(Boolean).join(', ') || 'Incident details';
     const locationContext = [report.barangay, municipality]
         .filter(Boolean)
@@ -30,6 +32,9 @@ const IncidentDetailsLocationSection = ({
                     </p>
                     {locationContext && locationContext !== locationTitle && (
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{locationContext}</p>
+                    )}
+                    {transferOrigin && (
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Transferred from {transferOrigin}</p>
                     )}
                     {showCoordinates && (
                         <p className="mt-0.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">

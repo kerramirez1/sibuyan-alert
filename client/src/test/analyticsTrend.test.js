@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
+import {
+    buildDailyIncidentTrend,
+    countReportsInMonth,
+    filterReportsByDayKey,
+    getTrendInsight,
+} from '../utils/analyticsTrend';
 
 describe('buildDailyIncidentTrend', () => {
     test('aggregates sparse daily reports into one calendar timeline', () => {
@@ -39,5 +44,90 @@ describe('buildDailyIncidentTrend', () => {
 
     test('returns an empty timeline for invalid input', () => {
         expect(buildDailyIncidentTrend({ selectedMonth: 'not-a-date' })).toEqual([]);
+    });
+
+    test('buckets daily totals by severity and stamps stable day keys', () => {
+        const trend = buildDailyIncidentTrend({
+            selectedMonth: new Date(2026, 7, 1),
+            now: new Date(2026, 7, 7, 12),
+            reports: [
+                { createdAt: '2026-08-03T08:00:00', severity: 'critical' },
+                { createdAt: '2026-08-03T11:30:00', severity: 'CRITICAL' },
+                { createdAt: '2026-08-04T09:00:00', severity: 'minor' },
+                { createdAt: '2026-08-05T09:00:00', severity: 'unknown-level' },
+            ],
+        });
+
+        expect(trend[2]).toMatchObject({
+            dayKey: '2026-08-03',
+            total: 2,
+            critical: 2,
+            moderate: 0,
+        });
+        expect(trend[3]).toMatchObject({ dayKey: '2026-08-04', total: 1, minor: 1 });
+        // Unknown severities fall back to the moderate bucket so stacks always sum to total
+        expect(trend[4]).toMatchObject({ total: 1, moderate: 1 });
+        expect(trend[6]).toMatchObject({
+            dayKey: '2026-08-07',
+            total: 0,
+            minor: 0,
+            moderate: 0,
+            severe: 0,
+            critical: 0,
+        });
+        for (const day of trend) {
+            expect(day.minor + day.moderate + day.severe + day.critical).toBe(day.total);
+        }
+    });
+
+    test('counts reports per calendar month for deltas', () => {
+        const reports = [
+            { createdAt: '2026-08-08T10:00:00' },
+            { createdAt: '2026-08-09T10:00:00' },
+            { createdAt: '2026-07-31T10:00:00' },
+            { createdAt: 'invalid-date' },
+        ];
+
+        expect(countReportsInMonth(reports, new Date(2026, 7, 1))).toBe(2);
+        expect(countReportsInMonth(reports, new Date(2026, 6, 1))).toBe(1);
+        expect(countReportsInMonth(reports, 'not-a-date')).toBe(0);
+        expect(countReportsInMonth(null, new Date(2026, 7, 1))).toBe(0);
+    });
+
+    test('filters reports to one calendar day for drill-downs', () => {
+        const reports = [
+            { _id: 'a', createdAt: '2026-08-08T10:00:00' },
+            { _id: 'b', createdAt: '2026-08-08T23:00:00' },
+            { _id: 'c', createdAt: '2026-08-09T10:00:00' },
+            { _id: 'd', createdAt: 'invalid-date' },
+        ];
+
+        expect(filterReportsByDayKey(reports, '2026-08-08').map((r) => r._id)).toEqual(['a', 'b']);
+        expect(filterReportsByDayKey(reports, '2026-08-09').map((r) => r._id)).toEqual(['c']);
+        expect(filterReportsByDayKey(reports, null)).toHaveLength(4);
+    });
+
+    test('derives total, peak, quiet days, and month delta for the insight line', () => {
+        const chartData = [
+            { date: 'Aug 8', fullDate: 'Aug 8, 2026', dayKey: '2026-08-08', total: 2 },
+            { date: 'Aug 9', fullDate: 'Aug 9, 2026', dayKey: '2026-08-09', total: 0 },
+            { date: 'Aug 10', fullDate: 'Aug 10, 2026', dayKey: '2026-08-10', total: 1 },
+        ];
+
+        const insight = getTrendInsight(chartData, { selectedMonth: new Date(2026, 7, 1), prevMonthCount: 1 });
+
+        expect(insight.total).toBe(3);
+        expect(insight.peak).toMatchObject({ label: 'Aug 8', dayKey: '2026-08-08', count: 2 });
+        expect(insight.quietDays).toBe(1);
+        expect(insight.delta).toMatchObject({ diff: 2, label: '+2 vs Jul' });
+    });
+
+    test('omits peak and delta when there is nothing to compare', () => {
+        const empty = getTrendInsight(
+            [{ date: 'Aug 8', fullDate: 'Aug 8, 2026', dayKey: '2026-08-08', total: 0 }],
+            { selectedMonth: new Date(2026, 7, 1), prevMonthCount: 0 }
+        );
+
+        expect(empty).toMatchObject({ total: 0, peak: null, quietDays: 1, delta: null });
     });
 });

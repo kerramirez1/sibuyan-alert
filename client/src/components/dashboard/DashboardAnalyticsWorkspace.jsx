@@ -1,9 +1,9 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { format, formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import {
+    Bar,
+    BarChart,
     CartesianGrid,
-    Line,
-    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -12,14 +12,10 @@ import {
 import {
     HiChevronLeft,
     HiChevronRight,
-    HiOutlineCheck,
-    HiOutlineDownload,
-    HiOutlineFilter,
-    HiOutlineMap,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
-import { buildCsvDocument } from '../../utils/csvExport';
+import { countReportsInMonth, filterReportsByDayKey, getTrendInsight } from '../../utils/analyticsTrend';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getFilteredMapReports } from '../../utils/mapReports';
 
@@ -33,9 +29,12 @@ const MAP_STATUS_FILTERS = Object.freeze([
     Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
 ]);
 
-const TREND_SERIES = Object.freeze({
-    daily: Object.freeze({ label: 'Daily reports' }),
-});
+const SEVERITY_SERIES = Object.freeze([
+    Object.freeze({ key: 'minor', label: 'Minor', fill: '#10B981' }),
+    Object.freeze({ key: 'moderate', label: 'Moderate', fill: '#F59E0B' }),
+    Object.freeze({ key: 'severe', label: 'Severe', fill: '#F97316' }),
+    Object.freeze({ key: 'critical', label: 'Critical', fill: '#EF4444' }),
+]);
 
 const PANEL_CLASS = 'rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
 
@@ -81,29 +80,68 @@ const EmptyChart = ({ message = 'No data for the selected period', detail }) => 
     </div>
 );
 
-const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
+const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, selectedDay, onSelectDay }) => {
     const activeDays = chartData.filter((day) => day.total > 0);
     const summaryId = useId();
     const hasTrendData = activeDays.length > 0;
+    const insight = getTrendInsight(chartData, { selectedMonth, prevMonthCount });
+    const presentSeverities = SEVERITY_SERIES.filter(({ key }) => chartData.some((day) => (Number(day?.[key]) || 0) > 0));
     const reportLabel = `${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`;
     const activeDaySummary = activeDays
         .map((day) => `${day.fullDate}: ${day.total}`)
         .join(', ');
+    const insightSummary = [
+        reportLabel,
+        insight.peak ? `peak ${insight.peak.fullDate} (${insight.peak.count})` : '',
+        insight.delta ? insight.delta.label : '',
+    ].filter(Boolean).join(', ');
+
+    const handleBarClick = (datum) => {
+        if (!datum || (Number(datum.total) || 0) <= 0 || typeof onSelectDay !== 'function') return;
+        onSelectDay(datum.dayKey === selectedDay ? null : datum.dayKey);
+    };
 
     return (
         <div className={`${PANEL_CLASS} lg:col-span-2`}>
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-white/5">
                 <div>
                     <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Incident trend</h2>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily volume for {format(selectedMonth, 'MMMM yyyy')}</p>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                    <span className="inline-flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-500" />
-                        {TREND_SERIES.daily.label}
-                    </span>
-                    <span>·</span>
-                    <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                    <p data-testid="trend-insight">
+                        <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
+                        {insight.peak && (
+                            <>
+                                <span aria-hidden="true"> · Peak </span>
+                                <button
+                                    type="button"
+                                    onClick={() => onSelectDay?.(insight.peak.dayKey)}
+                                    title={`Filter map to ${insight.peak.fullDate}`}
+                                    aria-label={`Filter map to ${insight.peak.fullDate}`}
+                                    className="font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                >
+                                    {insight.peak.label}
+                                </button>
+                            </>
+                        )}
+                        {insight.total > 0 && insight.quietDays > 0 && (
+                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'}</span>
+                        )}
+                        {insight.delta && (
+                            <span className="tabular-nums"> · {insight.delta.label}</span>
+                        )}
+                    </p>
+                    {presentSeverities.length > 0 && (
+                        <p className="flex items-center gap-2.5" aria-label="Severity legend">
+                            {presentSeverities.map(({ key, label, fill }) => (
+                                <span key={key} className="inline-flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: fill }} aria-hidden="true" />
+                                    <span>{label}</span>
+                                </span>
+                            ))}
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -119,7 +157,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
             ) : (
                 <div className="mt-3">
                     <p id={summaryId} className="sr-only">
-                        {reportLabel} recorded. Reports by active day: {activeDaySummary}.
+                        {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
                     </p>
                     <div
                         className="h-44 min-w-0 w-full sm:h-48"
@@ -128,7 +166,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 6, right: 8, left: -24, bottom: 0 }}>
+                            <BarChart data={chartData} data-testid="incident-bar-chart" margin={{ top: 6, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
                                 <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
@@ -136,8 +174,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
                                     tickFormatter={formatXAxisDay}
-                                    interval="preserveStartEnd"
-                                    minTickGap={16}
+                                    interval={6}
                                     dy={6}
                                 />
                                 <YAxis
@@ -148,17 +185,18 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount }) => {
                                     width={28}
                                 />
                                 <Tooltip content={<ChartTooltip />} />
-                                <Line
-                                    type="monotone"
-                                    dataKey="total"
-                                    name={TREND_SERIES.daily.label}
-                                    stroke="#2563EB"
-                                    strokeWidth={2}
-                                    dot={false}
-                                    activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
-                                    isAnimationActive={false}
-                                />
-                            </LineChart>
+                                {SEVERITY_SERIES.map(({ key, label, fill }) => (
+                                    <Bar
+                                        key={key}
+                                        dataKey={key}
+                                        name={label}
+                                        stackId="incidents"
+                                        fill={fill}
+                                        isAnimationActive={false}
+                                        onClick={handleBarClick}
+                                    />
+                                ))}
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
@@ -312,6 +350,16 @@ const DashboardAnalyticsWorkspace = ({
 }) => {
     const activeRiskZoneCount = highRiskZones.filter((zone) => zone.isActive !== false).length;
     const [mapStatusFilter, setMapStatusFilter] = useState('all');
+    const [selectedDay, setSelectedDay] = useState(null);
+
+    // Day drill-downs belong to one month view; a new month starts unfiltered.
+    useEffect(() => {
+        setSelectedDay(null);
+    }, [selectedMonth]);
+
+    const prevMonthCount = countReportsInMonth(allReports, subMonths(selectedMonth, 1));
+    const mapDayReports = selectedDay ? filterReportsByDayKey(reports, selectedDay) : reports;
+    const selectedDayLabel = (chartData || []).find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
 
     const getMapFilterCount = (filterValue) => {
         if (filterValue === 'risk-zones') {
@@ -329,89 +377,36 @@ const DashboardAnalyticsWorkspace = ({
         .slice(0, 5);
 
     const exportDashboard = async () => {
-        const fileSaver = await import('file-saver');
-        const summaryData = [
-            { Metric: 'New Reports in Selected Month', Value: reports.length },
-            { Metric: 'Total Reports in Scope', Value: allReports.length },
-            { Metric: 'Pending Review', Value: performanceMetrics.pendingCount },
-            { Metric: 'Available for Dispatch', Value: performanceMetrics.dispatchReadyCount },
-            { Metric: 'Active Responses', Value: performanceMetrics.respondingCount },
-            { Metric: 'Resolved Cases', Value: performanceMetrics.resolvedCount },
-            { Metric: 'Resolution Rate', Value: `${performanceMetrics.resolutionRate}%` },
-            { Metric: 'Average Response Time (Minutes)', Value: performanceMetrics.avgResponseMin ?? 'No data' },
-            { Metric: 'Median Response Time (Minutes)', Value: performanceMetrics.medianResponseMin ?? 'No data' },
-            { Metric: 'Active High-Risk Zones', Value: activeRiskZoneCount },
-            { Metric: 'Exported At', Value: format(new Date(), 'MMMM d, yyyy h:mm a') },
-        ];
-        const incidentData = allReports.map((report) => ({
-            'Date Reported': format(new Date(report.createdAt), 'yyyy-MM-dd HH:mm'),
-            'Incident Title': report.title || 'Unknown',
-            Category: report.incidentCategory || 'accident',
-            Type: report.incidentType || 'Unknown',
-            Status: (report.status || 'unknown').toUpperCase(),
-            Priority: (report.priority || 'unknown').toUpperCase(),
-            Municipality: report.municipalityName || 'Unknown',
-            Barangay: report.barangay || 'Unknown',
-            'Exact Address': report.address || 'Unknown',
-            Injuries: report.casualties?.injured || 0,
-            Fatalities: report.casualties?.fatalities || 0,
-            Reporter: report.reporter?.name || 'Unknown User',
-        }));
-        const zoneData = highRiskZones.map((zone) => ({
-            'Zone Name': zone.name || 'Unnamed Zone',
-            Type: (zone.type || 'unknown').replace('_', ' ').toUpperCase(),
-            Municipality: zone.municipality || zone.municipalityName || 'Unknown',
-            Address: zone.address || 'Unknown',
-            Status: zone.isActive ? 'Active' : 'Inactive',
-            'Incident Count': zone.stats?.incidentCount || 0,
-            'Radius (m)': zone.radius || 0,
-        }));
-
-        const csv = buildCsvDocument([
-            {
-                title: 'Dashboard Summary',
-                columns: [
-                    { key: 'Metric', label: 'Metric' },
-                    { key: 'Value', label: 'Value' },
-                ],
-                rows: summaryData,
-            },
-            {
-                title: 'Incident Reports',
-                columns: [
-                    'Date Reported',
-                    'Incident Title',
-                    'Category',
-                    'Type',
-                    'Status',
-                    'Priority',
-                    'Municipality',
-                    'Barangay',
-                    'Exact Address',
-                    'Injuries',
-                    'Fatalities',
-                    'Reporter',
-                ].map((key) => ({ key, label: key })),
-                rows: incidentData,
-            },
-            {
-                title: 'High Risk Zones',
-                columns: [
-                    'Zone Name',
-                    'Type',
-                    'Municipality',
-                    'Address',
-                    'Status',
-                    'Incident Count',
-                    'Radius (m)',
-                ].map((key) => ({ key, label: key })),
-                rows: zoneData,
-            },
+        const [{ default: ExcelJS }, { buildAnalyticsWorkbook, writeWorkbookToBuffer }, { default: fileSaver }] = await Promise.all([
+            import('exceljs'),
+            import('../../utils/excelExport'),
+            import('file-saver'),
         ]);
+        const monthLabel = format(selectedMonth, 'MMMM yyyy');
+        const workbook = buildAnalyticsWorkbook(ExcelJS, {
+            scopeLabel: hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide',
+            monthLabel,
+            exportedAt: new Date(),
+            summary: [
+                { metric: 'New Reports in Selected Month', value: reports.length },
+                { metric: 'Total Reports in Scope', value: allReports.length },
+                { metric: 'Pending Review', value: performanceMetrics.pendingCount },
+                { metric: 'Available for Dispatch', value: performanceMetrics.dispatchReadyCount },
+                { metric: 'Active Responses', value: performanceMetrics.respondingCount },
+                { metric: 'Resolved Cases', value: performanceMetrics.resolvedCount },
+                { metric: 'Resolution Rate', value: `${performanceMetrics.resolutionRate}%` },
+                { metric: 'Average Response Time (Minutes)', value: performanceMetrics.avgResponseMin ?? 'No data' },
+                { metric: 'Median Response Time (Minutes)', value: performanceMetrics.medianResponseMin ?? 'No data' },
+                { metric: 'Active High-Risk Zones', value: activeRiskZoneCount },
+            ],
+            incidents: allReports,
+            zones: highRiskZones,
+        });
 
+        const buffer = await writeWorkbookToBuffer(workbook);
         fileSaver.saveAs(
-            new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }),
-            `Sibuyan_Alert_Analytics_${format(new Date(), 'yyyy-MM-dd')}.csv`
+            new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+            `Sibuyan_Alert_Analytics_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
         );
     };
 
@@ -487,18 +482,16 @@ const DashboardAnalyticsWorkspace = ({
                     <button
                         type="button"
                         onClick={onOpenMap}
-                        className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
+                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
                     >
-                        <HiOutlineMap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                         Map
                     </button>
                     <button
                         type="button"
                         onClick={exportDashboard}
-                        className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:w-auto lg:min-w-24"
-                        aria-label="Export dashboard data as CSV"
+                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:w-auto lg:min-w-24"
+                        aria-label="Export dashboard data as Excel"
                     >
-                        <HiOutlineDownload className="h-4 w-4" aria-hidden="true" />
                         Export
                     </button>
                 </div>
@@ -506,108 +499,79 @@ const DashboardAnalyticsWorkspace = ({
 
             {error && <div role="alert" className="rounded-lg border border-red-200/90 bg-red-50/80 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            {/* Situation Summary (Unified Executive Operational Ledger) */}
+            {/* Situation Summary */}
             <section aria-label="Analytics summary">
-                <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
-                            Incident overview
-                        </h2>
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                            Operational Status
-                        </span>
+                <div className="flex items-baseline justify-between gap-2">
+                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Incident overview
+                    </h2>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Operational status
+                    </span>
+                </div>
+
+                {/* 4-Column Operational Status Grid */}
+                <div className="mt-1 grid grid-cols-2 lg:grid-cols-4">
+                    {/* 1. Pending Review */}
+                    <div className="px-1 py-4 sm:px-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Pending review
+                        </p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+                            {performanceMetrics.pendingCount}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {performanceMetrics.pendingCount > 0 ? 'Awaiting review' : 'No pending reports'}
+                        </p>
+                        {performanceMetrics.pendingCount > 0 && (
+                            <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                Action needed
+                            </p>
+                        )}
                     </div>
 
-                    {/* 4-Column Operational Status Grid */}
-                    <div className="grid grid-cols-1 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
-                        {/* 1. Pending Review */}
-                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Pending review
-                                </span>
-                                {performanceMetrics.pendingCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                        Action needed
-                                    </span>
-                                )}
-                            </div>
-                            <div className="my-2 flex items-baseline">
-                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
-                                    {performanceMetrics.pendingCount}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                                {performanceMetrics.pendingCount > 0 ? 'Awaiting review' : 'No pending reports'}
-                            </p>
-                        </div>
-
-                        {/* 2. Dispatch Ready */}
-                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Dispatch ready
-                                </span>
-                                {performanceMetrics.dispatchReadyCount > 0 && (
-                                    <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" aria-hidden="true" />
-                                )}
-                            </div>
-                            <div className="my-2 flex items-baseline">
-                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
-                                    {performanceMetrics.dispatchReadyCount}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                                {performanceMetrics.dispatchReadyCount > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
-                            </p>
-                        </div>
-
-                        {/* 3. Responding */}
-                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Responding
-                                </span>
-                                {performanceMetrics.respondingCount > 0 ? (
-                                    <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
-                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
-                                    </span>
-                                ) : null}
-                            </div>
-                            <div className="my-2 flex items-baseline">
-                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-950 dark:text-white">
-                                    {performanceMetrics.respondingCount}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                                {performanceMetrics.respondingCount > 0 ? 'Field response active' : 'No active field response'}
-                            </p>
-                        </div>
-
-                        {/* 4. Resolved */}
-                        <div className="group relative flex flex-col justify-between p-3.5 sm:p-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Resolved
-                                </span>
-                            </div>
-                            <div className="my-2 flex items-baseline">
-                                <span className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-gray-800 dark:text-gray-200">
-                                    {performanceMetrics.resolvedCount}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                                {performanceMetrics.resolutionRate}% resolution rate
-                            </p>
-                        </div>
+                    {/* 2. Dispatch Ready */}
+                    <div className="border-l border-gray-200 px-1 py-4 pl-4 sm:px-4 dark:border-white/10">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Dispatch ready
+                        </p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+                            {performanceMetrics.dispatchReadyCount}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {performanceMetrics.dispatchReadyCount > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
+                        </p>
                     </div>
 
-                    {/* Integrated Baseline Operational Facts Footer Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-t border-gray-100 bg-gray-50/70 px-4 py-2 text-xs text-gray-600 dark:border-white/5 dark:bg-white/[0.02] dark:text-gray-400">
+                    {/* 3. Responding */}
+                    <div className="border-gray-200 px-1 py-4 max-lg:border-t max-lg:border-gray-200 sm:px-4 max-lg:dark:border-white/10 lg:border-l lg:pl-4 dark:border-white/10">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Responding
+                        </p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+                            {performanceMetrics.respondingCount}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {performanceMetrics.respondingCount > 0 ? 'Field response active' : 'No active field response'}
+                        </p>
+                    </div>
+
+                    {/* 4. Resolved */}
+                    <div className="border-l border-gray-200 px-1 py-4 pl-4 sm:px-4 max-lg:border-t max-lg:border-gray-200 max-lg:dark:border-white/10 dark:border-white/10">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Resolved
+                        </p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+                            {performanceMetrics.resolvedCount}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {performanceMetrics.resolutionRate}% resolution rate
+                        </p>
+                    </div>
+                </div>
+
+                {/* Integrated Baseline Operational Facts Footer Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-t border-gray-200 py-2 text-xs text-gray-600 dark:border-white/10 dark:text-gray-400">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
@@ -635,44 +599,36 @@ const DashboardAnalyticsWorkspace = ({
                             {format(selectedMonth, 'MMMM yyyy')} scope
                         </span>
                     </div>
-                </div>
             </section>
 
             {/* Monthly Insights Section: Incident Trend & Lifecycle */}
             <section className="grid gap-3 lg:grid-cols-3" aria-label="Monthly insights">
-                <TrendPanel chartData={chartData} selectedMonth={selectedMonth} reportCount={reports.length} />
+                <TrendPanel chartData={chartData} selectedMonth={selectedMonth} reportCount={reports.length} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
                 <LifecyclePanel statusData={statusData} totalReports={reports.length} />
             </section>
 
-            {/* Incident Map Section (Live Map with Integrated Status Filter / Legend) */}
-            <section className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
-                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 p-2 sm:p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+            {/* Incident Map Section */}
+            <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
+                <div className="flex flex-col gap-2 p-2 sm:p-2.5">
                     <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Monthly incident map</h2>
-                            <p className="hidden sm:block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                        <div className="flex min-w-0 items-baseline gap-2">
+                            <h2 className="shrink-0 text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">Monthly incident map</h2>
+                            <p className="hidden truncate text-[11px] text-gray-500 sm:block dark:text-gray-400">
                                 Geographic incident distribution for {format(selectedMonth, 'MMMM yyyy')}
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-100/90 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 text-[11px] font-medium text-gray-700 dark:text-gray-200 shrink-0 select-none">
-                                <HiOutlineFilter className="h-3 w-3 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                                <span>Filter by status</span>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={onOpenMap}
-                                className="inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer"
-                            >
-                                <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                                Open full map
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={onOpenMap}
+                            className="inline-flex min-h-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                        >
+                            Open full map
+                        </button>
                     </div>
 
-                    {/* Filter Status Control Pills (Acts as Live Legend & Filter) */}
+                    {/* Status Filter Tabs (also the live legend) */}
                     <div
-                        className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 w-full pt-0.5 px-1 overflow-x-auto custom-scrollbar"
+                        className="flex min-w-0 flex-1 flex-wrap items-end gap-x-5 gap-y-1 w-full border-b border-gray-200 px-1 dark:border-white/10"
                         aria-label="Map status filter"
                         role="group"
                     >
@@ -690,38 +646,43 @@ const DashboardAnalyticsWorkspace = ({
                                     onClick={() => setMapStatusFilter(filter.value)}
                                     aria-pressed={isSelected}
                                     aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                    className={`group relative inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-950 ${
-                                        isSelected
-                                            ? 'border-emerald-700 bg-emerald-700 text-white font-semibold dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
-                                            : `border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:border-white/20 dark:hover:bg-white/5${count === 0 ? ' opacity-60' : ''}`
+                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${isSelected
+                                        ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
+                                        : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                                     }`}
                                 >
-                                    {isSelected ? (
-                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-emerald-100 dark:text-white" aria-hidden="true" />
-                                    ) : (
-                                        statusCfg?.dot && (
-                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                        )
+                                    {statusCfg?.dot && (
+                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
                                     )}
                                     <span>{filter.label}</span>
-                                    <span
-                                        className={`rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none ${
-                                            isSelected
-                                                ? 'bg-black/25 text-white dark:bg-black/25 dark:text-white'
-                                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400 dark:group-hover:bg-white/15'
-                                        }`}
-                                    >
+                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                         {count}
                                     </span>
                                 </button>
                             );
                         })}
                     </div>
+                    {/* Selected-day drill-down (from trend bars or peak link) */}
+                    {selectedDay && (
+                        <div className="flex items-center gap-2 px-1">
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                Showing {selectedDayLabel}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedDay(null)}
+                                aria-label={`Clear day filter ${selectedDayLabel}`}
+                                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
                     <MapView
-                        reports={reports}
+                        reports={mapDayReports}
                         highRiskZones={highRiskZones}
                         showPending
                         filterMode="review"
@@ -773,36 +734,36 @@ const DashboardAnalyticsWorkspace = ({
             </section>
 
             {/* Recent Operational Activity Section */}
-            <section ref={historySectionRef} className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Recent activity">
-                <div className="flex flex-col gap-2 border-b border-gray-200/80 bg-gray-50/70 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between">
+            <section ref={historySectionRef} aria-label="Recent activity">
+                <div className="flex items-baseline justify-between gap-2">
                     <div>
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">Recent activity</h2>
-                        <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
+                        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Recent activity</h2>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
                     </div>
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex min-h-7 items-center justify-center rounded-md border border-gray-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 sm:w-auto cursor-pointer"
+                        className="inline-flex shrink-0 items-center text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
                     >
                         View incident queue
                     </button>
                 </div>
                 {recentReports.length ? (
-                    <div className="divide-y divide-gray-100 dark:divide-white/5">
+                    <ul className="mt-2 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
                         {recentReports.map((reportItem) => {
                             const status = (reportItem.status || 'pending').toLowerCase();
                             const statusConfig = MAP_STATUS_CONFIG[status] || MAP_STATUS_CONFIG.pending;
                             return (
+                                <li key={reportItem._id}>
                                 <article
-                                    key={reportItem._id}
                                     onClick={onOpenReports}
-                                    className="grid grid-cols-[minmax(0,1fr)_108px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03] sm:grid-cols-[minmax(0,1fr)_116px] cursor-pointer"
+                                    className="flex items-center gap-3 py-3 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03] cursor-pointer"
                                 >
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-xs font-semibold leading-5 text-gray-900 dark:text-gray-100 sm:text-sm">
+                                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
                                             {reportItem.address || reportItem.title || 'Location unavailable'}
                                         </p>
-                                        <p className="mt-0.5 truncate text-[10px] leading-4 text-gray-500 dark:text-gray-400 sm:text-[11px]">
+                                        <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
                                             {reportItem.municipalityName || 'Unknown municipality'}
                                             <span aria-hidden="true"> · </span>
                                             {reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
@@ -810,20 +771,18 @@ const DashboardAnalyticsWorkspace = ({
                                             {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
                                         </p>
                                     </div>
-                                    <div className="flex w-[108px] shrink-0 justify-end sm:w-[116px]">
-                                        <span
-                                            className="inline-flex h-7 w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200/90 bg-gray-50/80 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300"
-                                            title={`Status: ${statusConfig.label || status}`}
-                                            aria-label={`Status: ${statusConfig.label || status}`}
-                                        >
-                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                                            <span className="whitespace-nowrap">{statusConfig.label || status}</span>
-                                        </span>
-                                    </div>
+                                    <span
+                                        className="shrink-0 text-xs text-gray-500 dark:text-gray-400"
+                                        title={`Status: ${statusConfig.label || status}`}
+                                        aria-label={`Status: ${statusConfig.label || status}`}
+                                    >
+                                        {statusConfig.label || status}
+                                    </span>
                                 </article>
+                                </li>
                             );
                         })}
-                    </div>
+                    </ul>
                 ) : <EmptyState />}
             </section>
         </div>

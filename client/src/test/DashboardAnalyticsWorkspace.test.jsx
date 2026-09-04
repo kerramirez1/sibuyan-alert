@@ -3,8 +3,8 @@ import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('recharts', () => ({
     ResponsiveContainer: ({ children }) => <div>{children}</div>,
+    BarChart: ({ children }) => <div data-testid="incident-bar-chart">{children}</div>,
     LineChart: ({ children }) => <div data-testid="incident-line-chart">{children}</div>,
-    BarChart: ({ children }) => <div>{children}</div>,
     Line: ({ name }) => <div>{name}</div>,
     Bar: ({ children }) => <div>{children}</div>,
     CartesianGrid: () => null,
@@ -14,8 +14,13 @@ vi.mock('recharts', () => ({
     YAxis: () => null,
 }));
 
+const mocks = vi.hoisted(() => ({ mapProps: vi.fn() }));
+
 vi.mock('../components/map/MapView', () => ({
-    default: () => <div data-testid="analytics-map">Map preview</div>,
+    default: (props) => {
+        mocks.mapProps(props);
+        return <div data-testid="analytics-map">Map preview</div>;
+    },
 }));
 
 import DashboardAnalyticsWorkspace, { formatXAxisDay } from '../components/dashboard/DashboardAnalyticsWorkspace';
@@ -82,8 +87,8 @@ describe('DashboardAnalyticsWorkspace', () => {
             'lg:flex',
             'lg:flex-wrap'
         );
-        expect(screen.getByTestId('incident-line-chart')).toBeInTheDocument();
-        expect(screen.getAllByText('Daily reports')).not.toHaveLength(0);
+        expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
+        expect(within(screen.getByTestId('trend-insight')).getByText(/1 report/)).toBeInTheDocument();
         expect(screen.getByText('1 · 100%')).toBeInTheDocument();
         expect(screen.getByText('No responded incidents')).toBeInTheDocument();
 
@@ -108,7 +113,7 @@ describe('DashboardAnalyticsWorkspace', () => {
         const recentActivitySection = screen.getByLabelText('Recent activity');
         const activityBadge = within(recentActivitySection).getByText('Verified');
         expect(activityBadge).toBeInTheDocument();
-        expect(activityBadge.parentElement).toHaveClass('border-gray-200/90', 'bg-gray-50/80');
+        expect(activityBadge).not.toHaveClass('border-gray-200/90', 'bg-gray-50/80', 'rounded-md');
     }, 12000);
 
     test('shows municipality comparisons only when no municipal scope is provided', () => {
@@ -153,5 +158,54 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(formatXAxisDay('2026-08-19')).toBe('19');
         expect(formatXAxisDay(null)).toBe('');
         expect(formatXAxisDay(undefined)).toBe('');
+    });
+
+    describe('trend insight and day drill-down', () => {
+        const july = new Date(2026, 6, 1);
+        const julyReports = [
+            { _id: 'r1', createdAt: '2026-07-08T10:00:00', severity: 'moderate', status: 'verified', address: 'Road A', municipalityName: 'Cajidiocan', updatedAt: '2026-07-08T10:00:00' },
+            { _id: 'r2', createdAt: '2026-07-08T11:00:00', severity: 'critical', status: 'verified', address: 'Road B', municipalityName: 'Cajidiocan', updatedAt: '2026-07-08T11:00:00' },
+            { _id: 'r3', createdAt: '2026-07-09T10:00:00', severity: 'minor', status: 'verified', address: 'Road C', municipalityName: 'Cajidiocan', updatedAt: '2026-07-09T10:00:00' },
+        ];
+        const julyTrend = [
+            { date: 'Jul 8', fullDate: 'Jul 8, 2026', dayKey: '2026-07-08', total: 2, minor: 0, moderate: 1, severe: 0, critical: 1 },
+            { date: 'Jul 9', fullDate: 'Jul 9, 2026', dayKey: '2026-07-09', total: 1, minor: 1, moderate: 0, severe: 0, critical: 0 },
+            { date: 'Jul 10', fullDate: 'Jul 10, 2026', dayKey: '2026-07-10', total: 0, minor: 0, moderate: 0, severe: 0, critical: 0 },
+        ];
+        const julyProps = {
+            ...baseProps,
+            selectedMonth: july,
+            reports: julyReports,
+            allReports: julyReports,
+            chartData: julyTrend,
+        };
+
+        test('renders one-line insight with peak, quiet days, and month delta', () => {
+            render(<DashboardAnalyticsWorkspace {...julyProps} />);
+
+            expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
+            const insight = within(screen.getByTestId('trend-insight'));
+            expect(insight.getByText(/3 reports/)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Filter map to Jul 8, 2026' })).toHaveTextContent('Jul 8');
+            expect(insight.getByText(/1 quiet day/)).toBeInTheDocument();
+            expect(insight.getByText(/\+3 vs Jun/)).toBeInTheDocument();
+        });
+
+        test('peak-day button filters the monthly map and clears cleanly', () => {
+            mocks.mapProps.mockClear();
+            render(<DashboardAnalyticsWorkspace {...julyProps} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Filter map to Jul 8, 2026' }));
+
+            expect(screen.getByText('Showing Jul 8')).toBeInTheDocument();
+            const lastCall = mocks.mapProps.mock.calls.at(-1)[0];
+            expect(lastCall.reports.map((r) => r._id).sort()).toEqual(['r1', 'r2']);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Clear day filter Jul 8' }));
+
+            expect(screen.queryByText('Showing Jul 8')).not.toBeInTheDocument();
+            const clearedCall = mocks.mapProps.mock.calls.at(-1)[0];
+            expect(clearedCall.reports).toHaveLength(3);
+        });
     });
 });

@@ -2,28 +2,24 @@ import { useEffect, useState } from 'react';
 import {
     HiOutlineChevronUp,
     HiOutlineExclamationCircle,
-    HiOutlinePhotograph,
-    HiOutlineShieldCheck,
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
-import { formatIncidentLabel, getIncidentDetailViewModel, normalizeCasualties } from '../../utils/incidentDetails';
+import { formatIncidentLabel, getIncidentDetailViewModel, getTransferOrigin, normalizeCasualties } from '../../utils/incidentDetails';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getMapCoordinates } from '../../utils/mapReports';
 import { formatIncidentTime, formatIncidentRelativeTime } from '../../utils/dateTimeUtils';
-import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import Button from '../ui/Button';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import ImageViewer from '../ui/ImageViewer';
-import { Skeleton, SkeletonButton } from '../ui/Skeleton';
+import { Skeleton } from '../ui/Skeleton';
 
-const SEVERITY_STYLES = {
-    minor: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300',
-    moderate: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300',
-    severe: 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-300',
-    critical: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300',
+/* Severity keeps the sole hue encoding on this sheet; status stays achromatic. */
+const SEVERITY_DOT = {
+    minor: 'bg-emerald-500',
+    moderate: 'bg-amber-500',
+    severe: 'bg-orange-500',
+    critical: 'bg-red-500',
 };
-
-const BADGE_BASE = 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold';
 
 /* Compact metadata item matching Admin/Responder Overview DetailItem */
 const DetailItem = ({ label, value, children }) => (
@@ -35,42 +31,30 @@ const DetailItem = ({ label, value, children }) => (
     </div>
 );
 
-/* Casualty stat card matching Admin/Responder CasualtyStatCard */
-const CasualtyStatCard = ({ label, count, tone = 'default' }) => {
-    const toneStyles = {
-        default: 'border-gray-200/80 bg-gray-50/70 text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-white',
-        injured: 'border-amber-200/80 bg-amber-50/50 text-amber-950 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-200',
-        fatalities: 'border-red-200/80 bg-red-50/50 text-red-950 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-200',
-        missing: 'border-purple-200/80 bg-purple-50/50 text-purple-950 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-200',
-    };
-
-    return (
-        <div className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-colors ${toneStyles[tone] || toneStyles.default}`}>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {label}
-            </span>
-            <span className="mt-0.5 font-display text-xl font-bold tabular-nums">
-                {count}
-            </span>
-        </div>
-    );
-};
+/* Casualty figures as a plain stat row: label over numeral, hairline-separated. */
+const CasualtyStat = ({ label, count }) => (
+    <div>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            {label}
+        </span>
+        <p className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+            {count}
+        </p>
+    </div>
+);
 
 const MapIncidentDetailsSkeleton = () => (
     <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5" role="status" aria-busy="true" aria-label="Loading incident brief">
         <span className="sr-only">Loading incident brief</span>
-        {/* Header badges */}
-        <div className="flex gap-2">
-            <SkeletonButton size="h-6 w-20" className="rounded-full" />
-            <SkeletonButton size="h-6 w-24" className="rounded-full" />
-        </div>
+        {/* Header status line */}
+        <Skeleton variant="text" className="h-3.5 w-40 rounded" />
         {/* Title & Ref */}
         <div className="space-y-1.5">
             <Skeleton variant="text" className="h-6 w-4/5 rounded-lg" />
             <Skeleton variant="text" className="h-3.5 w-1/3 rounded" />
         </div>
         {/* Overview dl grid */}
-        <div className="rounded-xl border border-gray-100 dark:border-white/5 p-3.5 space-y-3">
+        <div className="space-y-3 border-t border-gray-100 pt-3 dark:border-white/5">
             <Skeleton variant="text" className="h-3.5 w-24" />
             <div className="grid grid-cols-2 gap-3 pt-2">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -83,9 +67,9 @@ const MapIncidentDetailsSkeleton = () => (
             {/* Casualty summary 3-column */}
             <div className="pt-2 border-t border-gray-100 dark:border-white/5 space-y-2">
                 <Skeleton variant="text" className="h-2.5 w-28" />
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                     {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-14 rounded-xl border border-gray-100 dark:border-white/5 p-2 flex flex-col items-center justify-center">
+                        <div key={i} className="space-y-1">
                             <Skeleton variant="text" className="h-2 w-12" />
                             <Skeleton variant="text" className="h-5 w-6 mt-1" />
                         </div>
@@ -152,7 +136,6 @@ const MapIncidentDetails = ({
 
     const isOperational = explicitIsOperational || operational.isOperationalViewer || visibility.isOperational;
     const hasActions = Boolean(canRespond || canResolve);
-    const statusCfg = MAP_STATUS_CONFIG[details.status] || MAP_STATUS_CONFIG.verified;
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
     const { injured, fatalities, missing, isAllZeroOrUnrecorded } = normalizedCasualties;
@@ -211,6 +194,7 @@ const MapIncidentDetails = ({
     );
 
     const respondingAgencyText = respondingAgencies.length > 0 ? respondingAgencies.join(', ') : 'Awaiting assignment';
+    const transferOrigin = getTransferOrigin(displayedReport);
 
     return (
         <div className="flex flex-col">
@@ -244,20 +228,21 @@ const MapIncidentDetails = ({
                         {details.title}
                     </h3>
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className={`${BADGE_BASE} ${statusCfg.badge}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                            <span className="capitalize">{details.status}</span>
-                        </span>
-                        <span className={`${BADGE_BASE} ${SEVERITY_STYLES[details.severity] || SEVERITY_STYLES.moderate}`}>
+                    {/* Status plain text; severity keeps the sole hue encoding */}
+                    <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+                        <span className="capitalize">{details.status}</span>
+                        <span aria-hidden="true"> · </span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_DOT[details.severity] || SEVERITY_DOT.moderate}`} aria-hidden="true" />
                             <span>{severityLabel}</span>
                         </span>
                         {details.status === 'pending' && (
-                            <span className={`${BADGE_BASE} border-amber-300 bg-amber-100/80 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200`}>
-                                Awaiting verification
-                            </span>
+                            <>
+                                <span aria-hidden="true"> · </span>
+                                <span>Awaiting verification</span>
+                            </>
                         )}
-                    </div>
+                    </p>
                 </div>
 
                 {/* Mobile Peek Affordance */}
@@ -266,16 +251,11 @@ const MapIncidentDetails = ({
                         <button
                             type="button"
                             onClick={onToggleExpand}
-                            className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3.5 py-2 text-xs font-semibold text-emerald-900 shadow-2xs transition-colors hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300 cursor-pointer"
+                            className="flex w-full items-center justify-between gap-2 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer"
                             aria-label="Expand full incident brief"
                         >
-                            <span className="flex items-center gap-1.5">
-                                <HiOutlineChevronUp className="h-4 w-4 animate-bounce text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                                <span>Swipe up for incident details</span>
-                            </span>
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                                Expand &rarr;
-                            </span>
+                            <span>Swipe up for incident details</span>
+                            <HiOutlineChevronUp className="h-4 w-4 shrink-0" aria-hidden="true" />
                         </button>
                     </div>
                 )}
@@ -307,6 +287,9 @@ const MapIncidentDetails = ({
                         <DetailItem label="Submitted time" value={formatIncidentTime(displayedReport?.createdAt)} />
                         <DetailItem label="Barangay" value={details.barangay || 'Not specified'} />
                         <DetailItem label="Municipality" value={details.municipality || 'Sibuyan Island'} />
+                        {transferOrigin && (
+                            <DetailItem label="Transferred from" value={transferOrigin} />
+                        )}
                         {respondingAgencyText && (
                             <DetailItem label="Responding agency">
                                 {respondingAgencyText}
@@ -325,22 +308,10 @@ const MapIncidentDetails = ({
                             Casualty summary
                         </h5>
 
-                        <div className="grid grid-cols-3 gap-2">
-                            <CasualtyStatCard
-                                label="Injured"
-                                count={injured}
-                                tone={typeof injured === 'number' && injured > 0 ? 'warning' : 'default'}
-                            />
-                            <CasualtyStatCard
-                                label="Fatalities"
-                                count={fatalities}
-                                tone={typeof fatalities === 'number' && fatalities > 0 ? 'danger' : 'default'}
-                            />
-                            <CasualtyStatCard
-                                label="Missing"
-                                count={missing}
-                                tone={typeof missing === 'number' && missing > 0 ? 'warning' : 'default'}
-                            />
+                        <div className="grid grid-cols-3 gap-3">
+                            <CasualtyStat label="Injured" count={injured} />
+                            <CasualtyStat label="Fatalities" count={fatalities} />
+                            <CasualtyStat label="Missing" count={missing} />
                         </div>
 
                         {isAllZeroOrUnrecorded && typeof injured !== 'number' && typeof fatalities !== 'number' && typeof missing !== 'number' && (
@@ -394,8 +365,7 @@ const MapIncidentDetails = ({
 
                 {/* 5. Evidence Photos */}
                 <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
-                    <h4 id="map-incident-evidence-heading" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
-                        <HiOutlinePhotograph className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                    <h4 id="map-incident-evidence-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
                         <span>
                             {totalEvidenceCount > 0
                                 ? ownsReport && isOriginalAllowed
@@ -422,10 +392,7 @@ const MapIncidentDetails = ({
 
                 {/* 6. Static Privacy & Security Notice */}
                 <div className="border-t border-gray-100 pt-2.5 dark:border-white/10">
-                    <div className="flex items-start gap-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
-                        <HiOutlineShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                        <p>{privacyNotice}</p>
-                    </div>
+                    <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{privacyNotice}</p>
                 </div>
             </div>
 

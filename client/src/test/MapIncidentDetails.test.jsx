@@ -727,6 +727,39 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             // Exactly 1 instance of 'Motorcycle' in the metadata grid (not duplicated in header badge)
             expect(motorcycleElements.length).toBe(1);
         });
+
+        test('transferred report shows handling municipality plus transfer origin', () => {
+            renderDetails({
+                report: {
+                    ...sampleReport,
+                    status: 'transferred',
+                    municipalityName: 'Magdiwang',
+                    originalMunicipalityName: 'Cajidiocan',
+                    transferHistory: [
+                        {
+                            fromMunicipalityName: 'Cajidiocan',
+                            toMunicipalityName: 'Magdiwang',
+                            reason: 'Mutual-aid response coverage',
+                        },
+                    ],
+                },
+                viewerRole: 'guest',
+            });
+
+            expect(screen.getByText('Municipality')).toBeInTheDocument();
+            expect(screen.getByText('Magdiwang')).toBeInTheDocument();
+            expect(screen.getByText('Transferred from')).toBeInTheDocument();
+            expect(screen.getByText('Cajidiocan')).toBeInTheDocument();
+        });
+
+        test('non-transferred report shows no transfer origin', () => {
+            renderDetails({
+                report: sampleReport,
+                viewerRole: 'guest',
+            });
+
+            expect(screen.queryByText('Transferred from')).not.toBeInTheDocument();
+        });
     });
 });
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+    HiOutlineArrowsExpand,
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
     HiOutlineEyeOff,
@@ -472,7 +473,7 @@ const ImageViewer = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:bg-gray-950/95 backdrop-blur-md p-0 sm:p-4 md:p-6 select-none animate-fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:bg-gray-950/95 p-0 sm:p-4 md:p-6 select-none"
             onClick={(e) => {
                 e.stopPropagation();
                 onClose();
@@ -483,7 +484,7 @@ const ImageViewer = ({
         >
             {/* Dedicated Operational Inspection Surface with Distraction-Free Dark Presentation */}
             <div
-                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[760px] sm:min-h-[460px] md:min-h-[480px] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] sm:max-w-2xl rounded-none sm:rounded-2xl bg-[#12161A] shadow-2xl overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
+                className="relative flex flex-col justify-between w-full h-full sm:h-[82vh] sm:max-h-[760px] sm:min-h-[460px] md:min-h-[480px] sm:w-[88vw] md:w-[72vw] lg:w-[56vw] sm:max-w-2xl rounded-none sm:rounded-2xl bg-[#12161A] overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-0"
                 onClick={(e) => e.stopPropagation()}
                 data-testid="evidence-viewer-surface"
             >
@@ -521,10 +522,10 @@ const ImageViewer = ({
                                 onClick={() => { setIsZoomed(false); setRotation(0); }}
                                 disabled={!isZoomed && rotation === 0}
                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
-                                title="Reset image zoom (0)"
+                                title="Reset view to fit (0)"
                                 aria-label="Reset image zoom"
                             >
-                                <HiOutlinePhotograph className="h-4 w-4" aria-hidden="true" />
+                                <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
                             </button>
                         )}
 
@@ -550,7 +551,7 @@ const ImageViewer = ({
                             ref={closeButtonRef}
                             type="button"
                             onClick={onClose}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-red-300 hover:bg-red-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer ml-1"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-95 cursor-pointer ml-1"
                             title="Close image viewer (Escape)"
                             aria-label="Close image viewer"
                         >
