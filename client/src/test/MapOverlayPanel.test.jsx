@@ -184,6 +184,46 @@ describe('MapOverlayPanel', () => {
         expect(screen.getByRole('button', { name: /Expand incident details/i })).toBeInTheDocument();
     });
 
+    test('keeps the user-chosen sheet height when drilling from list to details', () => {
+        const restoreMatchMedia = mockMobileViewport();
+        const { rerender } = render(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Active incidents"
+                    contentKey="overview:active:list"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Incident list</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        // User expands the list sheet, then taps View details on a report
+        fireEvent.click(screen.getByRole('button', { name: /Expand incident details/i }));
+        expect(screen.getByRole('button', { name: /Collapse incident details/i })).toHaveAttribute('aria-expanded', 'true');
+
+        rerender(
+            <div className="relative">
+                <MapOverlayPanel
+                    title="Incident details"
+                    contentKey="overview:active:incident-1"
+                    presentation="contextual"
+                    onClose={vi.fn()}
+                >
+                    <p>Incident brief</p>
+                </MapOverlayPanel>
+            </div>,
+        );
+
+        // Sheet must stay expanded: details content is longer, not shorter
+        const dialog = screen.getByRole('dialog', { name: 'Incident details' });
+        expect(dialog).toHaveClass('max-sm:h-[88dvh]');
+        expect(screen.getByRole('button', { name: /Collapse incident details/i })).toHaveAttribute('aria-expanded', 'true');
+
+        restoreMatchMedia();
+    });
+
     test('keeps mobile panels compact while preserving one scrollable content region', () => {
         const restoreMatchMedia = mockMobileViewport();
         const { unmount } = render(

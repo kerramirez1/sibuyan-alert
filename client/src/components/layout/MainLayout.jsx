@@ -12,11 +12,9 @@ import {
     HiOutlineLogout,
     HiOutlineMenu,
     HiOutlineX,
-    HiOutlineLogin,
     HiOutlineGlobe,
     HiOutlineClock,
     HiOutlineChevronRight,
-    HiOutlineUserAdd,
     HiOutlineChartBar,
 } from 'react-icons/hi';
 
@@ -355,31 +353,24 @@ const MainLayout = ({ children }) => {
                             </div>
                         ) : (
                             <div className="rounded-lg border border-white/[0.06] bg-brand-900/25 p-3">
-                                <div className="mb-2.5 flex items-center gap-2.5">
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-800/40 bg-brand-900/60 text-emerald-400">
-                                        <HiOutlineGlobe className="h-3.5 w-3.5" aria-hidden="true" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] font-bold uppercase tracking-wider text-white">Guest mode</p>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80">Public safety feed</p>
-                                    </div>
+                                <div className="mb-2.5">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-white">Guest mode</p>
+                                    <p className="text-xs text-emerald-400/80">Public safety feed</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Link
                                         to="/login"
                                         onClick={closeDrawer}
-                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineLogin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                        Sign In
+                                        Sign in
                                     </Link>
                                     <Link
                                         to="/register"
                                         onClick={closeDrawer}
-                                        className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-9 w-full items-center justify-center rounded-lg border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
                                     >
-                                        <HiOutlineUserAdd className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                        Become a Reporter
+                                        Become a reporter
                                     </Link>
                                 </div>
                             </div>
@@ -418,10 +409,9 @@ const MainLayout = ({ children }) => {
                             {!isAuthenticated && (
                                 <Link
                                     to="/login"
-                                    className="inline-flex h-8 items-center justify-center gap-1 px-2.5 rounded-lg bg-brand-700 hover:bg-brand-800 active:bg-brand-900 text-xs font-bold text-white transition-colors whitespace-nowrap leading-none shrink-0 shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer"
+                                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 active:bg-brand-900 text-sm font-semibold text-white transition-colors whitespace-nowrap shrink-0 px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer"
                                 >
-                                    <HiOutlineLogin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                    <span>SIGN IN</span>
+                                    Sign in
                                 </Link>
                             )}
                         </div>

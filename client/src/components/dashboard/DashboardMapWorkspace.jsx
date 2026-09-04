@@ -228,7 +228,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, loading = fa
         className={`group min-w-0 cursor-pointer px-1 py-4 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 dark:hover:bg-white/[0.02] ${index > 0 ? 'border-l border-gray-200 pl-4 dark:border-white/10' : ''} ${index >= 2 ? 'max-lg:border-t max-lg:border-gray-200 max-lg:dark:border-white/10' : ''} ${index === 2 ? 'max-lg:border-l-0 max-lg:pl-1' : ''}`}
     >
         <span className="flex w-full items-center justify-between gap-1.5">
-            <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider break-words leading-tight ${selected ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`flex min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-normal sm:text-[11px] sm:tracking-wider ${selected ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'}`}>
                 {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
                 <span>{label}</span>
             </span>
@@ -719,11 +719,10 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[38px] sm:min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer ${
-                                            isFiltered
+                                        className={`inline-flex min-h-[38px] sm:min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer ${isFiltered
                                                 ? 'border-emerald-700 bg-emerald-700 text-white dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
                                                 : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
-                                        }`}
+                                            }`}
                                     >
                                         <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-emerald-100 dark:text-white' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
@@ -787,8 +786,8 @@ const DashboardMapWorkspace = ({
                                                 aria-pressed={isSelected}
                                                 aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
                                                 className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                        ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
-                                                        : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
+                                                    ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
+                                                    : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                                                     }`}
                                             >
                                                 {statusCfg?.dot && (

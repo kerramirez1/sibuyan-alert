@@ -66,10 +66,10 @@ const MapOverlayPanel = ({
 
     const isExpandedMobileSheet = isMobileViewport && isMobileExpanded;
 
-    // New panel content starts in the compact sheet state.
-    useEffect(() => {
-        setIsMobileExpanded(false);
-    }, [contentKey, title]);
+    // Sheet height follows the user's choice within one open session (e.g.
+    // incident list -> incident details keeps the expanded sheet). Fresh panel
+    // mounts always start compact via the useState(false) initial value above,
+    // so no reset is needed when contentKey/title change.
 
     useEffect(() => {
         previousFocusRef.current = document.activeElement;

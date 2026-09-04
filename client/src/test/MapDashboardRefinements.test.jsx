@@ -431,7 +431,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(updatedActiveBtn).toHaveAttribute('aria-expanded', 'true');
         });
 
-        test('overview metric items do not use truncate on essential labels and enable natural text wrapping', () => {
+        test('overview metric labels stay on one line and are never clipped', () => {
             render(
                 <MemoryRouter>
                     <DashboardMapWorkspace {...workspaceProps} />
@@ -444,8 +444,8 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             buttons.forEach((btn) => {
                 const labelSpan = btn.querySelector('span.uppercase');
                 expect(labelSpan).toBeInTheDocument();
-                // Labels must have break-words and leading-tight for responsive reflow without truncation
-                expect(labelSpan.className).toContain('break-words');
+                // Labels stay on a single responsive line: never wrapped, never clipped
+                expect(labelSpan.className).toContain('whitespace-nowrap');
                 expect(labelSpan.className).not.toContain('truncate');
 
                 // Helper text must also wrap cleanly without single-line clipping
