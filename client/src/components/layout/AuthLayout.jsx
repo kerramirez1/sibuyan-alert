@@ -98,9 +98,6 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                 className={`auth-overview relative hidden min-h-dvh border-r border-brand-900/60 bg-brand-950 text-white lg:flex lg:flex-col ${isRegistrationPortal ? 'lg:sticky lg:top-0 lg:h-dvh lg:self-start lg:overflow-y-auto' : ''}`}
                 aria-label={isRegistrationPortal ? 'Sibuyan Alert reporter registration overview' : 'Sibuyan Alert system overview'}
             >
-                {/* Subtle low-contrast background grid texture */}
-                <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px]" aria-hidden="true" />
-
                 <div className={`relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-between px-8 py-10 xl:px-12 ${isFocusedPortal ? '' : 'justify-center'}`}>
                     {/* Brand Lockup */}
                     <div>

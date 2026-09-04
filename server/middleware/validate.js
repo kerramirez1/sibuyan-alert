@@ -206,7 +206,7 @@ export const validateRespondToReport = [
         .isLength({ max: 100 }).withMessage('Unit name cannot exceed 100 characters'),
     body('unitType')
         .optional()
-        .isIn(['MDRRMO', 'PNP', 'BFP', 'SDH', 'RESCUE', 'MEDICAL', 'BARANGAY']).withMessage('Invalid unit type'),
+        .isIn(['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY']).withMessage('Invalid unit type'),
     handleValidationErrors,
 ];
 

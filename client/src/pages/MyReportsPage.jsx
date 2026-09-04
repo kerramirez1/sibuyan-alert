@@ -394,7 +394,7 @@ function MyReportsPage() {
     };
 
     const getAgencyLabel = (agency) => {
-        const labels = { MDRRMO: 'MDRRMO', PNP: 'PNP', SDH: 'Medical / SDH', BFP: 'BFP', LGU: 'MDRRMO' };
+        const labels = { MDRRMO: 'MDRRMO', PNP: 'PNP', 'Medical Team': 'Medical Team', BFP: 'BFP', LGU: 'MDRRMO' };
         return agency ? (labels[agency] || agency) : 'Assigned response team';
     };
 

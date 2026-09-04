@@ -318,7 +318,7 @@ const SituationUpdateDialog = ({ isOpen, report, submitting, onClose, onSubmit }
                                     }}
                                     rows={4}
                                     maxLength={500}
-                                    placeholder="Example: The injured passenger has been transported to SDH."
+                                    placeholder="Example: The injured passenger has been transported to the medical team."
                                     aria-invalid={Boolean(error)}
                                     aria-describedby={error ? 'situation-update-error' : 'situation-update-help'}
                                     className="mt-2 w-full resize-y rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"

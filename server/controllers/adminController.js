@@ -1026,7 +1026,7 @@ export const respondToReport = async (req, res) => {
         }
 
         // Validate unitType
-        const validTypes = ['MDRRMO', 'PNP', 'BFP', 'SDH', 'RESCUE', 'MEDICAL', 'BARANGAY'];
+        const validTypes = ['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY'];
         if (!validTypes.includes(unitType)) {
             return res.status(400).json({
                 success: false,

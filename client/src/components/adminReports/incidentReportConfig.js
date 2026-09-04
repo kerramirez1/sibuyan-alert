@@ -55,7 +55,7 @@ export const getAgencyLabel = (agency) => {
     const labels = {
         MDRRMO: 'MDRRMO',
         PNP: 'PNP',
-        SDH: 'Medical/SDH',
+        'Medical Team': 'Medical Team',
         BFP: 'BFP',
         LGU: 'MDRRMO',
     };

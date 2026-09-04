@@ -5,7 +5,6 @@ import {
     HiOutlineMail,
     HiOutlineLockClosed,
     HiOutlineExclamation,
-    HiOutlineArrowRight,
     HiOutlineEye,
     HiOutlineEyeOff,
     HiOutlineCheckCircle,
@@ -228,7 +227,7 @@ const LoginPage = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-12 w-full rounded-lg bg-brand-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <span className="flex items-center justify-center gap-2">
                             {loading ? (
@@ -240,10 +239,7 @@ const LoginPage = () => {
                                     <span>Signing in...</span>
                                 </>
                             ) : (
-                                <>
-                                    <span>Sign In</span>
-                                    <HiOutlineArrowRight className="h-4 w-4" />
-                                </>
+                                <span>Sign in</span>
                             )}
                         </span>
                     </button>

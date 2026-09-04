@@ -7,7 +7,6 @@ import { ID_IMAGE_ACCEPT, prepareIdentityImage, prepareVerificationImage } from 
 import { useSelfieFaceDetection } from '../hooks/useSelfieFaceDetection';
 import {
     HiOutlineArrowLeft,
-    HiOutlineArrowRight,
     HiOutlineCamera,
     HiOutlineCheck,
     HiOutlineCloudUpload,
@@ -563,8 +562,8 @@ const RegisterPage = () => {
                         </fieldset>
 
                         <div className="pt-2">
-                            <button type="button" onClick={handleNext} disabled={locationsLoading || Boolean(locationsError)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                                Continue to ID Upload <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+                            <button type="button" onClick={handleNext} disabled={locationsLoading || Boolean(locationsError)} className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                Continue to ID upload
                             </button>
                         </div>
                     </section>
@@ -641,9 +640,9 @@ const RegisterPage = () => {
                         </div>
 
                         <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
-                            <button type="button" onClick={handleBack} className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Back</button>
-                            <button type="button" onClick={handleNext} disabled={idPreparing || !idFile} className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                                Continue to Selfie <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+                            <button type="button" onClick={handleBack} className="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Back</button>
+                            <button type="button" onClick={handleNext} disabled={idPreparing || !idFile} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-brand-700 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                Continue to selfie
                             </button>
                         </div>
                     </section>
@@ -783,7 +782,7 @@ const RegisterPage = () => {
 
                         <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
                             <button type="button" onClick={handleBack} disabled={loading} className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Back</button>
-                            <button ref={submitButtonRef} type="submit" disabled={loading || !selfieAccepted} aria-disabled={loading || !selfieAccepted} className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                            <button ref={submitButtonRef} type="submit" disabled={loading || !selfieAccepted} aria-disabled={loading || !selfieAccepted} className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                                 {loading ? 'Submitting securely…' : selfieAccepted ? 'Submit for municipal review' : 'Confirm your selfie to continue'}
                             </button>
                         </div>

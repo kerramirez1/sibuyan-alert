@@ -253,7 +253,7 @@ const reportSchema = new mongoose.Schema(
             },
             unitType: {
                 type: String,
-                enum: ['MDRRMO', 'PNP', 'BFP', 'SDH', 'RESCUE', 'MEDICAL', 'BARANGAY'],
+                enum: ['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY'],
                 required: true,
             },
             respondedAt: {
@@ -278,7 +278,7 @@ const reportSchema = new mongoose.Schema(
         },
         responderAgency: {
             type: String,
-            enum: ['PNP', 'MDRRMO', 'SDH', 'BFP', null],
+            enum: ['PNP', 'MDRRMO', 'Medical Team', 'BFP', null],
             default: null,
         },
 

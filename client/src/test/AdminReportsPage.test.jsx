@@ -224,7 +224,7 @@ describe('AdminReportsPage operational queue', () => {
         const liveUpdate = {
             _id: '64b100000000000000000005',
             tag: 'transported',
-            message: 'The patient has been transported to SDH.',
+            message: 'The patient has been transported to the medical team.',
             createdAt: '2026-07-17T08:25:00.000Z',
             author: { name: 'Field Reporter' },
         };

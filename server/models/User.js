@@ -57,7 +57,7 @@ const userSchema = new mongoose.Schema(
         },
         agency: {
             type: String,
-            enum: ['MDRRMO', 'PNP', 'SDH', 'BFP', null],
+            enum: ['MDRRMO', 'PNP', 'Medical Team', 'BFP', null],
             default: null,
         },
         address: {
