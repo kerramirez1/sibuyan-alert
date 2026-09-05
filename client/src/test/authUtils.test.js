@@ -85,6 +85,10 @@ describe('getDefaultRoleRoute', () => {
         expect(getDefaultRoleRoute({ role: 'reporter' })).toBe('/reporter');
     });
 
+    test('returns /profile for ordinary (pending verification)', () => {
+        expect(getDefaultRoleRoute({ role: 'ordinary' })).toBe('/profile');
+    });
+
     test('returns /dashboard for unknown role or null user', () => {
         expect(getDefaultRoleRoute(null)).toBe('/dashboard');
         expect(getDefaultRoleRoute({ role: 'guest' })).toBe('/dashboard');

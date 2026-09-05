@@ -1,6 +1,6 @@
 # Sibuyan Alert 🚨
 
-Accident Alert and Mapping System for Sibuyan Island, Romblon. Citizens report road, maritime, fire, and natural-disaster incidents; municipal admins and MDRRMO responders verify, dispatch, and track them in real time on operational maps.
+Road Accident Alert and Mapping System for Sibuyan Island, Romblon. Citizens report road accidents; municipal admins and MDRRMO responders verify, dispatch, and track them in real time on operational maps.
 
 A React 18 + Vite frontend with MapLibre GL operational maps, Socket.IO real-time coordination, and HttpOnly session authentication.
 

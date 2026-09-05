@@ -90,11 +90,13 @@ notifications in Profile Settings and use **Send test**. Confirm delivery and
 that clicking it opens `/profile`; then repeat with the application tab closed.
 Browser push requires HTTPS, which Heroku provides.
 
-## Scaling note
+## Scaling note (MVP: 1 dyno)
 
-One web dyno is appropriate for testing. Online presence is currently stored
-in process memory. Before scaling to multiple web dynos, add a shared Socket.IO
-adapter/presence store such as Redis and configure Heroku session affinity.
+One web dyno is appropriate for testing and MVP pilot. Rate limits
+(`server/middleware/rateLimiter.js`) and Socket.IO rooms are in-process memory.
+Before scaling to multiple web dynos, add a shared store such as Redis
+(`REDIS_URL`) for rate limiting + a Socket.IO adapter, and configure Heroku
+session affinity.
 
 ## Dependency security status
 

@@ -212,11 +212,11 @@ const ResponderDashboardWorkspace = ({
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full lg:w-auto">
+                {/* Actions: one row on all screens */}
+                <div className="flex flex-row items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
                     <Link
                         to="/admin/reports?view=dispatch-queue"
-                        className="inline-flex h-9 min-h-9 items-center justify-center gap-2 rounded-md bg-brand-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 w-full sm:w-auto"
+                        className="inline-flex h-9 min-h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-brand-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none sm:gap-2 sm:px-4"
                     >
                         <span>Dispatch queue</span>
                         {availableIncidents > 0 && (
@@ -229,7 +229,7 @@ const ResponderDashboardWorkspace = ({
 
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-3.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 w-full sm:w-auto"
+                        className="inline-flex h-9 min-h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none sm:px-3.5 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                     >
                         <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
                         <span>Safety map</span>

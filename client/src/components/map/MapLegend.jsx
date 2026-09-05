@@ -163,7 +163,7 @@ const MapLegend = ({
                     aria-controls={popoverId}
                     aria-label="Map legend"
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="relative inline-flex h-7 items-center gap-1 rounded-md border border-gray-200/90 bg-white/95 backdrop-blur-md px-2 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                    className="relative inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                 >
                     <HiOutlineMap className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
                     <span>Map legend</span>

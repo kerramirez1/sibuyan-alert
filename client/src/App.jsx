@@ -103,9 +103,10 @@ function App() {
                         {isAuthenticated ? <Navigate to={getDefaultRoleRoute(user)} /> : <RegisterPage />}
                     </AuthLayout>
                 )} />
+                {/* Public so a refresh after register never loops to /login when the session cookie is slow. */}
                 <Route path="/registration-submitted" element={(
                     <AuthLayout variant="login">
-                        {isAuthenticated ? <RegistrationSubmittedPage /> : <Navigate to="/login" />}
+                        <RegistrationSubmittedPage />
                     </AuthLayout>
                 )} />
                 <Route path="/forgot-password" element={<AuthLayout variant="login"><ForgotPasswordPage /></AuthLayout>} />

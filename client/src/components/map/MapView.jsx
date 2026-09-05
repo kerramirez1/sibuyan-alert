@@ -1028,7 +1028,7 @@ const MapView = ({
                     ? filteredRiskZones.length === 0
                     : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0)
             ) && (
-                    <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[calc(100%-5rem)] rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
+                    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 w-max max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:text-xs dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
                         {filterStatus === 'risk-zones'
                             ? 'No high-risk zones match the selected filter.'
                             : filterStatus
@@ -1104,7 +1104,7 @@ const MapView = ({
 
             {/* Controls */}
             {!['incident-preview', 'report-location'].includes(mode) && (
-                <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-2.5 right-2.5 z-20 flex flex-col gap-1.5 sm:bottom-4 sm:right-4 sm:gap-2" role="group" aria-label="Map tools">
+                <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-2 right-2 z-20 flex flex-col gap-1 sm:bottom-4 sm:right-4 sm:gap-2" role="group" aria-label="Map tools">
                     <MapToolButton
                         label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
                         icon={HiOutlineMap}

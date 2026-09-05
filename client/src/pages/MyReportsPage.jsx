@@ -415,9 +415,9 @@ function MyReportsPage() {
     ];
 
     return (
-        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-5xl">
             {/* Single page title block */}
-            <header className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                 <div className="min-w-0">
                     <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                         My reports
@@ -430,7 +430,7 @@ function MyReportsPage() {
                 <div className="hidden sm:block sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
                         Submit incident report
                     </Link>
@@ -452,32 +452,45 @@ function MyReportsPage() {
             ) : (
                 <div>
                     {/* Summary: hairline dividers like Reporter dashboard */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-6 gap-y-6 py-2 sm:grid-cols-4">
+                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6">
                         {metricCards.map(({ label, value, helper }, index) => (
-                            <div key={label} className={index > 0 ? 'border-l border-gray-200 pl-6 dark:border-white/10' : ''}>
-                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            // Mobile is 2-col: col-1 items (index 0, 2) never get a divider;
+                            // col-2 items (index 1, 3) always do. On sm (4-col) every
+                            // item after the first gets one. This keeps Total and
+                            // Active flush-left aligned.
+                            <div
+                                key={label}
+                                className={
+                                    index === 0
+                                        ? ''
+                                        : index === 2
+                                            ? 'sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10'
+                                            : 'border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10'
+                                }
+                            >
+                                <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
                                     {label}
                                 </p>
-                                <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white">
+                                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
                                     {value}
                                 </p>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+                                <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">{helper}</p>
                             </div>
                         ))}
                     </section>
 
-                    {/* Mobile primary action: context (stats) first, action second */}
-                    <div className="py-6 sm:hidden">
+                    {/* Mobile primary action: same minimalist button as Reporter dashboard */}
+                    <div className="py-4 sm:hidden">
                         <Link
                             to="/report"
-                            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            className="inline-flex min-h-[40px] w-full items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                         >
                             Submit incident report
                         </Link>
                     </div>
 
                     {/* Submitted incident records */}
-                    <section className="mt-8 border-t border-gray-200 pt-6 dark:border-white/10" aria-label="Submitted reports">
+                    <section className="mt-6 border-t border-gray-200 pt-5 sm:mt-8 sm:pt-6 dark:border-white/10" aria-label="Submitted reports">
                         <div className="flex items-center justify-between gap-2">
                             <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {filterStatus === 'all'
@@ -489,7 +502,7 @@ function MyReportsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setFilterModalOpen(true)}
-                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-medium text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline sm:hidden dark:text-gray-300 dark:hover:text-white"
+                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-semibold text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline sm:hidden dark:text-emerald-400 dark:hover:text-emerald-300"
                                 >
                                     <span>Filter reports{filterStatus !== 'all' ? ' · 1' : ''}</span>
                                 </button>
@@ -581,7 +594,7 @@ function MyReportsPage() {
                                                 onClick={() => toggleReportSelected(report._id)}
                                                 aria-expanded={isExpanded}
                                                 aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
-                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-4 border-l-2 py-4 pl-4 text-left sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center cursor-pointer ${
+                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-3 border-l-2 py-3.5 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center sm:py-4 cursor-pointer ${
                                                     isExpanded
                                                         ? 'border-l-emerald-600'
                                                         : 'border-l-transparent'
@@ -589,13 +602,13 @@ function MyReportsPage() {
                                             >
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
-                                                    <h3 className="truncate text-[15px] font-medium text-gray-900 dark:text-white">
+                                                    <h3 className="truncate text-sm font-medium text-gray-900 min-[400px]:text-[15px] dark:text-white">
                                                         {getLocation(report)}
                                                     </h3>
-                                                    <p className="mt-0.5 text-[13px] text-gray-500 dark:text-gray-400">
+                                                    <p className="mt-0.5 text-xs leading-snug text-gray-500 min-[400px]:text-[13px] dark:text-gray-400">
                                                         {formatIncidentType(report)} · Submitted {formatRelativeDate(report.createdAt)}
                                                     </p>
-                                                    <p className="mt-1 text-[13px] text-gray-500 sm:hidden dark:text-gray-400">
+                                                    <p className="mt-0.5 text-xs leading-snug text-gray-500 sm:hidden dark:text-gray-400">
                                                         {status.label} · {severityLabel}
                                                     </p>
                                                 </div>

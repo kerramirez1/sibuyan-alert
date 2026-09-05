@@ -111,10 +111,11 @@ const HomePage = () => {
         <div className="min-h-screen overflow-x-hidden bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
             {/* ── Compact hairline navbar: solid surface, no blur wash ── */}
             <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-white/5 dark:bg-[#07130e]">
-                <div className="mx-auto flex h-[58px] max-w-[1440px] items-center justify-between gap-2 px-3 min-[360px]:px-4 sm:px-8 lg:px-10 xl:px-14">
-                    <Link to="/" className="flex min-w-0 shrink items-center gap-2.5" aria-label="Sibuyan Alert home">
-                        <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
-                        <span className="hidden truncate font-display text-sm font-bold tracking-tight text-gray-950 min-[360px]:inline sm:text-base dark:text-white">
+                <div className="mx-auto flex h-[58px] max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-8 lg:px-10 xl:px-14">
+                    <Link to="/" className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2" aria-label="Sibuyan Alert home">
+                        <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
+                        {/* Compact wordmark stays visible on phones: text-[13px] + shortened Report button leaves room at 360px. */}
+                        <span className="truncate whitespace-nowrap font-display text-[13px] font-bold tracking-tight text-gray-950 min-[400px]:text-sm sm:text-base dark:text-white">
                             Sibuyan <span className="text-emerald-700 dark:text-emerald-400">Alert</span>
                         </span>
                     </Link>
@@ -125,11 +126,11 @@ const HomePage = () => {
                         <a href="#how-it-works" className="text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-300 dark:hover:text-white">How it works</a>
                     </nav>
 
-                    <nav className="flex shrink-0 items-center gap-1.5" aria-label="Account actions">
+                    <nav className="flex shrink-0 items-center gap-1 sm:gap-1.5" aria-label="Account actions">
                         {isAuthenticated ? (
                             <Link
                                 to={destination}
-                                className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-gray-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                                className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600"
                             >
                                 <span>{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>
                                 <HiOutlineArrowRight className="h-3.5 w-3.5" />
@@ -137,7 +138,7 @@ const HomePage = () => {
                         ) : (
                             <Link
                                 to="/login"
-                                className="inline-flex h-9 items-center rounded-md px-3 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950 sm:px-3 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                             >
                                 Sign in
                             </Link>
@@ -151,10 +152,10 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="ml-1 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="inline-flex min-h-9 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:gap-1.5 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 <HiOutlineExclamation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                Report incident
+                                <span>Report<span className="hidden min-[400px]:inline"> incident</span></span>
                             </Link>
                         )}
                     </nav>

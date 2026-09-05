@@ -204,11 +204,12 @@ const ReporterDashboardPage = () => {
         return parts.join(' · ');
     }, [summary]);
 
+    // Shared summary vocabulary with My Reports: identical labels and helpers.
     const stats = useMemo(() => ([
         { key: 'total', label: 'Total reports', value: summary.total, helper: 'All submissions' },
-        { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Awaiting review' },
-        { key: 'active', label: 'Active', value: summary.responding, helper: 'In response' },
-        { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed' },
+        { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Waiting for verification' },
+        { key: 'active', label: 'Active', value: summary.responding, helper: 'Verified or in response' },
+        { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed incidents' },
     ]), [summary]);
 
     const recentReports = useMemo(() => {
@@ -230,27 +231,27 @@ const ReporterDashboardPage = () => {
     return (
         <div className="mx-auto w-full max-w-5xl">
             {/* Single page title block: live subline replaces the static tagline */}
-            <header className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                 <div className="min-w-0">
-                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                         Reporter dashboard
                     </h1>
-                    <p className="mt-1 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         {loading ? 'Loading your report overview.' : headerSummary}
                     </p>
                 </div>
 
-                {/* One primary action; the map is a quiet secondary link */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 sm:shrink-0">
+                {/* Minimalist header actions: light solid primary + quiet text link */}
+                <div className="flex flex-row items-center gap-2 sm:gap-3 sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 sm:flex-none sm:px-3.5 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
                         Submit incident report
                     </Link>
                     <Link
                         to="/dashboard?view=map"
-                        className="self-center text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:self-auto dark:text-emerald-400 dark:hover:text-emerald-300"
+                        className="inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap px-1 text-[13px] font-medium text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
                     >
                         Live incident map
                     </Link>
@@ -272,21 +273,27 @@ const ReporterDashboardPage = () => {
                 </div>
             ) : (
                 <div className="divide-y divide-gray-200 dark:divide-white/10">
-                    {/* Flat stat row: uniform ink numerals, hairline separators */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 sm:grid-cols-4">
+                    {/* Shared summary strip with My Reports: same labels, dots, dividers, sizes. */}
+                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6">
                         {stats.map((stat, index) => (
                             <Link
                                 key={stat.key}
                                 to="/my-reports"
-                                className={`group block px-1 py-4 transition-colors hover:bg-gray-50 sm:px-4 dark:hover:bg-white/[0.02] ${index > 0 ? 'border-l border-gray-200 pl-4 dark:border-white/10' : ''} ${index >= 2 ? 'max-sm:border-t max-sm:border-gray-200 max-sm:dark:border-white/10' : ''} ${index === 2 ? 'max-sm:border-l-0 max-sm:pl-1' : ''}`}
+                                aria-label={`${stat.label}: ${stat.value}. ${stat.helper}`}
+                                className={`group block transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${index === 0
+                                    ? ''
+                                    : index === 2
+                                        ? 'sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10'
+                                        : 'border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10'
+                                    }`}
                             >
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
                                     {stat.label}
                                 </p>
-                                <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:text-3xl dark:text-white dark:group-hover:text-emerald-300">
+                                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:mt-1 sm:text-3xl dark:text-white dark:group-hover:text-emerald-300">
                                     {stat.value}
                                 </p>
-                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">
                                     {stat.helper}
                                 </p>
                             </Link>

@@ -51,7 +51,9 @@ export const refreshAuthSession = () => {
             const retryDelays = [100, 250, 500];
             for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
                 try {
-                    return await api.post('/auth/refresh', null, { _skipAuthRefresh: true });
+                    // No body: axios serializes `null` data to the literal string
+                    // "null", which body-parser rejects as invalid JSON.
+                    return await api.post('/auth/refresh', undefined, { _skipAuthRefresh: true });
                 } catch (error) {
                     if (error.response?.data?.code !== 'SESSION_ROTATING' || attempt === retryDelays.length) {
                         throw error;
@@ -116,7 +118,7 @@ export const authAPI = {
         headers: { 'Content-Type': 'multipart/form-data' },
     }),
     getMe: () => api.get('/auth/me'),
-    logout: () => api.post('/auth/logout', null, { _skipAuthRefresh: true }),
+    logout: () => api.post('/auth/logout', undefined, { _skipAuthRefresh: true }),
     logoutAll: () => api.post('/auth/logout-all'),
     updateProfile: (data) => {
         // Check if data is FormData (for avatar upload) or regular object

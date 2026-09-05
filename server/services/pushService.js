@@ -3,6 +3,8 @@ import User from '../models/User.js';
 
 let webPushConfigured = false;
 
+export const isPushConfigured = () => webPushConfigured;
+
 export const configureWebPush = () => {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
         webPushConfigured = false;
@@ -148,6 +150,7 @@ export const pushTemplates = {
 
 export default {
     configureWebPush,
+    isPushConfigured,
     sendPushNotification,
     sendPushToUser,
     sendPushToUsers,

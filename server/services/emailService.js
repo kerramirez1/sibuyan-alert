@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
 
+// MVP: email is optional. Password reset degrades gracefully when SMTP is
+// not configured (see isEmailConfigured + forgotPassword handler).
+export const isEmailConfigured = () => Boolean(
+  process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim()
+);
+
 // Create transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -22,6 +28,10 @@ const createTransporter = () => {
  * @param {string} [options.text] - Plain text content
  */
 export const sendEmail = async (options) => {
+  if (!isEmailConfigured()) {
+    console.warn('Email skipped: SMTP is not configured (set SMTP_HOST/SMTP_USER/SMTP_PASS to enable password reset emails)');
+    return { success: false, error: 'Email delivery is not configured' };
+  }
   try {
     const transporter = createTransporter();
 
@@ -321,6 +331,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
 };
 
 export default {
+  isEmailConfigured,
   sendEmail,
   sendVerificationEmail,
   sendReportStatusEmail,

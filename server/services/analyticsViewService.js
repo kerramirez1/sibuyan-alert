@@ -150,7 +150,10 @@ export const ensureAnalyticsView = async (dbOrConnection) => {
     if (!db) throw new Error('A MongoDB Db handle or Mongoose connection is required');
 
     const pipeline = buildAnalyticsViewPipeline();
-    const existing = await db.listCollections({ name: ANALYTICS_VIEW_NAME }).toArray();
+    // Native Db returns a cursor (.toArray); some Mongoose shims return a
+    // promise of the array instead. Accept both so boot never warns falsely.
+    const listed = db.listCollections({ name: ANALYTICS_VIEW_NAME });
+    const existing = typeof listed?.toArray === 'function' ? await listed.toArray() : await listed;
 
     if (existing.length === 0) {
         await db.createCollection(ANALYTICS_VIEW_NAME, {

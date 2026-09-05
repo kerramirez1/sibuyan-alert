@@ -22,6 +22,17 @@ export const validateRuntimeConfig = (env = process.env) => {
         if (missingDev.length > 0) {
             console.warn(`⚠️ Missing configuration for local development: ${missingDev.join(', ')}`);
         }
+        if (env.JWT_SECRET?.trim() && env.JWT_SECRET.trim().length < 32) {
+            console.warn('⚠️ JWT_SECRET is shorter than 32 chars — use a 32+ char secret before promoting to production');
+        }
+        if (!env.SMTP_HOST?.trim() || !env.SMTP_USER?.trim() || !env.SMTP_PASS?.trim()) {
+            console.warn('⚠️ SMTP is not fully configured — password-reset emails are disabled (MVP degraded mode)');
+        }
+        if (!env.VAPID_PUBLIC_KEY?.trim() || !env.VAPID_PRIVATE_KEY?.trim()) {
+            console.warn('⚠️ VAPID keys missing — Web Push is disabled (MVP degraded mode, Socket.IO still works)');
+        } else if (env.VAPID_PUBLIC_KEY.trim() !== (env.VITE_VAPID_PUBLIC_KEY || '').trim()) {
+            console.warn('⚠️ VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY do not match — push subscriptions will fail');
+        }
         return;
     }
 
@@ -51,17 +62,26 @@ export const validateRuntimeConfig = (env = process.env) => {
     }
 
     const hasAnyWebPushConfig = WEB_PUSH_VARIABLES.some((name) => env[name]?.trim());
-    if (!hasAnyWebPushConfig) return;
+    if (!hasAnyWebPushConfig) {
+        console.warn('⚠️ Web Push not configured — background push disabled, Socket.IO realtime still works (MVP degraded mode)');
+    } else {
+        const missingWebPush = WEB_PUSH_VARIABLES.filter((name) => !env[name]?.trim());
+        if (missingWebPush.length > 0) {
+            throw new Error(`Incomplete Web Push configuration: ${missingWebPush.join(', ')}`);
+        }
+        if (!/^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/i.test(env.VAPID_EMAIL.trim())) {
+            throw new Error('VAPID_EMAIL must use a mailto: or HTTPS contact URI');
+        }
+        if (env.VAPID_PUBLIC_KEY.trim() !== env.VITE_VAPID_PUBLIC_KEY.trim()) {
+            throw new Error('VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY must match');
+        }
+    }
 
-    const missingWebPush = WEB_PUSH_VARIABLES.filter((name) => !env[name]?.trim());
-    if (missingWebPush.length > 0) {
-        throw new Error(`Incomplete Web Push configuration: ${missingWebPush.join(', ')}`);
+    if (!env.SMTP_HOST?.trim() || !env.SMTP_USER?.trim() || !env.SMTP_PASS?.trim()) {
+        console.warn('⚠️ SMTP not configured — password-reset emails disabled; use scripts/resetUserPassword.js for ops resets (MVP degraded mode)');
     }
-    if (!/^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/i.test(env.VAPID_EMAIL.trim())) {
-        throw new Error('VAPID_EMAIL must use a mailto: or HTTPS contact URI');
-    }
-    if (env.VAPID_PUBLIC_KEY.trim() !== env.VITE_VAPID_PUBLIC_KEY.trim()) {
-        throw new Error('VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY must match');
+    if (!env.REDIS_URL?.trim()) {
+        console.warn('⚠️ REDIS_URL missing — single-dyno mode only. Do not scale past 1 web dyno without a shared rate-limit/socket store.');
     }
 };
 

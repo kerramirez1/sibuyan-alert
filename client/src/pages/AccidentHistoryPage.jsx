@@ -648,45 +648,51 @@ const AccidentHistoryPage = () => {
                         Public Archive
                     </span>
 
-                    <h1 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                         Accident history
                     </h1>
-                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         Resolved public-safety incidents across Sibuyan Island.
                     </p>
                 </div>
             </header>
 
-            {/* Flat Summary Metrics Grid with Hairline Dividers */}
+            {/* Shared summary strip with My Reports / Reporter dashboard: same labels, dots, dividers, sizes. */}
             <section
-                className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0"
+                className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6"
                 aria-label="History summary"
             >
                 {/* 1. Total Resolved */}
-                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total resolved</h2>
-                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.total === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                <div>
+                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                        Total resolved
+                    </h2>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
                         {stats.total}
                     </p>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">All recorded incidents</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">All recorded incidents</p>
                 </div>
 
                 {/* 2. Last 7 Days */}
-                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Last 7 days</h2>
-                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.last7 === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                <div className="border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10">
+                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                        Last 7 days
+                    </h2>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
                         {stats.last7}
                     </p>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Recently closed</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">Recently closed</p>
                 </div>
 
                 {/* 3. Last 30 Days */}
-                <div className="p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between">
-                    <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Last 30 days</h2>
-                    <p className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${stats.last30 === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                <div className="sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10">
+                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                        Last 30 days
+                    </h2>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
                         {stats.last30}
                     </p>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">Monthly activity</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">Monthly activity</p>
                 </div>
 
                 {/* 4. Top Barangay Insight */}
@@ -701,22 +707,24 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left ${
+                    className={`border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10 text-left ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'cursor-pointer' : ''
                     }`}
                 >
                     <div className="flex items-center justify-between gap-1">
-                        <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
+                        <h2 className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                            Top Barangay
+                        </h2>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
-                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
+                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
                                 {barangayFilter === topBarangayInfo.name ? 'Clear' : 'View'}
                             </span>
                         )}
                     </div>
-                    <p className="mt-1 text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate tracking-tight">
+                    <p className="mt-0.5 text-2xl font-semibold text-gray-900 dark:text-white truncate tracking-tight sm:mt-1 sm:text-3xl">
                         {topBarangayInfo.name}
                     </p>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{topBarangayInfo.helper}</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">{topBarangayInfo.helper}</p>
                 </div>
             </section>
 

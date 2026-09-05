@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }) => {
     // Logout
     const logout = useCallback(async () => {
         try {
-            await api.post('/auth/logout', null, { _skipAuthRefresh: true });
+            await api.post('/auth/logout', undefined, { _skipAuthRefresh: true });
         } catch {
             // Local state must still be cleared when the network is unavailable.
         }

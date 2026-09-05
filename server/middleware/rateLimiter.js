@@ -2,7 +2,8 @@ import rateLimit from 'express-rate-limit';
 
 /**
  * Rate limiters for sensitive endpoints.
- * Uses in-memory store (suitable for single-instance deployments).
+ * MVP: in-memory store, single web dyno only. Scaling past 1 dyno requires
+ * a shared store (e.g. Redis via REDIS_URL) or limits reset per instance.
  */
 
 /** Auth endpoints: login, register, forgot-password */

@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from '../../router';
+import { Link, Navigate, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { HiOutlineExclamation, HiOutlineClock } from 'react-icons/hi';
 
@@ -31,6 +31,7 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
 
     // Check role access
     if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+        const isOrdinary = user.role === 'ordinary';
         return (
             <FadeInSlide>
                 <div className="card max-w-md text-center">
@@ -39,11 +40,18 @@ const ProtectedRoute = ({ allowedRoles = [], requireVerified = false, children }
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
                     <p className="text-gray-600 mb-4">
-                        You don&apos;t have permission to access this page.
+                        {isOrdinary
+                            ? 'Your community account is still pending reporter verification. Check your verification status to continue.'
+                            : "You don't have permission to access this page."}
                     </p>
                     <p className="text-sm text-gray-500">
                         Required role: {allowedRoles.join(' or ')}
                     </p>
+                    {isOrdinary && (
+                        <Link to="/profile" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">
+                            Check verification status
+                        </Link>
+                    )}
                 </div>
             </FadeInSlide>
         );

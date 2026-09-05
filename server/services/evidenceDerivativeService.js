@@ -3,6 +3,15 @@ import sharp from 'sharp';
 import { detectFaces } from './faceDetectionService.js';
 import { generateBlurredEvidenceSvg } from './previewService.js';
 
+// MVP single-dyno guard: cap libvips threads so concurrent uploads/redactions
+// can't starve the event loop. Registration already uses fastMode single-pass.
+try {
+    sharp.concurrency(2);
+    sharp.cache({ memory: 20, files: 0 });
+} catch {
+    // Sharp tuning is best-effort; processing continues with defaults.
+}
+
 const DERIVATIVE_VERSION = '3.4';
 const DETECTOR_VERSION = 'picojs-facefinder-2.3';
 

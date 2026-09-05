@@ -72,13 +72,13 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapProps.onResolveReport).toBeNull();
     });
 
-    test('uses the shared square mobile map frame for every dashboard role', () => {
+    test('uses a compact responsive mobile map frame for every dashboard role', () => {
         renderWorkspace(createProps());
 
         expect(screen.getByTestId('map-view').parentElement).toHaveClass(
-            'aspect-square',
+            'h-[46svh]',
             'w-full',
-            'sm:aspect-auto',
+            'min-h-[280px]',
         );
     });
 
@@ -95,7 +95,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
     });
 
-    test('uses one lightweight overview strip instead of four heavy cards', () => {
+    test('uses clean overview cards with consistent spacing', () => {
         renderWorkspace(createProps({
             user: null,
             isAuthenticated: false,
@@ -107,9 +107,8 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(cards).toHaveLength(4);
         expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
-        expect(summary.lastElementChild).not.toHaveClass('gap-px', 'rounded-lg', 'border');
         cards.forEach((card) => {
-            expect(card).not.toHaveClass('bg-white', 'rounded-lg', 'shadow-sm');
+            expect(card).toHaveClass('rounded-xl', 'border');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });
@@ -154,7 +153,7 @@ describe('DashboardMapWorkspace permissions', () => {
             metricButtons.forEach((button) => {
                 expect(button).toHaveAttribute('type', 'button');
                 expect(button).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
-                expect(button).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-inset');
+                expect(button).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-emerald-600');
             });
             unmount();
         });
@@ -1111,7 +1110,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(4);
 
             metricButtons.forEach((btn) => {
-                expect(btn).toHaveClass('py-4');
+                expect(btn).toHaveClass('py-2.5');
                 const num = btn.querySelector('.tabular-nums');
                 expect(num).toBeInTheDocument();
             });

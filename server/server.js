@@ -57,6 +57,11 @@ const io = new Server(httpServer, {
 // Make io accessible to routes
 app.set('io', io);
 
+// MVP ops visibility: boundary import status is served via /api/health so a
+// fresh DB without polygons is caught during deploy verification.
+const boundaryStatus = { ready: false, count: 0, checked: false };
+app.set('boundaryStatus', boundaryStatus);
+
 // Connect to MongoDB and seed data
 const initializeDatabase = async () => {
     await connectDB();
@@ -81,8 +86,13 @@ const initializeDatabase = async () => {
     try {
         const { default: BarangayBoundary } = await import('./models/BarangayBoundary.js');
         const boundaryCount = await BarangayBoundary.countDocuments({ isActive: true });
+        boundaryStatus.count = boundaryCount;
+        boundaryStatus.checked = true;
+        boundaryStatus.ready = boundaryCount > 0;
         if (boundaryCount === 0) {
-            console.warn('⚠️ BarangayBoundary collection is empty — border reports will 400 as ambiguous. Run: npm run import:barangay-boundaries --prefix server');
+            console.warn('⚠️ BarangayBoundary is empty — road-accident border reports will 400 as ambiguous. Fix: npm run import:barangay-boundaries --prefix server (needs server/data/psa-georisk-sibuyan-barangays.geojson + MONGODB_URI)');
+        } else {
+            console.log(`🗺️ Barangay boundaries ready: ${boundaryCount} active polygons`);
         }
     } catch (error) {
         console.warn('⚠️ Boundary readiness check skipped:', error.message);
@@ -127,10 +137,17 @@ app.use('/api/auth', (_req, res, next) => {
 
 app.get('/api/health', (req, res) => {
     const databaseConnected = mongoose.connection.readyState === 1;
+    const status = req.app.get('boundaryStatus') || boundaryStatus;
     res.status(databaseConnected ? 200 : 503).json({
         success: databaseConnected,
         service: 'sibuyan-accident-alert',
+        scope: 'road-accidents-mvp',
         database: databaseConnected ? 'connected' : 'unavailable',
+        boundaries: {
+            ready: Boolean(status.ready),
+            count: status.count || 0,
+            checked: Boolean(status.checked),
+        },
     });
 });
 
@@ -264,7 +281,13 @@ configureProductionClient(app);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
-    console.error('❌ Error:', err);
+    // Malformed JSON bodies (e.g. a literal "null" payload) are client errors —
+    // one-line warn instead of a full stack trace flooding dev logs.
+    if (err?.type === 'entity.parse.failed') {
+        console.warn(`⚠️ Bad JSON body on ${req.method} ${req.originalUrl}: ${err.message}`);
+    } else {
+        console.error('❌ Error:', err);
+    }
 
     const status = Number.isInteger(err.status) && err.status >= 400 && err.status <= 599
         ? err.status
@@ -292,6 +315,9 @@ const PORT = process.env.PORT || 5000;
 export const startServer = async () => {
     validateRuntimeConfig(process.env);
     await initializeDatabase();
+    if (!process.env.REDIS_URL?.trim()) {
+        console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after adding a shared store.');
+    }
 
     return httpServer.listen(PORT, () => {
     console.log('');
@@ -304,10 +330,10 @@ export const startServer = async () => {
     console.log('║   🔌 Socket.io:   Enabled                                      ║');
     console.log('║   📍 Location:    Sibuyan Island, Romblon                      ║');
     console.log('║                                                                ║');
-    console.log('║   📋 Incident Types:                                           ║');
-    console.log('║      • Accidents (vehicular, pedestrian, maritime)             ║');
-    console.log('║      • Natural Disasters (flood, landslide, typhoon)           ║');
-    console.log('║      • Fire Incidents (residential, forest, commercial)        ║');
+    console.log('║   📋 Incident Types (MVP):                                     ║');
+    console.log('║      • Road Accidents only                                     ║');
+    console.log('║        (vehicular, motorcycle, pedestrian, bicycle,            ║');
+    console.log('║         self-accident, mechanical, other)                      ║');
     console.log('║                                                                ║');
     console.log('║   🏘️  Municipalities: Cajidiocan, Magdiwang, San Fernando      ║');
     console.log('║                                                                ║');

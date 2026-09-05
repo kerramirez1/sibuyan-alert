@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * Incident Report Model
- * Supports: Vehicle Accidents, Minor Fire Accidents
+ * MVP scope: Road Accidents only (fireInvolved flag covers vehicle fire as a secondary attribute)
  * Features: Municipality assignment, responder tracking, priority system
  */
 const reportSchema = new mongoose.Schema(
@@ -22,11 +22,11 @@ const reportSchema = new mongoose.Schema(
             default: 'accident',
         },
 
-        // Sub-type based on category
+        // Sub-type based on category (MVP: road accidents only)
         incidentType: {
             type: String,
             required: [true, 'Incident type is required'],
-            // For accidents: vehicular, pedestrian, motorcycle, bicycle, maritime, self_accident, mechanical, other
+            // Road accidents: vehicular, motorcycle, pedestrian, bicycle, self_accident, mechanical, other
         },
 
         // Fire involvement toggle (for road accidents with fire/explosion)
@@ -395,12 +395,10 @@ reportSchema.pre('save', async function (next) {
         this.incidentCategory = 'accident';
     }
 
-    // Auto-generate title if not provided
+    // Auto-generate title if not provided (MVP: road accidents only)
     if (!this.title) {
         const categoryLabels = {
-            accident: 'Accident',
-            natural_disaster: 'Natural Disaster',
-            fire: 'Fire Incident',
+            accident: 'Road Accident',
         };
         this.title = `${categoryLabels[this.incidentCategory] || 'Incident'} at ${this.address?.split(',')[0] || 'Unknown Location'}`;
     }

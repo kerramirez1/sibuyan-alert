@@ -43,6 +43,7 @@ export const canSubmitReports = (user) => {
  * - municipal_admin -> /admin (Operations Dashboard)
  * - responder -> /admin/reports?view=dispatch-queue (Responder Dispatch Queue)
  * - reporter -> /reporter (Reporter Dashboard)
+ * - ordinary (pending/rejected verification) -> /profile (verification status + resubmit)
  * - other / unauthenticated -> /dashboard
  */
 export const getDefaultRoleRoute = (user) => {
@@ -50,6 +51,7 @@ export const getDefaultRoleRoute = (user) => {
     if (role === 'municipal_admin') return '/admin';
     if (role === 'responder') return '/admin/reports?view=dispatch-queue';
     if (role === 'reporter') return '/reporter';
+    if (role === 'ordinary') return '/profile';
     return '/dashboard';
 };
 

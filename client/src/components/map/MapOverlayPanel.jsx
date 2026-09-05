@@ -43,6 +43,10 @@ const MapOverlayPanel = ({
 
     const touchStartY = useRef(null);
     const touchStartTime = useRef(0);
+    // Tap on the drag handle fires touchend (delta ~0, no-op) then click (toggle once).
+    // Swipe fires touchend (expand/collapse) AND a follow-up click — without this
+    // guard the click toggles straight back, looking like a laggy flicker.
+    const suppressNextToggleRef = useRef(false);
 
     const isMobileExpandedRef = useRef(isMobileExpanded);
     isMobileExpandedRef.current = isMobileExpanded;
@@ -73,7 +77,12 @@ const MapOverlayPanel = ({
 
     useEffect(() => {
         previousFocusRef.current = document.activeElement;
-        closeButtonRef.current?.focus({ preventScroll: true });
+        // Skip autofocus on small screens: focusing the close button forces the
+        // mobile browser to scroll/zoom, which reads as an expand lag.
+        const isSmallScreen = typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(max-width: 639px)').matches;
+        if (!isSmallScreen) closeButtonRef.current?.focus({ preventScroll: true });
 
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
@@ -128,7 +137,12 @@ const MapOverlayPanel = ({
         if (isContextual && !panelRef.current?.contains(document.activeElement)) {
             previousFocusRef.current = document.activeElement;
         }
-        closeButtonRef.current?.focus({ preventScroll: true });
+        // Same no-autofocus rule on content switches (list -> details) so the
+        // sheet never yanks focus mid-gesture on mobile.
+        const isSmallScreen = typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(max-width: 639px)').matches;
+        if (!isSmallScreen) closeButtonRef.current?.focus({ preventScroll: true });
     }, [isContextual, title]);
 
     useLayoutEffect(() => {
@@ -150,16 +164,26 @@ const MapOverlayPanel = ({
         touchStartY.current = null;
 
         if (deltaY < -35) {
-            // Swiped up -> expand
+            // Swiped up -> expand (suppress the click that follows a swipe)
+            suppressNextToggleRef.current = true;
             setIsMobileExpanded(true);
         } else if (deltaY > 35) {
             // Swiped down -> collapse to peek if expanded, or close if already peek
+            suppressNextToggleRef.current = true;
             if (isMobileExpanded) {
                 setIsMobileExpanded(false);
             } else {
                 onCloseRef.current?.();
             }
         }
+    };
+
+    const handleToggleExpand = () => {
+        if (suppressNextToggleRef.current) {
+            suppressNextToggleRef.current = false;
+            return;
+        }
+        setIsMobileExpanded((prev) => !prev);
     };
 
     const widthClass = size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
@@ -177,7 +201,7 @@ const MapOverlayPanel = ({
             className={isContextual
                 ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white shadow-xl max-sm:backdrop-blur-none sm:bg-white/95 sm:backdrop-blur-md dark:bg-[#0c1813] sm:dark:bg-[#0c1813]/95 dark:border-white/10
                    max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-0.5rem)] max-sm:rounded-t-2xl max-sm:border-t max-sm:border-gray-200/90 max-sm:shadow-2xl
-                   max-sm:transition-[height] max-sm:duration-300 max-sm:ease-out motion-reduce:max-sm:transition-none
+                   max-sm:transition-[height] max-sm:duration-200 max-sm:ease-out motion-reduce:max-sm:transition-none max-sm:will-change-[height] max-sm:[contain:layout_style]
                    sm:translate-y-0 sm:transition-none sm:h-auto sm:max-h-[calc(100%-2rem)] sm:w-[min(24rem,42%)] sm:rounded-2xl sm:border sm:border-gray-200/90 ${widthClass}
                     ${isMobileExpanded ? 'max-sm:h-[88dvh]' : 'max-sm:h-[38dvh]'}`
                 : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-white/10 dark:bg-[#0c1813]/95 ${widthClass}`}
@@ -188,7 +212,7 @@ const MapOverlayPanel = ({
                     className="flex cursor-grab touch-none flex-col items-center justify-center pt-2.5 pb-1 sm:hidden active:cursor-grabbing"
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
-                    onClick={() => setIsMobileExpanded((prev) => !prev)}
+                    onClick={handleToggleExpand}
                     aria-hidden="true"
                 >
                     <div className="h-1.5 w-12 rounded-full bg-gray-300 transition-colors dark:bg-white/20" />
@@ -199,7 +223,7 @@ const MapOverlayPanel = ({
                 className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5 max-sm:cursor-pointer select-none"
                 onClick={(e) => {
                     if (isContextual && isMobileViewport && !e.defaultPrevented) {
-                        setIsMobileExpanded((prev) => !prev);
+                        handleToggleExpand();
                     }
                 }}
                 onTouchStart={isContextual ? handleTouchStart : undefined}
@@ -216,12 +240,17 @@ const MapOverlayPanel = ({
                     )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="flex shrink-0 items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                >
                     {/* Expand/Collapse Toggle on Mobile */}
                     {isContextual && (
                         <button
                             type="button"
-                            onClick={() => setIsMobileExpanded((prev) => !prev)}
+                            onClick={handleToggleExpand}
                             className="flex h-10 w-10 sm:hidden shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
                             aria-label={isMobileExpanded ? 'Collapse incident details' : 'Expand incident details'}
                             aria-expanded={isMobileExpanded}
