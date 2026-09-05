@@ -8,9 +8,22 @@ const normalizeValue = (value) => typeof value === 'string' ? value.trim() : '';
  */
 export const resolveSocketOrigin = ({ socketUrl, apiUrl, browserOrigin } = {}) => {
     const explicitSocketUrl = normalizeValue(socketUrl);
-    if (explicitSocketUrl) return explicitSocketUrl.replace(/\/$/, '');
-
     const normalizedBrowserOrigin = normalizeValue(browserOrigin);
+    // A localhost URL baked into a production build (e.g. VITE_SOCKET_URL from
+    // dev .env) must never override the real page origin — that kills realtime.
+    if (explicitSocketUrl) {
+        try {
+            const parsed = new URL(explicitSocketUrl, normalizedBrowserOrigin || undefined);
+            const isLocalhostTarget = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(parsed.hostname);
+            const isProdPage = normalizedBrowserOrigin && !/^(https?:\/\/(localhost|127\.0\.0\.1|\[::1\]))/i.test(normalizedBrowserOrigin);
+            if (isLocalhostTarget && isProdPage) {
+                return normalizedBrowserOrigin.replace(/\/$/, '');
+            }
+        } catch {
+            // Fall through to normal resolution below.
+        }
+        return explicitSocketUrl.replace(/\/$/, '');
+    }
     const normalizedApiUrl = normalizeValue(apiUrl);
 
     if (normalizedApiUrl) {

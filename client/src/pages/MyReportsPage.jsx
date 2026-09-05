@@ -730,7 +730,7 @@ function MyReportsPage() {
                                                         </h4>
                                                         <ProtectedEvidenceGallery
                                                             images={report.images}
-                                                            evidence={report.evidence || (report.images?.length ? { count: report.images.length, viewerAccess: 'original', items: report.images.map((img, i) => ({ id: String(i), index: i, originalUrl: img, previewUrl: img, isOwner: true })) } : null)}
+                                                            evidence={report.evidence || (Array.isArray(report.images) && report.images.length ? { count: report.images.length, viewerAccess: 'original', items: report.images.map((img, i) => ({ id: String(i), index: i, originalUrl: img, previewUrl: img, isOwner: true })) } : null)}
                                                             isOwner={true}
                                                             variant="stacked"
                                                             onViewImage={(item) => setViewerItem(item)}

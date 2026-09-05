@@ -25,7 +25,16 @@ const validateVerificationImageFile = (file, subject) => {
 export const validateIdentityImageFile = (file) => validateVerificationImageFile(file, 'ID');
 
 const loadImage = (file) => new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
+    try {
+        if (!(file instanceof Blob)) {
+            reject(new Error('The selected file is not a valid image. Try another photo.'));
+            return;
+        }
+        if (typeof URL?.createObjectURL !== 'function' || typeof Image === 'undefined') {
+            reject(new Error('Image preview is not supported in this browser. Try another device.'));
+            return;
+        }
+        const objectUrl = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
         URL.revokeObjectURL(objectUrl);
@@ -36,6 +45,9 @@ const loadImage = (file) => new Promise((resolve, reject) => {
         reject(new Error('The selected image could not be read. Try another photo.'));
     };
     image.src = objectUrl;
+    } catch (error) {
+        reject(error instanceof Error ? error : new Error('The selected image could not be read. Try another photo.'));
+    }
 });
 
 const toBlob = (canvas, quality) => new Promise((resolve, reject) => {

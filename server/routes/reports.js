@@ -16,7 +16,7 @@ import {
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
-import { validateCreateReport } from '../middleware/validate.js';
+import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
 import { locationLookupLimiter, reportCreationLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -48,7 +48,7 @@ router.post(
 
 // Single report: public can view verified/responding, private for pending/rejected
 router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);
-router.post('/:id/updates', protect, requireVerifiedReporter, addReportUpdate);
+router.post('/:id/updates', protect, requireVerifiedReporter, validateMongoIdParam, addReportUpdate);
 router.get('/:id', optionalAuth, getReportById);
 
 export default router;

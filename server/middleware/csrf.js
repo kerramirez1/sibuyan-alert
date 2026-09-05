@@ -10,6 +10,11 @@ const PUBLIC_AUTH_PATHS = [
     /^\/api\/auth\/reset-password\/[^/]+$/,
 ];
 const LOGOUT_PATH = '/api/auth/logout';
+// Idempotent lookup with no DB mutation — safe without a CSRF double-submit
+// token, but the Origin check above still applies.
+const PUBLIC_CSRF_EXEMPT_PATHS = [
+    /^\/api\/reports\/geocode$/,
+];
 
 const safeEquals = (left, right) => {
     if (!left || !right) return false;
@@ -45,7 +50,7 @@ export const csrfProtection = (req, res, next) => {
         });
     }
 
-    if (PUBLIC_AUTH_PATHS.some((pattern) => pattern.test(req.path)) || req.path === LOGOUT_PATH) {
+    if (PUBLIC_AUTH_PATHS.some((pattern) => pattern.test(req.path)) || PUBLIC_CSRF_EXEMPT_PATHS.some((pattern) => pattern.test(req.path)) || req.path === LOGOUT_PATH) {
         return next();
     }
 

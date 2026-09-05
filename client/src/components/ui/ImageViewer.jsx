@@ -162,7 +162,7 @@ const ImageViewer = ({
 
         const rawSrc = currentItem?.src || currentItem?.originalUrl || imageSrc || '';
         // If already a blob URL or not a protected URL, use directly
-        if (!rawSrc || rawSrc.startsWith('blob:') || !isProtectedOriginalFileUrl(rawSrc)) {
+        if (!rawSrc || typeof rawSrc !== 'string' || rawSrc.startsWith('blob:') || !isProtectedOriginalFileUrl(rawSrc)) {
             setBlobUrl('');
             setIsLoadingBlob(false);
             return undefined;

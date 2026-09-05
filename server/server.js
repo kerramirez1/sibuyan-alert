@@ -76,6 +76,17 @@ const initializeDatabase = async () => {
     } catch (error) {
         console.warn('⚠️ Seeding warning:', error.message);
     }
+    // Fail-closed boundary check stays, but surface a clear ops warning so a
+    // fresh DB without `barangayboundaries` doesn't silently 400 border reports.
+    try {
+        const { default: BarangayBoundary } = await import('./models/BarangayBoundary.js');
+        const boundaryCount = await BarangayBoundary.countDocuments({ isActive: true });
+        if (boundaryCount === 0) {
+            console.warn('⚠️ BarangayBoundary collection is empty — border reports will 400 as ambiguous. Run: npm run import:barangay-boundaries --prefix server');
+        }
+    } catch (error) {
+        console.warn('⚠️ Boundary readiness check skipped:', error.message);
+    }
     // D7 Analytics / Historical Data is a read-only view on reports — ensure it
     // exists without ever failing the boot (analytics degrades to live
     // aggregation when the view cannot be created, e.g. restricted DB roles).

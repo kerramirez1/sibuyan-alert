@@ -10,11 +10,17 @@ export const configureWebPush = () => {
         return false;
     }
 
-    webpush.setVapidDetails(
-        process.env.VAPID_EMAIL || 'mailto:sibuyan.alert@gmail.com',
-        process.env.VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
+    try {
+        webpush.setVapidDetails(
+            process.env.VAPID_EMAIL || 'mailto:sibuyan.alert@gmail.com',
+            process.env.VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+    } catch (error) {
+        webPushConfigured = false;
+        console.warn('Web Push disabled: invalid VAPID configuration —', error?.message);
+        return false;
+    }
     webPushConfigured = true;
     console.log('Web Push configured');
     return true;

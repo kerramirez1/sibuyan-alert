@@ -565,6 +565,13 @@ export const resubmitIdDocument = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('+verificationHistory');
 
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session account no longer exists. Please log in again.',
+            });
+        }
+
         if (user.role !== 'reporter') {
             return res.status(400).json({
                 success: false,
@@ -702,9 +709,15 @@ export const forgotPassword = async (req, res) => {
 
         // Send email with reset link
         const { sendPasswordResetEmail } = await import('../services/emailService.js');
-        const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+        const clientBase = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
+        const resetUrl = clientBase
+            ? `${clientBase}/reset-password/${resetToken}`
+            : `/reset-password/${resetToken}`;
 
-        await sendPasswordResetEmail(user.email, user.name, resetUrl);
+        const emailResult = await sendPasswordResetEmail(user.email, user.name, resetUrl);
+        if (!emailResult?.success) {
+            console.error('Password reset email failed:', emailResult?.error);
+        }
 
         res.json({
             success: true,

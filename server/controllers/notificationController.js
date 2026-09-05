@@ -9,6 +9,13 @@ export const getNotifications = async (req, res) => {
     try {
         const { page = 1, limit = 20, unreadOnly = false } = req.query;
 
+        // MVP: clamp pagination like report/admin queues — prevents NaN pages
+        // and unbounded ?limit=1000000 memory/CPU spikes.
+        const parsedLimit = Number.parseInt(limit, 10);
+        const parsedPage = Number.parseInt(page, 10);
+        const safeLimit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20;
+        const safePage = Number.isFinite(parsedPage) ? Math.max(parsedPage, 1) : 1;
+
         const query = { recipient: req.user._id };
         if (unreadOnly === 'true') {
             query.isRead = false;
@@ -16,8 +23,8 @@ export const getNotifications = async (req, res) => {
 
         const notifications = await Notification.find(query)
             .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit));
+            .limit(safeLimit)
+            .skip((safePage - 1) * safeLimit);
 
         const total = await Notification.countDocuments(query);
         const unreadCount = await Notification.getUnreadCount(req.user._id);
@@ -28,10 +35,10 @@ export const getNotifications = async (req, res) => {
                 notifications,
                 unreadCount,
                 pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: safePage,
+                    limit: safeLimit,
                     total,
-                    pages: Math.ceil(total / parseInt(limit)),
+                    pages: Math.ceil(total / safeLimit),
                 },
             },
         });

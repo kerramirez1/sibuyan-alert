@@ -357,7 +357,8 @@ export const AuthProvider = ({ children }) => {
     const hasRole = useCallback((roles) => {
         if (!user) return false;
         if (typeof roles === 'string') return user.role === roles;
-        return roles.includes(user.role);
+        if (Array.isArray(roles)) return roles.includes(user.role);
+        return false;
     }, [user]);
 
     // Check if user is verified reporter

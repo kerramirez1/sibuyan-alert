@@ -326,7 +326,9 @@ export const createReport = async (req, res) => {
         }
 
         // Notify the responsible municipal administrators and emergency responders.
-        const categoryConfig = INCIDENT_CATEGORIES[finalCategory];
+        // MVP: never let fan-out delay or fail the 201. In-app notifies are
+        // isolated per recipient; email + push are fire-and-forget background.
+        const categoryConfig = INCIDENT_CATEGORIES[finalCategory] || { emoji: '🚨', label: finalCategory };
 
         const operationalUsersQuery = {
             role: { $in: ['municipal_admin', 'responder'] },
@@ -337,28 +339,33 @@ export const createReport = async (req, res) => {
 
         // Create in-app notifications for each municipal administrator and responder.
         for (const opUser of operationalUsers) {
-            await Notification.createAndSend(
-                {
-                    recipient: opUser._id,
-                    type: 'new_report',
-                    title: `${categoryConfig.emoji} New ${categoryConfig.label} Report`,
-                    message: `New ${categoryConfig.label.toLowerCase()} reported at ${report.address}${locationResult.municipalityName ? ` (${locationResult.municipalityName})` : ''}`,
-                    data: { reportId: report._id, category: finalCategory, municipality: locationResult.municipalityName },
-                },
-                io
-            );
+            try {
+                await Notification.createAndSend(
+                    {
+                        recipient: opUser._id,
+                        type: 'new_report',
+                        title: `${categoryConfig.emoji} New ${categoryConfig.label} Report`,
+                        message: `New ${categoryConfig.label.toLowerCase()} reported at ${report.address}${locationResult.municipalityName ? ` (${locationResult.municipalityName})` : ''}`,
+                        data: { reportId: report._id, category: finalCategory, municipality: locationResult.municipalityName },
+                    },
+                    io
+                );
+            } catch (notifyError) {
+                console.error('Background in-app notify failed:', notifyError?.message);
+            }
 
-            // Send email notification
+            // Send email notification without blocking the HTTP response.
             if (opUser.role === 'municipal_admin' && opUser.notificationPreferences?.email) {
-                await sendNewReportAlertEmail(opUser.email, report, req.user);
+                sendNewReportAlertEmail(opUser.email, report, req.user)
+                    .catch((emailError) => console.error('Background email failed:', emailError?.message));
             }
         }
 
         // Send push notifications to operational users (admins and responders)
-        await sendPushToUsers(
+        sendPushToUsers(
             operationalUsers.filter((a) => a.pushSubscription && a.notificationPreferences?.browserPush),
             pushTemplates.newReport(report)
-        );
+        ).catch((pushError) => console.error('Background push failed:', pushError?.message));
 
         res.status(201).json({
             success: true,

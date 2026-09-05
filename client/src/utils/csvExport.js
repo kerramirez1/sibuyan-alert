@@ -15,7 +15,7 @@ export const escapeCsvCell = (value) => {
 };
 
 export const buildCsvDocument = (sections) => sections
-    .flatMap(({ title, columns, rows = [] }) => {
+    .flatMap(({ title, columns = [], rows = [] }) => {
         const header = columns.map(({ label }) => escapeCsvCell(label)).join(',');
         const records = rows.map((row) => columns
             .map(({ key }) => escapeCsvCell(row[key]))

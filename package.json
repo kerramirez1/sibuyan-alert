@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=sibuyan-accident-alert-client",
+    "heroku-postbuild": "npm run build --workspace=sibuyan-accident-alert-client",
     "start": "npm run start --workspace=sibuyan-accident-alert-server",
     "lint": "npm run lint --workspace=sibuyan-accident-alert-client && npm run lint --workspace=sibuyan-accident-alert-server",
     "test:client": "npm test --workspace=sibuyan-accident-alert-client -- --run",

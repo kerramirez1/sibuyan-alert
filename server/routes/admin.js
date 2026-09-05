@@ -23,6 +23,7 @@ import {
     validateResolveReport,
     validateTransferReport,
     validateAcknowledgeTransfer,
+    validateMongoIdParam,
 } from '../middleware/validate.js';
 
 const router = express.Router();
@@ -40,9 +41,9 @@ router.get('/dashboard', requireRole('municipal_admin'), getDashboardStats);
 // User management — municipal administrators only (not responders)
 // ============================================================
 router.get('/users', requireRole('municipal_admin'), getUsers);
-router.get('/users/:id', requireRole('municipal_admin'), getUserById);
+router.get('/users/:id', requireRole('municipal_admin'), validateMongoIdParam, getUserById);
 router.put('/users/:id/verify', requireRole('municipal_admin'), validateVerifyReporter, verifyReporter);
-router.delete('/users/:id', requireRole('municipal_admin'), deleteUser);
+router.delete('/users/:id', requireRole('municipal_admin'), validateMongoIdParam, deleteUser);
 
 // ============================================================
 // Report queue — shared read access with capability-specific mutations below.
@@ -54,6 +55,6 @@ router.put('/reports/:id/respond', requireRole('responder'), validateRespondToRe
 router.put('/reports/:id/resolve', requireRole('responder'), validateResolveReport, resolveReport);
 router.put('/reports/:id/transfer', requireRole('municipal_admin'), validateTransferReport, transferReport);
 router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
-router.delete('/reports/:id', requireRole('municipal_admin'), deleteReport);
+router.delete('/reports/:id', requireRole('municipal_admin'), validateMongoIdParam, deleteReport);
 
 export default router;

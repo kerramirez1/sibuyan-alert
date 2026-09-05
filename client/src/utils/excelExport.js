@@ -28,7 +28,7 @@ const columnLetter = (index) => {
     return letter;
 };
 
-const addTitledTable = (worksheet, { title, columns, rows }) => {
+const addTitledTable = (worksheet, { title, columns = [], rows = [] }) => {
     const lastColumn = columnLetter(columns.length);
 
     const titleRow = worksheet.addRow([title]);

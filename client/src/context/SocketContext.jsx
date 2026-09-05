@@ -89,7 +89,15 @@ export const SocketProvider = ({ children }) => {
             const handleAuthError = async () => {
                 try {
                     await refreshAuthSession();
-                    if (socket.connected) authenticateSocket();
+                    // Socket.IO handshake cookies are static per connection —
+                    // a plain `emit('join')` would still carry the expired
+                    // cookie. Force a fresh handshake so the new cookie is used.
+                    try {
+                        socket.disconnect();
+                    } catch {
+                        // Ignore — connect() below still establishes a new handshake.
+                    }
+                    socket.connect();
                 } catch {
                     setConnected(false);
                 }
@@ -181,6 +189,7 @@ export const SocketProvider = ({ children }) => {
         // Personal notification (from Notification.createAndSend). Persisted ids
         // are deduplicated so reconnects cannot increment the badge twice.
         const handleNotification = (notification) => {
+            if (!notification || typeof notification !== 'object') return;
             const rawNotificationId = getNotificationId(notification);
             const notificationId = rawNotificationId ? String(rawNotificationId) : '';
             if (notificationId && receivedNotificationIdsRef.current.has(notificationId)) return;

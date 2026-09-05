@@ -7,6 +7,7 @@ import {
     getUnreadCount,
 } from '../controllers/notificationController.js';
 import { protect } from '../middleware/auth.js';
+import { validateMongoIdParam } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.use(protect);
 router.get('/', getNotifications);
 router.get('/unread-count', getUnreadCount);
 router.put('/read-all', markAllAsRead);
-router.put('/:id/read', markAsRead);
-router.delete('/:id', deleteNotification);
+router.put('/:id/read', validateMongoIdParam, markAsRead);
+router.delete('/:id', validateMongoIdParam, deleteNotification);
 
 export default router;

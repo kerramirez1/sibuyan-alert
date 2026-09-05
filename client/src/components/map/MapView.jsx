@@ -300,6 +300,8 @@ const MapView = ({
         };
         streetFallbackActivatedRef.current = false;
 
+        let cancelled = false;
+
         const mapInstance = new maplibregl.Map({
             ...MAP_INTERACTION_OPTIONS,
             container: mapContainerRef.current,
@@ -379,6 +381,8 @@ const MapView = ({
         });
 
         mapInstance.on('load', () => {
+            if (cancelled) return;
+            try {
             mapInstance.addSource(RISK_ZONE_SOURCE_ID, {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
@@ -457,7 +461,10 @@ const MapView = ({
             });
 
             mapInstanceRef.current = mapInstance;
-            setMapReady(true);
+            if (!cancelled) setMapReady(true);
+            } catch (error) {
+                console.warn('Map load init skipped:', error?.message);
+            }
         });
 
         // Handle map clicks
@@ -465,7 +472,7 @@ const MapView = ({
             // Operational markers are accessible HTML controls and stop event
             // propagation themselves. A canvas click therefore always means map
             // selection and no duplicate WebGL hit layer is required.
-            popupRef.current.remove();
+            popupRef.current?.remove();
             closeMapSelection();
             if (onLocationSelectRef.current) {
                 const location = { lat: e.lngLat.lat, lng: e.lngLat.lng };
@@ -478,11 +485,16 @@ const MapView = ({
         });
 
         return () => {
+            cancelled = true;
             removeCompassToggle();
             removeCompactAttribution();
             markerFocusCleanupRef.current?.();
             popupRef.current?.remove();
-            mapInstance.remove();
+            try {
+                mapInstance.remove();
+            } catch {
+                // Already removed — safe to ignore on fast navigation.
+            }
             mapInstanceRef.current = null;
         };
     }, [closeMapSelection, effective3D, mapProvider, performanceProfile]);
@@ -858,11 +870,13 @@ const MapView = ({
                     .addTo(map);
 
                 selectedMarkerRef.current.on('dragend', () => {
-                    const lngLat = selectedMarkerRef.current.getLngLat();
+                    const marker = selectedMarkerRef.current;
+                    if (!marker) return;
+                    const lngLat = marker.getLngLat();
                     const location = { lat: lngLat.lat, lng: lngLat.lng };
                     if (!isWithinSibuyanInteractionBounds(location)) {
                         const previous = selectedLocationRef.current;
-                        if (previous) selectedMarkerRef.current.setLngLat([previous.lng, previous.lat]);
+                        if (previous) marker.setLngLat([previous.lng, previous.lat]);
                         toast.error('Keep the incident pin within Sibuyan Island.', { id: 'sibuyan-map-bounds' });
                         return;
                     }

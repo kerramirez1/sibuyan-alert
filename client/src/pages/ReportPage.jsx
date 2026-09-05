@@ -361,18 +361,29 @@ const ReportPage = () => {
             const prepared = await prepareEvidenceImages(validFiles);
             const optimizedFiles = prepared.map((p) => p.file);
 
-            setImages((prev) => [...prev, ...optimizedFiles]);
-
-            validFiles.forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const result = event?.target?.result;
-                    if (typeof result === 'string') {
-                        setImagePreviews((prev) => [...prev, result]);
-                    }
-                };
-                reader.readAsDataURL(file);
+            // MVP: keep images[] and previews[] index-aligned. Read the exact
+            // optimized files in order and append as one batch so a slow read
+            // or a quick remove can't orphan/mismatch previews.
+            const readAsDataUrl = (file) => new Promise((resolve) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const result = event?.target?.result;
+                        resolve(typeof result === 'string' ? result : null);
+                    };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                } catch {
+                    resolve(null);
+                }
             });
+            const previewResults = await Promise.all(optimizedFiles.map(readAsDataUrl));
+            const paired = optimizedFiles
+                .map((file, index) => ({ file, preview: previewResults[index] }))
+                .filter((entry) => typeof entry.preview === 'string');
+
+            setImages((prev) => [...prev, ...paired.map((entry) => entry.file)]);
+            setImagePreviews((prev) => [...prev, ...paired.map((entry) => entry.preview)]);
         } catch {
             toast.error('Could not prepare some photos. Please try again.');
         }
