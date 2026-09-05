@@ -4,12 +4,8 @@ import { Link, useSearchParams } from '../router';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from '../utils/appToast';
 import {
-    HiCheck,
     HiOutlineChevronDown,
     HiOutlineExclamationCircle,
-    HiOutlineFilter,
-    HiOutlineRefresh,
-    HiOutlineX,
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
@@ -109,9 +105,9 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+                className="fixed inset-0 bg-black/40"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -119,28 +115,24 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={`${modalId}-title`}
-                className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col rounded-md border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-200/80 px-4 py-3 sm:px-5 dark:border-white/10">
-                    <div className="flex items-center gap-2">
-                        <HiOutlineFilter className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                        <h3 id={`${modalId}-title`} className="font-display text-sm font-bold text-gray-950 dark:text-white">
-                            Filter reports by status
-                        </h3>
-                    </div>
+                <div className="flex items-center justify-between px-5 py-4">
+                    <h3 id={`${modalId}-title`} className="text-sm font-semibold text-gray-900 dark:text-white">
+                        Filter reports by status
+                    </h3>
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Close filter sheet"
-                        className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
+                        className="min-h-[44px] px-2 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                     >
-                        <HiOutlineX className="h-5 w-5" />
+                        Close
                     </button>
                 </div>
 
                 {/* Options List */}
-                <div className="overflow-y-auto p-4 space-y-1.5 flex-1">
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
                     {FILTERS.map((filterKey) => {
                         const count = filterKey === 'all' ? totalReports : (counts[filterKey] || 0);
                         if (filterKey !== 'all' && count === 0) return null;
@@ -152,36 +144,34 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
                                 key={filterKey}
                                 type="button"
                                 onClick={() => setDraftStatus(filterKey)}
-                                className={`flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                                aria-pressed={isSelected}
+                                className={`flex w-full items-center justify-between rounded px-3 py-2.5 text-sm cursor-pointer ${
                                     isSelected
-                                        ? 'text-emerald-800 dark:text-emerald-300'
-                                        : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5'
+                                        ? 'font-semibold text-gray-900 dark:text-white'
+                                        : 'font-normal text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                 }`}
                             >
                                 <span>{label}</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[11px] text-gray-400">{count}</span>
-                                    {isSelected && <HiCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
-                                </div>
+                                <span className="text-xs tabular-nums text-gray-400">{count}</span>
                             </button>
                         );
                     })}
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex items-center justify-between border-t border-gray-200/80 bg-gray-50/70 px-4 py-3 sm:px-5 dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between px-5 py-4">
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="text-xs font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                        className="min-h-[44px] text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                     >
                         Clear all
                     </button>
                     <div className="flex items-center gap-2">
-                        <Button variant="secondary" size="sm" onClick={onClose}>
+                        <Button variant="ghost" size="sm" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button variant="primary" size="sm" onClick={handleApply}>
+                        <Button variant="primary" size="sm" className="rounded-md" onClick={handleApply}>
                             Apply filters
                         </Button>
                     </div>
@@ -424,14 +414,14 @@ function MyReportsPage() {
     ];
 
     return (
-        <div className="mx-auto w-full max-w-6xl">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
             {/* Single page title block */}
-            <header className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
+            <header className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                         My reports
                     </h1>
-                    <p className="mt-1 max-w-xl text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         Track the review and response status of your incident submissions.
                     </p>
                 </div>
@@ -439,7 +429,7 @@ function MyReportsPage() {
                 <div className="hidden sm:block sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
                         Submit incident report
                     </Link>
@@ -449,50 +439,46 @@ function MyReportsPage() {
             {loading ? (
                 <MyReportsSkeleton />
             ) : error ? (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-red-200/90 bg-red-50/80 p-4 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                <div className="flex flex-col gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                     <div className="flex items-center gap-2">
                         <HiOutlineExclamationCircle className="h-5 w-5 shrink-0" />
                         <span>{error}</span>
                     </div>
-                    <Button variant="dangerOutline" size="sm" onClick={() => fetchReports(false)}>
-                        <HiOutlineRefresh className="mr-1.5 h-3.5 w-3.5" />
+                    <Button variant="dangerOutline" size="sm" className="rounded-md" onClick={() => fetchReports(false)}>
                         Retry
                     </Button>
                 </div>
             ) : (
-                <div className="divide-y divide-gray-200 dark:divide-white/10">
-                    {/* Flat stat row: uniform ink numerals, hairline separators */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 sm:grid-cols-4">
+                <div>
+                    {/* Summary: hairline dividers like Reporter dashboard */}
+                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-6 gap-y-6 py-2 sm:grid-cols-4">
                         {metricCards.map(({ label, value, helper }, index) => (
-                            <div
-                                key={label}
-                                className={`px-1 py-4 sm:px-4 ${index > 0 ? 'border-l border-gray-200 pl-4 dark:border-white/10' : ''} ${index >= 2 ? 'max-sm:border-t max-sm:border-gray-200 max-sm:dark:border-white/10' : ''} ${index === 2 ? 'max-sm:border-l-0 max-sm:pl-1' : ''}`}
-                            >
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <div key={label} className={index > 0 ? 'border-l border-gray-200 pl-6 dark:border-white/10' : ''}>
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                     {label}
                                 </p>
-                                <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+                                <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white">
                                     {value}
                                 </p>
-                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
                             </div>
                         ))}
                     </section>
 
                     {/* Mobile primary action: context (stats) first, action second */}
-                    <div className="py-4 sm:hidden">
+                    <div className="py-6 sm:hidden">
                         <Link
                             to="/report"
-                            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                         >
                             Submit incident report
                         </Link>
                     </div>
 
                     {/* Submitted incident records */}
-                    <section className="py-6" aria-label="Submitted reports">
-                        <div className="flex items-baseline justify-between gap-2">
-                            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <section className="mt-8 border-t border-gray-200 pt-6 dark:border-white/10" aria-label="Submitted reports">
+                        <div className="flex items-center justify-between gap-2">
+                            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {filterStatus === 'all'
                                     ? 'Submitted reports'
                                     : `Submitted reports · ${filteredReports.length} of ${reports.length}`}
@@ -502,21 +488,15 @@ function MyReportsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setFilterModalOpen(true)}
-                                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-700 sm:hidden dark:border-white/10 dark:text-gray-200"
+                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-medium text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline sm:hidden dark:text-gray-300 dark:hover:text-white"
                                 >
-                                    <HiOutlineFilter className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                                    <span>Filter reports</span>
-                                    {filterStatus !== 'all' && (
-                                        <span className="inline-flex items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">
-                                            1
-                                        </span>
-                                    )}
+                                    <span>Filter reports{filterStatus !== 'all' ? ' · 1' : ''}</span>
                                 </button>
                             )}
                         </div>
 
                         {reports.length > 0 && (
-                            <div className="mt-3 hidden gap-5 border-b border-gray-200 sm:flex dark:border-white/10" aria-label="Filter reports by status">
+                            <div className="mt-4 hidden gap-6 border-b border-gray-200 pb-0 sm:flex dark:border-white/10" aria-label="Filter reports by status">
                                 {FILTERS.map((filter) => {
                                     const count = filter === 'all' ? reports.length : (counts[filter] || 0);
                                     if (filter !== 'all' && count === 0) return null;
@@ -529,9 +509,9 @@ function MyReportsPage() {
                                             type="button"
                                             aria-pressed={isActive}
                                             onClick={() => setFilterStatus(filter)}
-                                            className={`-mb-px shrink-0 border-b-2 pb-2 text-sm transition-colors ${
+                                            className={`shrink-0 border-b pb-2.5 text-sm ${
                                                 isActive
-                                                    ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
+                                                    ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
                                                     : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                             }`}
                                         >
@@ -544,37 +524,37 @@ function MyReportsPage() {
                         )}
 
                         {reports.length === 0 ? (
-                            <div className="py-10 text-center sm:text-left">
-                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <div className="py-12">
+                                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                                     You have not submitted an incident report yet.
                                 </h3>
-                                <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 sm:mx-0 dark:text-gray-400">
+                                <p className="mt-1 max-w-sm text-sm text-gray-500 dark:text-gray-400">
                                     Submit a new emergency or incident report to track its verification and response here.
                                 </p>
-                                <div className="mt-4">
+                                <div className="mt-5">
                                     <Link
                                         to="/report"
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                                     >
                                         Submit incident report
                                     </Link>
                                 </div>
                             </div>
                         ) : filteredReports.length === 0 ? (
-                            <div className="py-10 text-center">
-                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                    No reports match this status
+                            <div className="py-12">
+                                <p className="text-sm text-gray-600 dark:text-gray-300">
+                                    No reports match this status.
                                 </p>
                                 <button
                                     type="button"
                                     onClick={() => setFilterStatus('all')}
-                                    className="mt-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="mt-2 min-h-[44px] text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
                                 >
                                     Clear filter
                                 </button>
                             </div>
                         ) : (
-                            <ul className="mt-2 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
+                            <ul className="divide-y divide-gray-200 dark:divide-white/10">
                                 {filteredReports.map((report) => {
                                     const isExpanded = Boolean(selectedReportId && String(selectedReportId) === String(report._id));
                                     const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
@@ -594,78 +574,62 @@ function MyReportsPage() {
                                             }}
                                         >
                                         <article className="scroll-mt-20 sm:scroll-mt-24">
-                                            {/* Collapsible header row: carries the expanded-state accent */}
+                                            {/* Row: single hairline accent marks expanded state */}
                                             <button
                                                 type="button"
                                                 onClick={() => toggleReportSelected(report._id)}
                                                 aria-expanded={isExpanded}
                                                 aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
-                                                style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #059669)' } : undefined}
-                                                className={`w-full flex flex-col gap-2 border-l-2 p-3.5 text-left transition-colors sm:grid sm:grid-cols-[minmax(0,1fr)_140px_96px_28px] sm:items-center sm:gap-4 sm:border-l-[3px] sm:p-4 md:p-5 cursor-pointer min-h-[44px] ${
+                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-4 border-l-2 py-4 pl-4 text-left sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center cursor-pointer ${
                                                     isExpanded
-                                                        ? 'border-l-emerald-600 dark:border-l-emerald-500'
-                                                        : 'border-l-transparent hover:bg-gray-50/75 dark:hover:bg-white/[0.02]'
+                                                        ? 'border-l-emerald-600'
+                                                        : 'border-l-transparent'
                                                 }`}
                                             >
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
-                                                    <h3 className="line-clamp-2 sm:line-clamp-1 text-sm font-semibold text-gray-900 sm:text-base dark:text-white">
+                                                    <h3 className="truncate text-[15px] font-medium text-gray-900 dark:text-white">
                                                         {getLocation(report)}
                                                     </h3>
-                                                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
-                                                        <span className="font-medium text-gray-600 dark:text-gray-300">{formatIncidentType(report)}</span>
-                                                        <span aria-hidden="true">·</span>
-                                                        <span>Submitted {formatRelativeDate(report.createdAt)}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Status & severity: one meta line on mobile (dot glued
-                                                    to severity), dedicated columns on sm+ */}
-                                                <div className="flex items-center justify-between gap-2 pt-0.5 sm:contents">
-                                                    <p className="truncate text-[11px] text-gray-500 sm:hidden dark:text-gray-400">
-                                                        {status.label}
-                                                        <span aria-hidden="true"> · </span>
-                                                        <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${severity.dot}`} aria-hidden="true" />
-                                                        {severityLabel}
+                                                    <p className="mt-0.5 text-[13px] text-gray-500 dark:text-gray-400">
+                                                        {formatIncidentType(report)} · Submitted {formatRelativeDate(report.createdAt)}
                                                     </p>
-                                                    <div className="hidden sm:contents">
-                                                        <div className="flex items-center sm:justify-start">
-                                                            <span className="truncate text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                                {status.label}
-                                                            </span>
-                                                        </div>
-
-                                                        <div className="flex items-center sm:justify-start">
-                                                            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                                <span className={`h-2 w-2 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
-                                                                <span className="truncate">{severityLabel}</span>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Chevron Affordance */}
-                                                    <div className="flex items-center justify-end">
-                                                        <HiOutlineChevronDown
-                                                            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                                                                isExpanded ? 'rotate-180 text-emerald-700 dark:text-emerald-400' : ''
-                                                            }`}
-                                                            aria-hidden="true"
-                                                        />
-                                                    </div>
+                                                    <p className="mt-1 text-[13px] text-gray-500 sm:hidden dark:text-gray-400">
+                                                        {status.label} · {severityLabel}
+                                                    </p>
                                                 </div>
+
+                                                <span className="hidden truncate text-sm text-gray-500 sm:block dark:text-gray-400">
+                                                    {status.label}
+                                                </span>
+
+                                                <span className="hidden items-center gap-1.5 text-sm text-gray-500 sm:inline-flex dark:text-gray-400">
+                                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
+                                                    <span className="truncate">{severityLabel}</span>
+                                                </span>
+
+                                                {/* Chevron Affordance */}
+                                                <span className="flex items-center justify-end">
+                                                    <HiOutlineChevronDown
+                                                        className={`h-4 w-4 text-gray-400 transition-transform duration-150 ${
+                                                            isExpanded ? 'rotate-180' : ''
+                                                        }`}
+                                                        aria-hidden="true"
+                                                    />
+                                                </span>
                                             </button>
 
                                             {/* Progressive Disclosure: Expanded Incident Dossier */}
                                             {isExpanded && (
-                                                <div className="space-y-5 border-t border-gray-200 px-1 py-5 sm:px-2 dark:border-white/10">
+                                                <div className="space-y-6 border-t border-gray-100 py-6 pl-4 dark:border-white/5">
                                                     {/* 1. Incident Description */}
                                                     <div>
-                                                        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                        <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                             Incident details
                                                         </h4>
-                                                        <p className="mt-1 text-sm leading-relaxed text-gray-800 break-words dark:text-gray-200">
+                                                        <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
                                                             {report.description || (
-                                                                <span className="italic text-gray-400 dark:text-gray-500">
+                                                                <span className="text-gray-400 dark:text-gray-500">
                                                                     No incident description was provided.
                                                                 </span>
                                                             )}
@@ -673,7 +637,7 @@ function MyReportsPage() {
                                                     </div>
 
                                                     {/* 2. Key Facts Grid */}
-                                                    <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-5 sm:grid-cols-4 dark:border-white/5">
+                                                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
                                                         {[
                                                             { label: 'Incident date', value: formatDate(report.incidentTime || report.accidentTime || report.createdAt) },
                                                             { label: 'Incident type', value: formatIncidentType(report) },
@@ -681,52 +645,49 @@ function MyReportsPage() {
                                                             { label: 'Report views', value: report.viewCount || 0 },
                                                         ].map(({ label, value }) => (
                                                             <div key={label}>
-                                                                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                                     {label}
-                                                                </span>
-                                                                <p className="mt-0.5 break-words text-sm font-medium text-gray-900 dark:text-white">
+                                                                </dt>
+                                                                <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                                     {value}
-                                                                </p>
+                                                                </dd>
                                                             </div>
                                                         ))}
-                                                    </div>
+                                                    </dl>
 
                                                     {/* 3. Operational State Details */}
-                                                    <div className="border-t border-gray-100 pt-5 dark:border-white/5">
-                                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                    <div>
+                                                        <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                             Status
-                                                        </span>
-                                                        <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
-                                                            {status.label}
-                                                            <span aria-hidden="true"> · </span>
-                                                            Updated {formatRelativeDate(report.updatedAt || report.createdAt)}
+                                                        </h4>
+                                                        <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                            {status.label} · Updated {formatRelativeDate(report.updatedAt || report.createdAt)}
                                                         </p>
 
                                                         {report.respondedBy && (
-                                                            <p>
-                                                                <span className="font-semibold text-gray-900 dark:text-white">Response unit:</span>{' '}
-                                                                {getAgencyLabel(report.respondedBy?.agency || report.responderAgency)}{' '}
+                                                            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                                Response unit: {getAgencyLabel(report.respondedBy?.agency || report.responderAgency)}{' '}
                                                                 {report.respondedBy?.name ? `(${report.respondedBy.name})` : ''}
                                                             </p>
                                                         )}
 
                                                         {report.status === 'resolved' && report.resolutionNotes && (
-                                                            <p className="border-l-2 border-emerald-500 py-0.5 pl-3">
-                                                                <span className="font-semibold text-gray-900 dark:text-white">Resolution notes:</span> {report.resolutionNotes}
+                                                            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                                Resolution notes: {report.resolutionNotes}
                                                             </p>
                                                         )}
 
                                                         {report.status === 'rejected' && report.rejectionReason && (
-                                                            <p className="border-l-2 border-red-500 py-0.5 pl-3">
-                                                                <span className="font-semibold text-gray-900 dark:text-white">Rejection reason:</span> {report.rejectionReason}
+                                                            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                                Rejection reason: {report.rejectionReason}
                                                             </p>
                                                         )}
                                                     </div>
 
                                                     {/* 4. Evidence Gallery */}
-                                                    <div className="border-t border-gray-100 pt-5 dark:border-white/5">
-                                                        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                                            Evidence photos ({report.evidence?.items?.length || report.images?.length || 0})
+                                                    <div>
+                                                        <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                            Evidence ({report.evidence?.items?.length || report.images?.length || 0})
                                                         </h4>
                                                         <ProtectedEvidenceGallery
                                                             images={report.images}
@@ -738,22 +699,19 @@ function MyReportsPage() {
                                                     </div>
 
                                                     {/* 5. Incident Activity Log */}
-                                                    <div
-                                                        className="border-t border-gray-100 pt-5 dark:border-white/5"
-                                                        aria-labelledby={`activity-heading-${report._id}`}
-                                                    >
+                                                    <div aria-labelledby={`activity-heading-${report._id}`}>
                                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                             <h4
                                                                 id={`activity-heading-${report._id}`}
-                                                                className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                                                                className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
                                                             >
-                                                                Incident activity log
+                                                                Activity
                                                             </h4>
                                                             {!isClosed ? (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setUpdateDialogReportId(report._id)}
-                                                                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 sm:w-auto dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                                                                 >
                                                                     Send situation update
                                                                 </button>

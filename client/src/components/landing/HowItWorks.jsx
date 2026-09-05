@@ -19,12 +19,13 @@ const steps = [
 ];
 
 // Typical incident journey — a simplified, public-facing progression matching system status colors.
+// Short labels keep all five stages on one row on mobile; full labels return on sm+.
 const JOURNEY_STAGES = [
-    { key: 'reported', label: 'Reported', dotClass: 'bg-amber-500' },
-    { key: 'under_review', label: 'Under review', dotClass: 'bg-amber-500' },
-    { key: 'verified', label: 'Verified', dotClass: 'bg-blue-600' },
-    { key: 'in_progress', label: 'Responding', dotClass: 'bg-cyan-600 animate-pulse ring-2 ring-cyan-400/40' },
-    { key: 'resolved', label: 'Resolved', dotClass: 'bg-emerald-600' },
+    { key: 'reported', label: 'Reported', shortLabel: 'Reported', dotClass: 'bg-amber-500' },
+    { key: 'under_review', label: 'Under review', shortLabel: 'Review', dotClass: 'bg-amber-500' },
+    { key: 'verified', label: 'Verified', shortLabel: 'Verified', dotClass: 'bg-blue-600' },
+    { key: 'in_progress', label: 'Responding', shortLabel: 'Response', dotClass: 'bg-cyan-600' },
+    { key: 'resolved', label: 'Resolved', shortLabel: 'Resolved', dotClass: 'bg-emerald-600' },
 ];
 
 const HowItWorks = () => (
@@ -76,27 +77,23 @@ const HowItWorks = () => (
                         Some reports may be transferred to the appropriate municipality during review.
                     </p>
                 </div>
-                <p id="incident-journey-scroll-hint" className="sr-only">
-                    A simplified incident progression. Select or scroll horizontally to view every stage in order.
-                </p>
                 <div
-                    className="flex flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain pb-1 pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                    className="flex flex-nowrap items-center justify-between gap-x-1 pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:gap-x-2"
                     role="list"
                     aria-label="Incident status stages in order"
-                    aria-describedby="incident-journey-scroll-hint"
-                    tabIndex={0}
                 >
                     {JOURNEY_STAGES.map((stage, index) => (
-                        <div key={stage.key} className="flex shrink-0 items-center gap-2">
+                        <div key={stage.key} className="flex shrink-0 items-center gap-1 sm:gap-2">
                             <span
                                 role="listitem"
-                                className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium leading-none text-gray-700 dark:text-gray-300"
+                                className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-medium leading-none text-gray-700 sm:gap-2 sm:text-xs dark:text-gray-300"
                             >
-                                <span className={`h-2.5 w-2.5 rounded-full ${stage.dotClass}`} aria-hidden="true" />
-                                {stage.label}
+                                <span className={`h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2 ${stage.dotClass}`} aria-hidden="true" />
+                                <span className="sm:hidden" aria-hidden="true">{stage.shortLabel}</span>
+                                <span className="hidden sm:inline">{stage.label}</span>
                             </span>
                             {index < JOURNEY_STAGES.length - 1 && (
-                                <span className="h-[1px] w-6 shrink-0 bg-gray-200 sm:w-8 dark:bg-white/15" aria-hidden="true" />
+                                <span className="hidden h-[1px] w-8 shrink-0 bg-gray-200 sm:block dark:bg-white/15" aria-hidden="true" />
                             )}
                         </div>
                     ))}

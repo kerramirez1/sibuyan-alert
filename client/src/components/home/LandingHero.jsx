@@ -1,49 +1,41 @@
 import { Link } from '../../router';
 import {
-    HiBell,
-    HiChartBar,
     HiClock,
     HiExclamation,
     HiMap,
-    HiShieldCheck,
 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
 import SibuyanIslandMap from './SibuyanIslandMap';
 
 const benefits = [
     {
-        Icon: HiShieldCheck,
         title: 'Verified reports',
         description: 'Municipal administrators review reports before public publication.',
     },
     {
-        Icon: HiBell,
         title: 'Real-time alerts',
         description: 'Authorized users receive lifecycle and assignment updates as they happen.',
     },
     {
-        Icon: HiMap,
         title: 'Municipality coordination',
         description: 'Reports and response activity stay scoped to the responsible municipality.',
     },
     {
-        Icon: HiExclamation,
         title: 'High-risk areas',
         description: 'View mapped high-risk areas and monitored hazard zones on the live map.',
     },
     {
-        Icon: HiChartBar,
         title: 'Responder dispatch',
         description: 'Eligible incidents move from verification to field response in one record.',
     },
 ];
 
 const Metric = ({ value, label, sublabel = null }) => (
-    <div className="flex min-w-[120px] flex-1 flex-col px-4 py-2.5 text-left sm:px-8">
-        <p className="font-display text-2xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
-        <p className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</p>
+    <div className="flex min-w-0 flex-1 flex-col px-3 py-2 text-left sm:px-8 sm:py-2.5">
+        <p className="font-display text-xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
+        <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-gray-400 sm:text-[10px]">{label}</p>
         {sublabel && (
-            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-500">{sublabel}</p>
+            <p className="mt-0.5 truncate text-[8px] font-semibold uppercase tracking-wider text-gray-500 sm:text-[9px]">{sublabel}</p>
         )}
     </div>
 );
@@ -171,11 +163,9 @@ const LandingHero = ({
                     {/* ── Column 3: Tactical Capabilities List ── */}
                     <div data-testid="landing-hero-benefits" className="order-5 basis-full lg:order-none lg:w-[clamp(290px,25vw,360px)] lg:basis-auto lg:flex-none lg:self-start">
                         <ul className="flex flex-col gap-6 px-2 py-3 sm:px-0 lg:mt-2">
-                            {benefits.map(({ Icon, title, description }) => (
+                            {benefits.map(({ title, description }) => (
                                 <li key={title} className="flex items-start gap-4">
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200/80 bg-white dark:border-white/10 dark:bg-white/5">
-                                        <Icon className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-                                    </div>
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600 dark:bg-emerald-400" aria-hidden="true" />
                                     <div className="min-w-0">
                                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white">{title}</h2>
                                         <p className="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
@@ -187,9 +177,9 @@ const LandingHero = ({
                 </div>
             </div>
 
-            {/* ── Telemetry Readout (strict borderless grid, left-aligned) ── */}
-            <div data-testid="landing-hero-metrics" className="w-full border-t border-gray-200/80 bg-[#07130e] px-4 py-3.5 dark:border-white/10 dark:bg-[#050f0b]">
-                <div className="mx-auto grid max-w-[1440px] grid-cols-1 divide-y divide-gray-800 sm:px-8 md:grid-cols-3 md:divide-y-0 md:divide-x lg:px-10 xl:px-14 dark:divide-white/10">
+            {/* ── Telemetry Readout: single row on all viewports, dividers carry structure ── */}
+            <div data-testid="landing-hero-metrics" className="w-full border-t border-gray-200/80 bg-[#07130e] px-3 py-3 dark:border-white/10 dark:bg-[#050f0b] sm:px-4 sm:py-3.5">
+                <div className="mx-auto grid max-w-[1440px] grid-cols-3 divide-x divide-gray-800 sm:px-8 lg:px-10 xl:px-14 dark:divide-white/10">
                     <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="VERIFIED REPORTS" sublabel={verifiedPeriodLabel} />
                     <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="ACTIVE RISK ZONES" />
                     <Metric value={municipalityCount} label="MUNICIPALITIES COVERED" />

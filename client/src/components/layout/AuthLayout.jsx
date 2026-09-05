@@ -102,13 +102,11 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                     {/* Brand Lockup */}
                     <div>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 ring-1 ring-white/20 shadow-xs">
-                                <img
-                                    src="/icons/Alert.png"
-                                    alt=""
-                                    className="h-full w-full object-contain"
-                                />
-                            </div>
+                            <img
+                                src="/icons/Alert.png"
+                                alt=""
+                                className="h-10 w-10 shrink-0 object-contain"
+                            />
                             <div>
                                 <p className="font-display text-xl font-bold leading-none tracking-tight">
                                     Sibuyan <span className="text-emerald-400">Alert</span>

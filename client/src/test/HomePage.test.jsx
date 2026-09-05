@@ -93,7 +93,7 @@ describe('HomePage operational landing page', () => {
         const coverageMetrics = screen.getByTestId('coverage-metrics');
         const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
         const guarantees = screen.getByTestId('system-guarantees');
-        expect(coverageMetrics).toHaveClass('grid', 'grid-cols-2');
+        expect(coverageMetrics).toHaveClass('grid', 'grid-cols-3');
         expect(municipalityCoverage.tagName).toBe('UL');
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
@@ -126,8 +126,8 @@ describe('HomePage operational landing page', () => {
         expect(screen.getByText('Typical incident journey')).toBeInTheDocument();
         expect(screen.queryByText('Full incident lifecycle')).not.toBeInTheDocument();
         const lifecycle = screen.getByRole('list', { name: 'Incident status stages in order' });
-        expect(lifecycle).toHaveClass('flex-nowrap', 'overflow-x-auto', 'overscroll-x-contain');
-        expect(lifecycle).toHaveAttribute('tabindex', '0');
+        expect(lifecycle).toHaveClass('flex-nowrap');
+        expect(lifecycle).not.toHaveClass('flex-wrap', 'overflow-x-auto');
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
         const journeyStagesExpected = [

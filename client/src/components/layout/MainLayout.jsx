@@ -137,16 +137,14 @@ const MainLayout = ({ children }) => {
                                         ? '/admin'
                                         : '/';
                             return (
-                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Sibuyan Alert home">
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-emerald-800/40 bg-emerald-950/70 p-1">
-                                        <img
-                                            src="/icons/Alert.png"
-                                            alt=""
-                                            className="h-full w-full object-contain"
-                                        />
-                                    </div>
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Sibuyan Alert home">
+                                    <img
+                                        src="/icons/Alert.png"
+                                        alt=""
+                                        className="h-7 w-7 shrink-0 object-contain"
+                                    />
                                     <div className="min-w-0">
-                                        <span className="block font-display text-xs font-bold uppercase tracking-wider text-white">
+                                        <span className="block text-xs font-bold tracking-tight text-white">
                                             Sibuyan <span className="text-emerald-400">Alert</span>
                                         </span>
                                         <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-emerald-300/50">

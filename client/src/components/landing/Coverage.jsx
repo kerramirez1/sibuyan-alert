@@ -30,22 +30,25 @@ const Coverage = ({ municipalities }) => {
                         The platform serves the island&apos;s three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.
                     </p>
 
-                    {/* Metric tiles — flat editorial grid with hairline dividers */}
+                    {/* Metric tiles — flat editorial grid with hairline dividers.
+                        BFP is excluded from the agency count: fire response is
+                        outside this system's operational scope. */}
                     <dl
                         data-testid="coverage-metrics"
                         aria-label="Island coverage totals"
-                        className="mb-8 grid max-w-md grid-cols-2 divide-x divide-green-900/50"
+                        className="mb-8 grid max-w-md grid-cols-3 divide-x divide-green-900/50"
                     >
                         {[
                             [municipalities.length, 'Municipalities'],
                             [totalBarangays, 'Barangays'],
+                            [3, 'Agencies'],
                         ].map(([value, label]) => (
                             <div
                                 key={label}
-                                className="flex min-w-0 flex-col p-4 text-left sm:p-5"
+                                className="flex min-w-0 flex-col p-3 text-left sm:p-5"
                             >
-                                <dt className="order-2 mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-50/60 sm:text-[11px]">{label}</dt>
-                                <dd className="order-1 font-mono text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
+                                <dt className="order-2 mt-1 text-[9px] font-bold uppercase tracking-wide text-emerald-50/60 sm:text-[11px] sm:tracking-widest">{label}</dt>
+                                <dd className="order-1 font-mono text-xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
                             </div>
                         ))}
                     </dl>
@@ -62,19 +65,16 @@ const Coverage = ({ municipalities }) => {
                             return (
                                 <li
                                     key={municipality.code}
-                                    className="flex min-w-0 items-center gap-4 border-b border-green-900/50 px-1 py-3 sm:px-2 sm:py-3.5"
+                                    className="flex min-w-0 items-center gap-3 border-b border-green-900/50 px-1 py-3 sm:gap-4 sm:px-2 sm:py-3.5"
                                 >
-                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-11 sm:w-11">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden p-1 sm:h-11 sm:w-11">
                                         {logo
                                             ? <img src={logo.src} alt={`${municipality.name} seal`} className={`h-full w-full object-contain opacity-90 ${logo.scale}`} />
                                             : <span className="text-base font-bold text-emerald-100">{municipality.name[0]}</span>}
                                     </span>
                                     <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between sm:gap-6">
                                         <div className="flex items-center gap-2.5">
-                                            <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
-                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                                            </span>
+                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
                                             <p className="truncate text-xs sm:text-sm font-bold uppercase tracking-wider text-white">{municipality.name}</p>
                                         </div>
                                         <p className="mt-0.5 shrink-0 font-mono text-xs font-semibold text-gray-400 sm:mt-0 sm:text-sm">{barangayCount} BRGYS</p>
@@ -96,8 +96,8 @@ const Coverage = ({ municipalities }) => {
                         Every incident record passes through a structured review and response chain before public visibility.
                     </p>
 
-                    <div className="mt-6">
-                        <ul className="flex flex-col gap-3.5" role="list">
+                    <div className="mt-5 sm:mt-6">
+                        <ul className="flex flex-col gap-3" role="list">
                             {TRUST_ITEMS.map((text) => (
                                 <li key={text} className="flex items-start gap-3">
                                     <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
