@@ -145,6 +145,7 @@ export const reportsAPI = {
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: () => api.get('/reports/municipalities'),
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
+    recordView: (id) => api.post(`/reports/${id}/views`),
     create: (formData) => api.post('/reports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
     }),
@@ -198,4 +199,9 @@ export const analyticsAPI = {
     getResponder: (params) => api.get('/analytics/responder', { params }),
     getReporter: (params) => api.get('/analytics/reporter', { params }),
     getPublic: () => api.get('/analytics/public'),
+};
+
+// System health API (public GET — no CSRF token required)
+export const systemAPI = {
+    getHealth: () => api.get('/health'),
 };

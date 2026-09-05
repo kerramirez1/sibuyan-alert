@@ -19,6 +19,7 @@ import {
     isMunicipalAdminInReportScope,
 } from '../utils/reportAccess.js';
 import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
+import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -591,12 +592,18 @@ export const getOperationalReportById = async (req, res) => {
             });
         }
 
+        // Inspections count as views, mirroring the public detail endpoint.
+        Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } }).catch(() => {});
+
         return res.json({
             success: true,
-            data: toOperationalReport(report, {
-                includeReporterContact: canViewReporterContact(req.user, report),
-                includeAdministrative: isMunicipalAdminInReportScope(req.user, report),
-            }),
+            data: {
+                ...toOperationalReport(report, {
+                    includeReporterContact: canViewReporterContact(req.user, report),
+                    includeAdministrative: isMunicipalAdminInReportScope(req.user, report),
+                }),
+                viewCount: (report.viewCount || 0) + 1,
+            },
         });
     } catch (error) {
         console.error('Get operational report error:', {
@@ -663,6 +670,27 @@ export const verifyReport = async (req, res) => {
                 success: false,
                 message: 'Cannot verify report because reporter account is unavailable',
             });
+        }
+
+        // MVP correction path: the reviewing admin may fix citizen-entered
+        // casualty counts before publication. Accepted on verify only —
+        // casualties are immutable once the incident leaves pending.
+        const { casualties: casualtyCorrection } = req.body;
+        if (casualtyCorrection !== undefined) {
+            if (status !== 'verified') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Casualty corrections are only accepted when verifying a report',
+                });
+            }
+            const correction = normalizeCasualtyCounts(casualtyCorrection);
+            if (!correction) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Casualty counts must be non-negative whole numbers',
+                });
+            }
+            report.casualties = correction;
         }
 
         // Update report status

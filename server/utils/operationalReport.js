@@ -81,6 +81,7 @@ const buildCore = (source) => ({
     status: source.status,
     severity: source.severity,
     priority: source.priority,
+    viewCount: Number(source.viewCount) || 0,
     fireInvolved: Boolean(source.fireInvolved),
     fireType: source.fireType || null,
     casualties: {

@@ -78,24 +78,28 @@ const HowItWorks = () => (
                     </p>
                 </div>
                 <div
-                    className="flex flex-nowrap items-center justify-between gap-x-1 pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:gap-x-2"
+                    className="relative flex items-start justify-between pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     role="list"
                     aria-label="Incident status stages in order"
                 >
-                    {JOURNEY_STAGES.map((stage, index) => (
-                        <div key={stage.key} className="flex shrink-0 items-center gap-1 sm:gap-2">
-                            <span
-                                role="listitem"
-                                className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-medium leading-none text-gray-700 sm:gap-2 sm:text-xs dark:text-gray-300"
-                            >
-                                <span className={`h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2 ${stage.dotClass}`} aria-hidden="true" />
+                    {/* Continuous track behind the stage badges */}
+                    <span className="absolute left-7 right-7 top-[9px] h-[2px] bg-gray-200 sm:left-14 sm:right-14 sm:top-[11px] dark:bg-white/15" aria-hidden="true" />
+                    {JOURNEY_STAGES.map((stage) => (
+                        <span
+                            key={stage.key}
+                            role="listitem"
+                            className="relative z-10 flex w-14 shrink-0 flex-col items-center gap-1.5 sm:w-28"
+                        >
+                            <span className={`flex h-4 w-4 items-center justify-center rounded-full sm:h-5 sm:w-5 ${stage.dotClass}`} aria-hidden="true">
+                                <svg className="h-2.5 w-2.5 text-white sm:h-3 sm:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </span>
+                            <span className="text-center text-[10px] font-medium leading-tight text-gray-700 sm:text-xs dark:text-gray-300">
                                 <span className="sm:hidden" aria-hidden="true">{stage.shortLabel}</span>
                                 <span className="hidden sm:inline">{stage.label}</span>
                             </span>
-                            {index < JOURNEY_STAGES.length - 1 && (
-                                <span className="hidden h-[1px] w-8 shrink-0 bg-gray-200 sm:block dark:bg-white/15" aria-hidden="true" />
-                            )}
-                        </div>
+                        </span>
                     ))}
                 </div>
             </div>

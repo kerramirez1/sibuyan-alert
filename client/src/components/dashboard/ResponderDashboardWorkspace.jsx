@@ -1,11 +1,11 @@
 import { Link } from '../../router';
 import { buildRiskZoneMapTarget, getRiskZoneId } from '../../utils/riskZoneNavigation';
 import { getMapRiskTypeConfig } from '../../config/mapVisuals';
+import { useSystemHealth } from '../../hooks/useSystemHealth';
 import Button from '../ui/Button';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../ui/Skeleton';
 import {
     HiOutlineShieldExclamation,
-    HiOutlineLocationMarker,
     HiOutlineExclamation,
     HiOutlineMap,
     HiOutlineArrowRight,
@@ -15,7 +15,7 @@ import {
 } from 'react-icons/hi';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
-const PANEL_CLASS = 'rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
+const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-white/10 dark:bg-[#0c1813]/90';
 
 const toCount = (value) => {
     const count = Number(value);
@@ -40,15 +40,15 @@ const KpiCard = ({ stat, loading }) => {
                 className="group block h-full min-h-[6.5rem] cursor-pointer bg-white p-4 sm:p-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
             >
                 <div className="flex items-start justify-between gap-3">
-                    <p className={`font-display font-bold leading-none tracking-tight ${isHighPriority ? 'text-2xl sm:text-3xl text-gray-950 dark:text-white' : 'text-2xl text-gray-900 dark:text-gray-100'}`}>
+                    <p className={`font-display font-bold leading-none tabular-nums tracking-tight ${isHighPriority ? 'text-2xl sm:text-3xl text-gray-950 dark:text-white' : 'text-2xl text-gray-900 dark:text-gray-100'}`}>
                         {loading ? '...' : stat.value}
                     </p>
                     <HiOutlineArrowRight
-                        className="h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-emerald-700 dark:text-gray-500 dark:group-hover:text-emerald-400"
+                        className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600"
                         aria-hidden="true"
                     />
                 </div>
-                <h2 className="mt-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <h2 className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {stat.title}
                 </h2>
                 <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
@@ -131,6 +131,7 @@ const ResponderDashboardWorkspace = ({
 }) => {
     const municipalityName = user?.assignedMunicipality || 'Sibuyan Island';
     const agencyName = user?.agency === 'LGU' ? 'MDRRMO' : user?.agency || 'Responder Unit';
+    const { isDegraded: systemDegraded } = useSystemHealth();
 
     const activeEmergencies = toCount(stats?.activeIncidents);
     const availableIncidents = toCount(stats?.availableIncidents);
@@ -202,9 +203,9 @@ const ResponderDashboardWorkspace = ({
                         Barangay incident activity and hazard monitoring.
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-400" aria-label="Operational context">
-                        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                            System active
+                        <span className={`inline-flex items-center gap-1.5 font-medium ${systemDegraded ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                            {systemDegraded ? 'System degraded' : 'System active'}
                         </span>
                         <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">·</span>
                         <span>{agencyName} · {municipalityName}</span>
@@ -215,11 +216,11 @@ const ResponderDashboardWorkspace = ({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full lg:w-auto">
                     <Link
                         to="/admin/reports?view=dispatch-queue"
-                        className="inline-flex h-9 min-h-9 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-2xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 w-full sm:w-auto"
+                        className="inline-flex h-9 min-h-9 items-center justify-center gap-2 rounded-md bg-brand-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 w-full sm:w-auto"
                     >
-                        <span>Dispatch Queue</span>
+                        <span>Dispatch queue</span>
                         {availableIncidents > 0 && (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-white/20 px-1.5 text-[10px] font-bold text-white" aria-label={`${availableIncidents} available incidents`}>
+                            <span className="tabular-nums text-xs font-bold text-white/90" aria-label={`${availableIncidents} available incidents`}>
                                 {availableIncidents}
                             </span>
                         )}
@@ -228,10 +229,10 @@ const ResponderDashboardWorkspace = ({
 
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold uppercase tracking-wider text-gray-700 shadow-2xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 w-full sm:w-auto"
+                        className="inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-3.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 w-full sm:w-auto"
                     >
                         <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
-                        <span>Safety Map</span>
+                        <span>Safety map</span>
                     </Link>
                 </div>
             </header>
@@ -245,8 +246,8 @@ const ResponderDashboardWorkspace = ({
                 </div>
             )}
 
-            {/* 1. Operational status strip */}
-            <section className="grid grid-cols-2 overflow-hidden rounded-2xl border border-gray-200/90 bg-gray-200/90 shadow-2xs dark:border-white/10 dark:bg-white/10 xl:grid-cols-4 gap-px" aria-label="Operational status">
+            {/* 1. Operational status strip: spacing-led stats, no container box */}
+            <section className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-gray-200 py-2 sm:grid-cols-4 dark:border-white/10 xl:grid-cols-4" aria-label="Operational status">
                 {kpiCards.map((stat) => (
                     <KpiCard
                         key={stat.title}
@@ -260,17 +261,14 @@ const ResponderDashboardWorkspace = ({
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 {/* 2. Barangay Incident Distribution & Hotspots Breakdown */}
                 <section className={PANEL_CLASS} aria-labelledby="barangay-distribution-title">
-                    <div className="flex flex-col items-start gap-2 border-b border-gray-200/80 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
-                        <div className="flex min-w-0 items-start gap-2">
-                            <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                            <div>
-                                <h2 id="barangay-distribution-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                                    Barangay distribution
-                                </h2>
-                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                    Incident frequency across {municipalityName}
-                                </p>
-                            </div>
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-200 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
+                        <div className="min-w-0">
+                            <h2 id="barangay-distribution-title" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                Barangay distribution
+                            </h2>
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                Incident frequency across {municipalityName}
+                            </p>
                         </div>
                         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                             {sortedBarangays.length} {sortedBarangays.length === 1 ? 'barangay' : 'barangays'}
@@ -302,12 +300,12 @@ const ResponderDashboardWorkspace = ({
                                                     {incidentCount} {incidentCount === 1 ? 'incident' : 'incidents'}
                                                 </span>
                                                 {injuredCount > 0 && (
-                                                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-200/90 bg-amber-50/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                                         {injuredCount} inj.
                                                     </span>
                                                 )}
                                                 {fatalityCount > 0 && (
-                                                    <span className="inline-flex items-center gap-1 rounded-md border border-red-200/90 bg-red-50/80 px-1.5 py-0.5 text-[10px] font-semibold text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                                         {fatalityCount} fatal
                                                     </span>
                                                 )}
@@ -329,17 +327,14 @@ const ResponderDashboardWorkspace = ({
 
                 {/* 3. Critical High-Risk Zones Watchlist (Hazard Watch) */}
                 <section className={PANEL_CLASS} aria-labelledby="hazard-watchlist-title">
-                    <div className="flex flex-col items-start gap-2 border-b border-gray-200/80 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
-                        <div className="flex min-w-0 items-start gap-2">
-                            <HiOutlineShieldExclamation className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                            <div>
-                                <h2 id="hazard-watchlist-title" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                                    Hazard watchlist
-                                </h2>
-                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                    Active road & environmental risks in {municipalityName}
-                                </p>
-                            </div>
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-200 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
+                        <div className="min-w-0">
+                            <h2 id="hazard-watchlist-title" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                Hazard watchlist
+                            </h2>
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                Active road & environmental risks in {municipalityName}
+                            </p>
                         </div>
                         <Link
                             to="/dashboard?view=map"
@@ -364,7 +359,7 @@ const ResponderDashboardWorkspace = ({
                                     <Link
                                         key={getRiskZoneId(zone) || zone.name}
                                         to={buildRiskZoneMapTarget(zone)}
-                                        className="group block rounded-xl p-2.5 transition-colors hover:bg-gray-50/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/[0.02]"
+                                        className="group block py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/[0.02]"
                                         aria-label={`View ${zone.name || 'risk zone'} on map`}
                                     >
                                         <div className="flex flex-col items-start justify-between gap-2 xs:flex-row">
@@ -378,14 +373,12 @@ const ResponderDashboardWorkspace = ({
                                                 </p>
                                             </div>
 
-                                            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                                                <span className="inline-flex items-center gap-1 rounded-md border border-gray-200/90 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                                            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                                <span className="inline-flex items-center gap-1.5">
                                                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sevConfig.dot}`} aria-hidden="true" />
                                                     <span>{sevConfig.label}</span>
                                                 </span>
-                                                <span className="inline-flex items-center rounded-md border border-gray-200/90 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-                                                    {formatHazardType(zone.type)}
-                                                </span>
+                                                <span>{formatHazardType(zone.type)}</span>
                                             </div>
                                         </div>
 

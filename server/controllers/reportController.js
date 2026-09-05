@@ -13,8 +13,7 @@ import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
-
-const toValidatedCount = (value) => Number(value ?? 0);
+import { toValidatedCount } from '../utils/casualtyCounts.js';
 
 const persistEvidenceMetadata = async (reportId, evidenceIndex, derivativeMetadata) => {
     const metadata = {
@@ -1193,6 +1192,48 @@ export const geocodeLocation = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Record a lightweight report view (archive dossier expands)
+ * @route   POST /api/reports/:id/views
+ * @access  Public (optional auth — owner self-views are excluded)
+ */
+export const recordReportView = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                code: 'INVALID_REPORT_ID',
+                message: 'Invalid incident report identifier',
+            });
+        }
+
+        const report = await Report.findById(req.params.id).select('reporter viewCount');
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                code: 'REPORT_NOT_FOUND',
+                message: 'Report not found',
+            });
+        }
+
+        // Owner self-views don't measure reach — skip silently but honestly.
+        const reporterId = getEntityId(report.reporter);
+        const currentUserId = getEntityId(req.user);
+        if (currentUserId && reporterId && currentUserId === reporterId) {
+            return res.json({ success: true, data: { viewCount: report.viewCount || 0, counted: false } });
+        }
+
+        await Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } });
+        return res.json({ success: true, data: { viewCount: (report.viewCount || 0) + 1, counted: true } });
+    } catch (error) {
+        console.error('Record report view error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to record report view',
+        });
+    }
+};
+
 export default {
     createReport,
     getReports,
@@ -1205,4 +1246,5 @@ export default {
     getMunicipalities,
     getCategories,
     geocodeLocation,
+    recordReportView,
 };

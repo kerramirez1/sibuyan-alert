@@ -395,6 +395,26 @@ describe('AdminReportsPage operational queue', () => {
         expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20, responderView: 'available' });
     });
 
+    test('shows the active view count — not the municipal stats total — in a filtered responder queue', async () => {
+        mocks.user = {
+            _id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        // Stats total is nonzero (verified + responding + resolved) while the
+        // dispatch queue itself is empty — the headline must match the list.
+        mocks.getReports.mockResolvedValue(apiResponse([]));
+
+        renderPage('/admin/reports?view=dispatch-queue');
+
+        expect(await screen.findByText('No incidents are waiting for dispatch')).toBeInTheDocument();
+        expect(screen.getByLabelText('Operational totals')).toHaveTextContent('0 incidents');
+        // Municipal-global sub-counts must not leak into a filtered view —
+        // they count transferred-out incidents the queue itself excludes.
+        expect(screen.queryByText(/1 responding/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/1 resolved/)).not.toBeInTheDocument();
+    });
+
     test('renders responder incidents as one severity-first operational list', async () => {
         mocks.user = {
             id: 'responder-1',
@@ -705,6 +725,35 @@ describe('AdminReportsPage operational queue', () => {
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ page: 2, limit: 20 }));
     });
 
+    test('sends admin-edited casualty counts when confirming verification', async () => {
+        mocks.user = {
+            _id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({ casualties: { injured: 1, fatalities: 0, missing: 2 } }),
+        ]));
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Verify report' })[0]);
+        expect(screen.getByRole('dialog', { name: 'Verify incident report' })).toBeInTheDocument();
+
+        const injuredInput = screen.getByLabelText('Injured');
+        expect(injuredInput).toHaveValue(1);
+        fireEvent.change(injuredInput, { target: { value: '4' } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm verification' }));
+
+        await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
+            status: 'verified',
+            rejectionReason: '',
+            casualties: { injured: 4, fatalities: 0, missing: 2 },
+        }));
+    });
+
     test('preserves administrator verification confirmation and API transition', async () => {
         renderPage();
         await screen.findAllByText('Poblacion coastal road');
@@ -725,6 +774,7 @@ describe('AdminReportsPage operational queue', () => {
         await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
             status: 'verified',
             rejectionReason: '',
+            casualties: { injured: 0, fatalities: 0, missing: 0 },
         }));
     });
 
@@ -902,6 +952,7 @@ describe('AdminReportsPage operational queue', () => {
             expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
                 status: 'verified',
                 rejectionReason: '',
+                casualties: { injured: 0, fatalities: 0, missing: 0 },
             });
         });
 

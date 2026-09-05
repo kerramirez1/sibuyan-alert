@@ -97,6 +97,7 @@ describe('responder analytics municipality authorization', () => {
         expect(Report.countDocuments.mock.calls[1][0]).toEqual(expect.objectContaining({
             $and: [
                 municipalityScope,
+                { municipalityName: 'Magdiwang' },
                 {
                     $or: [
                         { status: 'transferred' },

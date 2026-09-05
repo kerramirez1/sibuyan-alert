@@ -172,9 +172,14 @@ export const getResponderAnalytics = async (req, res) => {
             criticalHighRiskZones,
         ] = await Promise.all([
             Report.countDocuments({ ...municipalityScope, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
+            // Badge must match the dispatch-queue list definition exactly:
+            // current municipality only. Without the pin, transferred-OUT
+            // reports (visible via transferHistory.from) inflate the badge
+            // while never appearing in the queue.
             Report.countDocuments({
                 $and: [
                     municipalityScope,
+                    { municipalityName: responder.assignedMunicipality },
                     {
                         $or: [
                             { status: 'transferred' },

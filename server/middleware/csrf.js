@@ -14,6 +14,9 @@ const LOGOUT_PATH = '/api/auth/logout';
 // token, but the Origin check above still applies.
 const PUBLIC_CSRF_EXEMPT_PATHS = [
     /^\/api\/reports\/geocode$/,
+    // Counter-only write with no auth side effects; guests must reach it.
+    // Rate-limited separately. Origin check above still applies.
+    /^\/api\/reports\/[^/]+\/views$/,
 ];
 
 const safeEquals = (left, right) => {

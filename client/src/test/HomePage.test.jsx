@@ -126,8 +126,8 @@ describe('HomePage operational landing page', () => {
         expect(screen.getByText('Typical incident journey')).toBeInTheDocument();
         expect(screen.queryByText('Full incident lifecycle')).not.toBeInTheDocument();
         const lifecycle = screen.getByRole('list', { name: 'Incident status stages in order' });
-        expect(lifecycle).toHaveClass('flex-nowrap');
-        expect(lifecycle).not.toHaveClass('flex-wrap', 'overflow-x-auto');
+        expect(lifecycle).toHaveClass('justify-between');
+        expect(lifecycle).not.toHaveClass('overflow-x-auto');
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
         const journeyStagesExpected = [

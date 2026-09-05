@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 
 const mocks = vi.hoisted(() => ({
     getReports: vi.fn(),
     getMunicipalities: vi.fn(),
+    recordView: vi.fn(),
     subscribe: vi.fn(() => () => {}),
 }));
 
@@ -24,6 +25,7 @@ vi.mock('../services/api', () => ({
     reportsAPI: {
         getAll: vi.fn(),
         getMunicipalities: mocks.getMunicipalities,
+        recordView: mocks.recordView,
     },
 }));
 
@@ -38,6 +40,7 @@ describe('AccidentHistoryPage features and filters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.recordView.mockResolvedValue({ data: { data: { viewCount: 9, counted: true } } });
         mocks.getMunicipalities.mockResolvedValue({
             data: {
                 success: true,
@@ -138,6 +141,28 @@ describe('AccidentHistoryPage features and filters', () => {
         expect(screen.getByRole('button', { name: /Collapse details/i })).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByText('Incident summary')).toBeInTheDocument();
         expect(screen.getByText('Incident date')).toBeInTheDocument();
+    });
+
+    test('records a view once when a dossier is expanded', async () => {
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+
+        const expandButtons = screen.getAllByRole('button', { name: /Expand details/i });
+        fireEvent.click(expandButtons[0]);
+
+        await waitFor(() => expect(mocks.recordView).toHaveBeenCalledTimes(1));
+        expect(mocks.recordView).toHaveBeenCalledWith('today-report');
+
+        // Collapse and re-expand must not inflate the count.
+        fireEvent.click(screen.getByRole('button', { name: /Collapse details/i }));
+        fireEvent.click((await screen.findAllByRole('button', { name: /Expand details/i }))[0]);
+        await waitFor(() => expect(screen.getByRole('button', { name: /Collapse details/i })).toBeInTheDocument());
+        expect(mocks.recordView).toHaveBeenCalledTimes(1);
     });
 
     test('filters records by search query and allows clearing filters', async () => {

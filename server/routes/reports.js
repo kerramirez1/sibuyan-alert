@@ -12,12 +12,13 @@ import {
     getCategories,
     geocodeLocation,
     getReportEvidencePreview,
+    recordReportView,
 } from '../controllers/reportController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
-import { locationLookupLimiter, reportCreationLimiter } from '../middleware/rateLimiter.js';
+import { locationLookupLimiter, reportCreationLimiter, reportViewLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -49,6 +50,8 @@ router.post(
 // Single report: public can view verified/responding, private for pending/rejected
 router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);
 router.post('/:id/updates', protect, requireVerifiedReporter, validateMongoIdParam, addReportUpdate);
+// Lightweight view recorder for dossier expands (owner self-views excluded server-side)
+router.post('/:id/views', optionalAuth, reportViewLimiter, validateMongoIdParam, recordReportView);
 router.get('/:id', optionalAuth, getReportById);
 
 export default router;

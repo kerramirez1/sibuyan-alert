@@ -34,9 +34,9 @@ const Metric = ({ value, label, sublabel = null }) => (
     <div className="flex min-w-0 flex-1 flex-col px-3 py-2 text-left sm:px-8 sm:py-2.5">
         <p className="font-display text-xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
         <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-gray-400 sm:text-[10px]">{label}</p>
-        {sublabel && (
-            <p className="mt-0.5 truncate text-[8px] font-semibold uppercase tracking-wider text-gray-500 sm:text-[9px]">{sublabel}</p>
-        )}
+        {/* Reserved slot keeps all three columns the same height whether or
+            not a sublabel exists, so dividers and baselines stay even. */}
+        <p className="mt-0.5 min-h-[11px] truncate text-[8px] font-semibold uppercase tracking-wider text-gray-500 sm:min-h-[13px] sm:text-[9px]">{sublabel || ' '}</p>
     </div>
 );
 

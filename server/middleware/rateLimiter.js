@@ -53,6 +53,18 @@ export const locationLookupLimiter = rateLimit({
     },
 });
 
+/** Lightweight report-view recorder; generous so archive browsing is never blocked. */
+export const reportViewLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many view updates. Please wait a moment and try again.',
+    },
+});
+
 /** Protect subscription persistence without interfering with normal silent resync. */
 export const pushSubscriptionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

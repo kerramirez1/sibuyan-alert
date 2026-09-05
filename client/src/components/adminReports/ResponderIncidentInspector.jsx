@@ -159,6 +159,42 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                             </div>
                         </div>
 
+                        <div className="mt-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                                Confirm casualty counts
+                            </p>
+                            <div className="mt-1.5 grid grid-cols-3 gap-2">
+                                {[
+                                    { field: 'injured', label: 'Injured' },
+                                    { field: 'fatalities', label: 'Fatalities' },
+                                    { field: 'missing', label: 'Missing' },
+                                ].map(({ field, label }) => (
+                                    <label key={field} className="block">
+                                        <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">{label}</span>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            step={1}
+                                            value={actions.reviewDialog?.casualties?.[field] ?? 0}
+                                            onChange={(e) => {
+                                                const next = e.target.value === '' ? 0 : Math.floor(Number(e.target.value));
+                                                actions.setReviewDialog((prev) => ({
+                                                    ...prev,
+                                                    casualties: {
+                                                        injured: prev?.casualties?.injured ?? 0,
+                                                        fatalities: prev?.casualties?.fatalities ?? 0,
+                                                        missing: prev?.casualties?.missing ?? 0,
+                                                        [field]: Number.isFinite(next) && next >= 0 ? next : 0,
+                                                    },
+                                                }));
+                                            }}
+                                            className="mt-1 h-9 w-full rounded-lg border border-emerald-200/90 bg-white px-2 text-xs font-semibold text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-900/50 dark:bg-[#07130e] dark:text-white"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="mt-3 flex items-center justify-end gap-2">
                             <button
                                 type="button"

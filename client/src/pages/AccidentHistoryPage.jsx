@@ -7,7 +7,6 @@ import {
     HiOutlineArchive,
     HiOutlineChevronDown,
     HiOutlineFilter,
-    HiOutlineLocationMarker,
     HiOutlineLockClosed,
     HiOutlineSearch,
     HiOutlineX,
@@ -86,8 +85,21 @@ const SORT_OPTIONS = [
 ];
 
 const normalizeDateFilter = (value) => (
-    ['today', '7', '30'].includes(value) ? value : 'all'
+    ['today', '7', '30', '90', '365'].includes(value) ? value : 'all'
 );
+
+// Every range the date dropdown offers must actually filter. Centralized so
+// the list, the Top Barangay scope, and the URL param stay in agreement.
+const DAY_RANGE_FILTERS = ['7', '30', '90', '365'];
+
+const getRangeCutoff = (dateFilter) => (
+    DAY_RANGE_FILTERS.includes(dateFilter) ? subDays(new Date(), Number(dateFilter)) : null
+);
+
+// Single source of truth for "when was this resolved". resolveReport always
+// stamps resolvedAt; the fallbacks cover legacy records consistently
+// everywhere (list, sort, stats, dossier) instead of mixing updatedAt/createdAt.
+const getResolvedDate = (report) => report?.resolvedAt || report?.updatedAt || report?.createdAt;
 
 const formatDate = (value, pattern = 'MMM d, yyyy') => {
     if (!value) return 'Not available';
@@ -156,7 +168,7 @@ const ArchiveFilterModal = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs p-0 sm:p-4"
+            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}
@@ -166,36 +178,31 @@ const ArchiveFilterModal = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="flex max-h-[88vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-xl sm:rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                className="flex max-h-[88vh] w-full sm:max-w-lg flex-col overflow-hidden rounded-t-md sm:rounded-md border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]"
             >
-                {/* Mobile Drag Handle */}
-                <div className="flex sm:hidden cursor-grab flex-col items-center justify-center pt-3 pb-1" onClick={onClose} aria-hidden="true">
-                    <div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-white/20" />
-                </div>
-
-                <div className="flex items-center justify-between border-b border-gray-200/80 px-4 py-3.5 sm:px-5 dark:border-white/10">
+                <div className="flex items-center justify-between px-4 py-4 sm:px-5 dark:border-white/10">
                     <div>
-                        <h2 id={titleId} className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                        <h2 id={titleId} className="text-sm font-semibold text-gray-900 dark:text-white">
                             Archive filters
                         </h2>
-                        <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                             Narrow resolved incident records by date, severity, and jurisdiction
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                        className="min-h-[44px] px-2 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                         aria-label="Close filters"
                     >
-                        <HiOutlineX className="h-5 w-5" />
+                        Close
                     </button>
                 </div>
 
-                <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+                <div className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-gray-200 p-4 sm:p-5 dark:border-white/10">
                     {/* Date Range Section */}
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 block mb-1.5">
                             Date range
                         </label>
                         <CustomSelect
@@ -209,7 +216,7 @@ const ArchiveFilterModal = ({
 
                     {/* Severity Section */}
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 block mb-1.5">
                             Severity
                         </label>
                         <CustomSelect
@@ -223,7 +230,7 @@ const ArchiveFilterModal = ({
 
                     {/* Municipality Section */}
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 block mb-1.5">
                             Municipality
                         </label>
                         <CustomSelect
@@ -237,7 +244,7 @@ const ArchiveFilterModal = ({
 
                     {/* Barangay Section */}
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 block mb-1.5">
                             Barangay
                         </label>
                         <CustomSelect
@@ -251,18 +258,18 @@ const ArchiveFilterModal = ({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex items-center justify-between gap-3 border-t border-gray-200/80 bg-gray-50/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-3 border-t border-gray-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 dark:border-white/10">
                     <button
                         type="button"
                         onClick={onClearFilters}
-                        className="text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                        className="min-h-[44px] text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                     >
                         Clear all
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-10 items-center justify-center rounded-lg bg-emerald-700 px-5 text-[13px] font-medium text-white hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="flex h-10 items-center justify-center rounded-md bg-emerald-700 px-5 text-sm font-medium text-white hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                     >
                         Show {totalResults} {totalResults === 1 ? 'record' : 'records'}
                     </button>
@@ -289,7 +296,30 @@ const AccidentHistoryPage = () => {
     const [sortOrder, setSortOrder] = useState('newest');
     const [expandedId, setExpandedId] = useState(null);
     const [filterModalOpen, setFilterModalOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(() => (
+    const recordedViewsRef = useRef(new Set());
+
+    // Dossier expands count as views (owner self-views excluded server-side).
+    // Fire-and-forget: the dossier renders from list data either way.
+    // Once per report per page session — re-expands don't inflate the count.
+    const toggleExpandedDossier = useCallback((report) => {
+        if (!report?._id) return;
+        const id = String(report._id);
+        const isCollapsing = expandedId && String(expandedId) === id;
+        setExpandedId(isCollapsing ? null : report._id);
+        if (!isCollapsing && !recordedViewsRef.current.has(id)) {
+            recordedViewsRef.current.add(id);
+            reportsAPI.recordView(id)
+                .then((response) => {
+                    const viewCount = response.data?.data?.viewCount;
+                    if (Number.isFinite(viewCount)) {
+                        setReports((currentReports) => currentReports.map((item) => (
+                            item._id === report._id ? { ...item, viewCount } : item
+                        )));
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [expandedId]);    const [isMobile, setIsMobile] = useState(() => (
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
     ));
     const itemRefs = useRef({});
@@ -426,9 +456,7 @@ const AccidentHistoryPage = () => {
 
     const filteredReports = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        const cutoff = ['7', '30'].includes(dateFilter)
-            ? subDays(new Date(), Number(dateFilter))
-            : null;
+        const cutoff = getRangeCutoff(dateFilter);
 
         return reports
             .filter((report) => {
@@ -442,7 +470,7 @@ const AccidentHistoryPage = () => {
                     ].filter(Boolean).join(' ').toLowerCase();
                     if (!searchable.includes(query)) return false;
                 }
-                const resolvedDate = report.resolvedAt || report.createdAt;
+                const resolvedDate = getResolvedDate(report);
                 if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
                 if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
                 if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
@@ -451,8 +479,8 @@ const AccidentHistoryPage = () => {
                 return true;
             })
             .sort((a, b) => {
-                const dateA = new Date(a.resolvedAt || a.createdAt);
-                const dateB = new Date(b.resolvedAt || b.createdAt);
+                const dateA = new Date(getResolvedDate(a));
+                const dateB = new Date(getResolvedDate(b));
                 return sortOrder === 'oldest' ? dateA - dateB : dateB - dateA;
             });
     }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter, barangayFilter, sortOrder]);
@@ -460,9 +488,7 @@ const AccidentHistoryPage = () => {
     // Top Barangay calculation within current search/date/severity/municipality scope
     const topBarangayScopeReports = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        const cutoff = ['7', '30'].includes(dateFilter)
-            ? subDays(new Date(), Number(dateFilter))
-            : null;
+        const cutoff = getRangeCutoff(dateFilter);
 
         return reports.filter((report) => {
             if (query) {
@@ -475,7 +501,7 @@ const AccidentHistoryPage = () => {
                 ].filter(Boolean).join(' ').toLowerCase();
                 if (!searchable.includes(query)) return false;
             }
-            const resolvedDate = report.resolvedAt || report.createdAt;
+            const resolvedDate = getResolvedDate(report);
             if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
             if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
             if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
@@ -537,8 +563,8 @@ const AccidentHistoryPage = () => {
         const now = new Date();
         return {
             total: reports.length,
-            last7: reports.filter((report) => isAfter(new Date(report.resolvedAt || report.createdAt), subDays(now, 7))).length,
-            last30: reports.filter((report) => isAfter(new Date(report.resolvedAt || report.createdAt), subDays(now, 30))).length,
+            last7: reports.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 7))).length,
+            last30: reports.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 30))).length,
         };
     }, [reports]);
 
@@ -674,17 +700,12 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left relative rounded-lg ${
-                        topBarangayInfo.name && topBarangayInfo.name !== 'No data'
-                            ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5'
-                            : ''
-                    } ${barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name ? 'bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-inset ring-emerald-600/30' : ''}`}
+                    className={`p-3 sm:p-4 min-h-[88px] sm:min-h-[96px] flex flex-col justify-between text-left ${
+                        topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'cursor-pointer' : ''
+                    }`}
                 >
                     <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <HiOutlineLocationMarker className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-                            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
-                        </div>
+                        <h2 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">Top Barangay</h2>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
                             <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
                                 {barangayFilter === topBarangayInfo.name ? 'Clear' : 'View'}
@@ -699,9 +720,9 @@ const AccidentHistoryPage = () => {
             </section>
 
             {/* Resolved Incident Records Ledger */}
-            <section className="relative z-10 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
+            <section className="rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
                 {/* Search-First Archive Toolbar */}
-                <div className="relative z-20 rounded-t-lg border-b border-gray-200 bg-gray-50/70 p-3 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="border-b border-gray-200 p-3 sm:p-4 dark:border-white/10">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                         {/* Primary Search Input */}
                         <label className="relative block flex-1 min-w-[200px]">
@@ -712,7 +733,7 @@ const AccidentHistoryPage = () => {
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder={isMobile ? 'Search archive or barangay…' : 'Search location, barangay, or incident category…'}
-                                className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                className="h-9 w-full rounded-md border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                             />
                             {searchQuery && (
                                 <button
@@ -732,19 +753,19 @@ const AccidentHistoryPage = () => {
                             <button
                                 type="button"
                                 onClick={() => setFilterModalOpen(true)}
-                                className={`flex h-9 items-center justify-between gap-2 rounded-lg border px-3 text-[13px] font-medium cursor-pointer ${
+                                className={`flex h-9 items-center justify-between gap-2 rounded-md border px-3 text-[13px] font-medium cursor-pointer ${
                                     activeFilterCount > 0
-                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                        ? 'border-gray-400 text-gray-900 dark:border-gray-500 dark:text-white'
                                         : 'bg-transparent border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
                                 }`}
                             >
                                 <span className="flex items-center gap-1.5">
-                                    <HiOutlineFilter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    <HiOutlineFilter className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                     <span>Filters</span>
                                 </span>
                                 {activeFilterCount > 0 && (
-                                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-extrabold text-white">
-                                        {activeFilterCount}
+                                    <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                                        · {activeFilterCount}
                                     </span>
                                 )}
                             </button>
@@ -756,7 +777,7 @@ const AccidentHistoryPage = () => {
                                     id="history-sort-select"
                                     value={sortOrder}
                                     onChange={(e) => setSortOrder(e.target.value)}
-                                    className="h-9 appearance-none rounded-lg border border-gray-200 bg-white py-1 pl-3 pr-8 text-[13px] font-medium text-gray-700 outline-none hover:bg-gray-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
+                                    className="h-9 appearance-none rounded-md border border-gray-200 bg-white py-1 pl-3 pr-8 text-[13px] font-medium text-gray-700 outline-none hover:bg-gray-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
                                 >
                                     {SORT_OPTIONS.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -805,36 +826,36 @@ const AccidentHistoryPage = () => {
 
                         <div className="flex flex-wrap items-center gap-1.5">
                             {dateFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                                     <span>Date: {DATE_OPTIONS.find((o) => o.value === dateFilter)?.label || dateFilter}</span>
-                                    <button type="button" onClick={() => setDateFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove date filter">
+                                    <button type="button" onClick={() => setDateFilter('all')} className="hover:text-gray-900 dark:hover:text-white cursor-pointer" aria-label="Remove date filter">
                                         <HiOutlineX className="h-3 w-3" />
                                     </button>
                                 </span>
                             )}
 
                             {severityFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                                     <span>Severity: {SEVERITY_OPTIONS.find((o) => o.value === severityFilter)?.label || severityFilter}</span>
-                                    <button type="button" onClick={() => setSeverityFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove severity filter">
+                                    <button type="button" onClick={() => setSeverityFilter('all')} className="hover:text-gray-900 dark:hover:text-white cursor-pointer" aria-label="Remove severity filter">
                                         <HiOutlineX className="h-3 w-3" />
                                     </button>
                                 </span>
                             )}
 
                             {municipalityFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                                     <span>Municipality: {municipalityFilter}</span>
-                                    <button type="button" onClick={() => handleMunicipalityChange('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove municipality filter">
+                                    <button type="button" onClick={() => handleMunicipalityChange('all')} className="hover:text-gray-900 dark:hover:text-white cursor-pointer" aria-label="Remove municipality filter">
                                         <HiOutlineX className="h-3 w-3" />
                                     </button>
                                 </span>
                             )}
 
                             {barangayFilter !== 'all' && (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                                     <span>Barangay: {barangayFilter}</span>
-                                    <button type="button" onClick={() => setBarangayFilter('all')} className="hover:text-emerald-950 dark:hover:text-white cursor-pointer" aria-label="Remove barangay filter">
+                                    <button type="button" onClick={() => setBarangayFilter('all')} className="hover:text-gray-900 dark:hover:text-white cursor-pointer" aria-label="Remove barangay filter">
                                         <HiOutlineX className="h-3 w-3" />
                                     </button>
                                 </span>
@@ -864,16 +885,14 @@ const AccidentHistoryPage = () => {
                     </div>
                 ) : filteredReports.length === 0 ? (
                     <div className="rounded-b-lg px-6 py-14 text-center">
-                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
-                            <HiOutlineArchive className="h-5 w-5" />
-                        </div>
+                        <HiOutlineArchive className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" aria-hidden="true" />
                         <h2 className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">No accident records found</h2>
                         <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try adjusting the selected filters.</p>
                         {hasFilters && (
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-[13px] font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-emerald-700 px-4 text-[13px] font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 Clear filters
                             </button>
@@ -895,8 +914,11 @@ const AccidentHistoryPage = () => {
                                 const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
                                 const isExpanded = Boolean(expandedId && String(expandedId) === String(report._id));
                                 const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
-                                const resolvedDate = report.resolvedAt || report.updatedAt;
-                                const casualtyCount = Number(report.casualties?.injured || 0) + Number(report.casualties?.fatalities || 0);
+                                const resolvedDate = getResolvedDate(report);
+                                const dossierInjured = Number(report.casualties?.injured || 0);
+                                const dossierFatalities = Number(report.casualties?.fatalities || 0);
+                                const dossierMissing = Number(report.casualties?.missing || 0);
+                                const casualtyCount = dossierInjured + dossierFatalities + dossierMissing;
 
                                 return (
                                     <article
@@ -916,7 +938,7 @@ const AccidentHistoryPage = () => {
                                     >
                                         <button
                                             type="button"
-                                            onClick={() => setExpandedId(isExpanded ? null : report._id)}
+                                            onClick={() => toggleExpandedDossier(report)}
                                             aria-expanded={isExpanded}
                                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
                                             className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
@@ -977,7 +999,7 @@ const AccidentHistoryPage = () => {
                                                         ['Barangay', report.barangay || 'Not available'],
                                                         ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a')],
                                                         ['Municipality', report.municipalityName || 'Not available'],
-                                                        ['Casualties', casualtyCount ? `${report.casualties?.injured || 0} injured, ${report.casualties?.fatalities || 0} fatal` : 'None recorded'],
+                                                        ['Casualties', casualtyCount ? `${dossierInjured} injured, ${dossierFatalities} fatal, ${dossierMissing} missing` : 'None recorded'],
                                                         ...(canViewFullDetails ? [
                                                             ['Coordinates', getCoordinates(report)],
                                                             ['Reported by', report.reporter?.name || 'Anonymous'],

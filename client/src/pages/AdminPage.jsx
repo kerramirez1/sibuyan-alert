@@ -9,6 +9,7 @@ import {
     HiOutlineRefresh,
 } from 'react-icons/hi';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
+import { useSystemHealth } from '../hooks/useSystemHealth';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1120px] space-y-6 sm:space-y-8';
@@ -43,6 +44,7 @@ const AdminPage = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
+    const { isDegraded: systemDegraded } = useSystemHealth();
     const dashboardRequestIdRef = useRef(0);
     const dashboardRefreshTimerRef = useRef(null);
 
@@ -197,8 +199,8 @@ const AdminPage = () => {
                     </p>
                 </div>
                 <p className="flex shrink-0 items-center gap-1.5 text-xs text-gray-500 sm:pt-1 dark:text-gray-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
-                    <span>System active · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
+                    <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-600'}`} aria-hidden="true" />
+                    <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
                 </p>
             </header>
 

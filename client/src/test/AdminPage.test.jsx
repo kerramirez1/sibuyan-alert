@@ -33,6 +33,7 @@ vi.mock('../services/api', () => ({
         getAdmin: mocks.getAdmin,
     },
     adminAPI: {},
+    systemAPI: { getHealth: vi.fn().mockResolvedValue({ data: { success: true } }) },
 }));
 
 vi.mock('../components/dashboard/ResponderDashboardWorkspace', () => ({

@@ -194,6 +194,20 @@ export const validateVerifyReport = [
     body('rejectionReason')
         .optional()
         .isLength({ max: 500 }).withMessage('Rejection reason cannot exceed 500 characters'),
+    // Optional admin casualty correction — same whole-number rule as intake.
+    // Custom (not isInt) so JSON numbers validate without string coercion.
+    body('casualties.injured')
+        .optional()
+        .custom((value) => Number.isInteger(Number(value)) && Number(value) >= 0)
+        .withMessage('Injured count must be a non-negative whole number'),
+    body('casualties.fatalities')
+        .optional()
+        .custom((value) => Number.isInteger(Number(value)) && Number(value) >= 0)
+        .withMessage('Fatalities count must be a non-negative whole number'),
+    body('casualties.missing')
+        .optional()
+        .custom((value) => Number.isInteger(Number(value)) && Number(value) >= 0)
+        .withMessage('Missing count must be a non-negative whole number'),
     handleValidationErrors,
 ];
 

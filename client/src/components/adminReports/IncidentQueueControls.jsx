@@ -78,7 +78,13 @@ const ResponderQueueControls = ({
 }) => {
     const activeResponderView = RESPONDER_VIEW_COPY[responderView] || RESPONDER_VIEW_COPY.all;
     const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
-    const incidentTotal = getResponderIncidentTotal(stats, resultCount);
+    // MVP honesty: the stats total uses a transfer-inclusive municipal scope,
+    // while each queue view is a stricter server-filtered query. Show the
+    // active view's own result count so the headline never contradicts the list
+    // (e.g. "4 incidents" above an empty dispatch queue).
+    const incidentTotal = responderView === 'all'
+        ? getResponderIncidentTotal(stats, resultCount)
+        : toCount(resultCount);
     const lastUpdatedLabel = formatLastUpdatedTime(lastUpdatedAt);
 
     return (
@@ -97,10 +103,14 @@ const ResponderQueueControls = ({
                     {stats && (
                         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
                             <span className="font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span>{toCount(stats.responding)} responding</span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span>{toCount(stats.resolved)} resolved</span>
+                            {responderView === 'all' && (
+                                <>
+                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                                    <span>{toCount(stats.responding)} responding</span>
+                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                                    <span>{toCount(stats.resolved)} resolved</span>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
