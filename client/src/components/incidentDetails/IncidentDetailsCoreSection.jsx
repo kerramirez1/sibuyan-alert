@@ -44,20 +44,13 @@ const DetailItem = ({ label, value, children }) => (
     </div>
 );
 
-const CasualtyStatCard = ({ label, count, tone = 'default' }) => {
-    const toneStyles = {
-        default: 'border-gray-200/80 bg-gray-50/70 text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-white',
-        danger: 'border-red-200 bg-red-50/80 text-red-900 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200',
-        warning: 'border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200',
-    };
-
-    return (
-        <div className={`rounded-xl border p-2.5 sm:p-3 text-center sm:text-left ${toneStyles[tone]}`}>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-75">{label}</p>
-            <p className="mt-1 text-sm sm:text-base font-bold tabular-nums">{count}</p>
-        </div>
-    );
-};
+/* Casualty figures as a plain stat row: label over numeral, no boxes or tones. */
+const CasualtyStatCard = ({ label, count }) => (
+    <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">{count}</p>
+    </div>
+);
 
 export const CasualtySummaryRow = ({ casualties = {}, totalPeopleAffected = 0, className = '' }) => {
     const normalized = normalizeCasualties(casualties);
@@ -76,21 +69,18 @@ export const CasualtySummaryRow = ({ casualties = {}, totalPeopleAffected = 0, c
                 )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
                 <CasualtyStatCard
                     label="Injured"
                     count={injured}
-                    tone={typeof injured === 'number' && injured > 0 ? 'warning' : 'default'}
                 />
                 <CasualtyStatCard
                     label="Fatalities"
                     count={fatalities}
-                    tone={typeof fatalities === 'number' && fatalities > 0 ? 'danger' : 'default'}
                 />
                 <CasualtyStatCard
                     label="Missing"
                     count={missing}
-                    tone={typeof missing === 'number' && missing > 0 ? 'warning' : 'default'}
                 />
             </div>
         </div>

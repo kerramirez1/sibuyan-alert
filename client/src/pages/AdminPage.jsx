@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
 import {
+    HiOutlineArrowRight,
     HiOutlineExclamation,
     HiOutlineRefresh,
 } from 'react-icons/hi';
@@ -12,11 +13,36 @@ import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
-const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1120px] space-y-6 sm:space-y-8';
-const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90';
-const SECTION_TITLE_CLASS = 'text-sm font-semibold text-gray-900 dark:text-white';
+const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
+const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-white/10 dark:bg-[#0c1813]/90';
+const SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white';
 const SECTION_META_CLASS = 'text-xs text-gray-500 dark:text-gray-400';
-const ROW_LINK_CLASS = 'flex items-center gap-4 px-4 py-4 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-5 dark:hover:bg-white/[0.03]';
+
+const AdminKpiCard = ({ stat, loading }) => (
+    <article className="min-w-0">
+        <Link
+            to={stat.link}
+            aria-label={`${stat.title}: ${loading ? 'loading' : stat.value}. ${stat.actionLabel}`}
+            className="group block h-full min-h-[6.5rem] cursor-pointer bg-white p-4 sm:p-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
+        >
+            <div className="flex items-start justify-between gap-3">
+                <p className="font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    {loading ? '...' : stat.value}
+                </p>
+                <HiOutlineArrowRight
+                    className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600"
+                    aria-hidden="true"
+                />
+            </div>
+            <h2 className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {stat.title}
+            </h2>
+            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                {stat.subtext}
+            </p>
+        </Link>
+    </article>
+);
 
 const STATUS_CONFIG = {
     pending: { label: 'Pending review', dot: 'bg-amber-500' },
@@ -179,97 +205,83 @@ const AdminPage = () => {
     const totalUsers = stats?.users?.total ?? 0;
     const reportsThisMonth = stats?.reports?.thisMonth ?? 0;
     const reportsThisWeek = stats?.reports?.thisWeek ?? 0;
-    const attentionCount = pendingReports + pendingVerifications;
+    const respondingReports = stats?.reports?.responding ?? 0;
+    const resolvedReports = stats?.reports?.resolved ?? 0;
     const barangayRows = [...(stats?.reportsByBarangay || [])].sort((a, b) => b.count - a.count);
     const barangayMax = Math.max(...barangayRows.map((b) => b.count), 1);
 
+    // KPI strip mirrors the responder workspace row: linked stat cards with
+    // the same accessible names the queue totals always carried.
+    const kpiCards = [
+        {
+            title: 'Pending reports',
+            value: pendingReports,
+            subtext: 'Awaiting municipal review',
+            link: '/admin/reports?status=pending',
+            actionLabel: 'Review pending reports',
+        },
+        {
+            title: 'Pending verifications',
+            value: pendingVerifications,
+            subtext: 'Reporter accounts to verify',
+            link: '/admin/users?status=pending',
+            actionLabel: 'Review pending verifications',
+        },
+        {
+            title: 'Responding',
+            value: respondingReports,
+            subtext: 'Active field responses',
+            link: '/admin/reports?status=responding',
+            actionLabel: 'View responding incidents',
+        },
+        {
+            title: 'Resolved',
+            value: resolvedReports,
+            subtext: 'Closed incidents',
+            link: '/admin/reports?status=resolved',
+            actionLabel: 'View resolved incidents',
+        },
+    ];
+
     return (
         <div className={DASHBOARD_CONTAINER_CLASS}>
-            {/* Page header: single jurisdiction line, no duplicate eyebrows */}
-            <header className="flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
+            {/* Page header: shared dashboard language — eyebrow, title, context line */}
+            <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        {municipality} · Municipal operations
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        {municipality} operations
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Operations dashboard
                     </h1>
                     <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                         Review pending work and monitor municipality volume.
                     </p>
+                    <p className="mt-2 flex shrink-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                        <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
+                    </p>
                 </div>
-                <p className="flex shrink-0 items-center gap-1.5 text-xs text-gray-500 sm:pt-1 dark:text-gray-400">
-                    <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-600'}`} aria-hidden="true" />
-                    <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
-                </p>
             </header>
 
-            {/* Priority queue: only actionable work gets prominence */}
-            <section aria-label="Needs attention">
-                <div className="flex items-baseline justify-between gap-3">
-                    <h2 className={SECTION_TITLE_CLASS}>Needs attention</h2>
-                    <span className={SECTION_META_CLASS}>
-                        {attentionCount === 0 ? 'All clear' : `${attentionCount} awaiting action`}
-                    </span>
-                </div>
-                <div className={`${PANEL_CLASS} mt-3 divide-y divide-gray-100 overflow-hidden dark:divide-white/5`}>
-                    <Link
-                        to="/admin/reports?status=pending"
-                        aria-label={`Pending Reports: ${loading ? 'loading' : pendingReports}`}
-                        className={ROW_LINK_CLASS}
-                    >
-                        <span className="w-10 shrink-0 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white">
-                            {loading ? '…' : pendingReports}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                                Pending reports
-                                {pendingReports > 0 && (
-                                    <span className="ml-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                                        · Action needed
-                                    </span>
-                                )}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
-                                Awaiting municipal review
-                            </span>
-                        </span>
-                        <span className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                            Review
-                        </span>
-                    </Link>
-                    <Link
-                        to="/admin/users?status=pending"
-                        aria-label={`Pending Verifications: ${loading ? 'loading' : pendingVerifications}`}
-                        className={ROW_LINK_CLASS}
-                    >
-                        <span className="w-10 shrink-0 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 dark:text-white">
-                            {loading ? '…' : pendingVerifications}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                                Pending verifications
-                                {pendingVerifications > 0 && (
-                                    <span className="ml-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                                        · Action needed
-                                    </span>
-                                )}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
-                                Reporter accounts to verify
-                            </span>
-                        </span>
-                        <span className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                            Review
-                        </span>
-                    </Link>
-                </div>
+            {/* KPI strip: same row language as the responder workspace */}
+            <section className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-gray-200 py-2 sm:grid-cols-4 dark:border-white/10 xl:grid-cols-4" aria-label="Operational status">
+                {kpiCards.map((stat) => (
+                    <AdminKpiCard
+                        key={stat.title}
+                        stat={stat}
+                        loading={loading}
+                    />
+                ))}
             </section>
 
-            {/* Reference volume: de-emphasized record, not competing cards */}
-            <section aria-label="Municipality record">
-                <h2 className={SECTION_TITLE_CLASS}>Municipality record</h2>
-                <div className={`${PANEL_CLASS} mt-3 px-4 py-3.5 sm:px-5`}>
+            {/* Reference volume + barangay breakdown: two-column row like responder */}
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <section className={PANEL_CLASS} aria-label="Municipality record">
+                <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
+                    <h2 className={SECTION_TITLE_CLASS}>Municipality record</h2>
+                </div>
+                <div className="mt-3">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                         <Link
                             to="/admin/reports"
@@ -291,7 +303,7 @@ const AdminPage = () => {
                         <span aria-hidden="true"> · </span>
                         <span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{reportsThisWeek}</span> this week</span>
                     </p>
-                    <div className="mt-2 border-t border-gray-100 pt-2.5 dark:border-white/5">
+                    <div className="mt-3 border-t border-gray-200 pt-3 dark:border-white/10">
                         <Link
                             to="/admin/zones"
                             aria-label="High-Risk Zones: manage hazard oversight"
@@ -311,8 +323,8 @@ const AdminPage = () => {
 
             {/* Barangay breakdown */}
             {barangayRows.length > 0 && (
-                <section className={`${PANEL_CLASS} p-4 sm:p-5`} aria-labelledby="admin-barangay-incidents-title">
-                    <div className="flex items-baseline justify-between gap-3">
+                <section className={PANEL_CLASS} aria-labelledby="admin-barangay-incidents-title">
+                    <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
                         <div className="min-w-0">
                             <h2 id="admin-barangay-incidents-title" className={SECTION_TITLE_CLASS}>
                                 Incidents per barangay
@@ -358,11 +370,12 @@ const AdminPage = () => {
                     </ol>
                 </section>
             )}
+            </div>
 
             {/* Recent activity */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <section className={`${PANEL_CLASS} p-4 sm:p-5`} aria-labelledby="admin-recent-reports-title">
-                    <div className="flex items-baseline justify-between gap-3">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                <section className={PANEL_CLASS} aria-labelledby="admin-recent-reports-title">
+                    <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
                         <h2 id="admin-recent-reports-title" className={SECTION_TITLE_CLASS}>
                             Recent reports
                         </h2>
@@ -406,8 +419,8 @@ const AdminPage = () => {
                     )}
                 </section>
 
-                <section className={`${PANEL_CLASS} p-4 sm:p-5`} aria-labelledby="admin-recent-users-title">
-                    <div className="flex items-baseline justify-between gap-3">
+                <section className={PANEL_CLASS} aria-labelledby="admin-recent-users-title">
+                    <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
                         <h2 id="admin-recent-users-title" className={SECTION_TITLE_CLASS}>
                             Recent users
                         </h2>

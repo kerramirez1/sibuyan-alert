@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI, reportsAPI } from '../services/api';
@@ -13,9 +13,7 @@ import {
 import {
     HiOutlinePlus,
     HiOutlineTrash,
-    HiOutlinePencil,
     HiOutlineLocationMarker,
-    HiOutlineX,
     HiOutlineCheck,
     HiOutlinePhotograph,
     HiOutlineArrowLeft,
@@ -378,27 +376,52 @@ const AdminHighRiskZonesPage = () => {
         return matchesSearch && matchesType;
     });
 
+    // Live draft preview: while placing a zone, draw its coverage circle on
+    // the map from the pinned location + the current radius input, using the
+    // same layer + colors as saved zones. Invalid input hides the preview.
+    const draftZonePreview = useMemo(() => {
+        if (!showForm || !selectedLocation) return null;
+        const lat = Number(selectedLocation.lat);
+        const lng = Number(selectedLocation.lng);
+        const radius = Number(formData.radius);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        if (!Number.isFinite(radius) || radius <= 0) return null;
+        return {
+            _id: 'draft-risk-zone-preview',
+            name: formData.name?.trim() || 'Draft zone',
+            coordinates: { lat, lng },
+            radius,
+            type: formData.type,
+            severity: formData.severity,
+        };
+    }, [showForm, selectedLocation, formData.radius, formData.type, formData.severity, formData.name]);
+
+    const mapZones = useMemo(
+        () => (draftZonePreview ? [...zones, draftZonePreview] : zones),
+        [zones, draftZonePreview]
+    );
+
     return (
         <div className="mx-auto w-full min-w-0 max-w-[1440px] space-y-3 sm:space-y-4">
             {/* Page Header */}
-            <header className="flex flex-col gap-2 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
+            <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         High-risk zones
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         High-risk zone management
                     </h1>
                     <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         View mapped hazards and manage zones for {user?.assignedMunicipality || 'all municipalities'}.
                     </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2 sm:pt-1">
-                    <p className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
                         <span>Sibuyan Island · Alert System Active</span>
                     </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
                     <button
                         type="button"
                         onClick={() => {
@@ -419,7 +442,7 @@ const AdminHighRiskZonesPage = () => {
                                 setMobileTab('panel');
                             }
                         }}
-                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer shadow-2xs"
+                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
                     >
                         <HiOutlinePlus className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>Add zone</span>
@@ -428,16 +451,16 @@ const AdminHighRiskZonesPage = () => {
             </header>
 
             {/* Mobile / Tablet View Switcher */}
-            <div className="flex items-center rounded-xl border border-gray-200/90 bg-gray-100/90 p-0.5 lg:hidden dark:border-white/10 dark:bg-white/5" role="tablist" aria-label="Mobile workspace view">
+            <div className="flex items-center gap-6 border-b border-gray-200 lg:hidden dark:border-white/10" role="tablist" aria-label="Mobile workspace view">
                 <button
                     type="button"
                     role="tab"
                     aria-selected={mobileTab === 'map'}
                     onClick={() => setMobileTab('map')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    className={`shrink-0 border-b pb-2.5 text-sm ${
                         mobileTab === 'map'
-                            ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
+                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                 >
                     Map View
@@ -447,10 +470,10 @@ const AdminHighRiskZonesPage = () => {
                     role="tab"
                     aria-selected={mobileTab === 'panel'}
                     onClick={() => setMobileTab('panel')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    className={`shrink-0 border-b pb-2.5 text-sm ${
                         mobileTab === 'panel'
-                            ? 'bg-white text-gray-950 shadow-2xs dark:bg-[#0c1813] dark:text-white'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
+                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                 >
                     {showForm ? (editingZone ? 'Edit Zone' : 'New Zone Form') : `Marked Zones (${zones.length})`}
@@ -462,21 +485,20 @@ const AdminHighRiskZonesPage = () => {
                 {/* Map Workspace */}
                 <section
                     ref={mapSectionRef}
-                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-7 h-full ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
+                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-7 h-full ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
-                    <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/80 px-3.5 py-2 sm:px-4 sm:py-2.5 shrink-0 dark:border-white/10 dark:bg-white/[0.02]">
-                        <div className="flex items-center gap-2">
-                            <HiOutlineLocationMarker className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-                            <h2 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
-                                {showForm ? 'Select zone location' : 'High-risk zones map'}
-                            </h2>
-                        </div>
+                    <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
+                        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            {showForm ? 'Select zone location' : 'High-risk zones map'}
+                        </h2>
                         {showForm && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Click map to place epicenter
+                            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                {draftZonePreview
+                                    ? `${Math.round(Number(formData.radius))} m coverage`
+                                    : 'Click map to place epicenter'}
                             </span>
                         )}
                     </div>
@@ -484,7 +506,7 @@ const AdminHighRiskZonesPage = () => {
                     {/* Map View Frame */}
                     <div className="relative flex-1 min-h-[380px] sm:min-h-[480px] lg:min-h-0 w-full">
                         <MapView
-                            highRiskZones={zones}
+                            highRiskZones={mapZones}
                             onLocationSelect={showForm ? handleLocationSelect : null}
                             selectedLocation={selectedLocation}
                             focusLocation={focusLocation}
@@ -506,16 +528,16 @@ const AdminHighRiskZonesPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={{ duration: 0.15 }}
-                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90"
                                 aria-label={editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
                             >
                                 {/* Editor Header */}
-                                <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/80 px-4 py-2.5 shrink-0 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
                                     <div>
-                                        <h2 className="text-sm font-bold text-gray-900 dark:text-white">
+                                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                                             {editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
                                         </h2>
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                             {editingZone ? 'Update monitored hazard boundaries and photos' : 'Define an active monitored hazard perimeter'}
                                         </p>
                                     </div>
@@ -523,9 +545,9 @@ const AdminHighRiskZonesPage = () => {
                                         type="button"
                                         onClick={resetForm}
                                         aria-label="Close zone editor"
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                                        className="min-h-[44px] px-2 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
                                     >
-                                        <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                        Close
                                     </button>
                                 </div>
 
@@ -543,7 +565,7 @@ const AdminHighRiskZonesPage = () => {
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 placeholder="e.g. Flood Prone Area near River"
                                                 required
-                                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                             />
                                         </div>
 
@@ -553,36 +575,36 @@ const AdminHighRiskZonesPage = () => {
                                                 Coordinates & location <span className="text-red-500">*</span>
                                             </label>
                                             {isResolvingLocation ? (
-                                                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2.5 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
-                                                    <div className="h-3.5 w-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                                                <div className="flex items-center gap-2 py-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <div className="h-3.5 w-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin shrink-0" aria-hidden="true" />
                                                     <span>Verifying barangay boundary...</span>
                                                 </div>
                                             ) : selectedLocation ? (
-                                                <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/80 p-2.5 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
+                                                <div className="flex items-center justify-between gap-2 py-2 text-xs text-gray-700 dark:text-gray-300">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <HiOutlineCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                        <span className="truncate font-mono">
+                                                        <span className="truncate font-mono tabular-nums">
                                                             Location selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
                                                         </span>
                                                     </div>
                                                     <button
                                                         type="button"
                                                         onClick={() => setMobileTab('map')}
-                                                        className="lg:hidden text-[11px] font-bold text-emerald-700 underline dark:text-emerald-300 shrink-0"
+                                                        className="lg:hidden text-[11px] font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400 shrink-0"
                                                     >
                                                         View on map
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                                                <div className="flex items-center justify-between gap-2 py-2 text-xs text-gray-500 dark:text-gray-400">
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <HiOutlineLocationMarker className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                        <HiOutlineLocationMarker className="h-4 w-4 shrink-0" aria-hidden="true" />
                                                         <span>Click a point on the map to set coordinates.</span>
                                                     </div>
                                                     <button
                                                         type="button"
                                                         onClick={() => setMobileTab('map')}
-                                                        className="lg:hidden text-[11px] font-bold text-amber-700 underline dark:text-amber-300 shrink-0"
+                                                        className="lg:hidden text-[11px] font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400 shrink-0"
                                                     >
                                                         Tap map
                                                     </button>
@@ -605,10 +627,10 @@ const AdminHighRiskZonesPage = () => {
                                                         role="radio"
                                                         aria-checked={isSelected}
                                                         onClick={() => setFormData({ ...formData, type: type.value })}
-                                                        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-[13px] ${
+                                                        className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] ${
                                                             isSelected
-                                                                ? 'border-emerald-600 bg-emerald-50 font-semibold text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200'
-                                                                : 'border-gray-200 bg-white font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/[0.08]'
+                                                                ? 'font-semibold text-gray-900 underline decoration-emerald-600 decoration-2 underline-offset-4 dark:text-white dark:decoration-emerald-500'
+                                                                : 'font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                         }`}
                                                     >
                                                         <span className={`h-2 w-2 shrink-0 rounded-full ${type.color}`} aria-hidden="true" />
@@ -624,7 +646,7 @@ const AdminHighRiskZonesPage = () => {
                                         <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                             Severity level
                                         </label>
-                                        <div className="flex rounded-lg border border-gray-200 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 gap-0.5" role="radiogroup" aria-label="Severity level">
+                                        <div className="flex gap-5 border-b border-gray-200 dark:border-white/10" role="radiogroup" aria-label="Severity level">
                                             {SEVERITY_LEVELS.map((level) => {
                                                 const isSelected = formData.severity === level.value;
                                                 return (
@@ -634,14 +656,16 @@ const AdminHighRiskZonesPage = () => {
                                                         role="radio"
                                                         aria-checked={isSelected}
                                                         onClick={() => setFormData({ ...formData, severity: level.value })}
-                                                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 px-1 text-[13px] font-medium ${
+                                                        className={`shrink-0 border-b pb-2 text-[13px] ${
                                                             isSelected
-                                                                ? 'bg-white text-gray-900 dark:bg-[#0c1813] dark:text-white'
-                                                                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                                                ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
+                                                                : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                         }`}
                                                     >
-                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${level.color}`} aria-hidden="true" />
-                                                        <span>{level.label}</span>
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${level.color}`} aria-hidden="true" />
+                                                            <span>{level.label}</span>
+                                                        </span>
                                                     </button>
                                                 );
                                             })}
@@ -662,7 +686,7 @@ const AdminHighRiskZonesPage = () => {
                                                     onChange={(e) => setFormData({ ...formData, radius: parseInt(e.target.value) || 0 })}
                                                     min={10}
                                                     max={5000}
-                                                    className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 pr-8 text-sm font-medium text-gray-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 pr-8 text-sm font-medium text-gray-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">m</span>
                                             </div>
@@ -677,7 +701,7 @@ const AdminHighRiskZonesPage = () => {
                                                     id="risk-zone-municipality"
                                                     value={formData.municipality}
                                                     onChange={(e) => setFormData({ ...formData, municipality: e.target.value })}
-                                                    className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
                                                 >
                                                     {MUNICIPALITIES.map((m) => (
                                                         <option key={m} value={m}>{m}</option>
@@ -699,7 +723,7 @@ const AdminHighRiskZonesPage = () => {
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             rows={2}
-                                            className="w-full rounded-lg border border-gray-200 bg-white p-2.5 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                            className="w-full rounded-md border border-gray-200 bg-white p-2.5 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                             placeholder="Brief description of the hazard..."
                                         />
                                     </div>
@@ -811,18 +835,18 @@ const AdminHighRiskZonesPage = () => {
                                     </div>
 
                                     {/* Form Actions (Pinned to bottom of panel) */}
-                                    <div className="border-t border-gray-200/80 bg-gray-50/90 p-3 sm:px-4 shrink-0 flex items-center gap-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                    <div className="border-t border-gray-200 p-3 sm:px-4 shrink-0 flex items-center gap-2.5 dark:border-white/10">
                                         <button
                                             type="button"
                                             onClick={resetForm}
-                                            className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                            className="inline-flex h-9 flex-1 items-center justify-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={isSubmitting || isResolvingLocation || (!selectedLocation && !editingZone)}
-                                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer shadow-2xs"
+                                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
                                         >
                                             {isSubmitting ? (
                                                 <>
@@ -843,22 +867,22 @@ const AdminHighRiskZonesPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={{ duration: 0.15 }}
-                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90"
                                 aria-label="Marked high-risk zones"
                             >
                                 {/* List Header */}
-                                <div className="border-b border-gray-200/80 bg-gray-50/80 px-4 py-2.5 shrink-0 dark:border-white/10 dark:bg-white/[0.02]">
-                                    <h2 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
+                                <div className="border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
+                                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Marked zones ({zones.length})
                                     </h2>
-                                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                         Active monitored hazard areas in Sibuyan
                                     </p>
                                 </div>
 
                                 {/* Compact Search & Hazard Type Filter */}
                                 {zones.length > 0 && (
-                                    <div className="border-b border-gray-200/80 bg-white px-3.5 py-2.5 dark:border-white/10 dark:bg-transparent space-y-2 shrink-0">
+                                    <div className="border-b border-gray-200 px-4 py-3 dark:border-white/10 space-y-2 shrink-0">
                                         <div className="relative">
                                             <HiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
                                             <input
@@ -866,10 +890,10 @@ const AdminHighRiskZonesPage = () => {
                                                 value={zoneSearch}
                                                 onChange={(e) => setZoneSearch(e.target.value)}
                                                 placeholder="Search zones or municipality..."
-                                                className="h-8 w-full rounded-lg border border-gray-200/90 bg-gray-50/80 pl-8 pr-3 text-xs font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                                className="h-8 w-full rounded-md border border-gray-200 bg-white pl-8 pr-3 text-xs font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-white"
                                             />
                                         </div>
-                                        <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar pb-0.5 text-[11px]" role="toolbar" aria-label="Filter zones by hazard type">
+                                        <div className="flex items-center gap-4 overflow-x-auto custom-scrollbar pb-0.5 text-xs" role="toolbar" aria-label="Filter zones by hazard type">
                                             {[
                                                 { id: 'all', label: 'All' },
                                                 { id: 'landslide_prone', label: 'Landslide' },
@@ -881,10 +905,11 @@ const AdminHighRiskZonesPage = () => {
                                                     key={chip.id}
                                                     type="button"
                                                     onClick={() => setZoneTypeFilter(chip.id)}
-                                                    className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer shrink-0 ${
+                                                    aria-pressed={zoneTypeFilter === chip.id}
+                                                    className={`shrink-0 border-b pb-1 ${
                                                         zoneTypeFilter === chip.id
-                                                            ? 'bg-emerald-700 text-white dark:bg-emerald-600'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10'
+                                                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
+                                                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                     }`}
                                                 >
                                                     {chip.label}
@@ -959,26 +984,26 @@ const AdminHighRiskZonesPage = () => {
                                                             </div>
                                                         </div>
                                                         {canManageZone(zone) ? (
-                                                            <div className="flex items-center gap-1 shrink-0">
+                                                            <div className="flex items-center gap-3 shrink-0">
                                                                 <button
                                                                     type="button"
                                                                     aria-label={`Edit ${zone.name}`}
                                                                     onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
-                                                                    className="inline-flex h-8 w-8 items-center justify-center text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/40 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
+                                                                    className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-emerald-700 dark:text-gray-400 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
                                                                 >
-                                                                    <HiOutlinePencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                    Edit
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     aria-label={`Delete ${zone.name}`}
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(zone); }}
-                                                                    className="inline-flex h-8 w-8 items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950/40 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 cursor-pointer"
+                                                                    className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-red-700 dark:text-gray-400 dark:hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 cursor-pointer"
                                                                 >
-                                                                    <HiOutlineTrash className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                    Delete
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <span className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                                                            <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
                                                                 View only
                                                             </span>
                                                         )}

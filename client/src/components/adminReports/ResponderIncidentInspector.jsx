@@ -296,7 +296,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openReview?.(report, 'verified')}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
                             title="Verify report"
                             aria-label="Verify report"
                         >
@@ -308,7 +308,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openReview?.(report, 'rejected')}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200/90 bg-red-50/80 px-4 text-[13px] font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400 sm:flex-initial"
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 text-[13px] font-medium text-red-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-red-400 dark:hover:bg-white/10 sm:flex-initial"
                             title="Reject report"
                             aria-label="Reject report"
                         >
@@ -347,11 +347,12 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         type="button"
                         onClick={() => actions?.deleteReport?.(report)}
                         disabled={actions?.deleteLoadingId === report._id}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-400 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-red-700 disabled:cursor-wait disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-red-400"
                         title="Delete report"
                         aria-label="Delete report"
                     >
                         <HiOutlineTrash className="h-4 w-4" aria-hidden="true" />
+                        <span>Delete</span>
                     </button>
                 )}
             </div>

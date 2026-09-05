@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineRefresh, HiOutlineSwitchHorizontal } from 'react-icons/hi';
+import { HiOutlineExclamationCircle, HiOutlineRefresh } from 'react-icons/hi';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import IncidentDetailsLocationSection from './IncidentDetailsLocationSection';
@@ -121,39 +121,35 @@ const IncidentDetailsContent = ({
 
             {isOriginatingTransferredViewer && (
                 <section
-                    className="rounded-xl border border-violet-200 bg-violet-50/90 p-3.5 text-violet-950 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100"
+                    className="border-t border-gray-100 pt-3 dark:border-white/5"
                     aria-labelledby="transferred-jurisdiction-heading"
                 >
-                    <div className="flex items-start gap-2.5">
-                        <HiOutlineSwitchHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden="true" />
-                        <div className="min-w-0 flex-1">
-                            <h3 id="transferred-jurisdiction-heading" className="text-xs sm:text-sm font-bold">
-                                Jurisdiction Transferred
-                            </h3>
-                            <p className="mt-1 text-xs leading-relaxed text-violet-800 dark:text-violet-200">
-                                This incident was transferred to <span className="font-semibold">{report.municipalityName}</span> for active response coordination. It remains visible in your dashboard as a read-only historical record.
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden="true" />
+                        <h3 id="transferred-jurisdiction-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Jurisdiction Transferred
+                        </h3>
                     </div>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                        This incident was transferred to <span className="font-semibold text-gray-900 dark:text-white">{report.municipalityName}</span> for active response coordination. It remains visible in your dashboard as a read-only historical record.
+                    </p>
                 </section>
             )}
 
             {report.status === 'pending' && (
                 <section
-                    className="rounded-xl border border-amber-200 bg-amber-50/90 p-3.5 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+                    className="border-t border-gray-100 pt-3 dark:border-white/5"
                     aria-labelledby="pending-verification-heading"
                 >
-                    <div className="flex items-start gap-2.5">
-                        <HiOutlineClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-                        <div className="min-w-0 flex-1">
-                            <h3 id="pending-verification-heading" className="text-xs sm:text-sm font-bold">
-                                Awaiting Admin Verification
-                            </h3>
-                            <p className="mt-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-                                This incident report was recently submitted and is pending formal verification by a municipal administrator.
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                        <h3 id="pending-verification-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Awaiting Admin Verification
+                        </h3>
                     </div>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                        This incident report was recently submitted and is pending formal verification by a municipal administrator.
+                    </p>
                 </section>
             )}
 

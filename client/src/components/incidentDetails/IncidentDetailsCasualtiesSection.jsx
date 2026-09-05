@@ -20,23 +20,23 @@ const IncidentDetailsCasualtiesSection = ({
                 Affected area
             </h3>
             {hasAffectedArea ? (
-                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
                     {households > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                        <div>
                             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Households</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{households}</dd>
+                            <dd className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">{households}</dd>
                         </div>
                     )}
                     {evacuees > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                        <div>
                             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Evacuees</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{evacuees}</dd>
+                            <dd className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">{evacuees}</dd>
                         </div>
                     )}
                     {radius > 0 && (
-                        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
+                        <div>
                             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Affected radius</dt>
-                            <dd className="mt-0.5 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{radius} meters</dd>
+                            <dd className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">{radius} meters</dd>
                         </div>
                     )}
                 </dl>
