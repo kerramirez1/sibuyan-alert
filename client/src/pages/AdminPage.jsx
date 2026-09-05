@@ -275,53 +275,49 @@ const AdminPage = () => {
                 ))}
             </section>
 
-            {/* Reference volume + barangay breakdown: two-column row like responder */}
-            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            {/* Reference volume: slim full-width strip so it never competes
+                with the growing barangay list for row height */}
             <section className={PANEL_CLASS} aria-label="Municipality record">
-                <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
-                    <h2 className={SECTION_TITLE_CLASS}>Municipality record</h2>
-                </div>
-                <div className="mt-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <Link
-                            to="/admin/reports"
-                            aria-label={`Total Reports: ${totalReports}`}
-                            className="font-semibold text-gray-900 hover:underline dark:text-gray-100"
-                        >
-                            {totalReports} {totalReports === 1 ? 'report' : 'reports'}
-                        </Link>
-                        <span aria-hidden="true"> · </span>
-                        <Link
-                            to="/admin/users"
-                            aria-label={`Total Users: ${totalUsers}`}
-                            className="font-semibold text-gray-900 hover:underline dark:text-gray-100"
-                        >
-                            {totalUsers} {totalUsers === 1 ? 'user' : 'users'}
-                        </Link>
-                        <span aria-hidden="true"> · </span>
-                        <span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{reportsThisMonth}</span> this month</span>
-                        <span aria-hidden="true"> · </span>
-                        <span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{reportsThisWeek}</span> this week</span>
-                    </p>
-                    <div className="mt-3 border-t border-gray-200 pt-3 dark:border-white/10">
-                        <Link
-                            to="/admin/zones"
-                            aria-label="High-Risk Zones: manage hazard oversight"
-                            className="flex items-center justify-between gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                        >
-                            <span className="min-w-0">
-                                <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">High-risk zones</span>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">Hazard oversight and perimeters</span>
-                            </span>
-                            <span className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                                Manage
-                            </span>
-                        </Link>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <h2 className={SECTION_TITLE_CLASS}>Municipality record</h2>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <Link
+                                to="/admin/reports"
+                                aria-label={`Total Reports: ${totalReports}`}
+                                className="font-semibold text-gray-900 hover:underline dark:text-gray-100"
+                            >
+                                {totalReports} {totalReports === 1 ? 'report' : 'reports'}
+                            </Link>
+                            <span aria-hidden="true"> · </span>
+                            <Link
+                                to="/admin/users"
+                                aria-label={`Total Users: ${totalUsers}`}
+                                className="font-semibold text-gray-900 hover:underline dark:text-gray-100"
+                            >
+                                {totalUsers} {totalUsers === 1 ? 'user' : 'users'}
+                            </Link>
+                            <span aria-hidden="true"> · </span>
+                            <span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{reportsThisMonth}</span> this month</span>
+                            <span aria-hidden="true"> · </span>
+                            <span><span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{reportsThisWeek}</span> this week</span>
+                            <span aria-hidden="true"> · </span>
+                            <span className={SECTION_META_CLASS}>All-time volume · {municipality}</span>
+                        </p>
                     </div>
+                    <Link
+                        to="/admin/zones"
+                        aria-label="High-Risk Zones: manage hazard oversight"
+                        className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                    >
+                        High-risk zones
+                        <span aria-hidden="true">→</span>
+                    </Link>
                 </div>
             </section>
 
-            {/* Barangay breakdown */}
+            {/* Barangay breakdown: bounded Top 5 + scroll, so row height stays
+                stable no matter how many barangays record incidents */}
             {barangayRows.length > 0 && (
                 <section className={PANEL_CLASS} aria-labelledby="admin-barangay-incidents-title">
                     <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
@@ -338,8 +334,8 @@ const AdminPage = () => {
                         </span>
                     </div>
 
-                    <ol className="mt-4 space-y-4">
-                        {barangayRows.map((item, idx) => {
+                    <ol className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+                        {barangayRows.slice(0, 5).map((item, idx) => {
                             const pct = Math.min(100, Math.round((item.count / barangayMax) * 100));
                             return (
                                 <li key={item.barangay}>
@@ -350,12 +346,6 @@ const AdminPage = () => {
                                         </span>
                                         <span className="shrink-0 text-xs tabular-nums text-gray-600 dark:text-gray-400">
                                             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{item.count} {item.count === 1 ? 'incident' : 'incidents'}</span>
-                                            {item.injured > 0 && (
-                                                <span> · {item.injured} injured</span>
-                                            )}
-                                            {item.fatalities > 0 && (
-                                                <span> · {item.fatalities} fatal</span>
-                                            )}
                                         </span>
                                     </div>
                                     <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
@@ -368,12 +358,21 @@ const AdminPage = () => {
                             );
                         })}
                     </ol>
+                    {barangayRows.length > 5 && (
+                        <div className="mt-4 border-t border-gray-200 pt-3 dark:border-white/10">
+                            <Link
+                                to="/dashboard"
+                                className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                            >
+                                View all {barangayRows.length} barangays in analytics
+                            </Link>
+                        </div>
+                    )}
                 </section>
             )}
-            </div>
 
-            {/* Recent activity */}
-            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            {/* Recent activity: stretched columns stay equal height as rows grow */}
+            <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
                 <section className={PANEL_CLASS} aria-labelledby="admin-recent-reports-title">
                     <div className="flex items-baseline justify-between gap-3 border-b border-gray-200 pb-3 dark:border-white/10">
                         <h2 id="admin-recent-reports-title" className={SECTION_TITLE_CLASS}>

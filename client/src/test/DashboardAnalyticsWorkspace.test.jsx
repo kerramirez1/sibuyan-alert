@@ -7,6 +7,7 @@ vi.mock('recharts', () => ({
     LineChart: ({ children }) => <div data-testid="incident-line-chart">{children}</div>,
     Line: ({ name }) => <div>{name}</div>,
     Bar: ({ children }) => <div>{children}</div>,
+    LabelList: () => null,
     CartesianGrid: () => null,
     Cell: () => null,
     Tooltip: () => null,
@@ -188,7 +189,7 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(insight.getByText(/3 reports/)).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Filter map to Jul 8, 2026' })).toHaveTextContent('Jul 8');
             expect(insight.getByText(/1 quiet day/)).toBeInTheDocument();
-            expect(insight.getByText(/\+3 vs Jun/)).toBeInTheDocument();
+            expect(insight.getByText(/3 more than Jun/)).toBeInTheDocument();
         });
 
         test('peak-day button filters the monthly map and clears cleanly', () => {
@@ -206,6 +207,51 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(screen.queryByText('Showing Jul 8')).not.toBeInTheDocument();
             const clearedCall = mocks.mapProps.mock.calls.at(-1)[0];
             expect(clearedCall.reports).toHaveLength(3);
+        });
+
+        test('lists active days instead of a near-empty chart for a sparse full month', () => {
+            const september = new Date(2026, 8, 1);
+            const sparseTrend = Array.from({ length: 30 }, (_, index) => {
+                const day = index + 1;
+                const isActive = day === 5;
+                return {
+                    date: `Sep ${day}`,
+                    fullDate: `Sep ${day}, 2026`,
+                    dayKey: `2026-09-${String(day).padStart(2, '0')}`,
+                    total: isActive ? 1 : 0,
+                    minor: 0,
+                    moderate: 0,
+                    severe: 0,
+                    critical: isActive ? 1 : 0,
+                };
+            });
+            const sparseReport = {
+                ...julyReports[0],
+                _id: 'sep-1',
+                createdAt: '2026-09-05T10:00:00',
+                updatedAt: '2026-09-05T10:00:00',
+                severity: 'critical',
+            };
+            render(
+                <DashboardAnalyticsWorkspace
+                    {...baseProps}
+                    selectedMonth={september}
+                    reports={[sparseReport]}
+                    allReports={[sparseReport]}
+                    chartData={sparseTrend}
+                />
+            );
+
+            expect(screen.queryByTestId('incident-bar-chart')).not.toBeInTheDocument();
+            const daysList = screen.getByTestId('incident-days-list');
+            expect(within(daysList).getByText('Sep 5, 2026')).toBeInTheDocument();
+            expect(within(daysList).getByText('1 report')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Filter map to Sep 5, 2026, 1 report' }));
+            expect(screen.getByText('Showing Sep 5')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Filter map to Sep 5, 2026, 1 report' }));
+            expect(screen.queryByText('Showing Sep 5')).not.toBeInTheDocument();
         });
     });
 });

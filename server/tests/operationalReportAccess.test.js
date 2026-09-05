@@ -131,6 +131,22 @@ describe('operational report DTOs', () => {
         expect(summary.transferHistory).toBeUndefined();
     });
 
+    test('exposes a names-only transfer trail on summaries for queue provenance', () => {
+        const transferred = {
+            ...verifiedReport,
+            municipalityName: 'Magdiwang',
+            originalMunicipalityName: 'Cajidiocan',
+            transferHistory: [
+                { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', reason: 'Mutual aid', transferredBy: 'admin-1' },
+            ],
+        };
+        const summary = toOperationalReportSummary(transferred);
+        expect(summary.transferHistory).toBeUndefined();
+        expect(summary.transferTrail).toEqual([
+            { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang' },
+        ]);
+    });
+
     test('returns allowlisted full details and conditionally exposes contact and admin-only reasons', () => {
         const responderView = toOperationalReport(verifiedReport);
         expect(responderView.detailCompleteness).toBe('full');

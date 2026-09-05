@@ -1,10 +1,16 @@
 import hotToast from 'react-hot-toast';
 
-export const APP_TOAST_DURATION_MS = 3000;
+export const APP_TOAST_DURATION_MS = 2500;
 export const APP_TOAST_ID = 'app-notification';
 const DEDUPE_WINDOW_MS = APP_TOAST_DURATION_MS;
 
 const recentlyShown = new Map();
+
+// Message currently occupying the singleton slot (null when empty/unknown).
+// Lets callers dismiss their own transient toast without killing a newer
+// alert that replaced it — same-id updates restart the 3s clock, so a
+// greeting would otherwise linger through every post-login toast burst.
+let activeMessage = null;
 
 const pruneDedupeCache = (now) => {
     recentlyShown.forEach((timestamp, key) => {
@@ -38,6 +44,7 @@ const normalizeOptions = (options = {}) => {
 
 const show = (type, message, options = {}) => {
     if (shouldSuppress(type, message, options.dedupeKey)) return APP_TOAST_ID;
+    activeMessage = message;
     const normalized = normalizeOptions(options);
     if (type === 'default') return hotToast(message, normalized);
     if (typeof hotToast[type] !== 'function') return hotToast(message, normalized);
@@ -52,6 +59,20 @@ appToast.loading = (message, options = {}) => show('loading', message, options);
 appToast.dismiss = () => hotToast.dismiss(APP_TOAST_ID);
 appToast.remove = () => hotToast.remove(APP_TOAST_ID);
 
-export const resetToastDedupeForTests = () => recentlyShown.clear();
+export const resetToastDedupeForTests = () => {
+    recentlyShown.clear();
+    activeMessage = null;
+};
+
+/**
+ * Dismisses the slot only when it still shows `message`. A newer alert that
+ * replaced it is left untouched to live out its own duration.
+ */
+export const dismissActiveToast = (message) => {
+    if (activeMessage === message) {
+        activeMessage = null;
+        hotToast.dismiss(APP_TOAST_ID);
+    }
+};
 
 export default appToast;

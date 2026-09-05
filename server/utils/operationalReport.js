@@ -113,6 +113,15 @@ export const toOperationalReportSummary = (report) => {
         evidenceCount: evidence.evidenceCount,
         updateCount: Array.isArray(source.reportUpdates) ? source.reportUpdates.length : 0,
         transferCount: Array.isArray(source.transferHistory) ? source.transferHistory.length : 0,
+        // Names-only transfer trail (no reasons, actors, or timestamps) so
+        // queue rows can show provenance and gate origin-only actions.
+        transferTrail: (source.transferHistory || []).map((entry) => {
+            const value = toPlainObject(entry);
+            return {
+                fromMunicipalityName: value.fromMunicipalityName || '',
+                toMunicipalityName: value.toMunicipalityName || '',
+            };
+        }),
         detailAccess: 'operational',
         detailCompleteness: 'summary',
     };

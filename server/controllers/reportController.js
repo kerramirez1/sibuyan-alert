@@ -1034,7 +1034,9 @@ export const getStats = async (req, res) => {
             ]),
             Report.aggregate([
                 { $match: matchQuery },
-                { $group: { _id: '$municipalityName', count: { $sum: 1 } } },
+                // Event-based: group where the incident happened (origin),
+                // not which office currently handles it after a transfer.
+                { $group: { _id: { $ifNull: ['$originalMunicipalityName', '$municipalityName'] }, count: { $sum: 1 } } },
             ]),
         ]);
 

@@ -15,6 +15,7 @@ vi.mock('react-hot-toast', () => ({ default: mocks.hotToast }));
 import toast, {
     APP_TOAST_DURATION_MS,
     APP_TOAST_ID,
+    dismissActiveToast,
     resetToastDedupeForTests,
 } from '../utils/appToast';
 
@@ -75,5 +76,22 @@ describe('application toast policy', () => {
 
         expect(mocks.hotToast.dismiss).toHaveBeenCalledWith(APP_TOAST_ID);
         expect(mocks.hotToast.remove).toHaveBeenCalledWith(APP_TOAST_ID);
+    });
+
+    test('dismissActiveToast clears only the message still on screen', () => {
+        toast.success('Welcome back, Ana!');
+        dismissActiveToast('Welcome back, Ana!');
+
+        expect(mocks.hotToast.dismiss).toHaveBeenCalledWith(APP_TOAST_ID);
+    });
+
+    test('dismissActiveToast spares a newer alert that replaced the greeting', () => {
+        toast.success('Welcome back, Ana!');
+        mocks.hotToast.dismiss.mockClear();
+
+        toast.error('New verified incident');
+        dismissActiveToast('Welcome back, Ana!');
+
+        expect(mocks.hotToast.dismiss).not.toHaveBeenCalled();
     });
 });

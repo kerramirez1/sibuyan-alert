@@ -95,11 +95,33 @@ export const isWithinResponderScope = (user, report) => {
 
 export const isWithinMunicipalAdminScope = (user, report) => {
     if (!ADMIN_ROLES.includes(user?.role)) return false;
-    if (!user?.assignedMunicipality) return true;
+    if (!user.assignedMunicipality) return true;
     const assignedMunicipality = user.assignedMunicipality.trim().toLocaleLowerCase();
     const reportMunicipality = report?.municipalityName?.trim().toLocaleLowerCase();
     return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
 };
+
+export const isTransferOriginMunicipality = (user, report) => {
+    if (!ADMIN_ROLES.includes(user?.role) || !user.assignedMunicipality || !report) return false;
+    const assigned = user.assignedMunicipality.trim().toLocaleLowerCase();
+    const history = Array.isArray(report.transferHistory) && report.transferHistory.length > 0
+        ? report.transferHistory
+        : report.transferTrail;
+    const origins = [
+        report.originalMunicipalityName,
+        ...(Array.isArray(history)
+            ? history.map((entry) => entry?.fromMunicipalityName)
+            : []),
+    ]
+        .filter(Boolean)
+        .map((name) => String(name).trim().toLocaleLowerCase());
+    return origins.includes(assigned);
+};
+
+const hasTransferTrail = (report) => (
+    (Array.isArray(report?.transferHistory) && report.transferHistory.length > 0)
+    || (Array.isArray(report?.transferTrail) && report.transferTrail.length > 0)
+);
 
 export const getIncidentCapabilities = (user, report) => {
     const isAdmin = ADMIN_ROLES.includes(user?.role);
@@ -123,6 +145,14 @@ export const getIncidentCapabilities = (user, report) => {
         canTransfer: isAdmin && withinAdminScope && ADMIN_TRANSFERABLE_STATUSES.includes(status),
         canAcknowledgeTransfer: isTargetMunicipalAdmin && !latestTransfer?.acknowledgedAt,
         canDelete: isAdmin && withinAdminScope && Boolean(report),
+        // Origin admin may remove a transferred-out read-only copy from their
+        // own queue at any downstream status (an acknowledged transfer keeps
+        // e.g. responding/resolved). The owning municipality is unaffected
+        // (server-enforced).
+        canDismiss: isAdmin
+            && !withinAdminScope
+            && hasTransferTrail(report)
+            && isTransferOriginMunicipality(user, report),
         canRespond: isResponder
             && withinResponderScope
             && RESPONDER_ACTIONABLE_STATUSES.includes(status)

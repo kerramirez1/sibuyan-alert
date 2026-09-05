@@ -254,6 +254,27 @@ const useIncidentActions = ({
         }
     }, [closeDetails, refreshReports, removeReport, user]);
 
+    const dismissReport = useCallback(async (report) => {
+        if (!getIncidentCapabilities(user, report).canDismiss) {
+            toast.error('Only the originating municipality can remove a transferred report from its queue.');
+            return;
+        }
+        if (!window.confirm('Remove this transferred report from your queue? The owning municipality keeps full access.')) return;
+
+        setDeleteLoadingId(report._id);
+        try {
+            const response = await adminAPI.dismissReport(report._id);
+            removeReport(report._id);
+            closeDetails(report._id);
+            toast.success(response.data?.message || 'Report removed from your queue');
+            await refreshReports({ silent: true });
+        } catch (error) {
+            toast.error(getApiError(error, 'Failed to remove report from queue'));
+        } finally {
+            setDeleteLoadingId(null);
+        }
+    }, [closeDetails, refreshReports, removeReport, user]);
+
     return {
         reviewDialog,
         setReviewDialog,
@@ -283,6 +304,7 @@ const useIncidentActions = ({
         openTransfer,
         acknowledgeTransfer,
         deleteReport,
+        dismissReport,
     };
 };
 

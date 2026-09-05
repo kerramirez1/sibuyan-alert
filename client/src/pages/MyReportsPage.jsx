@@ -8,6 +8,7 @@ import {
     HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
+import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -66,7 +67,7 @@ const formatIncidentType = (report) => (
 
 const getLocation = (report) => (
     report?.address
-    || [report?.barangay, report?.municipalityName].filter(Boolean).join(', ')
+    || [report?.barangay, getPhysicalMunicipality(report)].filter(Boolean).join(', ')
     || 'Location unavailable'
 );
 

@@ -123,10 +123,14 @@ export const getTrendInsight = (chartData = [], { selectedMonth, prevMonthCount 
             ? format(new Date(month.getFullYear(), month.getMonth() - 1, 1), 'MMM')
             : 'prev. month';
         const diff = total - prevMonthCount;
-        delta = {
-            diff,
-            label: `${diff > 0 ? '+' : ''}${diff} vs ${prevLabel}`,
-        };
+        // Plain words instead of signed arithmetic: "-3 vs Aug" reads as an
+        // error code, "3 fewer than August" reads as a sentence.
+        const label = diff > 0
+            ? `${diff} more than ${prevLabel}`
+            : diff < 0
+                ? `${-diff} fewer than ${prevLabel}`
+                : `No change vs ${prevLabel}`;
+        delta = { diff, label };
     }
 
     return { total, peak, quietDays, delta };

@@ -112,7 +112,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                             type="button"
                             onClick={actions.closeTransfer}
                             disabled={actions.transferLoading}
-                            className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                            className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                         >
                             Cancel
                         </button>
@@ -120,7 +120,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                             type="button"
                             onClick={actions.confirmTransfer}
                             disabled={transferInvalid || actions.transferLoading}
-                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-violet-600 dark:hover:bg-violet-500"
+                            className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-violet-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-violet-600 dark:hover:bg-violet-500"
                         >
                             {actions.transferLoading ? (
                                 <>
@@ -200,7 +200,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.closeReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                             >
                                 Cancel
                             </button>
@@ -208,7 +208,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.confirmReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-wait disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-wait disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                             >
                                 {actions.reviewLoading ? (
                                     <>
@@ -262,7 +262,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.closeReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                             >
                                 Cancel
                             </button>
@@ -270,7 +270,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.confirmReview}
                                 disabled={rejectionInvalid || actions.reviewLoading}
-                                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-red-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-red-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
                             >
                                 {actions.reviewLoading ? (
                                     <>
@@ -296,7 +296,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openReview?.(report, 'verified')}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
+                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
                             title="Verify report"
                             aria-label="Verify report"
                         >
@@ -308,7 +308,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openReview?.(report, 'rejected')}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 text-[13px] font-medium text-red-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-red-400 dark:hover:bg-white/10 sm:flex-initial"
+                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 text-[13px] font-medium text-red-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-red-400 dark:hover:bg-white/10 sm:flex-initial"
                             title="Reject report"
                             aria-label="Reject report"
                         >
@@ -321,7 +321,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                             type="button"
                             onClick={() => actions?.acknowledgeTransfer?.(report)}
                             disabled={actions?.acknowledgeLoadingId === report._id}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-violet-200/90 bg-violet-50/80 px-4 text-[13px] font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
+                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-lg border border-violet-200/90 bg-violet-50/80 px-4 text-[13px] font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
                             title="Acknowledge transfer"
                             aria-label="Acknowledge transfer"
                         >
@@ -333,7 +333,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openTransfer?.(report)}
-                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-violet-200/90 bg-violet-50/80 px-4 text-[13px] font-medium text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
+                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-lg border border-violet-200/90 bg-violet-50/80 px-4 text-[13px] font-medium text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400 sm:flex-initial"
                             title="Transfer report"
                             aria-label="Transfer report"
                         >
@@ -508,7 +508,7 @@ const ResponderIncidentInspector = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onClose()}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white sm:h-9 sm:w-9"
                     aria-label="Close incident details"
                 >
                     <HiOutlineX className="h-5 w-5" aria-hidden="true" />

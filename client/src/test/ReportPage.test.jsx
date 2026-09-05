@@ -152,7 +152,7 @@ describe('ReportPage workflow', () => {
         await waitFor(() => expect(barangayInput).toHaveValue(''));
         expect(toastMock.error).toHaveBeenCalledWith(
             expect.stringMatching(/barangay could not be verified/i),
-            expect.objectContaining({ id: 'app-notification', duration: 3000 })
+            expect.objectContaining({ id: 'app-notification', duration: 2500 })
         );
     });
 

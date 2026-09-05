@@ -1,6 +1,6 @@
 import { HiOutlineArrowRight, HiOutlineLocationMarker } from 'react-icons/hi';
 import MapView from '../map/MapView';
-import { getTransferOrigin } from '../../utils/incidentDetails';
+import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { getCoordinates } from '../adminReports/incidentReportConfig';
 
 const IncidentDetailsLocationSection = ({
@@ -8,11 +8,11 @@ const IncidentDetailsLocationSection = ({
     userRole = 'guest',
     showCoordinates = false,
     onOpenMap,
+    transferLine = '',
     className = '',
 }) => {
     const coordinates = getCoordinates(report);
-    const municipality = report.municipalityName || report.municipality?.name || '';
-    const transferOrigin = getTransferOrigin(report);
+    const municipality = getPhysicalMunicipality(report) || report.municipality?.name || '';
     const locationTitle = report.address || [report.barangay, municipality].filter(Boolean).join(', ') || 'Incident details';
     const locationContext = [report.barangay, municipality]
         .filter(Boolean)
@@ -33,8 +33,8 @@ const IncidentDetailsLocationSection = ({
                     {locationContext && locationContext !== locationTitle && (
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{locationContext}</p>
                     )}
-                    {transferOrigin && (
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Transferred from {transferOrigin}</p>
+                    {transferLine && (
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{transferLine}</p>
                     )}
                     {showCoordinates && (
                         <p className="mt-0.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">

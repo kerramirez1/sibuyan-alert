@@ -225,6 +225,14 @@ const reportSchema = new mongoose.Schema(
             default: 'pending',
         },
 
+        // Municipalities that dismissed their read-only transferred copy.
+        // The record itself is untouched — only its visibility in the
+        // dismissing municipality's queue is removed.
+        hiddenFromMunicipalities: {
+            type: [String],
+            default: [],
+        },
+
         // Verification
         verifiedBy: {
             type: mongoose.Schema.Types.ObjectId,

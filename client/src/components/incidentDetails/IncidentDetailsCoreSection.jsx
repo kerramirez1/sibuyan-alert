@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { formatIncidentLabel, normalizeCasualties } from '../../utils/incidentDetails';
+import { formatIncidentLabel, getPhysicalMunicipality, normalizeCasualties } from '../../utils/incidentDetails';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
@@ -100,7 +100,7 @@ const IncidentDetailsCoreSection = ({
     const incidentType = formatIncidentLabel(
         report.incidentType || report.accidentType || report.incidentCategory,
     );
-    const municipality = report.municipalityName || report.municipality?.name || '';
+    const municipality = getPhysicalMunicipality(report) || report.municipality?.name || '';
     const barangay = report.barangay || 'Not specified';
     const respondingAgency = getRespondingAgencyText(report);
 

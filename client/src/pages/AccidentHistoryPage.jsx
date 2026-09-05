@@ -12,6 +12,7 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
+import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
@@ -953,13 +954,13 @@ const AccidentHistoryPage = () => {
                                                     </p>
                                                 </div>
                                                 <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 pl-5">
-                                                    {[report.barangay, report.municipalityName].filter(Boolean).join(', ') || 'Location not provided'}
+                                                    {[report.barangay, getPhysicalMunicipality(report)].filter(Boolean).join(', ') || 'Location not provided'}
                                                 </p>
                                                 <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 md:hidden pl-5">Incident {formatDate(incidentDate)}</p>
                                             </div>
 
                                             <div className="hidden md:flex md:items-center text-xs text-gray-700 dark:text-gray-300 font-semibold">
-                                                <span className="truncate">{report.municipalityName || 'Unknown'}</span>
+                                                <span className="truncate">{getPhysicalMunicipality(report) || 'Unknown'}</span>
                                             </div>
 
                                             <div className="hidden md:block text-xs text-gray-600 dark:text-gray-300">
@@ -998,7 +999,7 @@ const AccidentHistoryPage = () => {
                                                         ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a')],
                                                         ['Barangay', report.barangay || 'Not available'],
                                                         ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a')],
-                                                        ['Municipality', report.municipalityName || 'Not available'],
+                                                        ['Municipality', getPhysicalMunicipality(report) || 'Not available'],
                                                         ['Casualties', casualtyCount ? `${dossierInjured} injured, ${dossierFatalities} fatal, ${dossierMissing} missing` : 'None recorded'],
                                                         ...(canViewFullDetails ? [
                                                             ['Coordinates', getCoordinates(report)],

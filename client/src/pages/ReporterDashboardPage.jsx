@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '../router';
 import { useSocket } from '../context/SocketContext';
 import { reportsAPI } from '../services/api';
+import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { formatDistanceToNow } from 'date-fns';
 import {
     HiCheck,
@@ -50,7 +51,7 @@ const formatIncidentType = (report) => (
 
 const getLocation = (report) => (
     report?.address
-    || [report?.barangay, report?.municipalityName].filter(Boolean).join(', ')
+    || [report?.barangay, getPhysicalMunicipality(report)].filter(Boolean).join(', ')
     || 'Location unavailable'
 );
 

@@ -4,6 +4,7 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    LabelList,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -16,6 +17,7 @@ import {
 import MapView from '../map/MapView';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { countReportsInMonth, filterReportsByDayKey, getTrendInsight } from '../../utils/analyticsTrend';
+import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getFilteredMapReports } from '../../utils/mapReports';
 
@@ -80,10 +82,37 @@ const EmptyChart = ({ message = 'No data for the selected period', detail }) => 
     </div>
 );
 
+const SEVERITY_STACK_ORDER = ['minor', 'moderate', 'severe', 'critical'];
+
+/**
+ * Draws the day total once, on top of the highest non-zero stack segment.
+ * Returns null for empty days and for non-top segments so dense months stay
+ * readable without duplicated labels.
+ */
+const renderStackTotalLabel = (barKey) => ({ x, y, width, payload }) => {
+    const total = Number(payload?.total) || 0;
+    if (total <= 0 || typeof x !== 'number' || typeof y !== 'number') return null;
+    const topKey = [...SEVERITY_STACK_ORDER].reverse().find((key) => (Number(payload?.[key]) || 0) > 0);
+    if (topKey !== barKey) return null;
+    return (
+        <text x={x + (width || 0) / 2} y={Math.max(y - 4, 9)} textAnchor="middle" fontSize={10} fontWeight={700} fill="var(--chart-axis)">
+            {total}
+        </text>
+    );
+};
+
+const dominantSeverityFill = (day) => {
+    const top = [...SEVERITY_STACK_ORDER].reverse().find((key) => (Number(day?.[key]) || 0) > 0);
+    return SEVERITY_SERIES.find(({ key }) => key === top)?.fill || '#9CA3AF';
+};
+
 const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, selectedDay, onSelectDay }) => {
     const activeDays = chartData.filter((day) => day.total > 0);
     const summaryId = useId();
     const hasTrendData = activeDays.length > 0;
+    // A full month with almost nothing in it reads as a broken chart, so list
+    // the active days instead. Short excerpts (drill-downs, tests) keep bars.
+    const isSparseTrend = hasTrendData && chartData.length >= 28 && activeDays.length <= 2;
     const insight = getTrendInsight(chartData, { selectedMonth, prevMonthCount });
     const presentSeverities = SEVERITY_SERIES.filter(({ key }) => chartData.some((day) => (Number(day?.[key]) || 0) > 0));
     const reportLabel = `${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`;
@@ -99,6 +128,11 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
     const handleBarClick = (datum) => {
         if (!datum || (Number(datum.total) || 0) <= 0 || typeof onSelectDay !== 'function') return;
         onSelectDay(datum.dayKey === selectedDay ? null : datum.dayKey);
+    };
+
+    const handleDaySelect = (day) => {
+        if (!day || typeof onSelectDay !== 'function') return;
+        onSelectDay(day.dayKey === selectedDay ? null : day.dayKey);
     };
 
     return (
@@ -123,10 +157,11 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                                 >
                                     {insight.peak.label}
                                 </button>
+                                <span className="tabular-nums"> ({insight.peak.count})</span>
                             </>
                         )}
                         {insight.total > 0 && insight.quietDays > 0 && (
-                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'}</span>
+                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {chartData.length}</span>
                         )}
                         {insight.delta && (
                             <span className="tabular-nums"> · {insight.delta.label}</span>
@@ -154,6 +189,32 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                             : 'Some reports could not be plotted because their timestamps are missing or invalid.'}
                     />
                 </div>
+            ) : isSparseTrend ? (
+                <div className="mt-3">
+                    <p id={summaryId} className="sr-only">
+                        {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
+                    </p>
+                    <ul data-testid="incident-days-list" className="divide-y divide-gray-100 dark:divide-white/5">
+                        {activeDays.map((day) => {
+                            const isSelected = day.dayKey === selectedDay;
+                            return (
+                                <li key={day.dayKey}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDaySelect(day)}
+                                        aria-pressed={isSelected}
+                                        aria-label={`Filter map to ${day.fullDate}, ${day.total} ${day.total === 1 ? 'report' : 'reports'}`}
+                                        className={`flex w-full items-center gap-2.5 py-2.5 text-left ${isSelected ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}
+                                    >
+                                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dominantSeverityFill(day) }} aria-hidden="true" />
+                                        <span className="min-w-0 flex-1 truncate text-sm">{day.fullDate}</span>
+                                        <span className="shrink-0 text-sm tabular-nums">{day.total} {day.total === 1 ? 'report' : 'reports'}</span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
             ) : (
                 <div className="mt-3">
                     <p id={summaryId} className="sr-only">
@@ -166,15 +227,16 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} data-testid="incident-bar-chart" margin={{ top: 6, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
+                            <BarChart data={chartData} data-testid="incident-bar-chart" margin={{ top: 12, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
                                 <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
-                                    tickFormatter={formatXAxisDay}
-                                    interval={6}
+                                    tickFormatter={(value, index) => (index === 0 ? value : formatXAxisDay(value))}
+                                    interval="preserveStartEnd"
+                                    minTickGap={24}
                                     dy={6}
                                 />
                                 <YAxis
@@ -194,11 +256,16 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                                         fill={fill}
                                         isAnimationActive={false}
                                         onClick={handleBarClick}
-                                    />
+                                    >
+                                        <LabelList dataKey="total" content={renderStackTotalLabel(key)} />
+                                    </Bar>
                                 ))}
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+                    <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                        Select a bar to filter the map.
+                    </p>
                 </div>
             )}
         </div>
@@ -764,7 +831,7 @@ const DashboardAnalyticsWorkspace = ({
                                             {reportItem.address || reportItem.title || 'Location unavailable'}
                                         </p>
                                         <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
-                                            {reportItem.municipalityName || 'Unknown municipality'}
+                                            {getPhysicalMunicipality(reportItem) || 'Unknown municipality'}
                                             <span aria-hidden="true"> · </span>
                                             {reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
                                             <span aria-hidden="true"> · </span>

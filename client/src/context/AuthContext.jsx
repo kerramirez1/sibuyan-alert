@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from '../router';
 import api from '../services/api';
-import toast from '../utils/appToast';
+import toast, { dismissActiveToast } from '../utils/appToast';
 import {
     getPushState,
     subscribeToPush,
@@ -111,10 +111,16 @@ export const AuthProvider = ({ children }) => {
             }
             setUser(user);
 
-            toast.success(`Welcome back, ${user.name}!`);
+            const greeting = `Welcome back, ${user.name}!`;
+            toast.success(greeting);
 
             const targetDestination = resolvePostLoginRedirect(user, requestedTarget);
             navigate(targetDestination);
+            // The greeting served its purpose once navigation starts. Clear it
+            // on a short timer so post-login toast bursts (map fallback, socket
+            // alerts) can't chain its 3s clock — but only if nothing newer
+            // replaced it, so real alerts are never cut short.
+            setTimeout(() => dismissActiveToast(greeting), 2500);
 
             return { success: true };
         } catch (error) {

@@ -14,11 +14,10 @@ import {
     HiOutlineX,
     HiOutlineGlobe,
     HiOutlineClock,
-    HiOutlineChevronRight,
     HiOutlineChartBar,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950';
+const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-emerald-500 bg-brand-900/40 text-brand-100'
     : 'border-transparent text-brand-300/60 hover:bg-brand-900/20 hover:text-brand-100'}`;
@@ -116,7 +115,7 @@ const MainLayout = ({ children }) => {
                     <button
                         type="button"
                         aria-label="Close navigation menu"
-                        className="overlay-fade-in fixed inset-0 z-[90] bg-black/50 backdrop-blur-xs lg:hidden"
+                        className="overlay-fade-in fixed inset-0 z-[90] bg-black/50 lg:hidden"
                         onClick={closeDrawer}
                     />
                 )}
@@ -159,7 +158,7 @@ const MainLayout = ({ children }) => {
                             type="button"
                             onClick={closeDrawer}
                             aria-label="Close navigation menu"
-                            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:hidden"
+                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:hidden"
                         >
                             <HiOutlineX className="w-5 h-5" />
                         </button>
@@ -315,42 +314,41 @@ const MainLayout = ({ children }) => {
                                 <Link
                                     to="/profile"
                                     onClick={closeDrawer}
-                                    className="group flex min-w-0 items-center gap-2.5 rounded-lg border border-white/[0.06] bg-brand-900/20 p-2 transition-colors hover:border-white/[0.12] hover:bg-brand-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950"
+                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0"
                                     aria-label="Open profile settings"
                                     title={user?.assignedMunicipality ? `${user?.name} · ${getAccountContext(user)}` : user?.name}
                                 >
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-emerald-800/40 bg-emerald-950/80 p-0.5 text-xs font-bold text-emerald-100">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-950 text-[11px] font-bold text-emerald-100">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
                                                 alt={user.name}
-                                                className="h-full w-full object-cover rounded-xs"
+                                                className="h-full w-full object-cover"
                                             />
                                         ) : (
                                             user?.name?.charAt(0).toUpperCase() || 'U'
                                         )}
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-xs font-bold uppercase tracking-wider text-white group-hover:text-emerald-200 transition-colors">
+                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                        <p className="whitespace-nowrap text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
                                             {user?.name}
                                         </p>
-                                        <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-emerald-300/70">
+                                        <p className="mt-0.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-tight tracking-normal text-emerald-300/70">
                                             {getAccountContext(user)}
                                         </p>
                                     </div>
-                                    <HiOutlineChevronRight className="h-3.5 w-3.5 shrink-0 text-emerald-400/40 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-300" aria-hidden="true" />
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-9 w-full cursor-pointer items-center justify-start gap-2 rounded-md border border-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-300/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                    className="inline-flex min-h-9 w-full cursor-pointer items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-brand-300/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5"
                                 >
                                     <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     <span>Sign out</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="rounded-lg border border-white/[0.06] bg-brand-900/25 p-3">
+                            <div className="border-t border-white/[0.08] p-3">
                                 <div className="mb-2.5">
                                     <p className="text-[11px] font-semibold uppercase tracking-wider text-white">Guest mode</p>
                                     <p className="text-xs text-emerald-400/80">Public safety feed</p>
@@ -359,14 +357,14 @@ const MainLayout = ({ children }) => {
                                     <Link
                                         to="/login"
                                         onClick={closeDrawer}
-                                        className="flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950 sm:min-h-9"
                                     >
                                         Sign in
                                     </Link>
                                     <Link
                                         to="/register"
                                         onClick={closeDrawer}
-                                        className="flex min-h-9 w-full items-center justify-center rounded-lg border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950"
+                                        className="flex min-h-[44px] w-full items-center justify-center rounded-md border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950 sm:min-h-9"
                                     >
                                         Become a reporter
                                     </Link>

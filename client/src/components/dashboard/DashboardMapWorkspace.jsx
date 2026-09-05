@@ -30,6 +30,7 @@ import {
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { scheduleElementScroll } from '../../utils/mapNavigation';
+import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 
@@ -80,7 +81,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 {formatIncidentType(report)} <span aria-hidden="true">·</span> {status.label}
                             </p>
                             <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 break-words leading-normal">
-                                {report.municipalityName || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
+                                {getPhysicalMunicipality(report) || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
                             </p>
                         </div>
                         <div className="mt-2.5 flex min-h-8 items-center justify-between gap-3 border-t border-gray-100/80 pt-2 dark:border-white/5">

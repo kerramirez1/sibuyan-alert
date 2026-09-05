@@ -9,6 +9,7 @@ import {
     respondToReport,
     resolveReport,
     deleteReport,
+    dismissTransferredReport,
     deleteUser,
     getDashboardStats,
     transferReport,
@@ -56,5 +57,6 @@ router.put('/reports/:id/resolve', requireRole('responder'), validateResolveRepo
 router.put('/reports/:id/transfer', requireRole('municipal_admin'), validateTransferReport, transferReport);
 router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
 router.delete('/reports/:id', requireRole('municipal_admin'), validateMongoIdParam, deleteReport);
+router.post('/reports/:id/dismiss', requireRole('municipal_admin'), validateMongoIdParam, dismissTransferredReport);
 
 export default router;

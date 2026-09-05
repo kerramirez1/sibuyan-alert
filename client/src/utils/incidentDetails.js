@@ -97,6 +97,43 @@ export const getIncidentDetailViewModel = (report = {}) => {
 };
 
 /**
+ * Physical (event) municipality: where the incident actually happened.
+ * Transfer rewrites `municipalityName` to the handling office, so every
+ * location string must use this — never the handling municipality.
+ * Chain: origin snapshot → first transfer origin → current → ref object.
+ */
+export const getPhysicalMunicipality = (report = {}) => {
+    if (!report) return '';
+    const origin = report.originalMunicipalityName
+        || (Array.isArray(report.transferHistory) && report.transferHistory.length > 0
+            ? report.transferHistory[0]?.fromMunicipalityName
+            : report.transferTrail?.[0]?.fromMunicipalityName)
+        || report.municipalityName
+        || report.municipality?.name
+        || '';
+    return String(origin || '').trim();
+};
+
+/**
+ * Viewer-aware transfer line for detail views.
+ * - Origin office viewer ("mine, sent away") → "Transferred to {current}".
+ * - Report owner viewing their own incident → "Transferred to {current}".
+ * - Everyone else (target office, guests) → "Transferred from {origin}".
+ * Returns '' when there is no transfer to disclose.
+ */
+export const getTransferLine = (report = {}, viewer = {}) => {
+    const origin = getTransferOrigin(report);
+    if (!origin) return '';
+    const current = report?.municipalityName || report?.municipality?.name || '';
+    const assigned = viewer?.assignedMunicipality?.trim().toLowerCase() || '';
+    const isOriginViewer = Boolean(assigned) && assigned === origin.trim().toLowerCase();
+    if ((isOriginViewer || viewer?.isOwner) && current) {
+        return `Transferred to ${current}`;
+    }
+    return `Transferred from ${origin}`;
+};
+
+/**
  * Origin municipality for transferred incidents (display helper).
  *
  * Transfer rewrites the handling municipality so the receiving office owns
@@ -106,12 +143,15 @@ export const getIncidentDetailViewModel = (report = {}) => {
  * otherwise null (nothing to disambiguate).
  */
 export const getTransferOrigin = (report = {}) => {
-    if (!report || !Array.isArray(report.transferHistory) || report.transferHistory.length === 0) {
-        return null;
-    }
+    if (!report) return null;
+    // Summaries carry a names-only trail; full details carry transferHistory.
+    const history = Array.isArray(report.transferHistory) && report.transferHistory.length > 0
+        ? report.transferHistory
+        : report.transferTrail;
+    if (!Array.isArray(history) || history.length === 0) return null;
     const current = report.municipalityName || report.municipality?.name || '';
     const origin = report.originalMunicipalityName
-        || report.transferHistory[0]?.fromMunicipalityName
+        || history[0]?.fromMunicipalityName
         || '';
     if (!origin) return null;
     if (current && origin.toLowerCase() === current.toLowerCase()) return null;

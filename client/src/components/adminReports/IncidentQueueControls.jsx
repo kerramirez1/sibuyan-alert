@@ -171,12 +171,12 @@ const ResponderQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            className="h-11 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:h-9 sm:w-auto"
                     >
                         Search
                     </button>
@@ -184,7 +184,7 @@ const ResponderQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:h-9 sm:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                         >
                             <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
@@ -295,23 +295,23 @@ const IncidentQueueControls = ({
                     </p>
                     {stats && (
                         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">{resultCount} incident{resultCount === 1 ? '' : 's'}</span>
+                            <span className="whitespace-nowrap font-semibold text-gray-700 dark:text-gray-300">{resultCount} incident{resultCount === 1 ? '' : 's'}</span>
                             {isAdmin && (
                                 <>
                                     <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                                    <span className="inline-flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
                                         <span>{toCount(stats.pending)} pending review</span>
                                     </span>
                                 </>
                             )}
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
                                 <span>{toCount(stats.responding)} responding</span>
                             </span>
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                                 <span>{toCount(stats.resolved)} resolved</span>
                             </span>
@@ -319,18 +319,18 @@ const IncidentQueueControls = ({
                     )}
                 </div>
 
-                <div className="flex min-h-9 shrink-0 items-center gap-2 self-start text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex w-full flex-col gap-2 self-start text-xs text-gray-500 xs:w-auto xs:flex-row xs:items-center dark:text-gray-400">
                     {lastUpdatedLabel && (
                         <time dateTime={new Date(lastUpdatedAt).toISOString()} className="tabular-nums">
                             Last updated {lastUpdatedLabel}
                         </time>
                     )}
-                    {lastUpdatedLabel && <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>}
+                    {lastUpdatedLabel && <span aria-hidden="true" className="hidden text-gray-300 xs:inline dark:text-gray-700">&middot;</span>}
                     <button
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-wait disabled:opacity-60 sm:h-9 xs:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                     >
                         <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
@@ -354,12 +354,12 @@ const IncidentQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            className="h-11 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-white"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:h-9 sm:w-auto"
                     >
                         Search
                     </button>
@@ -367,7 +367,7 @@ const IncidentQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:h-9 sm:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                         >
                             <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
@@ -379,12 +379,12 @@ const IncidentQueueControls = ({
                     <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         Status
                     </span>
-                    <div className="flex min-w-0 flex-wrap gap-1.5" aria-label="Filter by status">
+                    <div className="flex min-w-0 flex-nowrap gap-1.5 overflow-x-auto overscroll-x-contain pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0" aria-label="Filter by status">
                         <button
                             type="button"
                             aria-pressed={status === ''}
                             onClick={() => setStatus('')}
-                            className={`h-8 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${status === ''
+                            className={`h-11 shrink-0 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:h-8 ${status === ''
                                 ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
                                 : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
                         >
@@ -399,7 +399,7 @@ const IncidentQueueControls = ({
                                     type="button"
                                     aria-pressed={active}
                                     onClick={() => setStatus(statusValue)}
-                                    className={`h-8 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${active
+                                    className={`h-11 shrink-0 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:h-8 ${active
                                         ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
                                         : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
                                 >

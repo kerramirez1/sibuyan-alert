@@ -401,10 +401,17 @@ export const getAllReports = async (req, res) => {
 
         const scopedMunicipality = admin.assignedMunicipality;
         const scopeClause = {
-            $or: [
-                { municipalityName: scopedMunicipality },
-                { originalMunicipalityName: scopedMunicipality },
-                { 'transferHistory.fromMunicipalityName': scopedMunicipality },
+            $and: [
+                {
+                    $or: [
+                        { municipalityName: scopedMunicipality },
+                        { originalMunicipalityName: scopedMunicipality },
+                        { 'transferHistory.fromMunicipalityName': scopedMunicipality },
+                    ],
+                },
+                // Read-only transferred copies an admin dismissed from their
+                // own queue. Missing field (legacy docs) still matches $ne.
+                { hiddenFromMunicipalities: { $ne: scopedMunicipality } },
             ],
         };
         query.$and = [scopeClause];
@@ -840,6 +847,80 @@ export const deleteReport = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to delete report',
+        });
+    }
+};
+
+/**
+ * @desc    Dismiss a transferred-out read-only copy from the origin
+ *          municipality's queue. The record itself is untouched, so the
+ *          owning (target) municipality keeps full operational access.
+ * @route   POST /api/admin/reports/:id/dismiss
+ * @access  Private (municipal_admin of an origin municipality only)
+ */
+export const dismissTransferredReport = async (req, res) => {
+    try {
+        const admin = req.user;
+        if (!admin.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this account',
+            });
+        }
+
+        const report = await Report.findById(req.params.id);
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found',
+            });
+        }
+
+        // Only read-only transferred-out copies qualify: the record must have
+        // transfer history (an acknowledged transfer keeps its downstream
+        // status like responding/resolved, so status alone can't gate this).
+        const hasTransferHistory = Array.isArray(report.transferHistory) && report.transferHistory.length > 0;
+        if (!hasTransferHistory) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only transferred reports can be dismissed from the queue',
+            });
+        }
+
+        if (report.municipalityName === admin.assignedMunicipality) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reports in your municipality must be managed or deleted, not dismissed',
+            });
+        }
+
+        const originMunicipalities = [
+            report.originalMunicipalityName,
+            ...(Array.isArray(report.transferHistory)
+                ? report.transferHistory.map((entry) => entry?.fromMunicipalityName)
+                : []),
+        ].filter(Boolean);
+        if (!originMunicipalities.includes(admin.assignedMunicipality)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only an origin municipality of this transfer can dismiss it',
+            });
+        }
+
+        await Report.updateOne(
+            { _id: report._id },
+            { $addToSet: { hiddenFromMunicipalities: admin.assignedMunicipality } }
+        );
+
+        res.json({
+            success: true,
+            message: 'Report removed from your queue. The owning municipality retains full access.',
+        });
+    } catch (error) {
+        console.error('Dismiss transferred report error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to dismiss report',
         });
     }
 };
@@ -1577,6 +1658,7 @@ export default {
     respondToReport,
     resolveReport,
     deleteReport,
+    dismissTransferredReport,
     deleteUser,
     getDashboardStats,
     transferReport,

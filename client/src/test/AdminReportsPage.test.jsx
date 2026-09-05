@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     transferReport: vi.fn(),
     acknowledgeTransfer: vi.fn(),
     deleteReport: vi.fn(),
+    dismissReport: vi.fn(),
     getMunicipalities: vi.fn(),
     markNotificationAsRead: vi.fn(),
     setUnreadCount: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock('../services/api', () => ({
         transferReport: mocks.transferReport,
         acknowledgeTransfer: mocks.acknowledgeTransfer,
         deleteReport: mocks.deleteReport,
+        dismissReport: mocks.dismissReport,
     },
     reportsAPI: { getMunicipalities: mocks.getMunicipalities },
     notificationsAPI: { markAsRead: mocks.markNotificationAsRead },
@@ -131,6 +133,7 @@ describe('AdminReportsPage operational queue', () => {
             mocks.transferReport,
             mocks.acknowledgeTransfer,
             mocks.deleteReport,
+            mocks.dismissReport,
             mocks.getMunicipalities,
             mocks.markNotificationAsRead,
             mocks.setUnreadCount,
@@ -153,6 +156,7 @@ describe('AdminReportsPage operational queue', () => {
         mocks.transferReport.mockResolvedValue({ data: { message: 'Incident transferred', data: { status: 'transferred' } } });
         mocks.acknowledgeTransfer.mockResolvedValue({ data: { message: 'Transfer acknowledged', data: { status: 'transferred' } } });
         mocks.deleteReport.mockResolvedValue({ data: { success: true } });
+        mocks.dismissReport.mockResolvedValue({ data: { success: true, message: 'Report removed from your queue' } });
         mocks.getMunicipalities.mockResolvedValue({ data: { data: [] } });
         mocks.markNotificationAsRead.mockResolvedValue({ data: { data: { unreadCount: 2 } } });
     });
@@ -413,6 +417,39 @@ describe('AdminReportsPage operational queue', () => {
         // they count transferred-out incidents the queue itself excludes.
         expect(screen.queryByText(/1 responding/)).not.toBeInTheDocument();
         expect(screen.queryByText(/1 resolved/)).not.toBeInTheDocument();
+    });
+
+    test('shows transfer provenance and lets the origin admin remove a transferred-out copy', async () => {
+        mocks.user = {
+            _id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        // Post-dismiss refresh returns an empty queue.
+        mocks.getReports.mockResolvedValueOnce(apiResponse([
+            createReport({
+                _id: 'transferred-out-1',
+                address: 'E. Quirino Street, Poblacion',
+                status: 'responding',
+                municipalityName: 'San Fernando',
+                originalMunicipalityName: 'Cajidiocan',
+                transferHistory: [{ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'San Fernando' }],
+            }),
+        ]));
+        mocks.getReports.mockResolvedValue(apiResponse([]));
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+        renderPage();
+
+        expect(await screen.findByText('E. Quirino Street, Poblacion')).toBeInTheDocument();
+        expect(screen.getByText('Transferred to San Fernando')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Delete report' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remove transferred report from queue' }));
+
+        await waitFor(() => expect(mocks.dismissReport).toHaveBeenCalledWith('transferred-out-1'));
+        await waitFor(() => expect(screen.queryByText('E. Quirino Street, Poblacion')).not.toBeInTheDocument());
+        confirmSpy.mockRestore();
     });
 
     test('renders responder incidents as one severity-first operational list', async () => {
@@ -842,7 +879,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(await screen.findAllByText('Transfer acknowledged')).not.toHaveLength(0);
         expect(mocks.toast.success).toHaveBeenCalledWith(
             'Transfer acknowledged successfully',
-            expect.objectContaining({ id: 'app-notification', duration: 3000 }),
+            expect.objectContaining({ id: 'app-notification', duration: 2500 }),
         );
     });
 

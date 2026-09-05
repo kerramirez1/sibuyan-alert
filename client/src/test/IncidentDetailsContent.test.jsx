@@ -106,7 +106,11 @@ describe('IncidentDetailsContent', () => {
         );
 
         expect(screen.getByText('Jurisdiction Transferred')).toBeInTheDocument();
-        expect(screen.getByText(/transferred to/i)).toBeInTheDocument();
+        // Banner + viewer-aware location line both address the origin admin.
+        expect(screen.getAllByText(/transferred to/i)).toHaveLength(2);
+        // Physical location stays with the origin despite the handling change.
+        expect(screen.getByText('Poblacion, Cajidiocan')).toBeInTheDocument();
+        expect(screen.queryByText('Poblacion, San Fernando')).not.toBeInTheDocument();
     });
 
     test('renders pending verification review banner for pending status', () => {

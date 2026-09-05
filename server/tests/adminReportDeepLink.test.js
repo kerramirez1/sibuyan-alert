@@ -78,10 +78,15 @@ describe('municipality-scoped incident notification deep links', () => {
         expect(Report.find).toHaveBeenCalledWith(expect.objectContaining({
             _id: reportId,
             $and: [{
-                $or: [
-                    { municipalityName: 'Cajidiocan' },
-                    { originalMunicipalityName: 'Cajidiocan' },
-                    { 'transferHistory.fromMunicipalityName': 'Cajidiocan' },
+                $and: [
+                    {
+                        $or: [
+                            { municipalityName: 'Cajidiocan' },
+                            { originalMunicipalityName: 'Cajidiocan' },
+                            { 'transferHistory.fromMunicipalityName': 'Cajidiocan' },
+                        ],
+                    },
+                    { hiddenFromMunicipalities: { $ne: 'Cajidiocan' } },
                 ],
             }],
         }));
@@ -116,10 +121,15 @@ describe('municipality-scoped incident notification deep links', () => {
             municipalityName: 'Magdiwang',
             $and: expect.arrayContaining([
                 {
-                    $or: [
-                        { municipalityName: 'Magdiwang' },
-                        { originalMunicipalityName: 'Magdiwang' },
-                        { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+                    $and: [
+                        {
+                            $or: [
+                                { municipalityName: 'Magdiwang' },
+                                { originalMunicipalityName: 'Magdiwang' },
+                                { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+                            ],
+                        },
+                        { hiddenFromMunicipalities: { $ne: 'Magdiwang' } },
                     ],
                 },
                 {
@@ -167,10 +177,15 @@ describe('municipality-scoped incident notification deep links', () => {
             municipalityName: 'Magdiwang',
             status: { $in: ['verified', 'transferred', 'responding'] },
             $and: [{
-                $or: [
-                    { municipalityName: 'Magdiwang' },
-                    { originalMunicipalityName: 'Magdiwang' },
-                    { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+                $and: [
+                    {
+                        $or: [
+                            { municipalityName: 'Magdiwang' },
+                            { originalMunicipalityName: 'Magdiwang' },
+                            { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+                        ],
+                    },
+                    { hiddenFromMunicipalities: { $ne: 'Magdiwang' } },
                 ],
             }],
         }));

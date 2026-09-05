@@ -119,7 +119,7 @@ describe('buildDailyIncidentTrend', () => {
         expect(insight.total).toBe(3);
         expect(insight.peak).toMatchObject({ label: 'Aug 8', dayKey: '2026-08-08', count: 2 });
         expect(insight.quietDays).toBe(1);
-        expect(insight.delta).toMatchObject({ diff: 2, label: '+2 vs Jul' });
+        expect(insight.delta).toMatchObject({ diff: 2, label: '2 more than Jul' });
     });
 
     test('omits peak and delta when there is nothing to compare', () => {

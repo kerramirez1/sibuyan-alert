@@ -60,6 +60,8 @@ describe('incidentReportConfig capabilities and jurisdiction', () => {
         expect(cajidiocanCaps.canTransfer).toBe(false);
         expect(cajidiocanCaps.canDelete).toBe(false);
         expect(cajidiocanCaps.canAcknowledgeTransfer).toBe(false);
+        // Origin admin may dismiss the read-only copy from their own queue
+        expect(cajidiocanCaps.canDismiss).toBe(true);
 
         // Magdiwang admin has operational authority
         const magdiwangCaps = getIncidentCapabilities(magdiwangAdmin, transferredReport);
@@ -67,6 +69,21 @@ describe('incidentReportConfig capabilities and jurisdiction', () => {
         expect(magdiwangCaps.canTransfer).toBe(true);
         expect(magdiwangCaps.canAcknowledgeTransfer).toBe(true);
         expect(magdiwangCaps.canDelete).toBe(true);
+        expect(magdiwangCaps.canDismiss).toBe(false);
+    });
+
+    test('grants dismiss from the names-only summary trail (no full history needed)', () => {
+        const cajidiocanAdmin = { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
+        const summaryShaped = {
+            _id: 'report-9',
+            status: 'responding',
+            municipalityName: 'San Fernando',
+            originalMunicipalityName: 'Cajidiocan',
+            transferTrail: [{ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'San Fernando' }],
+        };
+        const caps = getIncidentCapabilities(cajidiocanAdmin, summaryShaped);
+        expect(caps.canDelete).toBe(false);
+        expect(caps.canDismiss).toBe(true);
     });
 
     test('disables respond action for originating responders on transferred reports', () => {

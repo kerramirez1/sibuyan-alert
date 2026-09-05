@@ -78,7 +78,9 @@ export const getAdminAnalytics = async (req, res) => {
             Report.countDocuments({ ...reportFilter, createdAt: { $gte: thirtyDaysAgo } }),
             Report.aggregate([
                 { $match: reportFilter },
-                { $group: { _id: '$municipalityName', count: { $sum: 1 } } },
+                // Event-based: group where the incident happened (origin),
+                // not which office currently handles it after a transfer.
+                { $group: { _id: { $ifNull: ['$originalMunicipalityName', '$municipalityName'] }, count: { $sum: 1 } } },
             ]),
             Report.find(reportFilter).sort({ createdAt: -1 }).limit(5).populate('reporter', 'name'),
             User.find(userScopeFilter).sort({ createdAt: -1 }).limit(5).select('name email role createdAt'),

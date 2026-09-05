@@ -404,4 +404,38 @@ describe('AccidentHistoryPage features and filters', () => {
             element?.tagName === 'P' && element.textContent === 'Showing 3 of 3 records'
         ))).toBeInTheDocument();
     });
+
+    test('shows the physical municipality for transferred incidents, not the handling office', async () => {
+        mocks.getReports.mockResolvedValueOnce({
+            data: {
+                data: {
+                    reports: [
+                        {
+                            _id: 'transferred-1',
+                            status: 'resolved',
+                            incidentType: 'vehicular',
+                            address: '',
+                            barangay: 'Cambajao',
+                            municipalityName: 'San Fernando',
+                            originalMunicipalityName: 'Cajidiocan',
+                            transferHistory: [{ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'San Fernando' }],
+                            severity: 'moderate',
+                            resolvedAt: new Date().toISOString(),
+                            createdAt: new Date().toISOString(),
+                        },
+                    ],
+                },
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        expect(await screen.findByText('Cambajao, Cajidiocan')).toBeInTheDocument();
+        expect(screen.queryByText('Cambajao, San Fernando')).not.toBeInTheDocument();
+    });
 });

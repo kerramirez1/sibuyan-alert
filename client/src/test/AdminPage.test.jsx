@@ -201,4 +201,35 @@ describe('AdminPage municipal admin dashboard rendering', () => {
         expect(screen.getByText('Recent users')).toBeInTheDocument();
         expect(screen.getByText('Maria Santos')).toBeInTheDocument();
     });
+
+    test('caps the barangay breakdown at five rows with a view-all link', async () => {
+        mocks.getAdmin.mockResolvedValue({
+            data: {
+                data: {
+                    reports: { total: 20, pending: 0, thisMonth: 9, thisWeek: 2 },
+                    users: { total: 10, pendingVerifications: 0 },
+                    reportsByBarangay: [
+                        { barangay: 'B1', count: 7 },
+                        { barangay: 'B2', count: 6 },
+                        { barangay: 'B3', count: 5 },
+                        { barangay: 'B4', count: 4 },
+                        { barangay: 'B5', count: 3 },
+                        { barangay: 'B6', count: 2 },
+                        { barangay: 'B7', count: 1 },
+                    ],
+                    recentReports: [],
+                    recentUsers: [],
+                },
+            },
+        });
+
+        render(<AdminPage />);
+
+        expect(await screen.findByText('7 barangays recorded')).toBeInTheDocument();
+        expect(screen.getByText('B5')).toBeInTheDocument();
+        expect(screen.queryByText('B6')).not.toBeInTheDocument();
+        expect(screen.queryByText('B7')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'View all 7 barangays in analytics' }))
+            .toHaveAttribute('href', '/dashboard');
+    });
 });

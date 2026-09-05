@@ -18,6 +18,7 @@ import {
     SEVERITY_INDICATOR_STYLES,
 } from './incidentReportConfig';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
+import { getTransferOrigin } from '../../utils/incidentDetails';
 import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
 const formatRelativeTime = (value) => {
@@ -62,7 +63,7 @@ const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = 
             disabled={disabled}
             aria-label={compact ? label : undefined}
             title={compact ? label : undefined}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border bg-white text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:cursor-wait disabled:opacity-50 ${compact ? 'h-10 w-10 shrink-0 p-0' : 'min-h-10 w-full min-w-0 px-3 py-2'} ${tones[tone]}`}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border bg-white text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:cursor-wait disabled:opacity-50 ${compact ? 'h-11 w-11 shrink-0 p-0 sm:h-10 sm:w-10' : 'min-h-10 w-full min-w-0 px-3 py-3 sm:py-2'} ${tones[tone]}`}
         >
             <Icon className="h-4 w-4" aria-hidden="true" />
             {!compact && <span className="min-w-0 break-words text-center leading-tight">{label}</span>}
@@ -212,7 +213,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="inline-flex min-h-9 w-full items-center justify-start rounded-md px-2 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto"
+                className="inline-flex min-h-10 w-full items-center justify-start rounded-md px-2 py-1.5 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto sm:py-0.5"
             >
                 <span>Inspect report</span>
             </button>
@@ -222,7 +223,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.openReview(report, 'verified')}
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[13px] font-medium text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[13px] font-medium text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300"
                         title="Verify report"
                         aria-label="Verify report"
                     >
@@ -234,7 +235,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.openReview(report, 'rejected')}
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
                         title="Reject report"
                         aria-label="Reject report"
                     >
@@ -247,7 +248,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         type="button"
                         onClick={() => actions.acknowledgeTransfer(report)}
                         disabled={actions.acknowledgeLoadingId === report._id}
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[13px] font-medium text-violet-700 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[13px] font-medium text-violet-700 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
                         title="Acknowledge transfer"
                         aria-label="Acknowledge transfer"
                     >
@@ -259,7 +260,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.openTransfer(report)}
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                         title="Transfer report"
                         aria-label="Transfer report"
                     >
@@ -272,11 +273,23 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         type="button"
                         onClick={() => actions.deleteReport(report)}
                         disabled={actions.deleteLoadingId === report._id}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-400 hover:bg-gray-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-wait disabled:opacity-50 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-red-400"
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 hover:bg-gray-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-wait disabled:opacity-50 sm:h-9 sm:w-9 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-red-400"
                         title="Delete report"
                         aria-label="Delete report"
                     >
                         <HiOutlineTrash className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                )}
+                {capabilities.canDismiss && (
+                    <button
+                        type="button"
+                        onClick={() => actions.dismissReport(report)}
+                        disabled={actions.deleteLoadingId === report._id}
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg px-3 text-[13px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-wait disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                        title="Remove this transferred report from your queue"
+                        aria-label="Remove transferred report from queue"
+                    >
+                        <span>Remove</span>
                     </button>
                 )}
             </div>
@@ -295,7 +308,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="inline-flex min-h-10 w-full items-center justify-start rounded-md px-2 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto"
+                className="inline-flex min-h-10 w-full items-center justify-start rounded-md px-2 py-3 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto sm:py-0.5"
             >
                 <span>Inspect report</span>
             </button>
@@ -305,7 +318,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report._id}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-4 text-[13px] font-medium text-white hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 sm:w-auto"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-[13px] font-medium text-white hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 sm:w-auto"
                 >
                     <HiOutlineLightningBolt className="h-4 w-4" aria-hidden="true" />
                     {isResponding ? 'Join response' : 'Respond to incident'}
@@ -316,7 +329,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 <button
                     type="button"
                     onClick={() => actions.openResolve(report)}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 sm:w-auto"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 sm:w-auto"
                 >
                     <HiOutlineBadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                     Resolve incident
@@ -326,13 +339,23 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
     );
 };
 
-const IncidentListRow = ({ report, isSelected = false, actionSlot }) => {
+const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }) => {
     const latestUpdate = report.latestReporterUpdate
         || (Array.isArray(report.reportUpdates) ? report.reportUpdates[report.reportUpdates.length - 1] : null);
     const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate.tag) : null;
     const assignment = getResponderAssignment(report);
     const resolved = report.status === 'resolved';
     const incidentType = report.incidentType || report.incidentCategory || report.accidentType || 'Incident';
+    // Acknowledged transfers keep their downstream status (e.g. responding),
+    // so provenance needs its own line — the status badge alone can't show it.
+    // Origin viewers read "to", everyone else reads "from".
+    const transferOrigin = getTransferOrigin(report);
+    const viewerMunicipality = user?.assignedMunicipality?.trim().toLocaleLowerCase() || '';
+    const transferLine = transferOrigin
+        ? (viewerMunicipality && viewerMunicipality === transferOrigin.trim().toLocaleLowerCase()
+            ? `Transferred to ${report.municipalityName || 'another municipality'}`
+            : `Transferred from ${transferOrigin}`)
+        : '';
 
     return (
         <article
@@ -374,6 +397,13 @@ const IncidentListRow = ({ report, isSelected = false, actionSlot }) => {
 
             <TransferAcknowledgmentState report={report} neutral />
 
+            {transferLine && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden="true" />
+                    <span>{transferLine}</span>
+                </p>
+            )}
+
             {report.hasUnreadReporterUpdate && updateMeta && (
                 <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
                     <p className="text-xs font-semibold text-brand-800 dark:text-emerald-300">New reporter update &middot; {updateMeta.label}</p>
@@ -392,6 +422,7 @@ const ResponderIncidentRow = ({ report, user, actions, onInspect, isSelected = f
     return (
         <IncidentListRow
             report={report}
+            user={user}
             isSelected={isSelected}
             actionSlot={
                 <ResponderIncidentActions
@@ -410,6 +441,7 @@ const AdminIncidentRow = ({ report, user, actions, onInspect, isSelected = false
     return (
         <IncidentListRow
             report={report}
+            user={user}
             isSelected={isSelected}
             actionSlot={
                 <AdminIncidentActions
@@ -457,7 +489,7 @@ const IncidentPagination = ({ pagination, onPageChange }) => {
                     type="button"
                     onClick={() => onPageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                    className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                 >
                     Previous
                 </button>
@@ -465,7 +497,7 @@ const IncidentPagination = ({ pagination, onPageChange }) => {
                     type="button"
                     onClick={() => onPageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                    className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                 >
                     Next
                 </button>
@@ -501,7 +533,7 @@ const IncidentQueue = ({
                 <button
                     type="button"
                     onClick={onRetry}
-                    className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border border-red-300 bg-white px-4 text-[13px] font-medium text-red-800 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700"
+                    className="mt-4 inline-flex h-11 items-center justify-center rounded-lg border border-red-300 bg-white px-4 text-[13px] font-medium text-red-800 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 sm:h-9 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-gray-700"
                 >
                     Try again
                 </button>

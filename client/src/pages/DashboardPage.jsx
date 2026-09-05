@@ -16,6 +16,7 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getMapCoordinates } from '../utils/mapReports';
+import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
@@ -664,11 +665,12 @@ const DashboardPage = () => {
 
 
 
-    // Municipality breakdown for bar chart
+    // Municipality breakdown for bar chart (event-based: where it happened,
+    // not which office currently handles it)
     const municipalityBarData = useMemo(() => {
         const counts = {};
         monthFilteredReports.forEach(r => {
-            const name = r.municipalityName || 'Unknown';
+            const name = getPhysicalMunicipality(r) || 'Unknown';
             counts[name] = (counts[name] || 0) + 1;
         });
         return Object.entries(counts)
@@ -681,9 +683,10 @@ const DashboardPage = () => {
         const counts = {};
         monthFilteredReports.forEach(r => {
             if (r.barangay) {
+                const physicalMunicipality = getPhysicalMunicipality(r);
                 const name = activeMunicipality
                     ? r.barangay
-                    : `${r.barangay}${r.municipalityName ? ` (${r.municipalityName})` : ''}`;
+                    : `${r.barangay}${physicalMunicipality ? ` (${physicalMunicipality})` : ''}`;
                 counts[name] = (counts[name] || 0) + 1;
             }
         });

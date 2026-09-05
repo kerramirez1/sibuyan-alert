@@ -53,6 +53,7 @@ vi.mock('../utils/appToast', () => ({
         success: vi.fn(),
         error: vi.fn(),
     },
+    dismissActiveToast: vi.fn(),
 }));
 
 vi.mock('../components/ui/NotificationBell', () => ({

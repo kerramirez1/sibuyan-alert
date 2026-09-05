@@ -23,7 +23,7 @@ ReactDOM.createRoot(rootElement).render(
                         <Toaster
                         position="top-right"
                         toastOptions={{
-                            duration: 3000,
+                            duration: 2500,
                             className: 'app-toast',
                             style: {
                                 background: 'var(--surface-elevated)',

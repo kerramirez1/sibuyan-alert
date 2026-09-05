@@ -140,6 +140,7 @@ describe('getOperationalReportById view counting', () => {
             casualties: { injured: 0, fatalities: 0, missing: 0 },
         };
         const populate = jest.fn();
+        // eslint-disable-next-line unicorn/no-thenable -- intentional chainable test double
         const chain = { populate, then: (resolve) => resolve(report) };
         populate.mockReturnValue(chain);
         Report.findById.mockReturnValue(chain);

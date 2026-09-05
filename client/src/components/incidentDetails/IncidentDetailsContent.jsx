@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { HiOutlineExclamationCircle, HiOutlineRefresh } from 'react-icons/hi';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
+import { getTransferLine } from '../../utils/incidentDetails';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import IncidentDetailsLocationSection from './IncidentDetailsLocationSection';
 import IncidentDetailsCoreSection from './IncidentDetailsCoreSection';
@@ -200,6 +201,10 @@ const IncidentDetailsContent = ({
                 userRole={role}
                 showCoordinates={visibility.showCoordinates}
                 onOpenMap={onOpenMap}
+                transferLine={getTransferLine(report, {
+                    assignedMunicipality: user?.assignedMunicipality,
+                    isOwner,
+                })}
             />
 
             {/* 4. Evidence Photos (when permitted) */}
