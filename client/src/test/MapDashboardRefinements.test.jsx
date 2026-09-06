@@ -142,11 +142,6 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 fatalities: 0,
                 missing: 0,
             },
-            affectedArea: {
-                householdsAffected: 0,
-                evacuees: 0,
-                radius: 50,
-            },
             evidence: {
                 count: 1,
                 viewerAccess: 'redacted',
@@ -193,12 +188,11 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             // 4. Description
             expect(screen.getByText(/Two motorcycles collided at the junction/i)).toBeInTheDocument();
 
-            // 5. Casualties in 3-column grid without affected area section
+            // 5. Casualties in 3-column grid
             expect(screen.getByText('Injured')).toBeInTheDocument();
             expect(screen.getByText('2')).toBeInTheDocument();
             expect(screen.getByText('Fatalities')).toBeInTheDocument();
             expect(screen.getByText('Missing')).toBeInTheDocument();
-            expect(screen.queryByText(/50 meters/i)).not.toBeInTheDocument();
 
             // 6. Privacy notice and no redundant action buttons
             expect(screen.getByText(/Personal identities and original evidence are protected/i)).toBeInTheDocument();
@@ -529,7 +523,6 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 description: '',
                 coordinates: { lat: 12.48, lng: 122.51 },
                 casualties: { injured: 0, fatalities: 0, missing: 0 },
-                affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
                 detailAccess: 'public',
                 detailCompleteness: 'full',
             };
@@ -544,7 +537,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             );
 
             expect(screen.getByText(/No description provided\./i)).toBeInTheDocument();
-            expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/No casualties recorded/i)).not.toBeInTheDocument();
             const zeroMetrics = screen.getAllByText('0');
             expect(zeroMetrics.length).toBe(3); // Injured, Fatalities, Missing
         });
@@ -564,7 +557,6 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             description: 'Fallen tree blocking both lanes near bridge approach.',
             coordinates: { lat: 12.38, lng: 122.56 },
             casualties: { injured: 1, fatalities: 0, missing: 0 },
-            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 25 },
             responderAgency: 'MDRRMO - Cajidiocan',
             evidence: {
                 count: 1,

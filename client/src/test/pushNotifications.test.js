@@ -67,10 +67,7 @@ describe('browser push subscription lifecycle', () => {
         const result = await subscribeToPush();
 
         expect(Notification.requestPermission).toHaveBeenCalledTimes(1);
-        expect(navigator.serviceWorker.register).toHaveBeenCalledWith('/sw.js', {
-            scope: '/',
-            updateViaCache: 'none',
-        });
+        expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith('/');
         expect(registration.pushManager.subscribe).toHaveBeenCalledWith(expect.objectContaining({
             userVisibleOnly: true,
             applicationServerKey: expect.any(Uint8Array),

@@ -71,7 +71,7 @@ const IncidentDetailsContent = ({
     const highlightedUpdateMeta = highlightedUpdate ? getReportUpdateMeta(highlightedUpdate.tag) : null;
 
     const safetyIndicators = [];
-    if (report.fireInvolved) safetyIndicators.push('Fire or explosion involved');
+    if (report.roadBlocked) safetyIndicators.push('Road blocked');
 
     if (!report?._id && loading) {
         return (

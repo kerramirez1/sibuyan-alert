@@ -143,11 +143,16 @@ export const getUsers = async (req, res) => {
             ];
         }
 
+        const parsedPage = Number.parseInt(page, 10);
+        const parsedLimit = Number.parseInt(limit, 10);
+        const safePage = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.min(parsedPage, 1000) : 1;
+        const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 20;
+
         const users = await User.find(query)
             .select('-password')
             .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit));
+            .limit(safeLimit)
+            .skip((safePage - 1) * safeLimit);
 
         const total = await User.countDocuments(query);
 
@@ -165,10 +170,10 @@ export const getUsers = async (req, res) => {
             data: {
                 users,
                 pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: safePage,
+                    limit: safeLimit,
                     total,
-                    pages: Math.ceil(total / parseInt(limit)),
+                    pages: Math.ceil(total / safeLimit),
                 },
                 stats: {
                     totalUsers,
@@ -733,21 +738,26 @@ export const verifyReport = async (req, res) => {
             }
         }
 
-        // Create notification for reporter
-        await Notification.createAndSend(
-            {
-                recipient: report.reporter._id,
-                type: status === 'verified' ? 'report_verified' : 'report_rejected',
-                title: status === 'verified'
-                    ? 'Report Verified'
-                    : 'Report Not Verified',
-                message: status === 'verified'
-                    ? `Your report at ${report.address} is now visible on the map.`
-                    : rejectionReason || 'Your report could not be verified.',
-                data: { reportId: report._id, status },
-            },
-            io
-        );
+        // Create notification for reporter (best-effort: never turn a saved
+        // state transition into a 500 — client would retry into a 409)
+        try {
+            await Notification.createAndSend(
+                {
+                    recipient: report.reporter._id,
+                    type: status === 'verified' ? 'report_verified' : 'report_rejected',
+                    title: status === 'verified'
+                        ? 'Report Verified'
+                        : 'Report Not Verified',
+                    message: status === 'verified'
+                        ? `Your report at ${report.address} is now visible on the map.`
+                        : rejectionReason || 'Your report could not be verified.',
+                    data: { reportId: report._id, status },
+                },
+                io
+            );
+        } catch (notifyError) {
+            console.error('Post-verify reporter notification failed (best-effort):', notifyError?.message || notifyError);
+        }
 
         // Create persistent notifications for all responders in the municipality
         if (status === 'verified' && report.municipalityName) {
@@ -777,17 +787,25 @@ export const verifyReport = async (req, res) => {
             }
         }
 
-        // Send email notification
+        // Send email notification (best-effort)
         if (report.reporter.notificationPreferences?.email !== false) {
-            await sendReportStatusEmail(report.reporter, report, status, rejectionReason);
+            try {
+                await sendReportStatusEmail(report.reporter, report, status, rejectionReason);
+            } catch (emailError) {
+                console.error('Post-verify email failed (best-effort):', emailError?.message || emailError);
+            }
         }
 
-        // Send push notification
+        // Send push notification (best-effort)
         if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-            const template = status === 'verified'
-                ? pushTemplates.reportVerified(report)
-                : pushTemplates.reportRejected(report, rejectionReason);
-            await sendPushToUser(report.reporter, template);
+            try {
+                const template = status === 'verified'
+                    ? pushTemplates.reportVerified(report)
+                    : pushTemplates.reportRejected(report, rejectionReason);
+                await sendPushToUser(report.reporter, template);
+            } catch (pushError) {
+                console.error('Post-verify push failed (best-effort):', pushError?.message || pushError);
+            }
         }
 
         res.json({
@@ -987,7 +1005,7 @@ export const deleteUser = async (req, res) => {
 
         // 3. Delete the user
         await AuthSession.deleteMany({ user: user._id });
-        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
+        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true)?.catch?.(() => {});
         await user.deleteOne();
 
         // 4. Remove GridFS files after database references are gone.
@@ -1218,42 +1236,47 @@ export const respondToReport = async (req, res) => {
             await broadcastMultiUnitResponse(io, report, responder, unitName, unitType);
         }
 
-        // Create notification for the reporter
+        // Create notification for the reporter (best-effort)
         const isFirstResponder = report.responders.length === 1;
         if (!report.reporter?._id) {
             console.warn('Skipping reporter notification because reporter account is unavailable');
         } else {
-            await Notification.createAndSend(
-                {
-                    recipient: report.reporter._id,
-                    type: 'report_responding',
-                    title: isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Responding',
-                    message: isFirstResponder
-                        ? `${unitName} is now responding to your report at ${report.address}.`
-                        : `${unitName} has joined the response. Total units: ${report.responders.length}`,
-                    data: {
-                        reportId: report._id,
-                        responderId: responder._id,
-                        unitName,
-                        unitType,
-                        totalResponders: report.responders.length,
+            try {
+                await Notification.createAndSend(
+                    {
+                        recipient: report.reporter._id,
+                        type: 'report_responding',
+                        title: isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Responding',
+                        message: isFirstResponder
+                            ? `${unitName} is now responding to your report at ${report.address}.`
+                            : `${unitName} has joined the response. Total units: ${report.responders.length}`,
+                        data: {
+                            reportId: report._id,
+                            responderId: responder._id,
+                            unitName,
+                            unitType,
+                            totalResponders: report.responders.length,
+                        },
                     },
-                },
-                io
-            );
+                    io
+                );
+            } catch (notifyError) {
+                console.error('Post-respond reporter notification failed (best-effort):', notifyError?.message || notifyError);
+            }
         }
 
-        // Notify admins that a responder has engaged with this report
+        // Notify admins that a responder has engaged with this report (best-effort)
         const adminRecipientsQuery = {
             role: 'municipal_admin',
             assignedMunicipality: report.municipalityName,
             _id: { $ne: responder._id },
         };
 
-        const adminRecipients = await User.find(adminRecipientsQuery).select('_id');
-        await Promise.all(
-            adminRecipients.map((adminUser) =>
-                Notification.createAndSend(
+        try {
+            const adminRecipients = await User.find(adminRecipientsQuery).select('_id');
+            await Promise.all(
+                adminRecipients.map((adminUser) =>
+                    Notification.createAndSend(
                     {
                         recipient: adminUser._id,
                         type: 'report_responding',
@@ -1274,15 +1297,22 @@ export const respondToReport = async (req, res) => {
                 )
             )
         );
+        } catch (adminNotifyError) {
+            console.error('Post-respond admin notification failed (best-effort):', adminNotifyError?.message || adminNotifyError);
+        }
 
-        // Send push notification to reporter
+        // Send push notification to reporter (best-effort)
         if (report.reporter?.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-            await sendPushToUser(report.reporter, {
-                title: isFirstResponder ? 'Help is on the way' : 'More help arriving',
-                body: `${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
-                icon: '/icon-192x192.png',
-                data: { url: '/my-reports' },
-            });
+            try {
+                await sendPushToUser(report.reporter, {
+                    title: isFirstResponder ? 'Help is on the way' : 'More help arriving',
+                    body: `${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
+                    icon: '/icon-192x192.png',
+                    data: { url: '/my-reports' },
+                });
+            } catch (pushError) {
+                console.error('Post-respond push failed (best-effort):', pushError?.message || pushError);
+            }
         }
 
         res.json({

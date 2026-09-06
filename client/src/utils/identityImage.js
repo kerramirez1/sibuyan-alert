@@ -76,6 +76,10 @@ export const prepareVerificationImage = async (sourceFile, {
     const validationError = validateVerificationImageFile(sourceFile, subject);
     if (validationError) throw new Error(validationError);
 
+    if (typeof document === 'undefined') {
+        throw new Error('Image preparation is unavailable in this environment.');
+    }
+
     const isSelfie = subject.toLowerCase().includes('selfie');
     const outputEdgeLimit = maxOutputEdge ?? (isSelfie ? SELFIE_MAX_OUTPUT_EDGE : ID_MAX_OUTPUT_EDGE);
     const outputQuality = jpegQuality ?? (isSelfie ? SELFIE_JPEG_QUALITY : ID_JPEG_QUALITY);

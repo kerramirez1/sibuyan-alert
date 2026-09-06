@@ -27,7 +27,9 @@ export const initFaceDetector = async () => {
                 if (fs.existsSync(CASCADE_PATH)) {
                     cascadeBuffer = fs.readFileSync(CASCADE_PATH);
                 } else {
-                    const res = await fetch('https://raw.githubusercontent.com/nenadmarkus/pico/master/rnt/cascades/facefinder');
+                    const res = await fetch('https://raw.githubusercontent.com/nenadmarkus/pico/master/rnt/cascades/facefinder', {
+                        signal: AbortSignal.timeout(8000),
+                    });
                     if (!res.ok) {
                         throw new Error(`Face cascade download failed: HTTP ${res.status}`);
                     }
@@ -36,10 +38,11 @@ export const initFaceDetector = async () => {
                         throw new Error('Face cascade download returned an invalid payload');
                     }
                     cascadeBuffer = Buffer.from(arrayBuffer);
-                    fs.mkdirSync(path.dirname(CASCADE_PATH), { recursive: true });
+                    const { promises: fsPromises } = await import('fs');
+                    await fsPromises.mkdir(path.dirname(CASCADE_PATH), { recursive: true });
                     const tempPath = `${CASCADE_PATH}.tmp`;
-                    fs.writeFileSync(tempPath, cascadeBuffer);
-                    fs.renameSync(tempPath, CASCADE_PATH);
+                    await fsPromises.writeFile(tempPath, cascadeBuffer);
+                    await fsPromises.rename(tempPath, CASCADE_PATH);
                 }
 
                 classifierFunction = pico.unpack_cascade(new Uint8Array(cascadeBuffer));

@@ -242,7 +242,7 @@ export const sendNewReportAlertEmail = async (adminEmail, report, reporter) => {
             </div>
             <div class="report-detail">
               <strong>📐 Coordinates:</strong>
-              <span>${report.coordinates.lat.toFixed(6)}, ${report.coordinates.lng.toFixed(6)}</span>
+              <span>${report.coordinates?.lat?.toFixed?.(6) ?? 'unknown'}, ${report.coordinates?.lng?.toFixed?.(6) ?? 'unknown'}</span>
             </div>
             <div class="description">
               <strong>Description:</strong><br>

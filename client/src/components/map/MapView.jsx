@@ -64,7 +64,6 @@ const ZONE_COLORS = {
     landslide_prone: MAP_RISK_ZONE_CONFIG.markerColor,
     accident_prone: MAP_RISK_ZONE_CONFIG.markerColor,
     flood_prone: MAP_RISK_ZONE_CONFIG.markerColor,
-    fire_risk: MAP_RISK_ZONE_CONFIG.markerColor,
     other: MAP_RISK_ZONE_CONFIG.markerColor,
 };
 
@@ -240,7 +239,7 @@ const MapView = ({
                 : [];
         if (selectedReports.length === 0) return;
 
-        const reportIds = new Set(reports.map((report) => String(report?._id || report?.id || '')).filter(Boolean));
+        const reportIds = new Set((Array.isArray(reports) ? reports : []).map((report) => String(report?._id || report?.id || '')).filter(Boolean));
         const hasCurrentSelection = selectedReports.some((report) => (
             reportIds.has(String(report?._id || report?.id || ''))
         ));

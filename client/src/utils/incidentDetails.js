@@ -27,7 +27,7 @@ export const formatCasualtyMetric = (value) => {
 
 /**
  * Normalizes a complete casualties object into individual metric values and aggregates.
- * Used across MapIncidentDetails, IncidentDetailsCasualtiesSection, and IncidentDetailsCoreSection.
+ * Used across MapIncidentDetails and IncidentDetailsCoreSection.
  */
 export const normalizeCasualties = (casualties) => {
     const raw = casualties && typeof casualties === 'object' ? casualties : {};
@@ -73,10 +73,7 @@ export const getIncidentDetailViewModel = (report = {}) => {
     ].filter(Boolean)));
     const safetyIndicators = [];
 
-    if (report.fireInvolved) safetyIndicators.push('Fire or explosion involved');
-    if (report.hazardousCondition || report.hazardInvolved) safetyIndicators.push('Hazardous condition');
     if (report.roadBlocked) safetyIndicators.push('Road blocked');
-    if (report.warningIssued || report.publicWarning) safetyIndicators.push('Immediate public-safety warning');
 
     return {
         id: report._id || report.id || '',

@@ -30,7 +30,6 @@ const sampleReport = {
     updatedAt: '2026-08-01T03:00:00Z',
     description: 'Motorcycle collision on road curve.',
     coordinates: { lat: 12.4044, lng: 122.6897 },
-    fireInvolved: true,
     casualties: { injured: 2, fatalities: 0, missing: 0 },
     respondingAgencies: ['MDRRMO'],
     reporter: { name: 'Private Reporter', email: 'private@example.com' },
@@ -128,9 +127,9 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.queryByText(/More incident information/i)).not.toBeInTheDocument();
         expect(screen.queryByText('J. Rizal Street, Poblacion, Cajidiocan')).not.toBeInTheDocument();
 
-        // Description & Indicators
+        // Description (no fire/disaster indicators in road-accident scope)
         expect(screen.getByText('Motorcycle collision on road curve.')).toBeInTheDocument();
-        expect(screen.getByText(/Fire or explosion involved/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Fire or explosion involved/i)).not.toBeInTheDocument();
 
         // Evidence: Blurred for privacy — thumbnail must be a clickable button
         expect(screen.getByRole('heading', { name: /Evidence preview · 1/i })).toBeInTheDocument();
@@ -232,13 +231,12 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         const noCasualtiesReport = {
             ...sampleReport,
             casualties: { injured: 0, fatalities: 0, missing: 0 },
-            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
         };
         renderDetails({ report: noCasualtiesReport, viewerRole: 'guest' });
 
         const zeros = screen.getAllByText('0');
         expect(zeros.length).toBe(3); // Injured, Fatalities, Missing
-        expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/No casualties recorded/i)).not.toBeInTheDocument();
     });
 
     test('7. Renders error alert with retry button when loading fails', async () => {
@@ -253,11 +251,10 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
-    test('8. Renders populated casualties in 3-column grid without affected area section', () => {
+    test('8. Renders populated casualties in 3-column grid', () => {
         const fullImpactReport = {
             ...sampleReport,
             casualties: { injured: 3, fatalities: 1, missing: 2 },
-            affectedArea: { householdsAffected: 15, evacuees: 45, radius: 250 },
         };
         renderDetails({ report: fullImpactReport, viewerRole: 'guest' });
 
@@ -283,7 +280,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
     test('10. Renders operational incident brief header for municipal responders', () => {
         renderDetails({
-            report: { ...sampleReport, detailAccess: 'operational', detailCompleteness: 'full' },
+            report: { ...sampleReport, detailAccess: 'operational', detailCompleteness: 'full', roadBlocked: true },
             viewerRole: 'responder',
         });
 
@@ -294,9 +291,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
     test('11. Hides safety indicators when only casualties exist, keeping casualty counts single source of truth', () => {
         const casualtiesOnlyReport = {
             ...sampleReport,
-            fireInvolved: false,
             casualties: { injured: 4, fatalities: 2, missing: 1 },
-            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
         };
         renderDetails({ report: casualtiesOnlyReport, viewerRole: 'guest' });
 
@@ -316,20 +311,16 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         expect(screen.getByText('1')).toBeInTheDocument();
     });
 
-    test('12. Renders non-casualty indicators without repeating casualty counts', () => {
+    test('12. Renders road-blocked indicator without repeating casualty counts', () => {
         const multiIndicatorReport = {
             ...sampleReport,
-            fireInvolved: true,
             roadBlocked: true,
-            hazardousCondition: true,
             casualties: { injured: 5, fatalities: 0, missing: 0 },
         };
         renderDetails({ report: multiIndicatorReport, viewerRole: 'guest' });
 
         // Non-casualty indicators render
         expect(screen.getByText(/Public safety indicators/i)).toBeInTheDocument();
-        expect(screen.getByText('Fire or explosion involved')).toBeInTheDocument();
-        expect(screen.getByText('Hazardous condition')).toBeInTheDocument();
         expect(screen.getByText('Road blocked')).toBeInTheDocument();
 
         // Casualty count is NOT inside safety indicators
@@ -467,20 +458,15 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
     describe('15. Casualty Semantics and Separation of Verification Status', () => {
         test('pending report with { injured: 0, fatalities: 2, missing: 4 } renders exact numbers (screenshot scenario)', () => {
-            const pendingScreenshotReport = {
-                ...sampleReport,
-                status: 'pending',
-                casualties: {
-                    injured: 0,
-                    fatalities: 2,
-                    missing: 4,
-                },
-                affectedArea: {
-                    householdsAffected: 0,
-                    evacuees: 0,
-                    radius: 0,
-                },
-            };
+        const pendingScreenshotReport = {
+            ...sampleReport,
+            status: 'pending',
+            casualties: {
+                injured: 0,
+                fatalities: 2,
+                missing: 4,
+            },
+        };
 
             renderDetails({ report: pendingScreenshotReport, viewerRole: 'municipal_admin' });
 

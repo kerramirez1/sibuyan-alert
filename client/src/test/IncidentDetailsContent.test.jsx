@@ -24,7 +24,6 @@ describe('IncidentDetailsContent', () => {
         description: 'Two motorcycles collided at the intersection.',
         coordinates: { lat: 12.4044, lng: 122.6897 },
         casualties: { injured: 2, fatalities: 0, missing: 0 },
-        affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
         reporter: { name: 'Juan Dela Cruz', email: 'juan@example.com', isVerified: true },
         images: ['/image1.jpg'],
         evidenceCount: 1,
@@ -131,11 +130,10 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByText(/pending formal verification by a municipal administrator/i)).toBeInTheDocument();
     });
 
-    test('renders internal casualty summary inside Overview and no separate affected area or reporter section for operational viewers', () => {
+    test('renders internal casualty summary inside Overview and no separate reporter section for operational viewers', () => {
         const multiCasualtyReport = {
             ...sampleReport,
             casualties: { injured: 3, fatalities: 1, missing: 2 },
-            affectedArea: { householdsAffected: 5, evacuees: 12, radius: 100 },
         };
 
         render(
@@ -169,11 +167,10 @@ describe('IncidentDetailsContent', () => {
         expect(screen.queryByRole('heading', { level: 3, name: /Reporter information/i })).not.toBeInTheDocument();
     });
 
-    test('does not render affected-area placeholder text when no affected-area data is collected', () => {
+    test('does not render stale affected-area placeholder text', () => {
         const casualtiesOnlyReport = {
             ...sampleReport,
             casualties: { injured: 0, fatalities: 0, missing: 0 },
-            affectedArea: { householdsAffected: 0, evacuees: 0, radius: 0 },
         };
 
         render(

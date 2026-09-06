@@ -100,7 +100,6 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                     <Detail label="Priority" value={report.priority} />
                     <Detail label="Reported" value={formatDate(report.reportedAt || report.createdAt)} />
                     <Detail label="Incident time" value={formatDate(report.incidentTime)} />
-                    <Detail label="Fire involved" value={report.fireInvolved ? (report.fireType?.replaceAll('_', ' ') || 'Yes') : 'No'} />
                 </dl>
             </DisclosureSection>
 

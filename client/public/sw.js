@@ -52,7 +52,12 @@ self.addEventListener('notificationclick', (event) => {
         });
 
         for (const client of clientList) {
-            const clientUrl = new URL(client.url);
+            let clientUrl;
+            try {
+                clientUrl = new URL(client.url);
+            } catch {
+                continue;
+            }
             if (clientUrl.origin === destination.origin && 'focus' in client) {
                 if ('navigate' in client && clientUrl.href !== destination.href) {
                     await client.navigate(destination.href);

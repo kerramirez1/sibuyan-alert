@@ -411,7 +411,6 @@ const ReportPage = () => {
             const submitData = new FormData();
             submitData.append('incidentCategory', formData.incidentCategory);
             submitData.append('incidentType', formData.incidentType);
-            submitData.append('fireInvolved', 'false');
             submitData.append('description', formData.description);
             submitData.append('incidentTime', formData.incidentTime);
             submitData.append('severity', formData.severity);

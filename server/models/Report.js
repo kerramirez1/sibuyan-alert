@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 
 /**
  * Incident Report Model
- * MVP scope: Road Accidents only (fireInvolved flag covers vehicle fire as a secondary attribute)
- * Features: Municipality assignment, responder tracking, priority system
+ * Road-accident-only scope: vehicular, motorcycle, pedestrian, bicycle,
+ * self-accident, mechanical, other. Casualties = injured/fatalities/missing.
  */
 const reportSchema = new mongoose.Schema(
     {
@@ -22,24 +22,11 @@ const reportSchema = new mongoose.Schema(
             default: 'accident',
         },
 
-        // Sub-type based on category (MVP: road accidents only)
+        // Sub-type based on category (road accidents only)
         incidentType: {
             type: String,
             required: [true, 'Incident type is required'],
             // Road accidents: vehicular, motorcycle, pedestrian, bicycle, self_accident, mechanical, other
-        },
-
-        // Fire involvement toggle (for road accidents with fire/explosion)
-        fireInvolved: {
-            type: Boolean,
-            default: false,
-        },
-
-        // Type of fire if fireInvolved is true
-        fireType: {
-            type: String,
-            enum: ['gas_leak', 'vehicular_fire', null],
-            default: null,
         },
 
         // Basic Information
@@ -204,18 +191,11 @@ const reportSchema = new mongoose.Schema(
             default: 'normal',
         },
 
-        // Casualties (for accidents and disasters)
+        // Casualties (road-accident victims)
         casualties: {
             injured: { type: Number, default: 0 },
             fatalities: { type: Number, default: 0 },
             missing: { type: Number, default: 0 },
-        },
-
-        // Affected scope (for disasters/fires)
-        affectedArea: {
-            radius: { type: Number }, // in meters
-            householdsAffected: { type: Number, default: 0 },
-            evacuees: { type: Number, default: 0 },
         },
 
         // Status & Workflow
@@ -395,7 +375,7 @@ reportSchema.pre('save', async function (next) {
         this.incidentCategory = 'accident';
     }
 
-    // Auto-generate title if not provided (MVP: road accidents only)
+    // Auto-generate title if not provided (road accidents only)
     if (!this.title) {
         const categoryLabels = {
             accident: 'Road Accident',

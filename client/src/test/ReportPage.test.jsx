@@ -175,7 +175,6 @@ describe('ReportPage workflow', () => {
         expect(payload.get('casualties[injured]')).toBe('2');
         expect(payload.get('severity')).toBe('moderate');
         expect(payload.get('description')).toBe('Two motorcycles skidded on loose gravel');
-        expect(payload.get('fireInvolved')).toBe('false');
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
     });
 

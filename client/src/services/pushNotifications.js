@@ -31,6 +31,11 @@ const applicationServerKeysMatch = (subscription, expectedKey) => {
 };
 
 const getRegistration = async () => {
+    const existing = await navigator.serviceWorker.getRegistration('/');
+    if (existing) {
+        await navigator.serviceWorker.ready;
+        return existing;
+    }
     const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
         scope: '/',
         updateViaCache: 'none',

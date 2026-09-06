@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 
 /**
  * High Risk Zone Schema
- * Allows municipal admins to mark danger zones on the map and attach reference photos
+ * Road-accident scope: municipal admins mark road danger zones
+ * (accident-prone curves, landslide/flood-prone road segments) on the map.
  */
 const highRiskZoneSchema = new mongoose.Schema(
     {
@@ -19,7 +20,7 @@ const highRiskZoneSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['landslide_prone', 'accident_prone', 'flood_prone', 'fire_risk', 'other'],
+            enum: ['landslide_prone', 'accident_prone', 'flood_prone', 'other'],
             required: true,
         },
         coordinates: {

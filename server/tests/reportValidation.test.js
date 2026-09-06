@@ -29,7 +29,6 @@ describe('report request validation', () => {
         [{ incidentType: 'invented-type' }, 'Invalid incident type'],
         [{ casualties: { injured: -1 } }, 'injured must be a non-negative whole number'],
         [{ casualties: { fatalities: 1.5 } }, 'fatalities must be a non-negative whole number'],
-        [{ 'affectedArea[evacuees]': '3people' }, 'evacuees must be a non-negative whole number'],
     ])('rejects invalid report input %#', async (override, expectedMessage) => {
         const response = await request(createApp())
             .post('/reports')

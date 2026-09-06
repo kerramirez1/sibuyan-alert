@@ -72,8 +72,6 @@ export const createReport = async (req, res) => {
             accidentTime, // Legacy support
             accidentType, // Legacy support
             severity,
-            fireInvolved,
-            fireType,
             lat,
             lng,
             locationSource,
@@ -81,18 +79,12 @@ export const createReport = async (req, res) => {
             locationCapturedAt,
         } = req.body;
 
-        // Parse casualties and affected area from form data
+        // Parse casualties from form data
         const casInput = req.body.casualties || {};
         const casualties = {
             injured: toValidatedCount(casInput.injured ?? req.body['casualties[injured]']),
             fatalities: toValidatedCount(casInput.fatalities ?? req.body['casualties[fatalities]']),
             missing: toValidatedCount(casInput.missing ?? req.body['casualties[missing]']),
-        };
-
-        const areaInput = req.body.affectedArea || {};
-        const affectedArea = {
-            householdsAffected: toValidatedCount(areaInput.householdsAffected ?? req.body['affectedArea[householdsAffected]']),
-            evacuees: toValidatedCount(areaInput.evacuees ?? req.body['affectedArea[evacuees]']),
         };
 
         // Validate required fields
@@ -240,10 +232,7 @@ export const createReport = async (req, res) => {
             accidentTime: new Date(finalIncidentTime), // Legacy compatibility
             accidentType: finalType, // Legacy compatibility
             severity: severity || 'moderate',
-            fireInvolved: fireInvolved === 'true' || fireInvolved === true,
-            fireType: (fireInvolved === 'true' || fireInvolved === true) ? fireType : null,
             casualties,
-            affectedArea,
             images: uploadedImageUrls,
             evidenceMetadata,
             status: 'pending',
@@ -449,6 +438,12 @@ export const getReports = async (req, res) => {
 
         // Filter by municipality
         if (municipality) {
+            if (!mongoose.isValidObjectId(municipality)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid municipality id',
+                });
+            }
             query.municipality = municipality;
         }
 
@@ -468,7 +463,6 @@ export const getReports = async (req, res) => {
                 'incidentTime',
                 'status',
                 'severity',
-                'fireInvolved',
                 'casualties',
                 'responders.unitType',
                 'responderAgency',
@@ -672,14 +666,20 @@ export const getReportEvidencePreview = async (req, res) => {
         }
 
         // Stream file from GridFS to buffer
+        if (file.length != null && file.length > 15 * 1024 * 1024) {
+            return res.status(413).json({ success: false, message: 'Evidence file too large to preview' });
+        }
         const downloadStream = getGridFsBucket().openDownloadStream(file._id);
         const chunks = [];
+        let bufferedBytes = 0;
+        const MAX_PREVIEW_BYTES = 15 * 1024 * 1024;
         try {
             for await (const chunk of downloadStream) {
-                chunks.push(chunk);
-                if (chunks.length > 512) {
+                bufferedBytes += chunk?.length || 0;
+                if (bufferedBytes > MAX_PREVIEW_BYTES) {
                     throw new Error('Evidence file exceeds streaming safety limit');
                 }
+                chunks.push(chunk);
             }
         } catch (streamError) {
             try {
@@ -849,7 +849,7 @@ export const addReportUpdate = async (req, res) => {
             });
         }
 
-        const isOwner = report.reporter?._id?.toString() === req.user._id.toString();
+        const isOwner = report.reporter?._id?.toString() === req.user?._id?.toString();
         if (!isOwner) {
             return res.status(403).json({
                 success: false,
@@ -1011,7 +1011,15 @@ export const getStats = async (req, res) => {
         // rejected reports remain private to operational users.
         const matchQuery = { status: { $in: ['verified', 'transferred', 'responding', 'resolved'] } };
         if (category) matchQuery.incidentCategory = category;
-        if (municipality) matchQuery.municipality = municipality;
+        if (municipality) {
+            if (!mongoose.isValidObjectId(municipality)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid municipality id',
+                });
+            }
+            matchQuery.municipality = municipality;
+        }
         if (municipalityName) matchQuery.municipalityName = municipalityName;
 
         const [

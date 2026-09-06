@@ -11,7 +11,6 @@ export const RISK_ZONE_COLORS = Object.freeze({
     landslide_prone: MAP_RISK_ZONE_CONFIG.markerColor,
     accident_prone: MAP_RISK_ZONE_CONFIG.markerColor,
     flood_prone: MAP_RISK_ZONE_CONFIG.markerColor,
-    fire_risk: MAP_RISK_ZONE_CONFIG.markerColor,
     other: MAP_RISK_ZONE_CONFIG.markerColor,
 });
 

@@ -191,6 +191,7 @@ router.put(
     handleMulterError,
     validateUploadContent,
     async (req, res) => {
+        let newPhotoUrls = [];
         try {
             const zone = await HighRiskZone.findById(req.params.id);
             const admin = req.user;
@@ -253,6 +254,7 @@ router.put(
                     mimeType: file.mimeType || req.files[idx]?.mimetype || null,
                     size: req.files[idx]?.size || null,
                 }));
+                newPhotoUrls = newPhotos.map((p) => p.url).filter(Boolean);
 
                 zone.photos = [...(zone.photos || []), ...newPhotos].slice(0, 5);
             }
@@ -270,6 +272,13 @@ router.put(
                 data: zone,
             });
         } catch (error) {
+            if (newPhotoUrls.length > 0) {
+                try {
+                    await deleteGridFsFilesByUrls(newPhotoUrls);
+                } catch (cleanupErr) {
+                    console.error('Failed to rollback GridFS files on zone update:', cleanupErr);
+                }
+            }
             console.error('Update high-risk zone error:', error);
             const isValidationError = error?.name === 'ValidationError';
             res.status(isValidationError ? 400 : 500).json({

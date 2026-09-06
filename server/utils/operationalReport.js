@@ -82,17 +82,10 @@ const buildCore = (source) => ({
     severity: source.severity,
     priority: source.priority,
     viewCount: Number(source.viewCount) || 0,
-    fireInvolved: Boolean(source.fireInvolved),
-    fireType: source.fireType || null,
     casualties: {
         injured: Number(source.casualties?.injured) || 0,
         fatalities: Number(source.casualties?.fatalities) || 0,
         missing: Number(source.casualties?.missing) || 0,
-    },
-    affectedArea: {
-        radius: Number(source.affectedArea?.radius) || 0,
-        householdsAffected: Number(source.affectedArea?.householdsAffected) || 0,
-        evacuees: Number(source.affectedArea?.evacuees) || 0,
     },
     verifiedAt: source.verifiedAt,
     respondedAt: source.respondedAt,

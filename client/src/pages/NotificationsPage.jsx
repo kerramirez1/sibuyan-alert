@@ -29,14 +29,14 @@ const FILTERS = [
 ];
 
 const getEventMarker = (notification) => {
-    switch (notification.type) {
+    switch (notification?.type) {
         case 'report_verified':
         case 'reporter_verified':
         case 'report_resolved':
             return {
                 dot: 'bg-emerald-500',
                 badge: 'text-emerald-700 dark:text-emerald-400',
-                label: notification.type === 'report_resolved' ? 'Incident resolved' : 'Report verified',
+                label: notification?.type === 'report_resolved' ? 'Incident resolved' : 'Report verified',
             };
         case 'report_responding':
             return {
@@ -164,14 +164,15 @@ const NotificationsPage = () => {
 
     const counts = useMemo(() => ({
         all: notifications.length,
-        unread: notifications.filter((notification) => !notification.isRead).length,
-        updates: notifications.filter((notification) => notification.type === 'report_update').length,
+        unread: notifications.filter((notification) => !notification?.isRead).length,
+        updates: notifications.filter((notification) => notification?.type === 'report_update').length,
         priority: notifications.filter(isPriorityReporterUpdate).length,
     }), [notifications]);
 
     const filteredNotifications = useMemo(() => notifications.filter((notification) => {
+        if (!notification || typeof notification !== 'object') return false;
         if (activeFilter === 'unread') return !notification.isRead;
-        if (activeFilter === 'updates') return notification.type === 'report_update';
+        if (activeFilter === 'updates') return notification?.type === 'report_update';
         if (activeFilter === 'priority') return isPriorityReporterUpdate(notification);
         return true;
     }), [activeFilter, notifications]);
@@ -292,13 +293,13 @@ const NotificationsPage = () => {
                     </div>
                 ) : (
                     <ul className="divide-y divide-gray-100 dark:divide-white/5">
-                        {filteredNotifications.map((notification) => {
+                        {filteredNotifications.map((notification, index) => {
                             const marker = getEventMarker(notification);
-                            const notificationId = getNotificationId(notification);
-                            const createdAt = getNotificationDate(notification.createdAt);
-                            const address = notification.data?.address;
-                            const title = cleanNotificationTitle(notification.title);
-                            const message = notification.data?.updatePreview || cleanNotificationMessage(notification.message);
+                            const notificationId = getNotificationId(notification) || `${notification?.type || 'notification'}-${index}`;
+                            const createdAt = getNotificationDate(notification?.createdAt);
+                            const address = notification?.data?.address;
+                            const title = cleanNotificationTitle(notification?.title);
+                            const message = notification?.data?.updatePreview || cleanNotificationMessage(notification?.message);
 
                             return (
                                 <li key={notificationId}>

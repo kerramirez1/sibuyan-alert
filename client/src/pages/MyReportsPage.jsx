@@ -60,7 +60,7 @@ const formatCoordinates = (report) => {
 };
 
 const formatIncidentType = (report) => (
-    (report?.incidentType || report?.accidentType || 'Unspecified incident')
+    String(report?.incidentType || report?.accidentType || 'Unspecified incident')
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
 );

@@ -34,6 +34,11 @@ export const AuthProvider = ({ children }) => {
     });
     const navigate = useNavigate();
     const prevVerificationStatusRef = useRef(null);
+    const greetingTimerRef = useRef(null);
+
+    useEffect(() => () => {
+        if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
+    }, []);
 
     // Restore the server-managed HttpOnly session on mount.
     useEffect(() => {
@@ -120,7 +125,8 @@ export const AuthProvider = ({ children }) => {
             // on a short timer so post-login toast bursts (map fallback, socket
             // alerts) can't chain its 3s clock — but only if nothing newer
             // replaced it, so real alerts are never cut short.
-            setTimeout(() => dismissActiveToast(greeting), 2500);
+            if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
+            greetingTimerRef.current = setTimeout(() => dismissActiveToast(greeting), 2500);
 
             return { success: true };
         } catch (error) {

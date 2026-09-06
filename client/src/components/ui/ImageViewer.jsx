@@ -230,6 +230,7 @@ const ImageViewer = ({
 
     // Reset zoom, error state, and manage focus restoration on open/close
     useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
         if (!isOpen) {
             setIsZoomed(false);
             setRotation(0);
@@ -296,6 +297,7 @@ const ImageViewer = ({
     // Body scroll lock while modal is active
     useEffect(() => {
         if (!isOpen) return undefined;
+        if (typeof document === 'undefined') return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
@@ -304,6 +306,7 @@ const ImageViewer = ({
     }, [isOpen]);
 
     if (!isOpen) return null;
+    if (typeof document === 'undefined') return null;
 
     // 1. Authoritative access determination strictly from server item descriptor (fail-closed)
     const effectiveViewerAccess = currentItem?.viewerAccess === 'original'
@@ -470,6 +473,8 @@ const ImageViewer = ({
             </div>
         );
     };
+
+    if (typeof document === 'undefined' || !document.body) return null;
 
     return createPortal(
         <div

@@ -77,6 +77,9 @@ export const streamFile = async (req, res) => {
     } catch (error) {
         console.error('File delivery error:', error);
         if (!res.headersSent) {
+            if (error?.message === 'MongoDB is not connected') {
+                return res.status(503).json({ success: false, code: 'STORAGE_UNAVAILABLE', message: 'Storage temporarily unavailable. Please retry.' });
+            }
             res.status(500).json({ success: false, message: 'Failed to read file' });
         }
     }

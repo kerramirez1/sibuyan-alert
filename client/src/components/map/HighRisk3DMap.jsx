@@ -56,33 +56,54 @@ const HighRisk3DMap = ({ highRiskZones = [], className = '', focusLocation = nul
             bearing: -15,
         });
 
+        let cancelled = false;
+
         mapInstance.on('load', () => {
-            mapInstance.addSource(RISK_ZONE_SOURCE_ID, {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] },
-            });
+            if (cancelled) return;
+            if (!mapInstance.getSource(RISK_ZONE_SOURCE_ID)) {
+                mapInstance.addSource(RISK_ZONE_SOURCE_ID, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] },
+                });
+            }
 
-            mapInstance.addLayer({
-                id: RISK_ZONE_EXTRUSION_LAYER_ID,
-                type: 'fill-extrusion',
-                source: RISK_ZONE_SOURCE_ID,
-                minzoom: RISK_ZONE_MIN_ZOOM,
-                paint: {
-                    'fill-extrusion-color': ['get', 'color'],
-                    'fill-extrusion-height': ['get', 'extrusionHeight'],
-                    'fill-extrusion-base': 0,
-                    'fill-extrusion-opacity': 0.58,
-                },
-            });
+            if (!mapInstance.getLayer(RISK_ZONE_EXTRUSION_LAYER_ID)) {
+                mapInstance.addLayer({
+                    id: RISK_ZONE_EXTRUSION_LAYER_ID,
+                    type: 'fill-extrusion',
+                    source: RISK_ZONE_SOURCE_ID,
+                    minzoom: RISK_ZONE_MIN_ZOOM,
+                    paint: {
+                        'fill-extrusion-color': ['get', 'color'],
+                        'fill-extrusion-height': ['get', 'extrusionHeight'],
+                        'fill-extrusion-base': 0,
+                        'fill-extrusion-opacity': 0.58,
+                    },
+                });
+            }
 
+            if (cancelled) return;
             mapInstanceRef.current = mapInstance;
             setMapReady(true);
         });
 
         return () => {
-            removeCompassToggle();
-            removeCompactAttribution();
-            mapInstance.remove();
+            cancelled = true;
+            try {
+                removeCompassToggle();
+            } catch {
+                // ignore teardown errors
+            }
+            try {
+                removeCompactAttribution();
+            } catch {
+                // ignore teardown errors
+            }
+            try {
+                mapInstance.remove();
+            } catch {
+                // map may already be removed when unmounting before load
+            }
             mapInstanceRef.current = null;
         };
     }, [performanceProfile]);

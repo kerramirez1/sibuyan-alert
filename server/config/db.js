@@ -1,5 +1,26 @@
 import mongoose from 'mongoose';
 
+const registerConnectionListeners = () => {
+    if (mongoose.connection.listenerCount('error') === 0) {
+        // Handle connection events
+        mongoose.connection.on('error', (err) => {
+            console.error(`❌ MongoDB connection error: ${err}`);
+        });
+    }
+
+    if (mongoose.connection.listenerCount('disconnected') === 0) {
+        mongoose.connection.on('disconnected', () => {
+            console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
+        });
+    }
+
+    if (mongoose.connection.listenerCount('reconnected') === 0) {
+        mongoose.connection.on('reconnected', () => {
+            console.log('✅ MongoDB reconnected');
+        });
+    }
+};
+
 const connectDB = async (retries = 3) => {
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri || !mongoUri.trim()) {
@@ -18,18 +39,7 @@ const connectDB = async (retries = 3) => {
 
             console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
-            // Handle connection events
-            mongoose.connection.on('error', (err) => {
-                console.error(`❌ MongoDB connection error: ${err}`);
-            });
-
-            mongoose.connection.on('disconnected', () => {
-                console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
-            });
-
-            mongoose.connection.on('reconnected', () => {
-                console.log('✅ MongoDB reconnected');
-            });
+            registerConnectionListeners();
 
             return conn;
         } catch (error) {

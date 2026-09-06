@@ -13,11 +13,6 @@ export const INCIDENT_CATEGORIES = {
     },
 };
 
-export const FIRE_TYPES = [
-    { value: 'gas_leak', label: 'Gas leak / explosion' },
-    { value: 'vehicular_fire', label: 'Vehicle fire' },
-];
-
 export const SEVERITY_LEVELS = [
     { value: 'minor', label: 'Minor', dot: 'bg-emerald-500', description: 'No injuries or cosmetic damage only' },
     { value: 'moderate', label: 'Moderate', dot: 'bg-amber-500', description: 'Minor injuries requiring a medical checkup' },

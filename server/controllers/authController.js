@@ -403,7 +403,7 @@ export const updateProfile = async (req, res) => {
         if (credentialsChanged) {
             await revokeAllUserSessions(user._id, 'credential_change');
             await issueSession({ req, res, userId: user._id });
-            req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
+            req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true)?.catch?.(() => {});
         }
 
         if (uploadedAvatarUrl && previousAvatar) {
@@ -611,24 +611,28 @@ export const resubmitIdDocument = async (req, res) => {
         if (selfieFile) {
             const selfieDetection = await detectFaces(selfieFile.buffer, { fastMode: true, maxDimension: 800 });
             if (selfieDetection.status === 'detector_failed') {
+                await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(503).json({
                     success: false,
                     message: 'Face verification is temporarily unavailable. Please try again.',
                 });
             }
             if (selfieDetection.status === 'invalid_image') {
+                await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(400).json({
                     success: false,
                     message: 'The selfie photo is corrupted or invalid. Please upload a clear photo.',
                 });
             }
             if (selfieDetection.status === 'no_faces_detected' || (selfieDetection.faces && selfieDetection.faces.length === 0)) {
+                await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(400).json({
                     success: false,
                     message: 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.',
                 });
             }
             if (selfieDetection.faces && selfieDetection.faces.length > 1) {
+                await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(400).json({
                     success: false,
                     message: 'Multiple faces detected in the verification selfie. Only one person must be visible.',
@@ -772,7 +776,7 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordExpires = null;
         await user.save();
         await revokeAllUserSessions(user._id, 'credential_change');
-        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true);
+        req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true)?.catch?.(() => {});
 
         res.json({
             success: true,
@@ -825,7 +829,7 @@ export const logout = async (req, res) => {
     try {
         const session = await revokeRequestSession(req);
         if (session?.user) {
-            req.app.get('io')?.in(`user_${session.user}`).disconnectSockets(true);
+            req.app.get('io')?.in(`user_${session.user}`).disconnectSockets(true)?.catch?.(() => {});
         }
     } catch (error) {
         console.error('Session logout error:', error);
@@ -840,7 +844,7 @@ export const logout = async (req, res) => {
 export const logoutAll = async (req, res) => {
     try {
         await revokeAllUserSessions(req.user._id, 'logout_all');
-        req.app.get('io')?.in(`user_${req.user._id}`).disconnectSockets(true);
+        req.app.get('io')?.in(`user_${req.user._id}`).disconnectSockets(true)?.catch?.(() => {});
         clearAuthCookies(res);
         return res.json({ success: true, message: 'All sessions have been signed out' });
     } catch (error) {

@@ -371,8 +371,7 @@ const AdminHighRiskZonesPage = () => {
             || zone.municipality?.toLowerCase().includes(query)
             || (zone.description && zone.description.toLowerCase().includes(query));
         const matchesType = zoneTypeFilter === 'all'
-            || zone.type === zoneTypeFilter
-            || (zoneTypeFilter === 'flood_prone' && zone.type === 'fire_risk');
+            || zone.type === zoneTypeFilter;
         return matchesSearch && matchesType;
     });
 
@@ -949,8 +948,7 @@ const AdminHighRiskZonesPage = () => {
                                 ) : (
                                     <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto custom-scrollbar">
                                         {filteredZones.map((zone) => {
-                                            const typeInfo = ZONE_TYPES.find((t) => t.value === zone.type)
-                                                || (zone.type === 'fire_risk' ? { value: 'flood_prone', label: 'Flood Prone', color: 'bg-blue-500' } : null);
+                                            const typeInfo = ZONE_TYPES.find((t) => t.value === zone.type);
                                             const severityInfo = SEVERITY_LEVELS.find((s) => s.value === zone.severity);
 
                                             return (

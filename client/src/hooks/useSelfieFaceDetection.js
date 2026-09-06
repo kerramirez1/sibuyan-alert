@@ -24,9 +24,17 @@ export const useSelfieFaceDetection = ({
     const activeRef = useRef(true);
 
     const onAutoCaptureRef = useRef(onAutoCapture);
+    const isCapturingRef = useRef(isCapturing);
+    const scanOptionsRef = useRef(scanOptions);
     useEffect(() => {
         onAutoCaptureRef.current = onAutoCapture;
     }, [onAutoCapture]);
+    useEffect(() => {
+        isCapturingRef.current = isCapturing;
+    }, [isCapturing]);
+    useEffect(() => {
+        scanOptionsRef.current = scanOptions;
+    }, [scanOptions]);
 
     const resetDetector = useCallback(() => {
         stableStartTimeRef.current = null;
@@ -65,13 +73,13 @@ export const useSelfieFaceDetection = ({
                 return;
             }
 
-            if (cooldownRef.current || isCapturing) {
+            if (cooldownRef.current || isCapturingRef.current) {
                 return;
             }
 
             isScanningRef.current = true;
             try {
-                const result = await scanVideoFrame(video, scratchCanvas, scanOptions);
+                const result = await scanVideoFrame(video, scratchCanvas, scanOptionsRef.current || {});
                 if (!activeRef.current || cooldownRef.current) return;
 
                 setFaceCount(result.faceCount ?? 0);
@@ -128,11 +136,9 @@ export const useSelfieFaceDetection = ({
     }, [
         cameraActive,
         cooldownDurationMs,
-        isCapturing,
         requiredStableDurationMs,
         resetDetector,
         scanIntervalMs,
-        scanOptions,
         videoRef,
     ]);
 

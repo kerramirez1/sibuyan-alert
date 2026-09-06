@@ -155,12 +155,6 @@ const IncidentDetailsCoreSection = ({
                     </DetailItem>
                 )}
 
-                {report.fireInvolved && (
-                    <DetailItem label="Fire">
-                        Yes {report.fireType ? `(${report.fireType.replace(/_/g, ' ')})` : ''}
-                    </DetailItem>
-                )}
-
                 {showCasualtiesSummary && !renderInternalCasualties && (
                     <DetailItem label="Casualties">
                         {totalPeopleAffected > 0 ? (

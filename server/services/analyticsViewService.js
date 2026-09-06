@@ -66,8 +66,6 @@ export const buildAnalyticsViewPipeline = () => ([
             description: 1,
             incidentCategory: 1,
             incidentType: 1,
-            fireInvolved: 1,
-            fireType: 1,
             status: 1,
             severity: 1,
             priority: 1,
@@ -92,7 +90,6 @@ export const buildAnalyticsViewPipeline = () => ([
             // Impact measures
             casualties: 1,
             casualtyTotal: 1,
-            affectedArea: 1,
             viewCount: 1,
             respondersCount: 1,
             reportUpdatesCount: 1,

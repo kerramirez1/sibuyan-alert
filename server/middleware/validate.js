@@ -13,8 +13,6 @@ const REPORT_COUNT_FIELDS = [
     ['casualties', 'injured'],
     ['casualties', 'fatalities'],
     ['casualties', 'missing'],
-    ['affectedArea', 'householdsAffected'],
-    ['affectedArea', 'evacuees'],
 ];
 
 const readNestedOrMultipartValue = (bodyValue, group, field) => (

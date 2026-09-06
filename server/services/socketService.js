@@ -137,7 +137,6 @@ export const broadcastReportVerified = (io, report) => {
         severity: report.severity,
         priority: report.priority,
         casualties: report.casualties,
-        fireInvolved: Boolean(report.fireInvolved),
         evidence,
         evidenceCount: evidence.evidenceCount,
     });

@@ -149,7 +149,6 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
         incidentTime: getDocumentValue(report, 'incidentTime'),
         status: getDocumentValue(report, 'status'),
         severity: getDocumentValue(report, 'severity'),
-        fireInvolved: Boolean(getDocumentValue(report, 'fireInvolved')),
         casualties: {
             injured: toNonNegativeInteger(casualties.injured),
             fatalities: toNonNegativeInteger(casualties.fatalities),

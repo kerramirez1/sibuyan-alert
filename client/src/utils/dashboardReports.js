@@ -42,7 +42,8 @@ export const mergeDashboardReport = (existingReport, incomingReport) => {
     };
 };
 
-export const upsertDashboardReport = (reports, incomingReport) => {
+export const upsertDashboardReport = (reports = [], incomingReport) => {
+    if (!Array.isArray(reports)) return [];
     const id = getDashboardReportId(incomingReport);
     if (!id) return reports;
 
@@ -56,7 +57,8 @@ export const upsertDashboardReport = (reports, incomingReport) => {
     return [merged, ...reports.filter((report) => getDashboardReportId(report) !== id)];
 };
 
-export const updateDashboardReportStatus = (reports, id, status) => {
+export const updateDashboardReportStatus = (reports = [], id, status) => {
+    if (!Array.isArray(reports)) return [];
     if (!id) return reports;
     const normalizedId = String(id);
     return reports.map((report) => (
@@ -64,13 +66,15 @@ export const updateDashboardReportStatus = (reports, id, status) => {
     ));
 };
 
-export const removeDashboardReport = (reports, id) => {
+export const removeDashboardReport = (reports = [], id) => {
+    if (!Array.isArray(reports)) return [];
     if (id === null || id === undefined) return reports;
     const normalizedId = String(id);
     return reports.filter((report) => getDashboardReportId(report) !== normalizedId);
 };
 
 export const deduplicateDashboardReports = (reports = []) => {
+    if (!Array.isArray(reports)) return [];
     const reportsById = new Map();
     const reportsWithoutId = [];
 

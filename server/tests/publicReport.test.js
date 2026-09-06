@@ -17,7 +17,6 @@ describe('public report representation', () => {
         incidentTime: new Date('2026-08-01T02:00:00Z'),
         status: 'responding',
         severity: 'moderate',
-        fireInvolved: true,
         casualties: { injured: 2, fatalities: 0, missing: 0 },
         images: ['/api/files/private-image'],
         reportUpdates: [{ message: 'Private situation update' }],

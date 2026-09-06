@@ -46,11 +46,6 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-        googleId: {
-            type: String,
-            unique: true,
-            sparse: true, // Allows null values while maintaining uniqueness
-        },
         avatar: {
             type: String,
             default: null,
@@ -199,7 +194,7 @@ userSchema.pre('save', function (next) {
         if (this.role === 'reporter') {
             this.verificationStatus = 'pending';
             this.isVerified = false;
-        } else if (this.role === 'municipal_admin' || this.role === 'responder' || this.googleId) {
+        } else if (this.role === 'municipal_admin' || this.role === 'responder') {
             this.verificationStatus = 'not_required';
             this.isVerified = true;
         }

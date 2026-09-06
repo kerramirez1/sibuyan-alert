@@ -24,17 +24,11 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
         incidentTime: '2026-08-20T08:00:00.000Z',
         createdAt: '2026-08-20T08:15:00.000Z',
         description: 'Multi-vehicle collision on national road.',
-        fireInvolved: false,
         coordinates: { lat: 12.3812, lng: 122.5614 },
         casualties: {
             injured: 4,
             fatalities: 1,
             missing: 2,
-        },
-        affectedArea: {
-            householdsAffected: 0,
-            evacuees: 0,
-            radius: 0,
         },
         reporter: { name: 'Maria Santos', email: 'maria@example.com', isVerified: true },
         images: ['/blob-1.jpg'],
@@ -173,24 +167,23 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
         expect(overviewSection).toHaveTextContent(/4 injured · 1 fatalities · 2 missing/i);
     });
 
-    test('7. Renders non-casualty hazard indicators in safety indicators when fire is involved', () => {
-        const fireReport = {
+    test('7. Renders road-blocked safety indicator without repeating casualty counts', () => {
+        const blockedRoadReport = {
             ...baseReport,
-            fireInvolved: true,
-            fireType: 'structural_fire',
+            roadBlocked: true,
         };
 
         render(
             <IncidentDetailsContent
-                report={fireReport}
+                report={blockedRoadReport}
                 viewerRole="municipal_admin"
                 user={{ role: 'municipal_admin' }}
             />
         );
 
-        // Fire is listed in safety indicators without repeating casualty counts
+        // Road-blocked is listed in safety indicators without repeating casualty counts
         expect(screen.getByLabelText(/Critical safety indicators/i)).toBeInTheDocument();
-        expect(screen.getByText('Fire or explosion involved')).toBeInTheDocument();
+        expect(screen.getByText('Road blocked')).toBeInTheDocument();
     });
 
     test('8. Pending report with { injured: 0, fatalities: 2, missing: 4 } renders exact numbers inside Overview without duplicate pending verification in casualty heading', () => {
