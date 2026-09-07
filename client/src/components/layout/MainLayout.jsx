@@ -17,11 +17,14 @@ import {
     HiOutlineChartBar,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
+const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'border-emerald-500 bg-brand-900/40 text-brand-100'
-    : 'border-transparent text-brand-300/60 hover:bg-brand-900/20 hover:text-brand-100'}`;
-const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-emerald-300';
+    ? 'border-red-500 bg-white/[0.08] text-white'
+    : 'border-transparent text-slate-300/70 hover:bg-white/[0.06] hover:text-white'}`;
+const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-white';
+const getAlertNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
+    ? 'border-red-500 bg-red-600/20 text-white'
+    : 'border-red-900/40 bg-red-600/10 text-red-200 hover:bg-red-600/20 hover:text-white'}`;
 
 const getAccountContext = (user) => {
     const roleLabels = {
@@ -123,7 +126,7 @@ const MainLayout = ({ children }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-[#061e14] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[240px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[240px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Brand Header */}
                     <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 lg:h-14 lg:px-4">
@@ -136,7 +139,7 @@ const MainLayout = ({ children }) => {
                                         ? '/admin'
                                         : '/';
                             return (
-                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Sibuyan Alert home">
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" aria-label="Sibuyan Alert home">
                                     <img
                                         src="/icons/Alert.png"
                                         alt=""
@@ -144,9 +147,9 @@ const MainLayout = ({ children }) => {
                                     />
                                     <div className="min-w-0">
                                         <span className="block text-xs font-bold tracking-tight text-white">
-                                            Sibuyan <span className="text-emerald-400">Alert</span>
+                                            Sibuyan <span className="text-red-400">Alert</span>
                                         </span>
-                                        <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-emerald-300/50">
+                                        <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-slate-400">
                                             Island Operations
                                         </span>
                                     </div>
@@ -158,7 +161,7 @@ const MainLayout = ({ children }) => {
                             type="button"
                             onClick={closeDrawer}
                             aria-label="Close navigation menu"
-                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:hidden"
+                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 lg:hidden"
                         >
                             <HiOutlineX className="w-5 h-5" />
                         </button>
@@ -242,7 +245,7 @@ const MainLayout = ({ children }) => {
                                 key={item.name}
                                 to={item.href}
                                 aria-current={location.pathname === item.href ? 'page' : undefined}
-                                className={({ isActive }) => getNavLinkClass(isActive)}
+                                className={({ isActive }) => (item.name === 'Submit Report' ? getAlertNavLinkClass(isActive) : getNavLinkClass(isActive))}
                                 onClick={closeDrawer}
                             >
                                 <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
@@ -314,11 +317,11 @@ const MainLayout = ({ children }) => {
                                 <Link
                                     to="/profile"
                                     onClick={closeDrawer}
-                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0"
+                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0"
                                     aria-label="Open profile settings"
                                     title={user?.assignedMunicipality ? `${user?.name} · ${getAccountContext(user)}` : user?.name}
                                 >
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-950 text-[11px] font-bold text-emerald-100">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[11px] font-bold text-white">
                                         {user?.avatar ? (
                                             <img
                                                 src={resolveAssetUrl(user.avatar)}
@@ -333,7 +336,7 @@ const MainLayout = ({ children }) => {
                                         <p className="whitespace-nowrap text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
                                             {user?.name}
                                         </p>
-                                        <p className="mt-0.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-tight tracking-normal text-emerald-300/70">
+                                        <p className="mt-0.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-400">
                                             {getAccountContext(user)}
                                         </p>
                                     </div>
@@ -341,7 +344,7 @@ const MainLayout = ({ children }) => {
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-9 w-full cursor-pointer items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-brand-300/50 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5"
+                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5"
                                 >
                                     <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     <span>Sign out</span>
@@ -351,7 +354,7 @@ const MainLayout = ({ children }) => {
                             <div className="border-t border-white/[0.08] p-3">
                                 <div className="mb-2.5">
                                     <p className="text-[11px] font-semibold uppercase tracking-wider text-white">Guest mode</p>
-                                    <p className="text-xs text-emerald-400/80">Public safety feed</p>
+                                    <p className="text-xs text-slate-400">Public safety feed</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Link
@@ -364,7 +367,7 @@ const MainLayout = ({ children }) => {
                                     <Link
                                         to="/register"
                                         onClick={closeDrawer}
-                                        className="flex min-h-[44px] w-full items-center justify-center rounded-md border border-emerald-800/50 bg-brand-900/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-700 hover:bg-brand-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950 sm:min-h-9"
+                                        className="flex min-h-[44px] w-full items-center justify-center rounded-md border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-950 sm:min-h-9"
                                     >
                                         Become a reporter
                                     </Link>
@@ -375,7 +378,7 @@ const MainLayout = ({ children }) => {
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-950">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-gray-950">
                     {/* Operational Header */}
                     <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-3 border-b border-gray-200/80 bg-white/90 px-2.5 sm:px-4 lg:px-8 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/90">
                         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">

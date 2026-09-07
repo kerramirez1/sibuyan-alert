@@ -6,6 +6,7 @@ import toast from '../utils/appToast';
 import {
     HiOutlineChevronDown,
     HiOutlineExclamationCircle,
+    HiOutlineX,
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
@@ -225,6 +226,7 @@ function MyReportsPage() {
     const [searchParams] = useSearchParams();
     const { subscribe } = useSocket();
     const requestedReportId = searchParams.get('report');
+    const requestedStatus = searchParams.get('status');
     const itemRefs = useRef({});
 
     const fetchReports = useCallback(async (silent = false) => {
@@ -251,6 +253,15 @@ function MyReportsPage() {
         setFilterStatus('all');
         setSelectedReportId(String(requestedReportId));
     }, [reports, requestedReportId]);
+
+    // Deep links from dashboard KPI cards (e.g. /my-reports?status=resolved).
+    // Skipped when a specific report is requested — the report takes over the view.
+    useEffect(() => {
+        if (requestedReportId || !requestedStatus) return;
+        if (requestedStatus === 'active' || FILTERS.includes(requestedStatus)) {
+            setFilterStatus(requestedStatus);
+        }
+    }, [requestedReportId, requestedStatus]);
 
     const toggleReportSelected = useCallback((id) => {
         if (!id) return;
@@ -403,7 +414,13 @@ function MyReportsPage() {
 
     const filteredReports = useMemo(() => (
         reports
-            .filter((report) => filterStatus === 'all' || report.status === filterStatus)
+            .filter((report) => {
+                if (filterStatus === 'all') return true;
+                // 'active' is a dashboard-level grouping (verified + transferred + responding),
+                // not a report status — it only arrives via ?status= deep links.
+                if (filterStatus === 'active') return ['verified', 'transferred', 'responding'].includes(report.status);
+                return report.status === filterStatus;
+            })
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     ), [filterStatus, reports]);
 
@@ -414,12 +431,20 @@ function MyReportsPage() {
         { label: 'Resolved', value: stats.resolved, helper: 'Closed incidents' },
     ];
 
+    // Human label for the active filter chip (covers the 'active' dashboard
+    // grouping, which has no desktop tab of its own).
+    const activeFilterLabel = filterStatus === 'all'
+        ? null
+        : filterStatus === 'active'
+            ? 'Active'
+            : STATUS_CONFIG[filterStatus]?.label || filterStatus;
+
     return (
         <div className="mx-auto w-full max-w-5xl">
             {/* Single page title block */}
             <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         My reports
                     </h1>
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
@@ -430,7 +455,7 @@ function MyReportsPage() {
                 <div className="hidden sm:block sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
                     >
                         Submit incident report
                     </Link>
@@ -451,30 +476,20 @@ function MyReportsPage() {
                 </div>
             ) : (
                 <div>
-                    {/* Summary: hairline dividers like Reporter dashboard */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6">
-                        {metricCards.map(({ label, value, helper }, index) => (
-                            // Mobile is 2-col: col-1 items (index 0, 2) never get a divider;
-                            // col-2 items (index 1, 3) always do. On sm (4-col) every
-                            // item after the first gets one. This keeps Total and
-                            // Active flush-left aligned.
+                    {/* Summary KPI cards */}
+                    <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {metricCards.map(({ label, value, helper }) => (
                             <div
                                 key={label}
-                                className={
-                                    index === 0
-                                        ? ''
-                                        : index === 2
-                                            ? 'sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10'
-                                            : 'border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10'
-                                }
+                                className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
                             >
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
-                                    {label}
-                                </p>
-                                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
+                                <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
                                     {value}
                                 </p>
-                                <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">{helper}</p>
+                                <p className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                    {label}
+                                </p>
+                                <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-gray-500 dark:text-gray-400">{helper}</p>
                             </div>
                         ))}
                     </section>
@@ -483,7 +498,7 @@ function MyReportsPage() {
                     <div className="py-4 sm:hidden">
                         <Link
                             to="/report"
-                            className="inline-flex min-h-[40px] w-full items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            className="inline-flex min-h-[40px] w-full items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
                         >
                             Submit incident report
                         </Link>
@@ -502,12 +517,28 @@ function MyReportsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setFilterModalOpen(true)}
-                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-semibold text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline sm:hidden dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline sm:hidden dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     <span>Filter reports{filterStatus !== 'all' ? ' · 1' : ''}</span>
                                 </button>
                             )}
                         </div>
+
+                        {/* Active filter chip — the only place the current filter
+                            is named on mobile (desktop tabs are sm+ only). */}
+                        {activeFilterLabel && (
+                            <div className="mt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setFilterStatus('all')}
+                                    aria-label={`Clear ${activeFilterLabel} filter and show all reports`}
+                                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-sky-300 dark:hover:bg-white/10"
+                                >
+                                    <span>Filter: {activeFilterLabel}</span>
+                                    <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
+                                </button>
+                            </div>
+                        )}
 
                         {reports.length > 0 && (
                             <div className="mt-4 hidden gap-6 border-b border-gray-200 pb-0 sm:flex dark:border-white/10" aria-label="Filter reports by status">
@@ -548,7 +579,7 @@ function MyReportsPage() {
                                 <div className="mt-5">
                                     <Link
                                         to="/report"
-                                        className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
                                     >
                                         Submit incident report
                                     </Link>
@@ -562,7 +593,7 @@ function MyReportsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setFilterStatus('all')}
-                                    className="mt-2 min-h-[44px] text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="mt-2 min-h-[44px] text-sm font-medium text-brand-700 hover:text-brand-800 dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     Clear filter
                                 </button>
@@ -725,7 +756,7 @@ function MyReportsPage() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setUpdateDialogReportId(report._id)}
-                                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                                                    className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-700 px-3 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 dark:bg-brand-600 dark:hover:bg-brand-500"
                                                                 >
                                                                     Send situation update
                                                                 </button>

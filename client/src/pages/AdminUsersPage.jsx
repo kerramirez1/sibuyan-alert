@@ -351,10 +351,10 @@ const AdminUsersPage = () => {
             {/* Page Header */}
             <header className="flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">
                         Municipal administration
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Manage users
                     </h1>
                     <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
@@ -370,38 +370,38 @@ const AdminUsersPage = () => {
 
             {/* Summary Metrics Strip */}
             {stats && (
-                <section className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 md:grid-cols-4 dark:border-white/10 dark:bg-white/10" aria-label="User directory summary">
-                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total users</span>
-                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.totalUsers}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Registered accounts</p>
+                <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="User directory summary">
+                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                        <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.totalUsers}</p>
+                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total users</span>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Registered accounts</p>
                     </div>
 
-                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Reporters</span>
+                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.reporters}</p>
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 mt-2" aria-hidden="true" />
                         </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.reporters}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Field reporters</p>
+                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Reporters</span>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Field reporters</p>
                     </div>
 
-                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Pending</span>
+                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.pendingVerification}</p>
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 mt-2" aria-hidden="true" />
                         </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.pendingVerification}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
+                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Pending</span>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
                     </div>
 
-                    <div className="bg-white p-4 dark:bg-[#0c1813]/90">
-                        <div className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Responders</span>
+                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.responders}</p>
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500 mt-2" aria-hidden="true" />
                         </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white tabular-nums">{stats.responders}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Emergency units</p>
+                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Responders</span>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Emergency units</p>
                     </div>
                 </section>
             )}
@@ -427,7 +427,7 @@ const AdminUsersPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => fetchUsers()}
-                                    className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                                 >
                                     Search
                                 </button>
@@ -1154,7 +1154,7 @@ const AdminUsersPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => handleActionFromViewer('approved')}
-                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-xs font-semibold text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors cursor-pointer"
+                                            className="inline-flex h-8 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-3.5 text-xs font-semibold text-white hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500 transition-colors cursor-pointer"
                                         >
                                             <HiOutlineCheckCircle className="h-4 w-4" />
                                             Approve reporter

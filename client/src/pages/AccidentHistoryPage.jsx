@@ -270,7 +270,7 @@ const ArchiveFilterModal = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-10 items-center justify-center rounded-md bg-emerald-700 px-5 text-sm font-medium text-white hover:bg-emerald-800 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="flex h-10 items-center justify-center rounded-md bg-brand-700 px-5 text-sm font-medium text-white hover:bg-brand-800 cursor-pointer dark:bg-brand-600 dark:hover:bg-brand-500"
                     >
                         Show {totalResults} {totalResults === 1 ? 'record' : 'records'}
                     </button>
@@ -644,11 +644,11 @@ const AccidentHistoryPage = () => {
             {/* Header: Clean Public Archive Title */}
             <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <span className="text-xs font-semibold tracking-wide text-emerald-700 dark:text-emerald-400 uppercase">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
                         Public Archive
                     </span>
 
-                    <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Accident history
                     </h1>
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
@@ -659,40 +659,40 @@ const AccidentHistoryPage = () => {
 
             {/* Shared summary strip with My Reports / Reporter dashboard: same labels, dots, dividers, sizes. */}
             <section
-                className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6"
+                className="grid grid-cols-2 gap-3 sm:grid-cols-4"
                 aria-label="History summary"
             >
                 {/* 1. Total Resolved */}
-                <div>
-                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
-                        Total resolved
-                    </h2>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
+                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-green-700 dark:text-green-400">
                         {stats.total}
                     </p>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">All recorded incidents</p>
+                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        Total resolved
+                    </h2>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">All recorded incidents</p>
                 </div>
 
                 {/* 2. Last 7 Days */}
-                <div className="border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10">
-                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
-                        Last 7 days
-                    </h2>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
+                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
                         {stats.last7}
                     </p>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">Recently closed</p>
+                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        Last 7 days
+                    </h2>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">Recently closed</p>
                 </div>
 
                 {/* 3. Last 30 Days */}
-                <div className="sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10">
-                    <h2 className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
-                        Last 30 days
-                    </h2>
-                    <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 sm:mt-1 sm:text-3xl dark:text-white">
+                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
                         {stats.last30}
                     </p>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">Monthly activity</p>
+                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        Last 30 days
+                    </h2>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">Monthly activity</p>
                 </div>
 
                 {/* 4. Top Barangay Insight */}
@@ -707,24 +707,24 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10 text-left ${
+                    className={`min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 text-left shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'cursor-pointer' : ''
                     }`}
                 >
-                    <div className="flex items-center justify-between gap-1">
-                        <h2 className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                    <p className="truncate font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                        {topBarangayInfo.name}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-1">
+                        <h2 className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                             Top Barangay
                         </h2>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 shrink-0">
+                            <span className="text-[11px] font-semibold text-brand-700 dark:text-sky-400 underline decoration-brand-300 underline-offset-2 shrink-0">
                                 {barangayFilter === topBarangayInfo.name ? 'Clear' : 'View'}
                             </span>
                         )}
                     </div>
-                    <p className="mt-0.5 text-2xl font-semibold text-gray-900 dark:text-white truncate tracking-tight sm:mt-1 sm:text-3xl">
-                        {topBarangayInfo.name}
-                    </p>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">{topBarangayInfo.helper}</p>
+                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">{topBarangayInfo.helper}</p>
                 </div>
             </section>
 
@@ -742,7 +742,7 @@ const AccidentHistoryPage = () => {
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder={isMobile ? 'Search archive or barangay…' : 'Search location, barangay, or incident category…'}
-                                className="h-9 w-full rounded-md border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+                                className="h-9 w-full rounded-md border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                             />
                             {searchQuery && (
                                 <button
@@ -901,7 +901,7 @@ const AccidentHistoryPage = () => {
                             <button
                                 type="button"
                                 onClick={clearFilters}
-                                className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-emerald-700 px-4 text-[13px] font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="mt-4 inline-flex h-9 items-center justify-center rounded-md bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 cursor-pointer dark:bg-brand-600 dark:hover:bg-brand-500"
                             >
                                 Clear filters
                             </button>
@@ -984,7 +984,7 @@ const AccidentHistoryPage = () => {
                                             </div>
 
                                             <div className="flex items-center justify-center">
-                                                <HiOutlineChevronDown className={`h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 ${isExpanded ? 'rotate-180 text-emerald-700 dark:text-emerald-400' : ''}`} />
+                                                <HiOutlineChevronDown className={`h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 ${isExpanded ? 'rotate-180 text-brand-700 dark:text-sky-400' : ''}`} />
                                             </div>
                                         </button>
 
@@ -993,7 +993,7 @@ const AccidentHistoryPage = () => {
                                             <div className="border-t border-gray-100 px-4 py-4 space-y-4 sm:px-6 dark:border-white/5">
                                                 {/* Incident Summary */}
                                                 <div>
-                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">
+                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400 mb-1">
                                                         Incident summary
                                                     </h3>
                                                     <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 break-words">
@@ -1031,7 +1031,7 @@ const AccidentHistoryPage = () => {
                                                                 Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}
                                                             </span>
                                                             {canViewFullDetails && (
-                                                                <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                                                                <span className="text-[11px] font-medium text-brand-700 dark:text-sky-400">
                                                                     ({report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}{report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''})
                                                                 </span>
                                                             )}

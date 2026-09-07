@@ -167,7 +167,7 @@ const MapMobileFilterSheet = ({
                         type="button"
                         onClick={onClose}
                         aria-label="Close filter sheet"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer"
                     >
                         <HiOutlineX className="h-5 w-5" aria-hidden="true" />
                     </button>
@@ -199,14 +199,14 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="All active"
                                     onClick={() => setPendingFilter('all')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                                         isSelected
-                                            ? 'text-emerald-800 dark:text-emerald-300'
+                                            ? 'text-brand-800 dark:text-sky-300'
                                             : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                                        <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true" />
                                         <div>
                                             <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
                                                 All active
@@ -222,7 +222,7 @@ const MapMobileFilterSheet = ({
                                             {count}
                                         </span>
                                         {isSelected && (
-                                            <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                            <HiCheck className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                         )}
                                     </div>
                                 </button>
@@ -250,9 +250,9 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                                                 isSelected
-                                                    ? 'text-emerald-800 dark:text-emerald-300'
+                                                    ? 'text-brand-800 dark:text-sky-300'
                                                     : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                             }`}
                                         >
@@ -268,7 +268,7 @@ const MapMobileFilterSheet = ({
                                                     {count}
                                                 </span>
                                                 {isSelected && (
-                                                    <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                                    <HiCheck className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                                 )}
                                             </div>
                                         </button>
@@ -293,9 +293,9 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="Risk zones"
                                     onClick={() => setPendingFilter('risk-zones')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                                         isSelected
-                                            ? 'text-emerald-800 dark:text-emerald-300'
+                                            ? 'text-brand-800 dark:text-sky-300'
                                             : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
                                     }`}
                                 >
@@ -316,7 +316,7 @@ const MapMobileFilterSheet = ({
                                             {count}
                                         </span>
                                         {isSelected && (
-                                            <HiCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                            <HiCheck className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                         )}
                                     </div>
                                 </button>
@@ -337,7 +337,7 @@ const MapMobileFilterSheet = ({
                     <button
                         type="button"
                         onClick={handleApply}
-                        className="flex-1 min-h-[44px] rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+                        className="flex-1 min-h-[44px] rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
                     >
                         {applyLabel}
                     </button>

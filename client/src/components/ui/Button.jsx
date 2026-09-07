@@ -10,6 +10,7 @@ const BASE_STYLES = [
 
 const VARIANT_STYLES = Object.freeze({
     primary: 'border-transparent bg-brand-700 text-white hover:bg-brand-800',
+    alert: 'border-transparent bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
     secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
     danger: 'bg-red-700 text-white hover:bg-red-800 focus-visible:ring-red-500',
     dangerOutline: 'bg-gray-100 text-red-700 hover:bg-red-50 focus-visible:ring-red-500',

@@ -421,12 +421,10 @@ const RegisterPage = () => {
         <div className="w-full py-2">
             {/* Mobile Brand Header */}
             <div className="mb-5 flex items-center gap-2.5 lg:hidden">
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-2xs dark:border-white/10 dark:bg-white/10">
-                    <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
-                </div>
+                <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
                 <div>
                     <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                        Sibuyan <span className="text-emerald-700 dark:text-emerald-400">Alert</span>
+                        Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
                     </p>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
                         Accident Alert &amp; Mapping System
@@ -456,7 +454,7 @@ const RegisterPage = () => {
             <p className="sr-only" aria-live="polite">{`Step ${step} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
             <div className="mb-6 border-b border-gray-200/80 pb-4 dark:border-white/10" aria-label="Registration progress">
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-800 dark:text-sky-400">
                         Step {step} of {REGISTRATION_STEPS.length}: {currentStep.label}
                     </p>
                     <span className="font-mono text-xs font-semibold text-gray-400 dark:text-gray-500">
@@ -469,7 +467,7 @@ const RegisterPage = () => {
                         <div
                             key={s.label}
                             className={`h-1.5 rounded-full transition-all duration-300 ${idx + 1 <= step
-                                ? 'bg-emerald-700 dark:bg-emerald-500'
+                                ? 'bg-brand-700 dark:bg-brand-500'
                                 : 'bg-gray-200 dark:bg-white/10'
                             }`}
                         />
@@ -478,7 +476,7 @@ const RegisterPage = () => {
             </div>
 
             {/* Main Form Container */}
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-7" noValidate>
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8" noValidate>
                 {step === 1 && (
                     <section aria-labelledby="account-step-title" className="space-y-4">
                         <div className="border-b border-gray-200/80 pb-2.5 dark:border-white/10">
@@ -581,7 +579,7 @@ const RegisterPage = () => {
                             <ul className="mt-2.5 grid gap-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400 sm:grid-cols-2">
                                 {['Show the entire ID and all four corners', 'Make sure the name and details are readable', 'Avoid blur, glare, shadows, and reflections', 'Use your own valid government or school ID'].map((item) => (
                                     <li key={item} className="flex items-start gap-2">
-                                        <HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                        <HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                         <span>{item}</span>
                                     </li>
                                 ))}
@@ -591,29 +589,29 @@ const RegisterPage = () => {
                         {!idFile ? (
                             <div className={errors.idDocument ? 'border-l-2 border-red-400 pl-3' : ''}>
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-xl border border-gray-200/80 bg-white p-4 text-center text-gray-900 shadow-2xs transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-[#07130e] dark:text-white dark:hover:border-emerald-500/40 dark:hover:bg-emerald-950/20">
-                                        <HiOutlineCamera className="mb-1.5 h-5 w-5 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                    <button type="button" onClick={() => openIdPicker(cameraInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-xl border border-gray-200/80 bg-white p-4 text-center text-gray-900 shadow-2xs transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-[#07130e] dark:text-white dark:hover:border-sky-400/40 dark:hover:bg-white/5">
+                                        <HiOutlineCamera className="mb-1.5 h-5 w-5 text-brand-700 dark:text-sky-400" aria-hidden="true" />
                                         <span className="text-xs sm:text-sm font-semibold">Take a photo</span>
                                         <span className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Use your rear camera</span>
                                     </button>
-                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-xl border border-gray-200/80 bg-white p-4 text-center text-gray-900 shadow-2xs transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-[#07130e] dark:text-white dark:hover:border-emerald-500/40 dark:hover:bg-emerald-950/20">
+                                    <button type="button" onClick={() => openIdPicker(fileInputRef)} disabled={idPreparing} className="flex min-h-24 flex-col items-center justify-center rounded-xl border border-gray-200/80 bg-white p-4 text-center text-gray-900 shadow-2xs transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-[#07130e] dark:text-white dark:hover:border-sky-400/40 dark:hover:bg-white/5">
                                         <HiOutlineCloudUpload className="mb-1.5 h-5 w-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
                                         <span className="text-xs sm:text-sm font-semibold">Choose from device</span>
                                         <span className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Select an existing photo</span>
                                     </button>
                                 </div>
                                 <p className="mt-2.5 text-center text-xs text-gray-500 dark:text-gray-400">JPG, PNG, or WebP · maximum 5 MB</p>
-                                {idPreparing && <p className="mt-2 text-center text-xs font-medium text-brand-700 dark:text-emerald-400" role="status">Preparing your ID photo…</p>}
+                                {idPreparing && <p className="mt-2 text-center text-xs font-medium text-brand-700 dark:text-sky-400" role="status">Preparing your ID photo…</p>}
                             </div>
                         ) : (
-                            <div className="overflow-hidden rounded-xl border border-brand-200 bg-brand-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                            <div className="overflow-hidden rounded-xl border border-brand-200 bg-brand-50/40 dark:border-white/10 dark:bg-white/[0.03]">
                                 <div className="aspect-[8/5] bg-gray-100 dark:bg-gray-900/60 p-3 sm:p-4">
                                     <img src={idPreview} alt="Selected identification preview" className="h-full w-full rounded-lg object-contain" />
                                 </div>
-                                <div className="flex flex-col gap-3 border-t border-brand-200/80 dark:border-emerald-900/40 p-3.5 sm:flex-row sm:items-center">
+                                <div className="flex flex-col gap-3 border-t border-brand-200/80 dark:border-white/10 p-3.5 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{idFile.name}</p>
-                                        <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-brand-700 dark:text-emerald-400"><HiOutlineCheck className="h-3.5 w-3.5" /> Ready for secure upload</p>
+                                        <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-brand-700 dark:text-sky-400"><HiOutlineCheck className="h-3.5 w-3.5" /> Ready for secure upload</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 sm:flex">
                                         <button type="button" onClick={() => openIdPicker(idSource === 'camera' ? cameraInputRef : fileInputRef)} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -632,7 +630,7 @@ const RegisterPage = () => {
 
                         <div className="rounded-xl border border-gray-200/80 bg-gray-50/80 p-3.5 dark:border-gray-800 dark:bg-[#07130e]">
                             <div className="flex gap-2.5">
-                                <HiOutlineShieldCheck className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                <HiOutlineShieldCheck className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand-700 dark:text-sky-400" aria-hidden="true" />
                                 <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                                     Your files are encrypted in transit, stored securely as a private verification record, and never shown on public reports.
                                 </p>
@@ -661,7 +659,7 @@ const RegisterPage = () => {
                                 <ul className="mt-2.5 grid gap-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400 sm:grid-cols-2">
                                     {['Face the camera directly', 'Use a well-lit area', 'Remove masks, caps, and tinted glasses', 'Make sure only you are visible'].map((item) => (
                                         <li key={item} className="flex items-start gap-2">
-                                            <HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                            <HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                             <span>{item}</span>
                                         </li>
                                     ))}
@@ -763,11 +761,11 @@ const RegisterPage = () => {
 
                         <div className="rounded-xl border border-gray-200/80 bg-gray-50/80 p-3.5 dark:border-gray-800 dark:bg-[#07130e]">
                             <div className="flex gap-2.5">
-                                <HiOutlineShieldCheck className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand-700 dark:text-emerald-400" aria-hidden="true" />
+                                <HiOutlineShieldCheck className="mt-0.5 h-4.5 w-4.5 shrink-0 text-brand-700 dark:text-sky-400" aria-hidden="true" />
                                 <div className="min-w-0 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                                     <p>Your files are encrypted in transit, stored securely as a private verification record, and never shown on public reports.</p>
                                     <details className="mt-2.5">
-                                        <summary className="cursor-pointer font-semibold text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400">How verification photos are handled</summary>
+                                        <summary className="cursor-pointer font-semibold text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400">How verification photos are handled</summary>
                                         <div className="mt-2.5 space-y-1.5 border-t border-gray-200/80 pt-2 text-[11px] dark:border-gray-800">
                                             <p><strong className="font-semibold text-gray-800 dark:text-gray-200">Purpose:</strong> manual identity comparison before reporter access is approved.</p>
                                             <p><strong className="font-semibold text-gray-800 dark:text-gray-200">Visibility:</strong> never displayed on public reports and never shared with responders.</p>
@@ -781,7 +779,7 @@ const RegisterPage = () => {
                         {errors.form && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300" role="alert">{errors.form}</div>}
 
                         <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
-                            <button type="button" onClick={handleBack} disabled={loading} className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Back</button>
+                            <button type="button" onClick={handleBack} disabled={loading} className="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Back</button>
                             <button ref={submitButtonRef} type="submit" disabled={loading || !selfieAccepted} aria-disabled={loading || !selfieAccepted} className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                                 {loading ? 'Submitting securely…' : selfieAccepted ? 'Submit for municipal review' : 'Confirm your selfie to continue'}
                             </button>

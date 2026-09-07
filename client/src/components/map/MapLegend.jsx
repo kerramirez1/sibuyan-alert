@@ -40,11 +40,11 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
     }
 
     const itemClass = compact
-        ? 'flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-gray-100'
+        ? 'flex items-center gap-1.5 text-[11px] font-semibold text-gray-800 dark:text-gray-100'
         : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-gray-700 dark:text-gray-200';
 
     return (
-        <div className={compact ? 'space-y-2' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1'}>
+        <div className={compact ? 'space-y-1.5' : 'flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1'}>
             {showRiskZone && (
                 <div className={itemClass}>
                     <LegendSymbol status="risk" color={MAP_RISK_ZONE_CONFIG.markerColor} />
@@ -131,7 +131,7 @@ const MapLegend = ({
                         title="Show map legend"
                         className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#0c1813] sm:inline-flex cursor-pointer"
                     >
-                        <HiOutlineMap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        <HiOutlineMap className="h-3.5 w-3.5 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                         <span>Legend</span>
                     </button>
                 ) : (
@@ -163,9 +163,9 @@ const MapLegend = ({
                     aria-controls={popoverId}
                     aria-label="Map legend"
                     onClick={() => setMobileOpen((current) => !current)}
-                    className="relative inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                    className="relative inline-flex min-h-[32px] items-center gap-1 rounded-lg border border-gray-200/90 bg-white/95 backdrop-blur-md px-2 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-2xs transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#07130e] cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                 >
-                    <HiOutlineMap className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                    <HiOutlineMap className="h-3 w-3 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
                     <span>Map legend</span>
                 </button>
                 {mobileOpen && (
@@ -173,9 +173,8 @@ const MapLegend = ({
                         id={popoverId}
                         role="region"
                         aria-label="Map legend details"
-                        className="absolute left-0 top-10 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2.5 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
+                        className="absolute left-0 top-10 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
                     >
-                        <p className="pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Map legend</p>
                         <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
                     </section>
                 )}

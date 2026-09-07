@@ -42,12 +42,10 @@ const ForgotPasswordPage = () => {
         <div className="w-full py-2">
             {/* Mobile Brand Header */}
             <div className="mb-5 flex items-center gap-2.5 lg:hidden">
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-2xs dark:border-white/10 dark:bg-white/10">
-                    <img src="/icons/Alert.png" alt="" className="h-full w-full object-contain" />
-                </div>
+                <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
                 <div>
                     <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                        Sibuyan <span className="text-emerald-700 dark:text-emerald-400">Alert</span>
+                        Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
                     </p>
                     <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                         Accident Alert &amp; Mapping System
@@ -69,7 +67,7 @@ const ForgotPasswordPage = () => {
                     <>
                         {/* Header */}
                         <div className="mb-6">
-                            <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                            <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                                 Account Recovery
                             </p>
                             <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">

@@ -386,7 +386,7 @@ const ProfileSettingsPage = () => {
             {/* Page Header */}
             <header className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
                         <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>Account</span>
                     </span>
@@ -415,7 +415,7 @@ const ProfileSettingsPage = () => {
                                     className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl sm:rounded-2xl object-cover border border-gray-200/90 shadow-2xs dark:border-white/10"
                                 />
                             ) : (
-                                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-emerald-800 font-display text-xl sm:text-2xl font-bold text-white shadow-2xs dark:bg-emerald-700">
+                                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-brand-800 font-display text-xl sm:text-2xl font-bold text-white shadow-2xs dark:bg-brand-700">
                                     {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                                 </div>
                             )}
@@ -445,7 +445,7 @@ const ProfileSettingsPage = () => {
                             ref={changePhotoButtonRef}
                             type="button"
                             onClick={openPhotoMenu}
-                            className="inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
+                            className="inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
                             aria-expanded={showPhotoMenu}
                             aria-haspopup="true"
                             aria-label="Change profile photo"
@@ -480,7 +480,7 @@ const ProfileSettingsPage = () => {
                                         onClick={triggerGallery}
                                         className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
                                     >
-                                        <HiOutlinePhotograph className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                        <HiOutlinePhotograph className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                         <span>Choose from device</span>
                                     </button>
                                     <button
@@ -489,7 +489,7 @@ const ProfileSettingsPage = () => {
                                         onClick={triggerCamera}
                                         className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
                                     >
-                                        <HiOutlineCamera className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                        <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                         <span>Take photo</span>
                                     </button>
                                     {hasAvatar && (
@@ -539,7 +539,7 @@ const ProfileSettingsPage = () => {
                                             onClick={triggerGallery}
                                             className="flex w-full items-center gap-3 rounded-xl bg-gray-50 dark:bg-white/5 px-4 py-3 text-xs font-semibold text-gray-900 dark:text-white min-h-[44px] cursor-pointer"
                                         >
-                                            <HiOutlinePhotograph className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                            <HiOutlinePhotograph className="h-5 w-5 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                             <span>Choose from device</span>
                                         </button>
                                         <button
@@ -547,7 +547,7 @@ const ProfileSettingsPage = () => {
                                             onClick={triggerCamera}
                                             className="flex w-full items-center gap-3 rounded-xl bg-gray-50 dark:bg-white/5 px-4 py-3 text-xs font-semibold text-gray-900 dark:text-white min-h-[44px] cursor-pointer"
                                         >
-                                            <HiOutlineCamera className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                            <HiOutlineCamera className="h-5 w-5 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                             <span>Take photo</span>
                                         </button>
                                         {hasAvatar && (
@@ -611,7 +611,7 @@ const ProfileSettingsPage = () => {
                                     value={formData.name}
                                     onChange={handleChange}
                                     required
-                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
+                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
                                     placeholder="Enter your full name"
                                 />
                             </div>
@@ -626,7 +626,7 @@ const ProfileSettingsPage = () => {
                                     value={formData.email}
                                     onChange={handleChange}
                                     required
-                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
+                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
                                     placeholder="Enter email address"
                                 />
                             </div>
@@ -637,7 +637,7 @@ const ProfileSettingsPage = () => {
                     <section className="p-4 sm:p-6" aria-labelledby="protected-info-heading">
                         <div className="mb-4">
                             <div className="flex items-center gap-1.5">
-                                <HiOutlineLockClosed className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                                <HiOutlineLockClosed className="h-4 w-4 text-brand-700 dark:text-sky-400" aria-hidden="true" />
                                 <h3 id="protected-info-heading" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
                                     Protected information
                                 </h3>
@@ -685,7 +685,7 @@ const ProfileSettingsPage = () => {
                     <section className="p-4 sm:p-6" aria-labelledby="notifications-heading">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex min-w-0 items-start gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-brand-200/80 bg-brand-50 text-brand-700 dark:border-white/10 dark:bg-white/5 dark:text-sky-300">
                                     <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                                 </div>
                                 <div className="min-w-0">
@@ -740,7 +740,7 @@ const ProfileSettingsPage = () => {
                                     className={`inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl px-4 text-xs font-semibold shadow-2xs transition disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
                                         pushState.subscribed
                                             ? 'border border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            : 'bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500'
+                                            : 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500'
                                     }`}
                                 >
                                     {pushState.loading
@@ -781,7 +781,7 @@ const ProfileSettingsPage = () => {
                                         className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
                                             errors.currentPassword
                                                 ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                : 'border-gray-200/90 focus:border-emerald-600 focus:ring-emerald-500/20 dark:border-white/10'
+                                                : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
                                         }`}
                                         placeholder="Enter current password"
                                         maxLength={72}
@@ -791,7 +791,7 @@ const ProfileSettingsPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowCurrentPassword((prev) => !prev)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
                                         aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                                     >
                                         {showCurrentPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -823,7 +823,7 @@ const ProfileSettingsPage = () => {
                                             className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
                                                 errors.newPassword
                                                     ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                    : 'border-gray-200/90 focus:border-emerald-600 focus:ring-emerald-500/20 dark:border-white/10'
+                                                    : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
                                             }`}
                                             placeholder="Enter new password"
                                             maxLength={72}
@@ -833,7 +833,7 @@ const ProfileSettingsPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowNewPassword((prev) => !prev)}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
                                             aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                                         >
                                             {showNewPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -867,7 +867,7 @@ const ProfileSettingsPage = () => {
                                             className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
                                                 errors.confirmPassword
                                                     ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                    : 'border-gray-200/90 focus:border-emerald-600 focus:ring-emerald-500/20 dark:border-white/10'
+                                                    : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
                                             }`}
                                             placeholder="Re-enter new password"
                                             maxLength={72}
@@ -877,7 +877,7 @@ const ProfileSettingsPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
                                             aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                                         >
                                             {showConfirmPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -899,14 +899,14 @@ const ProfileSettingsPage = () => {
                     <button
                         type="button"
                         onClick={() => navigate(user?.role === 'reporter' ? '/my-reports' : '/dashboard')}
-                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-5 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
+                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-5 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={loading || !hasChanges}
-                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl bg-emerald-700 px-6 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl bg-brand-700 px-6 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
                     >
                         {loading ? (
                             <span className="flex items-center justify-center gap-2">
@@ -950,7 +950,7 @@ const ProfileSettingsPage = () => {
                         >
                             <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
                                 <h3 id="webcam-modal-title" className="text-sm font-bold text-gray-950 dark:text-white flex items-center gap-2">
-                                    <HiOutlineCamera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                    <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                     Take profile photo
                                 </h3>
                                 <button
@@ -985,7 +985,7 @@ const ProfileSettingsPage = () => {
                                 <button
                                     type="button"
                                     onClick={captureWebcamPhoto}
-                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
                                 >
                                     <HiOutlineCamera className="h-4 w-4" aria-hidden="true" />
                                     Capture photo

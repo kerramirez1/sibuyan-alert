@@ -33,7 +33,7 @@ const IncidentLocationPreview = ({
                         <button
                             type="button"
                             onClick={() => onOpenMap(report)}
-                            className="group mt-1.5 mb-2.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            className="group mt-1.5 mb-2.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300"
                         >
                             <span>Open full map</span>
                             <HiOutlineArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />

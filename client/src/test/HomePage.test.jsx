@@ -83,7 +83,7 @@ describe('HomePage operational landing page', () => {
         expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(mapAction).not.toHaveClass('border-emerald-700');
         expect(mapAction).toHaveClass('ui-button', 'bg-white', 'text-gray-800');
-        expect(reportAction).toHaveClass('bg-emerald-600', 'text-white');
+        expect(reportAction).toHaveClass('bg-red-600', 'text-white');
         expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('HomePage operational landing page', () => {
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
             // Municipal-grade flat ledger rows: hairline bottom divider, no card chrome.
-            expect(municipalityRow).toHaveClass('border-b', 'border-green-900/50');
+            expect(municipalityRow).toHaveClass('border-b', 'border-white/10');
             expect(municipalityRow).not.toHaveClass('rounded');
         });
         expect(screen.getByRole('img', { name: 'Cajidiocan seal' })).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('HomePage operational landing page', () => {
         expect(emergencyNoticeLabel).toHaveClass('text-amber-500');
         // Sharp-cornered editorial callout: thick solid left border, subtle
         // amber fill, no rounded outer border.
-        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-none', 'border-l-4', 'border-amber-500', 'bg-amber-500/10');
+        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-none', 'border-l-4', 'border-amber-500', 'bg-transparent');
         expect(screen.getByTestId('coverage-emergency-notice')).not.toHaveClass('rounded-xl');
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('HomePage operational landing page', () => {
         const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
         expect(lifecycleStages).toHaveLength(5);
         const journeyStagesExpected = [
-            { label: 'Reported', dotClass: 'bg-amber-500' },
+            { label: 'Reported', dotClass: 'bg-gray-400' },
             { label: 'Under review', dotClass: 'bg-amber-500' },
             { label: 'Verified', dotClass: 'bg-blue-600' },
             { label: 'Responding', dotClass: 'bg-cyan-600' },
@@ -161,7 +161,7 @@ describe('HomePage operational landing page', () => {
         expect(mapContainer).toHaveClass('self-stretch', 'lg:self-start');
         expect(mapContainer).not.toHaveClass('lg:pt-10');
         expect(mapPreview).toHaveClass('max-w-[210px]', 'sm:max-w-[360px]', 'lg:max-w-[450px]', 'xl:max-w-[500px]');
-        expect(staticMapFrame).toHaveClass('relative', 'border', 'p-3', 'sm:p-4');
+        expect(staticMapFrame).toHaveClass('relative', 'border', 'p-2');
         expect(staticMapPreview).toHaveClass('h-auto', 'w-full', 'object-contain');
         expect(staticMapPreview).toHaveAttribute('width', '640');
         expect(staticMapPreview).toHaveAttribute('height', '530');

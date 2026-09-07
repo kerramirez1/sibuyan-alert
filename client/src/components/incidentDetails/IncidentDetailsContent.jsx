@@ -14,7 +14,7 @@ import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 const UPDATE_ALERT_STYLES = {
     red: 'border-red-200 bg-red-50 text-red-950 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100',
     amber: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100',
+    emerald: 'border-brand-200 bg-brand-50 text-brand-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-100',
     indigo: 'border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-100',
 };
 

@@ -118,7 +118,7 @@ const IncidentDetailsCoordinationSection = ({
                 <details className="group rounded-xl border border-gray-200/80 bg-white p-3 dark:border-white/10 dark:bg-[#07130e]/40" open>
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
                         <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                            <HiOutlineClock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                            <HiOutlineClock className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                             Situation updates ({updates.length})
                         </span>
                         <HiOutlineChevronDown className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180 dark:text-gray-500" aria-hidden="true" />

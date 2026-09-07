@@ -76,7 +76,9 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             setStats(stale.stats || null);
             setPagination(stale.pagination || EMPTY_PAGINATION);
         }
-        if (!silent && !hasStale) setLoading(true);
+        // Force (explicit Refresh) always shows the spinner, even with stale
+        // data on screen, so the click has visible feedback.
+        if (!silent && (!hasStale || force)) setLoading(true);
         setError('');
 
         try {
@@ -89,7 +91,12 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                     ...(responderView === 'all' && status ? { status } : {}),
                     ...(appliedSearch ? { search: appliedSearch } : {}),
                 };
-            const response = await dedupedFetch(cacheKey, () => adminAPI.getReports(params));
+            // Force bypasses request deduping too: an explicit Refresh must
+            // always fire a real network request, never piggyback an
+            // in-flight mount/socket fetch that would resolve with the same data.
+            const response = force
+                ? await adminAPI.getReports(params)
+                : await dedupedFetch(cacheKey, () => adminAPI.getReports(params));
             const data = response.data?.data || {};
             const nextReports = Array.isArray(data.reports) ? data.reports : [];
             const nextStats = data.stats || null;

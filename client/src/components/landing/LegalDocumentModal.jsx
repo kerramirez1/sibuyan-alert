@@ -15,8 +15,8 @@ const LegalDocumentModal = ({ documentType, isOpen, onClose }) => {
             size="2xl"
         >
             <article className="space-y-7 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                    <div className="mb-2 flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                <div className="rounded-xl border border-brand-200/70 bg-brand-50/70 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                    <div className="mb-2 flex items-center gap-2 text-brand-800 dark:text-sky-300">
                         <HiOutlineShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
                         <p className="font-bold">Effective {document.effectiveDate}</p>
                     </div>
@@ -37,7 +37,7 @@ const LegalDocumentModal = ({ documentType, isOpen, onClose }) => {
                         ))}
 
                         {section.items && (
-                            <ul className="list-disc space-y-2 pl-5 marker:text-emerald-600" role="list">
+                            <ul className="list-disc space-y-2 pl-5 marker:text-brand-600" role="list">
                                 {section.items.map((item) => <li key={item}>{item}</li>)}
                             </ul>
                         )}
@@ -50,7 +50,7 @@ const LegalDocumentModal = ({ documentType, isOpen, onClose }) => {
                                             href={link.href}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+                                            className="inline-flex items-center gap-1.5 font-semibold text-brand-700 underline decoration-brand-300 underline-offset-4 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-300 dark:hover:text-sky-200"
                                         >
                                             {link.label}
                                             <HiOutlineExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -68,7 +68,7 @@ const LegalDocumentModal = ({ documentType, isOpen, onClose }) => {
                     <p>{LEGAL_CONFIG.operatorAddress}</p>
                     <a
                         href={`mailto:${LEGAL_CONFIG.privacyEmail}`}
-                        className="mt-2 inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+                        className="mt-2 inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-300 dark:hover:text-sky-200"
                     >
                         <HiOutlineMail className="h-4 w-4" aria-hidden="true" />
                         {LEGAL_CONFIG.privacyEmail}

@@ -206,7 +206,7 @@ const MapIncidentDetails = ({
                             <button
                                 type="button"
                                 onClick={onBack}
-                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                             >
                                 <span>&larr;</span>
                                 <span>Back to active incidents</span>
@@ -251,7 +251,7 @@ const MapIncidentDetails = ({
                         <button
                             type="button"
                             onClick={onToggleExpand}
-                            className="flex w-full items-center justify-between gap-2 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                            className="flex w-full items-center justify-between gap-2 py-2 text-xs font-semibold text-brand-700 dark:text-sky-400 cursor-pointer"
                             aria-label="Expand full incident brief"
                         >
                             <span>Swipe up for incident details</span>

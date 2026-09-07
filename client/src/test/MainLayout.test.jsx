@@ -52,7 +52,7 @@ describe('MainLayout responsive navigation', () => {
         renderLayout();
 
         const activeLink = screen.getByRole('link', { name: 'Accident History' });
-        expect(activeLink).toHaveClass('min-h-10', 'bg-brand-900/40', 'text-brand-100');
+        expect(activeLink).toHaveClass('min-h-10', 'bg-white/[0.08]', 'text-white', 'border-red-500');
         expect(activeLink.className).not.toContain('gradient');
         expect(activeLink.className).not.toContain('shadow');
         expect(activeLink.className).not.toContain('focus:ring');
@@ -75,9 +75,9 @@ describe('MainLayout responsive navigation', () => {
     test('shows one clear active analytics destination on the administrative dashboard', () => {
         renderLayout('/dashboard');
 
-        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-brand-900/40');
+        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-white/[0.08]');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
-        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.split(/\s+/).includes('bg-brand-900/40'));
+        const activeLinks = screen.getAllByRole('link').filter((link) => link.className.split(/\s+/).includes('bg-white/[0.08]'));
         expect(activeLinks).toHaveLength(1);
     });
 

@@ -153,7 +153,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                                     onClick={() => onSelectDay?.(insight.peak.dayKey)}
                                     title={`Filter map to ${insight.peak.fullDate}`}
                                     aria-label={`Filter map to ${insight.peak.fullDate}`}
-                                    className="font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                    className="font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                                 >
                                     {insight.peak.label}
                                 </button>
@@ -360,7 +360,7 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
                                 <div className="flex items-center justify-between gap-2 text-xs relative z-10">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <span className={`font-mono text-[11px] font-semibold shrink-0 ${
-                                            isTop ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
+                                            isTop ? 'text-brand-700 dark:text-sky-400' : 'text-gray-400 dark:text-gray-500'
                                         }`}>
                                             {String(index + 1).padStart(2, '0')}
                                         </span>
@@ -375,7 +375,7 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
                                 <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                                     <div
                                         className={`h-full rounded-full transition-all duration-300 ${
-                                            isTop ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-gray-400 dark:bg-gray-600'
+                                            isTop ? 'bg-brand-600 dark:bg-brand-500' : 'bg-gray-400 dark:bg-gray-600'
                                         }`}
                                         style={{ width: `${Math.max(percentage, count > 0 ? 4 : 0)}%` }}
                                     />
@@ -501,7 +501,7 @@ const DashboardAnalyticsWorkspace = ({
             <header className="flex flex-col gap-2">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div className="min-w-0">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </span>
                         <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
@@ -520,7 +520,7 @@ const DashboardAnalyticsWorkspace = ({
                         <button
                             type="button"
                             onClick={() => setSelectedMonth((current) => subMonths(current, 1))}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Previous month"
                         >
                             <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -528,7 +528,7 @@ const DashboardAnalyticsWorkspace = ({
                         <button
                             type="button"
                             onClick={() => setSelectedMonth(new Date())}
-                            className="min-w-0 flex-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                            className="min-w-0 flex-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Return to current month"
                         >
                             {format(selectedMonth, 'MMM yyyy')}
@@ -540,7 +540,7 @@ const DashboardAnalyticsWorkspace = ({
                                 if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
                             }}
                             disabled={isSameMonth(selectedMonth, new Date())}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
                             aria-label="Next month"
                         >
                             <HiChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -549,14 +549,14 @@ const DashboardAnalyticsWorkspace = ({
                     <button
                         type="button"
                         onClick={onOpenMap}
-                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
+                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
                     >
                         Map
                     </button>
                     <button
                         type="button"
                         onClick={exportDashboard}
-                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:w-auto lg:min-w-24"
+                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:w-auto lg:min-w-24"
                         aria-label="Export dashboard data as Excel"
                     >
                         Export
@@ -687,7 +687,7 @@ const DashboardAnalyticsWorkspace = ({
                         <button
                             type="button"
                             onClick={onOpenMap}
-                            className="inline-flex min-h-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                            className="inline-flex min-h-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                         >
                             Open full map
                         </button>
@@ -713,8 +713,8 @@ const DashboardAnalyticsWorkspace = ({
                                     onClick={() => setMapStatusFilter(filter.value)}
                                     aria-pressed={isSelected}
                                     aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${isSelected
-                                        ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
+                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${isSelected
+                                        ? 'border-brand-600 font-semibold text-brand-800 dark:border-brand-500 dark:text-sky-300'
                                         : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                                     }`}
                                 >
@@ -739,7 +739,7 @@ const DashboardAnalyticsWorkspace = ({
                                 type="button"
                                 onClick={() => setSelectedDay(null)}
                                 aria-label={`Clear day filter ${selectedDayLabel}`}
-                                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                                className="text-xs font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                             >
                                 Clear
                             </button>
@@ -810,7 +810,7 @@ const DashboardAnalyticsWorkspace = ({
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex shrink-0 items-center text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+                        className="inline-flex shrink-0 items-center text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                     >
                         View incident queue
                     </button>

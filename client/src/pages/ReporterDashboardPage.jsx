@@ -6,6 +6,7 @@ import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { formatDistanceToNow } from 'date-fns';
 import {
     HiCheck,
+    HiOutlineArrowRight,
     HiOutlineChevronRight,
     HiOutlineExclamationCircle,
     HiOutlineRefresh,
@@ -205,11 +206,12 @@ const ReporterDashboardPage = () => {
     }, [summary]);
 
     // Shared summary vocabulary with My Reports: identical labels and helpers.
+    // Each card deep-links to its filtered My Reports view.
     const stats = useMemo(() => ([
-        { key: 'total', label: 'Total reports', value: summary.total, helper: 'All submissions' },
-        { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Waiting for verification' },
-        { key: 'active', label: 'Active', value: summary.responding, helper: 'Verified or in response' },
-        { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed incidents' },
+        { key: 'total', label: 'Total reports', value: summary.total, helper: 'All submissions', to: '/my-reports' },
+        { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Waiting for verification', to: '/my-reports?status=pending' },
+        { key: 'active', label: 'Active', value: summary.responding, helper: 'Verified or in response', to: '/my-reports?status=active' },
+        { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed incidents', to: '/my-reports?status=resolved' },
     ]), [summary]);
 
     const recentReports = useMemo(() => {
@@ -233,7 +235,7 @@ const ReporterDashboardPage = () => {
             {/* Single page title block: live subline replaces the static tagline */}
             <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Reporter dashboard
                     </h1>
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
@@ -245,13 +247,13 @@ const ReporterDashboardPage = () => {
                 <div className="flex flex-row items-center gap-2 sm:gap-3 sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 sm:flex-none sm:px-3.5 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 sm:flex-none sm:px-3.5 dark:bg-red-600 dark:hover:bg-red-500"
                     >
                         Submit incident report
                     </Link>
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap px-1 text-[13px] font-medium text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md border border-gray-200 bg-white px-3 text-[13px] font-medium text-brand-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-sky-400 dark:hover:bg-white/10 sm:min-h-0 sm:h-9 sm:flex-none sm:border-0 sm:bg-transparent sm:px-1 sm:dark:bg-transparent"
                     >
                         Live incident map
                     </Link>
@@ -273,27 +275,28 @@ const ReporterDashboardPage = () => {
                 </div>
             ) : (
                 <div className="divide-y divide-gray-200 dark:divide-white/10">
-                    {/* Shared summary strip with My Reports: same labels, dots, dividers, sizes. */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 gap-x-4 gap-y-5 py-2 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6">
-                        {stats.map((stat, index) => (
+                    {/* Summary KPI cards */}
+                    <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {stats.map((stat) => (
                             <Link
                                 key={stat.key}
-                                to="/my-reports"
+                                to={stat.to}
                                 aria-label={`${stat.label}: ${stat.value}. ${stat.helper}`}
-                                className={`group block transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${index === 0
-                                    ? ''
-                                    : index === 2
-                                        ? 'sm:border-l sm:border-gray-200 sm:pl-6 sm:dark:border-white/10'
-                                        : 'border-l border-gray-200 pl-4 sm:pl-6 dark:border-white/10'
-                                    }`}
+                                className="group block min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
                             >
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 sm:text-xs dark:text-gray-300">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 transition-colors group-hover:text-brand-800 dark:text-white dark:group-hover:text-sky-300">
+                                        {stat.value}
+                                    </p>
+                                    <HiOutlineArrowRight
+                                        className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-gray-600"
+                                        aria-hidden="true"
+                                    />
+                                </div>
+                                <p className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                                     {stat.label}
                                 </p>
-                                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-gray-900 transition-colors group-hover:text-emerald-800 sm:mt-1 sm:text-3xl dark:text-white dark:group-hover:text-emerald-300">
-                                    {stat.value}
-                                </p>
-                                <p className="mt-0.5 text-[11px] leading-tight text-gray-500 sm:mt-1 sm:text-xs dark:text-gray-400">
+                                <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-gray-500 dark:text-gray-400">
                                     {stat.helper}
                                 </p>
                             </Link>
@@ -357,7 +360,7 @@ const ReporterDashboardPage = () => {
                                 </p>
                                 <Link
                                     to={`/my-reports?report=${latestActiveReport._id}`}
-                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     Open report
                                     <HiOutlineChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -375,7 +378,7 @@ const ReporterDashboardPage = () => {
                             {reports.length > 0 && (
                                 <Link
                                     to="/my-reports"
-                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     Open all reports
                                     <HiOutlineChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -431,7 +434,7 @@ const ReporterDashboardPage = () => {
                                 </p>
                                 <Link
                                     to="/report"
-                                    className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                    className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-red-600 dark:hover:bg-red-500"
                                 >
                                     Submit new incident
                                 </Link>

@@ -145,22 +145,22 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         role="dialog"
                         aria-label="Verify incident report"
                         aria-modal="false"
-                        className="rounded-lg border border-emerald-200/90 bg-emerald-50/80 p-3.5 dark:border-emerald-900/50 dark:bg-emerald-950/40"
+                        className="rounded-lg border border-blue-200/90 bg-blue-50/80 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/40"
                     >
                         <div className="flex items-start gap-2.5">
-                            <HiOutlineCheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
+                            <HiOutlineCheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" aria-hidden="true" />
                             <div className="min-w-0 flex-1">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
                                     Verify incident report?
                                 </h4>
-                                <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                                <p className="mt-0.5 text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
                                     This will make the incident eligible for responder action and map visibility.
                                 </p>
                             </div>
                         </div>
 
                         <div className="mt-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
                                 Confirm casualty counts
                             </p>
                             <div className="mt-1.5 grid grid-cols-3 gap-2">
@@ -170,7 +170,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                     { field: 'missing', label: 'Missing' },
                                 ].map(({ field, label }) => (
                                     <label key={field} className="block">
-                                        <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">{label}</span>
+                                        <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300">{label}</span>
                                         <input
                                             type="number"
                                             min={0}
@@ -188,7 +188,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                                     },
                                                 }));
                                             }}
-                                            className="mt-1 h-9 w-full rounded-lg border border-emerald-200/90 bg-white px-2 text-xs font-semibold text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-900/50 dark:bg-[#07130e] dark:text-white"
+                                            className="mt-1 h-9 w-full rounded-lg border border-blue-200/90 bg-white px-2 text-xs font-semibold text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-900/50 dark:bg-[#07130e] dark:text-white"
                                         />
                                     </label>
                                 ))}
@@ -200,7 +200,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.closeReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                             >
                                 Cancel
                             </button>
@@ -208,7 +208,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.confirmReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-emerald-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-wait disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-brand-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500"
                             >
                                 {actions.reviewLoading ? (
                                     <>
@@ -296,7 +296,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                         <button
                             type="button"
                             onClick={() => actions?.openReview?.(report, 'verified')}
-                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-initial"
+                            className="inline-flex min-h-[44px] flex-1 items-center sm:min-h-10 justify-center gap-1.5 rounded-md bg-blue-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 sm:flex-initial"
                             title="Verify report"
                             aria-label="Verify report"
                         >
@@ -373,7 +373,7 @@ const ResponderInspectorActions = ({ report, user, actions }) => {
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report._id}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-[13px] font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50"
                 >
                     <HiOutlineLightningBolt className="h-4 w-4" aria-hidden="true" />
                     {isResponding ? 'Join response' : 'Respond to incident'}
@@ -384,9 +384,9 @@ const ResponderInspectorActions = ({ report, user, actions }) => {
                 <button
                     type="button"
                     onClick={() => actions.openResolve(report)}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
                 >
-                    <HiOutlineBadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                    <HiOutlineBadgeCheck className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                     Resolve incident
                 </button>
             )}
@@ -494,7 +494,7 @@ const ResponderIncidentInspector = ({
         >
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-gray-950 sm:px-5">
                 <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Incident details</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">Incident details</p>
                     <h2 id="responder-incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-gray-900 dark:text-white">
                         {locationTitle}
                     </h2>
@@ -508,7 +508,7 @@ const ResponderIncidentInspector = ({
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => onClose()}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white sm:h-9 sm:w-9"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white sm:h-9 sm:w-9"
                     aria-label="Close incident details"
                 >
                     <HiOutlineX className="h-5 w-5" aria-hidden="true" />

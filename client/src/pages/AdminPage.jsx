@@ -19,14 +19,14 @@ const SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wider text
 const SECTION_META_CLASS = 'text-xs text-gray-500 dark:text-gray-400';
 
 const AdminKpiCard = ({ stat, loading }) => (
-    <article className="min-w-0">
+    <article className="min-w-0 overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
         <Link
             to={stat.link}
             aria-label={`${stat.title}: ${loading ? 'loading' : stat.value}. ${stat.actionLabel}`}
-            className="group block h-full min-h-[6.5rem] cursor-pointer bg-white p-4 sm:p-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
+            className="group block h-full min-h-[6.5rem] cursor-pointer p-4 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/[0.02] sm:p-5"
         >
             <div className="flex items-start justify-between gap-3">
-                <p className="font-display text-2xl font-bold leading-none tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                <p className="font-display text-2xl font-bold leading-none tracking-tight text-gray-950 dark:text-white">
                     {loading ? '...' : stat.value}
                 </p>
                 <HiOutlineArrowRight
@@ -248,7 +248,7 @@ const AdminPage = () => {
             {/* Page header: shared dashboard language — eyebrow, title, context line */}
             <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                         {municipality} operations
                     </p>
                     <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
@@ -265,7 +265,7 @@ const AdminPage = () => {
             </header>
 
             {/* KPI strip: same row language as the responder workspace */}
-            <section className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-gray-200 py-2 sm:grid-cols-4 dark:border-white/10 xl:grid-cols-4" aria-label="Operational status">
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-4" aria-label="Operational status">
                 {kpiCards.map((stat) => (
                     <AdminKpiCard
                         key={stat.title}
@@ -308,7 +308,7 @@ const AdminPage = () => {
                     <Link
                         to="/admin/zones"
                         aria-label="High-Risk Zones: manage hazard oversight"
-                        className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                        className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-sky-400"
                     >
                         High-risk zones
                         <span aria-hidden="true">→</span>
@@ -350,7 +350,7 @@ const AdminPage = () => {
                                     </div>
                                     <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
                                         <div
-                                            className="h-full rounded-full bg-emerald-700 dark:bg-emerald-500"
+                                            className="h-full rounded-full bg-brand-700 dark:bg-brand-500"
                                             style={{ width: `${pct}%` }}
                                         />
                                     </div>
@@ -362,7 +362,7 @@ const AdminPage = () => {
                         <div className="mt-4 border-t border-gray-200 pt-3 dark:border-white/10">
                             <Link
                                 to="/dashboard"
-                                className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                                className="text-xs font-medium text-brand-700 hover:underline dark:text-sky-400"
                             >
                                 View all {barangayRows.length} barangays in analytics
                             </Link>
@@ -380,7 +380,7 @@ const AdminPage = () => {
                         </h2>
                         <Link
                             to="/admin/reports"
-                            className="shrink-0 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                            className="shrink-0 text-xs font-medium text-brand-700 hover:underline dark:text-sky-400"
                         >
                             View all
                         </Link>
@@ -425,7 +425,7 @@ const AdminPage = () => {
                         </h2>
                         <Link
                             to="/admin/users"
-                            className="shrink-0 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                            className="shrink-0 text-xs font-medium text-brand-700 hover:underline dark:text-sky-400"
                         >
                             View all
                         </Link>

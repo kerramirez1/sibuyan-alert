@@ -21,7 +21,7 @@ const IncidentDetailsReporterSection = ({
                         {reporter.name || 'Anonymous reporter'}
                     </span>
                     {reporter.isVerified && (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
                             <HiOutlineBadgeCheck className="h-3 w-3" aria-hidden="true" />
                             Verified
                         </span>

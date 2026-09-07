@@ -108,7 +108,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(cards).toHaveLength(4);
         expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
         cards.forEach((card) => {
-            expect(card).toHaveClass('rounded-xl', 'border');
+            expect(card).toHaveClass('rounded-xl', 'border-2');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });

@@ -405,7 +405,7 @@ const AdminHighRiskZonesPage = () => {
             {/* Page Header */}
             <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                         High-risk zones
                     </p>
                     <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
@@ -441,7 +441,7 @@ const AdminHighRiskZonesPage = () => {
                                 setMobileTab('panel');
                             }
                         }}
-                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
+                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer"
                     >
                         <HiOutlinePlus className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>Add zone</span>
@@ -812,7 +812,7 @@ const AdminHighRiskZonesPage = () => {
                                                 onClick={() => photoInputRef.current?.click()}
                                                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-2.5 text-[13px] font-medium text-gray-700 hover:border-emerald-500 hover:bg-emerald-50/30 hover:text-emerald-800 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300 dark:hover:border-emerald-700/50 dark:hover:bg-emerald-950/20 dark:hover:text-emerald-300 cursor-pointer min-h-[38px]"
                                             >
-                                                <HiOutlinePhotograph className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                                <HiOutlinePhotograph className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                                 <span>{photos.length > 0 ? 'Add more reference photos' : 'Attach reference photos'}</span>
                                             </button>
                                         )}
@@ -845,7 +845,7 @@ const AdminHighRiskZonesPage = () => {
                                         <button
                                             type="submit"
                                             disabled={isSubmitting || isResolvingLocation || (!selectedLocation && !editingZone)}
-                                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+                                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md bg-brand-700 px-3 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
                                         >
                                             {isSubmitting ? (
                                                 <>

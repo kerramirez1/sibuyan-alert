@@ -16,17 +16,33 @@ export default {
         },
         extend: {
             colors: {
+                // Navy Command — primary app chrome (sidebar, headers, primary actions).
+                // Keeps status colors (amber/blue/cyan/green/red) reserved for data only.
                 primary: {
-                    50: '#ecfdf5',
-                    100: '#d1fae5',
-                    200: '#a7f3d0',
-                    300: '#6ee7b7',
-                    400: '#34d399',
-                    500: '#10b981',
-                    600: '#059669',
-                    700: '#047857',
-                    800: '#065f46',
-                    900: '#064e3b',
+                    50: '#F0F4F8',
+                    100: '#DCE6F0',
+                    200: '#B9CDE3',
+                    300: '#8FADC9',
+                    400: '#5B84AC',
+                    500: '#35648F',
+                    600: '#1E4A75',
+                    700: '#14385C',
+                    800: '#0F2A44',
+                    900: '#0C2236',
+                    950: '#0A1C2E',
+                },
+                // Signal Red — the single alert CTA per view (Submit Report).
+                alert: {
+                    50: '#FEF2F2',
+                    100: '#FEE2E2',
+                    200: '#FECACA',
+                    300: '#FCA5A5',
+                    400: '#F87171',
+                    500: '#EF4444',
+                    600: '#DC2626',
+                    700: '#B91C1C',
+                    800: '#991B1B',
+                    900: '#7F1D1D',
                 },
                 accent: {
                     50: '#FFFBEB',
@@ -78,17 +94,17 @@ export default {
                     950: '#030712',
                 },
                 brand: {
-                    50: '#f0fdf4', // Sidebar bg
-                    100: '#dcfce7',
-                    200: '#bbf7d0',
-                    300: '#86efac',
-                    400: '#4ade80',
-                    500: '#22c55e',
-                    600: '#16a34a', // Primary green
-                    700: '#15803d',
-                    800: '#166534',
-                    900: '#14532d',
-                    950: '#052e16',
+                    50: '#F0F4F8', // Sidebar tint / hover wash
+                    100: '#DCE6F0',
+                    200: '#B9CDE3',
+                    300: '#8FADC9',
+                    400: '#5B84AC',
+                    500: '#35648F',
+                    600: '#1E4A75',
+                    700: '#14385C', // Primary navy action
+                    800: '#0F2A44', // Command navy
+                    900: '#0C2236',
+                    950: '#0A1C2E', // Sidebar / footer
                 },
             },
             fontFamily: {

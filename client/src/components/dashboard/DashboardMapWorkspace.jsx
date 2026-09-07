@@ -98,7 +98,7 @@ const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLoca
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/40 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400 dark:hover:bg-white/5 cursor-pointer"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -203,7 +203,7 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/40 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400 dark:hover:bg-white/5 cursor-pointer"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -227,24 +227,24 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
         title={`${value} ${label} — ${helper}`}
-        className={`group min-w-0 cursor-pointer rounded-xl border px-3 py-2.5 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
-            ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500 dark:border-emerald-500 dark:bg-emerald-950/30'
-            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
+        className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2.5 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
+            ? 'border border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-white/5'
+            : 'border-2 border-brand-700 bg-brand-100/80 shadow hover:border-brand-800 hover:bg-brand-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
             }`}
     >
         <span className="flex w-full items-center gap-1.5">
-            <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide sm:text-[11px] ${selected ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase whitespace-nowrap tracking-wide sm:text-[11px] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
                 {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span className="truncate">{label}</span>
+                <span>{label}</span>
             </span>
-            <HiChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 dark:text-gray-600" aria-hidden="true" />
+            <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
         </span>
         <span className="mt-0.5 block text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-2xl dark:text-white">
             {value}
         </span>
-        <span className="mt-0 block truncate text-[11px] leading-tight text-gray-500 sm:text-xs dark:text-gray-400">
+        <p className="mt-0 block break-words text-[11px] leading-tight text-gray-500 sm:text-xs dark:text-gray-400">
             {helper}
-        </span>
+        </p>
     </button>
 );
 
@@ -648,10 +648,10 @@ const DashboardMapWorkspace = ({
         <div className="mx-auto w-full max-w-[1500px] space-y-3 sm:space-y-5">
             <header>
                 <div className="min-w-0">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-0.5 text-lg sm:text-xl font-semibold tracking-tight text-gray-900 dark:text-white break-words">
+                    <h1 className="mt-0.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
                         {mapExperience.title}
                     </h1>
                     <p className="hidden sm:block mt-0.5 max-w-2xl text-sm text-gray-600 dark:text-gray-300 break-words">
@@ -682,9 +682,9 @@ const DashboardMapWorkspace = ({
             )}
 
             {focusedReport && (
-                <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/50 dark:bg-emerald-950/30" aria-label="Focused incident context">
+                <section className="flex flex-col gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/5" aria-label="Focused incident context">
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Focused incident</p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">Focused incident</p>
                         <p className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{focusedReport.address || 'Selected incident'}</p>
                     </div>
                     {onReturnToReport && (
@@ -724,15 +724,15 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer ${isFiltered
-                                                ? 'border-emerald-700 bg-emerald-700 text-white dark:border-emerald-500 dark:bg-emerald-600 dark:text-white'
+                                        className={`inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer ${isFiltered
+                                                ? 'border-brand-700 bg-brand-700 text-white dark:border-brand-500 dark:bg-brand-600 dark:text-white'
                                                 : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
                                             }`}
                                     >
-                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-emerald-100 dark:text-white' : 'text-emerald-700 dark:text-emerald-400'}`} aria-hidden="true" />
+                                        <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-100 dark:text-white' : 'text-brand-700 dark:text-sky-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
                                         {isFiltered && (
-                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-emerald-800 px-1 text-[10px] font-bold tabular-nums dark:bg-white dark:text-emerald-800">
+                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-brand-800 px-1 text-[10px] font-bold tabular-nums dark:bg-white dark:text-brand-800">
                                                 1
                                             </span>
                                         )}
@@ -750,7 +750,7 @@ const DashboardMapWorkspace = ({
                                                 type="button"
                                                 onClick={() => setResponderMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
-                                                className="flex min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
+                                                className="flex min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
                                                 title="Clear filter"
                                             >
                                                 <HiOutlineX className="h-4 w-4" aria-hidden="true" />
@@ -790,8 +790,8 @@ const DashboardMapWorkspace = ({
                                                 onClick={() => setResponderMapFilter(filter.value)}
                                                 aria-pressed={isSelected}
                                                 aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                    ? 'border-emerald-600 font-semibold text-emerald-800 dark:border-emerald-500 dark:text-emerald-300'
+                                                className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                    ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
                                                     : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                                                     }`}
                                             >
@@ -811,7 +811,7 @@ const DashboardMapWorkspace = ({
                                             type="button"
                                             onClick={() => setResponderMapFilter('all')}
                                             aria-label="Clear active filter and show all"
-                                            className="relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1 border-b-2 border-transparent pb-2 text-sm font-normal text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:text-white"
+                                            className="relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap border-b-2 border-transparent pb-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-400 dark:hover:text-white"
                                         >
                                             <HiOutlineX className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                             <span>Clear filter</span>
@@ -827,7 +827,7 @@ const DashboardMapWorkspace = ({
                     {loading && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-600 dark:border-gray-700 dark:border-t-emerald-400" />
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-brand-600 dark:border-gray-700 dark:border-t-brand-400" />
                                 Loading map data…
                             </div>
                         </div>
@@ -869,7 +869,7 @@ const DashboardMapWorkspace = ({
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveIncidentId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-sky-400 cursor-pointer"
                                         >
                                             <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active incidents'}
@@ -919,7 +919,7 @@ const DashboardMapWorkspace = ({
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveRiskZoneId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-emerald-400 cursor-pointer"
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-sky-400 cursor-pointer"
                                         >
                                             <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active risk zones'}
@@ -955,7 +955,7 @@ const DashboardMapWorkspace = ({
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}
@@ -987,13 +987,13 @@ const DashboardMapWorkspace = ({
                         <Button
                             as={Link}
                             to="/register"
-                            className="inline-flex items-center justify-center rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9"
+                            className="inline-flex items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9"
                         >
                             <span>Become a reporter</span>
                         </Button>
                         <Link
                             to="/login"
-                            className="inline-flex min-h-9 items-center text-xs font-medium text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400"
+                            className="inline-flex min-h-9 items-center text-xs font-medium text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400"
                         >
                             Sign in
                         </Link>

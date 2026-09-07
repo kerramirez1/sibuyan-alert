@@ -21,7 +21,7 @@ const steps = [
 // Typical incident journey — a simplified, public-facing progression matching system status colors.
 // Short labels keep all five stages on one row on mobile; full labels return on sm+.
 const JOURNEY_STAGES = [
-    { key: 'reported', label: 'Reported', shortLabel: 'Reported', dotClass: 'bg-amber-500' },
+    { key: 'reported', label: 'Reported', shortLabel: 'Reported', dotClass: 'bg-gray-400' },
     { key: 'under_review', label: 'Under review', shortLabel: 'Review', dotClass: 'bg-amber-500' },
     { key: 'verified', label: 'Verified', shortLabel: 'Verified', dotClass: 'bg-blue-600' },
     { key: 'in_progress', label: 'Responding', shortLabel: 'Response', dotClass: 'bg-cyan-600' },
@@ -29,13 +29,13 @@ const JOURNEY_STAGES = [
 ];
 
 const HowItWorks = () => (
-    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-200/80 bg-gray-50/50 px-5 py-16 dark:border-white/5 dark:bg-[#08140f] sm:px-8 sm:py-20">
+    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-200/80 bg-white px-5 py-10 dark:border-white/5 dark:bg-gray-950 sm:px-8 sm:py-12">
         <div className="mx-auto max-w-6xl">
-            <div className="mb-10 max-w-2xl sm:mb-12">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-400">
+            <div className="mb-6 max-w-2xl sm:mb-8">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-sky-400">
                     ISLAND-WIDE DISPATCH PROTOCOL
                 </p>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                <h2 className="font-display text-xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-2xl">
                     From report to field response.
                 </h2>
                 <p className="mt-2 text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-400">
@@ -50,17 +50,17 @@ const HowItWorks = () => (
                 className="grid grid-cols-1 divide-y divide-gray-200 md:grid-cols-3 md:divide-y-0 md:divide-x dark:divide-white/10"
             >
                 {steps.map(({ n, title, desc }) => (
-                    <div key={n} role="listitem" className="relative min-w-0 p-5 sm:p-6">
+                    <div key={n} role="listitem" className="relative min-w-0 p-4">
                         <span
                             aria-hidden="true"
-                            className="font-mono text-2xl sm:text-3xl font-black tracking-tight text-gray-300 dark:text-gray-700"
+                            className="font-mono text-xl sm:text-2xl font-black tracking-tight text-gray-300 dark:text-gray-700"
                         >
                             {n}
                         </span>
-                        <h3 className="mt-3 text-sm font-bold text-gray-950 dark:text-white sm:text-base">
+                        <h3 className="mt-2 text-sm font-bold text-gray-950 dark:text-white">
                             {title}
                         </h3>
-                        <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                        <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                             {desc}
                         </p>
                     </div>
@@ -68,9 +68,9 @@ const HowItWorks = () => (
             </div>
 
             {/* ── Incident Journey — flat text ledger, no card chrome ── */}
-            <div className="mt-10 border-t border-gray-200 pt-5 sm:mt-14 dark:border-white/10">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            <div className="mt-6 border-t border-gray-200 pt-4 sm:mt-8 dark:border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-sky-400">
                         Typical incident journey
                     </p>
                     <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -78,7 +78,7 @@ const HowItWorks = () => (
                     </p>
                 </div>
                 <div
-                    className="relative flex items-start justify-between pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                    className="relative flex items-start justify-between pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                     role="list"
                     aria-label="Incident status stages in order"
                 >

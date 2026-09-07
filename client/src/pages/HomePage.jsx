@@ -108,20 +108,19 @@ const HomePage = () => {
         !isAuthenticated || user?.role === 'reporter';
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+        <div className="min-h-screen overflow-x-hidden bg-slate-100 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
             {/* ── Compact hairline navbar: solid surface, no blur wash ── */}
-            <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-white/5 dark:bg-[#07130e]">
+            <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-white/5 dark:bg-gray-950">
                 <div className="mx-auto flex h-[58px] max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-8 lg:px-10 xl:px-14">
-                    <Link to="/" className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2" aria-label="Sibuyan Alert home">
+                    <Link to="/" className="flex min-w-0 shrink items-center gap-2.5" aria-label="Sibuyan Alert home">
                         <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
-                        {/* Compact wordmark stays visible on phones: text-[13px] + shortened Report button leaves room at 360px. */}
-                        <span className="truncate whitespace-nowrap font-display text-[13px] font-bold tracking-tight text-gray-950 min-[400px]:text-sm sm:text-base dark:text-white">
-                            Sibuyan <span className="text-emerald-700 dark:text-emerald-400">Alert</span>
+                        <span className="truncate whitespace-nowrap font-display text-sm font-bold tracking-tight text-gray-950 sm:text-base dark:text-white">
+                            Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
                         </span>
                     </Link>
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Landing page">
-                        <a href="#home" className="text-xs font-bold uppercase tracking-wider text-emerald-800 transition-colors hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200">Home</a>
+                        <a href="#home" className="text-xs font-bold uppercase tracking-wider text-brand-700 transition-colors hover:text-brand-600 dark:text-sky-300 dark:hover:text-sky-200">Home</a>
                         <Link to="/dashboard?view=map" className="text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-300 dark:hover:text-white">Live map</Link>
                         <a href="#how-it-works" className="text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-300 dark:hover:text-white">How it works</a>
                     </nav>
@@ -130,7 +129,7 @@ const HomePage = () => {
                         {isAuthenticated ? (
                             <Link
                                 to={destination}
-                                className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:px-4 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                                className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:px-4 dark:bg-brand-700 dark:hover:bg-brand-600"
                             >
                                 <span>{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>
                                 <HiOutlineArrowRight className="h-3.5 w-3.5" />
@@ -152,7 +151,7 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="inline-flex min-h-9 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:ml-2 sm:gap-1.5 sm:px-4 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="inline-flex min-h-9 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:ml-2 sm:gap-1.5 sm:px-4 dark:bg-red-600 dark:hover:bg-red-500"
                             >
                                 <HiOutlineExclamation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span>Report<span className="hidden min-[400px]:inline"> incident</span></span>
@@ -174,7 +173,7 @@ const HomePage = () => {
             </main>
 
             {/* ── Linear-inspired Clean Footer ── */}
-            <footer className="border-t border-gray-800/80 bg-[#06120d] px-5 pb-8 pt-10 sm:px-8 sm:pt-12">
+            <footer className="border-t border-gray-200/80 bg-slate-100 px-5 pb-8 pt-10 dark:border-white/10 dark:bg-gray-950 sm:px-8 sm:pt-12">
                 <div className="mx-auto max-w-6xl">
                     <div
                         data-testid="landing-footer-grid"
@@ -183,12 +182,17 @@ const HomePage = () => {
                         {/* Col 1 — Brand + mission */}
                         <div className="col-span-2 lg:col-span-1">
                             <div className="mb-3.5 flex items-center gap-2.5">
-                                <img src="/icons/Alert.png" alt="" className="h-6 w-6 shrink-0 object-contain" />
-                                <span className="font-display text-sm font-bold tracking-tight text-white sm:text-base">
-                                    Sibuyan <span className="text-emerald-400">Alert</span>
-                                </span>
+                                <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
+                                <div className="min-w-0">
+                                    <span className="block font-display text-sm font-bold tracking-tight text-gray-950 dark:text-white sm:text-base">
+                                        Sibuyan <span className="text-brand-700 dark:text-red-400">Alert</span>
+                                    </span>
+                                    <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-slate-400">
+                                        Island Operations
+                                    </span>
+                                </div>
                             </div>
-                            <p className="mb-3.5 max-w-xs text-xs leading-relaxed text-gray-400">
+                            <p className="mb-3.5 max-w-xs text-xs leading-relaxed text-gray-600 dark:text-gray-400">
                                 Public incident reporting and emergency response coordination across Cajidiocan, Magdiwang, and San Fernando.
                             </p>
                             <p className="font-mono text-[11px] font-medium text-gray-500">
@@ -198,7 +202,7 @@ const HomePage = () => {
 
                         {/* Col 2 — Quick links */}
                         <div className="min-w-0">
-                            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Quick Links</p>
+                            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Quick Links</p>
                             <nav aria-label="Footer navigation">
                                 <ul className="space-y-2">
                                     {[
@@ -212,7 +216,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <Link
                                                     to={to}
-                                                    className="inline-block text-xs text-gray-300 transition-all hover:translate-x-0.5 hover:text-emerald-400"
+                                                     className="inline-block text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 dark:text-gray-300 dark:hover:text-sky-300"
                                                 >
                                                     {label}
                                                 </Link>
@@ -221,7 +225,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <a
                                                     href={href}
-                                                    className="inline-block text-xs text-gray-300 transition-all hover:translate-x-0.5 hover:text-emerald-400"
+                                                     className="inline-block text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 dark:text-gray-300 dark:hover:text-sky-300"
                                                 >
                                                     {label}
                                                 </a>
@@ -234,7 +238,7 @@ const HomePage = () => {
 
                         {/* Col 3 — Legal + project info */}
                         <div className="min-w-0">
-                            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Legal Information</p>
+                            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Legal Information</p>
                             <ul className="space-y-2">
                                 {[
                                     { label: 'Privacy Policy', documentType: 'privacy' },
@@ -244,7 +248,7 @@ const HomePage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setActiveLegalDocument(documentType)}
-                                            className="inline-block rounded text-left text-xs text-gray-300 transition-all hover:translate-x-0.5 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#06120d]"
+                                            className="inline-block rounded text-left text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-gray-300 dark:hover:text-sky-300 dark:focus-visible:ring-sky-400 dark:focus-visible:ring-offset-gray-950"
                                         >
                                             {label}
                                         </button>
@@ -255,10 +259,10 @@ const HomePage = () => {
                     </div>
 
                     {/* ── Bottom bar ────────────────────────────────────────── */}
-                    <div className="mt-8 border-t border-gray-800/80 pt-5">
+                    <div className="mt-8 border-t border-gray-200/80 pt-5 dark:border-white/10">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <p className="max-w-lg text-[11px] leading-relaxed text-gray-400">
-                                <strong className="font-semibold text-amber-400">Disclaimer:</strong>{' '}
+                            <p className="max-w-lg text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+                                <strong className="font-semibold text-amber-600 dark:text-amber-400">Disclaimer:</strong>{' '}
                                 Sibuyan Alert supports accident reporting and emergency coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
                             </p>
                             <p className="shrink-0 text-[11px] font-medium text-gray-500">© 2026 Sibuyan Alert System</p>

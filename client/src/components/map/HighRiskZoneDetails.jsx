@@ -125,7 +125,7 @@ const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) =
             type="button"
             onClick={() => onView(index)}
             aria-label={`View reference photo ${index + 1}: ${photo.originalName || 'Hazard area'}`}
-            className="group relative aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 hover:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer dark:border-white/10 dark:bg-white/5"
+            className="group relative aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer dark:border-white/10 dark:bg-white/5"
         >
             <img
                 src={state.url}
@@ -282,7 +282,7 @@ const HighRiskZoneDetails = ({
                         href={`https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-9 items-center gap-1 text-xs font-medium text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-400"
+                        className="inline-flex min-h-9 items-center gap-1 text-xs font-medium text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400"
                     >
                         <span>Open in Google Maps</span>
                         <HiOutlineExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

@@ -57,7 +57,7 @@ const municipalitySeals = [
 const MunicipalitySeals = () => (
     <div className="flex shrink-0 items-center gap-2" aria-label="Municipality seals">
         {municipalitySeals.map(({ name, src, imageClass }) => (
-            <span key={name} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-emerald-800/40 bg-white/10 p-0.5" title={name}>
+            <span key={name} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/15 bg-white/10 p-0.5" title={name}>
                 <img src={src} alt={`${name} seal`} className={`h-full w-full object-contain grayscale opacity-80 ${imageClass}`} />
             </span>
         ))}
@@ -65,21 +65,21 @@ const MunicipalitySeals = () => (
 );
 
 const MunicipalityCoverage = ({ compact = false }) => compact ? (
-    <div className="mt-8 border-t border-emerald-900/40 pt-6">
+    <div className="mt-8 border-t border-white/10 pt-6">
         <p className="text-[11px] font-bold uppercase tracking-wider text-white">Coverage across 3 municipalities</p>
         <div className="mt-2.5">
             <MunicipalitySeals />
         </div>
-        <p className="mt-2.5 text-xs font-medium text-emerald-400">
+        <p className="mt-2.5 text-xs font-medium text-sky-300">
             Cajidiocan, Magdiwang, San Fernando
         </p>
     </div>
 ) : (
-    <div className="mt-8 flex items-center gap-4 border-t border-emerald-900/40 pt-6">
+    <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-6">
         <MunicipalitySeals />
         <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-white">Coverage across 3 municipalities</p>
-            <p className="mt-0.5 text-xs font-medium text-emerald-400">
+            <p className="mt-0.5 text-xs font-medium text-sky-300">
                 Cajidiocan, Magdiwang, San Fernando
             </p>
         </div>
@@ -92,7 +92,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
     const isFocusedPortal = isLoginPortal || isRegistrationPortal;
 
     return (
-        <div className="auth-shell min-h-dvh bg-gray-50/70 font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900 dark:bg-[#07130e] dark:text-gray-100 lg:grid lg:grid-cols-[minmax(370px,38%)_minmax(0,1fr)]">
+        <div className="auth-shell min-h-dvh bg-gray-50/70 font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900 dark:bg-gray-950 dark:text-gray-100 lg:grid lg:grid-cols-[minmax(370px,38%)_minmax(0,1fr)]">
             {/* ── Left Branding & Overview Panel ── */}
             <aside
                 className={`auth-overview relative hidden min-h-dvh border-r border-brand-900/60 bg-brand-950 text-white lg:flex lg:flex-col ${isRegistrationPortal ? 'lg:sticky lg:top-0 lg:h-dvh lg:self-start lg:overflow-y-auto' : ''}`}
@@ -109,9 +109,9 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                             />
                             <div>
                                 <p className="font-display text-xl font-bold leading-none tracking-tight">
-                                    Sibuyan <span className="text-emerald-400">Alert</span>
+                                    Sibuyan <span className="text-red-400">Alert</span>
                                 </p>
-                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/80">
+                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
                                     Accident Alert &amp; Mapping System
                                 </p>
                             </div>
@@ -120,7 +120,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
 
                     {/* Headline & Description */}
                     <section className={isFocusedPortal ? 'my-auto py-6' : 'my-8'}>
-                        <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                        <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-sky-300">
                             Sibuyan Island incident coordination
                         </p>
                         {isRegistrationPortal ? (
@@ -134,7 +134,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                                 <ol className="mt-6 space-y-3.5" aria-label="Reporter enrollment process">
                                     {reporterEnrollmentStages.map((stage, index) => (
                                         <li key={stage} className="flex items-center gap-3.5">
-                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-900/40 text-[11px] font-bold text-emerald-400 ring-1 ring-emerald-500/30">
+                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-sky-300 ring-1 ring-sky-400/30">
                                                 {index + 1}
                                             </span>
                                             <span className="text-xs sm:text-sm font-medium text-brand-200/90">{stage}</span>
@@ -161,7 +161,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                                     key={title}
                                     className={`py-4 ${index % 2 === 0 ? 'border-r border-white/10 pr-4' : 'pl-4'} ${index < 2 ? 'border-b border-white/10' : ''}`}
                                 >
-                                    <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-emerald-300">
+                                    <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sky-300">
                                         <Icon className="h-4 w-4" aria-hidden="true" />
                                     </div>
                                     <h2 className="text-xs font-bold text-white">{title}</h2>

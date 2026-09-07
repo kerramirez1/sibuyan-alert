@@ -183,7 +183,7 @@ const NotificationsPage = () => {
             <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/90 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
                             <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                             <span>Incident Communications</span>
                             <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
@@ -212,7 +212,7 @@ const NotificationsPage = () => {
                         <button
                             type="button"
                             onClick={markAllAsRead}
-                            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer min-h-[44px] sm:min-h-0"
+                            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer min-h-[44px] sm:min-h-0"
                         >
                             <HiOutlineCheck className="h-4 w-4" aria-hidden="true" />
                             <span>Mark all read</span>
@@ -242,7 +242,7 @@ const NotificationsPage = () => {
                             <span>{filter.label}</span>
                             <span
                                 className={`rounded-md px-1.5 py-0.2 text-[10px] font-bold ${active
-                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                        ? 'bg-brand-100 text-brand-800 dark:bg-white/10 dark:text-sky-300'
                                         : 'bg-gray-200/70 text-gray-600 dark:bg-white/5 dark:text-gray-400'
                                     }`}
                             >
@@ -306,8 +306,8 @@ const NotificationsPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => handleNotificationClick(notification)}
-                                        className={`group flex w-full items-start gap-3 p-4 sm:p-5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 cursor-pointer min-h-[44px] ${!notification.isRead
-                                                ? 'bg-emerald-50/20 hover:bg-emerald-50/40 dark:bg-emerald-950/10 dark:hover:bg-emerald-950/20'
+                                        className={`group flex w-full items-start gap-3 p-4 sm:p-5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 cursor-pointer min-h-[44px] ${!notification.isRead
+                                                ? 'bg-brand-50/40 hover:bg-brand-50/70 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
                                                 : 'bg-white hover:bg-gray-50/80 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                             }`}
                                     >
@@ -343,14 +343,14 @@ const NotificationsPage = () => {
 
                                             {address && (
                                                 <div className="pt-0.5 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                                    <HiOutlineLocationMarker className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
+                                                    <HiOutlineLocationMarker className="h-3.5 w-3.5 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
                                                     <span className="truncate">{address}</span>
                                                 </div>
                                             )}
                                         </div>
 
                                         {/* Action Arrow */}
-                                        <div className="pt-1 shrink-0 text-gray-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                                        <div className="pt-1 shrink-0 text-gray-400 group-hover:text-brand-700 dark:group-hover:text-sky-400 transition-colors">
                                             <HiOutlineArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                                         </div>
                                     </button>

@@ -26,7 +26,7 @@ const IncidentDetailsHeader = ({
     return (
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-gray-950 sm:px-5">
             <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                     Incident details
                 </p>
                 <h2 className="mt-1 line-clamp-2 break-words font-display text-lg font-bold leading-6 text-gray-950 dark:text-white">

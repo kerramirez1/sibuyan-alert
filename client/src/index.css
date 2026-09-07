@@ -1065,14 +1065,14 @@
 }
 
 .maplibregl-ctrl-group button:focus-visible {
-  outline: 2px solid #10b981;
+  outline: 2px solid #35648F;
   outline-offset: 2px;
 }
 
 @media (max-width: 640px) {
   .maplibregl-ctrl-group button {
-    width: 44px;
-    height: 44px;
+    width: 32px;
+    height: 32px;
   }
 }
 

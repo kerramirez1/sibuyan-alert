@@ -11,8 +11,8 @@ const SibuyanIslandMap = memo(() => (
         aria-label="Map of Sibuyan Island showing Cajidiocan, Magdiwang, and San Fernando municipalities"
         data-testid="sibuyan-island-map"
     >
-        {/* Flat hairline frame — no decorative corner brackets/crosshairs. */}
-        <div className="relative border border-emerald-900/20 bg-gray-50/50 p-3 sm:p-4 dark:border-emerald-400/20 dark:bg-[#0a1410]">
+        {/* Flat hairline frame with a minimal caption — no decorative corner brackets/crosshairs. */}
+        <div className="relative border border-brand-200 bg-white p-2 dark:border-white/10 dark:bg-white/5">
             <img
                 src="/icons/Municipality.png"
                 alt="Sibuyan Island municipality boundaries — Cajidiocan, Magdiwang, and San Fernando"
@@ -22,6 +22,9 @@ const SibuyanIslandMap = memo(() => (
                 width={640}
                 height={530}
             />
+            <p className="border-t border-gray-200/80 px-1 pb-0.5 pt-1.5 text-center font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:border-white/10 dark:text-gray-400">
+                3 municipalities · Live boundaries
+            </p>
         </div>
     </div>
 ));
