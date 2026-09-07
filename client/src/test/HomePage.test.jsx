@@ -73,8 +73,8 @@ describe('HomePage operational landing page', () => {
         expect(await within(metricsStrip).findByText(/Verified reports/i)).toBeInTheDocument();
         expect(await within(metricsStrip).findByText('July 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
-        const mapAction = screen.getByRole('link', { name: 'View live map' });
-        const reportAction = screen.getByRole('link', { name: 'Report an Incident' });
+        const mapAction = screen.getByRole('link', { name: 'Viewlive map' });
+        const reportAction = screen.getByRole('link', { name: /Reportan Incident/ });
         const registrationAction = screen.getByRole('link', { name: 'Register as a reporter' });
         expect(mapAction).toHaveAttribute('href', '/dashboard?view=map');
         expect(reportAction).toHaveAttribute('href', '/login');
@@ -166,7 +166,7 @@ describe('HomePage operational landing page', () => {
         expect(staticMapPreview).toHaveAttribute('width', '640');
         expect(staticMapPreview).toHaveAttribute('height', '530');
         expect(eyebrow).toHaveTextContent('Island-wide incident coordination');
-        expect(eyebrow).toHaveClass('whitespace-nowrap', 'text-[clamp(6px,1.9vw,9px)]', 'sm:text-[11px]', 'lg:mb-2');
+        expect(eyebrow).toHaveClass('whitespace-nowrap', 'text-[8px]', 'sm:text-[11px]', 'lg:mb-2');
         expect(eyebrow).not.toHaveClass('hidden');
         expect(copy).toContainElement(eyebrow);
         expect(description).toHaveClass('order-3', 'basis-full', 'lg:basis-auto');

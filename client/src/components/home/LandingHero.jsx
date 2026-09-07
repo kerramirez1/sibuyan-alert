@@ -3,6 +3,7 @@ import {
     HiClock,
     HiExclamation,
     HiMap,
+    HiOutlineLocationMarker,
 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
 import SibuyanIslandMap from './SibuyanIslandMap';
@@ -80,15 +81,19 @@ const LandingHero = ({
             {/* Municipal-grade flat background: no decorative grid or radial
                 atmosphere layers — contrast comes from the dark metrics bar and
                 hairline dividers below. */}
-            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-8 lg:min-h-[calc(100svh-170px)] lg:px-10 lg:py-10 xl:px-14">
-                <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-3.5 gap-y-4 sm:gap-x-8 sm:gap-y-5 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
+            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 pb-6 pt-4 sm:px-8 sm:pb-8 sm:pt-6 lg:min-h-[calc(100svh-170px)] lg:px-10 lg:py-10 xl:px-14">
+                <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-2 gap-y-4 min-[400px]:gap-x-3.5 sm:gap-x-8 sm:gap-y-5 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
                     {/* ── Column 1: Copy and Actions ── */}
                     <div className="contents lg:flex lg:min-w-0 lg:flex-[1.1] lg:flex-col lg:items-start">
                         <div data-testid="landing-hero-copy" className="order-1 flex min-w-0 flex-1 self-stretch flex-col justify-between overflow-visible text-left lg:order-none lg:w-full lg:flex-none">
-                            <p data-testid="landing-hero-eyebrow" className="mb-4 whitespace-nowrap text-[clamp(6px,1.9vw,9px)] font-bold uppercase tracking-[0.12em] text-brand-700 min-[400px]:tracking-[0.16em] sm:mb-5 sm:text-[11px] sm:tracking-[0.2em] lg:mb-2 dark:text-sky-300">
+                            <p data-testid="landing-hero-eyebrow" className="mb-1.5 max-w-full whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.06em] text-brand-700 min-[400px]:text-[10px] min-[400px]:tracking-[0.12em] sm:mb-2 sm:text-[11px] sm:tracking-[0.2em] lg:mb-2 dark:text-sky-300">
                                 Island-wide incident coordination
                             </p>
-                            <h1 className="font-display text-[2rem] font-black leading-[0.96] tracking-[-0.045em] text-gray-950 min-[430px]:text-4xl sm:text-5xl lg:text-[4.25rem] xl:text-[5rem] dark:text-white">
+                            <p className="mb-4 flex items-center gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                                <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
+                                Sibuyan Island · Romblon, Philippines
+                            </p>
+                            <h1 className="font-display text-[1.65rem] font-black leading-[0.96] tracking-[-0.045em] text-gray-950 min-[400px]:text-[2rem] min-[430px]:text-4xl sm:text-5xl lg:text-[4.25rem] xl:text-[5rem] dark:text-white">
                                 Report.
                                 <span className="block text-brand-700 dark:text-sky-400">Verify.</span>
                                 <span className="block">Respond.</span>
@@ -125,7 +130,7 @@ const LandingHero = ({
                                             className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
                                         >
                                             <HiExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            Report an Incident
+                                            <span>Report<span className="hidden min-[400px]:inline"> an Incident</span></span>
                                         </Link>
                                     )
                                 )}
@@ -136,7 +141,7 @@ const LandingHero = ({
                                     className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-white px-2 py-2.5 text-[10px] font-bold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-white dark:ring-white/20 dark:hover:bg-white/15"
                                 >
                                     <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    View live map
+                                    <span>View<span className="hidden min-[400px]:inline"> live</span> map</span>
                                 </Link>
                             </div>
 

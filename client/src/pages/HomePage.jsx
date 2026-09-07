@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
-import { HiOutlineArrowRight, HiOutlineExclamation } from 'react-icons/hi';
+import { HiOutlineArrowRight } from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { analyticsAPI, reportsAPI } from '../services/api';
@@ -115,7 +115,7 @@ const HomePage = () => {
                     <Link to="/" className="flex min-w-0 shrink items-center gap-2.5" aria-label="Sibuyan Alert home">
                         <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
                         <span className="truncate whitespace-nowrap font-display text-sm font-bold tracking-tight text-gray-950 sm:text-base dark:text-white">
-                            Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
+                            Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
                         </span>
                     </Link>
 
@@ -129,7 +129,7 @@ const HomePage = () => {
                         {isAuthenticated ? (
                             <Link
                                 to={destination}
-                                className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:px-4 dark:bg-brand-700 dark:hover:bg-brand-600"
+                                className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-gray-800 sm:px-4 dark:bg-brand-700 dark:hover:bg-brand-600"
                             >
                                 <span>{user?.role === 'reporter' ? 'My Reports' : 'Dashboard'}</span>
                                 <HiOutlineArrowRight className="h-3.5 w-3.5" />
@@ -137,7 +137,7 @@ const HomePage = () => {
                         ) : (
                             <Link
                                 to="/login"
-                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-950 sm:px-3 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-100 hover:text-gray-950 sm:px-3 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                             >
                                 Sign in
                             </Link>
@@ -151,9 +151,8 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="inline-flex min-h-9 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:ml-2 sm:gap-1.5 sm:px-4 dark:bg-red-600 dark:hover:bg-red-500"
+                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 hover:text-red-700 sm:px-3 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
                             >
-                                <HiOutlineExclamation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span>Report<span className="hidden min-[400px]:inline"> incident</span></span>
                             </Link>
                         )}
