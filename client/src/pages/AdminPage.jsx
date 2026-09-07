@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
-import { analyticsAPI } from '../services/api';
+import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
@@ -17,6 +17,21 @@ const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflo
 const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-white/10 dark:bg-[#0c1813]/90';
 const SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white';
 const SECTION_META_CLASS = 'text-xs text-gray-500 dark:text-gray-400';
+
+const MAX_ACTIVITY_ITEMS = 8;
+
+const ACTIVITY_LABELS = {
+    newReport: 'New report submitted',
+    reportDeleted: 'Report removed',
+    reportVerified: 'Report verified',
+    reportResponded: 'Responder dispatched',
+    reportResolved: 'Incident resolved',
+    reportUpdatedByReporter: 'Reporter situation update',
+    reportTransferred: 'Incident transferred',
+    highRiskZoneCreated: 'High-risk zone created',
+    highRiskZoneUpdated: 'High-risk zone updated',
+    highRiskZoneDeleted: 'High-risk zone removed',
+};
 
 const AdminKpiCard = ({ stat, loading }) => (
     <article className="min-w-0 overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
@@ -65,7 +80,7 @@ const getRequestErrorMessage = (error, fallback) => (
 
 const AdminPage = () => {
     const { user } = useAuth();
-    const { subscribe } = useSocket();
+    const { connected, reconnectVersion, subscribe } = useSocket();
     const userId = user?.id || user?._id;
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -73,6 +88,12 @@ const AdminPage = () => {
     const { isDegraded: systemDegraded } = useSystemHealth();
     const dashboardRequestIdRef = useRef(0);
     const dashboardRefreshTimerRef = useRef(null);
+    // Live operations ticker (MVP real-time monitoring): recent socket events,
+    // last-event clock, and socket-authenticated responder presence.
+    const [activityFeed, setActivityFeed] = useState([]);
+    const [lastEventAt, setLastEventAt] = useState(() => Date.now());
+    const [, setNowTick] = useState(() => Date.now());
+    const [presence, setPresence] = useState(null);
 
     const fetchDashboardStats = useCallback(async ({ showLoading = false } = {}) => {
         if (!user?.role) return;
@@ -123,8 +144,37 @@ const AdminPage = () => {
         }, 150);
     }, [fetchDashboardStats]);
 
+    // Socket-authenticated responder presence (municipal_admin only).
+    const fetchPresence = useCallback(async () => {
+        if (user?.role !== 'municipal_admin') return;
+        try {
+            const response = await adminAPI.getPresence();
+            if (response.data?.success) setPresence(response.data.data);
+        } catch {
+            // Presence is best-effort; the dashboard stays usable without it.
+        }
+    }, [user?.role]);
+
+    const recordActivity = useCallback((eventName, payload) => {
+        const detail = payload?.address
+            || payload?.title
+            || (payload?.id || payload?._id || payload?.reportId
+                ? `Report #${String(payload.id || payload._id || payload.reportId).slice(-6)}`
+                : '');
+        const entry = {
+            key: `${eventName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            event: eventName,
+            label: ACTIVITY_LABELS[eventName] || 'Operations update',
+            detail: typeof detail === 'string' ? detail : '',
+            at: Date.now(),
+        };
+        setActivityFeed((current) => [entry, ...current].slice(0, MAX_ACTIVITY_ITEMS));
+        setLastEventAt(Date.now());
+    }, []);
+
     useEffect(() => {
         const dashboardEvents = [
+            'newReport',
             'reportDeleted',
             'reportVerified',
             'reportResponded',
@@ -135,13 +185,30 @@ const AdminPage = () => {
             'highRiskZoneUpdated',
             'highRiskZoneDeleted',
         ];
-        const unsubscribers = dashboardEvents.map((eventName) => subscribe(eventName, scheduleDashboardRefresh));
+        const unsubscribers = dashboardEvents.map((eventName) => subscribe(eventName, (payload) => {
+            recordActivity(eventName, payload);
+            fetchPresence();
+            scheduleDashboardRefresh();
+        }));
 
         return () => {
             unsubscribers.forEach((unsubscribe) => unsubscribe());
             window.clearTimeout(dashboardRefreshTimerRef.current);
         };
-    }, [scheduleDashboardRefresh, subscribe]);
+    }, [fetchPresence, recordActivity, scheduleDashboardRefresh, subscribe]);
+
+    // Ticking "updated Xs ago" clock for the live indicator.
+    useEffect(() => {
+        const interval = window.setInterval(() => setNowTick(Date.now()), 1000);
+        return () => window.clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (user?.role !== 'municipal_admin') return undefined;
+        fetchPresence();
+        const interval = window.setInterval(fetchPresence, 30000);
+        return () => window.clearInterval(interval);
+    }, [fetchPresence, user?.role, reconnectVersion]);
 
     // Specialized Responder Operations Hub
     if (user?.role === 'responder') {
@@ -261,6 +328,25 @@ const AdminPage = () => {
                         <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
                         <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
                     </p>
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" aria-live="polite">
+                        <span className="inline-flex items-center gap-1.5 font-semibold">
+                            <span className="relative flex h-2 w-2" aria-hidden="true">
+                                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${connected ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                                <span className={`relative inline-flex h-2 w-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-gray-400'}`} />
+                            </span>
+                            <span className={connected ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}>
+                                {connected ? 'Live' : 'Reconnecting'}
+                            </span>
+                        </span>
+                        <span className="tabular-nums text-gray-500 dark:text-gray-400">
+                            Updated {formatIncidentRelativeTime(new Date(lastEventAt).toISOString())}
+                        </span>
+                        {presence && (
+                            <span className="tabular-nums text-gray-500 dark:text-gray-400">
+                                · {presence.respondersOnline} {presence.respondersOnline === 1 ? 'responder' : 'responders'} online
+                            </span>
+                        )}
+                    </p>
                 </div>
             </header>
 
@@ -273,6 +359,36 @@ const AdminPage = () => {
                         loading={loading}
                     />
                 ))}
+            </section>
+
+            {/* Live operations activity: socket-fed incident ticker (MVP monitoring) */}
+            <section className={PANEL_CLASS} aria-label="Live operations activity" aria-live="polite">
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className={SECTION_TITLE_CLASS}>Live activity</h2>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} aria-hidden="true" />
+                        {connected ? 'Streaming' : 'Paused'}
+                    </span>
+                </div>
+                {activityFeed.length === 0 ? (
+                    <p className={`mt-2 ${SECTION_META_CLASS}`}>
+                        Waiting for live incident events. New reports, verifications, and dispatches appear here instantly.
+                    </p>
+                ) : (
+                    <ul className="mt-2 divide-y divide-gray-100 dark:divide-white/5">
+                        {activityFeed.map((entry) => (
+                            <li key={entry.key} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
+                                <p className="min-w-0 truncate text-gray-800 dark:text-gray-200">
+                                    <span className="font-semibold">{entry.label}</span>
+                                    {entry.detail && <span className="text-gray-500 dark:text-gray-400"> · {entry.detail}</span>}
+                                </p>
+                                <span className="shrink-0 tabular-nums text-gray-400 dark:text-gray-500">
+                                    {formatIncidentRelativeTime(new Date(entry.at).toISOString())}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </section>
 
             {/* Reference volume: slim full-width strip so it never competes

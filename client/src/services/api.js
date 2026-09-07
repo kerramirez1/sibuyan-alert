@@ -156,6 +156,7 @@ export const reportsAPI = {
 // Admin API
 export const adminAPI = {
     getDashboard: (params) => api.get('/admin/dashboard', { params }),
+    getPresence: () => api.get('/admin/presence'),
     getUsers: (params) => api.get('/admin/users', { params }),
     getUserById: (id) => api.get(`/admin/users/${id}`),
     verifyReporter: (id, data) => api.put(`/admin/users/${id}/verify`, data),

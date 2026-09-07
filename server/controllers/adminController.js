@@ -1129,6 +1129,67 @@ export const getDashboardStats = async (req, res) => {
 };
 
 /**
+ * @desc    Live socket presence for the administrator's municipality
+ * @route   GET /api/admin/presence
+ * @access  Private (municipal_admin only)
+ * @note    Counts unique socket-authenticated users currently joined to the
+ *          municipal rooms. Single-dyno accurate (in-memory adapter); with a
+ *          shared adapter it reflects this instance only.
+ */
+export const getPresence = async (req, res) => {
+    try {
+        const admin = req.user;
+        if (!admin?.assignedMunicipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        const io = req.app.get('io');
+        if (!io) {
+            return res.status(503).json({
+                success: false,
+                code: 'REALTIME_UNAVAILABLE',
+                message: 'Realtime service is temporarily unavailable',
+            });
+        }
+
+        const municipality = admin.assignedMunicipality;
+        const [memberSockets, responderSockets] = await Promise.all([
+            io.in(`municipality_${municipality}`).fetchSockets(),
+            io.in(`municipality_${municipality}_responders`).fetchSockets(),
+        ]);
+
+        const onlineById = new Map();
+        for (const socket of [...memberSockets, ...responderSockets]) {
+            const socketUser = socket.data?.user;
+            if (socketUser?.id) onlineById.set(String(socketUser.id), socketUser);
+        }
+        const onlineUsers = [...onlineById.values()];
+        const respondersOnline = onlineUsers.filter((socketUser) => socketUser.role === 'responder').length;
+        const adminsOnline = onlineUsers.filter((socketUser) => socketUser.role === 'municipal_admin').length;
+
+        res.json({
+            success: true,
+            data: {
+                municipality,
+                respondersOnline,
+                adminsOnline,
+                operatorsOnline: onlineUsers.length,
+                updatedAt: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('Get presence error:', error?.message || error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get live presence',
+        });
+    }
+};
+
+/**
  * @desc    Respond to a verified report (MULTI-UNIT, NON-EXCLUSIVE)
  * @route   PUT /api/admin/reports/:id/respond
  * @access  Private (responder only)

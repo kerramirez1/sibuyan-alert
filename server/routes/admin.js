@@ -5,6 +5,7 @@ import {
     verifyReporter,
     getAllReports,
     getOperationalReportById,
+    getPresence,
     verifyReport,
     respondToReport,
     resolveReport,
@@ -37,6 +38,7 @@ router.use(requireRole('municipal_admin', 'responder'));
 // Dashboard — municipal administrators only (not responders)
 // ============================================================
 router.get('/dashboard', requireRole('municipal_admin'), getDashboardStats);
+router.get('/presence', requireRole('municipal_admin'), getPresence);
 
 // ============================================================
 // User management — municipal administrators only (not responders)
