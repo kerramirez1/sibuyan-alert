@@ -21,6 +21,7 @@ export const QUERY_CACHE_TTLS = {
     notifications: 2 * 60 * 1000,
     adminDashboard: 3 * 60 * 1000,
     adminUsers: 2 * 60 * 1000,
+    accidentHistory: 3 * 60 * 1000,
 };
 
 export const getCacheSnapshot = (key) => cacheEntries.get(key) || null;

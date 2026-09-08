@@ -12,6 +12,12 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
+import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
@@ -285,10 +291,17 @@ const AccidentHistoryPage = () => {
     const { user, isAuthenticated } = useAuth();
     const { subscribe } = useSocket();
     const [searchParams] = useSearchParams();
+    const canViewFullDetails = useMemo(() => (
+        Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
+    ), [isAuthenticated, user]);
+
     const requestedDateFilter = searchParams.get('date');
-    const [reports, setReports] = useState([]);
+    // Role-scoped archive key: admins fetch full details, everyone else the
+    // public projection. Session-scoped (wiped on logout), so no leakage.
+    const historyCacheKey = `accident-history:${canViewFullDetails ? 'full' : 'public'}`;
+    const [reports, setReports] = useState(() => getStaleData(historyCacheKey) || []);
     const [municipalitiesData, setMunicipalitiesData] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => getStaleData(historyCacheKey) === null);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState(() => normalizeDateFilter(requestedDateFilter));
     const [severityFilter, setSeverityFilter] = useState('all');
@@ -332,25 +345,35 @@ const AccidentHistoryPage = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const canViewFullDetails = useMemo(() => (
-        Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
-    ), [isAuthenticated, user]);
-
     const fetchReports = useCallback(async (silent = false) => {
-        if (!silent) setLoading(true);
+        if (!silent) {
+            const fresh = getCachedData(historyCacheKey, QUERY_CACHE_TTLS.accidentHistory);
+            if (fresh) {
+                setReports(fresh);
+                setLoading(false);
+                return;
+            }
+            const stale = getStaleData(historyCacheKey);
+            if (stale) setReports(stale);
+            else setLoading(true);
+        }
         try {
             const response = canViewFullDetails
                 ? await adminAPI.getReports({ limit: 500, status: 'resolved' })
                 : await reportsAPI.getAll({ limit: 500, status: 'resolved' });
             const rows = response.data?.data?.reports || [];
-            setReports(rows.filter((report) => report.status === 'resolved'));
+            const nextReports = rows.filter((report) => report.status === 'resolved');
+            setReports(nextReports);
+            setCachedData(historyCacheKey, nextReports);
         } catch (error) {
             console.error('Failed to fetch accident history:', error);
-            if (!silent) toast.error('Failed to load accident history');
+            if (getStaleData(historyCacheKey) === null && !silent) {
+                toast.error('Failed to load accident history');
+            }
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [canViewFullDetails]);
+    }, [canViewFullDetails, historyCacheKey]);
 
     useEffect(() => {
         fetchReports();
@@ -599,7 +622,7 @@ const AccidentHistoryPage = () => {
         setBarangayFilter('all');
     };
 
-    if (loading) {
+    if (loading && reports.length === 0) {
         return (
             <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading accident archive">
                 <span className="sr-only">Loading accident archive</span>

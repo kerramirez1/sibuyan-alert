@@ -148,7 +148,7 @@ const TrustPointsSummary = ({ value = 0 }) => (
 );
 
 const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '', onRetry }) => {
-    if (loading) {
+    if (loading && zones.length === 0) {
         return <PanelLoadingState label="Loading risk zones" />;
     }
 
@@ -841,7 +841,7 @@ const DashboardMapWorkspace = ({
                 </div>
 
                 <div className="relative h-[46svh] min-h-[280px] max-h-[380px] w-full overflow-hidden rounded-lg sm:h-[460px] sm:max-h-none lg:h-[500px]">
-                    {loading && (
+                    {loading && reports.length === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
                                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-brand-600 dark:border-gray-700 dark:border-t-brand-400" />
@@ -920,7 +920,7 @@ const DashboardMapWorkspace = ({
                                     />
                                 </>
                             )}
-                            {isIncidentSummaryPanel && !selectedActiveIncident && activeOverviewMetric?.loading && (
+                            {isIncidentSummaryPanel && !selectedActiveIncident && activeOverviewMetric?.loading && panelIncidentReports.length === 0 && (
                                 <PanelLoadingState label="Loading matching reports…" />
                             )}
                             {isIncidentSummaryPanel && !selectedActiveIncident && activeOverviewMetric?.error && !activeOverviewMetric.loading && (

@@ -438,4 +438,31 @@ describe('AccidentHistoryPage features and filters', () => {
         expect(await screen.findByText('Cambajao, Cajidiocan')).toBeInTheDocument();
         expect(screen.queryByText('Cambajao, San Fernando')).not.toBeInTheDocument();
     });
+
+    test('renders cached archive instantly on revisit without skeleton or refetch', async () => {
+        const first = render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        // List rows render barangay + municipality (addresses stay in dossiers).
+        expect(await screen.findByText('Poblacion, Cajidiocan')).toBeInTheDocument();
+        expect(mocks.getReports).toHaveBeenCalledTimes(1);
+        first.unmount();
+
+        // Revisit with the API down: cached snapshot must render, no skeleton.
+        mocks.getReports.mockRejectedValueOnce(new Error('offline'));
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Accident history' })).toBeInTheDocument();
+        expect(screen.getByText('Poblacion, Cajidiocan')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Loading accident archive')).not.toBeInTheDocument();
+        expect(mocks.getReports).toHaveBeenCalledTimes(1);
+    });
 });
