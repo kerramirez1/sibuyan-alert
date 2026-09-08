@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '../router';
 import { useSocket } from '../context/SocketContext';
 import { reportsAPI } from '../services/api';
+import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -124,24 +130,40 @@ const ReporterDashboardSkeleton = () => (
 );
 
 const ReporterDashboardPage = () => {
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Shared with MyReportsPage (same data). Session-scoped: wiped on logout.
+    const cacheKey = 'my-reports:list';
+    const [reports, setReports] = useState(() => getStaleData(cacheKey) || []);
+    const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
     const [error, setError] = useState('');
     const { subscribe } = useSocket();
 
     const fetchReports = useCallback(async (silent = false) => {
-        if (!silent) setLoading(true);
+        if (!silent) {
+            const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.myReports);
+            if (fresh) {
+                setReports(fresh);
+                setLoading(false);
+                return;
+            }
+            const stale = getStaleData(cacheKey);
+            if (stale) setReports(stale);
+            else setLoading(true);
+        }
         try {
             const response = await reportsAPI.getMyReports();
-            setReports(response.data?.data || []);
+            const nextReports = response.data?.data || [];
+            setReports(nextReports);
+            setCachedData(cacheKey, nextReports);
             setError('');
         } catch (err) {
             console.error('Failed to fetch reporter dashboard reports:', err);
-            setError('Unable to load your report overview.');
+            if (getStaleData(cacheKey) === null) {
+                setError('Unable to load your report overview.');
+            }
         } finally {
             if (!silent) setLoading(false);
         }
-    }, []);
+    }, [cacheKey]);
 
     useEffect(() => {
         fetchReports();

@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI, filesAPI } from '../services/api';
+import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -38,9 +44,18 @@ const VERIFICATION_BADGES = {
 };
 
 const AdminUsersPage = () => {
-    const [users, setUsers] = useState([]);
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+    // Session-scoped key (municipality cannot change mid-session; the whole
+    // cache is wiped on logout/session-expiry, so no cross-account leakage).
+    const usersCacheKey = (nextFilter, nextSearch) => [
+        'admin-users',
+        nextFilter.role || '',
+        nextFilter.verificationStatus || '',
+        nextSearch || '',
+    ].join(':');
+    const defaultUsersCacheKey = usersCacheKey({ role: '', verificationStatus: '' }, '');
+    const [users, setUsers] = useState(() => getStaleData(defaultUsersCacheKey)?.users || []);
+    const [stats, setStats] = useState(() => getStaleData(defaultUsersCacheKey)?.stats || null);
+    const [loading, setLoading] = useState(() => getStaleData(defaultUsersCacheKey) === null);
     const [filter, setFilter] = useState({ role: '', verificationStatus: '' });
     const [search, setSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState(null);
@@ -135,17 +150,34 @@ const AdminUsersPage = () => {
     }, []);
 
     const fetchUsers = async (overrides = {}) => {
-        setLoading(true);
+        const nextFilter = overrides.filter ?? filter;
+        const nextSearch = overrides.search ?? search;
+        const key = usersCacheKey(nextFilter, nextSearch);
+        const fresh = getCachedData(key, QUERY_CACHE_TTLS.adminUsers);
+        if (fresh && !overrides.force) {
+            setUsers(fresh.users || []);
+            setStats(fresh.stats || null);
+            setLoading(false);
+            return;
+        }
+        const stale = getStaleData(key);
+        if (stale) {
+            setUsers(stale.users || []);
+            setStats(stale.stats || null);
+        } else {
+            setLoading(true);
+        }
         try {
-            const nextFilter = overrides.filter ?? filter;
-            const nextSearch = overrides.search ?? search;
             const params = {
                 ...nextFilter,
                 search: nextSearch || undefined,
             };
             const response = await adminAPI.getUsers(params);
-            setUsers(response.data.data.users);
-            setStats(response.data.data.stats);
+            const nextUsers = response.data.data.users;
+            const nextStats = response.data.data.stats;
+            setUsers(nextUsers);
+            setStats(nextStats);
+            setCachedData(key, { users: nextUsers, stats: nextStats });
         } catch (error) {
             console.error('Failed to fetch users:', error);
         } finally {
@@ -182,7 +214,7 @@ const AdminUsersPage = () => {
 
             toast.success(`Reporter ${verifyData.status === 'approved' ? 'approved' : 'rejected'} successfully`);
             setVerifyModalOpen(false);
-            fetchUsers();
+            fetchUsers({ force: true });
         } catch {
             toast.error('Failed to update verification status');
         } finally {
@@ -318,7 +350,7 @@ const AdminUsersPage = () => {
             toast.success('User deleted successfully');
             setDeleteModalOpen(false);
             setUserToDelete(null);
-            fetchUsers();
+            fetchUsers({ force: true });
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to delete user');
         } finally {
@@ -419,14 +451,14 @@ const AdminUsersPage = () => {
                                     placeholder="Search by name or email..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
+                                    onKeyDown={(e) => e.key === 'Enter' && fetchUsers({ force: true })}
                                     className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                 />
                             </div>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => fetchUsers()}
+                                    onClick={() => fetchUsers({ force: true })}
                                     className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                                 >
                                     Search
@@ -483,7 +515,7 @@ const AdminUsersPage = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                            {loading ? (
+                            {loading && users.length === 0 ? (
                                 [0, 1, 2, 3, 4].map((item) => (
                                     <tr key={item}>
                                         <td className="py-3.5 pl-4 pr-3 sm:pl-5">
@@ -623,8 +655,8 @@ const AdminUsersPage = () => {
                 </div>
 
                 {/* Mobile View: Compact Records List */}
-                <div className="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
-                    {loading ? (
+                    <div className="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
+                        {loading && users.length === 0 ? (
                         [0, 1, 2, 3].map((item) => (
                             <SkeletonRow key={item} hasAvatar lines={2} trailingAction />
                         ))

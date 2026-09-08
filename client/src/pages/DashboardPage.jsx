@@ -49,7 +49,19 @@ const PULSE_DURATION_MS = 5000;
 
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
-    const [reports, setReports] = useState([]);
+    const isReporter = user?.role === 'reporter';
+    // Reporters see the shared public map data plus their own summary metrics.
+    const canViewReports = isAuthenticated && user && !isReporter && user.role !== 'ordinary';
+    const isAdmin = user?.role === 'municipal_admin';
+    const isResponder = user?.role === 'responder';
+    const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
+    const activeMunicipality = hasMunicipality ? user.assignedMunicipality : null;
+
+    const dashboardCacheKey = useMemo(() => getDashboardCacheKey({
+        canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated,
+    }), [canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated]);
+
+    const [reports, setReports] = useState(() => getStaleData(dashboardCacheKey) || []);
     const [pulseReportIds, setPulseReportIds] = useState([]);
     const pulseTimeoutsRef = useRef(new Map());
     const {
@@ -62,7 +74,7 @@ const DashboardPage = () => {
     const [reporterOverviewReports, setReporterOverviewReports] = useState(null);
     const [reporterOverviewReportsLoading, setReporterOverviewReportsLoading] = useState(false);
     const [reporterOverviewReportsError, setReporterOverviewReportsError] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => getStaleData(dashboardCacheKey) === null);
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe, reconnectVersion } = useSocket();
@@ -102,18 +114,6 @@ const DashboardPage = () => {
         }
         return null;
     }, [searchParams]);
-
-    const isReporter = user?.role === 'reporter';
-    // Reporters see the shared public map data plus their own summary metrics.
-    const canViewReports = isAuthenticated && user && !isReporter && user.role !== 'ordinary';
-    const isAdmin = user?.role === 'municipal_admin';
-    const isResponder = user?.role === 'responder';
-    const hasMunicipality = (isAdmin || isResponder) && !!user?.assignedMunicipality;
-    const activeMunicipality = hasMunicipality ? user.assignedMunicipality : null;
-
-    const dashboardCacheKey = useMemo(() => getDashboardCacheKey({
-        canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated,
-    }), [canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated]);
 
     useEffect(() => {
         const ownerId = isReporter ? String(user?._id || user?.id || '') : '';
@@ -399,8 +399,9 @@ const DashboardPage = () => {
         }
         const stale = getStaleData(dashboardCacheKey);
         const hasStale = Array.isArray(stale);
-        if (hasStale && !silent) {
-            // Instant render, silent refresh — removes the 2nd-visit skeleton.
+        if (hasStale) {
+            // Always paint stale instantly (even on silent background
+            // refreshes) so a revisit never shows an empty map.
             setReports(stale);
         }
 

@@ -3,6 +3,12 @@ import { Link } from '../router';
 import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
 import {
     HiOutlineArrowRight,
@@ -82,8 +88,9 @@ const AdminPage = () => {
     const { user } = useAuth();
     const { connected, reconnectVersion, subscribe } = useSocket();
     const userId = user?.id || user?._id;
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const dashboardCacheKey = `admin-dashboard:${user?.role || 'unknown'}:${user?.assignedMunicipality || 'unassigned'}`;
+    const [stats, setStats] = useState(() => getStaleData(dashboardCacheKey));
+    const [loading, setLoading] = useState(() => getStaleData(dashboardCacheKey) === null);
     const [dashboardError, setDashboardError] = useState('');
     const { isDegraded: systemDegraded } = useSystemHealth();
     const dashboardRequestIdRef = useRef(0);
@@ -98,7 +105,18 @@ const AdminPage = () => {
     const fetchDashboardStats = useCallback(async ({ showLoading = false } = {}) => {
         if (!user?.role) return;
         const requestId = ++dashboardRequestIdRef.current;
-        if (showLoading) setLoading(true);
+        if (showLoading) {
+            const fresh = getCachedData(dashboardCacheKey, QUERY_CACHE_TTLS.adminDashboard);
+            if (fresh) {
+                setStats(fresh);
+                setLoading(false);
+                setDashboardError('');
+                return;
+            }
+            const stale = getStaleData(dashboardCacheKey);
+            if (stale) setStats(stale);
+            else setLoading(true);
+        }
         setDashboardError('');
 
         try {
@@ -111,25 +129,27 @@ const AdminPage = () => {
             }
             if (requestId === dashboardRequestIdRef.current) {
                 setStats(nextStats);
+                setCachedData(dashboardCacheKey, nextStats);
             }
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
             if (requestId === dashboardRequestIdRef.current) {
-                setDashboardError(getRequestErrorMessage(
-                    error,
-                    'Unable to load dashboard analytics. Please try again.',
-                ));
+                if (getStaleData(dashboardCacheKey) === null) {
+                    setDashboardError(getRequestErrorMessage(
+                        error,
+                        'Unable to load dashboard analytics. Please try again.',
+                    ));
+                }
             }
         } finally {
             if (requestId === dashboardRequestIdRef.current) {
                 setLoading(false);
             }
         }
-    }, [user?.role]);
+    }, [dashboardCacheKey, user?.role]);
 
     useEffect(() => {
         if (!userId) return undefined;
-        setStats(null);
         fetchDashboardStats({ showLoading: true });
 
         return () => {

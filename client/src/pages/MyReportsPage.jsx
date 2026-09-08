@@ -10,6 +10,12 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
+import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
@@ -214,8 +220,11 @@ const MyReportsSkeleton = () => (
 );
 
 function MyReportsPage() {
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Session-scoped key (no user id needed): the whole cache is wiped on
+    // logout/session-expiry, so entries can never leak across accounts.
+    const cacheKey = 'my-reports:list';
+    const [reports, setReports] = useState(() => getStaleData(cacheKey) || []);
+    const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
     const [error, setError] = useState('');
     const [selectedReportId, setSelectedReportId] = useState(null);
     const [filterStatus, setFilterStatus] = useState('all');
@@ -231,19 +240,33 @@ function MyReportsPage() {
     const itemRefs = useRef({});
 
     const fetchReports = useCallback(async (silent = false) => {
-        if (!silent) setLoading(true);
+        if (!silent) {
+            const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.myReports);
+            if (fresh) {
+                setReports(fresh);
+                setLoading(false);
+                return;
+            }
+            const stale = getStaleData(cacheKey);
+            if (stale) setReports(stale);
+            else setLoading(true);
+        }
         try {
             const response = await reportsAPI.getMyReports();
-            setReports(response.data?.data || []);
+            const nextReports = response.data?.data || [];
+            setReports(nextReports);
+            setCachedData(cacheKey, nextReports);
             setError('');
         } catch (err) {
             console.error('Failed to fetch reports:', err);
-            setError('Unable to load your submitted reports.');
+            if (getStaleData(cacheKey) === null) {
+                setError('Unable to load your submitted reports.');
+            }
             if (!silent) toast.error('Failed to load your reports');
         } finally {
             if (!silent) setLoading(false);
         }
-    }, []);
+    }, [cacheKey]);
 
     useEffect(() => {
         fetchReports();

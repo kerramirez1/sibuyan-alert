@@ -14,9 +14,13 @@ const inflightRequests = new Map();
 
 export const QUERY_CACHE_TTLS = {
     zones: 5 * 60 * 1000,
-    dashboard: 60 * 1000,
-    queue: 30 * 1000,
+    dashboard: 3 * 60 * 1000,
+    queue: 2 * 60 * 1000,
     reporterOverview: 60 * 1000,
+    myReports: 2 * 60 * 1000,
+    notifications: 2 * 60 * 1000,
+    adminDashboard: 3 * 60 * 1000,
+    adminUsers: 2 * 60 * 1000,
 };
 
 export const getCacheSnapshot = (key) => cacheEntries.get(key) || null;

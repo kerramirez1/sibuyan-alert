@@ -15,6 +15,12 @@ import { useAuth } from '../context/AuthContext';
 import { Skeleton, SkeletonCircle } from '../components/ui/Skeleton';
 import { cleanNotificationTitle, cleanNotificationMessage } from '../utils/notificationFormatting';
 import {
+    QUERY_CACHE_TTLS,
+    getCachedData,
+    getStaleData,
+    setCachedData,
+} from '../utils/queryCache';
+import {
     buildNotificationTarget,
     getReportUpdateMeta,
     isPriorityReporterUpdate,
@@ -95,29 +101,44 @@ const getNotificationDate = (value) => {
 };
 
 const NotificationsPage = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    // Session-scoped key: the whole cache is wiped on logout/session-expiry,
+    // so entries can never leak across accounts.
+    const cacheKey = 'notifications:list:50';
+    const [notifications, setNotifications] = useState(() => getStaleData(cacheKey)?.notifications || []);
+    const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
     const [error, setError] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
     const { setUnreadCount, subscribe } = useSocket();
-    const { user } = useAuth();
     const navigate = useNavigate();
 
     const fetchNotifications = useCallback(async () => {
-        setLoading(true);
         setError('');
+        const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.notifications);
+        if (fresh) {
+            setNotifications(Array.isArray(fresh.notifications) ? fresh.notifications : []);
+            if (Number.isFinite(fresh.unreadCount)) setUnreadCount(fresh.unreadCount);
+            setLoading(false);
+            return;
+        }
+        const stale = getStaleData(cacheKey);
+        if (!stale) setLoading(true);
         try {
             const response = await notificationsAPI.getAll({ limit: 50 });
             const data = response.data?.data || {};
-            setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+            const nextNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+            setNotifications(nextNotifications);
             if (Number.isFinite(data.unreadCount)) setUnreadCount(data.unreadCount);
+            setCachedData(cacheKey, { notifications: nextNotifications, unreadCount: data.unreadCount });
         } catch (requestError) {
             console.error('Failed to fetch notifications:', requestError);
-            setError('Notifications could not be loaded. Check your connection and try again.');
+            if (getStaleData(cacheKey) === null) {
+                setError('Notifications could not be loaded. Check your connection and try again.');
+            }
         } finally {
             setLoading(false);
         }
-    }, [setUnreadCount]);
+    }, [cacheKey, setUnreadCount]);
 
     useEffect(() => {
         fetchNotifications();
@@ -125,12 +146,13 @@ const NotificationsPage = () => {
 
     useEffect(() => subscribe('notification', (notification) => {
         const incomingId = getNotificationId(notification);
-        setNotifications((current) => (
-            current.some((item) => getNotificationId(item) === incomingId)
-                ? current
-                : [notification, ...current]
-        ));
-    }), [subscribe]);
+        setNotifications((current) => {
+            if (current.some((item) => getNotificationId(item) === incomingId)) return current;
+            const next = [notification, ...current];
+            setCachedData(cacheKey, { notifications: next });
+            return next;
+        });
+    }), [cacheKey, subscribe]);
 
     const markAsRead = useCallback(async (id) => {
         if (!id) return false;
