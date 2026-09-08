@@ -156,7 +156,7 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
         // All authorized admin navigation items remain present
-        expect(screen.getByRole('link', { name: 'Operations Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Admin Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();

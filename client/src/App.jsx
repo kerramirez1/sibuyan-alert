@@ -1,5 +1,5 @@
-import { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from './router';
+import { Suspense, lazy, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from './router';
 import { useAuth } from './context/AuthContext';
 import { getDefaultRoleRoute, resolvePostLoginRedirect } from './utils/authUtils';
 
@@ -44,6 +44,8 @@ const PageLoader = () => (
 function App() {
     const { isAuthenticated, loading, user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
+    const bootRedirectDoneRef = useRef(false);
 
     // Idle-prefetch the most likely next chunks so the 2nd navigation never
     // waits on a dynamic import. Same import() as lazy() — Vite reuses the
@@ -77,6 +79,25 @@ function App() {
         const timer = setTimeout(prefetch, 1500);
         return () => clearTimeout(timer);
     }, [loading, isAuthenticated, user?.role]);
+
+    // Strict per-role landing on fresh app open: an authenticated session
+    // restored on a public landing spot (/, /dashboard) goes straight to
+    // its own dashboard. Deep links (?report=, ?notification=, ?update=,
+    // source=) and every other page are left untouched. /login is handled
+    // by the validated authRedirectTarget below.
+    useEffect(() => {
+        if (loading || bootRedirectDoneRef.current) return;
+        bootRedirectDoneRef.current = true;
+        if (!isAuthenticated || !user?.role) return;
+        if (location.pathname !== '/' && location.pathname !== '/dashboard') return;
+        const params = new URLSearchParams(location.search);
+        if (params.get('report') || params.get('notification')
+            || params.get('update') || params.get('source')) return;
+        const home = getDefaultRoleRoute(user);
+        if (home !== `${location.pathname}${location.search}`) {
+            navigate(home, { replace: true });
+        }
+    }, [loading, isAuthenticated, user, location.pathname, location.search, navigate]);
 
     if (loading) {
         return <PageLoader />;

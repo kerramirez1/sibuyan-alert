@@ -37,6 +37,8 @@ const renderProtected = (props = {}) => {
             <Routes>
                 <Route path="/protected" element={<ProtectedRoute {...props}><div>Protected Content</div></ProtectedRoute>} />
                 <Route path="/login" element={<div>Login Page</div>} />
+                <Route path="/reporter" element={<div>Reporter Dashboard</div>} />
+                <Route path="/profile" element={<div>Profile Page</div>} />
             </Routes>
         </MemoryRouter>
     );
@@ -64,14 +66,14 @@ describe('ProtectedRoute', () => {
         expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });
 
-    test('shows access denied when user role does not match allowedRoles', () => {
+    test('redirects to the role dashboard when user role does not match allowedRoles', () => {
         mockAuthValue.user = { role: 'reporter', isVerified: true };
         mockAuthValue.isAuthenticated = true;
         mockAuthValue.loading = false;
 
         renderProtected({ allowedRoles: ['municipal_admin'] });
 
-        expect(screen.getByText('Access Denied')).toBeInTheDocument();
+        expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 
@@ -85,14 +87,14 @@ describe('ProtectedRoute', () => {
         expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });
 
-    test('shows verification required for unverified reporter when requireVerified is true', () => {
+    test('redirects unverified reporter to their dashboard when requireVerified is true', () => {
         mockAuthValue.user = { role: 'reporter', isVerified: false, verificationStatus: 'pending' };
         mockAuthValue.isAuthenticated = true;
         mockAuthValue.loading = false;
 
         renderProtected({ allowedRoles: ['reporter'], requireVerified: true });
 
-        expect(screen.getByText('Verification Required')).toBeInTheDocument();
+        expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 

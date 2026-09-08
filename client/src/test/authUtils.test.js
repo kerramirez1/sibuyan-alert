@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     hasRole,
+    isRouteAllowedForRole,
     isVerifiedReporter,
     canSubmitReports,
     getDefaultRoleRoute,
@@ -77,8 +78,8 @@ describe('getDefaultRoleRoute', () => {
         expect(getDefaultRoleRoute({ role: 'municipal_admin' })).toBe('/admin');
     });
 
-    test('returns /admin/reports?view=dispatch-queue for responder', () => {
-        expect(getDefaultRoleRoute({ role: 'responder' })).toBe('/admin/reports?view=dispatch-queue');
+    test('returns /admin (Responder Dashboard) for responder', () => {
+        expect(getDefaultRoleRoute({ role: 'responder' })).toBe('/admin');
     });
 
     test('returns /reporter for reporter', () => {
@@ -114,8 +115,34 @@ describe('resolvePostLoginRedirect', () => {
 
     test('preserves valid deep-link targets for responder and reporter', () => {
         expect(resolvePostLoginRedirect(responderUser, '/admin/reports')).toBe('/admin/reports');
-        expect(resolvePostLoginRedirect(reporterUser, '/report')).toBe('/report');
+        expect(resolvePostLoginRedirect({ role: 'reporter', isVerified: true }, '/report')).toBe('/report');
         expect(resolvePostLoginRedirect(reporterUser, '/my-reports')).toBe('/my-reports');
+    });
+
+    test('rejects cross-role targets to the canonical role dashboard', () => {
+        // Reporter asking for admin pages lands on /reporter, not Access Denied.
+        expect(resolvePostLoginRedirect(reporterUser, '/admin')).toBe('/reporter');
+        expect(resolvePostLoginRedirect(reporterUser, '/admin/reports')).toBe('/reporter');
+        expect(resolvePostLoginRedirect(reporterUser, '/admin/users')).toBe('/reporter');
+        // Admin asking for reporter pages lands on /admin.
+        expect(resolvePostLoginRedirect(adminUser, '/reporter')).toBe('/admin');
+        expect(resolvePostLoginRedirect(adminUser, '/my-reports')).toBe('/admin');
+        expect(resolvePostLoginRedirect(adminUser, '/report')).toBe('/admin');
+        // Responder is locked out of admin-only and reporter pages.
+        expect(resolvePostLoginRedirect(responderUser, '/admin/users')).toBe('/admin');
+        expect(resolvePostLoginRedirect(responderUser, '/admin/zones')).toBe('/admin');
+        expect(resolvePostLoginRedirect(responderUser, '/reporter')).toBe('/admin');
+        // Ordinary accounts only keep public + profile destinations.
+        expect(resolvePostLoginRedirect({ role: 'ordinary' }, '/admin')).toBe('/profile');
+        expect(resolvePostLoginRedirect({ role: 'ordinary' }, '/reporter')).toBe('/profile');
+        expect(resolvePostLoginRedirect({ role: 'ordinary' }, '/profile')).toBe('/profile');
+        expect(resolvePostLoginRedirect({ role: 'ordinary' }, '/dashboard')).toBe('/dashboard');
+    });
+
+    test('rejects the submit form for unverified reporters', () => {
+        expect(resolvePostLoginRedirect({ role: 'reporter', isVerified: false }, '/report'))
+            .toBe('/reporter');
+        expect(resolvePostLoginRedirect(reporterUser, '/report')).toBe('/reporter');
     });
 
     test('rejects auth page targets to prevent redirect loops and falls back to canonical role route', () => {
@@ -133,5 +160,27 @@ describe('resolvePostLoginRedirect', () => {
         expect(resolvePostLoginRedirect(adminUser, '\\\\bad-server\\path')).toBe('/admin');
         expect(resolvePostLoginRedirect(adminUser, 'javascript:alert(1)')).toBe('/admin');
         expect(resolvePostLoginRedirect(adminUser, 'relative-path')).toBe('/admin');
+    });
+});
+
+describe('isRouteAllowedForRole', () => {
+    test('opens public paths to everyone including guests', () => {
+        for (const path of ['/', '/login', '/dashboard', '/accident-history', '/reset-password/abc']) {
+            expect(isRouteAllowedForRole(null, path)).toBe(true);
+            expect(isRouteAllowedForRole({ role: 'reporter' }, path)).toBe(true);
+        }
+        expect(isRouteAllowedForRole(null, '/admin')).toBe(false);
+        expect(isRouteAllowedForRole(null, '/reporter')).toBe(false);
+    });
+
+    test('enforces the App.jsx route table per role', () => {
+        expect(isRouteAllowedForRole({ role: 'municipal_admin' }, '/admin/users')).toBe(true);
+        expect(isRouteAllowedForRole({ role: 'responder' }, '/admin/users')).toBe(false);
+        expect(isRouteAllowedForRole({ role: 'responder' }, '/admin/reports?view=dispatch-queue')).toBe(true);
+        expect(isRouteAllowedForRole({ role: 'reporter', isVerified: true }, '/my-reports')).toBe(true);
+        expect(isRouteAllowedForRole({ role: 'reporter', isVerified: false }, '/report')).toBe(false);
+        expect(isRouteAllowedForRole({ role: 'ordinary' }, '/notifications')).toBe(true);
+        expect(isRouteAllowedForRole({ role: 'ordinary' }, '/reporter')).toBe(false);
+        expect(isRouteAllowedForRole({ role: 'municipal_admin' }, '/unknown-page')).toBe(false);
     });
 });

@@ -189,7 +189,7 @@ const MainLayout = ({ children }) => {
                             const homeLabel = !isAuthenticated
                                 ? 'Overview'
                                 : user?.role === 'municipal_admin'
-                                    ? 'Operations Dashboard'
+                                    ? 'Admin Dashboard'
                                     : user?.role === 'responder'
                                         ? 'Responder Dashboard'
                                         : user?.role === 'reporter'

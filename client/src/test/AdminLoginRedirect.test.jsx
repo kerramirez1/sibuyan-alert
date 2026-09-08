@@ -23,11 +23,13 @@ vi.mock('../services/api', () => ({
         getStats: vi.fn().mockResolvedValue({ data: { success: true, data: { totalIncidents: 0, activeIncidents: 0, responseReadiness: 100 } } }),
         getAdmin: vi.fn().mockResolvedValue({ data: { success: true, data: { totalIncidents: 0, activeIncidents: 0, responseReadiness: 100 } } }),
         getPublicSummary: vi.fn().mockResolvedValue({ data: { success: true, data: {} } }),
+        getPublic: vi.fn().mockResolvedValue({ data: { success: true, data: {} } }),
     },
     reportsAPI: {
         getReports: vi.fn().mockResolvedValue({ data: { success: true, data: { reports: [], total: 0 } } }),
         getStats: vi.fn().mockResolvedValue({ data: { success: true, data: {} } }),
         getMyReports: vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
+        getMunicipalities: vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
     },
     highRiskZonesAPI: {
         getAll: vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
@@ -142,7 +144,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         });
     });
 
-    test('1. Municipal administrator logs in with no previous destination and lands on Operations Dashboard (/admin)', async () => {
+    test('1. Municipal administrator logs in with no previous destination and lands on Admin Dashboard (/admin)', async () => {
         render(
             <MemoryRouter initialEntries={['/login']}>
                 <AuthProvider>
@@ -164,7 +166,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const operationsLink = screen.getByRole('link', { name: /Operations Dashboard/i });
+            const operationsLink = screen.getByRole('link', { name: /Admin Dashboard/i });
             expect(operationsLink).toHaveAttribute('aria-current', 'page');
             expect(operationsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 8000 });
@@ -226,8 +228,8 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            // Operations Dashboard is highlighted
-            expect(screen.getByRole('link', { name: /Operations Dashboard/i })).toHaveAttribute('aria-current', 'page');
+            // Admin Dashboard is highlighted
+            expect(screen.getByRole('link', { name: /Admin Dashboard/i })).toHaveAttribute('aria-current', 'page');
             // Analytics Dashboard link is present in the sidebar
             const analyticsLink = screen.getByRole('link', { name: /Analytics Dashboard/i });
             expect(analyticsLink).toBeInTheDocument();
@@ -264,7 +266,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         }, { timeout: 4000 });
     });
 
-    test('5. Responder login redirects to /admin/reports?view=dispatch-queue', async () => {
+    test('5. Responder login redirects to /admin (Responder Dashboard)', async () => {
         render(
             <MemoryRouter initialEntries={['/login']}>
                 <AuthProvider>
@@ -286,9 +288,9 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const reportsLink = screen.getByRole('link', { name: /Incident Reports/i });
+            const reportsLink = screen.getByRole('link', { name: /Responder Dashboard/i });
             expect(reportsLink).toHaveAttribute('aria-current', 'page');
-            expect(reportsLink).toHaveAttribute('href', '/admin/reports?view=dispatch-queue');
+            expect(reportsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 8000 });
     }, 12000);
 
@@ -311,7 +313,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            const operationsLink = screen.getByRole('link', { name: /Operations Dashboard/i });
+            const operationsLink = screen.getByRole('link', { name: /Admin Dashboard/i });
             expect(operationsLink).toHaveAttribute('aria-current', 'page');
             expect(operationsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 4000 });
@@ -339,6 +341,104 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
             const usersLink = screen.getByRole('link', { name: /Users/i });
             expect(usersLink).toHaveAttribute('aria-current', 'page');
             expect(usersLink).toHaveAttribute('href', '/admin/users');
+        }, { timeout: 4000 });
+    });
+
+    test('8. Fresh app open on / sends an authenticated admin straight to Admin Dashboard', async () => {
+        currentUser = {
+            id: 'admin-1',
+            name: 'Admin Maria Santos',
+            email: 'admin@cajidiocan.gov.ph',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            const adminLink = screen.getByRole('link', { name: /Admin Dashboard/i });
+            expect(adminLink).toHaveAttribute('aria-current', 'page');
+            expect(adminLink).toHaveAttribute('href', '/admin');
+        }, { timeout: 4000 });
+    });
+
+    test('9. Fresh app open on /dashboard sends a reporter to Reporter Dashboard', async () => {
+        currentUser = {
+            id: 'reporter-1',
+            name: 'Juan Dela Cruz',
+            email: 'reporter@example.com',
+            role: 'reporter',
+            isVerified: true,
+        };
+
+        render(
+            <MemoryRouter initialEntries={['/dashboard']}>
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            const reporterLink = screen.getByRole('link', { name: /Reporter Dashboard/i });
+            expect(reporterLink).toHaveAttribute('aria-current', 'page');
+        }, { timeout: 4000 });
+    });
+
+    test('10. Fresh app open preserves report deep links instead of forcing the dashboard', async () => {
+        currentUser = {
+            id: 'admin-1',
+            name: 'Admin Maria Santos',
+            email: 'admin@cajidiocan.gov.ph',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        render(
+            <MemoryRouter initialEntries={['/dashboard?report=report-1']}>
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            // Still on the dashboard route: the admin home link is not active.
+            const adminLink = screen.getByRole('link', { name: /Admin Dashboard/i });
+            expect(adminLink).not.toHaveAttribute('aria-current', 'page');
+        }, { timeout: 4000 });
+    });
+
+    test('11. Login with a cross-role redirect still lands on the role dashboard', async () => {
+        render(
+            <MemoryRouter initialEntries={['/login?redirect=%2Fadmin%2Fusers']}>
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /Sign in to Sibuyan Alert/i })).toBeInTheDocument();
+        }, { timeout: 4000 });
+
+        fireEvent.change(screen.getByLabelText('Email Address'), {
+            target: { name: 'email', value: 'reporter@example.com' },
+        });
+        fireEvent.change(screen.getByLabelText('Password'), {
+            target: { name: 'password', value: 'ReporterPass123!' },
+        });
+        fireEvent.submit(screen.getByTestId('login-form'));
+
+        await waitFor(() => {
+            const reporterLink = screen.getByRole('link', { name: /Reporter Dashboard/i });
+            expect(reporterLink).toHaveAttribute('aria-current', 'page');
         }, { timeout: 4000 });
     });
 });
