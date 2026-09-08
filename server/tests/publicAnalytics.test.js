@@ -23,6 +23,7 @@ const { getPublicAnalytics } = await import('../controllers/analyticsController.
 const {
     getPhilippineCalendarDayRange,
     getPhilippineCalendarMonthRange,
+    getPhilippineCalendarWeekRange,
     PUBLIC_REPORT_STATUSES,
 } = await import('../utils/publicAnalytics.js');
 const { sortHighRiskZonesBySeverity } = await import('../utils/highRiskZones.js');
@@ -52,6 +53,18 @@ describe('public homepage analytics', () => {
         const august = getPhilippineCalendarMonthRange(new Date('2026-07-31T16:00:00.000Z'));
         expect(august.startAt.toISOString()).toBe('2026-07-31T16:00:00.000Z');
         expect(august.month).toBe(8);
+    });
+
+    test('calculates Philippine calendar-week (Monday) boundaries in UTC', () => {
+        // 2026-09-08 is a Tuesday; the Manila week starts Monday Sep 7.
+        const week = getPhilippineCalendarWeekRange(new Date('2026-09-08T07:00:00.000Z'));
+        expect(week.startAt.toISOString()).toBe('2026-09-06T16:00:00.000Z');
+        expect(week.endAt.toISOString()).toBe('2026-09-13T16:00:00.000Z');
+        expect(week.timezone).toBe('Asia/Manila');
+
+        // Sunday still belongs to the week starting the previous Monday.
+        const sunday = getPhilippineCalendarWeekRange(new Date('2026-09-13T15:00:00.000Z'));
+        expect(sunday.startAt.toISOString()).toBe('2026-09-06T16:00:00.000Z');
     });
 
     test('counts every published lifecycle state by verification time and uses matching active-zone semantics', async () => {

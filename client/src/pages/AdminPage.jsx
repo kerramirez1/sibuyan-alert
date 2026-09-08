@@ -88,7 +88,9 @@ const AdminPage = () => {
     const { user } = useAuth();
     const { connected, reconnectVersion, subscribe } = useSocket();
     const userId = user?.id || user?._id;
-    const dashboardCacheKey = `admin-dashboard:${user?.role || 'unknown'}:${user?.assignedMunicipality || 'unassigned'}`;
+    // Per-user cache key: payloads can carry per-user fields, so two
+    // operators sharing a municipality must never read each other's snapshot.
+    const dashboardCacheKey = `admin-dashboard:${user?.role || 'unknown'}:${user?.assignedMunicipality || 'unassigned'}:${userId || 'unknown'}`;
     const [stats, setStats] = useState(() => getStaleData(dashboardCacheKey));
     const [loading, setLoading] = useState(() => getStaleData(dashboardCacheKey) === null);
     const [dashboardError, setDashboardError] = useState('');
@@ -294,7 +296,15 @@ const AdminPage = () => {
     const reportsThisWeek = stats?.reports?.thisWeek ?? 0;
     const respondingReports = stats?.reports?.responding ?? 0;
     const resolvedReports = stats?.reports?.resolved ?? 0;
-    const barangayRows = [...(stats?.reportsByBarangay || [])].sort((a, b) => b.count - a.count);
+    const barangayRows = [...(stats?.reportsByBarangay || [])]
+        .map((item) => ({
+            barangay: item?.barangay || 'Unspecified barangay',
+            count: Number(item?.count) || 0,
+            injured: Number(item?.injured) || 0,
+            fatalities: Number(item?.fatalities) || 0,
+            missing: Number(item?.missing) || 0,
+        }))
+        .sort((a, b) => b.count - a.count);
     const barangayMax = Math.max(...barangayRows.map((b) => b.count), 1);
 
     // KPI strip mirrors the responder workspace row: linked stat cards with
@@ -462,7 +472,7 @@ const AdminPage = () => {
                                 Incidents per barangay
                             </h2>
                             <p className={`mt-0.5 ${SECTION_META_CLASS}`}>
-                                Ranked verified reports · {municipality}
+                                Ranked published reports · {municipality}
                             </p>
                         </div>
                         <span className={`${SECTION_META_CLASS} shrink-0`}>

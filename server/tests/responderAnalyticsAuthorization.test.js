@@ -83,20 +83,29 @@ describe('responder analytics municipality authorization', () => {
 
         expect(response.status).not.toHaveBeenCalled();
         expect(Report.countDocuments).toHaveBeenCalledTimes(5);
-        const municipalityScope = {
-            $or: [
-                { municipalityName: 'Magdiwang' },
-                { originalMunicipalityName: 'Magdiwang' },
-                { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+        const originClauses = [
+            { municipalityName: 'Magdiwang' },
+            { originalMunicipalityName: 'Magdiwang' },
+            { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+        ];
+        const sharedScope = {
+            $and: [
+                { $or: originClauses },
+                { hiddenFromMunicipalities: { $ne: 'Magdiwang' } },
             ],
         };
+        // Active incidents pin to the currently-handled municipality so the
+        // badge matches the dispatch queue (no transferred-out inflation).
         expect(Report.countDocuments.mock.calls[0][0]).toEqual(expect.objectContaining({
-            ...municipalityScope,
+            $and: [
+                sharedScope,
+                { municipalityName: 'Magdiwang' },
+            ],
             status: { $in: ['verified', 'transferred', 'responding'] },
         }));
         expect(Report.countDocuments.mock.calls[1][0]).toEqual(expect.objectContaining({
             $and: [
-                municipalityScope,
+                sharedScope,
                 { municipalityName: 'Magdiwang' },
                 {
                     $or: [
@@ -122,7 +131,7 @@ describe('responder analytics municipality authorization', () => {
         expect(highRiskZoneSort).toHaveBeenCalledWith({ severity: 1, createdAt: -1 });
         expect(Report.countDocuments.mock.calls[2][0]).toEqual(expect.objectContaining({
             $and: [
-                municipalityScope,
+                sharedScope,
                 {
                     status: 'resolved',
                     resolvedAt: {

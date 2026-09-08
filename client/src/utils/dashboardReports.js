@@ -1,5 +1,9 @@
 export const getDashboardReportId = (report) => {
-    const id = report?._id ?? report?.id;
+    const rawId = report?._id ?? report?.id;
+    // Extended-JSON object ids ({ $oid }) must not collapse to "[object Object]".
+    const id = rawId && typeof rawId === 'object'
+        ? rawId.$oid ?? rawId.id ?? rawId._id ?? null
+        : rawId;
     return id === null || id === undefined ? null : String(id);
 };
 
@@ -89,9 +93,11 @@ export const deduplicateDashboardReports = (reports = []) => {
 
 // Paginates through every page of a report list endpoint (admin or public)
 // so large datasets are loaded completely instead of silently truncating at
-// the server's per-page limit.
+// the server's per-page limit. Records without an id are preserved in arrival
+// order (like deduplicateDashboardReports) instead of being dropped.
 export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250) => {
     const reportsById = new Map();
+    const reportsWithoutId = [];
     let page = 1;
     let totalPages = 1;
 
@@ -103,6 +109,7 @@ export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250
         pageReports.forEach((report) => {
             const id = getDashboardReportId(report);
             if (id) reportsById.set(String(id), report);
+            else reportsWithoutId.push(report);
         });
 
         const reportedPages = Number(payload.pagination?.pages);
@@ -112,5 +119,5 @@ export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250
         page += 1;
     } while (page <= totalPages);
 
-    return Array.from(reportsById.values());
+    return [...reportsById.values(), ...reportsWithoutId];
 };

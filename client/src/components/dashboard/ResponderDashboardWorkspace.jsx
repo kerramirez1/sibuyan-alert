@@ -164,7 +164,7 @@ const ResponderDashboardWorkspace = ({
         {
             title: 'Resolved today',
             value: resolvedToday,
-            subtext: 'Completed missions today',
+            subtext: `Resolved in ${municipalityName} today`,
             link: '/accident-history?date=today',
             actionLabel: "View today's records",
             priority: 'quiet',

@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
     deduplicateDashboardReports,
     fetchAllReportPages,
+    getDashboardReportId,
     mergeDashboardReport,
     removeDashboardReport,
     updateDashboardReportStatus,
@@ -130,5 +131,37 @@ describe('dashboard report data synchronization', () => {
         expect(updated[0]).toMatchObject({ _id: '42', status: 'transferred', address: 'Current representation' });
         expect(removeDashboardReport(updated, 42)).toEqual([{ _id: 'report-2', status: 'verified' }]);
         expect(deduplicateDashboardReports(reports)).toHaveLength(2);
+    });
+
+    test('normalizes Extended-JSON object ids instead of collapsing to [object Object]', () => {
+        const reports = [
+            { _id: { $oid: 'aaa' }, status: 'verified' },
+            { _id: { $oid: 'bbb' }, status: 'verified' },
+        ];
+
+        expect(getDashboardReportId(reports[0])).toBe('aaa');
+        expect(getDashboardReportId(reports[1])).toBe('bbb');
+        expect(deduplicateDashboardReports(reports)).toHaveLength(2);
+        expect(upsertDashboardReport(reports, { _id: { $oid: 'aaa' }, status: 'resolved' })[0])
+            .toMatchObject({ _id: 'aaa', status: 'resolved' });
+    });
+
+    test('preserves id-less records when paginating instead of dropping them', async () => {
+        const fetchPage = vi.fn(({ page, limit }) => Promise.resolve({
+            data: {
+                data: {
+                    reports: page === 1
+                        ? [{ _id: 'report-1' }, { status: 'pending' }]
+                        : [{ _id: 'report-1' }],
+                    pagination: { page, pages: 2, limit },
+                },
+            },
+        }));
+
+        const reports = await fetchAllReportPages(fetchPage, {}, 2);
+
+        expect(reports).toHaveLength(2);
+        expect(reports[0]).toMatchObject({ _id: 'report-1' });
+        expect(reports[1]).toMatchObject({ status: 'pending' });
     });
 });

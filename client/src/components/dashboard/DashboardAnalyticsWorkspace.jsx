@@ -16,7 +16,7 @@ import {
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
-import { countReportsInMonth, filterReportsByDayKey, getTrendInsight } from '../../utils/analyticsTrend';
+import { countReportsInMonth, filterReportsByDayKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getFilteredMapReports } from '../../utils/mapReports';
@@ -36,6 +36,7 @@ const SEVERITY_SERIES = Object.freeze([
     Object.freeze({ key: 'moderate', label: 'Moderate', fill: '#F59E0B' }),
     Object.freeze({ key: 'severe', label: 'Severe', fill: '#F97316' }),
     Object.freeze({ key: 'critical', label: 'Critical', fill: '#EF4444' }),
+    Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#9CA3AF' }),
 ]);
 
 const PANEL_CLASS = 'rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
@@ -82,7 +83,7 @@ const EmptyChart = ({ message = 'No data for the selected period', detail }) => 
     </div>
 );
 
-const SEVERITY_STACK_ORDER = ['minor', 'moderate', 'severe', 'critical'];
+const SEVERITY_STACK_ORDER = ['minor', 'moderate', 'severe', 'critical', 'unknown'];
 
 /**
  * Draws the day total once, on top of the highest non-zero stack segment.
@@ -424,7 +425,20 @@ const DashboardAnalyticsWorkspace = ({
         setSelectedDay(null);
     }, [selectedMonth]);
 
-    const prevMonthCount = countReportsInMonth(allReports, subMonths(selectedMonth, 1));
+    const prevMonthCount = (() => {
+        // Pace-fair delta: when viewing the in-progress Manila month, compare
+        // against the previous month's first N days — never a partial month
+        // against a full one.
+        const nowManila = new Date(Date.now() + MANILA_OFFSET_MS);
+        const viewingCurrentManilaMonth = getManilaMonthKey(selectedMonth) === getManilaMonthKey(nowManila);
+        return countReportsInMonth(
+            allReports,
+            subMonths(selectedMonth, 1),
+            viewingCurrentManilaMonth
+                ? { throughDayOfMonth: nowManila.getUTCDate() }
+                : {},
+        );
+    })();
     const mapDayReports = selectedDay ? filterReportsByDayKey(reports, selectedDay) : reports;
     const selectedDayLabel = (chartData || []).find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
 

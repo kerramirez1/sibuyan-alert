@@ -20,6 +20,12 @@ import {
 } from '../utils/reportAccess.js';
 import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
 import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
+import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+import {
+    getPhilippineCalendarMonthRange,
+    getPhilippineCalendarWeekRange,
+    PHILIPPINES_TIMEZONE,
+} from '../utils/publicAnalytics.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -405,20 +411,11 @@ export const getAllReports = async (req, res) => {
         }
 
         const scopedMunicipality = admin.assignedMunicipality;
-        const scopeClause = {
-            $and: [
-                {
-                    $or: [
-                        { municipalityName: scopedMunicipality },
-                        { originalMunicipalityName: scopedMunicipality },
-                        { 'transferHistory.fromMunicipalityName': scopedMunicipality },
-                    ],
-                },
-                // Read-only transferred copies an admin dismissed from their
-                // own queue. Missing field (legacy docs) still matches $ne.
-                { hiddenFromMunicipalities: { $ne: scopedMunicipality } },
-            ],
-        };
+        // Single municipal visibility definition shared with analytics
+        // (utils/analyticsScope.js): origin-inclusive + dismissed excluded.
+        // Read-only transferred copies an admin dismissed from their
+        // own queue still match $ne (legacy docs without the field too).
+        const scopeClause = buildMunicipalReportScope(scopedMunicipality);
         query.$and = [scopeClause];
 
         if (reportId) {
@@ -1031,11 +1028,8 @@ export const deleteUser = async (req, res) => {
  */
 export const getDashboardStats = async (req, res) => {
     try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const monthRange = getPhilippineCalendarMonthRange();
+        const weekRange = getPhilippineCalendarWeekRange();
 
         const admin = req.user;
         const municipality = admin.assignedMunicipality;
@@ -1046,13 +1040,10 @@ export const getDashboardStats = async (req, res) => {
             });
         }
 
-        const reportFilter = {
-            $or: [
-                { municipalityName: municipality },
-                { originalMunicipalityName: municipality },
-                { 'transferHistory.fromMunicipalityName': municipality },
-            ],
-        };
+        // Same municipal visibility scope as the incident queue and the
+        // analytics endpoint: every incident that touched this office, minus
+        // copies dismissed locally. (Shared: utils/analyticsScope.js)
+        const reportFilter = buildMunicipalReportScope(municipality);
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
@@ -1064,6 +1055,10 @@ export const getDashboardStats = async (req, res) => {
             totalReports,
             pendingReports,
             verifiedReports,
+            transferredReports,
+            respondingReports,
+            resolvedReports,
+            rejectedReports,
             reportsThisWeek,
             reportsThisMonth,
             recentReports,
@@ -1076,20 +1071,24 @@ export const getDashboardStats = async (req, res) => {
             Report.countDocuments(reportFilter),
             Report.countDocuments({ ...reportFilter, status: 'pending' }),
             Report.countDocuments({ ...reportFilter, status: 'verified' }),
-            Report.countDocuments({ ...reportFilter, createdAt: { $gte: sevenDaysAgo } }),
-            Report.countDocuments({ ...reportFilter, createdAt: { $gte: thirtyDaysAgo } }),
+            Report.countDocuments({ ...reportFilter, status: 'transferred' }),
+            Report.countDocuments({ ...reportFilter, status: 'responding' }),
+            Report.countDocuments({ ...reportFilter, status: 'resolved' }),
+            Report.countDocuments({ ...reportFilter, status: 'rejected' }),
+            Report.countDocuments({ ...reportFilter, createdAt: { $gte: weekRange.startAt, $lt: weekRange.endAt } }),
+            Report.countDocuments({ ...reportFilter, createdAt: { $gte: monthRange.startAt, $lt: monthRange.endAt } }),
             Report.find(reportFilter).sort({ createdAt: -1 }).limit(5).populate('reporter', 'name'),
             User.find(userScopeFilter).sort({ createdAt: -1 }).limit(5).select('name email role createdAt'),
             Report.aggregate([
                 {
                     $match: {
                         ...reportFilter,
-                        createdAt: { $gte: thirtyDaysAgo }
+                        createdAt: { $gte: monthRange.startAt, $lt: monthRange.endAt }
                     },
                 },
                 {
                     $group: {
-                        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: PHILIPPINES_TIMEZONE } },
                         count: { $sum: 1 },
                     },
                 },
@@ -1109,6 +1108,10 @@ export const getDashboardStats = async (req, res) => {
                     total: totalReports,
                     pending: pendingReports,
                     verified: verifiedReports,
+                    transferred: transferredReports,
+                    responding: respondingReports,
+                    resolved: resolvedReports,
+                    rejected: rejectedReports,
                     thisWeek: reportsThisWeek,
                     thisMonth: reportsThisMonth,
                 },

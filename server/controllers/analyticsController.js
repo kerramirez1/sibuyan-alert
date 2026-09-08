@@ -4,17 +4,30 @@ import HighRiskZone from '../models/HighRiskZone.js';
 import {
     getPhilippineCalendarDayRange,
     getPhilippineCalendarMonthRange,
+    getPhilippineCalendarWeekRange,
+    PHILIPPINES_TIMEZONE,
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
+import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 
 const RESPONDER_ACTIVE_STATUSES = ['verified', 'transferred', 'responding'];
 const RESPONDER_PRIORITY_ZONE_SEVERITIES = ['critical', 'high'];
 
 const getMunicipalityScopedUserIds = async (municipalityName) => {
+    // Reporters belong to the scope of every municipality their reports
+    // touched (current, origin, or transfer path) — mirroring the report
+    // scope — so a transfer never drops the reporter from the origin office.
+    const reporterOriginClause = {
+        $or: [
+            { municipalityName: municipalityName },
+            { originalMunicipalityName: municipalityName },
+            { 'transferHistory.fromMunicipalityName': municipalityName },
+        ],
+    };
     const [assignedUsers, reporterIdsFromReports] = await Promise.all([
         User.find({ assignedMunicipality: municipalityName }).select('_id'),
         Report.distinct('reporter', {
-            municipalityName: municipalityName,
+            ...reporterOriginClause,
             reporter: { $ne: null },
         }),
     ]);
@@ -29,8 +42,8 @@ const getMunicipalityScopedUserIds = async (municipalityName) => {
 
 export const getAdminAnalytics = async (req, res) => {
     try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const monthRange = getPhilippineCalendarMonthRange();
+        const weekRange = getPhilippineCalendarWeekRange();
 
         const admin = req.user;
         const municipality = admin.assignedMunicipality;
@@ -42,13 +55,10 @@ export const getAdminAnalytics = async (req, res) => {
             });
         }
 
-        const reportFilter = {
-            $or: [
-                { municipalityName: municipality },
-                { originalMunicipalityName: municipality },
-                { 'transferHistory.fromMunicipalityName': municipality },
-            ],
-        };
+        // Same municipal visibility scope as the incident queue: every
+        // incident that touched this office, minus copies dismissed locally.
+        // (Shared definition: utils/analyticsScope.js)
+        const reportFilter = buildMunicipalReportScope(municipality);
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
@@ -60,6 +70,10 @@ export const getAdminAnalytics = async (req, res) => {
             totalReports,
             pendingReports,
             verifiedReports,
+            transferredReports,
+            respondingReports,
+            resolvedReports,
+            rejectedReports,
             reportsThisWeek,
             reportsThisMonth,
             reportsByMunicipality,
@@ -74,8 +88,12 @@ export const getAdminAnalytics = async (req, res) => {
             Report.countDocuments(reportFilter),
             Report.countDocuments({ ...reportFilter, status: 'pending' }),
             Report.countDocuments({ ...reportFilter, status: 'verified' }),
-            Report.countDocuments({ ...reportFilter, createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 7)) } }),
-            Report.countDocuments({ ...reportFilter, createdAt: { $gte: thirtyDaysAgo } }),
+            Report.countDocuments({ ...reportFilter, status: 'transferred' }),
+            Report.countDocuments({ ...reportFilter, status: 'responding' }),
+            Report.countDocuments({ ...reportFilter, status: 'resolved' }),
+            Report.countDocuments({ ...reportFilter, status: 'rejected' }),
+            Report.countDocuments({ ...reportFilter, createdAt: { $gte: weekRange.startAt, $lt: weekRange.endAt } }),
+            Report.countDocuments({ ...reportFilter, createdAt: { $gte: monthRange.startAt, $lt: monthRange.endAt } }),
             Report.aggregate([
                 { $match: reportFilter },
                 // Event-based: group where the incident happened (origin),
@@ -85,19 +103,21 @@ export const getAdminAnalytics = async (req, res) => {
             Report.find(reportFilter).sort({ createdAt: -1 }).limit(5).populate('reporter', 'name'),
             User.find(userScopeFilter).sort({ createdAt: -1 }).limit(5).select('name email role createdAt'),
             Report.aggregate([
-                { $match: { ...reportFilter, createdAt: { $gte: thirtyDaysAgo } } },
-                { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+                { $match: { ...reportFilter, createdAt: { $gte: monthRange.startAt, $lt: monthRange.endAt } } },
+                { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: PHILIPPINES_TIMEZONE } }, count: { $sum: 1 } } },
                 { $sort: { _id: 1 } },
             ]),
-            // Barangay-level breakdown of verified/resolved reports
+            // Barangay hotspots across every published lifecycle state.
             Report.aggregate([
-                { $match: { ...reportFilter, status: { $in: ['verified', 'resolved', 'responding'] }, barangay: { $nin: [null, ''] } } },
+                { $match: { ...reportFilter, status: { $in: [...PUBLIC_REPORT_STATUSES] }, barangay: { $nin: [null, ''] } } },
                 {
                     $group: {
-                        _id: '$barangay',
+                        _id: { $toLower: '$barangay' },
+                        barangay: { $first: '$barangay' },
                         count: { $sum: 1 },
-                        injured: { $sum: '$casualties.injured' },
-                        fatalities: { $sum: '$casualties.fatalities' },
+                        injured: { $sum: { $ifNull: ['$casualties.injured', 0] } },
+                        fatalities: { $sum: { $ifNull: ['$casualties.fatalities', 0] } },
+                        missing: { $sum: { $ifNull: ['$casualties.missing', 0] } },
                     }
                 },
                 { $sort: { count: -1 } },
@@ -116,6 +136,10 @@ export const getAdminAnalytics = async (req, res) => {
                     total: totalReports,
                     pending: pendingReports,
                     verified: verifiedReports,
+                    transferred: transferredReports,
+                    responding: respondingReports,
+                    resolved: resolvedReports,
+                    rejected: rejectedReports,
                     thisWeek: reportsThisWeek,
                     thisMonth: reportsThisMonth,
                     byMunicipality: reportsByMunicipality.reduce((acc, item) => {
@@ -129,10 +153,11 @@ export const getAdminAnalytics = async (req, res) => {
                     reportsByDay,
                 },
                 reportsByBarangay: reportsByBarangay.map(item => ({
-                    barangay: item._id,
+                    barangay: item.barangay || item._id,
                     count: item.count,
                     injured: item.injured || 0,
                     fatalities: item.fatalities || 0,
+                    missing: item.missing || 0,
                 })),
             },
         });
@@ -154,11 +179,13 @@ export const getResponderAnalytics = async (req, res) => {
                 message: 'Municipality is not assigned to this responder',
             });
         }
-        const municipalityScope = {
-            $or: [
+        const municipalityScope = buildMunicipalReportScope(responder.assignedMunicipality);
+        // Dispatch-queue parity: the "available/active" badges describe work
+        // this office currently holds, so they pin to current municipality.
+        const currentMunicipalityScope = {
+            $and: [
+                municipalityScope,
                 { municipalityName: responder.assignedMunicipality },
-                { originalMunicipalityName: responder.assignedMunicipality },
-                { 'transferHistory.fromMunicipalityName': responder.assignedMunicipality },
             ],
         };
         const { startAt, endAt } = getPhilippineCalendarDayRange();
@@ -173,7 +200,7 @@ export const getResponderAnalytics = async (req, res) => {
             reportsByBarangay,
             criticalHighRiskZones,
         ] = await Promise.all([
-            Report.countDocuments({ ...municipalityScope, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
+            Report.countDocuments({ ...currentMunicipalityScope, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
             // Badge must match the dispatch-queue list definition exactly:
             // current municipality only. Without the pin, transferred-OUT
             // reports (visible via transferHistory.from) inflate the badge
@@ -212,7 +239,7 @@ export const getResponderAnalytics = async (req, res) => {
                 $and: [
                     municipalityScope,
                     {
-                        status: 'responding',
+                        status: { $in: ['responding', 'transferred'] },
                         $or: [
                             { respondedBy: responder._id },
                             { 'responders.user': responder._id },
@@ -221,7 +248,7 @@ export const getResponderAnalytics = async (req, res) => {
                 ],
             }),
             Report.countDocuments({
-                ...municipalityScope,
+                ...currentMunicipalityScope,
                 status: 'resolved',
                 resolvedAt: { $gte: startAt, $lt: endAt },
             }),
@@ -230,13 +257,15 @@ export const getResponderAnalytics = async (req, res) => {
                 isActive: true,
             }),
             Report.aggregate([
-                { $match: { ...municipalityScope, status: { $in: ['verified', 'resolved', 'responding'] }, barangay: { $nin: [null, ''] } } },
+                { $match: { ...municipalityScope, status: { $in: [...PUBLIC_REPORT_STATUSES] }, barangay: { $nin: [null, ''] } } },
                 {
                     $group: {
-                        _id: '$barangay',
+                        _id: { $toLower: '$barangay' },
+                        barangay: { $first: '$barangay' },
                         count: { $sum: 1 },
-                        injured: { $sum: '$casualties.injured' },
-                        fatalities: { $sum: '$casualties.fatalities' },
+                        injured: { $sum: { $ifNull: ['$casualties.injured', 0] } },
+                        fatalities: { $sum: { $ifNull: ['$casualties.fatalities', 0] } },
+                        missing: { $sum: { $ifNull: ['$casualties.missing', 0] } },
                     },
                 },
                 { $sort: { count: -1 } },
@@ -263,10 +292,11 @@ export const getResponderAnalytics = async (req, res) => {
                 resolvedToday,
                 activeRiskZones,
                 reportsByBarangay: (reportsByBarangay || []).map((item) => ({
-                    barangay: item._id,
+                    barangay: item.barangay || item._id,
                     count: item.count,
                     injured: item.injured || 0,
                     fatalities: item.fatalities || 0,
+                    missing: item.missing || 0,
                 })),
                 criticalHighRiskZones: criticalHighRiskZones || [],
             },
