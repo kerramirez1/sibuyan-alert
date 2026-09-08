@@ -87,9 +87,13 @@ const MapIncidentDetails = ({
     isOperational: explicitIsOperational = false,
     canRespond = false,
     canResolve = false,
+    canVerify = false,
+    canReject = false,
     actionLoading = false,
     onRespond,
     onResolve,
+    onVerify,
+    onReject,
     onToggleExpand,
     onClose: _onClose,
     onBack,
@@ -135,7 +139,7 @@ const MapIncidentDetails = ({
     });
 
     const isOperational = explicitIsOperational || operational.isOperationalViewer || visibility.isOperational;
-    const hasActions = Boolean(canRespond || canResolve);
+    const hasActions = Boolean(canRespond || canResolve || canVerify || canReject);
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
     const { injured, fatalities, missing, isAllZeroOrUnrecorded } = normalizedCasualties;
@@ -198,7 +202,7 @@ const MapIncidentDetails = ({
 
     return (
         <div className="flex flex-col">
-            <div className="space-y-3 px-4 py-3 sm:px-5 sm:py-3.5">
+            <div className="space-y-2.5 px-4 py-3 sm:px-5 sm:py-3.5">
                 {/* 1. Incident Brief */}
                 <div>
                     {typeof onBack === 'function' && (
@@ -271,7 +275,7 @@ const MapIncidentDetails = ({
                 )}
 
                 {/* 2. Overview — unified section with 2-column metadata grid + casualty summary */}
-                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-overview-heading">
+                <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-overview-heading">
                     <h4 id="map-incident-overview-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white mb-1">
                         Overview
                     </h4>
@@ -303,7 +307,7 @@ const MapIncidentDetails = ({
                     </dl>
 
                     {/* Casualty summary — child of Overview */}
-                    <div className="border-t border-gray-100 pt-2.5 dark:border-white/5">
+                    <div className="border-t border-gray-100 pt-2 dark:border-white/5">
                         <h5 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
                             Casualty summary
                         </h5>
@@ -344,7 +348,7 @@ const MapIncidentDetails = ({
 
                 {/* 4. Clamped Description */}
                 {details.description && (
-                    <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-description-heading">
+                    <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-description-heading">
                         <h4 id="map-incident-description-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
                             {isOperational ? 'Operational description' : 'Description'}
                         </h4>
@@ -364,7 +368,7 @@ const MapIncidentDetails = ({
                 )}
 
                 {/* 5. Evidence Photos */}
-                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
+                <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
                     <h4 id="map-incident-evidence-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
                         <span>
                             {totalEvidenceCount > 0
@@ -398,8 +402,31 @@ const MapIncidentDetails = ({
 
             {/* 7. Sticky Actions Footer */}
             {hasActions && (
-                <div className="sticky bottom-0 z-10 border-t border-gray-200/80 bg-white max-sm:backdrop-blur-none sm:bg-white/95 sm:backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-white/10 dark:bg-[#0c1813] sm:dark:bg-[#0c1813]/95 sm:px-5">
+                <div className="z-10 border-t border-gray-200/80 bg-gray-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-white/10 dark:bg-white/[0.03] sm:px-5">
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                        {canVerify && (
+                            <Button
+                                onClick={() => onVerify?.(displayedReport)}
+                                loading={actionLoading}
+                                loadingLabel="Please wait..."
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Verify report
+                            </Button>
+                        )}
+
+                        {canReject && (
+                            <Button
+                                variant="dangerOutline"
+                                onClick={() => onReject?.(displayedReport)}
+                                loading={actionLoading}
+                                loadingLabel="Please wait..."
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Reject report
+                            </Button>
+                        )}
+
                         {canRespond && (
                             <Button
                                 onClick={() => onRespond?.(displayedReport)}

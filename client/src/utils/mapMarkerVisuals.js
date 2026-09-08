@@ -16,9 +16,15 @@ export const STATUS_PIN_PALETTES = Object.freeze({
 });
 
 /**
- * White center dot for the teardrop pin head — same for all statuses.
+ * Center glyph for the teardrop pin head — white dot for incidents,
+ * white exclamation for hazard zones so the two never read the same.
  */
-export const getStatusIconInnerSvg = () => `<circle cx="12" cy="10.5" r="3" fill="white"/>`;
+export const getStatusIconInnerSvg = (status) => {
+    if (status === 'risk') {
+        return '<rect x="11" y="5.5" width="2" height="6" rx="1" fill="white"/><circle cx="12" cy="13.8" r="1.4" fill="white"/>';
+    }
+    return '<circle cx="12" cy="10.5" r="3" fill="white"/>';
+};
 
 /**
  * Compact teardrop map-pin SVG marker.

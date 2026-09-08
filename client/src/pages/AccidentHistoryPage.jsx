@@ -939,10 +939,10 @@ const AccidentHistoryPage = () => {
                                                 delete itemRefs.current[report._id];
                                             }
                                         }}
-                                        style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #059669)' } : undefined}
-                                        className={`border-l-2 sm:border-l-2 scroll-mt-4 sm:scroll-mt-6 ${isExpanded
-                                            ? 'border-l-emerald-600 bg-emerald-50/15 dark:border-l-emerald-500 dark:bg-[#07130e]/80 border-b border-gray-200 dark:border-white/10'
-                                            : 'border-l-transparent bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
+                                        style={isExpanded ? { borderLeftColor: 'var(--expanded-record-accent, #14385C)' } : undefined}
+                                        className={`scroll-mt-4 sm:scroll-mt-6 ${isExpanded
+                                            ? 'bg-brand-50/40 dark:bg-white/[0.03] border-b border-gray-200 dark:border-white/10'
+                                            : 'bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                         }`}
                                     >
                                         <button
@@ -950,11 +950,11 @@ const AccidentHistoryPage = () => {
                                             onClick={() => toggleExpandedDossier(report)}
                                             aria-expanded={isExpanded}
                                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
-                                            className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 px-3 py-3.5 text-left sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'bg-emerald-500/[0.03] dark:bg-white/[0.01]' : ''}`}
+                                            className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 border-l-4 px-3 py-3.5 text-left sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'border-l-brand-600 bg-brand-500/[0.04] dark:border-l-brand-500 dark:bg-white/[0.01]' : 'border-l-transparent'}`}
                                         >
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400" aria-hidden="true">
+                                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700 dark:bg-white/10 dark:text-sky-400" aria-hidden="true">
                                                         <HiCheck className="h-2.5 w-2.5" />
                                                     </span>
                                                     <p className="line-clamp-1 text-sm font-semibold text-gray-900 dark:text-white">
@@ -990,7 +990,7 @@ const AccidentHistoryPage = () => {
 
                                         {/* Structured Municipal Incident Dossier (Typography-Driven Flat Layout) */}
                                         {isExpanded && (
-                                            <div className="border-t border-gray-100 px-4 py-4 space-y-4 sm:px-6 dark:border-white/5">
+                                            <div className="border-t border-gray-100 border-l-4 border-l-brand-600/30 px-4 py-4 space-y-4 sm:px-6 dark:border-white/5 dark:border-l-brand-500/30">
                                                 {/* Incident Summary */}
                                                 <div>
                                                     <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400 mb-1">

@@ -274,10 +274,13 @@ const DashboardMapWorkspace = ({
     canCurrentResponderResolve,
     handleMapRespond,
     handleMapResolve,
+    handleMapVerify,
+    handleMapReject,
     setSearchParams,
     mapSummaryPanel,
     setMapSummaryPanel,
     activePanel,
+    pulseReportIds = [],
 }) => {
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
@@ -632,6 +635,20 @@ const DashboardMapWorkspace = ({
         && selectedActiveIncident.status === 'responding'
         && (!canCurrentResponderResolve || canCurrentResponderResolve(selectedActiveIncident)),
     );
+    // Map review shortcuts: municipal_admin only, same-municipality pending
+    // reports. The queue inspector + server re-check on confirm.
+    const selectedIncidentCanVerify = Boolean(
+        selectedActiveIncident
+        && mapExperience.canVerify
+        && isReportInResponderMunicipality(selectedActiveIncident)
+        && selectedActiveIncident.status === 'pending',
+    );
+    const selectedIncidentCanReject = Boolean(
+        selectedActiveIncident
+        && mapExperience.canVerify
+        && isReportInResponderMunicipality(selectedActiveIncident)
+        && selectedActiveIncident.status === 'pending',
+    );
 
     const getFilterCount = (filterValue) => {
         if (filterValue === 'risk-zones') {
@@ -848,10 +865,15 @@ const DashboardMapWorkspace = ({
                         canResolve={mapExperience.canResolve}
                         canResolveReport={mapExperience.canResolve ? canCurrentResponderResolve : null}
                         onResolveReport={mapExperience.canResolve ? handleMapResolve : null}
+                        canVerify={mapExperience.canVerify}
+                        canVerifyReport={isReportInResponderMunicipality}
+                        onVerifyToReport={mapExperience.canVerify ? handleMapVerify : null}
+                        onRejectToReport={mapExperience.canVerify ? handleMapReject : null}
                         viewerRole={user?.role || 'guest'}
                         showDataState
                         enable3D
                         showDesktopLegend={false}
+                        pulseReportIds={pulseReportIds}
                     />
                     {hasSummaryPanel && (
                         <MapOverlayPanel
@@ -880,12 +902,20 @@ const DashboardMapWorkspace = ({
                                         viewerRole={user?.role || 'guest'}
                                         canRespond={selectedIncidentCanRespond}
                                         canResolve={selectedIncidentCanResolve}
+                                        canVerify={selectedIncidentCanVerify}
+                                        canReject={selectedIncidentCanReject}
                                         actionLoading={panelActionLoading}
                                         onRespond={selectedIncidentCanRespond
                                             ? (report) => runPanelIncidentAction(handleMapRespond, report, 'Now responding to incident')
                                             : undefined}
                                         onResolve={selectedIncidentCanResolve
                                             ? (report) => runPanelIncidentAction(handleMapResolve, report, 'Opening resolution review')
+                                            : undefined}
+                                        onVerify={selectedIncidentCanVerify
+                                            ? (report) => runPanelIncidentAction(handleMapVerify, report, 'Opening verification review')
+                                            : undefined}
+                                        onReject={selectedIncidentCanReject
+                                            ? (report) => runPanelIncidentAction(handleMapReject, report, 'Opening rejection review')
                                             : undefined}
                                     />
                                 </>

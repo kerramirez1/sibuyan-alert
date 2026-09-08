@@ -686,6 +686,28 @@
   z-index: 0;
 }
 
+/* Fresh-event pulse: temporary red ring on markers touched by the latest
+   socket event (new/verified/responding/resolved/transferred). Finite
+   iterations so it draws the eye once, then settles. */
+.report-marker.map-marker--fresh {
+  position: relative;
+}
+
+.report-marker.map-marker--fresh::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  border-radius: 9999px;
+  border: 3px solid rgba(220, 38, 38, 0.85);
+  animation: operationalMarkerPulse 1.2s ease-out 4;
+  pointer-events: none;
+  z-index: 4;
+}
+
 .report-marker:focus-visible,
 .report-marker.map-marker--selected {
   outline: 2px solid rgba(37, 99, 235, 0.9);
@@ -730,6 +752,10 @@
     transition: none !important;
   }
   .report-marker__pulse {
+    animation: none !important;
+    display: none !important;
+  }
+  .report-marker.map-marker--fresh::after {
     animation: none !important;
     display: none !important;
   }

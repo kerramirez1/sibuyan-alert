@@ -24,11 +24,16 @@ const getEventMarker = (notification) => {
     switch (notification.type) {
         case 'report_verified':
         case 'reporter_verified':
+            return {
+                dot: 'bg-blue-600',
+                badge: 'text-blue-700 dark:text-blue-400',
+                label: 'Report verified',
+            };
         case 'report_resolved':
             return {
-                dot: 'bg-emerald-500',
-                badge: 'text-emerald-700 dark:text-emerald-400',
-                label: notification.type === 'report_resolved' ? 'Incident resolved' : 'Report verified',
+                dot: 'bg-green-600',
+                badge: 'text-green-700 dark:text-green-400',
+                label: 'Incident resolved',
             };
         case 'report_responding':
             return {
@@ -51,7 +56,7 @@ const getEventMarker = (notification) => {
             if (updateMeta.priority === 'review') {
                 return { dot: 'bg-amber-500', badge: 'text-amber-700 dark:text-amber-400', label: 'Review needed' };
             }
-            return { dot: 'bg-indigo-500', badge: 'text-indigo-700 dark:text-indigo-400', label: 'Situation update' };
+            return { dot: 'bg-brand-600', badge: 'text-brand-700 dark:text-sky-400', label: 'Situation update' };
         }
         case 'new_report':
             return {
@@ -306,7 +311,7 @@ const NotificationBell = () => {
                             Incident communications
                         </h3>
                         {unreadCount > 0 && (
-                            <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-800 dark:bg-white/10 dark:text-sky-300">
                                 {unreadCount} unread
                             </span>
                         )}
@@ -316,7 +321,7 @@ const NotificationBell = () => {
                             <button
                                 type="button"
                                 onClick={markAllAsRead}
-                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-400 dark:hover:bg-white/5 cursor-pointer min-h-[32px]"
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-50 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:bg-white/5 cursor-pointer min-h-[32px]"
                             >
                                 <HiOutlineCheck className="h-3.5 w-3.5" />
                                 <span>Mark all read</span>
@@ -329,7 +334,7 @@ const NotificationBell = () => {
                                 buttonRef.current?.focus();
                             }}
                             aria-label="Close notification panel"
-                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                         >
                             <HiOutlineX className="h-4 w-4" />
                         </button>
@@ -343,15 +348,15 @@ const NotificationBell = () => {
                         role="tab"
                         aria-selected={activeTab === 'all'}
                         onClick={() => setActiveTab('all')}
-                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xs ${
+                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-xs ${
                             activeTab === 'all'
-                                ? 'text-emerald-700 dark:text-emerald-400'
+                                ? 'text-brand-700 dark:text-sky-400'
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                         }`}
                     >
                         <span>All</span>
                         {activeTab === 'all' && (
-                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
+                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-600 dark:bg-sky-400 rounded-full" />
                         )}
                     </button>
                     <button
@@ -359,16 +364,16 @@ const NotificationBell = () => {
                         role="tab"
                         aria-selected={activeTab === 'unread'}
                         onClick={() => setActiveTab('unread')}
-                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xs ${
+                        className={`relative pb-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-xs ${
                             activeTab === 'unread'
-                                ? 'text-emerald-700 dark:text-emerald-400'
+                                ? 'text-brand-700 dark:text-sky-400'
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                         }`}
                     >
                         <span>Unread</span>
                         {unreadCount > 0 && <span className="ml-1 text-[11px] font-bold">({unreadCount})</span>}
                         {activeTab === 'unread' && (
-                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 dark:bg-emerald-400 rounded-full" />
+                            <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-600 dark:bg-sky-400 rounded-full" />
                         )}
                     </button>
                 </div>
@@ -404,7 +409,7 @@ const NotificationBell = () => {
                         <button
                             type="button"
                             onClick={fetchNotifications}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
                         >
                             <HiOutlineRefresh className="h-3.5 w-3.5" />
                             <span>Try again</span>
@@ -435,9 +440,9 @@ const NotificationBell = () => {
                                 key={notification._id}
                                 type="button"
                                 onClick={() => handleNotificationClick(notification)}
-                                className={`group flex w-full items-start gap-3 p-3 sm:p-3.5 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
+                                className={`group flex w-full items-start gap-3 p-3 sm:p-3.5 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${
                                     !notification.isRead
-                                        ? 'bg-emerald-50/30 hover:bg-emerald-50/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35'
+                                        ? 'bg-brand-50/40 hover:bg-brand-50/70 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
                                         : 'bg-white hover:bg-gray-50 dark:bg-transparent dark:hover:bg-white/[0.02]'
                                 }`}
                             >
@@ -490,7 +495,7 @@ const NotificationBell = () => {
                         setIsOpen(false);
                         navigate('/notifications');
                     }}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-sm dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer py-1 px-2"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm dark:text-sky-400 dark:hover:text-sky-300 transition-colors cursor-pointer py-1 px-2"
                 >
                     <span>View full inbox</span>
                     <span aria-hidden="true">&rarr;</span>
@@ -510,7 +515,7 @@ const NotificationBell = () => {
                 aria-haspopup="dialog"
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? panelId : undefined}
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer"
             >
                 <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                 {unreadCount > 0 && (

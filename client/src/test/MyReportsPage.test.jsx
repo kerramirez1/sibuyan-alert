@@ -239,7 +239,7 @@ describe('reporter situation update flow', () => {
         fireEvent.click(firstReportBtn);
         expect(await screen.findByText('A motorcycle is blocking one lane.')).toBeInTheDocument();
         expect(screen.queryByText('Two tricycles collided near the intersection.')).not.toBeInTheDocument();
-        expect(headerBtns[0].className).toContain('border-l-emerald-600');
+        expect(headerBtns[0].className).toContain('border-l-brand-600');
         expect(headerBtns[1].className).toContain('border-l-transparent');
 
         // Switch and expand second report: header 1 accented, header 0 returns to neutral
@@ -247,7 +247,7 @@ describe('reporter situation update flow', () => {
         expect(await screen.findByText('Two tricycles collided near the intersection.')).toBeInTheDocument();
         expect(screen.queryByText('A motorcycle is blocking one lane.')).not.toBeInTheDocument();
         expect(headerBtns[0].className).toContain('border-l-transparent');
-        expect(headerBtns[1].className).toContain('border-l-emerald-600');
+        expect(headerBtns[1].className).toContain('border-l-brand-600');
 
         // Click second report again to collapse: both neutral
         fireEvent.click(secondReportBtn);

@@ -613,6 +613,36 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.getByRole('button', { name: /Review resolution/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /open my full report/i })).not.toBeInTheDocument();
         });
+
+        test('admin review actions appear for pending reports and call through', () => {
+            const onVerify = vi.fn();
+            const onReject = vi.fn();
+            const pendingReport = { ...sampleReport, status: 'pending' };
+
+            renderDetails({
+                report: pendingReport,
+                viewerRole: 'municipal_admin',
+                canVerify: true,
+                canReject: true,
+                onVerify,
+                onReject,
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /Verify report/i }));
+            expect(onVerify).toHaveBeenCalledTimes(1);
+            fireEvent.click(screen.getByRole('button', { name: /Reject report/i }));
+            expect(onReject).toHaveBeenCalledTimes(1);
+        });
+
+        test('no review actions without admin verify capability', () => {
+            renderDetails({
+                report: { ...sampleReport, status: 'pending' },
+                viewerRole: 'municipal_admin',
+            });
+
+            expect(screen.queryByRole('button', { name: /Verify report/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Reject report/i })).not.toBeInTheDocument();
+        });
     });
 
     describe('17. Six-Decimal Coordinates, Location Cleanup & Accordion Removal', () => {

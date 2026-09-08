@@ -89,7 +89,7 @@ const LandingHero = ({
                             <p data-testid="landing-hero-eyebrow" className="mb-1.5 max-w-full whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.06em] text-brand-700 min-[400px]:text-[10px] min-[400px]:tracking-[0.12em] sm:mb-2 sm:text-[11px] sm:tracking-[0.2em] lg:mb-2 dark:text-sky-300">
                                 Island-wide incident coordination
                             </p>
-                            <p className="mb-4 flex items-center gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                            <p className="mb-4 flex items-center gap-1 whitespace-nowrap text-[9px] font-medium text-gray-500 min-[400px]:text-[10px] dark:text-gray-400">
                                 <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                 Sibuyan Island · Romblon, Philippines
                             </p>

@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import toast from '../utils/appToast';
 import {
     HiOutlineChevronDown,
+    HiOutlineDocumentAdd,
     HiOutlineExclamationCircle,
     HiOutlineX,
 } from 'react-icons/hi';
@@ -21,12 +22,12 @@ import SituationUpdateDialog from '../components/reporterReports/SituationUpdate
 // Canonical lifecycle vocabulary shared with the reporter dashboard, so one
 // state is never named two different ways across pages.
 const STATUS_CONFIG = {
-    pending: { label: 'Pending review' },
-    verified: { label: 'Verified' },
-    transferred: { label: 'Transferred' },
-    responding: { label: 'Responding' },
-    resolved: { label: 'Resolved' },
-    rejected: { label: 'Rejected' },
+    pending: { label: 'Pending review', dot: 'bg-amber-500' },
+    verified: { label: 'Verified', dot: 'bg-blue-600' },
+    transferred: { label: 'Transferred', dot: 'bg-violet-500' },
+    responding: { label: 'Responding', dot: 'bg-cyan-500' },
+    resolved: { label: 'Resolved', dot: 'bg-green-600' },
+    rejected: { label: 'Rejected', dot: 'bg-gray-400' },
 };
 
 const SEVERITY_CONFIG = {
@@ -455,8 +456,9 @@ function MyReportsPage() {
                 <div className="hidden sm:block sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
+                        className="inline-flex h-9 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:text-red-300"
                     >
+                        <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
                         Submit incident report
                     </Link>
                 </div>
@@ -498,8 +500,9 @@ function MyReportsPage() {
                     <div className="py-4 sm:hidden">
                         <Link
                             to="/report"
-                            className="inline-flex min-h-[40px] w-full items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
+                            className="inline-flex min-h-[40px] w-full items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:text-red-300"
                         >
+                            <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
                             Submit incident report
                         </Link>
                     </div>
@@ -579,8 +582,9 @@ function MyReportsPage() {
                                 <div className="mt-5">
                                     <Link
                                         to="/report"
-                                        className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
+                                        className="inline-flex h-10 items-center justify-center gap-1 whitespace-nowrap px-1 text-sm font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:text-red-400 dark:hover:text-red-300"
                                     >
+                                        <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         Submit incident report
                                     </Link>
                                 </div>
@@ -625,9 +629,9 @@ function MyReportsPage() {
                                                 onClick={() => toggleReportSelected(report._id)}
                                                 aria-expanded={isExpanded}
                                                 aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
-                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-3 border-l-2 py-3.5 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center sm:py-4 cursor-pointer ${
+                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-3 border-l-4 py-3.5 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center sm:py-4 cursor-pointer ${
                                                     isExpanded
-                                                        ? 'border-l-emerald-600'
+                                                        ? 'border-l-brand-600'
                                                         : 'border-l-transparent'
                                                 }`}
                                             >
@@ -666,7 +670,7 @@ function MyReportsPage() {
 
                                             {/* Progressive Disclosure: Expanded Incident Dossier */}
                                             {isExpanded && (
-                                                <div className="space-y-6 border-t border-gray-100 py-6 pl-4 dark:border-white/5">
+                                                <div className="space-y-6 border-l-4 border-l-brand-600/30 border-t border-gray-100 py-6 pl-4 dark:border-white/5 dark:border-l-brand-500/30">
                                                     {/* 1. Incident Description */}
                                                     <div>
                                                         <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -705,8 +709,12 @@ function MyReportsPage() {
                                                         <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                             Status
                                                         </h4>
-                                                        <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
-                                                            {status.label} · Updated {formatRelativeDate(report.updatedAt || report.createdAt)}
+                                                        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
+                                                                <span className={`h-1.5 w-1.5 rounded-full ${status.dot} ${['pending', 'responding'].includes(report.status) ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                                                                {status.label}
+                                                            </span>
+                                                            <span>Updated {formatRelativeDate(report.updatedAt || report.createdAt)}</span>
                                                         </p>
 
                                                         {report.respondedBy && (

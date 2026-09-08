@@ -153,54 +153,18 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
                                     Verify incident report?
                                 </h4>
-                                <p className="mt-0.5 text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
-                                    This will make the incident eligible for responder action and map visibility.
+                                <p className="mt-1 text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                                    This will make the incident eligible for responder action and map visibility. The report will be published to the public map with the details as submitted.
                                 </p>
                             </div>
                         </div>
 
-                        <div className="mt-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
-                                Confirm casualty counts
-                            </p>
-                            <div className="mt-1.5 grid grid-cols-3 gap-2">
-                                {[
-                                    { field: 'injured', label: 'Injured' },
-                                    { field: 'fatalities', label: 'Fatalities' },
-                                    { field: 'missing', label: 'Missing' },
-                                ].map(({ field, label }) => (
-                                    <label key={field} className="block">
-                                        <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300">{label}</span>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            step={1}
-                                            value={actions.reviewDialog?.casualties?.[field] ?? 0}
-                                            onChange={(e) => {
-                                                const next = e.target.value === '' ? 0 : Math.floor(Number(e.target.value));
-                                                actions.setReviewDialog((prev) => ({
-                                                    ...prev,
-                                                    casualties: {
-                                                        injured: prev?.casualties?.injured ?? 0,
-                                                        fatalities: prev?.casualties?.fatalities ?? 0,
-                                                        missing: prev?.casualties?.missing ?? 0,
-                                                        [field]: Number.isFinite(next) && next >= 0 ? next : 0,
-                                                    },
-                                                }));
-                                            }}
-                                            className="mt-1 h-9 w-full rounded-lg border border-blue-200/90 bg-white px-2 text-xs font-semibold text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-900/50 dark:bg-[#07130e] dark:text-white"
-                                        />
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-end gap-2">
+                        <div className="mt-3 flex items-stretch gap-2">
                             <button
                                 type="button"
                                 onClick={actions.closeReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 sm:h-10"
                             >
                                 Cancel
                             </button>
@@ -208,7 +172,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.confirmReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-brand-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500"
+                                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500 sm:h-10"
                             >
                                 {actions.reviewLoading ? (
                                     <>
@@ -257,12 +221,12 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                             />
                         </div>
 
-                        <div className="mt-3 flex items-center justify-end gap-2">
+                        <div className="mt-3 flex items-stretch gap-2">
                             <button
                                 type="button"
                                 onClick={actions.closeReview}
                                 disabled={actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-gray-200/90 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 sm:h-10"
                             >
                                 Cancel
                             </button>
@@ -270,7 +234,7 @@ const AdminInspectorActions = ({ report, user, actions }) => {
                                 type="button"
                                 onClick={actions.confirmReview}
                                 disabled={rejectionInvalid || actions.reviewLoading}
-                                className="inline-flex h-11 items-center justify-center sm:h-8 gap-1.5 rounded-lg bg-red-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
+                                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-700 px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500 sm:h-10"
                             >
                                 {actions.reviewLoading ? (
                                     <>

@@ -278,7 +278,7 @@ const MapOverlayPanel = ({
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+                className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]"
             >
                 {children}
             </div>

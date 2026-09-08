@@ -6,17 +6,43 @@ export const isEmailConfigured = () => Boolean(
   process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim()
 );
 
+// Gmail app passwords are 16 continuous characters — pasting them with
+// spaces (as Google displays them) makes SMTP auth fail with a 535.
+// Normalize once so `SMTP_PASS="abcd efgh ..."` just works.
+export const getSmtpConfig = () => ({
+  host: (process.env.SMTP_HOST || 'smtp.gmail.com').trim(),
+  port: parseInt(process.env.SMTP_PORT, 10) || 587,
+  user: (process.env.SMTP_USER || '').trim(),
+  pass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
+});
+
 // Create transporter
 const createTransporter = () => {
+  const config = getSmtpConfig();
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    host: config.host,
+    port: config.port,
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: config.user,
+      pass: config.pass,
     },
   });
+};
+
+// Verifies SMTP credentials at boot so a bad app password is visible in the
+// logs immediately instead of surfacing as silent forgot-password failures.
+export const verifyEmailTransport = async () => {
+  if (!isEmailConfigured()) return { success: false, skipped: true };
+  try {
+    const transporter = createTransporter();
+    await transporter.verify();
+    console.log('✅ Email service ready (SMTP verified)');
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Email service misconfigured: ${error?.message || error} (check SMTP_USER/SMTP_PASS app password)`);
+    return { success: false, error: error?.message };
+  }
 };
 
 /**
@@ -332,6 +358,8 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
 
 export default {
   isEmailConfigured,
+  getSmtpConfig,
+  verifyEmailTransport,
   sendEmail,
   sendVerificationEmail,
   sendReportStatusEmail,

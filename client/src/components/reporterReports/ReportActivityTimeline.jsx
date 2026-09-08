@@ -10,11 +10,20 @@ const UPDATE_LABELS = {
     other: 'Other update',
 };
 
-// One neutral marker for lifecycle events; red is reserved for urgent help
-// requests, the only timeline event that is itself an alert.
+// Lifecycle-colored markers; red stays reserved for urgent help requests,
+// the only timeline event that is itself an alert.
+const DOT_CLASSES = {
+    submitted: 'bg-gray-400',
+    verified: 'bg-blue-600',
+    transferred: 'bg-violet-500',
+    responding: 'bg-cyan-500',
+    resolved: 'bg-green-600',
+};
+
 const getDotClass = (item) => {
     if (item.type === 'reporter_update' && item.tag === 'need_help') return 'bg-red-500';
-    return 'bg-gray-300';
+    if (item.type === 'reporter_update') return 'bg-brand-500';
+    return DOT_CLASSES[item.type] || 'bg-gray-300';
 };
 
 const toValidDate = (value) => {
@@ -94,8 +103,8 @@ const ReportActivityTimeline = ({ report, highlightedUpdateId }) => {
                 return (
                     <li key={`${item.type}-${item.id}`} className="relative flex gap-4 pb-5 last:pb-0">
                         {index < activity.length - 1 && <span className="absolute left-[9px] top-4 h-[calc(100%-1rem)] w-px bg-gray-200" aria-hidden="true" />}
-                        <div className="relative mt-1 flex h-5 w-5 shrink-0 items-center justify-center bg-white">
-                            <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                        <div className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-white">
+                            <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
                         </div>
                         <div className={`min-w-0 flex-1 ${highlighted ? 'rounded-lg bg-gray-50 p-2' : ''}`}>
                             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">

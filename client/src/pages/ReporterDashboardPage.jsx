@@ -8,7 +8,9 @@ import {
     HiCheck,
     HiOutlineArrowRight,
     HiOutlineChevronRight,
+    HiOutlineDocumentAdd,
     HiOutlineExclamationCircle,
+    HiOutlineMap,
     HiOutlineRefresh,
 } from 'react-icons/hi';
 import Button from '../components/ui/Button';
@@ -247,14 +249,16 @@ const ReporterDashboardPage = () => {
                 <div className="flex flex-row items-center gap-2 sm:gap-3 sm:shrink-0">
                     <Link
                         to="/report"
-                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md bg-red-600 px-3 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 sm:flex-none sm:px-3.5 dark:bg-red-600 dark:hover:bg-red-500"
+                        className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:min-h-0 sm:h-9 sm:flex-none sm:px-1.5 dark:text-red-400 dark:hover:text-red-300"
                     >
+                        <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
                         Submit incident report
                     </Link>
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex min-h-[40px] flex-1 items-center justify-center whitespace-nowrap rounded-md border border-gray-200 bg-white px-3 text-[13px] font-medium text-brand-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-sky-400 dark:hover:bg-white/10 sm:min-h-0 sm:h-9 sm:flex-none sm:border-0 sm:bg-transparent sm:px-1 sm:dark:bg-transparent"
+                        className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 sm:min-h-0 sm:h-9 sm:flex-none sm:px-1.5"
                     >
+                        <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                         Live incident map
                     </Link>
                 </div>
@@ -326,7 +330,7 @@ const ReporterDashboardPage = () => {
                                             <div className="flex items-center">
                                                 <span
                                                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isCompleted || isCurrent
-                                                            ? 'bg-emerald-600 dark:bg-emerald-500'
+                                                            ? 'bg-brand-700 dark:bg-brand-500'
                                                             : 'border border-gray-300 dark:border-white/20'
                                                         }`}
                                                     aria-hidden="true"

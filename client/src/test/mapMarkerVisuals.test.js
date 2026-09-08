@@ -24,13 +24,19 @@ describe('mapMarkerVisuals', () => {
         });
     });
 
-    test('all teardrop pins have a uniform white center dot', () => {
-        const statuses = ['pending', 'verified', 'transferred', 'responding', 'resolved', 'rejected', 'risk'];
+    test('all incident teardrop pins have a uniform white center dot', () => {
+        const statuses = ['pending', 'verified', 'transferred', 'responding', 'resolved', 'rejected'];
 
         statuses.forEach((status) => {
             const svg = getMapPinSvg({ status });
             expect(svg).toContain('<circle cx="12" cy="10.5" r="3" fill="white"/>');
         });
+    });
+
+    test('hazard zone pin uses a white exclamation glyph instead of the incident dot', () => {
+        const svg = getMapPinSvg({ status: 'risk' });
+        expect(svg).not.toContain('<circle cx="12" cy="10.5" r="3" fill="white"/>');
+        expect(svg).toContain('<rect x="11" y="5.5" width="2" height="6"');
     });
 
     test('getMapPinSvg uses linear gradient for matte depth, not candy radial sheen', () => {

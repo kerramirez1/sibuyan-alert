@@ -44,9 +44,14 @@ const getDashboardCacheKey = ({ canViewReports, isAdmin, isResponder, isReporter
 
 const getReporterOverviewCacheKey = (ownerId) => (ownerId ? `reporter-overview:${ownerId}` : null);
 
+// Fresh-event pulse visibility window: 4 ring iterations at 1.2s each.
+const PULSE_DURATION_MS = 5000;
+
 const DashboardPage = () => {
     const { user, isAuthenticated } = useAuth();
     const [reports, setReports] = useState([]);
+    const [pulseReportIds, setPulseReportIds] = useState([]);
+    const pulseTimeoutsRef = useRef(new Map());
     const {
         zones: highRiskZones,
         loading: highRiskZonesLoading,
@@ -339,6 +344,27 @@ const DashboardPage = () => {
         return { ok: true, message: 'Review the incident details before confirming resolution.' };
     }, [isResponder, navigate]);
 
+    // Map review shortcuts (municipal_admin only): the actual verify/reject
+    // confirmation lives in the incident queue inspector, so the map hands
+    // off with a deep link that auto-opens the report there. Scope and
+    // pending-status rules are re-checked in the workspace before showing
+    // the buttons, and again server-side on confirm.
+    const openMapReview = useCallback((report, actionLabel) => {
+        if (!isAdmin || !report?._id) {
+            return { ok: false, message: 'Administrator review only' };
+        }
+        navigate(`/admin/reports?report=${encodeURIComponent(report._id)}`);
+        return { ok: true, message: actionLabel };
+    }, [isAdmin, navigate]);
+
+    const handleMapVerify = useCallback((report) => (
+        openMapReview(report, 'Opening verification review')
+    ), [openMapReview]);
+
+    const handleMapReject = useCallback((report) => (
+        openMapReview(report, 'Opening rejection review')
+    ), [openMapReview]);
+
     // Reporters use the shared map workspace without responder-only controls.
 
     // Publishable reports render on the shared map for every audience; fetch
@@ -532,6 +558,18 @@ const DashboardPage = () => {
             const base = getStaleData(dashboardCacheKey) || [];
             setCachedData(dashboardCacheKey, upsertDashboardReport(base, normalized));
         };
+        // Fresh-event pulse registry: ids whose map markers ring for a few
+        // seconds after a socket event. Self-expiring via timeout.
+        const pulseReport = (id) => {
+            const key = id === null || id === undefined ? '' : String(id);
+            if (!key) return;
+            setPulseReportIds((current) => (current.includes(key) ? current : [...current, key]));
+            window.clearTimeout(pulseTimeoutsRef.current.get(key));
+            pulseTimeoutsRef.current.set(key, window.setTimeout(() => {
+                pulseTimeoutsRef.current.delete(key);
+                setPulseReportIds((current) => current.filter((item) => item !== key));
+            }, PULSE_DURATION_MS));
+        };
         const removeAndCache = (id) => {
             if (!id) return;
             setReports((previous) => removeDashboardReport(previous, id));
@@ -546,13 +584,16 @@ const DashboardPage = () => {
         };
 
         const unsub0 = subscribe('newReport', (data) => {
-            upsertAndCache(normalizeIncomingReport(data));
+            const normalized = normalizeIncomingReport(data);
+            upsertAndCache(normalized);
+            pulseReport(normalized?._id);
         });
 
         const unsub1 = subscribe('reportVerified', (report) => {
             const normalized = normalizeIncomingReport({ ...report, status: 'verified' });
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
+            pulseReport(normalized?._id);
         });
         const unsub2 = subscribe('reportResponded', (data) => {
             const normalized = {
@@ -562,6 +603,7 @@ const DashboardPage = () => {
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
+            pulseReport(data?.id);
         });
         const unsub3 = subscribe('reportResolved', (data) => {
             const normalized = {
@@ -571,6 +613,7 @@ const DashboardPage = () => {
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
+            pulseReport(data?.id);
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
             const normalized = {
@@ -580,6 +623,7 @@ const DashboardPage = () => {
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
+            pulseReport(data?.id);
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
             removeAndCache(data?.id ?? data?._id);
@@ -601,6 +645,7 @@ const DashboardPage = () => {
             if (!normalized) return;
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
+            pulseReport(normalized?._id);
         });
         const unsub9 = subscribe('reportRejectedUpdate', (data) => {
             if (!data?.id) return;
@@ -626,6 +671,8 @@ const DashboardPage = () => {
             unsub8();
             unsub9();
             unsubReporterRejected();
+            pulseTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
+            pulseTimeoutsRef.current.clear();
         };
     }, [dashboardCacheKey, removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
 
@@ -785,10 +832,13 @@ const DashboardPage = () => {
                     canCurrentResponderResolve={canCurrentResponderResolve}
                     handleMapRespond={handleMapRespond}
                     handleMapResolve={handleMapResolve}
+                    handleMapVerify={handleMapVerify}
+                    handleMapReject={handleMapReject}
                     setSearchParams={setSearchParams}
                     mapSummaryPanel={mapSummaryPanel}
                     setMapSummaryPanel={setMapSummaryPanel}
                     activePanel={panelView}
+                    pulseReportIds={pulseReportIds}
                 />
             </Suspense>
         );

@@ -147,4 +147,41 @@ describe('SocketProvider notification policy', () => {
         unmount();
         expect(mocks.listeners.get('notification')).toContain(externalListener);
     });
+
+    test('announces newly verified incidents to guest viewers only', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+
+        // Authenticated responder: no public popup (has scoped alerts instead).
+        act(() => trigger('reportVerified', {
+            id: 'report-9',
+            incidentType: 'Vehicular collision',
+            address: 'J. Rizal Street',
+        }));
+        expect(mocks.toast.success).not.toHaveBeenCalled();
+
+        // Guest viewer: popup announcement with dedupe key.
+        mocks.user = null;
+        try {
+            render(<SocketProvider><Probe /></SocketProvider>);
+            act(() => trigger('reportVerified', {
+                id: 'report-9',
+                incidentType: 'Vehicular collision',
+                address: 'J. Rizal Street',
+            }));
+            expect(mocks.toast.success).toHaveBeenCalledWith(
+                'New verified incident on the map: Vehicular collision at J. Rizal Street',
+                { dedupeKey: 'public-verified:report-9' },
+            );
+
+            // Malformed payloads never crash the popup.
+            act(() => trigger('reportVerified', null));
+            expect(mocks.toast.success).toHaveBeenCalledTimes(1);
+        } finally {
+            mocks.user = {
+                _id: 'responder-1',
+                role: 'responder',
+                assignedMunicipality: 'Cajidiocan',
+            };
+        }
+    });
 });

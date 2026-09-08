@@ -110,6 +110,10 @@ const MapView = ({
     canResolve = false,
     canResolveReport = null,
     onResolveReport = null,
+    canVerify = false,
+    canVerifyReport = null,
+    onVerifyToReport = null,
+    onRejectToReport = null,
     viewerRole = 'guest',
     showDataState = false,
     disableScrollZoom = false,
@@ -117,6 +121,7 @@ const MapView = ({
     showLegend = true,
     showIncidentStatusLegend = true,
     showDesktopLegend = true,
+    pulseReportIds = [],
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -393,7 +398,7 @@ const MapView = ({
                 minzoom: RISK_ZONE_MIN_ZOOM,
                 paint: {
                     'fill-color': ['get', 'color'],
-                    'fill-opacity': 0.16,
+                    'fill-opacity': 0.22,
                 },
             });
             mapInstance.addLayer({
@@ -403,8 +408,8 @@ const MapView = ({
                 minzoom: RISK_ZONE_MIN_ZOOM,
                 paint: {
                     'line-color': ['get', 'color'],
-                    'line-width': 2,
-                    'line-opacity': 0.8,
+                    'line-width': 2.5,
+                    'line-opacity': 0.9,
                 },
             });
 
@@ -600,6 +605,9 @@ const MapView = ({
                 const canResolveThisReport = canResolve &&
                     report.status === 'responding' &&
                     (!canResolveReport || canResolveReport(report));
+                const canVerifyThisReport = canVerify &&
+                    report.status === 'pending' &&
+                    (!canVerifyReport || canVerifyReport(report));
                 const markerColor = getReportMarkerColor(report);
                 // Identity: same location + same set of reports = same marker.
                 const key = [
@@ -618,6 +626,7 @@ const MapView = ({
                     groupedReports.length,
                     canRespondToThisReport,
                     canResolveThisReport,
+                    canVerifyThisReport,
                 ].join('::');
 
                 const existing = existingMarkers.get(key);
@@ -665,7 +674,7 @@ const MapView = ({
                             setMapModal({ type: 'reportGroup', data: groupedReports });
                             return;
                         }
-                        setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport });
+                        setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport, canVerify: canVerifyThisReport, canReject: canVerifyThisReport });
                     };
                     el.addEventListener('click', openMarker);
                     el.addEventListener('keydown', (event) => {
@@ -695,7 +704,18 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+
+    // Fresh-event pulse: toggle the temporary ring on markers touched by the
+    // latest socket events. Runs after the marker sync above (same deps plus
+    // pulse ids) so rebuilt elements get the class deterministically.
+    useEffect(() => {
+        const pulsing = new Set((Array.isArray(pulseReportIds) ? pulseReportIds : []).map(String));
+        reportMarkersRef.current.forEach((entry) => {
+            const shouldPulse = (entry.ids || []).some((id) => pulsing.has(String(id)));
+            entry.element?.classList?.toggle('map-marker--fresh', shouldPulse);
+        });
+    }, [pulseReportIds, filteredReports, mapReady, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
 
     // Risk zones use focused HTML pins so the imagery remains unobstructed.
     // Markers are diffed by zone identity: unchanged zones keep their live DOM
@@ -1008,6 +1028,32 @@ const MapView = ({
         setActionLoading(false);
     };
 
+    const handleVerifyFromModal = async (report) => {
+        if (!onVerifyToReport) return;
+        setActionLoading(true);
+        const result = await onVerifyToReport(report);
+        if (result?.ok) {
+            toast.success(result.message || 'Opening verification review');
+            closeMapSelection();
+        } else {
+            toast.error(result?.message || 'Failed to open verification');
+        }
+        setActionLoading(false);
+    };
+
+    const handleRejectFromModal = async (report) => {
+        if (!onRejectToReport) return;
+        setActionLoading(true);
+        const result = await onRejectToReport(report);
+        if (result?.ok) {
+            toast.success(result.message || 'Opening rejection review');
+            closeMapSelection();
+        } else {
+            toast.error(result?.message || 'Failed to open rejection');
+        }
+        setActionLoading(false);
+    };
+
     return (
         <div className={`relative min-h-0 rounded-lg ${className}`}>
             <div
@@ -1056,9 +1102,13 @@ const MapView = ({
                             viewerRole={viewerRole}
                             canRespond={mapModal.canRespond}
                             canResolve={mapModal.canResolve}
+                            canVerify={mapModal.canVerify}
+                            canReject={mapModal.canReject}
                             actionLoading={actionLoading}
                             onRespond={handleRespondFromModal}
                             onResolve={handleResolveFromModal}
+                            onVerify={handleVerifyFromModal}
+                            onReject={handleRejectFromModal}
                         />
                     )}
 
@@ -1073,6 +1123,8 @@ const MapView = ({
                                         data: report,
                                         canRespond: canRespond && ['verified', 'transferred'].includes(report.status),
                                         canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
+                                        canVerify: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),
+                                        canReject: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),
                                     })}
                                     className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                 >

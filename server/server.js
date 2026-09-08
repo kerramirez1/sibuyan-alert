@@ -111,6 +111,12 @@ const initializeDatabase = async () => {
 // Configure Web Push
 configureWebPush();
 
+// Verify SMTP credentials early (fire-and-forget) so a bad app password is
+// visible in boot logs instead of silent forgot-password failures.
+import('./services/emailService.js').then(({ verifyEmailTransport }) => (
+    verifyEmailTransport().catch(() => {})
+)).catch(() => {});
+
 // Middleware
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',

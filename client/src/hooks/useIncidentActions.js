@@ -3,26 +3,11 @@ import toast from '../utils/appToast';
 import { adminAPI, reportsAPI } from '../services/api';
 import { getIncidentCapabilities } from '../components/adminReports/incidentReportConfig';
 
-const closedReview = { open: false, report: null, status: '', rejectionReason: '', casualties: null };
+const closedReview = { open: false, report: null, status: '', rejectionReason: '' };
 const closedResolve = { open: false, report: null, resolutionNotes: '' };
 const closedTransfer = { open: false, report: null, targetMunicipalityId: '', reason: '' };
 
 const getApiError = (error, fallback) => error?.response?.data?.message || fallback;
-
-const toReviewCasualties = (report) => ({
-    injured: report?.casualties?.injured ?? 0,
-    fatalities: report?.casualties?.fatalities ?? 0,
-    missing: report?.casualties?.missing ?? 0,
-});
-
-const sanitizeReviewCasualties = (casualties) => {
-    const clean = {};
-    for (const field of ['injured', 'fatalities', 'missing']) {
-        const count = Math.floor(Number(casualties?.[field]) || 0);
-        clean[field] = count < 0 ? 0 : count;
-    }
-    return clean;
-};
 
 const useIncidentActions = ({
     user,
@@ -53,20 +38,17 @@ const useIncidentActions = ({
             return;
         }
         setTransferDialog(closedTransfer);
-        setReviewDialog({ open: true, report, status, rejectionReason: '', casualties: toReviewCasualties(report) });
+        setReviewDialog({ open: true, report, status, rejectionReason: '' });
     }, [user]);
 
     const confirmReview = useCallback(async () => {
-        const { report, status, rejectionReason, casualties } = reviewDialog;
+        const { report, status, rejectionReason } = reviewDialog;
         if (!report || !status) return;
         if (status === 'rejected' && !rejectionReason.trim()) return;
 
         setReviewLoading(true);
         try {
             const payload = { status, rejectionReason };
-            if (status === 'verified') {
-                payload.casualties = sanitizeReviewCasualties(casualties);
-            }
             const response = await adminAPI.verifyReport(report._id, payload);
             const serverReport = response.data?.data;
             const updatedReport = serverReport

@@ -35,6 +35,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             showSubmitReport: false,
             canRespond: true,
             canResolve: true,
+            canVerify: false,
         };
     }
 
@@ -50,6 +51,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             showSubmitReport: false,
             canRespond: false,
             canResolve: false,
+            canVerify: true,
         };
     }
 
@@ -65,6 +67,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             showSubmitReport: true,
             canRespond: false,
             canResolve: false,
+            canVerify: false,
         };
     }
 
@@ -79,6 +82,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         showSubmitReport: false,
         canRespond: false,
         canResolve: false,
+        canVerify: false,
     };
 };
 

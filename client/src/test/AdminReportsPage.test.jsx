@@ -303,7 +303,7 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
 
         await screen.findAllByText('Poblacion coastal road');
-        expect(screen.getAllByRole('button', { name: 'Join response' })[0]).toHaveClass('bg-gray-900');
+        expect(screen.getAllByRole('button', { name: 'Join response' })[0]).toHaveClass('bg-brand-700');
         expect(screen.queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
 
@@ -762,7 +762,7 @@ describe('AdminReportsPage operational queue', () => {
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ page: 2, limit: 20 }));
     });
 
-    test('sends admin-edited casualty counts when confirming verification', async () => {
+    test('confirms verification without casualty editing', async () => {
         mocks.user = {
             _id: 'admin-1',
             role: 'municipal_admin',
@@ -778,16 +778,16 @@ describe('AdminReportsPage operational queue', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Verify report' })[0]);
         expect(screen.getByRole('dialog', { name: 'Verify incident report' })).toBeInTheDocument();
 
-        const injuredInput = screen.getByLabelText('Injured');
-        expect(injuredInput).toHaveValue(1);
-        fireEvent.change(injuredInput, { target: { value: '4' } });
+        // No casualty inputs in the verify confirmation anymore.
+        expect(screen.queryByLabelText('Injured')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Fatalities')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Missing')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirm verification' }));
 
         await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
             status: 'verified',
             rejectionReason: '',
-            casualties: { injured: 4, fatalities: 0, missing: 2 },
         }));
     });
 
@@ -811,7 +811,6 @@ describe('AdminReportsPage operational queue', () => {
         await waitFor(() => expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
             status: 'verified',
             rejectionReason: '',
-            casualties: { injured: 0, fatalities: 0, missing: 0 },
         }));
     });
 
@@ -989,7 +988,6 @@ describe('AdminReportsPage operational queue', () => {
             expect(mocks.verifyReport).toHaveBeenCalledWith('report-1', {
                 status: 'verified',
                 rejectionReason: '',
-                casualties: { injured: 0, fatalities: 0, missing: 0 },
             });
         });
 

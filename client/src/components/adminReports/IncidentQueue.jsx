@@ -65,7 +65,7 @@ const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = 
             title={compact ? label : undefined}
             className={`inline-flex items-center justify-center gap-1.5 rounded-lg border bg-white text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:cursor-wait disabled:opacity-50 ${compact ? 'h-11 w-11 shrink-0 p-0 sm:h-10 sm:w-10' : 'min-h-10 w-full min-w-0 px-3 py-3 sm:py-2'} ${tones[tone]}`}
         >
-            <Icon className="h-4 w-4" aria-hidden="true" />
+            {compact && <Icon className="h-4 w-4" aria-hidden="true" />}
             {!compact && <span className="min-w-0 break-words text-center leading-tight">{label}</span>}
         </button>
     );
@@ -227,7 +227,6 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         title="Verify report"
                         aria-label="Verify report"
                     >
-                        <HiOutlineCheckCircle className="h-4 w-4" aria-hidden="true" />
                         <span>Verify</span>
                     </button>
                 )}
@@ -239,7 +238,6 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         title="Reject report"
                         aria-label="Reject report"
                     >
-                        <HiOutlineXCircle className="h-4 w-4" aria-hidden="true" />
                         <span>Reject</span>
                     </button>
                 )}
@@ -252,7 +250,6 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         title="Acknowledge transfer"
                         aria-label="Acknowledge transfer"
                     >
-                        <HiOutlineCheckCircle className="h-4 w-4" aria-hidden="true" />
                         <span>Acknowledge</span>
                     </button>
                 )}
@@ -264,7 +261,6 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         title="Transfer report"
                         aria-label="Transfer report"
                     >
-                        <HiOutlineSwitchHorizontal className="h-4 w-4" aria-hidden="true" />
                         <span>Transfer</span>
                     </button>
                 )}
@@ -318,9 +314,8 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report._id}
-                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-[13px] font-medium text-white hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 sm:w-auto"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:text-white dark:hover:bg-brand-500 sm:w-auto"
                 >
-                    <HiOutlineLightningBolt className="h-4 w-4" aria-hidden="true" />
                     {isResponding ? 'Join response' : 'Respond to incident'}
                 </button>
             )}
@@ -331,7 +326,6 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                     onClick={() => actions.openResolve(report)}
                     className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 sm:w-auto"
                 >
-                    <HiOutlineBadgeCheck className="h-4 w-4 text-emerald-600 dark:text-sky-400" aria-hidden="true" />
                     Resolve incident
                 </button>
             )}

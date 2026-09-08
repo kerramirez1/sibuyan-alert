@@ -172,10 +172,23 @@ export const SocketProvider = ({ children }) => {
             });
         };
 
+        // PUBLIC: announce newly verified incidents to guest viewers, who have
+        // no inbox and receive no responder alert. Authenticated users already
+        // get scoped notifications/alerts, so guests alone get this popup.
+        const handlePublicVerifiedReport = (report) => {
+            if (user) return;
+            if (!report || typeof report !== 'object') return;
+            const reportId = String(report.id || report._id || 'unknown');
+            const what = report.incidentType || report.incidentCategory || 'Incident';
+            const where = report.address || report.municipalityName || 'Sibuyan Island';
+            toast.success(`New verified incident on the map: ${what} at ${where}`, {
+                dedupeKey: `public-verified:${reportId}`,
+            });
+        };
+
         // Public resolution events update the map. Only scoped operational users
         // other than the actor need a toast announcement.
-        const handleResolutionDetails = (data) => {
-            if (!['municipal_admin', 'responder'].includes(user?.role)) return;
+        const handleResolutionDetails = (data) => {            if (!['municipal_admin', 'responder'].includes(user?.role)) return;
             const actorId = String(data.resolvedBy?._id || '');
             if (actorId && actorId === currentUserId) return;
 
@@ -227,6 +240,7 @@ export const SocketProvider = ({ children }) => {
         };
 
         socket.on('reportVerifiedAlert', handleReportVerifiedAlert);
+        socket.on('reportVerified', handlePublicVerifiedReport);
         socket.on('newReportAlert', handleNewReportAlert);
         socket.on('localUnitResponse', handleLocalUnitResponse);
         socket.on('reportResolutionDetails', handleResolutionDetails);
@@ -234,6 +248,7 @@ export const SocketProvider = ({ children }) => {
 
         return () => {
             socket.off('reportVerifiedAlert', handleReportVerifiedAlert);
+            socket.off('reportVerified', handlePublicVerifiedReport);
             socket.off('newReportAlert', handleNewReportAlert);
             socket.off('localUnitResponse', handleLocalUnitResponse);
             socket.off('reportResolutionDetails', handleResolutionDetails);

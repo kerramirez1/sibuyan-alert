@@ -32,11 +32,16 @@ const getEventMarker = (notification) => {
     switch (notification?.type) {
         case 'report_verified':
         case 'reporter_verified':
+            return {
+                dot: 'bg-blue-600',
+                badge: 'text-blue-700 dark:text-blue-400',
+                label: 'Report verified',
+            };
         case 'report_resolved':
             return {
-                dot: 'bg-emerald-500',
-                badge: 'text-emerald-700 dark:text-emerald-400',
-                label: notification?.type === 'report_resolved' ? 'Incident resolved' : 'Report verified',
+                dot: 'bg-green-600',
+                badge: 'text-green-700 dark:text-green-400',
+                label: 'Incident resolved',
             };
         case 'report_responding':
             return {
@@ -59,7 +64,7 @@ const getEventMarker = (notification) => {
             if (updateMeta.priority === 'review') {
                 return { dot: 'bg-amber-500', badge: 'text-amber-700 dark:text-amber-400', label: 'Review needed' };
             }
-            return { dot: 'bg-indigo-500', badge: 'text-indigo-700 dark:text-indigo-400', label: 'Situation update' };
+            return { dot: 'bg-brand-600', badge: 'text-brand-700 dark:text-sky-400', label: 'Situation update' };
         }
         case 'new_report':
             return {
@@ -186,8 +191,8 @@ const NotificationsPage = () => {
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
                             <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                             <span>Incident Communications</span>
-                            <span className="text-emerald-600/60 dark:text-emerald-400/60 font-normal">·</span>
-                            <span className="hidden xs:inline text-emerald-700 dark:text-emerald-400 font-bold">Operational Inbox</span>
+                            <span className="text-brand-300 dark:text-slate-500 font-normal">·</span>
+                            <span className="hidden xs:inline text-brand-700 dark:text-sky-400 font-bold">Operational Inbox</span>
                         </span>
                     </div>
                     <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
