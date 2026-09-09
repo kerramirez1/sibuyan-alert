@@ -139,7 +139,7 @@ const ProfileSettingsPage = () => {
     };
 
     const handleAvatarChange = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
                 toast.error('Image must be less than 5MB');
@@ -157,6 +157,10 @@ const ProfileSettingsPage = () => {
 
     const startWebcam = async () => {
         setShowPhotoMenu(false);
+        if (!navigator.mediaDevices?.getUserMedia) {
+            toast.error('Camera capture is not supported by this browser or connection. Please choose a photo from your device.');
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'user' },
@@ -180,10 +184,20 @@ const ProfileSettingsPage = () => {
 
     const captureWebcamPhoto = () => {
         if (videoRef.current) {
+            const videoWidth = videoRef.current.videoWidth || 0;
+            const videoHeight = videoRef.current.videoHeight || 0;
+            if (videoWidth <= 0 || videoHeight <= 0) {
+                toast.error('The camera image is not ready yet. Wait a moment, then try again.');
+                return;
+            }
             const canvas = document.createElement('canvas');
-            canvas.width = videoRef.current.videoWidth;
-            canvas.height = videoRef.current.videoHeight;
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
             const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                toast.error('This browser could not capture the photo. Choose a photo from your device.');
+                return;
+            }
 
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
@@ -243,8 +257,8 @@ const ProfileSettingsPage = () => {
         setShowPhotoMenu((prev) => !prev);
     };
 
-    const emailChanged = formData.email.trim().toLowerCase()
-        !== (user?.email || '').trim().toLowerCase();
+    const emailChanged = String(formData.email || '').trim().toLowerCase()
+        !== String(user?.email || '').trim().toLowerCase();
     const passwordChangeRequested = Boolean(formData.newPassword || formData.confirmPassword);
     const hasPasswordInput = Boolean(formData.currentPassword || passwordChangeRequested);
     const avatarRemoved = Boolean(user?.avatar && avatarPreview === null);
@@ -252,7 +266,7 @@ const ProfileSettingsPage = () => {
     const hasChanges = Boolean(
         formData.avatar ||
         avatarRemoved ||
-        formData.name.trim() !== (user?.name || '').trim() ||
+        String(formData.name || '').trim() !== String(user?.name || '').trim() ||
         emailChanged ||
         hasPasswordInput
     );
@@ -298,13 +312,13 @@ const ProfileSettingsPage = () => {
 
         try {
             const data = new FormData();
-            const trimmedName = formData.name.trim();
-            const trimmedEmail = formData.email.trim().toLowerCase();
+            const trimmedName = String(formData.name || '').trim();
+            const trimmedEmail = String(formData.email || '').trim().toLowerCase();
 
-            if (trimmedName !== (user?.name || '').trim()) {
+            if (trimmedName !== String(user?.name || '').trim()) {
                 data.append('name', trimmedName);
             }
-            if (trimmedEmail !== (user?.email || '').trim().toLowerCase()) {
+            if (trimmedEmail !== String(user?.email || '').trim().toLowerCase()) {
                 data.append('email', trimmedEmail);
             }
             if (emailChanged || passwordChangeRequested) {
@@ -319,8 +333,8 @@ const ProfileSettingsPage = () => {
 
             const response = await authAPI.updateProfile(data);
 
-            if (response.data.success) {
-                updateUser(response.data.data);
+            if (response?.data?.success) {
+                updateUser(response?.data?.data);
                 toast.success('Profile updated successfully');
                 setErrors({
                     currentPassword: '',
@@ -334,12 +348,19 @@ const ProfileSettingsPage = () => {
                     confirmPassword: '',
                     avatar: null,
                 }));
+            } else {
+                const fallbackMessage = response?.data?.message != null && response.data.message !== ''
+                    ? String(response.data.message)
+                    : 'Failed to update profile';
+                toast.error(fallbackMessage);
             }
         } catch (error) {
-            const message = error.response?.data?.message || 'Failed to update profile';
-            if (message.toLowerCase().includes('current password')) {
+            const rawMessage = error.response?.data?.message || 'Failed to update profile';
+            const message = String(rawMessage ?? 'Failed to update profile');
+            const normalizedMessage = message.toLowerCase();
+            if (normalizedMessage.includes('current password')) {
                 setErrors((prev) => ({ ...prev, currentPassword: message }));
-            } else if (message.toLowerCase().includes('password')) {
+            } else if (normalizedMessage.includes('password')) {
                 setErrors((prev) => ({ ...prev, newPassword: message }));
             }
             toast.error(message);
@@ -349,32 +370,42 @@ const ProfileSettingsPage = () => {
     };
 
     const handlePushToggle = async () => {
-        if (pushState.subscribed) {
-            const result = await disablePushNotifications();
-            if (result.success) toast.success('Browser notifications disabled');
-            else toast.error('Could not disable browser notifications');
-            return;
-        }
+        try {
+            if (pushState?.subscribed) {
+                const result = await disablePushNotifications();
+                if (result?.success) toast.success('Browser notifications disabled');
+                else toast.error('Could not disable browser notifications');
+                return;
+            }
 
-        const result = await enablePushNotifications();
-        if (result.success) {
-            toast.success('Browser notifications enabled');
-            return;
-        }
+            const result = await enablePushNotifications();
+            if (result?.success) {
+                toast.success('Browser notifications enabled');
+                return;
+            }
 
-        const messages = {
-            denied: 'Notifications are blocked. Allow them in your browser site settings, then try again.',
-            unsupported: 'This browser does not support Web Push notifications.',
-            unconfigured: 'Browser notifications are not configured on this deployment.',
-            save_failed: 'The browser subscribed, but the account could not be updated. Please try again.',
-        };
-        toast.error(messages[result.status] || 'Could not enable browser notifications');
+            const messages = {
+                denied: 'Notifications are blocked. Allow them in your browser site settings, then try again.',
+                unsupported: 'This browser does not support Web Push notifications.',
+                unconfigured: 'Browser notifications are not configured on this deployment.',
+                save_failed: 'The browser subscribed, but the account could not be updated. Please try again.',
+            };
+            toast.error(messages[result?.status] || 'Could not enable browser notifications');
+        } catch (error) {
+            console.error('Failed to toggle browser notifications:', error);
+            toast.error('Could not update browser notification settings. Please try again.');
+        }
     };
 
     const handleTestPush = async () => {
-        const result = await sendTestPushNotification();
-        if (result.success) toast.success('Test notification sent');
-        else toast.error(result.message);
+        try {
+            const result = await sendTestPushNotification();
+            if (result?.success) toast.success('Test notification sent');
+            else toast.error(result?.message ? String(result.message) : 'Could not send test notification');
+        } catch (error) {
+            console.error('Failed to send test notification:', error);
+            toast.error('Could not send test notification. Please try again.');
+        }
     };
 
     const roleName = ROLE_DISPLAY_NAMES[user?.role] || user?.role || 'User';
@@ -698,22 +729,22 @@ const ProfileSettingsPage = () => {
                                     <div className="mt-2 flex items-center gap-1.5" aria-live="polite">
                                         <span
                                             className={`h-2 w-2 shrink-0 rounded-full ${
-                                                pushState.subscribed
+                                                pushState?.subscribed
                                                     ? 'bg-emerald-500'
-                                                    : pushState.permission === 'denied'
+                                                    : pushState?.permission === 'denied'
                                                         ? 'bg-amber-500'
                                                         : 'bg-gray-400'
                                             }`}
                                             aria-hidden="true"
                                         />
                                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                            {pushState.loading
+                                            {pushState?.loading
                                                 ? 'Checking this browser…'
-                                                : pushState.subscribed
+                                                : pushState?.subscribed
                                                     ? 'Enabled on this browser'
-                                                    : pushState.permission === 'denied'
+                                                    : pushState?.permission === 'denied'
                                                         ? 'Blocked in browser settings'
-                                                        : pushState.supported === false
+                                                        : pushState?.supported === false
                                                             ? 'Not supported by this browser'
                                                             : 'Disabled on this browser'}
                                         </span>
@@ -722,11 +753,11 @@ const ProfileSettingsPage = () => {
                             </div>
 
                             <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
-                                {pushState.subscribed && (
+                                {pushState?.subscribed && (
                                     <button
                                         type="button"
                                         onClick={handleTestPush}
-                                        disabled={pushState.loading}
+                                        disabled={pushState?.loading}
                                         className="inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
                                     >
                                         Send test
@@ -735,17 +766,17 @@ const ProfileSettingsPage = () => {
                                 <button
                                     type="button"
                                     onClick={handlePushToggle}
-                                    disabled={pushState.loading || pushState.supported === false}
-                                    aria-pressed={pushState.subscribed}
+                                    disabled={pushState?.loading || pushState?.supported === false}
+                                    aria-pressed={pushState?.subscribed}
                                     className={`inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl px-4 text-xs font-semibold shadow-2xs transition disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
-                                        pushState.subscribed
+                                        pushState?.subscribed
                                             ? 'border border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             : 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500'
                                     }`}
                                 >
-                                    {pushState.loading
+                                    {pushState?.loading
                                         ? 'Please wait…'
-                                        : pushState.subscribed ? 'Disable' : 'Enable notifications'}
+                                        : pushState?.subscribed ? 'Disable' : 'Enable notifications'}
                                 </button>
                             </div>
                         </div>

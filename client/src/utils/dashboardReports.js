@@ -96,6 +96,7 @@ export const deduplicateDashboardReports = (reports = []) => {
 // the server's per-page limit. Records without an id are preserved in arrival
 // order (like deduplicateDashboardReports) instead of being dropped.
 export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250) => {
+    if (typeof fetchPage !== 'function') return [];
     const reportsById = new Map();
     const reportsWithoutId = [];
     let page = 1;
@@ -103,8 +104,15 @@ export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250
 
     do {
         const response = await fetchPage({ ...params, page, limit: pageSize });
-        const payload = response?.data?.data || {};
-        const pageReports = Array.isArray(payload.reports) ? payload.reports : [];
+        const payload = response?.data?.data ?? response?.data ?? {};
+        const rawReports = Array.isArray(payload?.reports)
+            ? payload.reports
+            : Array.isArray(payload?.data)
+                ? payload.data
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+        const pageReports = rawReports.filter(Boolean);
 
         pageReports.forEach((report) => {
             const id = getDashboardReportId(report);
@@ -112,7 +120,7 @@ export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250
             else reportsWithoutId.push(report);
         });
 
-        const reportedPages = Number(payload.pagination?.pages);
+        const reportedPages = Number(payload?.pagination?.pages ?? 1);
         totalPages = Number.isFinite(reportedPages) && reportedPages > 0
             ? Math.floor(reportedPages)
             : 1;

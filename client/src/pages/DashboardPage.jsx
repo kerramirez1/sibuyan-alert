@@ -61,7 +61,10 @@ const DashboardPage = () => {
         canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated,
     }), [canViewReports, isAdmin, isResponder, isReporter, activeMunicipality, isAuthenticated]);
 
-    const [reports, setReports] = useState(() => getStaleData(dashboardCacheKey) || []);
+    const [reports, setReports] = useState(() => {
+        const cached = getStaleData(dashboardCacheKey);
+        return Array.isArray(cached) ? cached : [];
+    });
     const [pulseReportIds, setPulseReportIds] = useState([]);
     const pulseTimeoutsRef = useRef(new Map());
     const {
@@ -74,7 +77,10 @@ const DashboardPage = () => {
     const [reporterOverviewReports, setReporterOverviewReports] = useState(null);
     const [reporterOverviewReportsLoading, setReporterOverviewReportsLoading] = useState(false);
     const [reporterOverviewReportsError, setReporterOverviewReportsError] = useState('');
-    const [loading, setLoading] = useState(() => getStaleData(dashboardCacheKey) === null);
+    const [loading, setLoading] = useState(() => {
+        const cached = getStaleData(dashboardCacheKey);
+        return !Array.isArray(cached);
+    });
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe, reconnectVersion } = useSocket();
@@ -101,14 +107,22 @@ const DashboardPage = () => {
         const duration = searchParams.get('duration');
         const requestId = searchParams.get('focus');
         if (lat && lng) {
+            const parsedLat = parseFloat(lat);
+            const parsedLng = parseFloat(lng);
+            if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return null;
+            const parsedZoom = zoom === null ? 16 : parseInt(zoom, 10);
+            const parsedPitch = pitch === null ? undefined : Number(pitch);
+            const parsedBearing = bearing === null ? undefined : Number(bearing);
+            const parsedDelay = delay === null ? undefined : Number(delay);
+            const parsedDuration = duration === null ? undefined : Number(duration);
             return {
-                lat: parseFloat(lat),
-                lng: parseFloat(lng),
-                zoom: parseInt(zoom) || 16,
-                pitch: pitch === null ? undefined : Number(pitch),
-                bearing: bearing === null ? undefined : Number(bearing),
-                delay: delay === null ? undefined : Number(delay),
-                duration: duration === null ? undefined : Number(duration),
+                lat: parsedLat,
+                lng: parsedLng,
+                zoom: Number.isFinite(parsedZoom) ? parsedZoom : 16,
+                pitch: Number.isFinite(parsedPitch) ? parsedPitch : undefined,
+                bearing: Number.isFinite(parsedBearing) ? parsedBearing : undefined,
+                delay: Number.isFinite(parsedDelay) ? parsedDelay : undefined,
+                duration: Number.isFinite(parsedDuration) ? parsedDuration : undefined,
                 requestId,
             };
         }
@@ -224,15 +238,15 @@ const DashboardPage = () => {
 
     const dashboardReports = useMemo(() => {
         if (!activeMunicipality) return reports;
-        return reports.filter((r) => (
-            r.municipalityName === activeMunicipality
-            || r.originalMunicipalityName === activeMunicipality
-            || (Array.isArray(r.transferHistory) && r.transferHistory.some((t) => t?.fromMunicipalityName === activeMunicipality))
+        return (Array.isArray(reports) ? reports : []).filter(Boolean).filter((r) => (
+            r?.municipalityName === activeMunicipality
+            || r?.originalMunicipalityName === activeMunicipality
+            || (Array.isArray(r?.transferHistory) && r.transferHistory.some((t) => t?.fromMunicipalityName === activeMunicipality))
         ));
     }, [reports, activeMunicipality]);
     const focusedMapReportId = searchParams.get('report') || '';
     const focusedMapReport = useMemo(
-        () => dashboardReports.find((report) => String(report._id) === focusedMapReportId) || null,
+        () => dashboardReports.find((report) => String(report?._id) === focusedMapReportId) || null,
         [dashboardReports, focusedMapReportId],
     );
     const focusedRiskZoneId = normalizeRiskZoneId(searchParams.get('riskZone'));
@@ -278,12 +292,12 @@ const DashboardPage = () => {
     }, []);
 
     const responderPendingReports = useMemo(
-        () => dashboardReports.filter((r) => isAwaitingResponder(r) && hasMapCoordinates(r)),
+        () => dashboardReports.filter(Boolean).filter((r) => isAwaitingResponder(r) && hasMapCoordinates(r)),
         [dashboardReports, isAwaitingResponder, hasMapCoordinates]
     );
 
     const responderRespondingReports = useMemo(
-        () => dashboardReports.filter((r) => r.status === 'responding' || (r.status === 'pending' && isReportAssigned(r))),
+        () => dashboardReports.filter(Boolean).filter((r) => r?.status === 'responding' || (r?.status === 'pending' && isReportAssigned(r))),
         [dashboardReports, isReportAssigned]
     );
 
@@ -384,7 +398,8 @@ const DashboardPage = () => {
         const handleReportLoadError = (error) => {
             console.error(error);
             // Keep stale map pins on screen; only block when we have nothing cached.
-            if (getStaleData(dashboardCacheKey) === null) {
+            const cachedOnError = getStaleData(dashboardCacheKey);
+            if (!Array.isArray(cachedOnError)) {
                 setDashboardError('Some dashboard data could not be loaded. Please refresh and try again.');
             }
         };
@@ -419,7 +434,10 @@ const DashboardPage = () => {
                 // Responder dashboard cards rely on roleStats; fetch it in this branch too.
                 if (isResponder) {
                     analyticsAPI.getResponder()
-                        .then(res => setRoleStats(res.data.data))
+                        .then((res) => {
+                            const stats = res?.data?.data;
+                            setRoleStats(stats && typeof stats === 'object' ? stats : null);
+                        })
                         .catch(err => console.error(err));
                 }
             } else if (isAuthenticated && (isReporter || isResponder)) {
@@ -428,14 +446,23 @@ const DashboardPage = () => {
 
                 // Fetch role-specific analytics
                 if (isResponder) {
-                    analyticsAPI.getResponder().then(res => setRoleStats(res.data.data)).catch(console.error);
+                    analyticsAPI.getResponder().then((res) => {
+                        const stats = res?.data?.data;
+                        setRoleStats(stats && typeof stats === 'object' ? stats : null);
+                    }).catch(console.error);
                 } else if (isReporter) {
-                    analyticsAPI.getReporter().then(res => setRoleStats(res.data.data)).catch(console.error);
+                    analyticsAPI.getReporter().then((res) => {
+                        const stats = res?.data?.data;
+                        setRoleStats(stats && typeof stats === 'object' ? stats : null);
+                    }).catch(console.error);
                 }
             } else {
                 // Public/ordinary users: fetch public map data
                 nextReports = await loadPublicMapReports(dashboardCacheKey);
             }
+            // fetchAllReportPages always resolves to an array, but guard against
+            // flat-array / envelope shape regressions so downstream filters never throw.
+            if (!Array.isArray(nextReports)) nextReports = [];
             setReports(nextReports);
             setCachedData(dashboardCacheKey, nextReports);
         } catch (error) {
@@ -482,8 +509,9 @@ const DashboardPage = () => {
 
     // Further filter by selected month for analytics
     const monthFilteredReports = useMemo(() => {
-        return filteredReports.filter(r => {
+        return (Array.isArray(filteredReports) ? filteredReports : []).filter(Boolean).filter(r => {
             try {
+                if (!r?.createdAt) return false;
                 return isSameMonth(parseISO(r.createdAt), selectedMonth);
             } catch {
                 return false;
@@ -528,6 +556,7 @@ const DashboardPage = () => {
                             items: Array.isArray(sanitized.evidence.items)
                                 ? sanitized.evidence.items.map((it, idx) => {
                                     const redactionVersion = '3.4';
+                                    const detectorVersion = '2.3';
                                     const previewUrl = `/api/reports/${id}/evidence/${it.index ?? idx}/preview?rv=${redactionVersion}`;
 
                                     return {
@@ -556,7 +585,8 @@ const DashboardPage = () => {
         const upsertAndCache = (normalized) => {
             if (!normalized) return;
             setReports((previous) => upsertDashboardReport(previous, normalized));
-            const base = getStaleData(dashboardCacheKey) || [];
+            const cached = getStaleData(dashboardCacheKey);
+            const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, upsertDashboardReport(base, normalized));
         };
         // Fresh-event pulse registry: ids whose map markers ring for a few
@@ -574,72 +604,89 @@ const DashboardPage = () => {
         const removeAndCache = (id) => {
             if (!id) return;
             setReports((previous) => removeDashboardReport(previous, id));
-            const base = getStaleData(dashboardCacheKey) || [];
+            const cached = getStaleData(dashboardCacheKey);
+            const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, removeDashboardReport(base, id));
         };
         const patchStatusAndCache = (id, status) => {
             if (!id) return;
             setReports((previous) => updateDashboardReportStatus(previous, id, status));
-            const base = getStaleData(dashboardCacheKey) || [];
+            const cached = getStaleData(dashboardCacheKey);
+            const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, updateDashboardReportStatus(base, id, status));
         };
 
         const unsub0 = subscribe('newReport', (data) => {
+            if (!data || typeof data !== 'object') return;
             const normalized = normalizeIncomingReport(data);
             upsertAndCache(normalized);
             pulseReport(normalized?._id);
         });
 
         const unsub1 = subscribe('reportVerified', (report) => {
+            if (!report || typeof report !== 'object') return;
             const normalized = normalizeIncomingReport({ ...report, status: 'verified' });
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
             pulseReport(normalized?._id);
         });
         const unsub2 = subscribe('reportResponded', (data) => {
+            if (!data || typeof data !== 'object') return;
+            const respondedId = data?.id ?? data?._id;
+            if (!respondedId) return;
             const normalized = {
                 ...data,
-                _id: data.id,
+                _id: respondedId,
                 status: 'responding',
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
-            pulseReport(data?.id);
+            pulseReport(respondedId);
         });
         const unsub3 = subscribe('reportResolved', (data) => {
+            if (!data || typeof data !== 'object') return;
+            const resolvedId = data?.id ?? data?._id;
+            if (!resolvedId) return;
             const normalized = {
                 ...data,
-                _id: data.id,
+                _id: resolvedId,
                 status: 'resolved',
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
-            pulseReport(data?.id);
+            pulseReport(resolvedId);
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
+            if (!data || typeof data !== 'object') return;
+            const resolvedId = data?.id ?? data?._id;
+            if (!resolvedId) return;
             const normalized = {
                 ...data,
-                _id: data.id,
+                _id: resolvedId,
                 status: 'resolved',
             };
             upsertAndCache(normalized);
             updateLoadedReporterOverviewReport(normalized);
-            pulseReport(data?.id);
+            pulseReport(resolvedId);
         });
         const unsub4 = subscribe('reportDeleted', (data) => {
-            removeAndCache(data?.id ?? data?._id);
-            removeLoadedReporterOverviewReport(data?.id ?? data?._id);
+            if (!data || typeof data !== 'object') return;
+            const deletedId = data?.id ?? data?._id;
+            if (!deletedId) return;
+            removeAndCache(deletedId);
+            removeLoadedReporterOverviewReport(deletedId);
         });
         const unsub8 = subscribe('reportTransferred', (data) => {
+            if (!data || typeof data !== 'object') return;
             const normalized = normalizeIncomingReport({
                 ...data,
                 status: 'transferred',
-                municipalityName: data.toMunicipality || data.municipalityName,
+                municipalityName: data?.toMunicipality || data?.municipalityName,
                 transferHistory: [
-                    ...(Array.isArray(data.transferHistory) ? data.transferHistory : []),
-                    ...(data.fromMunicipality ? [{
-                        fromMunicipalityName: data.fromMunicipality,
-                        toMunicipalityName: data.toMunicipality || data.municipalityName,
+                    ...(Array.isArray(data?.transferHistory) ? data.transferHistory : []),
+                    ...(data?.fromMunicipality ? [{
+                        fromMunicipalityName: data?.fromMunicipality,
+                        toMunicipalityName: data?.toMunicipality || data?.municipalityName,
                     }] : []),
                 ],
             });
@@ -649,17 +696,21 @@ const DashboardPage = () => {
             pulseReport(normalized?._id);
         });
         const unsub9 = subscribe('reportRejectedUpdate', (data) => {
-            if (!data?.id) return;
-            patchStatusAndCache(data.id, 'rejected');
-            updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
+            if (!data || typeof data !== 'object') return;
+            const rejectedId = data?.id ?? data?._id;
+            if (!rejectedId) return;
+            patchStatusAndCache(rejectedId, 'rejected');
+            updateLoadedReporterOverviewReport({ ...data, _id: rejectedId, status: 'rejected' });
         });
 
         // Reporter-scoped rejection (delivered to the reporter's user room).
         // Mirrors the rejection into the loaded reporter overview; operational
         // viewers receive the equivalent reportRejectedUpdate above.
         const unsubReporterRejected = subscribe('reportRejected', (data) => {
-            if (!data?.id) return;
-            updateLoadedReporterOverviewReport({ ...data, _id: data.id, status: 'rejected' });
+            if (!data || typeof data !== 'object') return;
+            const rejectedId = data?.id ?? data?._id;
+            if (!rejectedId) return;
+            updateLoadedReporterOverviewReport({ ...data, _id: rejectedId, status: 'rejected' });
         });
 
         return () => {
@@ -701,7 +752,7 @@ const DashboardPage = () => {
     // Status breakdown
     const statusData = useMemo(() => {
         const counts = { pending: 0, verified: 0, transferred: 0, responding: 0, resolved: 0, rejected: 0 };
-        monthFilteredReports.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+        monthFilteredReports.forEach(r => { if (counts[r?.status] !== undefined) counts[r.status]++; });
         return Object.entries(counts)
             .filter(([, v]) => v > 0)
             .map(([name, value]) => ({
@@ -730,7 +781,7 @@ const DashboardPage = () => {
     const barangayBarData = useMemo(() => {
         const counts = {};
         monthFilteredReports.forEach(r => {
-            if (r.barangay) {
+            if (r?.barangay) {
                 const physicalMunicipality = getPhysicalMunicipality(r);
                 const name = activeMunicipality
                     ? r.barangay
@@ -746,7 +797,7 @@ const DashboardPage = () => {
     const incidentTypeBarData = useMemo(() => {
         const counts = {};
         monthFilteredReports.forEach((report) => {
-            const rawType = report.incidentType || report.incidentCategory || 'Unspecified';
+            const rawType = String(report?.incidentType || report?.incidentCategory || 'Unspecified');
             const name = rawType
                 .replace(/[_-]+/g, ' ')
                 .replace(/\b\w/g, (character) => character.toUpperCase());
@@ -760,15 +811,15 @@ const DashboardPage = () => {
     // Response performance metrics
     const performanceMetrics = useMemo(() => {
         const responseMinutes = monthFilteredReports
-            .filter(r => r.respondedAt && r.createdAt)
+            .filter(r => r?.respondedAt && r?.createdAt)
             .map(r => differenceInMinutes(new Date(r.respondedAt), new Date(r.createdAt)))
             .filter(minutes => Number.isFinite(minutes) && minutes >= 0)
             .sort((a, b) => a - b);
-        const resolvedReports = monthFilteredReports.filter(r => r.status === 'resolved');
-        const respondingReports = monthFilteredReports.filter(r => r.status === 'responding');
-        const pendingCount = monthFilteredReports.filter(r => r.status === 'pending').length;
+        const resolvedReports = monthFilteredReports.filter(r => r?.status === 'resolved');
+        const respondingReports = monthFilteredReports.filter(r => r?.status === 'responding');
+        const pendingCount = monthFilteredReports.filter(r => r?.status === 'pending').length;
         const dispatchReadyCount = monthFilteredReports.filter(r => (
-            ['verified', 'transferred'].includes(r.status) && !isReportAssigned(r)
+            ['verified', 'transferred'].includes(r?.status) && !isReportAssigned(r)
         )).length;
 
         const avgResponseMin = responseMinutes.length
@@ -782,7 +833,7 @@ const DashboardPage = () => {
             : null;
 
         // Resolution rate
-        const totalActionable = monthFilteredReports.filter(r => ['verified', 'transferred', 'responding', 'resolved'].includes(r.status)).length;
+        const totalActionable = monthFilteredReports.filter(r => ['verified', 'transferred', 'responding', 'resolved'].includes(r?.status)).length;
         const resolutionRate = totalActionable > 0 ? Math.round((resolvedReports.length / totalActionable) * 100) : 0;
 
         return {

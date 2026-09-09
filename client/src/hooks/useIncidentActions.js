@@ -43,18 +43,16 @@ const useIncidentActions = ({
 
     const confirmReview = useCallback(async () => {
         const { report, status, rejectionReason } = reviewDialog;
-        if (!report || !status) return;
+        if (!report || !report?._id || !status) return;
         if (status === 'rejected' && !rejectionReason.trim()) return;
 
         setReviewLoading(true);
         try {
             const payload = { status, rejectionReason };
-            const response = await adminAPI.verifyReport(report._id, payload);
+            const response = await adminAPI.verifyReport(report?._id, payload);
             const serverReport = response.data?.data;
-            const updatedReport = serverReport
-                ? { ...report, ...serverReport, status, rejectionReason }
-                : { ...report, status, rejectionReason };
-            patchReport(report._id, updatedReport);
+            const updatedReport = { ...report, ...(serverReport && typeof serverReport === 'object' && !Array.isArray(serverReport) ? serverReport : {}), status, rejectionReason };
+            patchReport(report?._id, updatedReport);
             toast.success(response.data?.message || (status === 'verified' ? 'Incident verified successfully.' : `Report ${status} successfully`));
             setReviewDialog(closedReview);
             await refreshReports({ silent: true });
@@ -66,22 +64,23 @@ const useIncidentActions = ({
     }, [patchReport, refreshReports, reviewDialog]);
 
     const performRespond = useCallback(async (report, unitData) => {
-        if (!report || !getIncidentCapabilities(user, report).canRespond) {
+        if (!report || !report?._id || !getIncidentCapabilities(user, report).canRespond) {
             toast.error('Responder action is not available for this incident.');
             return;
         }
 
-        setRespondLoadingId(report._id);
+        setRespondLoadingId(report?._id);
         try {
-            const response = await adminAPI.respondToReport(report._id, {
-                unitName: unitData.unitName,
-                unitType: unitData.unitType,
+            const response = await adminAPI.respondToReport(report?._id, {
+                unitName: unitData?.unitName,
+                unitType: unitData?.unitType,
             });
-            patchReport(report._id, { ...response.data?.data, status: 'responding' });
+            const serverData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
+            patchReport(report?._id, { ...serverData, status: 'responding' });
             toast.success(response.data?.message || 'Response started');
             setUnitDialog({ open: false, report: null });
             if (onResponseStarted) {
-                onResponseStarted({ ...report, ...response.data?.data, status: 'responding' });
+                onResponseStarted({ ...report, ...serverData, status: 'responding' });
             } else {
                 await refreshReports({ silent: true });
             }
@@ -124,20 +123,21 @@ const useIncidentActions = ({
 
     const confirmResolve = useCallback(async () => {
         const { report, resolutionNotes } = resolveDialog;
-        if (!report || !getIncidentCapabilities(user, report).canResolve) return;
+        if (!report || !report?._id || !getIncidentCapabilities(user, report).canResolve) return;
 
         setResolveLoading(true);
         try {
-            const response = await adminAPI.resolveReport(report._id, { resolutionNotes });
-            patchReport(report._id, {
-                ...response.data?.data,
+            const response = await adminAPI.resolveReport(report?._id, { resolutionNotes });
+            const serverData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
+            patchReport(report?._id, {
+                ...serverData,
                 status: 'resolved',
                 resolutionNotes,
             });
             toast.success(response.data?.message || 'Incident resolved');
             setResolveDialog(closedResolve);
             if (onIncidentResolved) {
-                onIncidentResolved({ ...report, ...response.data?.data, status: 'resolved', resolutionNotes });
+                onIncidentResolved({ ...report, ...serverData, status: 'resolved', resolutionNotes });
             } else {
                 await refreshReports({ silent: true });
             }
@@ -160,7 +160,8 @@ const useIncidentActions = ({
 
         try {
             const response = await reportsAPI.getMunicipalities();
-            setMunicipalities(response.data?.data || []);
+            const data = response.data?.data;
+            setMunicipalities(Array.isArray(data) ? data : []);
         } catch {
             toast.error('Failed to load neighboring municipalities');
         }
@@ -168,24 +169,24 @@ const useIncidentActions = ({
 
     const confirmTransfer = useCallback(async () => {
         const { report, targetMunicipalityId, reason } = transferDialog;
-        if (!report || !targetMunicipalityId || reason.trim().length < 10) return;
+        if (!report || !report?._id || !targetMunicipalityId || reason.trim().length < 10) return;
 
         setTransferLoading(true);
         try {
-            const response = await adminAPI.transferReport(report._id, {
+            const response = await adminAPI.transferReport(report?._id, {
                 targetMunicipalityId,
                 reason: reason.trim(),
             });
             const serverReport = response.data?.data;
-            const municipalityName = municipalities.find((item) => String(item._id) === String(targetMunicipalityId))?.name;
+            const municipalityName = (Array.isArray(municipalities) ? municipalities : []).find((item) => String(item?._id) === String(targetMunicipalityId))?.name;
             const updatedReport = {
                 ...report,
-                ...serverReport,
+                ...(serverReport && typeof serverReport === 'object' && !Array.isArray(serverReport) ? serverReport : {}),
                 municipality: targetMunicipalityId,
-                municipalityName: municipalityName || report.municipalityName,
+                municipalityName: municipalityName || report?.municipalityName,
                 status: 'transferred',
             };
-            patchReport(report._id, updatedReport);
+            patchReport(report?._id, updatedReport);
             toast.success(response.data?.message || 'Report transferred successfully');
             setTransferDialog(closedTransfer);
             await refreshReports({ silent: true });
@@ -201,11 +202,13 @@ const useIncidentActions = ({
             toast.error('Only the current target municipal administrator can acknowledge this transfer.');
             return;
         }
+        if (!report?._id) return;
 
-        setAcknowledgeLoadingId(report._id);
+        setAcknowledgeLoadingId(report?._id);
         try {
-            const response = await adminAPI.acknowledgeTransfer(report._id);
-            patchReport(report._id, response.data?.data || {});
+            const response = await adminAPI.acknowledgeTransfer(report?._id);
+            const serverData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
+            patchReport(report?._id, serverData);
             toast.success(response.data?.message || 'Transfer acknowledged');
             await refreshReports({ silent: true });
         } catch (error) {
@@ -220,13 +223,14 @@ const useIncidentActions = ({
             toast.error('Only administrators can delete incident reports.');
             return;
         }
+        if (!report?._id) return;
         if (!window.confirm('Are you sure you want to delete this report?')) return;
 
-        setDeleteLoadingId(report._id);
+        setDeleteLoadingId(report?._id);
         try {
-            await adminAPI.deleteReport(report._id);
-            removeReport(report._id);
-            closeDetails(report._id);
+            await adminAPI.deleteReport(report?._id);
+            removeReport(report?._id);
+            closeDetails(report?._id);
             toast.success('Report deleted');
             await refreshReports({ silent: true });
         } catch (error) {
@@ -241,13 +245,14 @@ const useIncidentActions = ({
             toast.error('Only the originating municipality can remove a transferred report from its queue.');
             return;
         }
+        if (!report?._id) return;
         if (!window.confirm('Remove this transferred report from your queue? The owning municipality keeps full access.')) return;
 
-        setDeleteLoadingId(report._id);
+        setDeleteLoadingId(report?._id);
         try {
-            const response = await adminAPI.dismissReport(report._id);
-            removeReport(report._id);
-            closeDetails(report._id);
+            const response = await adminAPI.dismissReport(report?._id);
+            removeReport(report?._id);
+            closeDetails(report?._id);
             toast.success(response.data?.message || 'Report removed from your queue');
             await refreshReports({ silent: true });
         } catch (error) {

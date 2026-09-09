@@ -17,6 +17,7 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
+import { normalizeEvidenceDescriptor } from '../utils/evidenceModel';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -73,11 +74,47 @@ const formatIncidentType = (report) => (
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
 );
 
-const getLocation = (report) => (
-    report?.address
-    || [report?.barangay, getPhysicalMunicipality(report)].filter(Boolean).join(', ')
-    || 'Location unavailable'
-);
+const getLocation = (report) => {
+    const address = typeof report?.address === 'string' ? report.address.trim() : '';
+    if (address) return address;
+    const parts = [report?.barangay, getPhysicalMunicipality(report)]
+        .filter((v) => typeof v === 'string' && v.trim())
+        .map((v) => v.trim());
+    if (parts.length) return parts.join(', ');
+    return 'Location unavailable';
+};
+
+const getEvidenceFallback = (report) => {
+    const images = Array.isArray(report?.images) ? report.images.filter(Boolean) : [];
+    if (report?.evidence) return report.evidence;
+    if (!images.length) return null;
+    return {
+        count: images.length,
+        viewerAccess: 'original',
+        items: images.map((img, i) => ({
+            id: String(i),
+            index: i,
+            originalUrl: typeof img === 'string' ? img : (img?.originalUrl ?? img?.previewUrl ?? ''),
+            previewUrl: typeof img === 'string' ? img : (img?.previewUrl ?? img?.originalUrl ?? ''),
+            isOwner: true,
+        })),
+    };
+};
+
+const getEvidenceCount = (report) => {
+    try {
+        const fallback = getEvidenceFallback(report);
+        const rawImages = Array.isArray(report?.images) ? report.images.filter(Boolean) : [];
+        const normalized = normalizeEvidenceDescriptor(fallback, {
+            isOwner: true,
+            isOperational: false,
+            rawImages,
+        });
+        return normalized?.evidenceCount ?? 0;
+    } catch {
+        return 0;
+    }
+};
 
 // Mobile filter bottom sheet / modal
 function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, counts, totalReports }) {
@@ -223,8 +260,14 @@ function MyReportsPage() {
     // Session-scoped key (no user id needed): the whole cache is wiped on
     // logout/session-expiry, so entries can never leak across accounts.
     const cacheKey = 'my-reports:list';
-    const [reports, setReports] = useState(() => getStaleData(cacheKey) || []);
-    const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
+    const [reports, setReports] = useState(() => {
+        const stale = getStaleData(cacheKey);
+        return Array.isArray(stale) ? stale : [];
+    });
+    const [loading, setLoading] = useState(() => {
+        const stale = getStaleData(cacheKey);
+        return Array.isArray(stale) ? false : true;
+    });
     const [error, setError] = useState('');
     const [selectedReportId, setSelectedReportId] = useState(null);
     const [filterStatus, setFilterStatus] = useState('all');
@@ -242,24 +285,27 @@ function MyReportsPage() {
     const fetchReports = useCallback(async (silent = false) => {
         if (!silent) {
             const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.myReports);
-            if (fresh) {
-                setReports(fresh);
+            if (Array.isArray(fresh)) {
+                setReports(fresh.filter(Boolean));
                 setLoading(false);
                 return;
             }
             const stale = getStaleData(cacheKey);
-            if (stale) setReports(stale);
+            if (Array.isArray(stale)) setReports(stale.filter(Boolean));
             else setLoading(true);
         }
         try {
             const response = await reportsAPI.getMyReports();
-            const nextReports = response.data?.data || [];
-            setReports(nextReports);
+            const raw = response?.data?.data;
+            const nextReports = Array.isArray(raw)
+                ? raw
+                : (Array.isArray(raw?.reports) ? raw.reports : []);
+            setReports(nextReports.filter(Boolean));
             setCachedData(cacheKey, nextReports);
             setError('');
         } catch (err) {
             console.error('Failed to fetch reports:', err);
-            if (getStaleData(cacheKey) === null) {
+            if (!Array.isArray(getStaleData(cacheKey))) {
                 setError('Unable to load your submitted reports.');
             }
             if (!silent) toast.error('Failed to load your reports');
@@ -273,7 +319,9 @@ function MyReportsPage() {
     }, [fetchReports]);
 
     useEffect(() => {
-        if (!requestedReportId || !reports.some((report) => String(report._id) === requestedReportId)) return;
+        if (!requestedReportId) return;
+        const safeReports = Array.isArray(reports) ? reports : [];
+        if (!safeReports.filter(Boolean).some((report) => String(report?._id) === requestedReportId)) return;
         setFilterStatus('all');
         setSelectedReportId(String(requestedReportId));
     }, [reports, requestedReportId]);
@@ -318,16 +366,17 @@ function MyReportsPage() {
 
     useEffect(() => {
         const updateReport = (id, changes) => {
-            if (!id) return;
-            setReports((current) => current.map((report) => (
-                report._id === id
+            if (id === null || id === undefined || id === '') return;
+            const targetId = String(id);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).map((report) => (
+                String(report?._id) === targetId
                     ? (typeof changes === 'function' ? changes(report) : { ...report, ...changes })
                     : report
             )));
         };
 
         const unsubRespond = subscribe('reportResponded', (data) => {
-            updateReport(data?.id, (report) => ({
+            updateReport(data?.id ?? data?._id, (report) => ({
                 ...report,
                 status: 'responding',
                 respondedBy: report.respondedBy || data?.respondedBy,
@@ -335,14 +384,14 @@ function MyReportsPage() {
             }));
         });
         const unsubResolve = subscribe('reportResolved', (data) => {
-            updateReport(data?.id, {
+            updateReport(data?.id ?? data?._id, {
                 status: 'resolved',
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
             });
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
-            updateReport(data?.id, {
+            updateReport(data?.id ?? data?._id, {
                 status: 'resolved',
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
@@ -350,24 +399,27 @@ function MyReportsPage() {
             });
         });
         const unsubVerify = subscribe('reportVerified', (data) => {
-            updateReport(data?.id, { status: 'verified' });
+            updateReport(data?.id ?? data?._id, { status: 'verified' });
         });
         const unsubReject = subscribe('reportRejected', (data) => {
-            updateReport(data?.id, { status: 'rejected', rejectionReason: data?.reason });
+            updateReport(data?.id ?? data?._id, { status: 'rejected', rejectionReason: data?.reason });
         });
         const unsubTransfer = subscribe('reportTransferred', (data) => {
-            updateReport(data?.id, {
+            updateReport(data?.id ?? data?._id, {
                 status: data?.status || 'transferred',
                 municipalityName: data?.toMunicipality || data?.municipalityName,
             });
         });
         const unsubDelete = subscribe('reportDeleted', (data) => {
-            if (!data?.id) return;
-            setReports((current) => current.filter((report) => report._id !== data.id));
+            const deleteId = data?.id ?? data?._id;
+            if (deleteId === null || deleteId === undefined || deleteId === '') return;
+            const targetId = String(deleteId);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((report) => String(report?._id) !== targetId));
         });
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
-            if (!data?.id || !Array.isArray(data?.report?.reportUpdates)) return;
-            updateReport(data.id, {
+            const updateId = data?.id ?? data?._id;
+            if (updateId === null || updateId === undefined || updateId === '' || !Array.isArray(data?.report?.reportUpdates)) return;
+            updateReport(updateId, {
                 reportUpdates: data.report.reportUpdates,
                 status: data.report.status || data.status,
             });
@@ -393,13 +445,14 @@ function MyReportsPage() {
             const serverReport = responseData.report;
             const latestUpdate = responseData.latestUpdate;
 
-            setReports((current) => current.map((report) => (
-                report._id === reportId
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).map((report) => (
+                String(report?._id) === String(reportId)
                     ? {
                         ...report,
                         ...serverReport,
-                        reportUpdates: serverReport?.reportUpdates
-                            || (latestUpdate ? [...(report.reportUpdates || []), latestUpdate] : report.reportUpdates),
+                        reportUpdates: Array.isArray(serverReport?.reportUpdates)
+                            ? serverReport.reportUpdates
+                            : (latestUpdate ? [...(Array.isArray(report?.reportUpdates) ? report.reportUpdates : []), latestUpdate] : report?.reportUpdates),
                     }
                     : report
             )));
@@ -424,28 +477,34 @@ function MyReportsPage() {
         return agency ? (labels[agency] || agency) : 'Assigned response team';
     };
 
-    const counts = useMemo(() => reports.reduce((result, report) => {
-        result[report.status] = (result[report.status] || 0) + 1;
+    const counts = useMemo(() => (Array.isArray(reports) ? reports : []).filter(Boolean).reduce((result, report) => {
+        const status = report?.status;
+        if (!status) return result;
+        result[status] = (result[status] || 0) + 1;
         return result;
     }, {}), [reports]);
 
-    const stats = useMemo(() => ({
-        total: reports.length,
-        pending: counts.pending || 0,
-        active: (counts.verified || 0) + (counts.transferred || 0) + (counts.responding || 0),
-        resolved: counts.resolved || 0,
-    }), [counts, reports.length]);
+    const stats = useMemo(() => {
+        const safeReports = Array.isArray(reports) ? reports : [];
+        return {
+            total: safeReports.length,
+            pending: counts.pending || 0,
+            active: (counts.verified || 0) + (counts.transferred || 0) + (counts.responding || 0),
+            resolved: counts.resolved || 0,
+        };
+    }, [counts, reports]);
 
     const filteredReports = useMemo(() => (
-        reports
+        (Array.isArray(reports) ? reports : [])
+            .filter(Boolean)
             .filter((report) => {
                 if (filterStatus === 'all') return true;
                 // 'active' is a dashboard-level grouping (verified + transferred + responding),
                 // not a report status — it only arrives via ?status= deep links.
-                if (filterStatus === 'active') return ['verified', 'transferred', 'responding'].includes(report.status);
-                return report.status === filterStatus;
+                if (filterStatus === 'active') return ['verified', 'transferred', 'responding'].includes(report?.status);
+                return report?.status === filterStatus;
             })
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt))
     ), [filterStatus, reports]);
 
     const metricCards = [
@@ -536,10 +595,10 @@ function MyReportsPage() {
                             <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {filterStatus === 'all'
                                     ? 'Submitted reports'
-                                    : `Submitted reports · ${filteredReports.length} of ${reports.length}`}
+                                    : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`}
                             </h2>
 
-                            {reports.length > 0 && (
+                            {(Array.isArray(reports) ? reports.length : 0) > 0 && (
                                 <button
                                     type="button"
                                     onClick={() => setFilterModalOpen(true)}
@@ -566,10 +625,11 @@ function MyReportsPage() {
                             </div>
                         )}
 
-                        {reports.length > 0 && (
+                        {(Array.isArray(reports) ? reports.length : 0) > 0 && (
                             <div className="mt-4 hidden gap-6 border-b border-gray-200 pb-0 sm:flex dark:border-white/10" aria-label="Filter reports by status">
                                 {FILTERS.map((filter) => {
-                                    const count = filter === 'all' ? reports.length : (counts[filter] || 0);
+                                    const safeLength = Array.isArray(reports) ? reports.length : 0;
+                                    const count = filter === 'all' ? safeLength : (counts[filter] || 0);
                                     if (filter !== 'all' && count === 0) return null;
                                     const isActive = filterStatus === filter;
                                     const label = filter === 'all' ? 'All records' : STATUS_CONFIG[filter]?.label;
@@ -594,7 +654,7 @@ function MyReportsPage() {
                             </div>
                         )}
 
-                        {reports.length === 0 ? (
+                        {(Array.isArray(reports) ? reports.length : 0) === 0 ? (
                             <div className="py-12">
                                 <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                                     You have not submitted an incident report yet.
@@ -628,20 +688,23 @@ function MyReportsPage() {
                         ) : (
                             <ul className="divide-y divide-gray-200 dark:divide-white/10">
                                 {filteredReports.map((report) => {
-                                    const isExpanded = Boolean(selectedReportId && String(selectedReportId) === String(report._id));
-                                    const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
-                                    const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.minor;
-                                    const severityLabel = report.severity ? (SEVERITY_CONFIG[report.severity]?.label || 'Minor') : 'Unknown';
-                                    const isClosed = ['resolved', 'rejected'].includes(report.status);
+                                    if (!report || typeof report !== 'object') return null;
+                                    const reportId = report?._id ?? report?.id;
+                                    const isExpanded = Boolean(selectedReportId && String(selectedReportId) === String(reportId));
+                                    const status = STATUS_CONFIG[report?.status] || STATUS_CONFIG.pending;
+                                    const severity = SEVERITY_CONFIG[report?.severity] || SEVERITY_CONFIG.minor;
+                                    const severityLabel = report?.severity ? (SEVERITY_CONFIG[report.severity]?.label || 'Minor') : 'Unknown';
+                                    const isClosed = ['resolved', 'rejected'].includes(report?.status);
 
                                     return (
                                         <li
-                                            key={report._id}
+                                            key={String(reportId ?? Math.random())}
                                             ref={(node) => {
+                                                const refKey = String(reportId);
                                                 if (node) {
-                                                    itemRefs.current[String(report._id)] = node;
+                                                    itemRefs.current[refKey] = node;
                                                 } else {
-                                                    delete itemRefs.current[String(report._id)];
+                                                    delete itemRefs.current[refKey];
                                                 }
                                             }}
                                         >
@@ -649,7 +712,7 @@ function MyReportsPage() {
                                             {/* Row: single hairline accent marks expanded state */}
                                             <button
                                                 type="button"
-                                                onClick={() => toggleReportSelected(report._id)}
+                                                onClick={() => toggleReportSelected(reportId)}
                                                 aria-expanded={isExpanded}
                                                 aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
                                                 className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-3 border-l-4 py-3.5 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center sm:py-4 cursor-pointer ${
@@ -700,7 +763,7 @@ function MyReportsPage() {
                                                             Incident details
                                                         </h4>
                                                         <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
-                                                            {report.description || (
+                                                            {report?.description || (
                                                                 <span className="text-gray-400 dark:text-gray-500">
                                                                     No incident description was provided.
                                                                 </span>
@@ -711,10 +774,10 @@ function MyReportsPage() {
                                                     {/* 2. Key Facts Grid */}
                                                     <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
                                                         {[
-                                                            { label: 'Incident date', value: formatDate(report.incidentTime || report.accidentTime || report.createdAt) },
+                                                            { label: 'Incident date', value: formatDate(report?.incidentTime || report?.accidentTime || report?.createdAt) },
                                                             { label: 'Incident type', value: formatIncidentType(report) },
                                                             { label: 'Coordinates', value: formatCoordinates(report) },
-                                                            { label: 'Report views', value: report.viewCount || 0 },
+                                                            { label: 'Report views', value: report?.viewCount || 0 },
                                                         ].map(({ label, value }) => (
                                                             <div key={label}>
                                                                 <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -734,26 +797,26 @@ function MyReportsPage() {
                                                         </h4>
                                                         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
                                                             <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
-                                                                <span className={`h-1.5 w-1.5 rounded-full ${status.dot} ${['pending', 'responding'].includes(report.status) ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                                                                <span className={`h-1.5 w-1.5 rounded-full ${status.dot} ${['pending', 'responding'].includes(report?.status) ? 'animate-pulse' : ''}`} aria-hidden="true" />
                                                                 {status.label}
                                                             </span>
-                                                            <span>Updated {formatRelativeDate(report.updatedAt || report.createdAt)}</span>
+                                                            <span>Updated {formatRelativeDate(report?.updatedAt || report?.createdAt)}</span>
                                                         </p>
 
-                                                        {report.respondedBy && (
+                                                        {report?.respondedBy && (
                                                             <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
-                                                                Response unit: {getAgencyLabel(report.respondedBy?.agency || report.responderAgency)}{' '}
-                                                                {report.respondedBy?.name ? `(${report.respondedBy.name})` : ''}
+                                                                Response unit: {getAgencyLabel(report?.respondedBy?.agency || report?.responderAgency)}{' '}
+                                                                {report?.respondedBy?.name ? `(${report.respondedBy.name})` : ''}
                                                             </p>
                                                         )}
 
-                                                        {report.status === 'resolved' && report.resolutionNotes && (
+                                                        {report?.status === 'resolved' && report?.resolutionNotes && (
                                                             <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
                                                                 Resolution notes: {report.resolutionNotes}
                                                             </p>
                                                         )}
 
-                                                        {report.status === 'rejected' && report.rejectionReason && (
+                                                        {report?.status === 'rejected' && report?.rejectionReason && (
                                                             <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
                                                                 Rejection reason: {report.rejectionReason}
                                                             </p>
@@ -763,11 +826,11 @@ function MyReportsPage() {
                                                     {/* 4. Evidence Gallery */}
                                                     <div>
                                                         <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                            Evidence ({report.evidence?.items?.length || report.images?.length || 0})
+                                                            Evidence photos ({getEvidenceCount(report)})
                                                         </h4>
                                                         <ProtectedEvidenceGallery
-                                                            images={report.images}
-                                                            evidence={report.evidence || (Array.isArray(report.images) && report.images.length ? { count: report.images.length, viewerAccess: 'original', items: report.images.map((img, i) => ({ id: String(i), index: i, originalUrl: img, previewUrl: img, isOwner: true })) } : null)}
+                                                            images={Array.isArray(report?.images) ? report.images.filter(Boolean) : []}
+                                                            evidence={getEvidenceFallback(report)}
                                                             isOwner={true}
                                                             variant="stacked"
                                                             onViewImage={(item) => setViewerItem(item)}
@@ -775,10 +838,10 @@ function MyReportsPage() {
                                                     </div>
 
                                                     {/* 5. Incident Activity Log */}
-                                                    <div aria-labelledby={`activity-heading-${report._id}`}>
+                                                    <div aria-labelledby={`activity-heading-${reportId}`}>
                                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                             <h4
-                                                                id={`activity-heading-${report._id}`}
+                                                                id={`activity-heading-${reportId}`}
                                                                 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
                                                             >
                                                                 Activity
@@ -786,7 +849,7 @@ function MyReportsPage() {
                                                             {!isClosed ? (
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setUpdateDialogReportId(report._id)}
+                                                                    onClick={() => setUpdateDialogReportId(reportId)}
                                                                     className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-700 px-3 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-9 dark:bg-brand-600 dark:hover:bg-brand-500"
                                                                 >
                                                                     Send situation update
@@ -800,7 +863,7 @@ function MyReportsPage() {
                                                         <div>
                                                             <ReportActivityTimeline
                                                                 report={report}
-                                                                highlightedUpdateId={highlightedUpdates[report._id]}
+                                                                highlightedUpdateId={highlightedUpdates[reportId]}
                                                             />
                                                         </div>
                                                     </div>
@@ -822,12 +885,12 @@ function MyReportsPage() {
                 filterStatus={filterStatus}
                 onApplyFilter={(status) => setFilterStatus(status)}
                 counts={counts}
-                totalReports={reports.length}
+                totalReports={Array.isArray(reports) ? reports.length : 0}
             />
 
             <SituationUpdateDialog
                 isOpen={Boolean(updateDialogReportId)}
-                report={reports.find((report) => report._id === updateDialogReportId) || null}
+                report={(Array.isArray(reports) ? reports : []).filter(Boolean).find((report) => String(report?._id ?? report?.id) === String(updateDialogReportId)) || null}
                 submitting={submittingUpdateId === updateDialogReportId}
                 onClose={() => setUpdateDialogReportId(null)}
                 onSubmit={(update) => handleSubmitUpdate(updateDialogReportId, update)}

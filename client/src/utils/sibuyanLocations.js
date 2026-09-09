@@ -70,8 +70,8 @@ export const getAvailableBarangays = (municipality = 'all', dynamicLocations = [
 
     if (Array.isArray(reports)) {
         reports.forEach((r) => {
-            const b = r.barangay?.trim();
-            if (b && (municipality === 'all' || r.municipalityName === municipality)) {
+            const b = r?.barangay?.trim();
+            if (b && (municipality === 'all' || r?.municipalityName === municipality)) {
                 set.add(b);
             }
         });

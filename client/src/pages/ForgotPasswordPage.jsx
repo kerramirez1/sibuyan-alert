@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
 import api from '../services/api';
 import toast from '../utils/appToast';
@@ -12,6 +12,11 @@ const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => () => {
+        isMountedRef.current = false;
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -21,20 +26,27 @@ const ForgotPasswordPage = () => {
             return;
         }
 
+        if (loading) return;
         setLoading(true);
 
         try {
             const response = await api.post('/auth/forgot-password', { email });
 
-            if (response.data.success) {
+            if (response?.data?.success) {
+                if (!isMountedRef.current) return;
                 setSent(true);
                 toast.success('Password reset link sent to your email!');
+            } else {
+                const message = response?.data?.message != null && response.data.message !== ''
+                    ? String(response.data.message)
+                    : 'Failed to send reset link';
+                toast.error(message);
             }
         } catch (error) {
             const message = error.response?.data?.message || 'Failed to send reset link';
             toast.error(message);
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) setLoading(false);
         }
     };
 

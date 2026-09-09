@@ -6,7 +6,7 @@ const OPERATIONAL_ROLES = new Set(['municipal_admin', 'responder', 'admin', 'sys
 const getReportId = (report) => {
     if (!report) return '';
     if (typeof report === 'string') return report;
-    return report._id || report.id || '';
+    return report?._id || report?.id || '';
 };
 
 const getEvidenceCount = (report) => {
@@ -150,7 +150,7 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
             if (!isCurrentRequest()) return;
 
             const loadedReport = response.data?.data;
-            if (!loadedReport) throw new Error('Incident detail response is empty');
+            if (!loadedReport || typeof loadedReport !== 'object' || Array.isArray(loadedReport)) throw new Error('Incident detail response is empty');
             const normalizedReport = {
                 ...loadedReport,
                 evidenceCount: getEvidenceCount(loadedReport),
@@ -201,7 +201,7 @@ const useOperationalIncidentDetails = (report, viewerRole = 'guest') => {
 
     const resolvedReport = useMemo(() => {
         if (!report && !state.extraDetails) return null;
-        const base = (typeof report === 'object' && report !== null) ? report : { _id: reportId };
+        const base = (typeof report === 'object' && report !== null && !Array.isArray(report)) ? report : { _id: reportId };
         if (!state.extraDetails || getReportId(state.extraDetails) !== reportId) {
             const copy = { ...base };
             if (!isOperationalViewer && !isOwnerViewer) {

@@ -77,7 +77,7 @@ const AdminReportsPage = () => {
         if (user?.role !== 'responder' || !report?._id) return;
         const params = new URLSearchParams({
             view: RESPONDER_QUEUE_VIEWS[view],
-            report: String(report._id),
+            report: String(report?._id),
         });
         navigate(`/admin/reports?${params.toString()}`);
     }, [navigate, user?.role]);
@@ -117,12 +117,13 @@ const AdminReportsPage = () => {
     }), [actions, handleOpenReview, handleOpenTransfer]);
 
     const openMap = useCallback((report) => {
+        if (!report?._id) return;
         const coordinates = getCoordinates(report);
         if (!coordinates) return;
         reportState.setSelectedReport(null);
         const params = new URLSearchParams({
             view: 'map',
-            report: String(report._id),
+            report: String(report?._id),
         });
         const returnView = RESPONDER_QUEUE_VIEWS[responderView];
         if (returnView) params.set('returnView', returnView);
@@ -144,7 +145,7 @@ const AdminReportsPage = () => {
                 responderView={responderView}
                 onResponderViewChange={changeResponderView}
                 stats={reportState.stats}
-                resultCount={reportState.pagination.total}
+                resultCount={reportState.pagination?.total ?? 0}
                 lastUpdatedAt={reportState.lastUpdatedAt}
                 status={reportState.status}
                 setStatus={reportState.setStatus}

@@ -95,6 +95,11 @@ const getEventMarker = (notification) => {
 };
 
 const getNotificationId = (notification) => notification?._id || notification?.id;
+const getCachedNotifications = (cached) => {
+    if (Array.isArray(cached)) return cached;
+    const list = cached?.notifications;
+    return Array.isArray(list) ? list : [];
+};
 const getNotificationDate = (value) => {
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime()) ? date : null;
@@ -105,7 +110,7 @@ const NotificationsPage = () => {
     // Session-scoped key: the whole cache is wiped on logout/session-expiry,
     // so entries can never leak across accounts.
     const cacheKey = 'notifications:list:50';
-    const [notifications, setNotifications] = useState(() => getStaleData(cacheKey)?.notifications || []);
+    const [notifications, setNotifications] = useState(() => getCachedNotifications(getStaleData(cacheKey)));
     const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
     const [error, setError] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
@@ -116,17 +121,20 @@ const NotificationsPage = () => {
         setError('');
         const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.notifications);
         if (fresh) {
-            setNotifications(Array.isArray(fresh.notifications) ? fresh.notifications : []);
-            if (Number.isFinite(fresh.unreadCount)) setUnreadCount(fresh.unreadCount);
+            setNotifications(getCachedNotifications(fresh));
+            if (Number.isFinite(fresh?.unreadCount)) setUnreadCount(fresh.unreadCount);
             setLoading(false);
             return;
         }
         const stale = getStaleData(cacheKey);
         if (!stale) setLoading(true);
         try {
+            // Pagination is intentionally capped at the latest 50 items for this inbox view.
+            // The backend still owns full history; expand to cursor pagination if volume grows.
             const response = await notificationsAPI.getAll({ limit: 50 });
             const data = response.data?.data || {};
-            const nextNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+            const rawList = Array.isArray(data?.notifications) ? data.notifications : [];
+            const nextNotifications = rawList.slice(0, 50);
             setNotifications(nextNotifications);
             if (Number.isFinite(data.unreadCount)) setUnreadCount(data.unreadCount);
             setCachedData(cacheKey, { notifications: nextNotifications, unreadCount: data.unreadCount });
@@ -147,9 +155,11 @@ const NotificationsPage = () => {
     useEffect(() => subscribe('notification', (notification) => {
         const incomingId = getNotificationId(notification);
         setNotifications((current) => {
-            if (current.some((item) => getNotificationId(item) === incomingId)) return current;
-            const next = [notification, ...current];
-            setCachedData(cacheKey, { notifications: next });
+            if (incomingId != null && current.some((item, idx) => (getNotificationId(item) ?? idx) === incomingId)) return current;
+            const next = [notification, ...current].slice(0, 50);
+            const prevCached = getStaleData(cacheKey);
+            const prevUnreadCount = Array.isArray(prevCached) ? undefined : prevCached?.unreadCount;
+            setCachedData(cacheKey, { notifications: next, unreadCount: prevUnreadCount });
             return next;
         });
     }), [cacheKey, subscribe]);
@@ -324,9 +334,13 @@ const NotificationsPage = () => {
                             const marker = getEventMarker(notification);
                             const notificationId = getNotificationId(notification) || `${notification?.type || 'notification'}-${index}`;
                             const createdAt = getNotificationDate(notification?.createdAt);
-                            const address = notification?.data?.address;
+                            const rawAddress = notification?.data?.address;
+                            const address = rawAddress != null && rawAddress !== '' ? String(rawAddress) : '';
                             const title = cleanNotificationTitle(notification?.title);
-                            const message = notification?.data?.updatePreview || cleanNotificationMessage(notification?.message);
+                            const rawPreview = notification?.data?.updatePreview;
+                            const message = rawPreview != null && rawPreview !== ''
+                                ? String(rawPreview)
+                                : cleanNotificationMessage(String(notification?.message || ''));
 
                             return (
                                 <li key={notificationId}>

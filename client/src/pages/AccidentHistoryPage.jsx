@@ -31,6 +31,7 @@ import {
     isBarangayInMunicipality,
     SIBUYAN_MUNICIPALITY_NAMES,
 } from '../utils/sibuyanLocations';
+import { fetchAllReportPages } from '../utils/dashboardReports';
 
 const SEVERITY_CONFIG = {
     minor: {
@@ -299,9 +300,15 @@ const AccidentHistoryPage = () => {
     // Role-scoped archive key: admins fetch full details, everyone else the
     // public projection. Session-scoped (wiped on logout), so no leakage.
     const historyCacheKey = `accident-history:${canViewFullDetails ? 'full' : 'public'}`;
-    const [reports, setReports] = useState(() => getStaleData(historyCacheKey) || []);
+    const [reports, setReports] = useState(() => {
+        const cached = getStaleData(historyCacheKey);
+        return Array.isArray(cached) ? cached : [];
+    });
     const [municipalitiesData, setMunicipalitiesData] = useState([]);
-    const [loading, setLoading] = useState(() => getStaleData(historyCacheKey) === null);
+    const [loading, setLoading] = useState(() => {
+        const cached = getStaleData(historyCacheKey);
+        return cached == null || !Array.isArray(cached);
+    });
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState(() => normalizeDateFilter(requestedDateFilter));
     const [severityFilter, setSeverityFilter] = useState('all');
@@ -326,8 +333,8 @@ const AccidentHistoryPage = () => {
                 .then((response) => {
                     const viewCount = response.data?.data?.viewCount;
                     if (Number.isFinite(viewCount)) {
-                        setReports((currentReports) => currentReports.map((item) => (
-                            item._id === report._id ? { ...item, viewCount } : item
+                        setReports((currentReports) => (Array.isArray(currentReports) ? currentReports : []).map((item) => (
+                            item?._id === report?._id ? { ...item, viewCount } : item
                         )));
                     }
                 })
@@ -348,21 +355,23 @@ const AccidentHistoryPage = () => {
     const fetchReports = useCallback(async (silent = false) => {
         if (!silent) {
             const fresh = getCachedData(historyCacheKey, QUERY_CACHE_TTLS.accidentHistory);
-            if (fresh) {
+            if (Array.isArray(fresh)) {
                 setReports(fresh);
                 setLoading(false);
                 return;
             }
             const stale = getStaleData(historyCacheKey);
-            if (stale) setReports(stale);
+            if (Array.isArray(stale)) setReports(stale);
             else setLoading(true);
         }
         try {
-            const response = canViewFullDetails
-                ? await adminAPI.getReports({ limit: 500, status: 'resolved' })
-                : await reportsAPI.getAll({ limit: 500, status: 'resolved' });
-            const rows = response.data?.data?.reports || [];
-            const nextReports = rows.filter((report) => report.status === 'resolved');
+            const fetchPage = canViewFullDetails
+                ? (pageParams) => adminAPI.getReports({ status: 'resolved', ...pageParams })
+                : (pageParams) => reportsAPI.getAll({ status: 'resolved', ...pageParams });
+            const rows = await fetchAllReportPages(fetchPage, { status: 'resolved' }, 250);
+            const nextReports = (Array.isArray(rows) ? rows : [])
+                .filter(Boolean)
+                .filter((report) => report?.status === 'resolved');
             setReports(nextReports);
             setCachedData(historyCacheKey, nextReports);
         } catch (error) {
@@ -420,7 +429,7 @@ const AccidentHistoryPage = () => {
         const unsubscribeResolved = subscribe('reportResolved', () => fetchReports(true));
         const unsubscribeDeleted = subscribe('reportDeleted', (data) => {
             if (!data?.id) return;
-            setReports((current) => current.filter((report) => report._id !== data.id));
+            setReports((current) => (Array.isArray(current) ? current : []).filter((report) => String(report?._id) !== String(data.id)));
         });
         return () => {
             unsubscribeResolved();
@@ -430,8 +439,10 @@ const AccidentHistoryPage = () => {
 
     const municipalities = useMemo(() => {
         const set = new Set(SIBUYAN_MUNICIPALITY_NAMES);
-        municipalitiesData.forEach((m) => { if (m.name) set.add(m.name); });
-        reports.forEach((report) => { if (report.municipalityName) set.add(report.municipalityName); });
+        const locationRows = Array.isArray(municipalitiesData) ? municipalitiesData : [];
+        const reportRows = Array.isArray(reports) ? reports : [];
+        locationRows.forEach((m) => { if (m?.name) set.add(m.name); });
+        reportRows.filter(Boolean).forEach((report) => { if (report?.municipalityName) set.add(report.municipalityName); });
         return [...set].sort((a, b) => a.localeCompare(b));
     }, [reports, municipalitiesData]);
 
@@ -479,27 +490,30 @@ const AccidentHistoryPage = () => {
     }, [municipalityFilter, barangayFilter, municipalitiesData, reports]);
 
     const filteredReports = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
+        const query = (searchQuery ?? '').trim().toLowerCase();
         const cutoff = getRangeCutoff(dateFilter);
+        const source = Array.isArray(reports) ? reports : [];
 
-        return reports
+        return source
+            .filter(Boolean)
             .filter((report) => {
+                if (!report || typeof report !== 'object') return false;
                 if (query) {
                     const searchable = [
-                        report.address,
-                        report.barangay,
-                        report.municipalityName,
-                        report.incidentType,
-                        report.description,
+                        report?.address,
+                        report?.barangay,
+                        report?.municipalityName,
+                        report?.incidentType,
+                        report?.description,
                     ].filter(Boolean).join(' ').toLowerCase();
                     if (!searchable.includes(query)) return false;
                 }
                 const resolvedDate = getResolvedDate(report);
                 if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
                 if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
-                if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
-                if (municipalityFilter !== 'all' && report.municipalityName !== municipalityFilter) return false;
-                if (barangayFilter !== 'all' && report.barangay !== barangayFilter) return false;
+                if (severityFilter !== 'all' && report?.severity !== severityFilter) return false;
+                if (municipalityFilter !== 'all' && report?.municipalityName !== municipalityFilter) return false;
+                if (barangayFilter !== 'all' && report?.barangay !== barangayFilter) return false;
                 return true;
             })
             .sort((a, b) => {
@@ -511,25 +525,27 @@ const AccidentHistoryPage = () => {
 
     // Top Barangay calculation within current search/date/severity/municipality scope
     const topBarangayScopeReports = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
+        const query = (searchQuery ?? '').trim().toLowerCase();
         const cutoff = getRangeCutoff(dateFilter);
+        const source = Array.isArray(reports) ? reports : [];
 
-        return reports.filter((report) => {
+        return source.filter(Boolean).filter((report) => {
+            if (!report || typeof report !== 'object') return false;
             if (query) {
                 const searchable = [
-                    report.address,
-                    report.barangay,
-                    report.municipalityName,
-                    report.incidentType,
-                    report.description,
+                    report?.address,
+                    report?.barangay,
+                    report?.municipalityName,
+                    report?.incidentType,
+                    report?.description,
                 ].filter(Boolean).join(' ').toLowerCase();
                 if (!searchable.includes(query)) return false;
             }
             const resolvedDate = getResolvedDate(report);
             if (dateFilter === 'today' && !isSameManilaCalendarDay(resolvedDate)) return false;
             if (cutoff && !isAfter(new Date(resolvedDate), cutoff)) return false;
-            if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
-            if (municipalityFilter !== 'all' && report.municipalityName !== municipalityFilter) return false;
+            if (severityFilter !== 'all' && report?.severity !== severityFilter) return false;
+            if (municipalityFilter !== 'all' && report?.municipalityName !== municipalityFilter) return false;
             return true;
         });
     }, [reports, searchQuery, dateFilter, severityFilter, municipalityFilter]);
@@ -539,10 +555,10 @@ const AccidentHistoryPage = () => {
         const barangayToMunicipality = {};
 
         topBarangayScopeReports.forEach((report) => {
-            const b = report.barangay?.trim();
+            const b = report?.barangay?.trim();
             if (!b) return;
             counts[b] = (counts[b] || 0) + 1;
-            if (report.municipalityName && !barangayToMunicipality[b]) {
+            if (report?.municipalityName && !barangayToMunicipality[b]) {
                 barangayToMunicipality[b] = report.municipalityName;
             }
         });
@@ -585,10 +601,11 @@ const AccidentHistoryPage = () => {
 
     const stats = useMemo(() => {
         const now = new Date();
+        const source = Array.isArray(reports) ? reports : [];
         return {
-            total: reports.length,
-            last7: reports.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 7))).length,
-            last30: reports.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 30))).length,
+            total: source.length,
+            last7: source.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 7))).length,
+            last30: source.filter((report) => isAfter(new Date(getResolvedDate(report)), subDays(now, 30))).length,
         };
     }, [reports]);
 
@@ -943,8 +960,8 @@ const AccidentHistoryPage = () => {
 
                         <div className="rounded-b-lg overflow-hidden divide-y divide-gray-100 dark:divide-white/5">
                             {filteredReports.map((report) => {
-                                const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG.moderate;
-                                const isExpanded = Boolean(expandedId && String(expandedId) === String(report._id));
+                                const severity = SEVERITY_CONFIG[report?.severity] || SEVERITY_CONFIG.moderate;
+                                const isExpanded = Boolean(expandedId && String(expandedId) === String(report?._id));
                                 const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
                                 const resolvedDate = getResolvedDate(report);
                                 const dossierInjured = Number(report.casualties?.injured || 0);

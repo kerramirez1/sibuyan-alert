@@ -56,8 +56,23 @@ const ReportPage = () => {
 
     const validate = () => {
         const newErrors = {};
-        if (!formData.incidentTime) newErrors.incidentTime = 'Accident time is required';
-        if (!selectedLocation && !formData.address.trim()) newErrors.location = 'Please select a location on the map or enter an address';
+        const incidentTimeRaw = typeof formData.incidentTime === 'string'
+            ? formData.incidentTime.trim()
+            : formData.incidentTime;
+        if (!incidentTimeRaw) {
+            newErrors.incidentTime = 'Accident time is required';
+        } else {
+            const parsedTime = new Date(incidentTimeRaw);
+            if (Number.isNaN(parsedTime.getTime())) {
+                newErrors.incidentTime = 'Accident time is invalid';
+            } else if (parsedTime.getTime() > Date.now()) {
+                newErrors.incidentTime = 'Accident time cannot be in the future';
+            }
+        }
+        const addressRaw = typeof formData.address === 'string'
+            ? formData.address.trim()
+            : String(formData.address ?? '').trim();
+        if (!selectedLocation && !addressRaw) newErrors.location = 'Please select a location on the map or enter an address';
         if (locationStatus === 'confirming') newErrors.location = 'Confirm the GPS position or choose another location before submitting';
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) {
@@ -67,18 +82,33 @@ const ReportPage = () => {
     };
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const { name, value } = e?.target ?? {};
+        if (typeof name !== 'string' || !name) return;
         if (name.includes('.')) {
-            const [parent, child] = name.split('.');
-            setFormData(prev => ({
-                ...prev,
-                [parent]: { ...prev[parent], [child]: parseInt(value) || 0 },
-            }));
+            const parts = name.split('.');
+            if (parts.length !== 2) return;
+            const [parent, child] = parts;
+            if (!parent || !child) return;
+            setFormData(prev => {
+                const parentValue = prev?.[parent];
+                if (!parentValue || typeof parentValue !== 'object' || Array.isArray(parentValue)) return prev;
+                const parsed = parseInt(value, 10);
+                const safe = Number.isFinite(parsed) ? Math.min(999, Math.max(0, parsed)) : 0;
+                return {
+                    ...prev,
+                    [parent]: { ...parentValue, [child]: safe },
+                };
+            });
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => {
+                const existing = prev?.[name];
+                if (existing !== null && typeof existing === 'object') return prev;
+                return { ...prev, [name]: value };
+            });
         }
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-        if (name === 'address' && value.trim() && errors.location) {
+        const addressValue = typeof value === 'string' ? value.trim() : '';
+        if (name === 'address' && addressValue && errors.location) {
             setErrors(prev => ({ ...prev, location: '' }));
         }
     };
@@ -204,7 +234,7 @@ const ReportPage = () => {
             locationTimeoutRef.current = null;
             locationDetectionActiveRef.current = false;
             setGeoLoading(false);
-            if (bestAccuracy === Infinity) {
+            if (!bestLocation) {
                 toast.error('Could not determine location. Please search or pin manually.', { id: LOCATION_TOAST_ID });
                 setLocationStatus('idle');
             } else {
@@ -228,9 +258,14 @@ const ReportPage = () => {
         watchIdRef.current = geolocation.watchPosition(
             (position) => {
                 if (locationRequestRef.current !== requestId) return;
-                const { latitude, longitude, accuracy } = position.coords;
-                if (accuracy < bestAccuracy || bestAccuracy === Infinity) {
-                    bestAccuracy = accuracy;
+                const coords = position?.coords;
+                if (!coords) return;
+                const { latitude, longitude } = coords;
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+                const accuracy = Number.isFinite(coords?.accuracy) ? coords.accuracy : null;
+                if (bestLocation !== null && accuracy !== null && accuracy >= bestAccuracy) return;
+                {
+                    if (accuracy !== null) bestAccuracy = accuracy;
                     setGpsAccuracy(accuracy);
                     const location = { lat: latitude, lng: longitude };
                     bestLocation = location;
@@ -238,11 +273,11 @@ const ReportPage = () => {
                     setSelectedLocation(location);
                     setFocusLocation({
                         ...location,
-                        zoom: accuracy < 100 ? OPERATIONAL_MAX_ZOOM : 14,
+                        zoom: accuracy !== null && accuracy < 100 ? OPERATIONAL_MAX_ZOOM : 14,
                     });
                     setLocationCapture(buildLocationCapture('gps', accuracy));
                     setErrors(prev => ({ ...prev, location: '' }));
-                    if (accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
+                    if (accuracy !== null && accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
                         toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
                         if (watchIdRef.current !== null) {
                             geolocation?.clearWatch(watchIdRef.current);
@@ -257,14 +292,17 @@ const ReportPage = () => {
                         setLocationStatus('confirming');
                         void resolveLocationLabels(location, 'GPS located in');
                     } else {
-                        toast.loading(`Refining... (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
+                        toast.loading(
+                            accuracy !== null ? `Refining... (${Math.round(accuracy)}m)` : 'Refining... (accuracy unavailable)',
+                            { id: LOCATION_TOAST_ID },
+                        );
                     }
                 }
             },
             (error) => {
                 if (locationRequestRef.current !== requestId) return;
                 console.error('Geolocation error:', error);
-                if (bestAccuracy === Infinity) {
+                if (!bestLocation && bestAccuracy === Infinity) {
                     let errorMessage = 'Location error. Please pin manually.';
                     const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext : true;
                     if (!isSecureContext) {
@@ -382,6 +420,12 @@ const ReportPage = () => {
                 .map((file, index) => ({ file, preview: previewResults[index] }))
                 .filter((entry) => typeof entry.preview === 'string');
 
+            if (!paired.length) {
+                toast.error('Could not prepare some photos. Please try again.');
+                e.target.value = '';
+                return;
+            }
+
             setImages((prev) => [...prev, ...paired.map((entry) => entry.file)]);
             setImagePreviews((prev) => [...prev, ...paired.map((entry) => entry.preview)]);
         } catch {
@@ -414,9 +458,13 @@ const ReportPage = () => {
             submitData.append('description', formData.description);
             submitData.append('incidentTime', formData.incidentTime);
             submitData.append('severity', formData.severity);
-            if (selectedLocation) {
-                submitData.append('lat', selectedLocation.lat);
-                submitData.append('lng', selectedLocation.lng);
+            const submitLat = Number(selectedLocation?.lat);
+            const submitLng = Number(selectedLocation?.lng);
+            if (selectedLocation && Number.isFinite(submitLat) && Number.isFinite(submitLng)) {
+                submitData.append('lat', submitLat);
+                submitData.append('lng', submitLng);
+            } else {
+                // Address-only path: omit coordinates explicitly; validate() already ensures an address exists.
             }
             if (locationCapture) {
                 submitData.append('locationSource', locationCapture.source);

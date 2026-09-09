@@ -54,6 +54,11 @@ const RegisterPage = () => {
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
     const cameraRequestIdRef = useRef(0);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => () => {
+        isMountedRef.current = false;
+    }, []);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -84,7 +89,8 @@ const RegisterPage = () => {
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const currentStep = REGISTRATION_STEPS[step - 1];
+    const safeStep = Math.min(Math.max(step, 1), REGISTRATION_STEPS.length);
+    const currentStep = REGISTRATION_STEPS[safeStep - 1];
 
     const stopCamera = useCallback(() => {
         cameraRequestIdRef.current += 1;
@@ -120,6 +126,7 @@ const RegisterPage = () => {
         context.setTransform(1, 0, 0, 1, 0, 0);
 
         canvas.toBlob((blob) => {
+            if (!isMountedRef.current) return;
             if (!blob) {
                 setCameraError('The photo could not be captured. Try again.');
                 return;
@@ -146,20 +153,23 @@ const RegisterPage = () => {
     });
 
     const loadLocations = useCallback(async () => {
+        if (!isMountedRef.current) return;
         setLocationsLoading(true);
         setLocationsError('');
         try {
             const response = await reportsAPI.getMunicipalities();
-            const records = response.data?.data;
+            const records = response?.data?.data;
             if (!Array.isArray(records) || records.length === 0) {
                 throw new Error('No municipality records returned');
             }
+            if (!isMountedRef.current) return;
             setMunicipalities(records);
         } catch (error) {
             console.error('Unable to load registration locations:', error);
+            if (!isMountedRef.current) return;
             setLocationsError('Municipality and barangay options could not be loaded.');
         } finally {
-            setLocationsLoading(false);
+            if (isMountedRef.current) setLocationsLoading(false);
         }
     }, []);
 
@@ -202,7 +212,7 @@ const RegisterPage = () => {
 
     const selectedBarangays = useMemo(() => {
         const municipality = municipalities.find((item) => item.name === formData.municipality);
-        return municipality?.barangays || [];
+        return Array.isArray(municipality?.barangays) ? municipality.barangays : [];
     }, [formData.municipality, municipalities]);
 
     const startCamera = useCallback(async () => {
@@ -279,6 +289,7 @@ const RegisterPage = () => {
                 subject: 'selfie',
                 fallbackName: 'selfie',
             });
+            if (!isMountedRef.current) return;
             stopCamera();
             if (selfiePreview) URL.revokeObjectURL(selfiePreview);
             setSelfieBlob(prepared.file);
@@ -287,22 +298,23 @@ const RegisterPage = () => {
             setSelfieAccepted(false);
             setCaptureAnnouncement('Selfie selected. Review the preview, then choose Use this photo.');
         } catch (error) {
+            if (!isMountedRef.current) return;
             input.value = '';
             setErrors((current) => ({
                 ...current,
-                selfie: error.message || 'The selfie could not be prepared.',
+                selfie: error?.message ?? String(error ?? 'The selfie could not be prepared.'),
             }));
         } finally {
-            setSelfiePreparing(false);
+            if (isMountedRef.current) setSelfiePreparing(false);
         }
     };
 
     const validate = () => {
         const nextErrors = {};
-        if (step === 1) {
-            if (!formData.name.trim()) nextErrors.name = 'Enter your full name.';
+        if (safeStep === 1) {
+            if (!String(formData.name ?? '').trim()) nextErrors.name = 'Enter your full name.';
             if (!formData.email) nextErrors.email = 'Enter your email address.';
-            else if (!/\S+@\S+\.\S+/.test(formData.email)) nextErrors.email = 'Enter a valid email address.';
+            else if (!/\S+@\S+\.\S+/.test(String(formData.email ?? ''))) nextErrors.email = 'Enter a valid email address.';
             if (!formData.password) nextErrors.password = 'Create a password.';
             else if (!isPasswordPolicyCompliant(formData.password)) nextErrors.password = PASSWORD_POLICY_MESSAGE;
             if (!formData.confirmPassword) nextErrors.confirmPassword = 'Confirm your password.';
@@ -310,8 +322,8 @@ const RegisterPage = () => {
             if (!formData.municipality) nextErrors.municipality = 'Select your municipality.';
             if (!formData.barangay) nextErrors.barangay = 'Select your barangay.';
         }
-        if (step === 2 && !idFile) nextErrors.idDocument = 'Upload a valid identification document.';
-        if (step === 3 && (!selfieBlob || !selfieAccepted)) {
+        if (safeStep === 2 && !idFile) nextErrors.idDocument = 'Upload a valid identification document.';
+        if (safeStep === 3 && (!selfieBlob || !selfieAccepted)) {
             nextErrors.selfie = selfieBlob
                 ? 'Review the selfie and select Use this photo before submitting.'
                 : 'Take or choose a selfie before submitting.';
@@ -337,12 +349,12 @@ const RegisterPage = () => {
 
     const handleNext = () => {
         if (!validate()) return;
-        setStep(step + 1);
+        setStep((current) => Math.min(Math.max(current + 1, 1), REGISTRATION_STEPS.length));
         setErrors({});
     };
 
     const handleBack = () => {
-        if (step === 3) stopCamera();
+        if (safeStep === 3) stopCamera();
         setErrors({});
         setStep((current) => Math.max(1, current - 1));
     };
@@ -355,18 +367,20 @@ const RegisterPage = () => {
         setErrors((current) => ({ ...current, idDocument: '', form: '' }));
         try {
             const prepared = await prepareIdentityImage(file);
+            if (!isMountedRef.current) return;
             if (idPreview) URL.revokeObjectURL(idPreview);
             setIdFile(prepared.file);
             setIdPreview(URL.createObjectURL(prepared.file));
             setIdSource(source);
         } catch (error) {
+            if (!isMountedRef.current) return;
             input.value = '';
             setErrors((current) => ({
                 ...current,
-                idDocument: error.message || 'The ID photo could not be prepared.',
+                idDocument: error?.message ?? String(error ?? 'The ID photo could not be prepared.'),
             }));
         } finally {
-            setIdPreparing(false);
+            if (isMountedRef.current) setIdPreparing(false);
         }
     };
 
@@ -394,24 +408,30 @@ const RegisterPage = () => {
         stopCamera();
         setErrors({});
         const submitData = new FormData();
-        submitData.append('name', formData.name.trim());
-        submitData.append('email', formData.email.trim());
+        submitData.append('name', String(formData.name ?? '').trim());
+        submitData.append('email', String(formData.email ?? '').trim());
         submitData.append('password', formData.password);
         submitData.append('municipality', formData.municipality);
         submitData.append('barangay', formData.barangay);
-        submitData.append('idDocument', idFile);
-        submitData.append('selfiePhoto', new File([selfieBlob], 'selfie.jpg', { type: 'image/jpeg' }));
+        if (idFile) submitData.append('idDocument', idFile);
+        if (selfieBlob) submitData.append('selfiePhoto', new File([selfieBlob], 'selfie.jpg', { type: 'image/jpeg' }));
 
         try {
             const result = await register(submitData);
+            if (!isMountedRef.current) return;
             if (!result?.success) {
-                setErrors({ form: result?.message || 'Registration could not be completed.' });
+                const formMessage = result?.message != null && result.message !== ''
+                    ? String(result.message)
+                    : 'Registration could not be completed.';
+                setErrors({ form: formMessage });
             }
         } catch (error) {
             console.error('Registration error:', error);
-            setErrors({ form: 'Registration could not be completed. Please try again.' });
+            if (!isMountedRef.current) return;
+            const formMessage = error?.message ?? String(error ?? 'Registration could not be completed. Please try again.');
+            setErrors({ form: formMessage || 'Registration could not be completed. Please try again.' });
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) setLoading(false);
         }
     };
 
@@ -451,14 +471,14 @@ const RegisterPage = () => {
             </header>
 
             {/* Linear-Style Segmented Progress Indicator */}
-            <p className="sr-only" aria-live="polite">{`Step ${step} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
+            <p className="sr-only" aria-live="polite">{`Step ${safeStep} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
             <div className="mb-6 border-b border-gray-200/80 pb-4 dark:border-white/10" aria-label="Registration progress">
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-bold uppercase tracking-wider text-brand-800 dark:text-sky-400">
-                        Step {step} of {REGISTRATION_STEPS.length}: {currentStep.label}
+                        Step {safeStep} of {REGISTRATION_STEPS.length}: {currentStep.label}
                     </p>
                     <span className="font-mono text-xs font-semibold text-gray-400 dark:text-gray-500">
-                        {Math.round((step / REGISTRATION_STEPS.length) * 100)}%
+                        {Math.round((safeStep / REGISTRATION_STEPS.length) * 100)}%
                     </span>
                 </div>
                 {/* Segmented bar */}
@@ -466,7 +486,7 @@ const RegisterPage = () => {
                     {REGISTRATION_STEPS.map((s, idx) => (
                         <div
                             key={s.label}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${idx + 1 <= step
+                            className={`h-1.5 rounded-full transition-all duration-300 ${idx + 1 <= safeStep
                                 ? 'bg-brand-700 dark:bg-brand-500'
                                 : 'bg-gray-200 dark:bg-white/10'
                             }`}
@@ -477,7 +497,7 @@ const RegisterPage = () => {
 
             {/* Main Form Container */}
             <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8" noValidate>
-                {step === 1 && (
+                {safeStep === 1 && (
                     <section aria-labelledby="account-step-title" className="space-y-4">
                         <div className="border-b border-gray-200/80 pb-2.5 dark:border-white/10">
                             <h2 id="account-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Account Information</h2>
@@ -567,7 +587,7 @@ const RegisterPage = () => {
                     </section>
                 )}
 
-                {step === 2 && (
+                {safeStep === 2 && (
                     <section aria-labelledby="id-step-title" className="space-y-4">
                         <div>
                             <h2 id="id-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Upload your ID</h2>
@@ -646,7 +666,7 @@ const RegisterPage = () => {
                     </section>
                 )}
 
-                {step === 3 && (
+                {safeStep === 3 && (
                     <section aria-labelledby="face-step-title" className="space-y-4">
                         <div>
                             <h2 id="face-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Camera preview</h2>

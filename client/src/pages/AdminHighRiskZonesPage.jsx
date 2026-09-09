@@ -67,7 +67,7 @@ const AdminHighRiskZonesPage = () => {
     const locationAbortRef = useRef(null);
 
     const canManageZone = (zone) => (
-        !user?.assignedMunicipality || zone?.municipality === user.assignedMunicipality
+        !user?.assignedMunicipality || zone?.municipality === user?.assignedMunicipality
     );
 
     const handleLocationSelect = async (location) => {
@@ -154,7 +154,7 @@ const AdminHighRiskZonesPage = () => {
             requestId: `${Date.now()}-${focusRequestSequenceRef.current}`,
             ...(entity ? {
                 type: 'risk-zone',
-                entityId: String(entity._id || entity.id || ''),
+                entityId: String(entity?._id || entity?.id || ''),
                 entity,
             } : {}),
         });
@@ -212,7 +212,7 @@ const AdminHighRiskZonesPage = () => {
 
     const removePhoto = (index) => {
         const target = photoPreviews[index];
-        if (target?.isNew && target.url.startsWith('blob:')) {
+        if (target?.isNew && target?.url?.startsWith('blob:')) {
             URL.revokeObjectURL(target.url);
         }
         setPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -264,10 +264,15 @@ const AdminHighRiskZonesPage = () => {
             formDataToSend.append('severity', formData.severity);
             formDataToSend.append('radius', String(formData.radius));
             formDataToSend.append('municipality', formData.municipality);
-            formDataToSend.append(
-                'coordinates',
-                JSON.stringify(selectedLocation || editingZone?.coordinates)
-            );
+            const coordinatesToSend = selectedLocation || editingZone?.coordinates;
+            const coordsLat = Number(coordinatesToSend?.lat);
+            const coordsLng = Number(coordinatesToSend?.lng);
+            if (coordinatesToSend && Number.isFinite(coordsLat) && Number.isFinite(coordsLng)) {
+                formDataToSend.append(
+                    'coordinates',
+                    JSON.stringify({ lat: coordsLat, lng: coordsLng })
+                );
+            }
 
             // Append reference photos
             photos.forEach((file) => {
@@ -295,43 +300,48 @@ const AdminHighRiskZonesPage = () => {
     };
 
     const handleEdit = (zone) => {
+        if (!zone) return;
         if (!canManageZone(zone)) {
             toast.error('You can view this zone but only its assigned municipality may manage it.');
             return;
         }
         setEditingZone(zone);
         setFormData({
-            name: zone.name,
-            description: zone.description || '',
-            type: zone.type,
-            severity: zone.severity,
-            radius: zone.radius,
-            municipality: zone.municipality,
+            name: zone?.name || '',
+            description: zone?.description || '',
+            type: zone?.type || 'accident_prone',
+            severity: zone?.severity || 'medium',
+            radius: zone?.radius || 100,
+            municipality: zone?.municipality || user?.assignedMunicipality || MUNICIPALITIES[0],
         });
-        if (zone.photos && zone.photos.length > 0) {
+        if (Array.isArray(zone?.photos) && zone.photos.length > 0) {
             setPhotoPreviews(
-                zone.photos.map((p) => ({ url: p.url, isNew: false, filename: p.filename }))
+                zone.photos.filter(Boolean).map((p) => ({ url: p?.url, isNew: false, filename: p?.filename }))
             );
-            setPhotos(zone.photos);
+            setPhotos(zone.photos.filter(Boolean));
         } else {
             setPhotos([]);
             setPhotoPreviews([]);
         }
-        setSelectedLocation(zone.coordinates);
+        const editLat = Number(zone?.coordinates?.lat);
+        const editLng = Number(zone?.coordinates?.lng);
+        setSelectedLocation(Number.isFinite(editLat) && Number.isFinite(editLng) ? { lat: editLat, lng: editLng } : null);
         setShowForm(true);
         setMobileTab('panel');
         handleZoneClick(zone);
     };
 
     const handleDelete = async (zone) => {
+        if (!zone) return;
         if (!canManageZone(zone)) {
             toast.error('You can view this zone but only its assigned municipality may manage it.');
             return;
         }
+        if (!zone?._id) return;
         if (!window.confirm('Are you sure you want to delete this zone?')) return;
 
         try {
-            await highRiskZonesAPI.delete(zone._id);
+            await highRiskZonesAPI.delete(zone?._id);
             toast.success('Zone deleted');
             refreshZones();
         } catch (error) {
@@ -349,7 +359,7 @@ const AdminHighRiskZonesPage = () => {
         setEditingZone(null);
         setSelectedLocation(null);
         photoPreviews.forEach((p) => {
-            if (p?.isNew && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url);
+            if (p?.isNew && p?.url?.startsWith('blob:')) URL.revokeObjectURL(p.url);
         });
         setPhotos([]);
         setPhotoPreviews([]);
@@ -364,14 +374,14 @@ const AdminHighRiskZonesPage = () => {
         });
     };
 
-    const filteredZones = zones.filter((zone) => {
+    const filteredZones = (Array.isArray(zones) ? zones.filter(Boolean) : []).filter((zone) => {
         const query = zoneSearch.trim().toLowerCase();
         const matchesSearch = !query
-            || zone.name?.toLowerCase().includes(query)
-            || zone.municipality?.toLowerCase().includes(query)
-            || (zone.description && zone.description.toLowerCase().includes(query));
+            || String(zone?.name || '').toLowerCase().includes(query)
+            || String(zone?.municipality || '').toLowerCase().includes(query)
+            || String(zone?.description || '').toLowerCase().includes(query);
         const matchesType = zoneTypeFilter === 'all'
-            || zone.type === zoneTypeFilter;
+            || zone?.type === zoneTypeFilter;
         return matchesSearch && matchesType;
     });
 
@@ -396,7 +406,7 @@ const AdminHighRiskZonesPage = () => {
     }, [showForm, selectedLocation, formData.radius, formData.type, formData.severity, formData.name]);
 
     const mapZones = useMemo(
-        () => (draftZonePreview ? [...zones, draftZonePreview] : zones),
+        () => (draftZonePreview ? [...(Array.isArray(zones) ? zones.filter(Boolean) : []), draftZonePreview] : (Array.isArray(zones) ? zones.filter(Boolean) : [])),
         [zones, draftZonePreview]
     );
 
@@ -475,7 +485,7 @@ const AdminHighRiskZonesPage = () => {
                             : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                     }`}
                 >
-                    {showForm ? (editingZone ? 'Edit Zone' : 'New Zone Form') : `Marked Zones (${zones.length})`}
+                    {showForm ? (editingZone ? 'Edit Zone' : 'New Zone Form') : `Marked Zones (${Array.isArray(zones) ? zones.length : 0})`}
                 </button>
             </div>
 
@@ -578,12 +588,12 @@ const AdminHighRiskZonesPage = () => {
                                                     <div className="h-3.5 w-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin shrink-0" aria-hidden="true" />
                                                     <span>Verifying barangay boundary...</span>
                                                 </div>
-                                            ) : selectedLocation ? (
+                                            ) : selectedLocation && Number.isFinite(Number(selectedLocation?.lat)) && Number.isFinite(Number(selectedLocation?.lng)) ? (
                                                 <div className="flex items-center justify-between gap-2 py-2 text-xs text-gray-700 dark:text-gray-300">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <HiOutlineCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                                         <span className="truncate font-mono tabular-nums">
-                                                            Location selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+                                                            Location selected: {Number(selectedLocation.lat).toFixed(4)}, {Number(selectedLocation.lng).toFixed(4)}
                                                         </span>
                                                     </div>
                                                     <button
@@ -739,15 +749,15 @@ const AdminHighRiskZonesPage = () => {
                                         </div>
 
                                         {/* Previews Grid with Reorder and Remove */}
-                                        {photoPreviews.length > 0 && (
+                                        {Array.isArray(photoPreviews) && photoPreviews.length > 0 && (
                                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                                {photoPreviews.map((preview, index) => (
+                                                {photoPreviews.filter(Boolean).map((preview, index) => (
                                                     <div
-                                                        key={`${preview.url.slice(0, 32)}-${index}`}
+                                                        key={`${preview?.url?.slice(0, 32) ?? index}-${index}`}
                                                         className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-gray-800"
                                                     >
                                                         <img
-                                                            src={preview.url}
+                                                            src={preview?.url}
                                                             alt={`Hazard reference photo ${index + 1}`}
                                                             className="h-full w-full object-cover"
                                                         />
@@ -872,7 +882,7 @@ const AdminHighRiskZonesPage = () => {
                                 {/* List Header */}
                                 <div className="border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
                                     <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Marked zones ({zones.length})
+                                        Marked zones ({Array.isArray(zones) ? zones.length : 0})
                                     </h2>
                                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                         Active monitored hazard areas in Sibuyan
@@ -880,7 +890,7 @@ const AdminHighRiskZonesPage = () => {
                                 </div>
 
                                 {/* Compact Search & Hazard Type Filter */}
-                                {zones.length > 0 && (
+                                {(Array.isArray(zones) ? zones.length : 0) > 0 && (
                                     <div className="border-b border-gray-200 px-4 py-3 dark:border-white/10 space-y-2 shrink-0">
                                         <div className="relative">
                                             <HiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
@@ -934,7 +944,7 @@ const AdminHighRiskZonesPage = () => {
                                             </div>
                                         ))}
                                     </div>
-                                ) : zones.length === 0 ? (
+                                ) : !Array.isArray(zones) || zones.length === 0 ? (
                                     <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-gray-400">
                                         <HiOutlineLocationMarker className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                                         <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No high-risk zones marked yet</p>
@@ -947,13 +957,13 @@ const AdminHighRiskZonesPage = () => {
                                     </div>
                                 ) : (
                                     <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto custom-scrollbar">
-                                        {filteredZones.map((zone) => {
-                                            const typeInfo = ZONE_TYPES.find((t) => t.value === zone.type);
-                                            const severityInfo = SEVERITY_LEVELS.find((s) => s.value === zone.severity);
+                                        {filteredZones.filter(Boolean).map((zone, index) => {
+                                            const typeInfo = ZONE_TYPES.find((t) => t.value === zone?.type);
+                                            const severityInfo = SEVERITY_LEVELS.find((s) => s.value === zone?.severity);
 
                                             return (
                                                 <div
-                                                    key={zone._id}
+                                                    key={zone?._id ?? index}
                                                     className="p-3.5 sm:p-4 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors cursor-pointer"
                                                     onClick={() => handleZoneClick(zone)}
                                                 >
@@ -962,18 +972,18 @@ const AdminHighRiskZonesPage = () => {
                                                             <div className="flex items-center gap-1.5">
                                                                 <span className={`h-2 w-2 shrink-0 rounded-full ${typeInfo?.color || 'bg-gray-400'}`} aria-hidden="true" />
                                                                 <h3 className="font-semibold text-xs sm:text-[13px] text-gray-900 dark:text-white truncate">
-                                                                    {zone.name}
+                                                                    {zone?.name}
                                                                 </h3>
                                                             </div>
                                                             <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                                                                {typeInfo?.label || 'Hazard'} · {zone.municipality} · {zone.radius}m
+                                                                {typeInfo?.label || 'Hazard'} · {zone?.municipality} · {zone?.radius}m
                                                             </p>
                                                             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
                                                                 <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300 font-medium">
                                                                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityInfo?.color || 'bg-gray-400'}`} aria-hidden="true" />
-                                                                    <span>{severityInfo?.label || zone.severity}</span>
+                                                                    <span>{severityInfo?.label || zone?.severity}</span>
                                                                 </span>
-                                                                {zone.photos && zone.photos.length > 0 && (
+                                                                {Array.isArray(zone?.photos) && zone.photos.length > 0 && (
                                                                     <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
                                                                         <HiOutlinePhotograph className="h-3.5 w-3.5" aria-hidden="true" />
                                                                         <span>{zone.photos.length}</span>
@@ -985,7 +995,7 @@ const AdminHighRiskZonesPage = () => {
                                                             <div className="flex items-center gap-3 shrink-0">
                                                                 <button
                                                                     type="button"
-                                                                    aria-label={`Edit ${zone.name}`}
+                                                                    aria-label={`Edit ${zone?.name || 'zone'}`}
                                                                     onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
                                                                     className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-emerald-700 dark:text-gray-400 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
                                                                 >
@@ -993,7 +1003,7 @@ const AdminHighRiskZonesPage = () => {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    aria-label={`Delete ${zone.name}`}
+                                                                    aria-label={`Delete ${zone?.name || 'zone'}`}
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(zone); }}
                                                                     className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-red-700 dark:text-gray-400 dark:hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 cursor-pointer"
                                                                 >

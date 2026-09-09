@@ -44,9 +44,9 @@ const HomePage = () => {
         setPublicStatsState((current) => current === 'ready' ? current : 'loading');
         try {
             const response = await analyticsAPI.getPublic();
-            if (!response.data.success) throw new Error('Public analytics response was unsuccessful');
+            if (!response?.data?.success) throw new Error('Public analytics response was unsuccessful');
 
-            const data = response.data.data || {};
+            const data = response?.data?.data ?? {};
             setPublicStats({
                 verifiedReportsThisMonth: data.verifiedReportsThisMonth ?? data.verifiedThisMonth ?? 0,
                 activeHighRiskZones: data.activeHighRiskZones ?? 0,
@@ -91,8 +91,9 @@ const HomePage = () => {
     useEffect(() => {
         reportsAPI.getMunicipalities()
             .then((response) => {
-                if (response.data.success && response.data.data.length > 0) {
-                    setMunicipalities(response.data.data);
+                const rows = response?.data?.data ?? [];
+                if (response?.data?.success && Array.isArray(rows) && rows.length > 0) {
+                    setMunicipalities(rows);
                 }
             })
             .catch(() => {});

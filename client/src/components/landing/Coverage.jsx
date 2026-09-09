@@ -12,11 +12,22 @@ const logoConfig = {
     'San Fernando': { src: '/icons/Sanfernando.logo.png', scale: 'scale-75' },
 };
 
-const fallbackBarangayCount = (name) => (name === 'Cajidiocan' ? 14 : name === 'Magdiwang' ? 9 : 12);
+const fallbackBarangayCount = (name) => {
+    if (!name) return 0;
+    if (name === 'Cajidiocan') return 14;
+    if (name === 'Magdiwang') return 9;
+    return 12;
+};
 
-const Coverage = ({ municipalities }) => {
-    const totalBarangays = municipalities.reduce(
-        (total, municipality) => total + (municipality.barangays?.length || fallbackBarangayCount(municipality.name)),
+const Coverage = ({ municipalities = [] }) => {
+    const list = Array.isArray(municipalities) ? municipalities : [];
+    const getBarangayCount = (municipality) => (
+        Array.isArray(municipality?.barangays) && municipality.barangays.length > 0
+            ? municipality.barangays.length
+            : fallbackBarangayCount(municipality?.name)
+    );
+    const totalBarangays = list.reduce(
+        (total, municipality) => total + getBarangayCount(municipality),
         0
     );
 
@@ -39,7 +50,7 @@ const Coverage = ({ municipalities }) => {
                         className="mb-6 grid max-w-md grid-cols-3 divide-x divide-white/10"
                     >
                         {[
-                            [municipalities.length, 'Municipalities'],
+                            [list.length, 'Municipalities'],
                             [totalBarangays, 'Barangays'],
                             [3, 'Agencies'],
                         ].map(([value, label]) => (
@@ -59,22 +70,22 @@ const Coverage = ({ municipalities }) => {
                         aria-label="Municipalities covered"
                         className="flex flex-col"
                     >
-                        {municipalities.map((municipality) => {
-                            const logo = logoConfig[municipality.name];
-                            const barangayCount = municipality.barangays?.length || fallbackBarangayCount(municipality.name);
+                        {list.map((municipality, index) => {
+                            const logo = logoConfig[municipality?.name];
+                            const barangayCount = getBarangayCount(municipality);
                             return (
                                 <li
-                                    key={municipality.code}
+                                    key={municipality?.code ?? index}
                                     className="flex min-w-0 items-center gap-2.5 border-b border-white/10 px-1 py-2 sm:gap-3 sm:px-2 sm:py-2.5"
                                 >
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden p-0.5 sm:h-9 sm:w-9">
                                         {logo
-                                            ? <img src={logo.src} alt={`${municipality.name} seal`} className={`h-full w-full object-contain opacity-90 ${logo.scale}`} />
-                                            : <span className="text-base font-bold text-slate-200">{municipality.name[0]}</span>}
+                                            ? <img src={logo.src} alt={`${municipality?.name ?? 'Municipality'} seal`} className={`h-full w-full object-contain opacity-90 ${logo.scale}`} />
+                                            : <span className="text-base font-bold text-slate-200">{municipality?.name?.[0] ?? '?'}</span>}
                                     </span>
                                     <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between sm:gap-6">
                                         <div className="flex items-center gap-2">
-                                            <p className="truncate text-xs font-bold uppercase tracking-wider text-white">{municipality.name}</p>
+                                            <p className="truncate text-xs font-bold uppercase tracking-wider text-white">{municipality?.name ?? 'Unknown municipality'}</p>
                                         </div>
                                         <p className="mt-0.5 shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:mt-0 sm:text-xs">{barangayCount} BRGYS</p>
                                     </div>

@@ -53,7 +53,10 @@ const AdminUsersPage = () => {
         nextSearch || '',
     ].join(':');
     const defaultUsersCacheKey = usersCacheKey({ role: '', verificationStatus: '' }, '');
-    const [users, setUsers] = useState(() => getStaleData(defaultUsersCacheKey)?.users || []);
+    const [users, setUsers] = useState(() => {
+        const cached = getStaleData(defaultUsersCacheKey)?.users;
+        return Array.isArray(cached) ? cached.filter(Boolean) : [];
+    });
     const [stats, setStats] = useState(() => getStaleData(defaultUsersCacheKey)?.stats || null);
     const [loading, setLoading] = useState(() => getStaleData(defaultUsersCacheKey) === null);
     const [filter, setFilter] = useState({ role: '', verificationStatus: '' });
@@ -114,8 +117,8 @@ const AdminUsersPage = () => {
 
         setVerificationAssets({ idDocument: null, selfiePhoto: null, loading: true, error: null });
         Promise.all([
-            loadAsset(selectedUser.idDocument),
-            loadAsset(selectedUser.selfiePhoto),
+            loadAsset(selectedUser?.idDocument),
+            loadAsset(selectedUser?.selfiePhoto),
         ])
             .then(([idDocument, selfiePhoto]) => {
                 if (!cancelled) {
@@ -155,15 +158,15 @@ const AdminUsersPage = () => {
         const key = usersCacheKey(nextFilter, nextSearch);
         const fresh = getCachedData(key, QUERY_CACHE_TTLS.adminUsers);
         if (fresh && !overrides.force) {
-            setUsers(fresh.users || []);
-            setStats(fresh.stats || null);
+            setUsers(Array.isArray(fresh?.users) ? fresh.users.filter(Boolean) : []);
+            setStats(fresh?.stats || null);
             setLoading(false);
             return;
         }
         const stale = getStaleData(key);
         if (stale) {
-            setUsers(stale.users || []);
-            setStats(stale.stats || null);
+            setUsers(Array.isArray(stale?.users) ? stale.users.filter(Boolean) : []);
+            setStats(stale?.stats || null);
         } else {
             setLoading(true);
         }
@@ -173,8 +176,9 @@ const AdminUsersPage = () => {
                 search: nextSearch || undefined,
             };
             const response = await adminAPI.getUsers(params);
-            const nextUsers = response.data.data.users;
-            const nextStats = response.data.data.stats;
+            const rawUsers = response?.data?.data?.users;
+            const nextUsers = Array.isArray(rawUsers) ? rawUsers.filter(Boolean) : [];
+            const nextStats = response?.data?.data?.stats || null;
             setUsers(nextUsers);
             setStats(nextStats);
             setCachedData(key, { users: nextUsers, stats: nextStats });
@@ -203,11 +207,11 @@ const AdminUsersPage = () => {
     };
 
     const handleVerify = async () => {
-        if (!selectedUser || !verifyData.status) return;
+        if (!selectedUser?._id || !verifyData.status) return;
 
         setVerifyLoading(true);
         try {
-            await adminAPI.verifyReporter(selectedUser._id, {
+            await adminAPI.verifyReporter(selectedUser?._id, {
                 status: verifyData.status,
                 feedback: verifyData.feedback,
             });
@@ -342,11 +346,11 @@ const AdminUsersPage = () => {
     }, [documentViewer.isOpen, documentViewer.docType, documentViewer.user, closeDocumentPreview, switchDocumentType]);
 
     const handleDelete = async () => {
-        if (!userToDelete) return;
+        if (!userToDelete?._id) return;
 
         setDeleteLoading(true);
         try {
-            await adminAPI.deleteUser(userToDelete._id);
+            await adminAPI.deleteUser(userToDelete?._id);
             toast.success('User deleted successfully');
             setDeleteModalOpen(false);
             setUserToDelete(null);
@@ -359,7 +363,8 @@ const AdminUsersPage = () => {
     };
 
     const renderRoleBadge = (role) => {
-        const config = ROLE_BADGES[role] || { label: role || 'Unknown', dot: 'bg-gray-400' };
+        const safeRole = typeof role === 'string' ? role : '';
+        const config = ROLE_BADGES[safeRole] || { label: safeRole || 'Unknown', dot: 'bg-gray-400' };
         return (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
@@ -369,7 +374,8 @@ const AdminUsersPage = () => {
     };
 
     const renderVerificationBadge = (status) => {
-        const config = VERIFICATION_BADGES[status] || { label: 'N/A', dot: 'bg-gray-400' };
+        const safeStatus = typeof status === 'string' ? status : '';
+        const config = VERIFICATION_BADGES[safeStatus] || { label: 'N/A', dot: 'bg-gray-400' };
         return (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
@@ -543,28 +549,28 @@ const AdminUsersPage = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                users.map((user) => (
+                                users.filter(Boolean).map((user, index) => (
                                     <tr
-                                        key={user._id}
+                                        key={user?._id ?? index}
                                         className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                                     >
                                         <td className="py-3 pl-4 pr-3 sm:pl-5">
                                             <div className="flex items-center gap-3">
                                                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                                                    user.role === 'municipal_admin' ? 'bg-indigo-600' :
-                                                    user.role === 'responder' ? 'bg-cyan-600' :
-                                                    user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
+                                                    user?.role === 'municipal_admin' ? 'bg-indigo-600' :
+                                                    user?.role === 'responder' ? 'bg-cyan-600' :
+                                                    user?.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
                                                 }`}>
-                                                    {user.avatar ? (
+                                                    {user?.avatar ? (
                                                         <img src={resolveAssetUrl(user.avatar)} alt="" loading="lazy" decoding="async" className="h-full w-full rounded-full object-cover" />
                                                     ) : (
-                                                        user.name?.charAt(0).toUpperCase() || 'U'
+                                                        user?.name?.charAt(0).toUpperCase() || 'U'
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{user.name}</p>
-                                                    <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{user.email}</p>
-                                                    {user.address && (
+                                                    <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{user?.name}</p>
+                                                    <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{user?.email}</p>
+                                                    {user?.address && (
                                                         <p className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
                                                             <HiOutlineLocationMarker className="h-3 w-3 shrink-0" />
                                                             <span className="truncate">{user.address}</span>
@@ -573,55 +579,55 @@ const AdminUsersPage = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-3 py-3 whitespace-nowrap">{renderRoleBadge(user.role)}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap">{renderVerificationBadge(user.verificationStatus)}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap">{renderRoleBadge(user?.role)}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap">{renderVerificationBadge(user?.verificationStatus)}</td>
                                         <td className="px-3 py-3 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5">
-                                                {user.idDocument ? (
+                                                {user?.idDocument ? (
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openDocumentPreview(user, 'idDocument', e)}
                                                         className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                                         title="View ID document"
-                                                        aria-label={`View ID document for ${user.name}`}
+                                                        aria-label={`View ID document for ${user?.name}`}
                                                     >
                                                         <HiOutlineIdentification className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                                                         ID
                                                     </button>
                                                 ) : null}
-                                                {user.selfiePhoto ? (
+                                                {user?.selfiePhoto ? (
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openDocumentPreview(user, 'selfiePhoto', e)}
                                                         className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                                                         title="View selfie photo"
-                                                        aria-label={`View selfie photo for ${user.name}`}
+                                                        aria-label={`View selfie photo for ${user?.name}`}
                                                     >
                                                         <HiOutlineCamera className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                                                         Selfie
                                                     </button>
                                                 ) : null}
-                                                {!user.idDocument && !user.selfiePhoto && (
+                                                {!user?.idDocument && !user?.selfiePhoto && (
                                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                            {formatIncidentRelativeTime(user.createdAt, 'Unknown date')}
+                                            {formatIncidentRelativeTime(user?.createdAt, 'Unknown date')}
                                         </td>
                                         <td className="px-3 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                            {user.lastLogin ? formatIncidentRelativeTime(user.lastLogin, 'Never') : 'Never'}
+                                            {user?.lastLogin ? formatIncidentRelativeTime(user.lastLogin, 'Never') : 'Never'}
                                         </td>
                                         <td className="py-3 pl-3 pr-4 sm:pr-5 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-1.5">
-                                                {user.role === 'reporter' && user.verificationStatus === 'pending' && (
+                                                {user?.role === 'reporter' && user?.verificationStatus === 'pending' && (
                                                     <>
                                                         <button
                                                             type="button"
                                                             onClick={() => openVerifyModal(user, 'approved')}
                                                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                             title="Approve reporter"
-                                                            aria-label={`Approve reporter ${user.name}`}
+                                                            aria-label={`Approve reporter ${user?.name}`}
                                                         >
                                                             <HiOutlineCheckCircle className="h-4 w-4" />
                                                         </button>
@@ -630,7 +636,7 @@ const AdminUsersPage = () => {
                                                             onClick={() => openVerifyModal(user, 'rejected')}
                                                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                             title="Reject reporter"
-                                                            aria-label={`Reject reporter ${user.name}`}
+                                                            aria-label={`Reject reporter ${user?.name}`}
                                                         >
                                                             <HiOutlineXCircle className="h-4 w-4" />
                                                         </button>
@@ -641,7 +647,7 @@ const AdminUsersPage = () => {
                                                     onClick={() => openDeleteModal(user)}
                                                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                                                     title="Delete user"
-                                                    aria-label={`Delete user ${user.name}`}
+                                                    aria-label={`Delete user ${user?.name}`}
                                                 >
                                                     <HiOutlineTrash className="h-4 w-4" />
                                                 </button>
@@ -666,33 +672,33 @@ const AdminUsersPage = () => {
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Try adjusting the search or filters.</p>
                         </div>
                     ) : (
-                        users.map((user) => (
-                            <article key={user._id} className="p-4 space-y-3">
+                        users.filter(Boolean).map((user, index) => (
+                            <article key={user?._id ?? index} className="p-4 space-y-3">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                                            user.role === 'municipal_admin' ? 'bg-indigo-600' :
-                                            user.role === 'responder' ? 'bg-cyan-600' :
-                                            user.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
+                                            user?.role === 'municipal_admin' ? 'bg-indigo-600' :
+                                            user?.role === 'responder' ? 'bg-cyan-600' :
+                                            user?.role === 'reporter' ? 'bg-emerald-600' : 'bg-gray-600'
                                         }`}>
-                                            {user.avatar ? (
+                                            {user?.avatar ? (
                                                 <img src={resolveAssetUrl(user.avatar)} alt="" loading="lazy" decoding="async" className="h-full w-full rounded-full object-cover" />
                                             ) : (
-                                                user.name?.charAt(0).toUpperCase() || 'U'
+                                                user?.name?.charAt(0).toUpperCase() || 'U'
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{user.name}</p>
-                                            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{user.email}</p>
+                                            <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{user?.name}</p>
+                                            <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{user?.email}</p>
                                         </div>
                                     </div>
                                     <div className="flex shrink-0 flex-wrap justify-end gap-x-2 gap-y-1">
-                                        {renderRoleBadge(user.role)}
-                                        {renderVerificationBadge(user.verificationStatus)}
+                                        {renderRoleBadge(user?.role)}
+                                        {renderVerificationBadge(user?.verificationStatus)}
                                     </div>
                                 </div>
 
-                                {user.address && (
+                                {user?.address && (
                                     <p className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 truncate">
                                         <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-gray-400" />
                                         <span className="truncate">{user.address}</span>
@@ -701,42 +707,42 @@ const AdminUsersPage = () => {
 
                                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-white/5 text-[11px] text-gray-500 dark:text-gray-400">
                                     <div className="flex items-center gap-1.5">
-                                        {user.idDocument ? (
+                                        {user?.idDocument ? (
                                             <button
                                                 type="button"
                                                 onClick={(e) => openDocumentPreview(user, 'idDocument', e)}
                                                 className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
-                                                aria-label={`View ID document for ${user.name}`}
+                                                aria-label={`View ID document for ${user?.name}`}
                                             >
                                                 <HiOutlineIdentification className="h-3 w-3 text-emerald-600" />
                                                 ID
                                             </button>
                                         ) : null}
-                                        {user.selfiePhoto ? (
+                                        {user?.selfiePhoto ? (
                                             <button
                                                 type="button"
                                                 onClick={(e) => openDocumentPreview(user, 'selfiePhoto', e)}
                                                 className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200"
-                                                aria-label={`View selfie photo for ${user.name}`}
+                                                aria-label={`View selfie photo for ${user?.name}`}
                                             >
                                                 <HiOutlineCamera className="h-3 w-3 text-emerald-600" />
                                                 Selfie
                                             </button>
                                         ) : null}
-                                        {!user.idDocument && !user.selfiePhoto && (
-                                            <span>Joined {formatIncidentRelativeTime(user.createdAt, 'recently')}</span>
+                                        {!user?.idDocument && !user?.selfiePhoto && (
+                                            <span>Joined {formatIncidentRelativeTime(user?.createdAt, 'recently')}</span>
                                         )}
                                     </div>
 
                                     <div className="flex items-center gap-1.5">
-                                        {user.role === 'reporter' && user.verificationStatus === 'pending' && (
+                                        {user?.role === 'reporter' && user?.verificationStatus === 'pending' && (
                                             <>
                                                 <button
                                                     type="button"
                                                     onClick={() => openVerifyModal(user, 'approved')}
                                                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                     title="Approve reporter"
-                                                    aria-label={`Approve reporter ${user.name}`}
+                                                    aria-label={`Approve reporter ${user?.name}`}
                                                 >
                                                     <HiOutlineCheckCircle className="h-4 w-4" />
                                                 </button>
@@ -745,7 +751,7 @@ const AdminUsersPage = () => {
                                                     onClick={() => openVerifyModal(user, 'rejected')}
                                                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                     title="Reject reporter"
-                                                    aria-label={`Reject reporter ${user.name}`}
+                                                    aria-label={`Reject reporter ${user?.name}`}
                                                 >
                                                     <HiOutlineXCircle className="h-4 w-4" />
                                                 </button>
@@ -756,7 +762,7 @@ const AdminUsersPage = () => {
                                             onClick={() => openDeleteModal(user)}
                                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5"
                                             title="Delete user"
-                                            aria-label={`Delete user ${user.name}`}
+                                            aria-label={`Delete user ${user?.name}`}
                                         >
                                             <HiOutlineTrash className="h-4 w-4" />
                                         </button>
@@ -1017,7 +1023,7 @@ const AdminUsersPage = () => {
                                             <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
                                                 {documentViewer.user.name}
                                                 {documentViewer.user?.role && (
-                                                    <span className="capitalize"> · {documentViewer.user.role.replace('_', ' ')}</span>
+                                                    <span className="capitalize"> · {String(documentViewer.user?.role || '').replace('_', ' ')}</span>
                                                 )}
                                                 {documentViewer.user?.assignedMunicipality && (
                                                     <span> · {documentViewer.user.assignedMunicipality}</span>

@@ -25,13 +25,15 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         const initialKey = getIncidentQueueCacheKey({
             role, responderView, status: responderView === 'all' ? validInitialStatus : '', page: 1, appliedSearch: '', focusedReportId,
         });
-        return getStaleData(initialKey)?.reports || [];
+        const cachedReports = getStaleData(initialKey)?.reports;
+        return Array.isArray(cachedReports) ? cachedReports.filter(Boolean) : [];
     });
     const [stats, setStats] = useState(() => {
         const initialKey = getIncidentQueueCacheKey({
             role, responderView, status: responderView === 'all' ? validInitialStatus : '', page: 1, appliedSearch: '', focusedReportId,
         });
-        return getStaleData(initialKey)?.stats || null;
+        const cachedStats = getStaleData(initialKey)?.stats;
+        return cachedStats && typeof cachedStats === 'object' && !Array.isArray(cachedStats) ? cachedStats : null;
     });
     const [loading, setLoading] = useState(() => {
         const initialKey = getIncidentQueueCacheKey({
@@ -61,9 +63,18 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         if (!silent && !force) {
             const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.queue);
             if (fresh) {
-                setReports(fresh.reports || []);
-                setStats(fresh.stats || null);
-                setPagination(fresh.pagination || { ...EMPTY_PAGINATION, total: (fresh.reports || []).length });
+                const cachedReports = Array.isArray(fresh?.reports) ? fresh.reports.filter(Boolean) : [];
+                setReports(cachedReports);
+                setStats(fresh?.stats && typeof fresh.stats === 'object' && !Array.isArray(fresh.stats) ? fresh.stats : null);
+                const freshPagination = fresh?.pagination && typeof fresh.pagination === 'object' && !Array.isArray(fresh.pagination)
+                    ? {
+                        page: Number.isFinite(Number(fresh.pagination.page)) ? Number(fresh.pagination.page) : 1,
+                        pages: Number.isFinite(Number(fresh.pagination.pages)) ? Number(fresh.pagination.pages) : 1,
+                        total: Number.isFinite(Number(fresh.pagination.total)) ? Number(fresh.pagination.total) : cachedReports.length,
+                        limit: Number.isFinite(Number(fresh.pagination.limit)) ? Number(fresh.pagination.limit) : 20,
+                    }
+                    : { ...EMPTY_PAGINATION, total: cachedReports.length, pages: 1 };
+                setPagination(freshPagination);
                 setLastUpdatedAt(Date.now());
                 setLoading(false);
                 return;
@@ -72,9 +83,17 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         const stale = getStaleData(cacheKey);
         const hasStale = Boolean(stale);
         if (hasStale && !silent) {
-            setReports(stale.reports || []);
-            setStats(stale.stats || null);
-            setPagination(stale.pagination || EMPTY_PAGINATION);
+            setReports(Array.isArray(stale?.reports) ? stale.reports.filter(Boolean) : []);
+            setStats(stale?.stats && typeof stale.stats === 'object' && !Array.isArray(stale.stats) ? stale.stats : null);
+            const stalePagination = stale?.pagination && typeof stale.pagination === 'object' && !Array.isArray(stale.pagination)
+                ? {
+                    page: Number.isFinite(Number(stale.pagination.page)) ? Number(stale.pagination.page) : 1,
+                    pages: Number.isFinite(Number(stale.pagination.pages)) ? Number(stale.pagination.pages) : 1,
+                    total: Number.isFinite(Number(stale.pagination.total)) ? Number(stale.pagination.total) : (Array.isArray(stale?.reports) ? stale.reports.length : 0),
+                    limit: Number.isFinite(Number(stale.pagination.limit)) ? Number(stale.pagination.limit) : 20,
+                }
+                : EMPTY_PAGINATION;
+            setPagination(stalePagination);
         }
         // Force (explicit Refresh) always shows the spinner, even with stale
         // data on screen, so the click has visible feedback.
@@ -97,22 +116,31 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             const response = force
                 ? await adminAPI.getReports(params)
                 : await dedupedFetch(cacheKey, () => adminAPI.getReports(params));
-            const data = response.data?.data || {};
-            const nextReports = Array.isArray(data.reports) ? data.reports : [];
-            const nextStats = data.stats || null;
-            const nextPagination = data.pagination || {
-                ...EMPTY_PAGINATION,
-                total: nextReports.length,
-                pages: nextReports.length > 0 ? 1 : 0,
-            };
+            const data = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
+            const nextReports = Array.isArray(data.reports) ? data.reports.filter(Boolean) : [];
+            const nextStats = data.stats && typeof data.stats === 'object' && !Array.isArray(data.stats) ? data.stats : null;
+            const rawPagination = data.pagination && typeof data.pagination === 'object' && !Array.isArray(data.pagination) ? data.pagination : null;
+            const nextPagination = rawPagination
+                ? {
+                    page: Number.isFinite(Number(rawPagination.page)) ? Number(rawPagination.page) : 1,
+                    pages: Number.isFinite(Number(rawPagination.pages)) ? Number(rawPagination.pages) : 1,
+                    total: Number.isFinite(Number(rawPagination.total)) ? Number(rawPagination.total) : nextReports.length,
+                    limit: Number.isFinite(Number(rawPagination.limit)) ? Number(rawPagination.limit) : 20,
+                }
+                : {
+                    ...EMPTY_PAGINATION,
+                    page: 1,
+                    pages: 1,
+                    total: nextReports.length,
+                };
             setReports(nextReports);
             if (focusedReportId) {
-                const focusedReport = nextReports.find((report) => report._id === focusedReportId);
+                const focusedReport = nextReports.find((report) => report?._id === focusedReportId);
                 setSelectedReport(focusedReport || null);
             } else {
                 setSelectedReport((current) => {
                     if (!current?._id) return current;
-                    const matchingReport = nextReports.find((report) => report._id === current._id);
+                    const matchingReport = nextReports.find((report) => report?._id === current._id);
                     return matchingReport ? { ...current, ...matchingReport } : current;
                 });
             }
@@ -149,21 +177,24 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
 
     const patchReport = useCallback((id, changes) => {
         if (!id) return;
-        setReports((current) => current.map((report) => (
-            report._id === id
-                ? (typeof changes === 'function' ? changes(report) : { ...report, ...changes })
+        const isFnChanges = typeof changes === 'function';
+        const isObjectChanges = changes && typeof changes === 'object' && !Array.isArray(changes);
+        if (!isFnChanges && !isObjectChanges) return;
+        setReports((current) => (Array.isArray(current) ? current : []).map((report) => (
+            report?._id === id
+                ? (isFnChanges ? changes(report) : { ...report, ...changes })
                 : report
         )));
         setSelectedReport((current) => (
             current?._id === id
-                ? (typeof changes === 'function' ? changes(current) : { ...current, ...changes })
+                ? (isFnChanges ? changes(current) : { ...current, ...changes })
                 : current
         ));
     }, []);
 
     const removeReport = useCallback((id) => {
         if (!id) return;
-        setReports((current) => current.filter((report) => report._id !== id));
+        setReports((current) => (Array.isArray(current) ? current : []).filter((report) => report?._id !== id));
         setSelectedReport((current) => (current?._id === id ? null : current));
     }, []);
 
@@ -179,10 +210,10 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             patchReport(data?.id, (report) => ({
                 ...report,
                 status: 'responding',
-                respondedBy: report.respondedBy || data?.respondedBy,
-                respondedAt: report.respondedAt || data?.respondedAt,
-                responders: data?.responders || report.responders,
-                responderAgency: report.responderAgency || data?.respondedBy?.agency,
+                respondedBy: report?.respondedBy || data?.respondedBy,
+                respondedAt: report?.respondedAt || data?.respondedAt,
+                responders: Array.isArray(data?.responders) ? data.responders : report?.responders,
+                responderAgency: report?.responderAgency || data?.respondedBy?.agency,
             }));
             refreshRef.current({ silent: true });
         });
@@ -206,7 +237,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         });
 
         const unsubVerify = subscribe('reportVerified', (data) => {
-            patchReport(data?.id, { ...data, status: 'verified' });
+            patchReport(data?.id, { ...(data && typeof data === 'object' && !Array.isArray(data) ? data : {}), status: 'verified' });
             refreshRef.current({ silent: true });
         });
 
@@ -221,7 +252,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
 
         const unsubTransferred = subscribe('reportTransferred', (data) => {
             patchReport(data?.id, {
-                ...data,
+                ...(data && typeof data === 'object' && !Array.isArray(data) ? data : {}),
                 status: 'transferred',
                 municipalityName: data?.municipalityName || data?.toMunicipality,
             });
@@ -230,12 +261,12 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
 
         const unsubTransferAcknowledged = subscribe('reportTransferAcknowledged', (data) => {
             patchReport(data?.id, (report) => {
-                const history = Array.isArray(report.transferHistory) ? report.transferHistory : [];
-                const targetTransferId = data?.transferId?.toString();
+                const history = Array.isArray(report?.transferHistory) ? report.transferHistory.filter(Boolean) : [];
+                const targetTransferId = data?.transferId != null ? String(data.transferId) : '';
                 return {
                     ...report,
                     transferHistory: history.map((transfer, index) => {
-                        const transferId = (transfer._id || transfer.id)?.toString();
+                        const transferId = (transfer?._id || transfer?.id)?.toString?.();
                         const isTarget = targetTransferId
                             ? transferId === targetTransferId
                             : index === history.length - 1;
@@ -252,10 +283,10 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         });
 
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
-            if (!data?.id || !data?.report?.reportUpdates) return;
+            if (!data?.id || !Array.isArray(data?.report?.reportUpdates)) return;
             patchReport(data.id, {
-                reportUpdates: data.report.reportUpdates,
-                latestReporterUpdate: data.update || null,
+                reportUpdates: data.report.reportUpdates.filter(Boolean),
+                latestReporterUpdate: data?.update && typeof data.update === 'object' && !Array.isArray(data.update) ? data.update : null,
                 hasUnreadReporterUpdate: true,
             });
         });
@@ -285,10 +316,11 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     }, [responderView]);
 
     const visibleReports = useMemo(() => {
+        const safeReports = Array.isArray(reports) ? reports.filter(Boolean) : [];
         if (responderView === 'all' && status) {
-            return reports.filter((report) => report.status === status);
+            return safeReports.filter((report) => report?.status === status);
         }
-        return reports;
+        return safeReports;
     }, [reports, responderView, status]);
 
     const setStatus = useCallback((nextStatus) => {
@@ -322,8 +354,8 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                 ? report.latestReporterUpdate?._id
                 : report.highlightedReporterUpdateId,
         };
-        setReports((current) => current.map((item) => (
-            item._id === report._id ? { ...item, hasUnreadReporterUpdate: false } : item
+        setReports((current) => (Array.isArray(current) ? current : []).map((item) => (
+            item?._id === report?._id ? { ...item, hasUnreadReporterUpdate: false } : item
         )));
         setSelectedReport(inspectedReport);
     }, []);

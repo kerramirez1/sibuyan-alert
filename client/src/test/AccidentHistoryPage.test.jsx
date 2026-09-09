@@ -112,7 +112,7 @@ describe('AccidentHistoryPage features and filters', () => {
         expect(screen.getByText((_, element) => (
             element?.tagName === 'P' && element.textContent === 'Showing 1 of 3 records'
         ))).toBeInTheDocument();
-        expect(mocks.getReports).toHaveBeenCalledWith({ limit: 500, status: 'resolved' });
+        expect(mocks.getReports).toHaveBeenCalledWith({ limit: 250, page: 1, status: 'resolved' });
     });
 
     test('renders stat strip metrics including Top Barangay and expands record details on click', async () => {

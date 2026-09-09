@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from '../router';
 import api from '../services/api';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
@@ -23,6 +23,11 @@ const ResetPasswordPage = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const timeoutRef = useRef(null);
+
+    useEffect(() => () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    }, []);
 
     const handleChange = (e) => {
         setFormData(prev => ({
@@ -33,6 +38,13 @@ const ResetPasswordPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (loading) return;
+
+        if (!token) {
+            toast.error('This password reset link is invalid or has expired. Please request a new one.');
+            return;
+        }
 
         if (!isPasswordPolicyCompliant(formData.password)) {
             toast.error(PASSWORD_POLICY_MESSAGE);
@@ -51,12 +63,18 @@ const ResetPasswordPage = () => {
                 password: formData.password,
             });
 
-            if (response.data.success) {
+            if (response?.data?.success) {
                 setSuccess(true);
                 toast.success('Password reset successful!');
-                setTimeout(() => {
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                timeoutRef.current = setTimeout(() => {
                     navigate('/login');
                 }, 3000);
+            } else {
+                const message = response?.data?.message != null && response.data.message !== ''
+                    ? String(response.data.message)
+                    : 'Failed to reset password';
+                toast.error(message);
             }
         } catch (error) {
             const message = error.response?.data?.message || 'Failed to reset password';
@@ -70,6 +88,35 @@ const ResetPasswordPage = () => {
         { label: `${PASSWORD_MIN_CHARACTERS}+ characters, within bcrypt limit`, met: isPasswordPolicyCompliant(formData.password) },
         { label: 'Passwords match', met: formData.password === formData.confirmPassword && formData.password !== '' },
     ];
+
+    if (!token) {
+        return (
+            <div className="w-full py-2">
+                <Link
+                    to="/login"
+                    className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:text-gray-400 dark:hover:text-white"
+                >
+                    <HiOutlineArrowLeft className="h-4 w-4" /> Back to login
+                </Link>
+                <div className="w-full rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8" role="alert">
+                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                        Invalid reset link
+                    </h1>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
+                        This password reset link is missing or invalid. Please request a new one.
+                    </p>
+                    <div className="mt-5">
+                        <Link
+                            to="/forgot-password"
+                            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-brand-700 px-4 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                        >
+                            Request a new link
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full py-2">

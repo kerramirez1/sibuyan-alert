@@ -73,7 +73,7 @@ const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = 
 
 export const IncidentActionButtons = ({ report, user, actions, onInspect, compact = false, hideInspect = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
-    const isResponding = report.status === 'responding';
+    const isResponding = report?.status === 'responding';
 
     return (
         <div className={compact
@@ -94,7 +94,7 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
                     onClick={() => actions.acknowledgeTransfer(report)}
                     tone="violet"
                     compact={compact}
-                    disabled={actions.acknowledgeLoadingId === report._id}
+                    disabled={actions.acknowledgeLoadingId === report?._id}
                 />
             )}
             {capabilities.canRespond && (
@@ -104,7 +104,7 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
                     onClick={() => actions.openRespond(report)}
                     tone="primary"
                     compact={compact}
-                    disabled={actions.respondLoadingId === report._id}
+                    disabled={actions.respondLoadingId === report?._id}
                 />
             )}
             {capabilities.canResolve && (
@@ -150,7 +150,7 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
                     onClick={() => actions.deleteReport(report)}
                     tone="danger"
                     compact={compact}
-                    disabled={actions.deleteLoadingId === report._id}
+                    disabled={actions.deleteLoadingId === report?._id}
                 />
             )}
         </div>
@@ -190,14 +190,15 @@ export const OperationalStatusIndicator = ({ status }) => {
 };
 
 const getResponderAssignment = (report) => {
+    if (!report || typeof report !== 'object' || Array.isArray(report)) return 'Unassigned';
     const assignedUnit = Array.isArray(report.responders)
-        ? report.responders.find((entry) => entry?.unitName || entry?.user?.name)
+        ? report.responders.filter(Boolean).find((entry) => entry?.unitName || entry?.user?.name)
         : null;
     if (assignedUnit?.unitName) return assignedUnit.unitName;
 
-    const responder = report.respondedBy || assignedUnit?.user;
+    const responder = report?.respondedBy || assignedUnit?.user;
     const responderName = responder?.name;
-    const agency = getAgencyLabel(responder?.agency || assignedUnit?.unitType || report.responderAgency);
+    const agency = getAgencyLabel(responder?.agency || assignedUnit?.unitType || report?.responderAgency);
     if (responderName && agency !== 'Unassigned') return `${agency} · ${responderName}`;
     return responderName || (agency !== 'Unassigned' ? agency : 'Unassigned');
 };
@@ -245,7 +246,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.acknowledgeTransfer(report)}
-                        disabled={actions.acknowledgeLoadingId === report._id}
+                        disabled={actions.acknowledgeLoadingId === report?._id}
                         className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[13px] font-medium text-violet-700 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
                         title="Acknowledge transfer"
                         aria-label="Acknowledge transfer"
@@ -268,7 +269,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.deleteReport(report)}
-                        disabled={actions.deleteLoadingId === report._id}
+                        disabled={actions.deleteLoadingId === report?._id}
                         className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 hover:bg-gray-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-wait disabled:opacity-50 sm:h-9 sm:w-9 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-red-400"
                         title="Delete report"
                         aria-label="Delete report"
@@ -280,7 +281,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                     <button
                         type="button"
                         onClick={() => actions.dismissReport(report)}
-                        disabled={actions.deleteLoadingId === report._id}
+                        disabled={actions.deleteLoadingId === report?._id}
                         className="inline-flex min-h-[44px] items-center justify-center rounded-lg px-3 text-[13px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-wait disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
                         title="Remove this transferred report from your queue"
                         aria-label="Remove transferred report from queue"
@@ -295,7 +296,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
 
 const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
-    const isResponding = report.status === 'responding';
+    const isResponding = report?.status === 'responding';
 
     return (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -313,7 +314,7 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 <button
                     type="button"
                     onClick={() => actions.openRespond(report)}
-                    disabled={actions.respondLoadingId === report._id}
+                    disabled={actions.respondLoadingId === report?._id}
                     className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:text-white dark:hover:bg-brand-500 sm:w-auto"
                 >
                     {isResponding ? 'Join response' : 'Respond to incident'}
@@ -334,20 +335,21 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
 };
 
 const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }) => {
-    const latestUpdate = report.latestReporterUpdate
-        || (Array.isArray(report.reportUpdates) ? report.reportUpdates[report.reportUpdates.length - 1] : null);
-    const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate.tag) : null;
-    const assignment = getResponderAssignment(report);
-    const resolved = report.status === 'resolved';
-    const incidentType = report.incidentType || report.incidentCategory || report.accidentType || 'Incident';
+    const safeReport = report && typeof report === 'object' && !Array.isArray(report) ? report : {};
+    const latestUpdate = safeReport.latestReporterUpdate
+        || (Array.isArray(safeReport.reportUpdates) ? safeReport.reportUpdates.filter(Boolean)[safeReport.reportUpdates.filter(Boolean).length - 1] : null);
+    const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate?.tag) : null;
+    const assignment = getResponderAssignment(safeReport);
+    const resolved = safeReport.status === 'resolved';
+    const incidentType = safeReport.incidentType || safeReport.incidentCategory || safeReport.accidentType || 'Incident';
     // Acknowledged transfers keep their downstream status (e.g. responding),
     // so provenance needs its own line — the status badge alone can't show it.
     // Origin viewers read "to", everyone else reads "from".
-    const transferOrigin = getTransferOrigin(report);
+    const transferOrigin = getTransferOrigin(safeReport);
     const viewerMunicipality = user?.assignedMunicipality?.trim().toLocaleLowerCase() || '';
     const transferLine = transferOrigin
         ? (viewerMunicipality && viewerMunicipality === transferOrigin.trim().toLocaleLowerCase()
-            ? `Transferred to ${report.municipalityName || 'another municipality'}`
+            ? `Transferred to ${safeReport.municipalityName || 'another municipality'}`
             : `Transferred from ${transferOrigin}`)
         : '';
 
@@ -356,40 +358,40 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
             className={`min-w-0 rounded-lg border px-4 py-4 sm:px-5 ${isSelected
                 ? 'border-gray-300 border-l-2 border-l-emerald-700 bg-gray-50 dark:border-gray-600 dark:border-l-emerald-500 dark:bg-white/[0.03]'
                 : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]'}`}
-            data-status={report.status || 'unknown'}
+            data-status={safeReport.status || 'unknown'}
             data-selected={isSelected ? 'true' : 'false'}
         >
             {isSelected && <span className="sr-only">Selected incident details are open.</span>}
             <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                        <IncidentSeverityIndicator severity={report.severity} />
+                        <IncidentSeverityIndicator severity={safeReport.severity} />
                         <span className="text-gray-300 dark:text-gray-700" aria-hidden="true">&middot;</span>
-                        <OperationalStatusIndicator status={report.status} />
+                        <OperationalStatusIndicator status={safeReport.status} />
                     </div>
                     <h2 className={`mt-1.5 break-words text-[15px] font-semibold leading-6 sm:text-base ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
-                        {report.address || 'Address unavailable'}
+                        {safeReport.address || 'Address unavailable'}
                     </h2>
                     <p className="mt-0.5 line-clamp-1 text-[13px] capitalize text-gray-600 dark:text-gray-300">
                         {incidentType}
-                        {report.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {report.description}</span>}
+                        {safeReport.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {safeReport.description}</span>}
                     </p>
                 </div>
                 <time
-                    dateTime={getIncidentDate(report) || undefined}
+                    dateTime={getIncidentDate(safeReport) || undefined}
                     className="shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400 sm:pt-0.5 sm:text-right"
                 >
-                    {formatRelativeTime(getIncidentDate(report))}
+                    {formatRelativeTime(getIncidentDate(safeReport))}
                 </time>
             </div>
 
             <div className="mt-2.5 flex flex-col gap-1 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
-                <span>Reported by <span className="font-semibold text-gray-800 dark:text-gray-200">{report.reporter?.name || 'Unknown reporter'}</span></span>
+                <span>Reported by <span className="font-semibold text-gray-800 dark:text-gray-200">{safeReport.reporter?.name || 'Unknown reporter'}</span></span>
                 <span className="hidden text-gray-300 dark:text-gray-700 sm:inline" aria-hidden="true">&middot;</span>
                 <span>{assignment === 'Unassigned' ? <span className="font-medium text-amber-700 dark:text-amber-400">Unassigned · needs unit</span> : <>Assigned to <span className="font-medium text-gray-700 dark:text-gray-200">{assignment}</span></>}</span>
             </div>
 
-            <TransferAcknowledgmentState report={report} neutral />
+            <TransferAcknowledgmentState report={safeReport} neutral />
 
             {transferLine && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -398,7 +400,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </p>
             )}
 
-            {report.hasUnreadReporterUpdate && updateMeta && (
+            {safeReport.hasUnreadReporterUpdate && updateMeta && (
                 <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
                     <p className="text-xs font-semibold text-brand-800 dark:text-sky-300">New reporter update &middot; {updateMeta.label}</p>
                     {latestUpdate?.message && <p className="mt-0.5 line-clamp-2 text-xs text-brand-700 dark:text-sky-400">{latestUpdate.message}</p>}
@@ -467,7 +469,12 @@ const IncidentQueueSkeleton = () => (
 );
 
 const IncidentPagination = ({ pagination, onPageChange }) => {
-    if (!pagination || pagination.pages <= 1) return null;
+    const page = Number(pagination?.page);
+    const pages = Number(pagination?.pages);
+    const total = Number(pagination?.total);
+    if (!pagination || !Number.isFinite(pages) || pages <= 1) return null;
+    const safePage = Number.isFinite(page) ? page : 1;
+    const safeTotal = Number.isFinite(total) ? total : 0;
 
     return (
         <nav
@@ -475,22 +482,22 @@ const IncidentPagination = ({ pagination, onPageChange }) => {
             aria-label="Incident queue pages"
         >
             <p className="text-center text-xs text-gray-500 dark:text-gray-400 sm:text-left">
-                Page <strong className="font-semibold text-gray-800 dark:text-gray-200">{pagination.page}</strong> of {pagination.pages}
-                <span aria-hidden="true"> &middot; </span>{pagination.total} incidents
+                Page <strong className="font-semibold text-gray-800 dark:text-gray-200">{safePage}</strong> of {pages}
+                <span aria-hidden="true"> &middot; </span>{safeTotal} incidents
             </p>
             <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
                     type="button"
-                    onClick={() => onPageChange(pagination.page - 1)}
-                    disabled={pagination.page <= 1}
+                    onClick={() => onPageChange(safePage - 1)}
+                    disabled={safePage <= 1}
                     className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                 >
                     Previous
                 </button>
                 <button
                     type="button"
-                    onClick={() => onPageChange(pagination.page + 1)}
-                    disabled={pagination.page >= pagination.pages}
+                    onClick={() => onPageChange(safePage + 1)}
+                    disabled={safePage >= pages}
                     className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                 >
                     Next
@@ -535,7 +542,7 @@ const IncidentQueue = ({
         );
     }
 
-    if (reports.length === 0) {
+    if (!Array.isArray(reports) || reports.filter(Boolean).length === 0) {
         const responderEmptyCopy = {
             available: ['No incidents are waiting for dispatch', 'New verified or transferred incidents will appear here.'],
             municipalActive: ['No active municipal incidents', 'Verified, transferred, and responding incidents will appear here.'],
@@ -553,18 +560,19 @@ const IncidentQueue = ({
     }
 
     const RowComponent = isResponder ? ResponderIncidentRow : AdminIncidentRow;
+    const safeReports = (Array.isArray(reports) ? reports.filter(Boolean) : []);
 
     return (
         <section aria-label="Incident queue">
             <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="flex flex-col gap-3">
-                {reports.map((report) => (
-                    <li key={report._id}>
+                {safeReports.map((report, index) => (
+                    <li key={report?._id ?? index}>
                         <RowComponent
                             report={report}
                             user={user}
                             actions={actions}
                             onInspect={onInspect}
-                            isSelected={String(report._id) === String(selectedReportId)}
+                            isSelected={String(report?._id) === String(selectedReportId)}
                         />
                     </li>
                 ))}

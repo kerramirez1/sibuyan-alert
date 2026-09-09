@@ -53,24 +53,28 @@ const formatRelativeDate = (value) => {
 };
 
 const formatIncidentType = (report) => (
-    (report?.incidentType || report?.accidentType || 'Unspecified incident')
+    String(report?.incidentType || report?.accidentType || 'Unspecified incident')
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (letter) => letter.toUpperCase())
 );
 
-const getLocation = (report) => (
-    report?.address
-    || [report?.barangay, getPhysicalMunicipality(report)].filter(Boolean).join(', ')
-    || 'Location unavailable'
-);
+const getLocation = (report) => {
+    const address = typeof report?.address === 'string' ? report.address.trim() : '';
+    if (address) return address;
+    const parts = [report?.barangay, getPhysicalMunicipality(report)]
+        .filter((v) => typeof v === 'string' && v.trim())
+        .map((v) => v.trim());
+    if (parts.length) return parts.join(', ');
+    return 'Location unavailable';
+};
 
 // Avoid "Accident at E. Quirino Street · E. Quirino Street, Poblacion": when
 // title and location share significant words, show the longer one only.
 const getReportHeading = (report) => {
-    const title = (report?.title || '').trim();
+    const title = String(report?.title ?? '').trim();
     const location = getLocation(report);
     if (!title || title === location) return location;
-    const words = (value) => value.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
+    const words = (value) => String(value ?? '').toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
     const titleWords = new Set(words(title));
     const overlap = words(location).filter((word) => titleWords.has(word)).length;
     if (overlap >= 2) return title.length >= location.length ? title : location;
@@ -132,32 +136,41 @@ const ReporterDashboardSkeleton = () => (
 const ReporterDashboardPage = () => {
     // Shared with MyReportsPage (same data). Session-scoped: wiped on logout.
     const cacheKey = 'my-reports:list';
-    const [reports, setReports] = useState(() => getStaleData(cacheKey) || []);
-    const [loading, setLoading] = useState(() => getStaleData(cacheKey) === null);
+    const [reports, setReports] = useState(() => {
+        const stale = getStaleData(cacheKey);
+        return Array.isArray(stale) ? stale : [];
+    });
+    const [loading, setLoading] = useState(() => {
+        const stale = getStaleData(cacheKey);
+        return Array.isArray(stale) ? false : true;
+    });
     const [error, setError] = useState('');
     const { subscribe } = useSocket();
 
     const fetchReports = useCallback(async (silent = false) => {
         if (!silent) {
             const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.myReports);
-            if (fresh) {
-                setReports(fresh);
+            if (Array.isArray(fresh)) {
+                setReports(fresh.filter(Boolean));
                 setLoading(false);
                 return;
             }
             const stale = getStaleData(cacheKey);
-            if (stale) setReports(stale);
+            if (Array.isArray(stale)) setReports(stale.filter(Boolean));
             else setLoading(true);
         }
         try {
             const response = await reportsAPI.getMyReports();
-            const nextReports = response.data?.data || [];
-            setReports(nextReports);
+            const raw = response?.data?.data;
+            const nextReports = Array.isArray(raw)
+                ? raw
+                : (Array.isArray(raw?.reports) ? raw.reports : []);
+            setReports(nextReports.filter(Boolean));
             setCachedData(cacheKey, nextReports);
             setError('');
         } catch (err) {
             console.error('Failed to fetch reporter dashboard reports:', err);
-            if (getStaleData(cacheKey) === null) {
+            if (!Array.isArray(getStaleData(cacheKey))) {
                 setError('Unable to load your report overview.');
             }
         } finally {
@@ -172,38 +185,49 @@ const ReporterDashboardPage = () => {
     // Realtime report updates
     useEffect(() => {
         const updateReport = (id, changes) => {
-            if (!id) return;
-            setReports((current) => current.map((report) => (
-                report._id === id
+            if (id === null || id === undefined || id === '') return;
+            const targetId = String(id);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).map((report) => (
+                String(report?._id ?? report?.id) === targetId
                     ? (typeof changes === 'function' ? changes(report) : { ...report, ...changes })
                     : report
             )));
         };
 
         const unsubRespond = subscribe('reportResponded', (data) => {
-            updateReport(data?.id, { status: 'responding' });
+            updateReport(data?.id ?? data?._id, { status: 'responding' });
         });
         const unsubResolve = subscribe('reportResolved', (data) => {
-            updateReport(data?.id, { status: 'resolved' });
+            updateReport(data?.id ?? data?._id, { status: 'resolved' });
         });
         const unsubResolutionDetails = subscribe('reportResolutionDetails', (data) => {
-            updateReport(data?.id, { status: 'resolved' });
+            updateReport(data?.id ?? data?._id, { status: 'resolved' });
+        });
+        const unsubVerify = subscribe('reportVerified', (data) => {
+            updateReport(data?.id ?? data?._id, { status: 'verified' });
+        });
+        const unsubReject = subscribe('reportRejected', (data) => {
+            updateReport(data?.id ?? data?._id, { status: 'rejected', rejectionReason: data?.reason });
         });
         const unsubDelete = subscribe('reportDeleted', (data) => {
-            if (!data?.id) return;
-            setReports((current) => current.filter((r) => r._id !== data.id));
+            const deleteId = data?.id ?? data?._id;
+            if (deleteId === null || deleteId === undefined || deleteId === '') return;
+            const targetId = String(deleteId);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((r) => String(r?._id ?? r?.id) !== targetId));
         });
         const unsubTransferred = subscribe('reportTransferred', (data) => {
-            updateReport(data?.id, { status: 'transferred' });
+            updateReport(data?.id ?? data?._id, { status: data?.status || 'transferred' });
         });
         const unsubUpdateRejected = subscribe('reportRejectedUpdate', (data) => {
-            updateReport(data?.id, { status: 'rejected' });
+            updateReport(data?.id ?? data?._id, { status: 'rejected' });
         });
 
         return () => {
             unsubRespond();
             unsubResolve();
             unsubResolutionDetails();
+            unsubVerify();
+            unsubReject();
             unsubDelete();
             unsubTransferred();
             unsubUpdateRejected();
@@ -211,11 +235,20 @@ const ReporterDashboardPage = () => {
     }, [subscribe]);
 
     const summary = useMemo(() => {
+        const safeReports = (Array.isArray(reports) ? reports : []).filter(Boolean);
+        const pending = safeReports.filter((r) => r?.status === 'pending').length;
+        const verified = safeReports.filter((r) => r?.status === 'verified').length;
+        const transferred = safeReports.filter((r) => r?.status === 'transferred').length;
+        const responding = safeReports.filter((r) => r?.status === 'responding').length;
+        const resolved = safeReports.filter((r) => r?.status === 'resolved').length;
         return {
-            pending: reports.filter((r) => r.status === 'pending').length,
-            responding: reports.filter((r) => r.status === 'responding').length,
-            resolved: reports.filter((r) => r.status === 'resolved').length,
-            total: reports.length,
+            pending,
+            verified,
+            transferred,
+            responding,
+            active: verified + transferred + responding,
+            resolved,
+            total: safeReports.length,
         };
     }, [reports]);
 
@@ -231,26 +264,28 @@ const ReporterDashboardPage = () => {
 
     // Shared summary vocabulary with My Reports: identical labels and helpers.
     // Each card deep-links to its filtered My Reports view.
+    // Active matches MyReports: verified + transferred + responding.
     const stats = useMemo(() => ([
         { key: 'total', label: 'Total reports', value: summary.total, helper: 'All submissions', to: '/my-reports' },
         { key: 'pending', label: 'Pending review', value: summary.pending, helper: 'Waiting for verification', to: '/my-reports?status=pending' },
-        { key: 'active', label: 'Active', value: summary.responding, helper: 'Verified or in response', to: '/my-reports?status=active' },
+        { key: 'active', label: 'Active', value: summary.active, helper: 'Verified or in response', to: '/my-reports?status=active' },
         { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed incidents', to: '/my-reports?status=resolved' },
     ]), [summary]);
 
     const recentReports = useMemo(() => {
-        return reports.slice(0, 5);
+        return (Array.isArray(reports) ? reports : []).filter(Boolean).slice(0, 5);
     }, [reports]);
 
     const latestActiveReport = useMemo(() => {
-        return reports.find((r) => r.status === 'responding' || r.status === 'pending' || r.status === 'verified')
-            || reports[0]
+        const safeReports = (Array.isArray(reports) ? reports : []).filter(Boolean);
+        return safeReports.find((r) => r?.status === 'responding' || r?.status === 'pending' || r?.status === 'verified' || r?.status === 'transferred')
+            || safeReports[0]
             || null;
     }, [reports]);
 
     const activeStepIndex = useMemo(() => {
         if (!latestActiveReport) return 0;
-        const cfg = STATUS_CONFIG[latestActiveReport.status];
+        const cfg = STATUS_CONFIG[latestActiveReport?.status];
         return cfg ? cfg.stepIndex : 0;
     }, [latestActiveReport]);
 
@@ -379,13 +414,13 @@ const ReporterDashboardPage = () => {
                             <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                     <span className="font-semibold text-gray-900 dark:text-white">
-                                        {STATUS_CONFIG[latestActiveReport.status]?.label || latestActiveReport.status}.
+                                        {STATUS_CONFIG[latestActiveReport?.status]?.label || latestActiveReport?.status || 'Pending review'}.
                                     </span>
                                     {' '}
-                                    {getStatusHelp(latestActiveReport.status)}
+                                    {getStatusHelp(latestActiveReport?.status)}
                                 </p>
                                 <Link
-                                    to={`/my-reports?report=${latestActiveReport._id}`}
+                                    to={`/my-reports?report=${latestActiveReport?._id ?? latestActiveReport?.id ?? ''}`}
                                     className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     Open report
@@ -401,7 +436,7 @@ const ReporterDashboardPage = () => {
                             <h2 id="recent-reports-heading" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 Recent reports
                             </h2>
-                            {reports.length > 0 && (
+                            {(Array.isArray(reports) ? reports.length : 0) > 0 && (
                                 <Link
                                     to="/my-reports"
                                     className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300"
@@ -414,14 +449,15 @@ const ReporterDashboardPage = () => {
 
                         {recentReports.length > 0 ? (
                             <ul className="mt-2 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
-                                {recentReports.map((report) => {
-                                    const statusLabel = STATUS_CONFIG[report.status]?.label || report.status || 'Pending review';
-                                    const severity = SEVERITY_CONFIG[report.severity] || { label: 'Unknown', dot: 'bg-gray-400' };
+                                {recentReports.filter(Boolean).map((report) => {
+                                    const reportId = report?._id ?? report?.id;
+                                    const statusLabel = STATUS_CONFIG[report?.status]?.label || report?.status || 'Pending review';
+                                    const severity = SEVERITY_CONFIG[report?.severity] || { label: 'Unknown', dot: 'bg-gray-400' };
                                     const location = getLocation(report);
                                     return (
-                                        <li key={report._id}>
+                                        <li key={String(reportId)}>
                                             <Link
-                                                to={`/my-reports?report=${report._id}`}
+                                                to={`/my-reports?report=${reportId}`}
                                                 aria-label={`Open report: ${location}`}
                                                 className="group flex items-center gap-3 py-3.5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4 dark:hover:bg-white/[0.02]"
                                             >
@@ -432,8 +468,8 @@ const ReporterDashboardPage = () => {
                                                     <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-gray-400">
                                                         {formatIncidentType(report)}
                                                         {' · '}
-                                                        Reported {formatRelativeDate(report.createdAt)}
-                                                        {report.status === 'responding' && ' · Units on scene'}
+                                                        Reported {formatRelativeDate(report?.createdAt)}
+                                                        {report?.status === 'responding' && ' · Units on scene'}
                                                     </span>
                                                     <span className="mt-0.5 block text-[11px] text-gray-500 sm:hidden dark:text-gray-400">
                                                         {statusLabel} · {severity.label}

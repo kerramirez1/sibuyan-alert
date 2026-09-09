@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from '../router';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -17,11 +17,16 @@ const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const isMountedRef = useRef(true);
 
-    const searchParams = new URLSearchParams(location.search);
+    useEffect(() => () => {
+        isMountedRef.current = false;
+    }, []);
+
+    const searchParams = new URLSearchParams(location?.search ?? '');
     const isExpired = searchParams.get('expired');
     const redirectQuery = searchParams.get('redirect') || searchParams.get('next');
-    const stateFrom = location.state?.from;
+    const stateFrom = location?.state?.from;
     const stateTarget = stateFrom
         ? (typeof stateFrom === 'string'
             ? stateFrom
@@ -45,19 +50,25 @@ const LoginPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return;
         if (!validate()) return;
 
         setLoading(true);
         try {
             const result = await login(formData.email, formData.password, intendedTarget);
             if (!result?.success) {
-                setErrors({ form: result?.message || 'Unable to sign in. Please check your credentials and try again.' });
+                if (!isMountedRef.current) return;
+                const formMessage = result?.message != null && result.message !== ''
+                    ? String(result.message)
+                    : 'Unable to sign in. Please check your credentials and try again.';
+                setErrors({ form: formMessage });
             }
         } catch (error) {
             console.error(error);
+            if (!isMountedRef.current) return;
             setErrors({ form: 'Unable to sign in. Please try again.' });
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) setLoading(false);
         }
     };
 

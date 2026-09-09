@@ -15,6 +15,20 @@ export const normalizeNotificationId = (value) => {
     return OBJECT_ID_PATTERN.test(normalized) ? normalized : '';
 };
 
+const resolveReportId = (data) => {
+    if (!data || typeof data !== 'object') {
+        return normalizeNotificationId(data?.reportId);
+    }
+    const direct = normalizeNotificationId(data.reportId);
+    if (direct) return direct;
+    const report = data.report;
+    if (typeof report === 'string') return normalizeNotificationId(report);
+    if (report && typeof report === 'object') {
+        return normalizeNotificationId(report._id ?? report.id);
+    }
+    return '';
+};
+
 export const getReportUpdateMeta = (notificationOrTag) => {
     const tag = typeof notificationOrTag === 'string'
         ? notificationOrTag
@@ -27,13 +41,13 @@ export const isOperationalNotificationRecipient = (role) => OPERATIONAL_ROLES.ha
 export const shouldDeferNotificationRead = (notification, role) => (
     notification?.type === 'report_update'
     && isOperationalNotificationRecipient(role)
-    && Boolean(normalizeNotificationId(notification?.data?.reportId))
+    && Boolean(resolveReportId(notification?.data))
 );
 
 const buildReportUpdateTarget = (notification, role) => {
     if (!isOperationalNotificationRecipient(role)) return '/my-reports';
 
-    const reportId = normalizeNotificationId(notification?.data?.reportId);
+    const reportId = resolveReportId(notification?.data);
     if (!reportId) return '/admin/reports';
 
     const params = new URLSearchParams({
@@ -48,7 +62,7 @@ const buildReportUpdateTarget = (notification, role) => {
 };
 
 const buildOperationalReportTarget = (notification, view = '') => {
-    const reportId = normalizeNotificationId(notification?.data?.reportId);
+    const reportId = resolveReportId(notification?.data);
     if (!reportId) return view ? `/admin/reports?view=${view}` : '/admin/reports';
 
     const params = new URLSearchParams({

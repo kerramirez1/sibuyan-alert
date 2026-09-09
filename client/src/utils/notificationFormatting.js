@@ -4,8 +4,9 @@
  * @returns {string} Cleaned title
  */
 export const cleanNotificationTitle = (title) => {
-    if (!title) return '';
-    let cleanTitle = title;
+    const input = String(title || '');
+    if (!input) return '';
+    let cleanTitle = input;
     ['🚨', '✅', '🚑', '❌', '⚠️', '📢', '🔄', '🎉'].forEach(emoji => {
         cleanTitle = cleanTitle.replaceAll(emoji, '');
     });
@@ -19,8 +20,7 @@ export const cleanNotificationTitle = (title) => {
  * @returns {string} Cleaned message
  */
 export const cleanNotificationMessage = (message) => {
-    if (!message) return '';
-    return message
+    return String(message || '')
         .replace(/([A-Z]{3,7})\s+\1\s+-/g, '$1 -')
         .trim();
 };

@@ -7,16 +7,9 @@ import {
     HiOutlineShieldCheck,
 } from 'react-icons/hi';
 
-const useSafeAuth = () => {
-    try {
-        return useAuth();
-    } catch {
-        return { isAuthenticated: false, user: null };
-    }
-};
-
-const RegistrationSubmittedPage = ({ accountTargetOverride } = {}) => {
-    const { isAuthenticated, user } = useSafeAuth();
+const RegistrationSubmittedPage = (props = {}) => {
+    const { isAuthenticated, user } = useAuth();
+    const accountTargetOverride = props?.accountTargetOverride;
     // ordinary (pending) and reporter both land here; /my-reports is reporter-only,
     // so route ordinary users to /profile where verification status + resubmit live.
     // Unauthenticated visits (refresh before session restore) fall back to /login.

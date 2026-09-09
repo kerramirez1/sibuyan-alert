@@ -171,7 +171,8 @@ const AdminPage = () => {
         if (user?.role !== 'municipal_admin') return;
         try {
             const response = await adminAPI.getPresence();
-            if (response.data?.success) setPresence(response.data.data);
+            const nextPresence = response?.data?.data;
+            if (response?.data?.success && nextPresence && typeof nextPresence === 'object' && !Array.isArray(nextPresence)) setPresence(nextPresence);
         } catch {
             // Presence is best-effort; the dashboard stays usable without it.
         }
@@ -296,7 +297,7 @@ const AdminPage = () => {
     const reportsThisWeek = stats?.reports?.thisWeek ?? 0;
     const respondingReports = stats?.reports?.responding ?? 0;
     const resolvedReports = stats?.reports?.resolved ?? 0;
-    const barangayRows = [...(stats?.reportsByBarangay || [])]
+    const barangayRows = [...(Array.isArray(stats?.reportsByBarangay) ? stats.reportsByBarangay : [])]
         .map((item) => ({
             barangay: item?.barangay || 'Unspecified barangay',
             count: Number(item?.count) || 0,
@@ -369,9 +370,9 @@ const AdminPage = () => {
                             </span>
                         </span>
                         <span className="tabular-nums text-gray-500 dark:text-gray-400">
-                            Updated {formatIncidentRelativeTime(new Date(lastEventAt).toISOString())}
+                            Updated {formatIncidentRelativeTime(lastEventAt)}
                         </span>
-                        {presence && (
+                        {presence && typeof presence === 'object' && !Array.isArray(presence) && Number.isFinite(presence?.respondersOnline) && (
                             <span className="tabular-nums text-gray-500 dark:text-gray-400">
                                 · {presence.respondersOnline} {presence.respondersOnline === 1 ? 'responder' : 'responders'} online
                             </span>
@@ -406,14 +407,14 @@ const AdminPage = () => {
                     </p>
                 ) : (
                     <ul className="mt-2 divide-y divide-gray-100 dark:divide-white/5">
-                        {activityFeed.map((entry) => (
-                            <li key={entry.key} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
+                        {activityFeed.map((entry, index) => (
+                            <li key={entry?.key ?? index} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
                                 <p className="min-w-0 truncate text-gray-800 dark:text-gray-200">
-                                    <span className="font-semibold">{entry.label}</span>
-                                    {entry.detail && <span className="text-gray-500 dark:text-gray-400"> · {entry.detail}</span>}
+                                    <span className="font-semibold">{entry?.label || 'Operations update'}</span>
+                                    {entry?.detail && <span className="text-gray-500 dark:text-gray-400"> · {entry.detail}</span>}
                                 </p>
                                 <span className="shrink-0 tabular-nums text-gray-400 dark:text-gray-500">
-                                    {formatIncidentRelativeTime(new Date(entry.at).toISOString())}
+                                    {formatIncidentRelativeTime(entry?.at)}
                                 </span>
                             </li>
                         ))}
@@ -532,21 +533,21 @@ const AdminPage = () => {
                         </Link>
                     </div>
 
-                    {stats?.recentReports?.length > 0 ? (
+                    {Array.isArray(stats?.recentReports) && stats.recentReports.length > 0 ? (
                         <ul className="mt-2 divide-y divide-gray-100 dark:divide-white/5">
-                            {stats.recentReports.map((report) => {
-                                const statusConfig = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
+                            {(Array.isArray(stats?.recentReports) ? stats.recentReports : []).map((report, index) => {
+                                const statusConfig = STATUS_CONFIG[report?.status] || STATUS_CONFIG.pending;
                                 return (
                                     <li
-                                        key={report._id}
+                                        key={report?._id ?? index}
                                         className="flex items-center justify-between gap-3 py-3"
                                     >
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100" title={report.address || 'Location pending'}>
-                                                {report.address || 'Location pending'}
+                                            <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100" title={report?.address || 'Location pending'}>
+                                                {report?.address || 'Location pending'}
                                             </p>
                                             <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
-                                                by {report.reporter?.name || 'Unknown'}{formatIncidentRelativeTime(report.createdAt) ? ` · ${formatIncidentRelativeTime(report.createdAt)}` : ''}
+                                                by {report?.reporter?.name || 'Unknown'}{formatIncidentRelativeTime(report?.createdAt) ? ` · ${formatIncidentRelativeTime(report?.createdAt)}` : ''}
                                             </p>
                                         </div>
                                         <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
@@ -577,25 +578,25 @@ const AdminPage = () => {
                         </Link>
                     </div>
 
-                    {stats?.recentUsers?.length > 0 ? (
+                    {Array.isArray(stats?.recentUsers) && stats.recentUsers.length > 0 ? (
                         <ul className="mt-2 divide-y divide-gray-100 dark:divide-white/5">
-                            {stats.recentUsers.map((recentUser) => {
-                                const roleConfig = ROLE_CONFIG[recentUser.role] || { label: recentUser.role || 'User', dot: 'bg-gray-400' };
+                            {(Array.isArray(stats?.recentUsers) ? stats.recentUsers : []).map((recentUser, index) => {
+                                const roleConfig = ROLE_CONFIG[recentUser?.role] || { label: recentUser?.role || 'User', dot: 'bg-gray-400' };
                                 return (
                                     <li
-                                        key={recentUser._id}
+                                        key={recentUser?._id ?? index}
                                         className="flex items-center justify-between gap-3 py-3"
                                     >
                                         <div className="flex min-w-0 items-center gap-2.5">
                                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600 dark:bg-white/10 dark:text-gray-300" aria-hidden="true">
-                                                {recentUser.name?.charAt(0).toUpperCase() || '?'}
+                                                {recentUser?.name?.charAt(0).toUpperCase() || '?'}
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    {recentUser.name}
+                                                    {recentUser?.name}
                                                 </p>
                                                 <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                                                    {recentUser.email}
+                                                    {recentUser?.email}
                                                 </p>
                                             </div>
                                         </div>
