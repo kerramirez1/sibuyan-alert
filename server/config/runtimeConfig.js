@@ -15,6 +15,13 @@ const isHttpUrl = (value) => {
     }
 };
 
+/**
+ * Web Push keys are compared from environment variables only. The client build
+ * embeds VITE_VAPID_PUBLIC_KEY at build time (see HEROKU_DEPLOYMENT.md), so
+ * reading client/.env from the server filesystem at runtime is unreliable
+ * (the file does not exist on Heroku) and is intentionally not attempted.
+ */
+
 /** Fail fast instead of starting a production process with partial security configuration. */
 export const validateRuntimeConfig = (env = process.env) => {
     if (env.NODE_ENV !== 'production') {
@@ -30,8 +37,13 @@ export const validateRuntimeConfig = (env = process.env) => {
         }
         if (!env.VAPID_PUBLIC_KEY?.trim() || !env.VAPID_PRIVATE_KEY?.trim()) {
             console.warn('⚠️ VAPID keys missing — Web Push is disabled (MVP degraded mode, Socket.IO still works)');
-        } else if (env.VAPID_PUBLIC_KEY.trim() !== (env.VITE_VAPID_PUBLIC_KEY || '').trim()) {
-            console.warn('⚠️ VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY do not match — push subscriptions will fail');
+        } else {
+            const clientKey = (env.VITE_VAPID_PUBLIC_KEY || '').trim();
+            if (clientKey && env.VAPID_PUBLIC_KEY.trim() !== clientKey) {
+                console.warn('⚠️ VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY do not match — push subscriptions will fail');
+            } else if (!clientKey) {
+                console.warn('⚠️ VITE_VAPID_PUBLIC_KEY is not configured — set it to the same value as VAPID_PUBLIC_KEY before building the client');
+            }
         }
         return;
     }
@@ -82,6 +94,12 @@ export const validateRuntimeConfig = (env = process.env) => {
     }
     if (!env.REDIS_URL?.trim()) {
         console.warn('⚠️ REDIS_URL missing — single-dyno mode only. Do not scale past 1 web dyno without a shared rate-limit/socket store.');
+    }
+    // Fail fast on multi-process Node without a shared store: in-memory rate
+    // limits and Socket.IO rooms would silently diverge per process.
+    const webConcurrency = Number.parseInt(env.WEB_CONCURRENCY, 10);
+    if (Number.isInteger(webConcurrency) && webConcurrency > 1 && !env.REDIS_URL?.trim()) {
+        throw new Error('WEB_CONCURRENCY > 1 requires REDIS_URL for shared rate-limit/socket state');
     }
 };
 

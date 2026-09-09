@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -552,6 +552,9 @@ const DashboardMapWorkspace = ({
         if (!coordinates) return;
         setSelectedActiveRiskZoneId('');
         closeMapSummaryPanel({ preserveNavigation: true });
+        if (mapExperience.filters.length > 0 && responderMapFilter !== 'risk-zones') {
+            setResponderMapFilter('risk-zones');
+        }
         setMapLocateRequest({
             type: 'risk-zone',
             id: String(zone._id || zone.id),
@@ -722,7 +725,7 @@ const DashboardMapWorkspace = ({
                     {mapExperience.filters.length > 0 && (() => {
                         const isFiltered = responderMapFilter && responderMapFilter !== 'all';
                         const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
-                        const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active');
+                        const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
                         const activeFilterCount = getFilterCount(responderMapFilter);
                         const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
                         const activeStatusDotClass = responderMapFilter === 'risk-zones'
@@ -742,8 +745,8 @@ const DashboardMapWorkspace = ({
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
                                         className={`inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer ${isFiltered
-                                                ? 'border-brand-700 bg-brand-700 text-white dark:border-brand-500 dark:bg-brand-600 dark:text-white'
-                                                : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
+                                            ? 'border-brand-700 bg-brand-700 text-white dark:border-brand-500 dark:bg-brand-600 dark:text-white'
+                                            : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
                                             }`}
                                     >
                                         <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-100 dark:text-white' : 'text-brand-700 dark:text-sky-400'}`} aria-hidden="true" />
@@ -799,41 +802,42 @@ const DashboardMapWorkspace = ({
                                         const statusCfg = filter.value === 'risk-zones'
                                             ? { dot: 'bg-red-500' }
                                             : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
+                                        const isRiskZoneTab = filter.value === 'risk-zones';
+                                        const tooltip = filter.value === 'all'
+                                            ? 'Active ongoing incidents'
+                                            : filter.value === 'risk-zones'
+                                                ? 'Mapped hazard and risk zones'
+                                                : filter.value === 'resolved'
+                                                    ? 'Resolved incident archive'
+                                                    : `${filter.label} incidents`;
 
                                         return (
-                                            <button
-                                                key={filter.value}
-                                                type="button"
-                                                onClick={() => setResponderMapFilter(filter.value)}
-                                                aria-pressed={isSelected}
-                                                aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                    ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
-                                                    : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
-                                                    }`}
-                                            >
-                                                {statusCfg?.dot && (
-                                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                            <Fragment key={filter.value}>
+                                                {isRiskZoneTab && (
+                                                    <span className="h-4 w-px bg-gray-200 dark:bg-white/10 self-center -mb-2" aria-hidden="true" />
                                                 )}
-                                                <span>{filter.label}</span>
-                                                <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                                    {count}
-                                                </span>
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResponderMapFilter(filter.value)}
+                                                    aria-pressed={isSelected}
+                                                    title={tooltip}
+                                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
+                                                        ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
+                                                        : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
+                                                        }`}
+                                                >
+                                                    {statusCfg?.dot && (
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
+                                                    )}
+                                                    <span>{filter.label}</span>
+                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                                        {count}
+                                                    </span>
+                                                </button>
+                                            </Fragment>
                                         );
                                     })}
-
-                                    {responderMapFilter !== 'all' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setResponderMapFilter('all')}
-                                            aria-label="Clear active filter and show all"
-                                            className="relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap border-b-2 border-transparent pb-2 text-[13px] font-normal text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-400 dark:hover:text-white"
-                                        >
-                                            <HiOutlineX className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                            <span>Clear filter</span>
-                                        </button>
-                                    )}
                                 </div>
                             </>
                         );

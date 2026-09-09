@@ -6,6 +6,14 @@ export const validateRiskZoneBoundaryResolution = (resolution, assignedMunicipal
         return { valid: false, statusCode: 400, message: 'Valid zone coordinates are required.' };
     }
 
+    if (resolution?.status === 'dataset_missing') {
+        return {
+            valid: false,
+            statusCode: 503,
+            message: 'Barangay boundary dataset is not imported. Run npm run import:barangay-boundaries --prefix server, then retry.',
+        };
+    }
+
     if (resolution?.status !== 'matched' || !resolution?.barangay) {
         return {
             valid: false,

@@ -131,6 +131,9 @@ export const processLocation = async ({ address, barangay, lat, lng }) => {
         } else {
             // Boundary data may not yet be imported in a newly deployed environment.
             // Municipal box assignment remains a safe fallback, but never invents a barangay.
+            if (barangayResolution.status === 'dataset_missing') {
+                result.warnings.push('Barangay boundary dataset is not imported — barangay auto-match unavailable (see GET /api/health boundaries.ready). Municipality assigned by coverage box; border pins still require administrator review.');
+            }
             const assignment = await resolveMunicipalityForCoordinates(result.coordinates.lat, result.coordinates.lng);
             result.municipalityAssignment = assignment.status;
             if (assignment.municipality) {

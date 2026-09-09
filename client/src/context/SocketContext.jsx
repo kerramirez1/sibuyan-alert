@@ -25,6 +25,8 @@ export const SocketProvider = ({ children }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const receivedNotificationIdsRef = useRef(new Set());
     const hasConnectedOnceRef = useRef(false);
+    const isRefreshingAuthRef = useRef(false);
+    const authRetryTimerRef = useRef(null);
     const { user, isAuthenticated } = useAuth();
 
     // Initialize socket connection
@@ -39,14 +41,16 @@ export const SocketProvider = ({ children }) => {
         });
 
         const socketInstance = io(socketUrl, {
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
             autoConnect: true,
             reconnection: true,
-            // Field connectivity is intermittent by nature, so retry forever.
-            // Backoff starts at 1s and is capped at 30s between attempts.
+            // Field connectivity is intermittent by nature; retry forever with
+            // rapid backoff starting at 500ms and capped at 5s (with jitter).
             reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 30000,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5,
+            timeout: 10000,
             withCredentials: true,
         });
 
@@ -62,8 +66,13 @@ export const SocketProvider = ({ children }) => {
             }
         });
 
-        socketInstance.on('disconnect', () => {
+        socketInstance.on('disconnect', (reason) => {
             setConnected(false);
+            // If the server explicitly disconnected the socket (e.g. server restart),
+            // auto-reconnect does not fire automatically. Trigger reconnect immediately.
+            if (reason === 'io server disconnect') {
+                socketInstance.connect();
+            }
         });
 
         socketInstance.on('connect_error', (error) => {
@@ -78,6 +87,38 @@ export const SocketProvider = ({ children }) => {
         };
     }, []);
 
+    // Fast reconnection on window focus, visibility restoration, and online events
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleWakeUp = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                return;
+            }
+            if (!socket.connected) {
+                socket.connect();
+            }
+        };
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('focus', handleWakeUp);
+            window.addEventListener('online', handleWakeUp);
+        }
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', handleWakeUp);
+        }
+
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('focus', handleWakeUp);
+                window.removeEventListener('online', handleWakeUp);
+            }
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', handleWakeUp);
+            }
+        };
+    }, [socket]);
+
     // Join user room when authenticated
     useEffect(() => {
         const userId = user?._id || user?.id;
@@ -87,19 +128,34 @@ export const SocketProvider = ({ children }) => {
             };
 
             const handleAuthError = async () => {
+                if (isRefreshingAuthRef.current) return;
+                isRefreshingAuthRef.current = true;
+
                 try {
                     await refreshAuthSession();
                     // Socket.IO handshake cookies are static per connection —
                     // a plain `emit('join')` would still carry the expired
-                    // cookie. Force a fresh handshake so the new cookie is used.
+                    // cookie. Reconnect to establish a fresh handshake with the new cookie.
                     try {
                         socket.disconnect();
                     } catch {
                         // Ignore — connect() below still establishes a new handshake.
                     }
                     socket.connect();
-                } catch {
+                } catch (error) {
+                    console.error('Socket auth session renewal failed:', error);
                     setConnected(false);
+                    // Schedule a retry attempt in 3s so the socket does not stay dead
+                    if (authRetryTimerRef.current) clearTimeout(authRetryTimerRef.current);
+                    authRetryTimerRef.current = setTimeout(() => {
+                        isRefreshingAuthRef.current = false;
+                        if (socket && !socket.connected) {
+                            handleAuthError();
+                        }
+                    }, 3000);
+                    return;
+                } finally {
+                    isRefreshingAuthRef.current = false;
                 }
             };
 
@@ -110,6 +166,7 @@ export const SocketProvider = ({ children }) => {
             if (socket.connected) authenticateSocket();
 
             return () => {
+                if (authRetryTimerRef.current) clearTimeout(authRetryTimerRef.current);
                 socket.off('connect', authenticateSocket);
                 socket.off('authError', handleAuthError);
                 socket.emit('leave');
@@ -301,9 +358,18 @@ export const SocketProvider = ({ children }) => {
         }
     }, []);
 
+    // Manual reconnect trigger for UI controls and watchdog recovery
+    const reconnect = useCallback(() => {
+        if (!socket) return;
+        if (!socket.connected) {
+            socket.connect();
+        }
+    }, [socket]);
+
     const value = {
         socket,
         connected,
+        reconnect,
         reconnectVersion,
         emit,
         subscribe,

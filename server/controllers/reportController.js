@@ -147,8 +147,10 @@ export const createReport = async (req, res) => {
         if (locationResult.municipalityAssignment !== 'matched') {
             return res.status(400).json({
                 success: false,
+                code: 'MUNICIPALITY_UNASSIGNED',
                 message: 'The incident location could not be assigned safely to a municipality. Adjust the map pin or contact an administrator.',
                 warnings: locationResult.warnings,
+                hint: 'Border/overlapping coverage needs administrator review. Ops: check GET /api/health boundaries.ready and run npm run import:barangay-boundaries --prefix server on a fresh database.',
             });
         }
 

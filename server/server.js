@@ -320,9 +320,11 @@ const PORT = process.env.PORT || 5000;
 
 export const startServer = async () => {
     validateRuntimeConfig(process.env);
+    const { attachSocketRedisAdapter } = await import('./config/scaling.js');
+    await attachSocketRedisAdapter(io, process.env);
     await initializeDatabase();
     if (!process.env.REDIS_URL?.trim()) {
-        console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after adding a shared store.');
+        console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
     }
 
     return httpServer.listen(PORT, () => {

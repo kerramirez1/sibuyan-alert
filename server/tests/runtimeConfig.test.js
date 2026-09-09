@@ -64,4 +64,42 @@ describe('production runtime configuration', () => {
             VITE_VAPID_PUBLIC_KEY: 'different-public-key',
         })).toThrow('must match');
     });
+
+    test('warns in development when VAPID public keys mismatch', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        validateRuntimeConfig({
+            NODE_ENV: 'development',
+            MONGODB_URI: 'mongodb+srv://example.invalid/database',
+            JWT_SECRET: 'a-strong-test-secret-with-32-characters',
+            CLIENT_URL: 'http://localhost:5173',
+            VAPID_PUBLIC_KEY: 'key-a',
+            VAPID_PRIVATE_KEY: 'private-key',
+            VITE_VAPID_PUBLIC_KEY: 'key-b',
+        });
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('VAPID_PUBLIC_KEY and VITE_VAPID_PUBLIC_KEY do not match')
+        );
+        warnSpy.mockRestore();
+    });
+
+    test('does not warn in development when VAPID public keys match', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        validateRuntimeConfig({
+            NODE_ENV: 'development',
+            MONGODB_URI: 'mongodb+srv://example.invalid/database',
+            JWT_SECRET: 'a-strong-test-secret-with-32-characters',
+            CLIENT_URL: 'http://localhost:5173',
+            SMTP_HOST: 'smtp.example.com',
+            SMTP_USER: 'user',
+            SMTP_PASS: 'pass',
+            VAPID_PUBLIC_KEY: 'matching-key',
+            VAPID_PRIVATE_KEY: 'private-key',
+            VITE_VAPID_PUBLIC_KEY: 'matching-key',
+        });
+        const mismatchCalls = warnSpy.mock.calls.filter(([msg]) =>
+            typeof msg === 'string' && msg.includes('do not match')
+        );
+        expect(mismatchCalls.length).toBe(0);
+        warnSpy.mockRestore();
+    });
 });

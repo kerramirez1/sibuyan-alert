@@ -402,7 +402,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapProps.filterMode).toBe('response');
         expect(mapProps.showPending).toBe(true);
         const filterBar = screen.getByLabelText('Map status filter');
-        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
     });
 
@@ -415,7 +415,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(screen.getByText('Municipal oversight')).toBeInTheDocument();
         const filterBar = screen.getByLabelText('Map status filter');
-        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
             filterMode: 'review',
@@ -786,7 +786,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const filterBar = screen.getByLabelText('Map status filter');
         expect(filterBar).toBeInTheDocument();
 
-        expect(within(filterBar).getByRole('button', { name: /all active/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /verified/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /responding/i })).toBeInTheDocument();
@@ -854,7 +854,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
             const filterBtn = screen.getByRole('button', { name: /^filters$/i });
             expect(filterBtn).toBeInTheDocument();
-            expect(screen.getByText(/All Active · 3/i)).toBeInTheDocument();
+            expect(screen.getByText(/Active Incidents · 3/i)).toBeInTheDocument();
         });
 
         test('2. Opens bottom sheet when tapping Filters button and displays operational status rows', () => {
@@ -875,7 +875,7 @@ describe('DashboardMapWorkspace permissions', () => {
             const dialog = screen.getByRole('dialog', { name: /Map filters/i });
             expect(dialog).toBeInTheDocument();
             expect(screen.getByText('Control which incidents and hazard layers appear on the map.')).toBeInTheDocument();
-            expect(screen.getByText(/Showing all active · 3 incidents/i)).toBeInTheDocument();
+            expect(screen.getByText(/Showing active incidents · 3 incidents/i)).toBeInTheDocument();
 
             // Distinct operational sections
             expect(screen.getByText(/Incident scope/i)).toBeInTheDocument();
@@ -883,7 +883,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(screen.getByText(/Map layers/i)).toBeInTheDocument();
 
             const radioGroup = within(dialog).getByRole('radiogroup', { name: /Incident filter options/i });
-            expect(within(radioGroup).getByRole('radio', { name: /all active/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /active incidents/i })).toBeInTheDocument();
             expect(within(radioGroup).getByRole('radio', { name: /pending/i })).toBeInTheDocument();
             expect(within(radioGroup).getByRole('radio', { name: /verified/i })).toBeInTheDocument();
             expect(within(radioGroup).getByRole('radio', { name: /responding/i })).toBeInTheDocument();

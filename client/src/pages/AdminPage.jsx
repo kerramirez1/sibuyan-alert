@@ -102,7 +102,7 @@ const getManilaCalendarDateKey = () => {
 
 const AdminPage = () => {
     const { user } = useAuth();
-    const { connected, reconnectVersion, subscribe } = useSocket();
+    const { connected, reconnect, reconnectVersion, subscribe } = useSocket();
     const userId = user?.id || user?._id;
     // Per-user cache key: payloads can carry per-user fields, so two
     // operators sharing a municipality must never read each other's snapshot.
@@ -262,6 +262,13 @@ const AdminPage = () => {
         return () => window.clearInterval(interval);
     }, [fetchPresence, user?.role, reconnectVersion]);
 
+    // Revalidate dashboard analytics automatically whenever connection is re-established
+    useEffect(() => {
+        if (reconnectVersion > 0) {
+            fetchDashboardStats({ force: true });
+        }
+    }, [fetchDashboardStats, reconnectVersion]);
+
     // Background safety heartbeat (every 45s) and Manila calendar midnight rollover detector
     useEffect(() => {
         if (!userId) return undefined;
@@ -408,15 +415,22 @@ const AdminPage = () => {
                         <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
                     </p>
                     <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" aria-live="polite">
-                        <span className="inline-flex items-center gap-1.5 font-semibold">
+                        <button
+                            type="button"
+                            onClick={() => !connected && reconnect?.()}
+                            disabled={connected}
+                            title={connected ? 'Live operational stream active' : 'Click to reconnect immediately'}
+                            className={`inline-flex items-center gap-1.5 font-semibold transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-500 rounded-sm ${connected ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
+                            aria-label={connected ? 'Live operational stream' : 'Disconnected. Click to reconnect immediately.'}
+                        >
                             <span className="relative flex h-2 w-2" aria-hidden="true">
-                                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${connected ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                                <span className={`relative inline-flex h-2 w-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-gray-400'}`} />
+                                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${connected ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                                <span className={`relative inline-flex h-2 w-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-amber-500'}`} />
                             </span>
-                            <span className={connected ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}>
+                            <span className={connected ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
                                 {connected ? 'Live' : 'Reconnecting'}
                             </span>
-                        </span>
+                        </button>
                         <span className="tabular-nums text-gray-500 dark:text-gray-400">
                             Updated {formatIncidentRelativeTime(lastEventAt)}
                         </span>

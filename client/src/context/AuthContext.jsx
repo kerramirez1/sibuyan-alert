@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from '../router';
-import api from '../services/api';
+import api, { refreshAuthSession } from '../services/api';
 import toast, { dismissActiveToast } from '../utils/appToast';
 import {
     getPushState,
@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const prevVerificationStatusRef = useRef(null);
     const greetingTimerRef = useRef(null);
+    const lastSessionRefreshAtRef = useRef(Date.now());
 
     useEffect(() => () => {
         if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await api.get('/auth/me', { _skipAuthRefresh: true });
                 setUser(response.data.data);
+                lastSessionRefreshAtRef.current = Date.now();
             } catch {
                 setUser(null);
             }
@@ -60,6 +62,46 @@ export const AuthProvider = ({ children }) => {
 
         initAuth();
     }, []);
+
+    // Proactive background session renewal (every 10 minutes) and on tab visibility restoration.
+    // Keeps the 15-minute HttpOnly access token fresh even during passive dashboard monitoring.
+    useEffect(() => {
+        if (!user) return undefined;
+
+        const PROACTIVE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (token expires at 15m)
+
+        const performProactiveRefresh = async () => {
+            try {
+                await refreshAuthSession();
+                lastSessionRefreshAtRef.current = Date.now();
+            } catch {
+                // Network or session issues will be handled on demand by the axios interceptor
+            }
+        };
+
+        const interval = window.setInterval(() => {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            performProactiveRefresh();
+        }, PROACTIVE_REFRESH_INTERVAL_MS);
+
+        const handleVisibilityChange = () => {
+            if (typeof document === 'undefined' || document.hidden) return;
+            if (Date.now() - lastSessionRefreshAtRef.current >= PROACTIVE_REFRESH_INTERVAL_MS) {
+                performProactiveRefresh();
+            }
+        };
+
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+        }
+
+        return () => {
+            window.clearInterval(interval);
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            }
+        };
+    }, [user?.id]);
 
     // Keep reporter verification status fresh while account is pending/rejected
     useEffect(() => {

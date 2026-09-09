@@ -67,6 +67,17 @@ The local source file must exist at
 `server/data/psa-georisk-sibuyan-barangays.geojson`, or
 `SIBUYAN_BOUNDARIES_FILE` must identify its absolute path.
 
+Verify readiness before accepting reports:
+
+```text
+curl https://<app-name>.herokuapp.com/api/health
+```
+
+`boundaries.ready` must be `true` with a non-zero `count`. When `false`,
+barangay auto-match is unavailable: interior pins still resolve via municipal
+coverage boxes, but border/overlapping pins return `MUNICIPALITY_UNASSIGNED`
+(400) for administrator review until the import completes.
+
 ## Deploy and verify
 
 ```text
@@ -92,11 +103,25 @@ Browser push requires HTTPS, which Heroku provides.
 
 ## Scaling note (MVP: 1 dyno)
 
-One web dyno is appropriate for testing and MVP pilot. Rate limits
-(`server/middleware/rateLimiter.js`) and Socket.IO rooms are in-process memory.
-Before scaling to multiple web dynos, add a shared store such as Redis
-(`REDIS_URL`) for rate limiting + a Socket.IO adapter, and configure Heroku
-session affinity.
+One web dyno is appropriate for testing and MVP pilot. Without `REDIS_URL`,
+rate limits (`server/middleware/rateLimiter.js`) and Socket.IO rooms are
+in-process memory.
+
+To scale out:
+
+1. Provision Redis (e.g. `heroku addons:create heroku-redis:mini --app <app-name>`)
+   and set `REDIS_URL` (Heroku sets it automatically for the addon).
+2. Keep `WEB_CONCURRENCY=1` per dyno unless `REDIS_URL` is set — production
+   refuses to boot with `WEB_CONCURRENCY > 1` and no `REDIS_URL`.
+3. The server attaches the Socket.IO Redis adapter (`server/config/scaling.js`)
+   and a shared `rate-limit-redis` store automatically when `REDIS_URL` is set.
+   Required packages (`redis`, `rate-limit-redis`, `@socket.io/redis-adapter`)
+   are already in `server/package.json`.
+4. Enable session affinity so polling fallbacks stick to one dyno:
+
+```text
+heroku features:enable http-session-affinity --app <app-name>
+```
 
 ## Dependency security status
 

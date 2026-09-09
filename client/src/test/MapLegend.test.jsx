@@ -16,7 +16,7 @@ describe('MapLegend', () => {
     test('shows only public active statuses when pending reports are hidden', () => {
         render(<MapLegend />);
 
-        expect(screen.getByText('High-risk zone')).toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.getByText('Verified')).toBeInTheDocument();
         expect(screen.getByText('Transferred')).toBeInTheDocument();
         expect(screen.getByText('Responding')).toBeInTheDocument();
@@ -51,6 +51,16 @@ describe('MapLegend', () => {
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
     });
 
+    test('shows only responding status for the responding filter and hides the hazard indicator', () => {
+        render(<MapLegend filterStatus="responding" />);
+
+        expect(screen.getByText('Responding')).toBeInTheDocument();
+        expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+    });
+
     test('shows only transferred status for the transferred filter and hides the hazard indicator', () => {
         render(<MapLegend filterStatus="transferred" />);
 
@@ -61,9 +71,9 @@ describe('MapLegend', () => {
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
     });
 
-    test('exposes the hazard layer only for aggregate and hazard filters', () => {
-        expect(isRiskZoneLayerVisibleForFilter(null)).toBe(true);
-        expect(isRiskZoneLayerVisibleForFilter('all')).toBe(true);
+    test('exposes the hazard layer only for the risk-zones filter', () => {
+        expect(isRiskZoneLayerVisibleForFilter(null)).toBe(false);
+        expect(isRiskZoneLayerVisibleForFilter('all')).toBe(false);
         expect(isRiskZoneLayerVisibleForFilter('risk-zones')).toBe(true);
         expect(isRiskZoneLayerVisibleForFilter('incidents')).toBe(false);
         expect(isRiskZoneLayerVisibleForFilter('pending')).toBe(false);
@@ -104,7 +114,7 @@ describe('MapLegend', () => {
     });
 
     test('hides incident status indicators when showIncidentStatus is false', () => {
-        render(<MapLegend showIncidentStatus={false} />);
+        render(<MapLegend showIncidentStatus={false} filterStatus="risk-zones" />);
 
         expect(screen.getByText('High-risk zone')).toBeInTheDocument();
         expect(screen.queryByText('Verified')).not.toBeInTheDocument();

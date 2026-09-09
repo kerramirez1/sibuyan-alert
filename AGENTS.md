@@ -9,15 +9,24 @@
 
 ## Commands
 
-Run all commands from the `client/` directory.
+Run workspace-orchestrated commands from the repository root:
 
-| Command     | Description                          |
-|-------------|--------------------------------------|
-| `npm run dev`   | Start Vite dev server (port 5173)  |
-| `npm run build` | Production build                          |
-| `npm run preview` | Preview production build               |
-| `npm test`      | Run Vitest test suite                   |
-| `npm run lint`  | Run oxlint with `--deny-warnings`       |
+| Command              | Description                                        |
+|----------------------|----------------------------------------------------|
+| `npm test`           | Full Vitest suite (client + server)                |
+| `npm run test:client`| Client tests only (`--run`)                        |
+| `npm run test:server`| Server tests only                                  |
+| `npm run lint`       | oxlint (`--deny-warnings`) on client + server      |
+| `npm run build`      | Production build of the client                     |
+| `npm start`          | Start the production server                        |
+
+Per-workspace dev commands:
+
+| Directory  | Command         | Description                         |
+|------------|-----------------|-------------------------------------|
+| `client/`  | `npm run dev`   | Start Vite dev server (port 5173)   |
+| `client/`  | `npm run preview`| Preview production build           |
+| `server/`  | `npm run dev`   | Start API with nodemon (port 5000)  |
 
 ## Architecture Notes
 

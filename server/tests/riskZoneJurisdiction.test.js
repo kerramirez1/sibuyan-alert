@@ -40,4 +40,11 @@ describe('risk-zone boundary jurisdiction validation', () => {
             expect(result.statusCode).toBe(422);
         }
     });
+
+    test('reports missing boundary dataset as retryable ops failure', () => {
+        const result = validateRiskZoneBoundaryResolution({ status: 'dataset_missing', barangay: null }, 'Cajidiocan');
+        expect(result.valid).toBe(false);
+        expect(result.statusCode).toBe(503);
+        expect(result.message).toContain('import:barangay-boundaries');
+    });
 });

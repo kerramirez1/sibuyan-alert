@@ -123,7 +123,7 @@ const MapMobileFilterSheet = ({
     const summaryText = pendingFilter === 'risk-zones'
         ? `Showing risk zones · ${activeCount} ${activeCount === 1 ? 'mapped zone' : 'mapped zones'}`
         : pendingFilter === 'all'
-            ? `Showing all active · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`
+            ? `Showing active incidents · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`
             : `Showing ${activeLabel.toLowerCase()} · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
 
     // Compute Apply button label
@@ -197,19 +197,18 @@ const MapMobileFilterSheet = ({
                                     type="button"
                                     role="radio"
                                     aria-checked={isSelected}
-                                    aria-label="All active"
+                                    aria-label={scopeOption?.label || 'Active Incidents'}
                                     onClick={() => setPendingFilter('all')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                                        isSelected
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
                                             ? 'text-brand-800 dark:text-sky-300'
                                             : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true" />
                                         <div>
                                             <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
-                                                All active
+                                                {scopeOption?.label || 'Active Incidents'}
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
                                                 Verified, responding, and active emergency operations
@@ -250,11 +249,10 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                                                isSelected
+                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
                                                     ? 'text-brand-800 dark:text-sky-300'
                                                     : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
@@ -293,11 +291,10 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label="Risk zones"
                                     onClick={() => setPendingFilter('risk-zones')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                                        isSelected
+                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
                                             ? 'text-brand-800 dark:text-sky-300'
                                             : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />

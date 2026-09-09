@@ -185,10 +185,10 @@ const MapView = ({
 
         return baseFiltered;
     }, [effectiveLocateRequest, filterCategory, filterMode, filterStatus, mode, reports, showPending]);
-    // Incident status filters isolate incident markers and hide the hazard
-    // layer; zones render only in the aggregate or dedicated hazard view, and
-    // the explicit hazard toggle can always hide them.
-    const isRiskZoneFilterActive = isRiskZoneLayerVisibleForFilter(filterStatus);
+    // Hazard zones render when the dedicated risk-zones filter is selected,
+    // or when a risk zone is explicitly targeted for location/inspection.
+    const isRiskZoneFilterActive = isRiskZoneLayerVisibleForFilter(filterStatus)
+        || effectiveLocateRequest?.type === 'risk-zone';
     const filteredRiskZones = useMemo(() => {
         if (!showHazardZones || !isRiskZoneFilterActive) return [];
         return highRiskZones;

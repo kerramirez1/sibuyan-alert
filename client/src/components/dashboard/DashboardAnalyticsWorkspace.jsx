@@ -22,7 +22,7 @@ import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getFilteredMapReports } from '../../utils/mapReports';
 
 const MAP_STATUS_FILTERS = Object.freeze([
-    Object.freeze({ value: 'all', label: 'All Active' }),
+    Object.freeze({ value: 'all', label: 'Active Incidents' }),
     Object.freeze({ value: 'pending', label: 'Pending' }),
     Object.freeze({ value: 'verified', label: 'Verified' }),
     Object.freeze({ value: 'responding', label: 'Responding' }),

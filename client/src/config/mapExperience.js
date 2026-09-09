@@ -2,7 +2,7 @@ const DEFAULT_MUNICIPALITY = 'Sibuyan Island';
 
 const OPERATIONAL_FILTERS = Object.freeze({
     operational: Object.freeze([
-        Object.freeze({ value: 'all', label: 'All Active' }),
+        Object.freeze({ value: 'all', label: 'Active Incidents' }),
         Object.freeze({ value: 'pending', label: 'Pending' }),
         Object.freeze({ value: 'verified', label: 'Verified' }),
         Object.freeze({ value: 'responding', label: 'Responding' }),
@@ -11,7 +11,7 @@ const OPERATIONAL_FILTERS = Object.freeze({
         Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
     ]),
     public: Object.freeze([
-        Object.freeze({ value: 'all', label: 'All Active' }),
+        Object.freeze({ value: 'all', label: 'Active Incidents' }),
         Object.freeze({ value: 'verified', label: 'Verified' }),
         Object.freeze({ value: 'responding', label: 'Responding' }),
         Object.freeze({ value: 'transferred', label: 'Transferred' }),

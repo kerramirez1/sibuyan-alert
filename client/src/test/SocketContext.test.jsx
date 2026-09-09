@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
             else listeners.delete(event);
         }),
         emit: vi.fn(),
+        connect: vi.fn(),
         disconnect: vi.fn(),
     };
     const toast = vi.fn();
@@ -44,11 +45,12 @@ vi.mock('../services/api', () => ({ refreshAuthSession: vi.fn() }));
 import { SocketProvider, useSocket } from '../context/SocketContext';
 
 const Probe = () => {
-    const { unreadCount, reconnectVersion } = useSocket();
+    const { unreadCount, reconnectVersion, reconnect } = useSocket();
     return (
         <>
             <output aria-label="Unread notifications">{unreadCount}</output>
             <output aria-label="Reconnect version">{reconnectVersion}</output>
+            <button type="button" onClick={reconnect}>Manual Reconnect</button>
         </>
     );
 };
@@ -63,6 +65,7 @@ describe('SocketProvider notification policy', () => {
         mocks.socket.on.mockClear();
         mocks.socket.off.mockClear();
         mocks.socket.emit.mockClear();
+        mocks.socket.connect.mockClear();
         mocks.socket.disconnect.mockClear();
         mocks.ioMock.mockClear();
         mocks.toast.mockReset();
@@ -70,15 +73,48 @@ describe('SocketProvider notification policy', () => {
         mocks.toast.error.mockReset();
     });
 
-    test('reconnects indefinitely with capped exponential backoff', () => {
+    test('reconnects indefinitely with rapid capped exponential backoff and jitter', () => {
         render(<SocketProvider><Probe /></SocketProvider>);
 
         expect(mocks.ioMock).toHaveBeenCalledWith('http://localhost:5000', expect.objectContaining({
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 30000,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5,
         }));
+    });
+
+    test('triggers reconnect immediately when manual reconnect is invoked while disconnected', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+        mocks.socket.connected = false;
+
+        act(() => {
+            screen.getByText('Manual Reconnect').click();
+        });
+
+        expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
+    });
+
+    test('reconnects when tab becomes visible and socket is disconnected', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+        mocks.socket.connected = false;
+
+        act(() => {
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
+    });
+
+    test('reconnects immediately when server sends io server disconnect', () => {
+        render(<SocketProvider><Probe /></SocketProvider>);
+        mocks.socket.connect.mockClear();
+
+        act(() => trigger('disconnect', 'io server disconnect'));
+
+        expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
     });
 
     test('signals consumers to resync only after a reconnect, not the initial connection', () => {
