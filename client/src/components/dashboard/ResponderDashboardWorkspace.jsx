@@ -267,12 +267,15 @@ const ResponderDashboardWorkspace = ({
                                 Barangay distribution
                             </h2>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                Incident frequency across {municipalityName}
+                                All-time incident history across {municipalityName}
                             </p>
                         </div>
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                            {sortedBarangays.length} {sortedBarangays.length === 1 ? 'barangay' : 'barangays'}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                            <span className="inline-flex items-center rounded-sm bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                                All-time
+                            </span>
+                            <span>{sortedBarangays.length} {sortedBarangays.length === 1 ? 'barangay' : 'barangays'}</span>
+                        </div>
                     </div>
 
                     <div className="mt-2 max-h-72 divide-y divide-gray-100 overflow-y-auto pr-1 dark:divide-white/5">

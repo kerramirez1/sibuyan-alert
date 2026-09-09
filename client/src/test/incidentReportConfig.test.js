@@ -119,4 +119,38 @@ describe('incidentReportConfig capabilities and jurisdiction', () => {
         expect(otherCaps.canTransfer).toBe(false);
         expect(otherCaps.canDelete).toBe(false);
     });
+
+    test('disallows transferring incidents with an ongoing response', () => {
+        const cajidiocanAdmin = { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
+
+        // 1. Responding report
+        const respondingReport = {
+            _id: 'report-resp-1',
+            status: 'responding',
+            municipalityName: 'Cajidiocan',
+            responders: [{ user: 'resp-user-1', unitName: 'MDRRMO Rescue' }],
+        };
+        const respondingCaps = getIncidentCapabilities(cajidiocanAdmin, respondingReport);
+        expect(respondingCaps.canTransfer).toBe(false);
+
+        // 2. Verified report with active responders (ongoing response guard)
+        const verifiedWithResponders = {
+            _id: 'report-resp-2',
+            status: 'verified',
+            municipalityName: 'Cajidiocan',
+            responders: [{ user: 'resp-user-1' }],
+        };
+        const verifiedRespondersCaps = getIncidentCapabilities(cajidiocanAdmin, verifiedWithResponders);
+        expect(verifiedRespondersCaps.canTransfer).toBe(false);
+
+        // 3. Clean verified report without responders is transferable
+        const verifiedClean = {
+            _id: 'report-resp-3',
+            status: 'verified',
+            municipalityName: 'Cajidiocan',
+            responders: [],
+        };
+        const verifiedCleanCaps = getIncidentCapabilities(cajidiocanAdmin, verifiedClean);
+        expect(verifiedCleanCaps.canTransfer).toBe(true);
+    });
 });

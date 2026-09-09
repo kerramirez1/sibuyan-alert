@@ -15,9 +15,9 @@ import { useAuth } from '../context/AuthContext';
 import { Skeleton, SkeletonCircle } from '../components/ui/Skeleton';
 import { cleanNotificationTitle, cleanNotificationMessage } from '../utils/notificationFormatting';
 import {
-    QUERY_CACHE_TTLS,
-    getCachedData,
+    dedupedFetch,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import {
@@ -119,19 +119,24 @@ const NotificationsPage = () => {
 
     const fetchNotifications = useCallback(async () => {
         setError('');
-        const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.notifications);
-        if (fresh) {
-            setNotifications(getCachedNotifications(fresh));
-            if (Number.isFinite(fresh?.unreadCount)) setUnreadCount(fresh.unreadCount);
+        const stale = getStaleData(cacheKey);
+        if (stale) {
+            setNotifications(getCachedNotifications(stale));
+            if (Number.isFinite(stale?.unreadCount)) setUnreadCount(stale.unreadCount);
             setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
+        // Avoid micro-burst revalidation within 4 seconds unless forced or cold
+        if (stale && isRecentlyRevalidated(cacheKey, 4000)) {
             return;
         }
-        const stale = getStaleData(cacheKey);
-        if (!stale) setLoading(true);
+
         try {
             // Pagination is intentionally capped at the latest 50 items for this inbox view.
             // The backend still owns full history; expand to cursor pagination if volume grows.
-            const response = await notificationsAPI.getAll({ limit: 50 });
+            const response = await dedupedFetch(`fetch:${cacheKey}`, () => notificationsAPI.getAll({ limit: 50 }));
             const data = response.data?.data || {};
             const rawList = Array.isArray(data?.notifications) ? data.notifications : [];
             const nextNotifications = rawList.slice(0, 50);

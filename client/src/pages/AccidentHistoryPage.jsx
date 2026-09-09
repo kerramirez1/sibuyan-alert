@@ -13,9 +13,9 @@ import {
 } from 'react-icons/hi';
 import { adminAPI, reportsAPI } from '../services/api';
 import {
-    QUERY_CACHE_TTLS,
-    getCachedData,
+    dedupedFetch,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
@@ -353,22 +353,24 @@ const AccidentHistoryPage = () => {
     }, []);
 
     const fetchReports = useCallback(async (silent = false) => {
-        if (!silent) {
-            const fresh = getCachedData(historyCacheKey, QUERY_CACHE_TTLS.accidentHistory);
-            if (Array.isArray(fresh)) {
-                setReports(fresh);
-                setLoading(false);
-                return;
-            }
-            const stale = getStaleData(historyCacheKey);
-            if (Array.isArray(stale)) setReports(stale);
-            else setLoading(true);
+        const stale = getStaleData(historyCacheKey);
+        if (Array.isArray(stale) && stale.length > 0) {
+            setReports(stale);
+            setLoading(false);
+        } else if (!silent) {
+            setLoading(true);
         }
+
+        // Avoid micro-burst revalidation within 5 seconds unless forced or cold
+        if (stale && isRecentlyRevalidated(historyCacheKey, 5000)) {
+            return;
+        }
+
         try {
             const fetchPage = canViewFullDetails
                 ? (pageParams) => adminAPI.getReports({ status: 'resolved', ...pageParams })
                 : (pageParams) => reportsAPI.getAll({ status: 'resolved', ...pageParams });
-            const rows = await fetchAllReportPages(fetchPage, { status: 'resolved' }, 250);
+            const rows = await dedupedFetch(`fetch:${historyCacheKey}`, () => fetchAllReportPages(fetchPage, { status: 'resolved' }, 250));
             const nextReports = (Array.isArray(rows) ? rows : [])
                 .filter(Boolean)
                 .filter((report) => report?.status === 'resolved');
@@ -380,7 +382,7 @@ const AccidentHistoryPage = () => {
                 toast.error('Failed to load accident history');
             }
         } finally {
-            if (!silent) setLoading(false);
+            setLoading(false);
         }
     }, [canViewFullDetails, historyCacheKey]);
 

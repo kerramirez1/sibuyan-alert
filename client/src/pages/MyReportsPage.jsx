@@ -11,9 +11,9 @@ import {
 } from 'react-icons/hi';
 import { reportsAPI } from '../services/api';
 import {
-    QUERY_CACHE_TTLS,
-    getCachedData,
+    dedupedFetch,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
@@ -283,19 +283,21 @@ function MyReportsPage() {
     const itemRefs = useRef({});
 
     const fetchReports = useCallback(async (silent = false) => {
-        if (!silent) {
-            const fresh = getCachedData(cacheKey, QUERY_CACHE_TTLS.myReports);
-            if (Array.isArray(fresh)) {
-                setReports(fresh.filter(Boolean));
-                setLoading(false);
-                return;
-            }
-            const stale = getStaleData(cacheKey);
-            if (Array.isArray(stale)) setReports(stale.filter(Boolean));
-            else setLoading(true);
+        const stale = getStaleData(cacheKey);
+        if (Array.isArray(stale) && stale.length > 0) {
+            setReports(stale.filter(Boolean));
+            setLoading(false);
+        } else if (!silent) {
+            setLoading(true);
         }
+
+        // Avoid micro-burst revalidation within 4 seconds unless forced or cold
+        if (stale && isRecentlyRevalidated(cacheKey, 4000)) {
+            return;
+        }
+
         try {
-            const response = await reportsAPI.getMyReports();
+            const response = await dedupedFetch(`fetch:${cacheKey}`, () => reportsAPI.getMyReports());
             const raw = response?.data?.data;
             const nextReports = Array.isArray(raw)
                 ? raw
@@ -308,9 +310,11 @@ function MyReportsPage() {
             if (!Array.isArray(getStaleData(cacheKey))) {
                 setError('Unable to load your submitted reports.');
             }
-            if (!silent) toast.error('Failed to load your reports');
+            if (!silent && !Array.isArray(getStaleData(cacheKey))) {
+                toast.error('Failed to load your reports');
+            }
         } finally {
-            if (!silent) setLoading(false);
+            setLoading(false);
         }
     }, [cacheKey]);
 

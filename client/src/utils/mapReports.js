@@ -1,7 +1,5 @@
 export const MAP_REPORT_STATUSES = Object.freeze(['verified', 'transferred', 'responding', 'resolved']);
 
-const MAP_REPORT_STATUS_SET = new Set(MAP_REPORT_STATUSES);
-
 export const getMapReportId = (report) => {
     const id = report?._id ?? report?.id;
     return id === null || id === undefined ? null : String(id);
@@ -21,10 +19,12 @@ export const getMapCoordinates = (report) => {
     return { lat, lng };
 };
 
-export const getVisibleMapReports = (reports = [], { includePending = false } = {}) => {
-    const allowedStatuses = includePending
-        ? new Set(['pending', ...MAP_REPORT_STATUSES])
-        : MAP_REPORT_STATUS_SET;
+export const getVisibleMapReports = (reports = [], { includePending = false, includeRejected = false } = {}) => {
+    const allowedStatuses = new Set([
+        ...MAP_REPORT_STATUSES,
+        ...(includePending ? ['pending'] : []),
+        ...(includeRejected ? ['rejected'] : []),
+    ]);
     const reportsById = new Map();
     const reportsWithoutId = [];
 
@@ -98,7 +98,7 @@ export const getFilteredMapReports = (reports = [], {
 export const groupReportsByMapLocation = (reports = [], precision = 5) => {
     const groups = new Map();
 
-    getVisibleMapReports(reports, { includePending: true }).forEach((report) => {
+    getVisibleMapReports(reports, { includePending: true, includeRejected: true }).forEach((report) => {
         const coordinates = getMapCoordinates(report);
         const key = `${coordinates.lat.toFixed(precision)}:${coordinates.lng.toFixed(precision)}`;
         const existing = groups.get(key);

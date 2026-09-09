@@ -4,9 +4,9 @@ import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import {
-    QUERY_CACHE_TTLS,
-    getCachedData,
+    dedupedFetch,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
@@ -34,6 +34,14 @@ const ACTIVITY_LABELS = {
     reportResolved: 'Incident resolved',
     reportUpdatedByReporter: 'Reporter situation update',
     reportTransferred: 'Incident transferred',
+    localIncidentTransferredIn: 'Incident transferred in',
+    localIncidentTransferredOut: 'Incident transferred out',
+    localUnitResponse: 'Unit dispatched',
+    multiUnitResponse: 'Multi-unit response active',
+    reportTransferAcknowledged: 'Transfer acknowledged',
+    reportRejectedUpdate: 'Report rejected',
+    localIncident: 'Incoming emergency report',
+    localIncidentVerified: 'Incident verified locally',
     highRiskZoneCreated: 'High-risk zone created',
     highRiskZoneUpdated: 'High-risk zone updated',
     highRiskZoneDeleted: 'High-risk zone removed',
@@ -84,6 +92,14 @@ const getRequestErrorMessage = (error, fallback) => (
     error?.response?.data?.message || error?.message || fallback
 );
 
+const getManilaCalendarDateKey = () => {
+    try {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
+    } catch {
+        return new Date().toISOString().slice(0, 10);
+    }
+};
+
 const AdminPage = () => {
     const { user } = useAuth();
     const { connected, reconnectVersion, subscribe } = useSocket();
@@ -104,27 +120,30 @@ const AdminPage = () => {
     const [, setNowTick] = useState(() => Date.now());
     const [presence, setPresence] = useState(null);
 
-    const fetchDashboardStats = useCallback(async ({ showLoading = false } = {}) => {
+    const fetchDashboardStats = useCallback(async ({ showLoading = false, force = false } = {}) => {
         if (!user?.role) return;
         const requestId = ++dashboardRequestIdRef.current;
-        if (showLoading) {
-            const fresh = getCachedData(dashboardCacheKey, QUERY_CACHE_TTLS.adminDashboard);
-            if (fresh) {
-                setStats(fresh);
-                setLoading(false);
-                setDashboardError('');
-                return;
-            }
-            const stale = getStaleData(dashboardCacheKey);
-            if (stale) setStats(stale);
-            else setLoading(true);
+
+        // Instant render from cache (0ms, no skeleton) if available
+        const stale = getStaleData(dashboardCacheKey);
+        if (stale) {
+            setStats(stale);
+            setLoading(false);
+        } else if (showLoading) {
+            setLoading(true);
         }
-        setDashboardError('');
+
+        // Avoid micro-burst revalidation within 4 seconds unless forced or cold
+        if (!force && stale && isRecentlyRevalidated(dashboardCacheKey, 4000)) {
+            setDashboardError('');
+            return;
+        }
 
         try {
-            const response = user.role === 'responder'
-                ? await analyticsAPI.getResponder()
-                : await analyticsAPI.getAdmin();
+            const fetcher = user.role === 'responder'
+                ? () => analyticsAPI.getResponder()
+                : () => analyticsAPI.getAdmin();
+            const response = await dedupedFetch(`admin-stats:${dashboardCacheKey}`, fetcher);
             const nextStats = response.data?.data;
             if (!nextStats || typeof nextStats !== 'object' || Array.isArray(nextStats)) {
                 throw new Error('The dashboard analytics response was invalid.');
@@ -132,6 +151,7 @@ const AdminPage = () => {
             if (requestId === dashboardRequestIdRef.current) {
                 setStats(nextStats);
                 setCachedData(dashboardCacheKey, nextStats);
+                setDashboardError('');
             }
         } catch (error) {
             console.error('Failed to fetch dashboard stats:', error);
@@ -162,7 +182,7 @@ const AdminPage = () => {
     const scheduleDashboardRefresh = useCallback(() => {
         window.clearTimeout(dashboardRefreshTimerRef.current);
         dashboardRefreshTimerRef.current = window.setTimeout(() => {
-            fetchDashboardStats();
+            fetchDashboardStats({ force: true });
         }, 150);
     }, [fetchDashboardStats]);
 
@@ -204,6 +224,14 @@ const AdminPage = () => {
             'reportResolved',
             'reportUpdatedByReporter',
             'reportTransferred',
+            'localIncidentTransferredIn',
+            'localIncidentTransferredOut',
+            'localUnitResponse',
+            'multiUnitResponse',
+            'reportTransferAcknowledged',
+            'reportRejectedUpdate',
+            'localIncident',
+            'localIncidentVerified',
             'highRiskZoneCreated',
             'highRiskZoneUpdated',
             'highRiskZoneDeleted',
@@ -226,12 +254,32 @@ const AdminPage = () => {
         return () => window.clearInterval(interval);
     }, []);
 
+    // Presence poll for municipal_admin
     useEffect(() => {
         if (user?.role !== 'municipal_admin') return undefined;
         fetchPresence();
         const interval = window.setInterval(fetchPresence, 30000);
         return () => window.clearInterval(interval);
     }, [fetchPresence, user?.role, reconnectVersion]);
+
+    // Background safety heartbeat (every 45s) and Manila calendar midnight rollover detector
+    useEffect(() => {
+        if (!userId) return undefined;
+        let currentDateKey = getManilaCalendarDateKey();
+
+        const interval = window.setInterval(() => {
+            const nextDateKey = getManilaCalendarDateKey();
+            if (nextDateKey !== currentDateKey) {
+                currentDateKey = nextDateKey;
+                fetchDashboardStats({ force: true });
+            } else if (typeof document !== 'undefined' && !document.hidden) {
+                // Periodic background silent revalidation
+                fetchDashboardStats();
+            }
+        }, 45000);
+
+        return () => window.clearInterval(interval);
+    }, [fetchDashboardStats, userId]);
 
     // Specialized Responder Operations Hub
     if (user?.role === 'responder') {

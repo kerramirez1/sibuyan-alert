@@ -53,7 +53,7 @@ function App() {
     useEffect(() => {
         if (loading) return;
         const prefetch = () => {
-            const tasks = [];
+            const tasks = [import('./pages/AccidentHistoryPage')];
             if (!isAuthenticated) {
                 tasks.push(import('./pages/LoginPage'), import('./pages/DashboardPage'));
             } else if (user?.role === 'reporter') {
@@ -61,14 +61,18 @@ function App() {
                     import('./pages/ReporterDashboardPage'),
                     import('./pages/MyReportsPage'),
                     import('./pages/DashboardPage'),
+                    import('./pages/NotificationsPage'),
                 );
             } else if (user?.role === 'municipal_admin' || user?.role === 'responder') {
                 tasks.push(
                     import('./pages/AdminPage'),
                     import('./pages/AdminReportsPage'),
                     import('./pages/DashboardPage'),
+                    import('./pages/NotificationsPage'),
                 );
-                if (user?.role === 'municipal_admin') tasks.push(import('./pages/AdminUsersPage'));
+                if (user?.role === 'municipal_admin') {
+                    tasks.push(import('./pages/AdminUsersPage'), import('./pages/AdminHighRiskZonesPage'));
+                }
             }
             Promise.allSettled(tasks).catch(() => {});
         };

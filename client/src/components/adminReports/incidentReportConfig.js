@@ -36,7 +36,7 @@ export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const RESPONDER_VISIBLE_STATUSES = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
-export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred', 'responding'];
+export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred'];
 export const RESPONDER_QUEUE_VIEWS = Object.freeze({
     available: 'dispatch-queue',
     municipalActive: 'active-incidents',
@@ -138,11 +138,20 @@ export const getIncidentCapabilities = (user, report) => {
         && report?.municipalityName === user.assignedMunicipality
     );
 
+    const hasActiveResponse = (
+        status === 'responding'
+        || (Array.isArray(report?.responders) && report.responders.length > 0)
+        || Boolean(report?.respondedBy)
+    );
+
     return {
         canInspect: Boolean(report),
         canVerify: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
         canReject: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
-        canTransfer: isAdmin && withinAdminScope && ADMIN_TRANSFERABLE_STATUSES.includes(status),
+        canTransfer: isAdmin
+            && withinAdminScope
+            && ADMIN_TRANSFERABLE_STATUSES.includes(status)
+            && !hasActiveResponse,
         canAcknowledgeTransfer: isTargetMunicipalAdmin && !latestTransfer?.acknowledgedAt,
         canDelete: isAdmin && withinAdminScope && Boolean(report),
         // Origin admin may remove a transferred-out read-only copy from their

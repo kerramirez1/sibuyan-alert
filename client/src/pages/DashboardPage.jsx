@@ -30,6 +30,7 @@ import {
     dedupedFetch,
     getCachedData,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import { parseISO, differenceInMinutes, isSameMonth } from 'date-fns';
@@ -404,23 +405,21 @@ const DashboardPage = () => {
             }
         };
 
-        if (!force) {
-            const fresh = getCachedData(dashboardCacheKey, QUERY_CACHE_TTLS.dashboard);
-            if (Array.isArray(fresh)) {
-                setReports(fresh);
-                setLoading(false);
-                return;
-            }
-        }
         const stale = getStaleData(dashboardCacheKey);
-        const hasStale = Array.isArray(stale);
+        const hasStale = Array.isArray(stale) && stale.length > 0;
         if (hasStale) {
-            // Always paint stale instantly (even on silent background
-            // refreshes) so a revisit never shows an empty map.
+            // Instant render from cache (0ms, no skeleton)
             setReports(stale);
+            setLoading(false);
+        } else if (!silent) {
+            setLoading(true);
         }
 
-        if (!silent && !hasStale) setLoading(true);
+        // Avoid micro-burst revalidation within 4 seconds unless forced or cold
+        if (!force && hasStale && isRecentlyRevalidated(dashboardCacheKey, 4000)) {
+            return;
+        }
+
         try {
             let nextReports;
             if (canViewReports) {

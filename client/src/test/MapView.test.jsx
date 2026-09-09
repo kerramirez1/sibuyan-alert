@@ -195,4 +195,27 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
             expect(mockAddLayer).toHaveBeenCalled();
         });
     });
+
+    test('renders marker for resolved incident report in incident-preview mode', async () => {
+        const resolvedReport = {
+            _id: 'resolved-cambajao',
+            coordinates: { lat: 12.363035, lng: 122.685384 },
+            status: 'resolved',
+            incidentCategory: 'accident',
+            title: 'Sibuyan Circumferential Road, Cambajao',
+        };
+
+        render(
+            <MapView
+                reports={[resolvedReport]}
+                mode="incident-preview"
+                focusLocation={{ ...resolvedReport.coordinates, zoom: 16 }}
+            />
+        );
+
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalled();
+            expect(maplibregl.Marker).toHaveBeenCalled();
+        });
+    });
 });

@@ -24,19 +24,30 @@ export const QUERY_CACHE_TTLS = {
     accidentHistory: 3 * 60 * 1000,
 };
 
+const DEFAULT_CACHE_TTL = 60 * 1000;
+
 export const getCacheSnapshot = (key) => cacheEntries.get(key) || null;
 
-export const isCacheFresh = (key, ttl) => {
+export const isCacheFresh = (key, ttl = DEFAULT_CACHE_TTL) => {
     const entry = cacheEntries.get(key);
     if (!entry) return false;
-    return Date.now() - entry.updatedAt <= ttl;
+    const resolvedTtl = typeof ttl === 'number' && Number.isFinite(ttl) ? ttl : DEFAULT_CACHE_TTL;
+    return Date.now() - entry.updatedAt <= resolvedTtl;
 };
 
-export const getCachedData = (key, ttl) => {
+export const getCachedData = (key, ttl = DEFAULT_CACHE_TTL) => {
     const entry = cacheEntries.get(key);
     if (!entry) return null;
-    if (Date.now() - entry.updatedAt > ttl) return null;
+    const resolvedTtl = typeof ttl === 'number' && Number.isFinite(ttl) ? ttl : DEFAULT_CACHE_TTL;
+    if (Date.now() - entry.updatedAt > resolvedTtl) return null;
     return entry.data;
+};
+
+/** Returns whether the key was refreshed within the given threshold (default 5s) to debounce micro-switches. */
+export const isRecentlyRevalidated = (key, thresholdMs = 5000) => {
+    const entry = cacheEntries.get(key);
+    if (!entry) return false;
+    return Date.now() - entry.updatedAt < thresholdMs;
 };
 
 /** Returns stale data regardless of TTL (for instant render + background refresh). */
@@ -92,6 +103,7 @@ export default {
     isCacheFresh,
     getCachedData,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
     deleteCachedKey,
     clearQueryCache,

@@ -171,6 +171,11 @@ const useIncidentActions = ({
         const { report, targetMunicipalityId, reason } = transferDialog;
         if (!report || !report?._id || !targetMunicipalityId || reason.trim().length < 10) return;
 
+        if (!getIncidentCapabilities(user, report).canTransfer) {
+            toast.error('Cannot transfer an incident with an ongoing response.');
+            return;
+        }
+
         setTransferLoading(true);
         try {
             const response = await adminAPI.transferReport(report?._id, {

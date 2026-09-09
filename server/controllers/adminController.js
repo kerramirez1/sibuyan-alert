@@ -1540,12 +1540,18 @@ export const transferReport = async (req, res) => {
             });
         }
 
-        // Only allow transfer for verified, responding, or transferred reports
-        const transferableStatuses = ['verified', 'responding', 'transferred'];
-        if (!transferableStatuses.includes(report.status)) {
+        // Only allow transfer for verified or transferred reports with no ongoing response
+        const transferableStatuses = ['verified', 'transferred'];
+        const hasActiveResponse = report.status === 'responding'
+            || (Array.isArray(report.responders) && report.responders.length > 0)
+            || Boolean(report.respondedBy);
+
+        if (!transferableStatuses.includes(report.status) || hasActiveResponse) {
             return res.status(400).json({
                 success: false,
-                message: `Cannot transfer a report with status "${report.status}".`,
+                message: hasActiveResponse
+                    ? 'Cannot transfer an incident with an ongoing response.'
+                    : `Cannot transfer a report with status "${report.status}".`,
             });
         }
 

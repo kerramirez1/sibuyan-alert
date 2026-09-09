@@ -67,4 +67,25 @@ describe('map report visibility', () => {
         expect(getFilteredMapReports(reports, { statusFilter: 'resolved' }).map((r) => r._id)).toEqual(['resolved']);
         expect(getFilteredMapReports(reports, { statusFilter: 'risk-zones' }).map((r) => r._id)).toEqual([]);
     });
+
+    test('supports includeRejected option and retains resolved/rejected incidents in location grouping', () => {
+        const coordinates = { lat: 12.363035, lng: 122.685384 };
+        const reports = [
+            { _id: 'resolved-1', status: 'resolved', coordinates },
+            { _id: 'rejected-1', status: 'rejected', coordinates: { lat: 12.4, lng: 122.5 } },
+        ];
+
+        // By default, rejected is excluded from visible reports
+        expect(getVisibleMapReports(reports).map((r) => r._id)).toEqual(['resolved-1']);
+
+        // With includeRejected: true, rejected is preserved
+        expect(getVisibleMapReports(reports, { includeRejected: true }).map((r) => r._id)).toEqual(['resolved-1', 'rejected-1']);
+
+        // groupReportsByMapLocation groups both resolved and rejected incidents with coordinates
+        const groups = groupReportsByMapLocation(reports);
+        expect(groups).toHaveLength(2);
+        const resolvedGroup = groups.find((g) => g.reports.some((r) => r._id === 'resolved-1'));
+        expect(resolvedGroup).toBeDefined();
+        expect(resolvedGroup.reports[0].status).toBe('resolved');
+    });
 });

@@ -7,6 +7,7 @@ import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding, HiOutli
 import {
     getMapCoordinates,
     getFilteredMapReports,
+    getVisibleMapReports,
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import {
@@ -162,13 +163,28 @@ const MapView = ({
     }, [focusLocation, locateRequest]);
     const effective3D = enable3D && performanceProfile.cameraPitchEnabled;
     const filteredReports = useMemo(() => {
-        return getFilteredMapReports(reports, {
+        if (mode === 'incident-preview') {
+            return getVisibleMapReports(reports, { includePending: true, includeRejected: true });
+        }
+
+        const baseFiltered = getFilteredMapReports(reports, {
             includePending: showPending,
             category: filterCategory,
             statusFilter: filterStatus,
             filterMode,
         });
-    }, [filterCategory, filterMode, filterStatus, reports, showPending]);
+
+        const locatedEntity = effectiveLocateRequest?.type === 'incident' ? effectiveLocateRequest.entity : null;
+        if (locatedEntity && getMapCoordinates(locatedEntity)) {
+            const locatedId = String(effectiveLocateRequest.id || locatedEntity._id || locatedEntity.id || '');
+            const alreadyIncluded = baseFiltered.some((r) => String(r._id ?? r.id) === locatedId);
+            if (!alreadyIncluded) {
+                return [...baseFiltered, locatedEntity];
+            }
+        }
+
+        return baseFiltered;
+    }, [effectiveLocateRequest, filterCategory, filterMode, filterStatus, mode, reports, showPending]);
     // Incident status filters isolate incident markers and hide the hazard
     // layer; zones render only in the aggregate or dedicated hazard view, and
     // the explicit hazard toggle can always hide them.
@@ -597,7 +613,7 @@ const MapView = ({
         // silently hidden underneath another marker at the same coordinates.
         groupReportsByMapLocation(filteredReports)
             .forEach(({ coordinates: coords, reports: groupedReports }) => {
-                const statusPriority = { responding: 4, transferred: 3, verified: 2, pending: 1 };
+                const statusPriority = { responding: 5, transferred: 4, verified: 3, pending: 2, resolved: 1, rejected: 0 };
                 const report = [...groupedReports].sort(
                     (left, right) => (statusPriority[right.status] || 0) - (statusPriority[left.status] || 0)
                 )[0];

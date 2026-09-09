@@ -107,6 +107,27 @@ describe('transferReport controller', () => {
         );
     });
 
+    test('returns 400 if report has an ongoing response', async () => {
+        const mockReport = {
+            status: 'responding',
+            responders: [{ user: 'responder-1' }],
+        };
+        Report.findById.mockReturnValue({
+            populate: jest.fn().mockReturnThis(),
+        });
+        Report.findById().populate.mockResolvedValue(mockReport);
+
+        await transferReport(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: false,
+                message: 'Cannot transfer an incident with an ongoing response.',
+            })
+        );
+    });
+
     test('returns 403 if admin does not have access to current report municipality', async () => {
         const mockReport = {
             status: 'verified',

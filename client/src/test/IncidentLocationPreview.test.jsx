@@ -54,6 +54,39 @@ describe('IncidentLocationPreview', () => {
         );
     });
 
+    test('renders interactive location preview for resolved incident with correct filterStatus', () => {
+        const report = {
+            _id: 'report-resolved-1',
+            address: 'Sibuyan Circumferential Road, Cambajao',
+            barangay: 'Cambajao',
+            municipalityName: 'Cajidiocan',
+            status: 'resolved',
+            coordinates: { lat: 12.363035, lng: 122.685384 },
+        };
+        const onOpenMap = vi.fn();
+
+        render(
+            <IncidentLocationPreview
+                report={report}
+                userRole="municipal_admin"
+                onOpenMap={onOpenMap}
+            />
+        );
+
+        expect(screen.getByText('Pinned location')).toBeInTheDocument();
+        expect(screen.getByText('Sibuyan Circumferential Road, Cambajao')).toBeInTheDocument();
+        expect(screen.getByText('12.363035, 122.685384')).toBeInTheDocument();
+
+        expect(mockMapView).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reports: [report],
+                mode: 'incident-preview',
+                filterStatus: 'resolved',
+                focusLocation: { lat: 12.363035, lng: 122.685384, zoom: 16 },
+            })
+        );
+    });
+
     test('renders unavailable fallback when coordinates are missing', () => {
         const report = {
             _id: 'report-456',

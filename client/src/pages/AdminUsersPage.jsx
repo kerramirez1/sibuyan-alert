@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI, filesAPI } from '../services/api';
 import {
-    QUERY_CACHE_TTLS,
-    getCachedData,
+    dedupedFetch,
     getStaleData,
+    isRecentlyRevalidated,
     setCachedData,
 } from '../utils/queryCache';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
@@ -156,26 +156,26 @@ const AdminUsersPage = () => {
         const nextFilter = overrides.filter ?? filter;
         const nextSearch = overrides.search ?? search;
         const key = usersCacheKey(nextFilter, nextSearch);
-        const fresh = getCachedData(key, QUERY_CACHE_TTLS.adminUsers);
-        if (fresh && !overrides.force) {
-            setUsers(Array.isArray(fresh?.users) ? fresh.users.filter(Boolean) : []);
-            setStats(fresh?.stats || null);
-            setLoading(false);
-            return;
-        }
         const stale = getStaleData(key);
         if (stale) {
             setUsers(Array.isArray(stale?.users) ? stale.users.filter(Boolean) : []);
             setStats(stale?.stats || null);
+            setLoading(false);
         } else {
             setLoading(true);
         }
+
+        // Avoid micro-burst revalidation within 4 seconds unless forced or cold
+        if (!overrides.force && stale && isRecentlyRevalidated(key, 4000)) {
+            return;
+        }
+
         try {
             const params = {
                 ...nextFilter,
                 search: nextSearch || undefined,
             };
-            const response = await adminAPI.getUsers(params);
+            const response = await dedupedFetch(`fetch:${key}`, () => adminAPI.getUsers(params));
             const rawUsers = response?.data?.data?.users;
             const nextUsers = Array.isArray(rawUsers) ? rawUsers.filter(Boolean) : [];
             const nextStats = response?.data?.data?.stats || null;
