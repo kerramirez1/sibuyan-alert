@@ -14,8 +14,20 @@ import {
     uploadFilesToGridFS,
     deleteGridFsFilesByUrls,
 } from '../services/gridFsService.js';
+import { getOrSet, invalidate } from '../utils/apiCache.js';
+import { CACHE_TTLS, resolveQueryPolicy } from '../config/queryPolicy.js';
+import { sendConditionalJson, buildWeakEtag } from '../utils/httpCache.js';
 
 const router = express.Router();
+
+// Cache key prefix for the island-wide zone list. Every zone mutation below
+// invalidates this prefix so the map never shows a stale hazard.
+const ZONE_CACHE_KEY = 'zones:island-wide';
+
+// Hard ceiling on the public zone list. Hazard zones are a curated set (an
+// admin places each one by hand), so this is far above any realistic count —
+// it exists so the endpoint can never return an unbounded collection.
+const MAX_ZONE_RESULTS = 500;
 
 const parseCoordinates = (body) => {
     let coordinates = body?.coordinates;
@@ -44,16 +56,27 @@ router.get('/', async (req, res) => {
     try {
         // Public/authenticated visibility is island-wide by design. Municipality
         // restrictions are enforced only by the protected mutation routes below.
-        const query = { isActive: true };
+        const policy = resolveQueryPolicy();
 
-        const zones = await HighRiskZone.find(query)
-            .populate('createdBy', 'name')
-            .sort({ createdAt: -1 });
-        const prioritizedZones = sortHighRiskZonesBySeverity(zones);
+        // Hazard zones change rarely and are read on every map load, which made
+        // them a poor fit for a query-per-request. Cached behind a TTL and
+        // deduplicated while cold; every mutation below invalidates it.
+        const zones = await getOrSet(ZONE_CACHE_KEY, CACHE_TTLS.hazardZones, async () => {
+            const results = await HighRiskZone.find({ isActive: true })
+                .populate('createdBy', 'name')
+                .sort({ createdAt: -1 })
+                .limit(MAX_ZONE_RESULTS)
+                .maxTimeMS(policy.maxTimeMs)
+                .lean();
 
-        res.json({
-            success: true,
-            data: prioritizedZones,
+            // Sorting happens once, server-side, on the cached array — the
+            // client no longer re-sorts the full list on every render.
+            return sortHighRiskZonesBySeverity(results);
+        });
+
+        sendConditionalJson(req, res, { success: true, data: zones }, {
+            etag: buildWeakEtag('zones', zones.length, zones[0]?.updatedAt ?? '', zones[zones.length - 1]?.updatedAt ?? ''),
+            maxAgeSeconds: Math.floor(CACHE_TTLS.hazardZones / 1000),
         });
     } catch (error) {
         console.error('Get high-risk zones error:', error);
@@ -161,6 +184,8 @@ router.post(
                 io.emit('highRiskZoneCreated', zone);
             }
 
+            invalidate(ZONE_CACHE_KEY);
+
             res.status(201).json({
                 success: true,
                 message: 'High-risk zone created successfully',
@@ -266,6 +291,8 @@ router.put(
                 io.emit('highRiskZoneUpdated', zone);
             }
 
+            invalidate(ZONE_CACHE_KEY);
+
             res.json({
                 success: true,
                 message: 'High-risk zone updated successfully',
@@ -337,6 +364,8 @@ router.delete(
             if (io) {
                 io.emit('highRiskZoneDeleted', { id: req.params.id });
             }
+
+            invalidate(ZONE_CACHE_KEY);
 
             res.json({
                 success: true,

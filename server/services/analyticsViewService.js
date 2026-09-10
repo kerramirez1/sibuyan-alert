@@ -10,6 +10,21 @@
  * - Projection: allowlisted analytics/history fields; PII and operational
  *   dossier details (rejectionReason, resolutionNotes, report messages,
  *   responder identities/notes) stay in D2 and remain RBAC-gated there.
+ *
+ * IMPORTANT — what this view is and is not:
+ *
+ * A MongoDB view is a *stored aggregation pipeline*, not a materialised result
+ * set. It is re-executed on every read, so it provides **zero** read
+ * acceleration. Its value is (a) a single auditable projection that keeps PII
+ * out of analytics code paths, and (b) a named DFD artefact for D7.
+ *
+ * Read performance for the analytics endpoints is provided by the cache layer
+ * (`utils/apiCache.js`) with socket-driven invalidation, not by this view.
+ * Do not describe D7 as "precomputed" — if a genuine precomputed rollup is ever
+ * needed, it requires an explicit `$merge` into a real collection plus a
+ * refresh schedule, which duplicates data and introduces staleness. That
+ * trade-off has deliberately not been taken: the cache solves the same problem
+ * without a second source of truth.
  */
 
 export const ANALYTICS_VIEW_NAME = 'analytics_view';

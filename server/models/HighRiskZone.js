@@ -106,7 +106,11 @@ const highRiskZoneSchema = new mongoose.Schema(
 highRiskZoneSchema.index({ 'coordinates.lat': 1, 'coordinates.lng': 1 });
 highRiskZoneSchema.index({ municipality: 1 });
 highRiskZoneSchema.index({ municipality: 1, barangay: 1 });
-highRiskZoneSchema.index({ isActive: 1 });
+// The public zone list filters on isActive and sorts by createdAt. The old
+// single-field { isActive: 1 } index could not serve the sort, so every map
+// load paid for an in-memory sort. This compound index replaces it — the old
+// one is a redundant prefix and only added write cost.
+highRiskZoneSchema.index({ isActive: 1, createdAt: -1 });
 
 const HighRiskZone = mongoose.model('HighRiskZone', highRiskZoneSchema);
 

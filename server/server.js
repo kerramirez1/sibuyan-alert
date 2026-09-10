@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -123,6 +124,22 @@ app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
 }));
+
+// Compression. Registered before the body parsers so every JSON response is
+// eligible. This is the single largest win for weak-signal clients: incident
+// JSON is highly repetitive (barangay names, addresses, repeated keys) and
+// typically shrinks 70-85%. The middleware skips already-compressed types
+// (images, PMTiles) via the `compressible` check, so media is unaffected.
+app.use(compression({
+    // Below this, the header overhead outweighs the saving.
+    threshold: 1024,
+    // Let the client's Accept-Encoding decide; never force compression.
+    filter: (req, res) => {
+        if (res.getHeader('Content-Encoding')) return false;
+        return compression.filter(req, res);
+    },
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {

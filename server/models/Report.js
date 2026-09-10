@@ -384,6 +384,25 @@ reportSchema.index({ status: 1, 'dispatch.nextEscalationAt': 1 });
 // Sparse so the many reports without a client key do not collide on null.
 reportSchema.index({ clientReportId: 1 }, { unique: true, sparse: true });
 
+// --- Performance indexes (added after a query-shape audit) ---
+
+// "My Reports" filters on reporter and sorts by createdAt. Without this the
+// query is a full collection scan, on the first screen a citizen sees after
+// filing. The compound order matters: equality field first, then sort field.
+reportSchema.index({ reporter: 1, createdAt: -1 });
+
+// The public map filters to publishable statuses and sorts by incidentTime.
+// The older { status, createdAt } index could not serve that sort, so every
+// request paid for a blocking in-memory sort capped at 32 MB.
+reportSchema.index({ status: 1, incidentTime: -1 });
+
+// The municipal admin queue filters by municipality + status and sorts by
+// incidentTime, so the sort key must be last in the compound index.
+reportSchema.index({ municipality: 1, status: 1, incidentTime: -1 });
+
+// Delta sync: "give me everything changed since T" reads updatedAt directly.
+reportSchema.index({ status: 1, updatedAt: -1 });
+
 // Virtual for time since incident
 reportSchema.virtual('timeSinceIncident').get(function () {
     const incidentDate = this.incidentTime || this.accidentTime;

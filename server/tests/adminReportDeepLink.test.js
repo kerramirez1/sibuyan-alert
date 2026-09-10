@@ -5,6 +5,9 @@ vi.mock('../models/Report.js', () => ({
     default: {
         find: vi.fn(),
         countDocuments: vi.fn(),
+        // The queue derives its per-status counters from one $group instead of
+        // six separate countDocuments calls.
+        aggregate: vi.fn(),
     },
 }));
 vi.mock('../models/Municipality.js', () => ({ default: {} }));
@@ -60,13 +63,18 @@ describe('municipality-scoped incident notification deep links', () => {
             populate: vi.fn(),
             sort: vi.fn(),
             limit: vi.fn(),
-            skip: vi.fn().mockResolvedValue([]),
+            skip: vi.fn(),
+            maxTimeMS: vi.fn(),
+            lean: vi.fn().mockResolvedValue([]),
         };
         queryChain.populate.mockReturnValue(queryChain);
         queryChain.sort.mockReturnValue(queryChain);
         queryChain.limit.mockReturnValue(queryChain);
+        queryChain.skip.mockReturnValue(queryChain);
+        queryChain.maxTimeMS.mockReturnValue(queryChain);
         Report.find.mockReturnValue(queryChain);
-        Report.countDocuments.mockResolvedValue(0);
+        Report.countDocuments.mockReturnValue({ maxTimeMS: vi.fn().mockResolvedValue(0) });
+        Report.aggregate.mockReturnValue({ option: vi.fn().mockResolvedValue([]) });
         const request = {
             query: { reportId },
             user: { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
@@ -98,13 +106,18 @@ describe('municipality-scoped incident notification deep links', () => {
             populate: vi.fn(),
             sort: vi.fn(),
             limit: vi.fn(),
-            skip: vi.fn().mockResolvedValue([]),
+            skip: vi.fn(),
+            maxTimeMS: vi.fn(),
+            lean: vi.fn().mockResolvedValue([]),
         };
         queryChain.populate.mockReturnValue(queryChain);
         queryChain.sort.mockReturnValue(queryChain);
         queryChain.limit.mockReturnValue(queryChain);
+        queryChain.skip.mockReturnValue(queryChain);
+        queryChain.maxTimeMS.mockReturnValue(queryChain);
         Report.find.mockReturnValue(queryChain);
-        Report.countDocuments.mockResolvedValue(0);
+        Report.countDocuments.mockReturnValue({ maxTimeMS: vi.fn().mockResolvedValue(0) });
+        Report.aggregate.mockReturnValue({ option: vi.fn().mockResolvedValue([]) });
         const request = {
             query: { responderView: 'available', page: '2', limit: '500' },
             user: {
@@ -154,13 +167,18 @@ describe('municipality-scoped incident notification deep links', () => {
             populate: vi.fn(),
             sort: vi.fn(),
             limit: vi.fn(),
-            skip: vi.fn().mockResolvedValue([]),
+            skip: vi.fn(),
+            maxTimeMS: vi.fn(),
+            lean: vi.fn().mockResolvedValue([]),
         };
         queryChain.populate.mockReturnValue(queryChain);
         queryChain.sort.mockReturnValue(queryChain);
         queryChain.limit.mockReturnValue(queryChain);
+        queryChain.skip.mockReturnValue(queryChain);
+        queryChain.maxTimeMS.mockReturnValue(queryChain);
         Report.find.mockReturnValue(queryChain);
-        Report.countDocuments.mockResolvedValue(0);
+        Report.countDocuments.mockReturnValue({ maxTimeMS: vi.fn().mockResolvedValue(0) });
+        Report.aggregate.mockReturnValue({ option: vi.fn().mockResolvedValue([]) });
         const request = {
             query: { responderView: 'municipalActive' },
             user: {

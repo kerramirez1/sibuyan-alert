@@ -19,6 +19,10 @@ import {
     DUPLICATE_RADIUS_METERS,
     DUPLICATE_WINDOW_MINUTES,
 } from '../utils/duplicateDetection.js';
+import { resolveQueryPolicy } from '../config/queryPolicy.js';
+import { sendConditionalJson, buildWeakEtag } from '../utils/httpCache.js';
+import { getOrSet } from '../utils/apiCache.js';
+import { CACHE_TTLS } from '../config/queryPolicy.js';
 
 const METERS_PER_LATITUDE_DEGREE = 111320;
 
@@ -516,6 +520,7 @@ export const getReports = async (req, res) => {
             category,
             municipality,
             status = 'verified',
+            since,
         } = req.query;
 
         const parsedPage = Number.parseInt(page, 10);
@@ -558,6 +563,21 @@ export const getReports = async (req, res) => {
             query.severity = severity;
         }
 
+        // Delta sync. A client that already holds the island's incidents asks
+        // only for what changed since its last successful sync, which turns a
+        // full re-download into a near-empty response on a quiet night — the
+        // single biggest byte saving available to a weak-signal client.
+        if (since) {
+            const sinceDate = new Date(since);
+            if (Number.isNaN(sinceDate.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid since cursor: expected an ISO 8601 timestamp',
+                });
+            }
+            query.updatedAt = { $gt: sinceDate };
+        }
+
         // Filter by type
         if (type) {
             query.incidentType = type;
@@ -574,42 +594,49 @@ export const getReports = async (req, res) => {
             query.municipality = municipality;
         }
 
-        const reports = await Report.find(query)
-            .select([
-                '_id',
-                'reporter',
-                'incidentCategory',
-                'incidentType',
-                'title',
-                'description',
-                'address',
-                'barangay',
-                'municipality',
-                'municipalityName',
-                'coordinates',
-                'incidentTime',
-                'status',
-                'severity',
-                'casualties',
-                'responders.unitType',
-                'responderAgency',
-                'images',
-                'evidenceMetadata',
-                'verifiedAt',
-                'respondedAt',
-                'resolvedAt',
-                'createdAt',
-                'updatedAt',
-            ].join(' '))
-            .populate('municipality', 'name code')
-            .sort({ incidentTime: -1 })
-            .limit(safeLimit)
-            .skip((safePage - 1) * safeLimit)
-            .lean();
+        const policy = resolveQueryPolicy();
 
-        const total = await Report.countDocuments(query);
+        // The explicit projection is both the payload-size control and the
+        // privacy boundary: it is what keeps internal fields out of a public
+        // feed, and what keeps the response small enough to survive a weak link.
+        const [reports, total] = await Promise.all([
+            Report.find(query)
+                .select([
+                    '_id',
+                    'reporter',
+                    'incidentCategory',
+                    'incidentType',
+                    'title',
+                    'description',
+                    'address',
+                    'barangay',
+                    'municipality',
+                    'municipalityName',
+                    'coordinates',
+                    'incidentTime',
+                    'status',
+                    'severity',
+                    'casualties',
+                    'responders.unitType',
+                    'responderAgency',
+                    'images',
+                    'evidenceMetadata',
+                    'verifiedAt',
+                    'respondedAt',
+                    'resolvedAt',
+                    'createdAt',
+                    'updatedAt',
+                ].join(' '))
+                .populate('municipality', 'name code')
+                .sort({ incidentTime: -1 })
+                .limit(safeLimit)
+                .skip((safePage - 1) * safeLimit)
+                .maxTimeMS(policy.maxTimeMs)
+                .lean(),
+            Report.countDocuments(query).maxTimeMS(policy.maxTimeMs),
+        ]);
 
-        res.json({
+        const payload = {
             success: true,
             data: {
                 reports: reports.map((report) => toPublicReport(report, { viewerId: req.user?._id })),
@@ -619,7 +646,21 @@ export const getReports = async (req, res) => {
                     total,
                     pages: Math.ceil(total / safeLimit),
                 },
+                // Delta sync cursor. The client echoes this back as `?since=`
+                // to fetch only what changed, instead of re-downloading the
+                // whole island every refresh.
+                syncCursor: new Date().toISOString(),
+                delta: Boolean(since),
             },
+        };
+
+        // Public and viewer-scoped (viewerId affects isOwned flags), so the
+        // validator must vary per viewer. Private because the body can embed
+        // owner-only fields for an authenticated caller.
+        sendConditionalJson(req, res, payload, {
+            etag: buildWeakEtag('public-reports', JSON.stringify(query), safePage, safeLimit, total, req.user?._id ?? 'anon'),
+            maxAgeSeconds: 0,
+            private: Boolean(req.user),
         });
     } catch (error) {
         console.error('Get reports error:', error);
@@ -1149,35 +1190,43 @@ export const getStats = async (req, res) => {
         }
         if (municipalityName) matchQuery.municipalityName = municipalityName;
 
-        const [
-            totalReports,
-            recentCount,
-            recentReports,
-            byType,
-            byMunicipality,
-        ] = await Promise.all([
-            Report.countDocuments(matchQuery),
-            Report.countDocuments({ ...matchQuery, createdAt: { $gte: thirtyDaysAgo } }),
-            Report.find(matchQuery)
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .populate('reporter', 'name')
-                .populate('municipality', 'name'),
-            Report.aggregate([
-                { $match: matchQuery },
-                { $group: { _id: '$incidentType', count: { $sum: 1 } } },
-            ]),
-            Report.aggregate([
-                { $match: matchQuery },
-                // Event-based: group where the incident happened (origin),
-                // not which office currently handles it after a transfer.
-                { $group: { _id: { $ifNull: ['$originalMunicipalityName', '$municipalityName'] }, count: { $sum: 1 } } },
-            ]),
-        ]);
+        // This endpoint is public and unauthenticated, and it runs five passes
+        // over the reports collection (two aggregations, two counts, one find).
+        // Anyone can trigger it repeatedly, so the result is cached behind a
+        // short TTL and deduplicated while cold. Socket events invalidate it
+        // eagerly on every report mutation, so the TTL is only a backstop.
+        const cacheKey = `stats:${matchQuery.incidentCategory || '*'}:${matchQuery.municipality || '*'}:${matchQuery.municipalityName || '*'}`;
+        const policy = resolveQueryPolicy();
 
-        res.json({
-            success: true,
-            data: {
+        const stats = await getOrSet(cacheKey, CACHE_TTLS.publicStats, async () => {
+            const [
+                totalReports,
+                recentCount,
+                recentReports,
+                byType,
+                byMunicipality,
+            ] = await Promise.all([
+                Report.countDocuments(matchQuery).maxTimeMS(policy.maxTimeMs),
+                Report.countDocuments({ ...matchQuery, createdAt: { $gte: thirtyDaysAgo } }).maxTimeMS(policy.maxTimeMs),
+                Report.find(matchQuery)
+                    .sort({ createdAt: -1 })
+                    .limit(5)
+                    .maxTimeMS(policy.maxTimeMs)
+                    .populate('reporter', 'name')
+                    .populate('municipality', 'name'),
+                Report.aggregate([
+                    { $match: matchQuery },
+                    { $group: { _id: '$incidentType', count: { $sum: 1 } } },
+                ]).option({ maxTimeMS: policy.maxTimeMs }),
+                Report.aggregate([
+                    { $match: matchQuery },
+                    // Event-based: group where the incident happened (origin),
+                    // not which office currently handles it after a transfer.
+                    { $group: { _id: { $ifNull: ['$originalMunicipalityName', '$municipalityName'] }, count: { $sum: 1 } } },
+                ]).option({ maxTimeMS: policy.maxTimeMs }),
+            ]);
+
+            return {
                 totalReports,
                 reportsLast30Days: recentCount,
                 recentReports,
@@ -1189,7 +1238,12 @@ export const getStats = async (req, res) => {
                     if (item._id) acc[item._id] = item.count;
                     return acc;
                 }, {}),
-            },
+            };
+        });
+
+        sendConditionalJson(req, res, { success: true, data: stats }, {
+            etag: buildWeakEtag('stats', cacheKey, stats.totalReports, stats.reportsLast30Days),
+            maxAgeSeconds: Math.floor(CACHE_TTLS.publicStats / 1000),
         });
     } catch (error) {
         console.error('Get stats error:', error);

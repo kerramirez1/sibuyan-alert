@@ -20,6 +20,8 @@ import {
 } from '../utils/reportAccess.js';
 import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
 import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
+import { resolveQueryPolicy } from '../config/queryPolicy.js';
+import { invalidate } from '../utils/apiCache.js';
 import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 import {
@@ -29,6 +31,14 @@ import {
 } from '../utils/publicAnalytics.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Canonical incident lifecycle states. Used to shape the queue's status
+// counters from a single $group result instead of one count per state.
+const REPORT_STATUS_KEYS = ['pending', 'verified', 'transferred', 'rejected', 'responding', 'resolved'];
+
+// A regex shorter than this matches most of the collection, so it costs a full
+// scan and returns a useless result. Rejected at the edge instead.
+const MIN_SEARCH_LENGTH = 3;
 
 const sanitizeSearch = (value) => {
     if (typeof value !== 'string') return null;
@@ -476,7 +486,17 @@ export const getAllReports = async (req, res) => {
             query.status = status;
         }
         if (category) query.incidentCategory = category;
-        if (safeSearch) {
+        // A case-insensitive $regex cannot use an index, so any search here is a
+        // collection scan by nature — that is inherent to substring matching and
+        // is why the term length is policed instead. A one- or two-character term
+        // matches most of the collection: maximum cost, minimum usefulness. Below
+        // the threshold the filter is skipped so the queue falls back to its
+        // scoped list rather than paying a full scan for a meaningless filter.
+        //
+        // A real fix would be a $text index, but $text matches whole words and
+        // cannot do substring matching, so it is a UX change rather than a
+        // drop-in optimisation. Recorded as a deliberate trade-off.
+        if (safeSearch && safeSearch.length >= MIN_SEARCH_LENGTH) {
             const pattern = escapeRegex(safeSearch);
             query.$and = [
                 ...(query.$and || []),
@@ -499,32 +519,54 @@ export const getAllReports = async (req, res) => {
         const reporterProjection = admin.role === 'responder'
             ? 'name isVerified'
             : 'name email avatar isVerified';
-        const reports = await Report.find(query)
-            .populate('reporter', reporterProjection)
-            .populate('verifiedBy', 'name')
-            .populate('respondedBy', 'name email agency assignedMunicipality')
-            .populate('resolvedBy', 'name email agency assignedMunicipality')
-            .populate('transferHistory.transferredBy', 'name role assignedMunicipality')
-            .populate('transferHistory.acknowledgedBy', 'name role assignedMunicipality')
-            .populate('reportUpdates.author', 'name role agency')
-            .populate('municipality', 'name code')
-            .sort({ incidentTime: -1, createdAt: -1 })
-            .limit(safeLimit)
-            .skip((safePage - 1) * safeLimit);
 
-        const total = await Report.countDocuments(query);
+        const policy = resolveQueryPolicy();
 
         // Counts use exactly the same municipal visibility scope as the queue.
         const statsQuery = scopeClause;
 
-        const [pending, verified, transferred, rejected, responding, resolved] = await Promise.all([
-            Report.countDocuments({ ...statsQuery, status: 'pending' }),
-            Report.countDocuments({ ...statsQuery, status: 'verified' }),
-            Report.countDocuments({ ...statsQuery, status: 'transferred' }),
-            Report.countDocuments({ ...statsQuery, status: 'rejected' }),
-            Report.countDocuments({ ...statsQuery, status: 'responding' }),
-            Report.countDocuments({ ...statsQuery, status: 'resolved' }),
+        // This endpoint previously cost 16 round trips per page load: one find,
+        // eight populates, one total count, and six separate status counts.
+        // Reduced to seven:
+        //   - Four populates were dropped. The queue renders the *summary*
+        //     serializer, which reads reporter / respondedBy / resolvedBy /
+        //     responders / municipality only. verifiedBy, the transfer actors,
+        //     and update authors are read by the full dossier view, not here.
+        //   - Six status counts became one $group aggregation.
+        //   - .lean() skips Mongoose document hydration; the summary serializer
+        //     already handles plain objects.
+        //   - maxTimeMS bounds each statement so a pathological query fails
+        //     fast instead of holding a weak-signal client's connection open.
+        const [reports, total, statusGroups] = await Promise.all([
+            Report.find(query)
+                .populate('reporter', reporterProjection)
+                .populate('respondedBy', 'name email agency assignedMunicipality')
+                .populate('resolvedBy', 'name email agency assignedMunicipality')
+                .populate('responders.user', 'name agency assignedMunicipality')
+                .populate('municipality', 'name code')
+                .sort({ incidentTime: -1, createdAt: -1 })
+                .limit(safeLimit)
+                .skip((safePage - 1) * safeLimit)
+                .maxTimeMS(policy.maxTimeMs)
+                .lean(),
+            Report.countDocuments(query).maxTimeMS(policy.maxTimeMs),
+            // Counts use exactly the same municipal visibility scope as the queue.
+            Report.aggregate([
+                { $match: statsQuery },
+                { $group: { _id: '$status', count: { $sum: 1 } } },
+            ]).option({ maxTimeMS: policy.maxTimeMs }),
         ]);
+
+        const statusCounts = statusGroups.reduce((acc, entry) => {
+            if (entry?._id) acc[entry._id] = entry.count;
+            return acc;
+        }, {});
+
+        const stats = REPORT_STATUS_KEYS.reduce((acc, status) => {
+            acc[status] = statusCounts[status] || 0;
+            return acc;
+        }, {});
+        stats.total = REPORT_STATUS_KEYS.reduce((sum, status) => sum + stats[status], 0);
 
 
         res.json({
@@ -537,15 +579,7 @@ export const getAllReports = async (req, res) => {
                     total,
                     pages: Math.ceil(total / safeLimit),
                 },
-                stats: {
-                    pending,
-                    verified,
-                    transferred,
-                    rejected,
-                    responding,
-                    resolved,
-                    total: pending + verified + transferred + rejected + responding + resolved,
-                },
+                stats,
                 adminMunicipality: admin.assignedMunicipality || null,
             },
         });
@@ -721,6 +755,11 @@ export const verifyReport = async (req, res) => {
 
         // Get Socket.io instance
         const io = req.app.get('io');
+
+        // Public aggregates are cached. A verification changes the published
+        // counts, so the cached stats are dropped here rather than waiting for
+        // the TTL to lapse.
+        if (status === 'verified') invalidate('stats:');
 
         // Emit real-time updates
         if (io) {
