@@ -73,16 +73,25 @@ const chainable = (result) => ({
 
 /**
  * Mongoose returns a thenable Query from findOne(), not a promise, so the
- * controller can chain .populate() before awaiting. The mock must do the same
- * or the chain breaks in a way real code never would.
+ * controller can chain .populate() before awaiting. This stub models that:
+ * chainable, and awaitable.
  */
-const findOneChain = (value) => {
-    const chain = {
-        populate: jest.fn(() => chain),
-        then: (resolve, reject) => Promise.resolve(value).then(resolve, reject),
-    };
-    return chain;
-};
+class QueryStub {
+    constructor(value) {
+        this.value = value;
+    }
+
+    populate() {
+        return this;
+    }
+
+    // oxlint-disable-next-line unicorn/no-thenable -- intentional: a Mongoose query is thenable by design, and the stub only breaks the controller if it is not.
+    then(resolve, reject) {
+        return Promise.resolve(this.value).then(resolve, reject);
+    }
+}
+
+const findOneChain = (value) => new QueryStub(value);
 
 const existingReport = (overrides = {}) => ({
     _id: 'existing-report-1',
