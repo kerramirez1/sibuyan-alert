@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../ui/NotificationBell';
+import OfflineBanner from '../ui/OfflineBanner';
+import { useOfflineReportSync } from '../../hooks/useOfflineReportSync';
 import { resolveAssetUrl } from '../../utils/assets';
 import {
     HiOutlineHome,
@@ -45,6 +47,11 @@ const MainLayout = ({ children }) => {
     const currentPanel = currentSearchParams.get('panel');
     const menuButtonRef = useRef(null);
     const closeButtonRef = useRef(null);
+
+    // Delivers reports filed while offline. Mounted at the authenticated layout
+    // so a queued report is sent from wherever the reporter happens to be, not
+    // only if they return to the report page.
+    useOfflineReportSync();
 
     // Focus management: focus close button on open, restore to hamburger on close
     const openDrawer = useCallback(() => {
@@ -415,6 +422,10 @@ const MainLayout = ({ children }) => {
                             )}
                         </div>
                     </header>
+
+                    {/* Offline state sits directly above the content so a
+                        responder can never mistake stale data for live data. */}
+                    <OfflineBanner />
 
                     {/* Page Content Scrollable Area. The keyed div re-runs the CSS
                         enter animation on navigation. Unlike the previous

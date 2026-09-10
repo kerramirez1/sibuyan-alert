@@ -48,6 +48,9 @@ vi.mock('../services/pushNotifications', () => ({
     getPushState: vi.fn().mockResolvedValue({ supported: false, permission: 'default', subscribed: false }),
     subscribeToPush: vi.fn(),
     unsubscribeFromPush: vi.fn(),
+    // AuthContext gates the login-time permission prompt on this. Reported as
+    // unsupported so the prompt never fires inside these tests.
+    isPushSupported: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../utils/appToast', () => ({

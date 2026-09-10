@@ -94,6 +94,11 @@ All commands can be run from the repository root:
 
 Real credentials are never committed. Seed accounts are provisioned via `SEED_*_JSON` environment variables — see `ACCOUNTS.example.md`.
 
+## Design Decisions (Intentional, Not Gaps)
+
+- **No super-admin account.** Each `municipal_admin` is sovereign over their own municipality. There is deliberately no cross-municipality override account. Inter-municipality coordination happens only through the two-step transfer flow (transfer + acknowledge), so both offices consent.
+- **Unverified reporters cannot submit reports.** Reporting requires manual `verifyReporter` approval by a municipal admin. `ordinary` accounts cannot file reports or open individual reports. This verified-reporters-only gate is the system's core anti-spam and accountability mechanism.
+
 ## Deployment
 
 Deployed on Heroku — see [HEROKU_DEPLOYMENT.md](HEROKU_DEPLOYMENT.md).

@@ -324,6 +324,46 @@ export const broadcastTransferAcknowledged = (io, report, transfer, municipalAdm
     scopedOperator.emit('reportTransferAcknowledged', payload);
 };
 
+/**
+ * Re-page responders for a verified incident that nobody has acknowledged.
+ *
+ * Sent to the responder room (units that can still act) and to the
+ * municipality room (so the administering office sees the gap). Deliberately
+ * carries no reporter identity: escalation must never widen who can see
+ * private data.
+ *
+ * @param {Object} io - Socket.IO instance
+ * @param {Object} report - The unacknowledged report document
+ * @param {Object} meta - { escalationCount, maxEscalations }
+ */
+export const broadcastDispatchEscalation = (io, report, { escalationCount, maxEscalations }) => {
+    if (!io) return;
+
+    const payload = {
+        id: report._id,
+        status: report.status,
+        incidentCategory: report.incidentCategory,
+        incidentType: report.incidentType,
+        address: report.address,
+        barangay: report.barangay,
+        municipalityName: report.municipalityName,
+        coordinates: report.coordinates,
+        severity: report.severity,
+        priority: report.priority,
+        casualties: report.casualties,
+        verifiedAt: report.verifiedAt,
+        escalationCount,
+        maxEscalations,
+        exhausted: escalationCount >= maxEscalations,
+        timestamp: new Date(),
+    };
+
+    if (!report.municipalityName) return;
+
+    io.to(`municipality_${report.municipalityName}_responders`).emit('dispatchEscalated', payload);
+    io.to(`municipality_${report.municipalityName}`).emit('localDispatchEscalated', payload);
+};
+
 export default {
     broadcastVerifiedReportToResponders,
     broadcastMultiUnitResponse,
@@ -332,6 +372,7 @@ export default {
     broadcastReportResolved,
     broadcastReportTransfer,
     broadcastTransferAcknowledged,
+    broadcastDispatchEscalation,
     joinResponderRoom,
     leaveResponderRoom,
 };

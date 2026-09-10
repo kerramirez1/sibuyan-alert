@@ -7,7 +7,10 @@ import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
+import { createClientReportId, enqueueReport } from '../utils/offlineReportQueue';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
+import Modal from '../components/ui/Modal';
+import Button from '../components/ui/Button';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -15,6 +18,9 @@ const ReportPage = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
+    // Idempotency key for the report currently being submitted. Held in a ref
+    // so a retry, a duplicate confirmation, and an offline replay all reuse it.
+    const pendingReportIdRef = useRef(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -43,6 +49,9 @@ const ReportPage = () => {
     const [imagePreviews, setImagePreviews] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    // Populated from a 409 POSSIBLE_DUPLICATE response. Holds the nearby
+    // reports the server matched so the reporter can tell them apart.
+    const [duplicateWarning, setDuplicateWarning] = useState(null);
 
     useEffect(() => {
         const category = INCIDENT_CATEGORIES[formData.incidentCategory];
@@ -447,45 +456,126 @@ const ReportPage = () => {
         }, 50);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!validate()) return;
+    /**
+     * Flat field map, shared by the live submission and the offline queue so
+     * a report replayed from the device is byte-for-byte the same submission.
+     */
+    const buildSubmitFields = () => {
+        const fields = {
+            incidentCategory: formData.incidentCategory,
+            incidentType: formData.incidentType,
+            description: formData.description,
+            incidentTime: formData.incidentTime,
+            severity: formData.severity,
+            'casualties[injured]': formData.casualties.injured,
+            'casualties[fatalities]': formData.casualties.fatalities,
+            'casualties[missing]': formData.casualties.missing,
+        };
+
+        const submitLat = Number(selectedLocation?.lat);
+        const submitLng = Number(selectedLocation?.lng);
+        if (selectedLocation && Number.isFinite(submitLat) && Number.isFinite(submitLng)) {
+            fields.lat = submitLat;
+            fields.lng = submitLng;
+        }
+        // Address-only path: coordinates are omitted; validate() already
+        // ensures an address exists.
+
+        if (locationCapture) {
+            fields.locationSource = locationCapture.source;
+            if (locationCapture.accuracyMeters !== null) fields.locationAccuracy = locationCapture.accuracyMeters;
+            fields.locationCapturedAt = locationCapture.capturedAt;
+        }
+        if (formData.address) fields.address = formData.address;
+        if (formData.barangay) fields.barangay = formData.barangay;
+
+        return fields;
+    };
+
+    /**
+     * One idempotency key per report, not per attempt. It survives the
+     * duplicate-confirmation round trip and the offline queue, so a report the
+     * server already stored can never be filed a second time.
+     */
+    const getClientReportId = () => {
+        if (!pendingReportIdRef.current) pendingReportIdRef.current = createClientReportId();
+        return pendingReportIdRef.current;
+    };
+
+    // Rebuilt on every attempt: a FormData body cannot be replayed, and the
+    // duplicate confirmation resubmits the same report.
+    const buildSubmitData = ({ confirmDistinct = false } = {}) => {
+        const submitData = new FormData();
+
+        for (const [key, value] of Object.entries(buildSubmitFields())) {
+            if (value === undefined || value === null || value === '') continue;
+            submitData.append(key, String(value));
+        }
+
+        images.forEach((image) => { submitData.append('images', image); });
+        submitData.append('clientReportId', getClientReportId());
+        if (confirmDistinct) submitData.append('confirmDistinct', 'true');
+
+        return submitData;
+    };
+
+    const submitReport = async (options = {}) => {
         setLoading(true);
         try {
-            const submitData = new FormData();
-            submitData.append('incidentCategory', formData.incidentCategory);
-            submitData.append('incidentType', formData.incidentType);
-            submitData.append('description', formData.description);
-            submitData.append('incidentTime', formData.incidentTime);
-            submitData.append('severity', formData.severity);
-            const submitLat = Number(selectedLocation?.lat);
-            const submitLng = Number(selectedLocation?.lng);
-            if (selectedLocation && Number.isFinite(submitLat) && Number.isFinite(submitLng)) {
-                submitData.append('lat', submitLat);
-                submitData.append('lng', submitLng);
-            } else {
-                // Address-only path: omit coordinates explicitly; validate() already ensures an address exists.
-            }
-            if (locationCapture) {
-                submitData.append('locationSource', locationCapture.source);
-                if (locationCapture.accuracyMeters !== null) submitData.append('locationAccuracy', locationCapture.accuracyMeters);
-                submitData.append('locationCapturedAt', locationCapture.capturedAt);
-            }
-            if (formData.address) submitData.append('address', formData.address);
-            if (formData.barangay) submitData.append('barangay', formData.barangay);
-            submitData.append('casualties[injured]', formData.casualties.injured);
-            submitData.append('casualties[fatalities]', formData.casualties.fatalities);
-            submitData.append('casualties[missing]', formData.casualties.missing);
-            images.forEach((image) => { submitData.append('images', image); });
-            await reportsAPI.create(submitData);
+            await reportsAPI.create(buildSubmitData(options));
+            pendingReportIdRef.current = null;
             toast.success('Accident report submitted successfully!');
             navigate('/my-reports');
         } catch (error) {
-            const message = error.response?.data?.message || 'Failed to submit report';
-            toast.error(message);
+            // The server warns rather than blocks: it hands back the nearby
+            // reports so the reporter can confirm this is a different incident.
+            if (error.response?.status === 409 && error.response?.data?.code === 'POSSIBLE_DUPLICATE') {
+                setDuplicateWarning({ duplicates: error.response.data.duplicates || [] });
+            } else if (!error.response) {
+                // No response at all: the request never left the device. Keep
+                // the report locally rather than losing an emergency report.
+                await queueOfflineReport();
+            } else {
+                const message = error.response?.data?.message || 'Failed to submit report';
+                toast.error(message);
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    const queueOfflineReport = async () => {
+        const queued = await enqueueReport({
+            fields: buildSubmitFields(),
+            images,
+        });
+
+        if (queued) {
+            pendingReportIdRef.current = null;
+            toast.success('You are offline. This report is saved on your device and will be sent automatically.');
+            navigate('/my-reports');
+            return;
+        }
+
+        toast.error('You are offline and this device could not store the report. Please retry once you have signal.');
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validate()) return;
+        await submitReport();
+    };
+
+    const handleConfirmDistinct = async () => {
+        setDuplicateWarning(null);
+        await submitReport({ confirmDistinct: true });
+    };
+
+    const formatDuplicateAge = (minutesAgo) => {
+        if (minutesAgo < 1) return 'just now';
+        if (minutesAgo < 60) return `${minutesAgo} min ago`;
+        const hours = Math.round(minutesAgo / 60);
+        return `${hours} hr ago`;
     };
 
     const now = new Date();
@@ -546,6 +636,49 @@ const ReportPage = () => {
                     />
                 </div>
             </form>
+
+            <Modal
+                isOpen={Boolean(duplicateWarning)}
+                onClose={() => setDuplicateWarning(null)}
+                title="Possible duplicate report"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        A similar incident was already reported nearby. If this is the same event, please do not submit
+                        again — a second report creates a second dispatch for one incident.
+                    </p>
+                    <ul className="space-y-2">
+                        {(duplicateWarning?.duplicates || []).map((duplicate) => (
+                            <li
+                                key={String(duplicate.reportId)}
+                                className="rounded-xl border border-gray-200 p-3 dark:border-gray-700"
+                            >
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {duplicate.address || 'Location not recorded'}
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {duplicate.distanceMeters} m away · reported {formatDuplicateAge(duplicate.minutesAgo)}
+                                    {duplicate.status ? ` · ${duplicate.status}` : ''}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <Button variant="secondary" onClick={() => setDuplicateWarning(null)} disabled={loading}>
+                            Review my report
+                        </Button>
+                        <Button
+                            variant="warning"
+                            onClick={handleConfirmDistinct}
+                            loading={loading}
+                            loadingLabel="Submitting..."
+                        >
+                            This is a different incident
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

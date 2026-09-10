@@ -3,6 +3,7 @@ import { buildRiskZoneMapTarget, getRiskZoneId } from '../../utils/riskZoneNavig
 import { getMapRiskTypeConfig } from '../../config/mapVisuals';
 import { useSystemHealth } from '../../hooks/useSystemHealth';
 import Button from '../ui/Button';
+import FieldPreloadButton from '../ui/FieldPreloadButton';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../ui/Skeleton';
 import {
     HiOutlineShieldExclamation,
@@ -214,6 +215,8 @@ const ResponderDashboardWorkspace = ({
 
                 {/* Actions: one row on all screens */}
                 <div className="flex flex-row items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
+                    {/* Deliberate, before the drive out of coverage. */}
+                    <FieldPreloadButton />
                     <Link
                         to="/admin/reports?view=dispatch-queue"
                         className="inline-flex h-9 min-h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-brand-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none sm:gap-2 sm:px-4"

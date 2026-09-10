@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema(
                 'system',               // System notification
                 'report_transferred',   // Incident report transferred to another municipality
                 'report_transfer_acknowledged', // Target municipality acknowledged a transfer
+                'dispatch_escalated',   // No unit acknowledged a verified incident in time
             ],
             required: true,
         },

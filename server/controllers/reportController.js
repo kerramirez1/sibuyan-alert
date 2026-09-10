@@ -14,6 +14,61 @@ import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFs
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 import { toValidatedCount } from '../utils/casualtyCounts.js';
+import {
+    findDuplicateCandidates,
+    DUPLICATE_RADIUS_METERS,
+    DUPLICATE_WINDOW_MINUTES,
+} from '../utils/duplicateDetection.js';
+
+const METERS_PER_LATITUDE_DEGREE = 111320;
+
+/**
+ * Cheap bounding-box pre-filter in front of the pure matcher. Narrowing on the
+ * coordinates index first keeps the duplicate check from turning every report
+ * submission into a full collection scan.
+ */
+const findRecentDuplicateCandidates = async ({ coordinates, municipalityId, incidentTime, incidentType }) => {
+    if (!municipalityId || !coordinates) return [];
+
+    const referenceTime = new Date(incidentTime);
+    if (Number.isNaN(referenceTime.getTime())) return [];
+
+    const windowMs = DUPLICATE_WINDOW_MINUTES * 60 * 1000;
+    const latDelta = DUPLICATE_RADIUS_METERS / METERS_PER_LATITUDE_DEGREE;
+    const lngScale = Math.max(
+        Math.abs(Math.cos((coordinates.lat * Math.PI) / 180)),
+        1e-6
+    );
+    const lngDelta = DUPLICATE_RADIUS_METERS / (METERS_PER_LATITUDE_DEGREE * lngScale);
+
+    let candidates;
+    try {
+        candidates = await Report.find({
+            municipality: municipalityId,
+            status: { $ne: 'rejected' },
+            incidentTime: {
+                $gte: new Date(referenceTime.getTime() - windowMs),
+                $lte: new Date(referenceTime.getTime() + windowMs),
+            },
+            'coordinates.lat': { $gte: coordinates.lat - latDelta, $lte: coordinates.lat + latDelta },
+            'coordinates.lng': { $gte: coordinates.lng - lngDelta, $lte: coordinates.lng + lngDelta },
+        })
+            .select('_id status incidentType address barangay coordinates incidentTime createdAt')
+            .limit(25)
+            .lean();
+    } catch (error) {
+        // Duplicate detection is an assist, never a gate on the emergency path.
+        console.warn('Duplicate pre-filter failed, continuing without it:', error?.message);
+        return [];
+    }
+
+    return findDuplicateCandidates({
+        candidates,
+        coordinates,
+        incidentTime: referenceTime,
+        incidentType,
+    });
+};
 
 const persistEvidenceMetadata = async (reportId, evidenceIndex, derivativeMetadata) => {
     const metadata = {
@@ -62,6 +117,28 @@ export const createReport = async (req, res) => {
     let uploadedImageUrls = [];
 
     try {
+        // Idempotency first, before any geocoding or upload work. A report
+        // queued offline and retried after a flaky reconnect must not be filed
+        // twice, so a replayed key returns the original report unchanged.
+        const clientReportId = typeof req.body.clientReportId === 'string' && req.body.clientReportId.trim()
+            ? req.body.clientReportId.trim().slice(0, 100)
+            : null;
+
+        if (clientReportId) {
+            const replayed = await Report.findOne({ clientReportId })
+                .populate('reporter', 'name email avatar')
+                .populate('municipality', 'name code');
+
+            if (replayed) {
+                return res.status(200).json({
+                    success: true,
+                    replayed: true,
+                    message: 'This report was already submitted.',
+                    data: replayed,
+                });
+            }
+        }
+
         const {
             incidentCategory,
             incidentType,
@@ -165,6 +242,27 @@ export const createReport = async (req, res) => {
 
 
 
+        // ===== DUPLICATE INCIDENT DETECTION =====
+        // Runs before any evidence is written to GridFS so a rejected duplicate
+        // never costs an upload. The check warns; it never blocks outright —
+        // the reporter is the only one who can tell two crashes apart.
+        const duplicateCandidates = await findRecentDuplicateCandidates({
+            coordinates: locationResult.coordinates,
+            municipalityId: locationResult.municipalityId,
+            incidentTime: finalIncidentTime,
+            incidentType: finalType,
+        });
+        const confirmDistinct = String(req.body.confirmDistinct ?? '') === 'true';
+
+        if (duplicateCandidates.length > 0 && !confirmDistinct) {
+            return res.status(409).json({
+                success: false,
+                code: 'POSSIBLE_DUPLICATE',
+                message: 'A similar incident was already reported nearby. Confirm this is a different incident to submit it.',
+                duplicates: duplicateCandidates,
+            });
+        }
+
         const reportId = new mongoose.Types.ObjectId();
 
         let evidenceMetadata = [];
@@ -242,6 +340,11 @@ export const createReport = async (req, res) => {
             locationSource: locationResult.source,
             locationCapture: capture.value,
             responseEstimate: responseEstimate || undefined,
+            // Only recorded when the reporter actively overrode a warning.
+            possibleDuplicateOf: confirmDistinct && duplicateCandidates.length > 0
+                ? duplicateCandidates[0].reportId
+                : undefined,
+            clientReportId: clientReportId || undefined,
         });
 
 
@@ -366,6 +469,28 @@ export const createReport = async (req, res) => {
         if (!report && uploadedImageUrls.length) {
             await deleteGridFsFilesByUrls(uploadedImageUrls);
         }
+        // Two retries of the same queued report can race past the pre-check.
+        // The unique index is the real guard, so resolve to the winner instead
+        // of surfacing a 500 for what is a successful, already-filed report.
+        if (error?.code === 11000 && error?.keyPattern?.clientReportId) {
+            try {
+                const winner = await Report.findOne({ clientReportId: req.body.clientReportId?.trim() })
+                    .populate('reporter', 'name email avatar')
+                    .populate('municipality', 'name code');
+
+                if (winner) {
+                    return res.status(200).json({
+                        success: true,
+                        replayed: true,
+                        message: 'This report was already submitted.',
+                        data: winner,
+                    });
+                }
+            } catch (lookupError) {
+                console.error('Idempotent replay lookup failed:', lookupError?.message);
+            }
+        }
+
         console.error('Create report error:', error);
         res.status(500).json({
             success: false,

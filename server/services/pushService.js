@@ -146,6 +146,21 @@ export const pushTemplates = {
         requireInteraction: true,
         data: { type: 'high_risk_alert', zone },
     }),
+    /**
+     * Re-page for an incident that no unit has acknowledged. Deliberately
+     * reuses the report tag so it replaces the original notification on the
+     * lock screen instead of stacking a second one beside it.
+     */
+    dispatchEscalated: (report, { escalationCount = 1, maxEscalations = 1 } = {}) => ({
+        title: escalationCount >= maxEscalations ? 'STILL UNACKNOWLEDGED' : 'No unit has acknowledged',
+        message: `No responder has confirmed receipt at ${report.address}. Attempt ${escalationCount} of ${maxEscalations}.`,
+        tag: `report-${report._id}`,
+        url: `/admin/reports?id=${report._id}`,
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [300, 120, 300, 120, 300],
+        data: { reportId: report._id, type: 'dispatch_escalated', escalationCount },
+    }),
 };
 
 export default {

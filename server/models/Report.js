@@ -213,6 +213,43 @@ const reportSchema = new mongoose.Schema(
             default: [],
         },
 
+        // Set only when the reporter was warned that this submission resembled
+        // an existing report and confirmed it is a different incident. Records
+        // which report triggered the warning so admins can audit the override
+        // instead of having to trust it.
+        possibleDuplicateOf: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Report',
+            default: null,
+        },
+
+        // Idempotency key supplied by the client. An offline report queued on a
+        // phone and retried on reconnect must never be filed twice, so the
+        // server treats a replayed key as a read of the original report.
+        clientReportId: {
+            type: String,
+            default: null,
+        },
+
+        // Acknowledgement clock for the dispatch escalation loop. SMS is out of
+        // scope, so paging rides over IP and silence has to be treated as
+        // failure. See services/dispatchEscalationService.js.
+        dispatch: {
+            alertedAt: { type: Date, default: null },
+            ackDeadlineAt: { type: Date, default: null },
+            // When the next escalation is due. null means acknowledged, or the
+            // escalation budget is exhausted.
+            nextEscalationAt: { type: Date, default: null },
+            acknowledgedAt: { type: Date, default: null },
+            acknowledgedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                default: null,
+            },
+            lastEscalatedAt: { type: Date, default: null },
+            escalationCount: { type: Number, default: 0 },
+        },
+
         // Verification
         verifiedBy: {
             type: mongoose.Schema.Types.ObjectId,
@@ -342,6 +379,10 @@ reportSchema.index({ incidentCategory: 1, status: 1 });
 reportSchema.index({ municipality: 1, status: 1 });
 reportSchema.index({ priority: 1, createdAt: -1 });
 reportSchema.index({ 'responders.user': 1 }); // For multi-responder queries
+// Drives the escalation sweeper: due, unacknowledged, still-verified incidents.
+reportSchema.index({ status: 1, 'dispatch.nextEscalationAt': 1 });
+// Sparse so the many reports without a client key do not collide on null.
+reportSchema.index({ clientReportId: 1 }, { unique: true, sparse: true });
 
 // Virtual for time since incident
 reportSchema.virtual('timeSinceIncident').get(function () {

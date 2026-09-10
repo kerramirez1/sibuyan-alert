@@ -1,4 +1,13 @@
+import { sharePushConfig } from './serviceWorker';
+
 const SERVICE_WORKER_URL = '/sw.js';
+
+const readCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const prefix = `${name}=`;
+    const match = document.cookie.split('; ').find((row) => row.startsWith(prefix));
+    return match ? decodeURIComponent(match.slice(prefix.length)) : null;
+};
 
 export const isPushSupported = () => (
     typeof window !== 'undefined'
@@ -84,6 +93,10 @@ export async function subscribeToPush({ requestPermission = true } = {}) {
                 applicationServerKey,
             });
         }
+
+        // Hand the worker the key and CSRF token it needs to re-register a
+        // rotated subscription on its own, when no page is open to do it.
+        sharePushConfig({ vapidPublicKey, csrfToken: readCookie('sibuyan_csrf') });
 
         return { status: 'subscribed', subscription: subscription.toJSON() };
     } catch (error) {

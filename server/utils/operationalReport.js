@@ -57,6 +57,28 @@ const pickUpdate = (entry) => {
     };
 };
 
+/**
+ * Dispatch acknowledgement state.
+ *
+ * Surfaced so an administrator can see that a verified incident has gone
+ * unacknowledged, instead of having to infer it from an empty responder list.
+ * `unacknowledged` is the single flag the UI needs to raise the alarm.
+ */
+const pickDispatch = (source) => {
+    const value = toPlainObject(source?.dispatch);
+    return {
+        alertedAt: value.alertedAt || null,
+        ackDeadlineAt: value.ackDeadlineAt || null,
+        acknowledgedAt: value.acknowledgedAt || null,
+        acknowledgedBy: pickPerson(value.acknowledgedBy),
+        escalationCount: Number(value.escalationCount) || 0,
+        lastEscalatedAt: value.lastEscalatedAt || null,
+        unacknowledged: !value.acknowledgedAt
+            && Boolean(value.alertedAt)
+            && source?.status === 'verified',
+    };
+};
+
 const buildCore = (source) => ({
     _id: getEntityId(source),
     incidentCategory: source.incidentCategory,
@@ -90,6 +112,7 @@ const buildCore = (source) => ({
     verifiedAt: source.verifiedAt,
     respondedAt: source.respondedAt,
     resolvedAt: source.resolvedAt,
+    dispatch: pickDispatch(source),
 });
 
 export const toOperationalReportSummary = (report) => {

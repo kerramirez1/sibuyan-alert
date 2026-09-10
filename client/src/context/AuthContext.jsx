@@ -6,12 +6,18 @@ import {
     getPushState,
     subscribeToPush,
     unsubscribeFromPush,
+    isPushSupported,
 } from '../services/pushNotifications';
 import {
     resolvePostLoginRedirect,
 } from '../utils/authUtils';
 import { clearBlobCache } from '../utils/blobCache';
 import { clearQueryCache } from '../utils/queryCache';
+import {
+    setCacheScope,
+    clearOfflineCaches,
+    onServiceWorkerControllerChange,
+} from '../services/serviceWorker';
 
 const AuthContext = createContext(null);
 
@@ -211,6 +217,10 @@ export const AuthProvider = ({ children }) => {
         // Municipal-scoped report/queue snapshots must not leak to the next
         // account on a shared device.
         clearQueryCache();
+        // The service worker keeps an offline copy of incident data; that copy
+        // is per-user and must not survive a logout either.
+        clearOfflineCaches();
+        setCacheScope(null);
         setUser(null);
         toast.success('Logged out successfully');
         navigate('/');
@@ -220,6 +230,8 @@ export const AuthProvider = ({ children }) => {
         const handleExpiredSession = () => {
             clearBlobCache();
             clearQueryCache();
+            clearOfflineCaches();
+            setCacheScope(null);
             setUser(null);
         };
         if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
@@ -381,6 +393,43 @@ export const AuthProvider = ({ children }) => {
         synchronizePush();
         return () => { cancelled = true; };
     }, [user?.id, user?.notificationPreferences?.browserPush, savePushSubscription]);
+
+    // Scope the worker's offline cache to the signed-in account, and re-apply
+    // the scope if a new worker takes control mid-session.
+    useEffect(() => {
+        setCacheScope(user?.id ?? null);
+        return onServiceWorkerControllerChange(() => setCacheScope(user?.id ?? null));
+    }, [user?.id]);
+
+    /**
+     * Ask for push permission once per session, for the roles whose job is to
+     * receive alerts.
+     *
+     * Push is the only paging channel this system has (SMS is out of scope), so
+     * a responder who was never asked is a responder who cannot be alerted.
+     * Prompting silently at login would be wrong, so this asks explicitly — but
+     * only while permission is still undecided, and only once per session, so
+     * it can never turn into a nag.
+     */
+    useEffect(() => {
+        if (!user || !isPushSupported()) return;
+        if (!['responder', 'municipal_admin'].includes(user.role)) return;
+        if (user.notificationPreferences?.browserPush === false) return;
+        if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+
+        const SESSION_FLAG = 'sibuyan-push-prompted';
+        try {
+            if (sessionStorage.getItem(SESSION_FLAG)) return;
+            sessionStorage.setItem(SESSION_FLAG, '1');
+        } catch {
+            // No sessionStorage (private mode): skip rather than risk nagging.
+            return;
+        }
+
+        subscribeToPush({ requestPermission: true }).then((result) => {
+            if (result.status === 'subscribed') savePushSubscription(result.subscription);
+        });
+    }, [user, savePushSubscription]);
 
     // Resubmit ID document
     const resubmitIdDocument = useCallback(async (formData) => {

@@ -6,7 +6,12 @@ import App from './App';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { registerServiceWorker } from './services/serviceWorker';
 import './index.css';
+
+// Registered eagerly, not only when a user enables push: the worker also
+// serves the offline app shell. Fire-and-forget so it can never block boot.
+registerServiceWorker();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

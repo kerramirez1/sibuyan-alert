@@ -161,6 +161,15 @@ export const validateCreateReport = [
     body('description')
         .optional({ checkFalsy: true })
         .isLength({ max: 2000 }).withMessage('Description cannot exceed 2000 characters'),
+    // Set by the client only after the reporter dismisses a possible-duplicate
+    // warning. Multipart bodies always arrive as strings.
+    body('confirmDistinct')
+        .optional({ checkFalsy: true })
+        .isIn(['true', 'false']).withMessage('confirmDistinct must be "true" or "false"'),
+    // Client-generated idempotency key for offline report replays.
+    body('clientReportId')
+        .optional({ checkFalsy: true })
+        .isLength({ max: 100 }).withMessage('clientReportId cannot exceed 100 characters'),
     handleValidationErrors,
 ];
 

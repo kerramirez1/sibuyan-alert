@@ -15,6 +15,7 @@ import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
 import { ensureAnalyticsView } from './services/analyticsViewService.js';
 import { initFaceDetector } from './services/faceDetectionService.js';
+import { startDispatchEscalationSweeper } from './services/dispatchEscalationService.js';
 import { authenticateAccessToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { ACCESS_COOKIE_NAME } from './config/authConfig.js';
@@ -323,6 +324,13 @@ export const startServer = async () => {
     const { attachSocketRedisAdapter } = await import('./config/scaling.js');
     await attachSocketRedisAdapter(io, process.env);
     await initializeDatabase();
+
+    // Silence must be treated as failure. With SMS out of scope, an alert that
+    // no unit acknowledges would otherwise be indistinguishable from one that
+    // was handled, so sweep for overdue incidents and re-page them. Every dyno
+    // runs this; the atomic claim in the service makes concurrent sweeps safe.
+    startDispatchEscalationSweeper({ io });
+
     if (!process.env.REDIS_URL?.trim()) {
         console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
     }

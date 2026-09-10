@@ -20,6 +20,7 @@ import {
 } from '../utils/reportAccess.js';
 import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
 import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
+import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 import {
     getPhilippineCalendarMonthRange,
@@ -708,6 +709,14 @@ export const verifyReport = async (req, res) => {
         report.verifiedAt = new Date();
         if (rejectionReason) report.rejectionReason = rejectionReason;
 
+        // Verification is the moment the incident is handed to responders, so
+        // it is also the moment the acknowledgement clock starts. Armed before
+        // save() so the deadline lands in the same document write as the status
+        // change — there is no window where a verified report has no deadline.
+        if (status === 'verified') {
+            armDispatchAcknowledgement(report);
+        }
+
         await report.save();
 
         // Get Socket.io instance
@@ -1281,6 +1290,12 @@ export const respondToReport = async (req, res) => {
         // A transferred report may retain earlier mutual-aid responders, so
         // always move it back into the active response state.
         report.status = 'responding';
+
+        // Responding IS the acknowledgement. The first unit to declare itself
+        // en route stops the escalation clock; a later unit joining must not
+        // overwrite the original ack time, which is the audit record of how
+        // long the incident waited for a response.
+        acknowledgeDispatch(report, responder._id);
 
         // Update legacy fields for backward compatibility (first responder)
         if (report.responders.length === 1) {
