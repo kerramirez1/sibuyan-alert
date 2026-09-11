@@ -430,7 +430,7 @@ const DashboardPage = () => {
                     nextReports = await loadPublicMapReports(dashboardCacheKey);
                 }
 
-                // Responder dashboard cards rely on roleStats; fetch it in this branch too.
+                // Dashboard cards rely on roleStats; fetch it in this branch too.
                 if (isResponder) {
                     analyticsAPI.getResponder()
                         .then((res) => {

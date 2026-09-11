@@ -871,6 +871,7 @@ const DashboardMapWorkspace = ({
                         onVerifyToReport={mapExperience.canVerify ? handleMapVerify : null}
                         onRejectToReport={mapExperience.canVerify ? handleMapReject : null}
                         viewerRole={user?.role || 'guest'}
+                        viewer={user}
                         showDataState
                         enable3D
                         showDesktopLegend={false}
@@ -901,6 +902,7 @@ const DashboardMapWorkspace = ({
                                     <MapIncidentDetails
                                         report={selectedActiveIncident}
                                         viewerRole={user?.role || 'guest'}
+                                        viewer={user}
                                         canRespond={selectedIncidentCanRespond}
                                         canResolve={selectedIncidentCanResolve}
                                         canVerify={selectedIncidentCanVerify}

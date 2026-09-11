@@ -1643,8 +1643,15 @@ export const transferReport = async (req, res) => {
 
         const fromMuniId = report.municipality;
         const fromMuniName = report.municipalityName;
+        const originalMuniId = report.originalMunicipality || fromMuniId;
+        const originalMuniName = report.originalMunicipalityName
+            || report.transferHistory?.[0]?.fromMunicipalityName
+            || fromMuniName;
 
-        // Perform the transfer
+        // Perform the transfer. `municipalityName` remains the handling office
+        // for scoping/dispatch; original* fields preserve where the incident happened.
+        report.originalMunicipality = originalMuniId;
+        report.originalMunicipalityName = originalMuniName;
         report.municipality = targetMuni._id;
         report.municipalityName = targetMuni.name;
         report.status = 'transferred';

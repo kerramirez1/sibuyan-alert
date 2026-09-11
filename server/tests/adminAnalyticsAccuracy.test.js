@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * Production accuracy suite for the municipal admin dashboard.
+ * Production accuracy suite for the dashboard analytics.
  *
  * Uses an in-memory document set evaluated against the REAL Mongo query
  * shapes the controller builds (no DB). Covers the historical miscounts:

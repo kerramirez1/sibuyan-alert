@@ -60,7 +60,7 @@ describe('ResponderDashboardWorkspace', () => {
     it('renders the operations header with agency and assigned municipality', () => {
         renderWorkspace();
 
-        expect(screen.getByText(/Operations dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
         expect(screen.getByText(/Responder operations/i)).toBeInTheDocument();
         expect(screen.getByText(/System active/i)).toBeInTheDocument();
         expect(screen.getByText(/PNP · Cajidiocan/i)).toBeInTheDocument();
@@ -173,7 +173,7 @@ describe('ResponderDashboardWorkspace', () => {
             />
         );
 
-        expect(screen.getByRole('status', { name: /loading responder operations dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole('status', { name: /loading dashboard/i })).toBeInTheDocument();
         expect(screen.queryByText('No incident hotspots recorded')).not.toBeInTheDocument();
     });
 

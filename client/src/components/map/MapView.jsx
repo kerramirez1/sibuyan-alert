@@ -116,6 +116,7 @@ const MapView = ({
     onVerifyToReport = null,
     onRejectToReport = null,
     viewerRole = 'guest',
+    viewer = null,
     showDataState = false,
     disableScrollZoom = false,
     mode = 'full',
@@ -1116,6 +1117,7 @@ const MapView = ({
                         <MapIncidentDetails
                             report={mapModal.data}
                             viewerRole={viewerRole}
+                            viewer={viewer}
                             canRespond={mapModal.canRespond}
                             canResolve={mapModal.canResolve}
                             canVerify={mapModal.canVerify}

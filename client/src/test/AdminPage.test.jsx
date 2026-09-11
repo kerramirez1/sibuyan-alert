@@ -48,7 +48,7 @@ vi.mock('../components/dashboard/ResponderDashboardWorkspace', () => ({
 
 const { default: AdminPage } = await import('../pages/AdminPage');
 
-describe('AdminPage responder dashboard orchestration', () => {
+describe('AdminPage responder route orchestration', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
@@ -115,7 +115,7 @@ describe('AdminPage responder dashboard orchestration', () => {
     });
 });
 
-describe('AdminPage municipal admin dashboard rendering', () => {
+describe('AdminPage dashboard rendering', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
@@ -167,10 +167,10 @@ describe('AdminPage municipal admin dashboard rendering', () => {
         });
     });
 
-    test('renders the unified municipal operations dashboard layout and metrics', async () => {
+    test('renders the unified dashboard layout and metrics', async () => {
         render(<AdminPage />);
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'Operations dashboard' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByText(/System active · Sibuyan Island · Cajidiocan/i)).toBeInTheDocument();
 
         // 4-Stat Strip

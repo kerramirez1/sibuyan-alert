@@ -65,9 +65,9 @@ const ResponderDashboardSkeleton = () => (
         className={DASHBOARD_CONTAINER_CLASS}
         role="status"
         aria-live="polite"
-        aria-label="Loading responder operations dashboard"
+        aria-label="Loading dashboard"
     >
-        <span className="sr-only">Loading responder operations dashboard</span>
+        <span className="sr-only">Loading dashboard</span>
         <SkeletonCard className="h-20" />
         <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
             {[0, 1, 2, 3].map((item) => (
@@ -97,7 +97,7 @@ const ResponderDashboardError = ({ message, onRetry }) => (
     <div className={`${DASHBOARD_CONTAINER_CLASS} rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/70 dark:bg-red-950/30`} role="alert">
         <HiOutlineExclamation className="mx-auto h-10 w-10 text-red-600 dark:text-red-400" aria-hidden="true" />
         <h1 className="mt-3 font-display text-xl font-bold text-gray-950 dark:text-white">
-            Responder dashboard unavailable
+            Dashboard unavailable
         </h1>
         <p className="mx-auto mt-1 max-w-lg text-sm text-red-800 dark:text-red-300">{message}</p>
         <Button className="mt-5" variant="dangerOutline" icon={HiOutlineRefresh} onClick={onRetry}>
@@ -198,7 +198,7 @@ const ResponderDashboardWorkspace = ({
                         Responder operations
                     </p>
                     <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Operations dashboard
+                        Dashboard
                     </h1>
                     <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
                         Barangay incident activity and hazard monitoring.

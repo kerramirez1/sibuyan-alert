@@ -37,7 +37,7 @@ const renderProtected = (props = {}) => {
             <Routes>
                 <Route path="/protected" element={<ProtectedRoute {...props}><div>Protected Content</div></ProtectedRoute>} />
                 <Route path="/login" element={<div>Login Page</div>} />
-                <Route path="/reporter" element={<div>Reporter Dashboard</div>} />
+                <Route path="/reporter" element={<div>Dashboard</div>} />
                 <Route path="/profile" element={<div>Profile Page</div>} />
             </Routes>
         </MemoryRouter>
@@ -73,7 +73,7 @@ describe('ProtectedRoute', () => {
 
         renderProtected({ allowedRoles: ['municipal_admin'] });
 
-        expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 
@@ -94,7 +94,7 @@ describe('ProtectedRoute', () => {
 
         renderProtected({ allowedRoles: ['reporter'], requireVerified: true });
 
-        expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
     });
 

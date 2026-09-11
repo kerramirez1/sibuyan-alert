@@ -64,7 +64,7 @@ export const getIncidentDetailViewModel = (report = {}) => {
     const typeLabel = getIncidentTypeLabel(
         report.incidentType || report.accidentType,
     );
-    const municipality = report.municipalityName || report.municipality?.name || '';
+    const municipality = getPhysicalMunicipality(report) || report.municipality?.name || '';
     const locationParts = [report.address, report.barangay, municipality]
         .filter(Boolean)
         .filter((value, index, values) => values.indexOf(value) === index);
@@ -102,7 +102,8 @@ export const getIncidentDetailViewModel = (report = {}) => {
  */
 export const getPhysicalMunicipality = (report = {}) => {
     if (!report) return '';
-    const origin = report.originalMunicipalityName
+    const origin = report.physicalMunicipalityName
+        || report.originalMunicipalityName
         || (Array.isArray(report.transferHistory) && report.transferHistory.length > 0
             ? report.transferHistory[0]?.fromMunicipalityName
             : report.transferTrail?.[0]?.fromMunicipalityName)

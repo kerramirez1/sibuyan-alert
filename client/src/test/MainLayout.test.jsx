@@ -75,7 +75,7 @@ describe('MainLayout responsive navigation', () => {
     test('shows one clear active analytics destination on the administrative dashboard', () => {
         renderLayout('/dashboard');
 
-        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toHaveClass('bg-white/[0.08]');
+        expect(screen.getByRole('link', { name: 'Analytics' })).toHaveClass('bg-white/[0.08]');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
         const activeLinks = screen.getAllByRole('link').filter((link) => link.className.split(/\s+/).includes('bg-white/[0.08]'));
         expect(activeLinks).toHaveLength(1);
@@ -96,7 +96,7 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByRole('link', { name: 'Response Queue' })).not.toBeInTheDocument();
     });
 
-    test('labels the reporter operational home route as Reporter Dashboard', () => {
+    test('labels the reporter operational home route as Dashboard', () => {
         mocks.user = {
             _id: 'reporter-1',
             name: 'Juan Reporter',
@@ -106,7 +106,7 @@ describe('MainLayout responsive navigation', () => {
 
         renderLayout('/reporter');
 
-        const reporterDashboardLink = screen.getByRole('link', { name: 'Reporter Dashboard' });
+        const reporterDashboardLink = screen.getByRole('link', { name: 'Dashboard' });
         expect(reporterDashboardLink).toHaveAttribute('href', '/reporter');
         expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
     });
@@ -156,12 +156,12 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
         // All authorized admin navigation items remain present
-        expect(screen.getByRole('link', { name: 'Admin Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Risk Zones' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Analytics Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Analytics' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
 
         // Unauthorized items remain hidden
@@ -189,7 +189,7 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).queryByRole('link', { name: 'Incident Reports' })).not.toBeInTheDocument();
         expect(within(sidebar).queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(within(sidebar).queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
-        expect(within(sidebar).queryByRole('link', { name: 'Analytics Dashboard' })).not.toBeInTheDocument();
+        expect(within(sidebar).queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
     });
 
     test('removes visible section headings for reporter and only renders authorized reporter navigation', () => {
@@ -206,14 +206,14 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('Mapping')).not.toBeInTheDocument();
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Reporter Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'My Reports' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: 'Analytics Dashboard' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
     });
 
     test('removes visible section headings for responder and only renders authorized responder navigation', () => {
@@ -231,14 +231,14 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('Mapping')).not.toBeInTheDocument();
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Responder Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: 'Analytics Dashboard' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
     });
 
     test('promotes layout stacking context and applies mobile-sidebar-open class on body when drawer opens', () => {

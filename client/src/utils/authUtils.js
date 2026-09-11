@@ -40,9 +40,9 @@ export const canSubmitReports = (user) => {
 
 /**
  * Returns the default canonical landing route for a specific user role.
- * - municipal_admin -> /admin (Operations Dashboard)
- * - responder -> /admin (Responder Dashboard workspace)
- * - reporter -> /reporter (Reporter Dashboard)
+ * - municipal_admin -> /admin (Dashboard)
+ * - responder -> /admin (Dashboard workspace)
+ * - reporter -> /reporter (Dashboard)
  * - ordinary (pending/rejected verification) -> /profile (verification status + resubmit)
  * - other / unauthenticated -> /dashboard
  */

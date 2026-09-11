@@ -4,7 +4,7 @@ import {
     HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
-import { formatIncidentLabel, getIncidentDetailViewModel, getTransferOrigin, normalizeCasualties } from '../../utils/incidentDetails';
+import { formatIncidentLabel, getIncidentDetailViewModel, getTransferLine, normalizeCasualties } from '../../utils/incidentDetails';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getMapCoordinates } from '../../utils/mapReports';
 import { formatIncidentTime, formatIncidentRelativeTime } from '../../utils/dateTimeUtils';
@@ -83,6 +83,7 @@ const MapIncidentDetailsSkeleton = () => (
 const MapIncidentDetails = ({
     report,
     viewerRole = 'guest',
+    viewer = null,
     isOwner: explicitIsOwner = false,
     isOperational: explicitIsOperational = false,
     canRespond = false,
@@ -198,7 +199,14 @@ const MapIncidentDetails = ({
     );
 
     const respondingAgencyText = respondingAgencies.length > 0 ? respondingAgencies.join(', ') : 'Awaiting assignment';
-    const transferOrigin = getTransferOrigin(displayedReport);
+    const transferLine = getTransferLine(displayedReport, {
+        assignedMunicipality: viewer?.assignedMunicipality,
+        isOwner: ownsReport,
+    });
+    const transferMatch = transferLine.match(/^Transferred\s+(to|from)\s+(.+)$/i);
+    const transferDetail = transferMatch
+        ? { label: `Transferred ${transferMatch[1].toLowerCase()}`, value: transferMatch[2] }
+        : null;
 
     return (
         <div className="flex flex-col">
@@ -291,8 +299,8 @@ const MapIncidentDetails = ({
                         <DetailItem label="Submitted time" value={formatIncidentTime(displayedReport?.createdAt)} />
                         <DetailItem label="Barangay" value={details.barangay || 'Not specified'} />
                         <DetailItem label="Municipality" value={details.municipality || 'Sibuyan Island'} />
-                        {transferOrigin && (
-                            <DetailItem label="Transferred from" value={transferOrigin} />
+                        {transferDetail && (
+                            <DetailItem label={transferDetail.label} value={transferDetail.value} />
                         )}
                         {respondingAgencyText && (
                             <DetailItem label="Responding agency">

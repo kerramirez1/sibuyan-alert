@@ -167,6 +167,11 @@ describe('socket report lifecycle events', () => {
             expect.objectContaining({
                 id: 'report1',
                 municipalityName: 'Magdiwang',
+                originalMunicipalityName: 'Cajidiocan',
+                physicalMunicipalityName: 'Cajidiocan',
+                transferTrail: expect.arrayContaining([
+                    expect.objectContaining({ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang' }),
+                ]),
                 status: 'transferred',
                 coordinates: { lat: 12.4, lng: 122.5 },
                 createdAt: report.createdAt,

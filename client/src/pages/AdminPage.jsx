@@ -303,8 +303,8 @@ const AdminPage = () => {
 
     if (loading && !stats) {
         return (
-            <div className={DASHBOARD_CONTAINER_CLASS} role="status" aria-live="polite" aria-label="Loading municipal operations dashboard">
-                <span className="sr-only">Loading municipal operations dashboard</span>
+            <div className={DASHBOARD_CONTAINER_CLASS} role="status" aria-live="polite" aria-label="Loading dashboard">
+                <span className="sr-only">Loading dashboard</span>
                 <SkeletonCard className="h-16" />
                 <SkeletonCard className="h-32" />
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -328,7 +328,7 @@ const AdminPage = () => {
             <div className={`${DASHBOARD_CONTAINER_CLASS} ${PANEL_CLASS} p-6 text-center`} role="alert">
                 <HiOutlineExclamation className="mx-auto h-8 w-8 text-red-600 dark:text-red-400" aria-hidden="true" />
                 <h1 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
-                    Operations dashboard unavailable
+                    Dashboard unavailable
                 </h1>
                 <p className="mx-auto mt-1 max-w-lg text-sm text-gray-600 dark:text-gray-400">{dashboardError}</p>
                 <button
@@ -405,7 +405,7 @@ const AdminPage = () => {
                         {municipality} operations
                     </p>
                     <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Operations dashboard
+                        Dashboard
                     </h1>
                     <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                         Review pending work and monitor municipality volume.

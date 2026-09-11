@@ -74,11 +74,11 @@ describe('canSubmitReports', () => {
 });
 
 describe('getDefaultRoleRoute', () => {
-    test('returns /admin (Operations Dashboard) for municipal_admin', () => {
+    test('returns /admin (Dashboard) for municipal_admin', () => {
         expect(getDefaultRoleRoute({ role: 'municipal_admin' })).toBe('/admin');
     });
 
-    test('returns /admin (Responder Dashboard) for responder', () => {
+    test('returns /admin (Dashboard) for responder', () => {
         expect(getDefaultRoleRoute({ role: 'responder' })).toBe('/admin');
     });
 
@@ -101,7 +101,7 @@ describe('resolvePostLoginRedirect', () => {
     const responderUser = { role: 'responder' };
     const reporterUser = { role: 'reporter' };
 
-    test('defaults municipal_admin to /admin (Operations Dashboard) without requested target', () => {
+    test('defaults municipal_admin to /admin (Dashboard) without requested target', () => {
         expect(resolvePostLoginRedirect(adminUser, null)).toBe('/admin');
         expect(resolvePostLoginRedirect(adminUser, '')).toBe('/admin');
         expect(resolvePostLoginRedirect(adminUser, undefined)).toBe('/admin');

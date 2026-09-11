@@ -59,6 +59,19 @@ const pickUpdate = (entry) => {
     };
 };
 
+const getTransferEntries = (source) => (
+    Array.isArray(source?.transferHistory) ? source.transferHistory : []
+);
+
+const getPhysicalMunicipalityName = (source) => (
+    source?.physicalMunicipalityName
+    || source?.originalMunicipalityName
+    || getTransferEntries(source)[0]?.fromMunicipalityName
+    || source?.municipalityName
+    || source?.municipality?.name
+    || ''
+);
+
 /**
  * Dispatch acknowledgement state.
  *
@@ -98,6 +111,7 @@ const buildCore = (source) => ({
         : undefined,
     municipalityName: source.municipalityName,
     originalMunicipalityName: source.originalMunicipalityName,
+    physicalMunicipalityName: getPhysicalMunicipalityName(source),
     incidentTime: source.incidentTime || source.accidentTime,
     reportedAt: source.reportedAt,
     createdAt: source.createdAt,

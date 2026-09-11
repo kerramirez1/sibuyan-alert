@@ -699,7 +699,7 @@ const AccidentHistoryPage = () => {
                 </div>
             </header>
 
-            {/* Shared summary strip with My Reports / Reporter dashboard: same labels, dots, dividers, sizes. */}
+            {/* Shared summary strip with My Reports / Dashboard: same labels, dots, dividers, sizes. */}
             <section
                 className="grid grid-cols-2 gap-3 sm:grid-cols-4"
                 aria-label="History summary"

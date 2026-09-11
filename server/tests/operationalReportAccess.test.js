@@ -145,6 +145,7 @@ describe('operational report DTOs', () => {
         expect(summary.transferTrail).toEqual([
             { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang' },
         ]);
+        expect(summary.physicalMunicipalityName).toBe('Cajidiocan');
     });
 
     test('returns allowlisted full details and conditionally exposes contact and admin-only reasons', () => {

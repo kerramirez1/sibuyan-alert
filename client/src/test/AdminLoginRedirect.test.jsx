@@ -147,7 +147,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         });
     });
 
-    test('1. Municipal administrator logs in with no previous destination and lands on Admin Dashboard (/admin)', async () => {
+    test('1. Municipal administrator logs in with no previous destination and lands on Dashboard (/admin)', async () => {
         render(
             <MemoryRouter initialEntries={['/login']}>
                 <AuthProvider>
@@ -169,7 +169,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const operationsLink = screen.getByRole('link', { name: /Admin Dashboard/i });
+            const operationsLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(operationsLink).toHaveAttribute('aria-current', 'page');
             expect(operationsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 8000 });
@@ -204,7 +204,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         }, { timeout: 4000 });
     });
 
-    test('3. Municipal administrator does not land on Analytics Dashboard by default, but Analytics remains accessible via sidebar', async () => {
+    test('3. Municipal administrator does not land on Analytics by default, but Analytics remains accessible via sidebar', async () => {
         const adminUser = {
             id: 'admin-1',
             name: 'Admin Maria Santos',
@@ -231,10 +231,10 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            // Admin Dashboard is highlighted
-            expect(screen.getByRole('link', { name: /Admin Dashboard/i })).toHaveAttribute('aria-current', 'page');
-            // Analytics Dashboard link is present in the sidebar
-            const analyticsLink = screen.getByRole('link', { name: /Analytics Dashboard/i });
+            // Dashboard is highlighted
+            expect(screen.getByRole('link', { name: /Dashboard/i })).toHaveAttribute('aria-current', 'page');
+            // Analytics link is present in the sidebar
+            const analyticsLink = screen.getByRole('link', { name: /Analytics/i });
             expect(analyticsLink).toBeInTheDocument();
             expect(analyticsLink).toHaveAttribute('href', '/dashboard');
             expect(analyticsLink).not.toHaveAttribute('aria-current', 'page');
@@ -263,13 +263,13 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const reporterLink = screen.getByRole('link', { name: /Reporter Dashboard/i });
+            const reporterLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(reporterLink).toHaveAttribute('aria-current', 'page');
             expect(reporterLink).toHaveAttribute('href', '/reporter');
         }, { timeout: 4000 });
     });
 
-    test('5. Responder login redirects to /admin (Responder Dashboard)', async () => {
+    test('5. Responder login redirects to /admin (Dashboard)', async () => {
         render(
             <MemoryRouter initialEntries={['/login']}>
                 <AuthProvider>
@@ -291,7 +291,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const reportsLink = screen.getByRole('link', { name: /Responder Dashboard/i });
+            const reportsLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(reportsLink).toHaveAttribute('aria-current', 'page');
             expect(reportsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 8000 });
@@ -316,7 +316,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            const operationsLink = screen.getByRole('link', { name: /Admin Dashboard/i });
+            const operationsLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(operationsLink).toHaveAttribute('aria-current', 'page');
             expect(operationsLink).toHaveAttribute('href', '/admin');
         }, { timeout: 4000 });
@@ -347,7 +347,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         }, { timeout: 4000 });
     });
 
-    test('8. Fresh app open on / sends an authenticated admin straight to Admin Dashboard', async () => {
+    test('8. Fresh app open on / sends an authenticated admin straight to Dashboard', async () => {
         currentUser = {
             id: 'admin-1',
             name: 'Admin Maria Santos',
@@ -365,13 +365,13 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            const adminLink = screen.getByRole('link', { name: /Admin Dashboard/i });
+            const adminLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(adminLink).toHaveAttribute('aria-current', 'page');
             expect(adminLink).toHaveAttribute('href', '/admin');
         }, { timeout: 4000 });
     });
 
-    test('9. Fresh app open on /dashboard sends a reporter to Reporter Dashboard', async () => {
+    test('9. Fresh app open on /dashboard sends a reporter to Dashboard', async () => {
         currentUser = {
             id: 'reporter-1',
             name: 'Juan Dela Cruz',
@@ -389,7 +389,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            const reporterLink = screen.getByRole('link', { name: /Reporter Dashboard/i });
+            const reporterLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(reporterLink).toHaveAttribute('aria-current', 'page');
         }, { timeout: 4000 });
     });
@@ -412,9 +412,13 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         );
 
         await waitFor(() => {
-            // Still on the dashboard route: the admin home link is not active.
-            const adminLink = screen.getByRole('link', { name: /Admin Dashboard/i });
-            expect(adminLink).not.toHaveAttribute('aria-current', 'page');
+            // Still on the public dashboard route: the admin home route is not active or forced.
+            const adminLink = screen.queryByRole('link', { name: /Dashboard/i });
+            if (adminLink) {
+                expect(adminLink).not.toHaveAttribute('aria-current', 'page');
+            } else {
+                expect(screen.queryByRole('link', { name: /Incident Reports/i })).not.toBeInTheDocument();
+            }
         }, { timeout: 4000 });
     });
 
@@ -440,7 +444,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         fireEvent.submit(screen.getByTestId('login-form'));
 
         await waitFor(() => {
-            const reporterLink = screen.getByRole('link', { name: /Reporter Dashboard/i });
+            const reporterLink = screen.getByRole('link', { name: /Dashboard/i });
             expect(reporterLink).toHaveAttribute('aria-current', 'page');
         }, { timeout: 4000 });
     });

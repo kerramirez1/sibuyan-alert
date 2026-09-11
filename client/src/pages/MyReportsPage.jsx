@@ -27,7 +27,7 @@ import ReportActivityTimeline from '../components/reporterReports/ReportActivity
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 
-// Canonical lifecycle vocabulary shared with the reporter dashboard, so one
+// Canonical lifecycle vocabulary shared with the dashboard, so one
 // state is never named two different ways across pages.
 const STATUS_CONFIG = {
     pending: { label: 'Pending review', dot: 'bg-amber-500' },
@@ -579,7 +579,7 @@ function MyReportsPage() {
                         ))}
                     </section>
 
-                    {/* Mobile primary action: same minimalist button as Reporter dashboard */}
+                    {/* Mobile primary action: same minimalist button as Dashboard */}
                     <div className="py-4 sm:hidden">
                         <Link
                             to="/report"

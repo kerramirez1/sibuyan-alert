@@ -193,15 +193,7 @@ const MainLayout = ({ children }) => {
                                     : (user?.role === 'municipal_admin' || user?.role === 'responder')
                                         ? location.pathname === '/admin'
                                         : location.pathname === '/';
-                            const homeLabel = !isAuthenticated
-                                ? 'Overview'
-                                : user?.role === 'municipal_admin'
-                                    ? 'Admin Dashboard'
-                                    : user?.role === 'responder'
-                                        ? 'Responder Dashboard'
-                                        : user?.role === 'reporter'
-                                            ? 'Reporter Dashboard'
-                                            : 'Home';
+                            const homeLabel = isAuthenticated ? 'Dashboard' : 'Overview';
 
                             return (
                                 <NavLink
@@ -289,7 +281,7 @@ const MainLayout = ({ children }) => {
                             </NavLink>
                         )}
 
-                        {/* Admin Analytics Dashboard link */}
+                        {/* Admin Analytics link */}
                         {isAuthenticated && user?.role === 'municipal_admin' && (
                             <NavLink
                                 to="/dashboard"
@@ -301,7 +293,7 @@ const MainLayout = ({ children }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">Analytics Dashboard</span>
+                                <span className="truncate">Analytics</span>
                             </NavLink>
                         )}
 

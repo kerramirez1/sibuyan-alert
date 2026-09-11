@@ -76,7 +76,7 @@ describe('ReporterDashboardPage', () => {
             </MemoryRouter>,
         );
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'Reporter dashboard' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
         // Live subline replaces the static tagline
         expect(screen.getByText('3 reports · 1 awaiting review · 1 in response')).toBeInTheDocument();
 
@@ -109,7 +109,7 @@ describe('ReporterDashboardPage', () => {
             </MemoryRouter>,
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Reporter dashboard' });
+        await screen.findByRole('heading', { level: 1, name: 'Dashboard' });
 
         act(() => {
             mocks.callbacks.reportResolved?.({ id: 'report-1' });
@@ -186,7 +186,7 @@ describe('ReporterDashboardPage', () => {
             </MemoryRouter>,
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Reporter dashboard' });
+        await screen.findByRole('heading', { level: 1, name: 'Dashboard' });
 
         const recentSection = screen.getByRole('region', { name: 'Recent reports' });
         const scope = within(recentSection);

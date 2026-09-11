@@ -38,6 +38,7 @@ describe('public report representation', () => {
             isOwnedByCurrentUser: false,
         }));
         expect(result.municipality).toEqual({ name: 'Cajidiocan', code: 'CAJ' });
+        expect(result.physicalMunicipalityName).toBe('Cajidiocan');
         expect(result).not.toHaveProperty('reporter');
         expect(result).not.toHaveProperty('images');
         expect(result).not.toHaveProperty('reportUpdates');

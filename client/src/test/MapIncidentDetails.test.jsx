@@ -744,7 +744,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(motorcycleElements.length).toBe(1);
         });
 
-        test('transferred report shows handling municipality plus transfer origin', () => {
+        test('transferred report keeps physical municipality and shows target viewer transfer origin', () => {
             renderDetails({
                 report: {
                     ...sampleReport,
@@ -759,13 +759,38 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
                         },
                     ],
                 },
-                viewerRole: 'guest',
+                viewerRole: 'municipal_admin',
+                viewer: { role: 'municipal_admin', assignedMunicipality: 'Magdiwang' },
             });
 
             expect(screen.getByText('Municipality')).toBeInTheDocument();
-            expect(screen.getByText('Magdiwang')).toBeInTheDocument();
+            expect(screen.getAllByText('Cajidiocan').length).toBeGreaterThanOrEqual(1);
+            expect(screen.queryByText('Magdiwang')).not.toBeInTheDocument();
             expect(screen.getByText('Transferred from')).toBeInTheDocument();
-            expect(screen.getByText('Cajidiocan')).toBeInTheDocument();
+        });
+
+        test('transferred report shows origin viewer the destination municipality', () => {
+            renderDetails({
+                report: {
+                    ...sampleReport,
+                    status: 'transferred',
+                    municipalityName: 'Magdiwang',
+                    originalMunicipalityName: 'Cajidiocan',
+                    transferHistory: [
+                        {
+                            fromMunicipalityName: 'Cajidiocan',
+                            toMunicipalityName: 'Magdiwang',
+                            reason: 'Mutual-aid response coverage',
+                        },
+                    ],
+                },
+                viewerRole: 'municipal_admin',
+                viewer: { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            });
+
+            expect(screen.getByText('Municipality')).toBeInTheDocument();
+            expect(screen.getByText('Transferred to')).toBeInTheDocument();
+            expect(screen.getByText('Magdiwang')).toBeInTheDocument();
         });
 
         test('non-transferred report shows no transfer origin', () => {
@@ -775,6 +800,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             });
 
             expect(screen.queryByText('Transferred from')).not.toBeInTheDocument();
+            expect(screen.queryByText('Transferred to')).not.toBeInTheDocument();
         });
     });
 });

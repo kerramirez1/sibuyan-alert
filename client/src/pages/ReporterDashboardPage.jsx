@@ -98,8 +98,8 @@ const getStatusHelp = (status) => {
 };
 
 const ReporterDashboardSkeleton = () => (
-    <div role="status" aria-busy="true" aria-label="Loading reporter dashboard">
-        <span className="sr-only">Loading reporter dashboard</span>
+    <div role="status" aria-busy="true" aria-label="Loading dashboard">
+        <span className="sr-only">Loading dashboard</span>
         <div className="border-t border-gray-200 py-6 dark:border-white/10">
             <Skeleton variant="text" role={null} className="h-3 w-40" />
             <div className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
@@ -168,7 +168,7 @@ const ReporterDashboardPage = () => {
             setCachedData(cacheKey, nextReports);
             setError('');
         } catch (err) {
-            console.error('Failed to fetch reporter dashboard reports:', err);
+            console.error('Failed to fetch dashboard reports:', err);
             if (!Array.isArray(getStaleData(cacheKey))) {
                 setError('Unable to load your report overview.');
             }
@@ -294,7 +294,7 @@ const ReporterDashboardPage = () => {
             <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
                 <div className="min-w-0">
                     <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Reporter dashboard
+                        Dashboard
                     </h1>
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         {loading ? 'Loading your report overview.' : headerSummary}

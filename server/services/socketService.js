@@ -204,6 +204,16 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
     if (!io) return;
 
     const evidence = buildReportEvidenceObject(report);
+    const transferTrail = (Array.isArray(report.transferHistory) ? report.transferHistory : [])
+        .map((entry) => ({
+            fromMunicipalityName: entry?.fromMunicipalityName || '',
+            toMunicipalityName: entry?.toMunicipalityName || '',
+        }))
+        .filter((entry) => entry.fromMunicipalityName || entry.toMunicipalityName);
+    if (transferTrail.length === 0 && (fromMuni || toMuni)) {
+        transferTrail.push({ fromMunicipalityName: fromMuni || '', toMunicipalityName: toMuni || '' });
+    }
+    const originalMunicipalityName = report.originalMunicipalityName || transferTrail[0]?.fromMunicipalityName || fromMuni;
 
     const eventData = {
         id: report._id,
@@ -221,6 +231,9 @@ export const broadcastReportTransfer = (io, report, fromMuni, toMuni, _reason) =
         fromMunicipality: fromMuni,
         toMunicipality: toMuni,
         municipalityName: toMuni,
+        originalMunicipalityName,
+        physicalMunicipalityName: originalMunicipalityName,
+        transferTrail,
         status: report.status,
         evidence,
         evidenceCount: evidence.evidenceCount,

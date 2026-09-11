@@ -26,6 +26,15 @@ const getPublicMunicipality = (municipality) => {
     return Object.keys(value).length ? value : undefined;
 };
 
+const getPhysicalMunicipalityName = (report) => (
+    getDocumentValue(report, 'physicalMunicipalityName')
+    || getDocumentValue(report, 'originalMunicipalityName')
+    || (Array.isArray(report?.transferHistory) ? report.transferHistory[0]?.fromMunicipalityName : '')
+    || getDocumentValue(report, 'municipalityName')
+    || report?.municipality?.name
+    || ''
+);
+
 /**
  * Builds normalized evidence descriptor based strictly on server authorization.
  */
@@ -140,6 +149,7 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
         // Deliberately the name only: the transfer trail itself stays
         // operational, so inter-office coordination history is not published.
         originalMunicipalityName: getDocumentValue(report, 'originalMunicipalityName'),
+        physicalMunicipalityName: getPhysicalMunicipalityName(report),
         coordinates: getDocumentValue(report, 'coordinates'),
         incidentTime: getDocumentValue(report, 'incidentTime'),
         status: getDocumentValue(report, 'status'),
