@@ -8,6 +8,7 @@ import {
     INCIDENT_CATEGORY_NAMES,
     isSupportedIncidentType,
 } from '../config/incidentCategories.js';
+import { RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
 
 const REPORT_COUNT_FIELDS = [
     ['casualties', 'injured'],
@@ -227,7 +228,7 @@ export const validateRespondToReport = [
         .isLength({ max: 100 }).withMessage('Unit name cannot exceed 100 characters'),
     body('unitType')
         .optional()
-        .isIn(['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY']).withMessage('Invalid unit type'),
+        .isIn(RESPONDER_UNIT_TYPES).withMessage('Invalid unit type'),
     handleValidationErrors,
 ];
 

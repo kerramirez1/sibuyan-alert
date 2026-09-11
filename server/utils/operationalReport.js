@@ -1,5 +1,7 @@
 import { getEntityId } from './reportAccess.js';
 import { buildReportEvidenceObject } from './publicReport.js';
+import { toSerializableCount } from './casualtyCounts.js';
+import { getRespondingAgencies } from './reportAgencies.js';
 
 const toPlainObject = (value) => (
     typeof value?.toObject === 'function' ? value.toObject({ virtuals: false }) : value || {}
@@ -104,10 +106,12 @@ const buildCore = (source) => ({
     severity: source.severity,
     priority: source.priority,
     viewCount: Number(source.viewCount) || 0,
+    // null means "not recorded" and must stay distinct from 0 ("none").
+    // Shared with the public serializer so both feeds agree.
     casualties: {
-        injured: Number(source.casualties?.injured) || 0,
-        fatalities: Number(source.casualties?.fatalities) || 0,
-        missing: Number(source.casualties?.missing) || 0,
+        injured: toSerializableCount(source.casualties?.injured),
+        fatalities: toSerializableCount(source.casualties?.fatalities),
+        missing: toSerializableCount(source.casualties?.missing),
     },
     verifiedAt: source.verifiedAt,
     respondedAt: source.respondedAt,
@@ -124,6 +128,9 @@ export const toOperationalReportSummary = (report) => {
         respondedBy: pickPerson(source.respondedBy),
         resolvedBy: pickPerson(source.resolvedBy),
         responderAgency: source.responderAgency || null,
+        // Full multi-unit set. Without this the operational feed fell back to
+        // `responderAgency`, which describes only the first unit.
+        respondingAgencies: getRespondingAgencies(source),
         responders: (source.responders || []).map(pickResponder),
         evidence,
         evidenceCount: evidence.evidenceCount,
@@ -159,6 +166,9 @@ export const toOperationalReport = (
         respondedBy: pickPerson(source.respondedBy),
         resolvedBy: pickPerson(source.resolvedBy),
         responderAgency: source.responderAgency || null,
+        // Full multi-unit set. Without this the operational feed fell back to
+        // `responderAgency`, which describes only the first unit.
+        respondingAgencies: getRespondingAgencies(source),
         responders: (source.responders || []).map(pickResponder),
         reportUpdates: (source.reportUpdates || []).map(pickUpdate),
         transferHistory: (source.transferHistory || [])

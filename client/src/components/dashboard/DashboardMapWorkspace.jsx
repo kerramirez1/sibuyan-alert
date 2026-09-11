@@ -33,6 +33,7 @@ import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
+import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
 const MAP_SUMMARY_PANEL_ID = 'dashboard-map-summary-panel';
@@ -43,11 +44,7 @@ const formatDate = (value, pattern = 'MMM d, h:mm a') => {
     return Number.isNaN(date.getTime()) ? 'Date unavailable' : format(date, pattern);
 };
 
-const formatIncidentType = (report) => (
-    (report?.incidentType || report?.accidentType || 'Incident')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (letter) => letter.toUpperCase())
-);
+const formatIncidentType = (report) => getReportIncidentTypeLabel(report);
 
 const EmptyState = ({ title, description }) => (
     <div className="px-4 py-10 text-center sm:px-5">

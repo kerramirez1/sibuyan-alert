@@ -1,3 +1,5 @@
+import { getIncidentTypeLabel } from '../config/incidentTypes';
+
 const TITLE_CASE_PATTERN = /\b\w/g;
 
 export const formatIncidentLabel = (value, fallback = 'Incident') => {
@@ -59,9 +61,8 @@ export const normalizeCasualties = (casualties) => {
 };
 
 export const getIncidentDetailViewModel = (report = {}) => {
-    const typeLabel = formatIncidentLabel(
+    const typeLabel = getIncidentTypeLabel(
         report.incidentType || report.accidentType,
-        'Incident',
     );
     const municipality = report.municipalityName || report.municipality?.name || '';
     const locationParts = [report.address, report.barangay, municipality]

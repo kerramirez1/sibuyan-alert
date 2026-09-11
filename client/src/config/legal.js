@@ -129,7 +129,15 @@ export const LEGAL_DOCUMENTS = Object.freeze({
                 ],
             },
             {
-                title: '2. Accounts and authorized access',
+                title: '2. MVP scope and limitations',
+                paragraphs: [
+                    'This release is a minimum viable product (MVP) focused on road accidents only. During the MVP phase, the system accepts reports limited to the following road-accident categories: vehicular, motorcycle, pedestrian, bicycle, self-accident, mechanical, and other road incidents.',
+                    'Maritime incidents, fire emergencies, natural disasters, medical emergencies, and other non-road-accident incident types are explicitly out of scope in this MVP. Do not rely on this system for those emergencies; contact the appropriate dedicated emergency service directly.',
+                    'Features, categories, coverage, and integrations may change as the system evolves. The operator makes no guarantee that out-of-scope incidents will be received, processed, or responded to through this platform.',
+                ],
+            },
+            {
+                title: '3. Accounts and authorized access',
                 items: [
                     'Provide accurate, current information and keep account credentials confidential.',
                     'Use only your own account and promptly report suspected compromise or unauthorized access.',
@@ -138,13 +146,13 @@ export const LEGAL_DOCUMENTS = Object.freeze({
                 ],
             },
             {
-                title: '3. Incident reports and evidence',
+                title: '4. Incident reports and evidence',
                 paragraphs: [
                     'You remain responsible for the accuracy and lawfulness of information you submit. Provide only information reasonably necessary to report the incident. By uploading evidence, you confirm that you have the right or lawful basis to provide it and grant the operator a limited permission to store, review, display to authorized users, and otherwise process it for incident verification and response.',
                 ],
             },
             {
-                title: '4. Prohibited conduct',
+                title: '5. Prohibited conduct',
                 items: [
                     'Submitting knowingly false, fabricated, duplicate, misleading, harassing, or malicious reports.',
                     'Uploading unlawful, unrelated, exploitative, or privacy-invasive content, malware, or content you are not entitled to provide.',
@@ -154,49 +162,49 @@ export const LEGAL_DOCUMENTS = Object.freeze({
                 ],
             },
             {
-                title: '5. Review, publication, and operational decisions',
+                title: '6. Review, publication, and operational decisions',
                 paragraphs: [
                     'Submitted reports may be reviewed, corrected, rejected, transferred, restricted, or removed by authorized administrators. Publication on the public map does not establish legal liability or guarantee that every detail is complete. Response, assignment, and resolution decisions remain with the authorized municipal offices and response agencies.',
                 ],
             },
             {
-                title: '6. Maps, location, and emergency limitations',
+                title: '7. Maps, location, and emergency limitations',
                 paragraphs: [
                     'Map imagery, geocoding, boundaries, addresses, risk zones, and device location may be delayed, approximate, or unavailable. Users must verify critical location and safety information through official channels. Do not delay emergency assistance while waiting for the system, a notification, or an online response.',
                 ],
             },
             {
-                title: '7. Availability and changes',
+                title: '8. Availability and changes',
                 paragraphs: [
                     'The operator may maintain, update, suspend, or discontinue features to protect users, improve operations, comply with law, or address technical issues. Reasonable efforts are made to keep the service available, but uninterrupted or error-free operation is not guaranteed.',
                 ],
             },
             {
-                title: '8. Enforcement and account restriction',
+                title: '9. Enforcement and account restriction',
                 paragraphs: [
                     'Access may be limited, suspended, or terminated when reasonably necessary to investigate misuse, protect safety or data, comply with law, or enforce these Terms. Serious conduct may be referred to the appropriate authority. Where appropriate, affected users may contact the operator to request review.',
                 ],
             },
             {
-                title: '9. Ownership and permitted use',
+                title: '10. Ownership and permitted use',
                 paragraphs: [
                     'The Sibuyan Alert software, interface, branding, and system-generated materials are protected by applicable intellectual-property rules. Users receive a limited, revocable, non-transferable right to use the service for its intended purpose. Users retain rights in their original submissions, subject to the limited operational permission described in these Terms.',
                 ],
             },
             {
-                title: '10. Privacy',
+                title: '11. Privacy',
                 paragraphs: [
                     'The Privacy Policy forms part of these Terms and explains how personal data is processed. Authorized users must follow confidentiality, security, and data-protection requirements applicable to their role.',
                 ],
             },
             {
-                title: '11. Disclaimers and responsibility',
+                title: '12. Disclaimers and responsibility',
                 paragraphs: [
                     'To the extent allowed by law, the service is provided for public-safety support without a guarantee that every report, map feature, notification, estimate, or third-party service is accurate or continuously available. Nothing in these Terms excludes rights or liabilities that cannot lawfully be excluded. Users remain responsible for independent judgment and compliance with applicable law.',
                 ],
             },
             {
-                title: '12. Governing law and contact',
+                title: '13. Governing law and contact',
                 paragraphs: [
                     `These Terms are governed by the laws of the Republic of the Philippines. Questions may be sent to ${privacyEmail} or directed to ${operatorName} at ${operatorAddress}. Material revisions will be identified by an updated effective date.`,
                 ],

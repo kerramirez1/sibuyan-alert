@@ -28,4 +28,43 @@ export const normalizeCasualtyCounts = (input) => {
     return corrected;
 };
 
-export default { toValidatedCount, normalizeCasualtyCounts };
+/**
+ * Whole-number coercion that PRESERVES the absence of a value.
+ *
+ * `toValidatedCount` collapses "not recorded" and "zero" into 0. On a casualty
+ * field that is the difference between "nobody was hurt" and "we do not know" —
+ * and an emergency viewer reads a displayed 0 as the former. This variant
+ * returns null for absent or blank input so the distinction survives to the UI,
+ * where `formatCasualtyMetric` already renders it as "Not recorded".
+ *
+ * Input that was supplied but is unparseable still fails closed to 0 rather
+ * than null: a supplied value is a recorded attempt, not an omission. (In
+ * practice the request validator rejects such input before it reaches here.)
+ */
+export const toOptionalCount = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+    return toValidatedCount(value);
+};
+
+/**
+ * Normalises a stored casualty count for API serialization.
+ *
+ * Shared by both report serializers so the public feed and the operational
+ * feed can never disagree about what a casualty number means:
+ *   - absent / blank  -> null  ("not recorded")
+ *   - negative or NaN -> 0     (fails closed; a stored count is never negative)
+ *   - anything else   -> the whole number
+ */
+export const toSerializableCount = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+    const number = Number(value);
+    if (!Number.isFinite(number) || number < 0) return 0;
+    return Math.floor(number);
+};
+
+export default {
+    toValidatedCount,
+    toOptionalCount,
+    toSerializableCount,
+    normalizeCasualtyCounts,
+};

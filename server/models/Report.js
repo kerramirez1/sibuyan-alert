@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
 
 /**
  * Incident Report Model
@@ -192,10 +193,14 @@ const reportSchema = new mongoose.Schema(
         },
 
         // Casualties (road-accident victims)
+        // null means "not recorded" and is distinct from 0, which means "none".
+        // Collapsing the two would let an incident with unknown casualties
+        // display as "0 injured", which reads as a positive assertion.
+        // $sum aggregations ignore null, so totals are unaffected.
         casualties: {
-            injured: { type: Number, default: 0 },
-            fatalities: { type: Number, default: 0 },
-            missing: { type: Number, default: 0 },
+            injured: { type: Number, default: null, min: 0 },
+            fatalities: { type: Number, default: null, min: 0 },
+            missing: { type: Number, default: null, min: 0 },
         },
 
         // Status & Workflow
@@ -278,7 +283,7 @@ const reportSchema = new mongoose.Schema(
             },
             unitType: {
                 type: String,
-                enum: ['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY'],
+                enum: RESPONDER_UNIT_TYPES,
                 required: true,
             },
             respondedAt: {
@@ -301,9 +306,16 @@ const reportSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // Legacy mirror of the FIRST responder's unit type, kept for backward
+        // compatibility with readers that predate `responders[]`.
+        //
+        // It shares RESPONDER_UNIT_TYPES with `responders[].unitType` on purpose.
+        // It previously carried a narrower four-value enum, so assigning a
+        // BARANGAY, MEDICAL, or RESCUE first responder failed validation and the
+        // whole response was rejected with a 500.
         responderAgency: {
             type: String,
-            enum: ['PNP', 'MDRRMO', 'Medical Team', 'BFP', null],
+            enum: [...RESPONDER_UNIT_TYPES, null],
             default: null,
         },
 

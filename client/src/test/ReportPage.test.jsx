@@ -178,6 +178,24 @@ describe('ReportPage workflow', () => {
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
     });
 
+    test('omits blank casualty fields from the payload instead of sending zeros', async () => {
+        // A reporter who does not know the casualty count leaves the fields
+        // blank. Sending 0 would misrepresent "not recorded" as "none".
+        renderPage();
+
+        fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Near Municipal Hall' } });
+        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
+        fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Casualty count unknown at the scene' } });
+        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+
+        await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
+        const payload = createReportMock.mock.calls[0][0];
+        expect(payload.get('casualties[injured]')).toBeNull();
+        expect(payload.get('casualties[fatalities]')).toBeNull();
+        expect(payload.get('casualties[missing]')).toBeNull();
+        expect(await screen.findByText('My reports destination')).toBeInTheDocument();
+    });
+
     test('updates casualties fields and handles non-zero inputs cleanly', () => {
         renderPage();
 

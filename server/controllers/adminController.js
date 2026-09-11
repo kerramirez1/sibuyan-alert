@@ -22,6 +22,11 @@ import { toOperationalReport, toOperationalReportSummary } from '../utils/operat
 import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
 import { resolveQueryPolicy } from '../config/queryPolicy.js';
 import { invalidate } from '../utils/apiCache.js';
+import {
+    RESPONDER_UNIT_TYPES,
+    isSupportedResponderUnitType,
+    normalizeUnitType,
+} from '../config/responderUnits.js';
 import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 import {
@@ -1250,10 +1255,13 @@ export const respondToReport = async (req, res) => {
         const responder = req.user;
         let { unitName, unitType } = req.body;
 
-        // For agency-specific responders, auto-detect from their account
+        // For agency-specific responders, auto-detect from their account.
+        // The agency is normalised because legacy accounts still carry the
+        // `LGU` alias, which is not itself a valid unit type.
         if (responder.role === 'responder' && responder.agency) {
-            unitType = unitType || responder.agency;
-            unitName = unitName || responder.responderUnit || `${responder.agency} - ${responder.assignedMunicipality}`;
+            const agency = normalizeUnitType(responder.agency);
+            unitType = unitType || agency;
+            unitName = unitName || responder.responderUnit || `${agency} - ${responder.assignedMunicipality}`;
         }
 
         // Validate required fields
@@ -1264,12 +1272,12 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Validate unitType
-        const validTypes = ['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'RESCUE', 'MEDICAL', 'BARANGAY'];
-        if (!validTypes.includes(unitType)) {
+        // Validate unitType against the canonical list. This previously held its
+        // own copy, which is how it drifted from the schema's enum.
+        if (!isSupportedResponderUnitType(unitType)) {
             return res.status(400).json({
                 success: false,
-                message: `Invalid unit type. Must be one of: ${validTypes.join(', ')}`,
+                message: `Invalid unit type. Must be one of: ${RESPONDER_UNIT_TYPES.join(', ')}`,
             });
         }
 

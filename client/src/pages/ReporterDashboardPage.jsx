@@ -21,6 +21,7 @@ import {
 } from 'react-icons/hi';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 
 // Canonical lifecycle vocabulary shared by the stepper, status column, and
 // status line, so one state is never named three different ways.
@@ -52,11 +53,7 @@ const formatRelativeDate = (value) => {
         : formatDistanceToNow(date, { addSuffix: true });
 };
 
-const formatIncidentType = (report) => (
-    String(report?.incidentType || report?.accidentType || 'Unspecified incident')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (letter) => letter.toUpperCase())
-);
+const formatIncidentType = (report) => getReportIncidentTypeLabel(report);
 
 const getLocation = (report) => {
     const address = typeof report?.address === 'string' ? report.address.trim() : '';

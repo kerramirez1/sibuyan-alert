@@ -240,8 +240,8 @@ describe('HomePage operational landing page', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Terms of Use' }));
         const termsDialog = screen.getByRole('dialog', { name: 'Terms of Use' });
-        expect(within(termsDialog).getByText('4. Prohibited conduct')).toBeInTheDocument();
-        expect(within(termsDialog).getByText('12. Governing law and contact')).toBeInTheDocument();
+        expect(within(termsDialog).getByText('5. Prohibited conduct')).toBeInTheDocument();
+        expect(within(termsDialog).getByText('13. Governing law and contact')).toBeInTheDocument();
 
         fireEvent.click(within(termsDialog).getByRole('button', { name: 'Close modal' }));
         await waitFor(() => {

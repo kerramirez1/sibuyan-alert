@@ -137,7 +137,7 @@ const ReportDetailsPanel = ({
                     id="casualties-heading"
                     step="3"
                     title="Casualties and injuries"
-                    description="Enter zero when none are known."
+                    description="Leave a field blank if unknown. Enter zero only when you know there were none."
                 />
                 <div className="mt-4 grid grid-cols-3 gap-3">
                     {[
@@ -159,6 +159,7 @@ const ReportDetailsPanel = ({
                                 onChange={handleChange}
                                 min="0"
                                 max="999"
+                                placeholder="—"
                                 className="h-10 w-full rounded-lg border border-gray-300 bg-white text-center text-sm font-semibold tabular-nums text-gray-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                             />
                         </div>

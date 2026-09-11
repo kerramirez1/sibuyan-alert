@@ -31,10 +31,12 @@ const ReportPage = () => {
         barangay: '',
         incidentTime: '',
         severity: 'moderate',
+        // Empty means "not recorded" and is deliberately distinct from 0, which
+        // the user enters only when they know there were none.
         casualties: {
-            injured: 0,
-            fatalities: 0,
-            missing: 0,
+            injured: '',
+            fatalities: '',
+            missing: '',
         },
     });
 
@@ -101,8 +103,13 @@ const ReportPage = () => {
             setFormData(prev => {
                 const parentValue = prev?.[parent];
                 if (!parentValue || typeof parentValue !== 'object' || Array.isArray(parentValue)) return prev;
+                // An empty field means "not recorded" and must stay empty, not
+                // silently become 0. Only a non-empty value is coerced into the
+                // allowed range.
                 const parsed = parseInt(value, 10);
-                const safe = Number.isFinite(parsed) ? Math.min(999, Math.max(0, parsed)) : 0;
+                const safe = value === '' || !Number.isFinite(parsed)
+                    ? ''
+                    : Math.min(999, Math.max(0, parsed));
                 return {
                     ...prev,
                     [parent]: { ...parentValue, [child]: safe },

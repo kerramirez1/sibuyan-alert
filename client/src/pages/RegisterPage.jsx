@@ -5,6 +5,7 @@ import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MES
 import { reportsAPI } from '../services/api';
 import { ID_IMAGE_ACCEPT, prepareIdentityImage, prepareVerificationImage } from '../utils/identityImage';
 import { useSelfieFaceDetection } from '../hooks/useSelfieFaceDetection';
+import LegalDocumentModal from '../components/landing/LegalDocumentModal';
 import {
     HiOutlineArrowLeft,
     HiOutlineCamera,
@@ -89,6 +90,8 @@ const RegisterPage = () => {
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [agreeToTerms, setAgreeToTerms] = useState(false);
+    const [activeLegalDocument, setActiveLegalDocument] = useState(null);
     const safeStep = Math.min(Math.max(step, 1), REGISTRATION_STEPS.length);
     const currentStep = REGISTRATION_STEPS[safeStep - 1];
 
@@ -328,6 +331,9 @@ const RegisterPage = () => {
                 ? 'Review the selfie and select Use this photo before submitting.'
                 : 'Take or choose a selfie before submitting.';
         }
+        if (safeStep === 3 && !agreeToTerms) {
+            nextErrors.terms = 'You must agree to the Terms of Use and Privacy Policy to continue.';
+        }
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
     };
@@ -413,6 +419,7 @@ const RegisterPage = () => {
         submitData.append('password', formData.password);
         submitData.append('municipality', formData.municipality);
         submitData.append('barangay', formData.barangay);
+        submitData.append('agreeToTerms', 'true');
         if (idFile) submitData.append('idDocument', idFile);
         if (selfieBlob) submitData.append('selfiePhoto', new File([selfieBlob], 'selfie.jpg', { type: 'image/jpeg' }));
 
@@ -796,6 +803,42 @@ const RegisterPage = () => {
                             </div>
                         </div>
 
+                        <div className={`rounded-xl border p-3.5 transition-colors ${errors.terms ? 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/40' : 'border-gray-200/80 bg-gray-50/80 dark:border-gray-800 dark:bg-[#07130e]'}`}>
+                            <label className="flex cursor-pointer items-start gap-2.5">
+                                <input
+                                    type="checkbox"
+                                    checked={agreeToTerms}
+                                    onChange={(e) => {
+                                        setAgreeToTerms(e.target.checked);
+                                        setErrors((current) => ({ ...current, terms: '' }));
+                                    }}
+                                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-500"
+                                    aria-invalid={Boolean(errors.terms)}
+                                    aria-describedby={errors.terms ? 'terms-error' : undefined}
+                                />
+                                <span className="min-w-0 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                    I agree to the{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveLegalDocument('terms')}
+                                        className="font-semibold text-brand-700 underline decoration-brand-300 underline-offset-2 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-300 dark:hover:text-sky-200"
+                                    >
+                                        Terms of Use
+                                    </button>{' '}
+                                    and{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveLegalDocument('privacy')}
+                                        className="font-semibold text-brand-700 underline decoration-brand-300 underline-offset-2 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-300 dark:hover:text-sky-200"
+                                    >
+                                        Privacy Policy
+                                    </button>
+                                    . I understand that this service is an MVP for road accidents only and is not a substitute for emergency services.
+                                </span>
+                            </label>
+                            <FieldError id="terms-error">{errors.terms}</FieldError>
+                        </div>
+
                         {errors.form && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300" role="alert">{errors.form}</div>}
 
                         <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
@@ -807,6 +850,12 @@ const RegisterPage = () => {
                     </section>
                 )}
             </form>
+
+            <LegalDocumentModal
+                documentType={activeLegalDocument}
+                isOpen={Boolean(activeLegalDocument)}
+                onClose={() => setActiveLegalDocument(null)}
+            />
         </div>
     );
 };

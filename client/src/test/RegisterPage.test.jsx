@@ -197,12 +197,24 @@ describe('RegisterPage location reference and responsive form', () => {
         await waitFor(() => expect(submit).toHaveFocus());
         expect(screen.getByText(/manual identity comparison/i)).toBeInTheDocument();
 
+        // Terms acceptance is required before submission
+        const termsCheckbox = screen.getByRole('checkbox', { name: /i agree to the terms of use and privacy policy/i });
+        expect(termsCheckbox).not.toBeChecked();
+        fireEvent.click(submit);
+        await waitFor(() => expect(screen.getByText(/you must agree to the terms of use and privacy policy/i)).toBeInTheDocument());
+        expect(mocks.register).not.toHaveBeenCalled();
+
+        fireEvent.click(termsCheckbox);
+        expect(termsCheckbox).toBeChecked();
+        await waitFor(() => expect(screen.queryByText(/you must agree to the terms of use and privacy policy/i)).not.toBeInTheDocument());
+
         fireEvent.click(submit);
         await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
         const submittedData = mocks.register.mock.calls[0][0];
         expect(submittedData.get('name')).toBe('Juan Dela Cruz');
         expect(submittedData.get('municipality')).toBe('Cajidiocan');
         expect(submittedData.get('idDocument')).toBe(idPhoto);
+        expect(submittedData.get('agreeToTerms')).toBe('true');
     });
 
     test('handles camera opening, live face guide overlay, and manual capture', async () => {

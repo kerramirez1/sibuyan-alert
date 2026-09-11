@@ -13,7 +13,7 @@ import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
-import { toValidatedCount } from '../utils/casualtyCounts.js';
+import { toOptionalCount } from '../utils/casualtyCounts.js';
 import {
     findDuplicateCandidates,
     DUPLICATE_RADIUS_METERS,
@@ -160,12 +160,13 @@ export const createReport = async (req, res) => {
             locationCapturedAt,
         } = req.body;
 
-        // Parse casualties from form data
+        // Parse casualties from form data. Omitted fields stay null rather than
+        // becoming 0, so "not recorded" is never displayed as "none".
         const casInput = req.body.casualties || {};
         const casualties = {
-            injured: toValidatedCount(casInput.injured ?? req.body['casualties[injured]']),
-            fatalities: toValidatedCount(casInput.fatalities ?? req.body['casualties[fatalities]']),
-            missing: toValidatedCount(casInput.missing ?? req.body['casualties[missing]']),
+            injured: toOptionalCount(casInput.injured ?? req.body['casualties[injured]']),
+            fatalities: toOptionalCount(casInput.fatalities ?? req.body['casualties[fatalities]']),
+            missing: toOptionalCount(casInput.missing ?? req.body['casualties[missing]']),
         };
 
         // Validate required fields
@@ -612,6 +613,7 @@ export const getReports = async (req, res) => {
                     'barangay',
                     'municipality',
                     'municipalityName',
+                    'originalMunicipalityName',
                     'coordinates',
                     'incidentTime',
                     'status',

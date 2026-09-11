@@ -1,7 +1,5 @@
-const toNonNegativeInteger = (value) => {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
-};
+import { toSerializableCount } from './casualtyCounts.js';
+import { getRespondingAgencies } from './reportAgencies.js';
 
 const getDocumentValue = (document, key) => document?.[key];
 
@@ -26,16 +24,6 @@ const getPublicMunicipality = (municipality) => {
     if (municipality.name) value.name = municipality.name;
     if (municipality.code) value.code = municipality.code;
     return Object.keys(value).length ? value : undefined;
-};
-
-const getRespondingAgencies = (report) => {
-    const agencies = new Set();
-    if (report?.responderAgency) agencies.add(report.responderAgency);
-    const responders = Array.isArray(report?.responders) ? report.responders : [];
-    for (const responder of responders) {
-        if (responder?.unitType) agencies.add(responder.unitType);
-    }
-    return [...agencies];
 };
 
 /**
@@ -145,14 +133,21 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
         address: getDocumentValue(report, 'address'),
         barangay: getDocumentValue(report, 'barangay'),
         municipalityName: getDocumentValue(report, 'municipalityName'),
+        // Where the incident physically happened, snapshotted at intake.
+        // `municipalityName` is rewritten by a transfer to the handling office,
+        // so without this a public viewer of a transferred incident sees the
+        // receiving municipality rather than the one where it occurred.
+        // Deliberately the name only: the transfer trail itself stays
+        // operational, so inter-office coordination history is not published.
+        originalMunicipalityName: getDocumentValue(report, 'originalMunicipalityName'),
         coordinates: getDocumentValue(report, 'coordinates'),
         incidentTime: getDocumentValue(report, 'incidentTime'),
         status: getDocumentValue(report, 'status'),
         severity: getDocumentValue(report, 'severity'),
         casualties: {
-            injured: toNonNegativeInteger(casualties.injured),
-            fatalities: toNonNegativeInteger(casualties.fatalities),
-            missing: toNonNegativeInteger(casualties.missing),
+            injured: toSerializableCount(casualties.injured),
+            fatalities: toSerializableCount(casualties.fatalities),
+            missing: toSerializableCount(casualties.missing),
         },
         respondingAgencies: getRespondingAgencies(report),
         verifiedAt: getDocumentValue(report, 'verifiedAt'),

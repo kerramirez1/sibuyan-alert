@@ -33,7 +33,14 @@ export const register = async (req, res) => {
     let userCreated = false;
 
     try {
-        const { email, password, name, municipality, barangay } = req.body;
+        const { email, password, name, municipality, barangay, agreeToTerms } = req.body;
+
+        if (!agreeToTerms || String(agreeToTerms).toLowerCase() !== 'true') {
+            return res.status(400).json({
+                success: false,
+                message: 'You must agree to the Terms of Use and Privacy Policy to register',
+            });
+        }
 
         // Check if user already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -135,6 +142,8 @@ export const register = async (req, res) => {
             selfiePhoto: storedSelfie?.url || null,
             isVerified: false,
             verificationStatus: 'pending',
+            termsAcceptedAt: new Date(),
+            termsVersion: 'mvp-2026-09',
             verificationHistory: [{
                 action: 'id_submitted',
                 actor: userId,

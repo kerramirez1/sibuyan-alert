@@ -1,15 +1,11 @@
+import { INCIDENT_TYPE_OPTIONS } from '../../config/incidentTypes';
+
 export const INCIDENT_CATEGORIES = {
     accident: {
         label: 'Road accident',
-        types: [
-            { value: 'vehicular', label: 'Vehicular collision' },
-            { value: 'motorcycle', label: 'Motorcycle accident' },
-            { value: 'pedestrian', label: 'Hit and run / pedestrian' },
-            { value: 'bicycle', label: 'Bicycle accident' },
-            { value: 'self_accident', label: 'Self accident' },
-            { value: 'mechanical', label: 'Mechanical failure' },
-            { value: 'other', label: 'Other road incident' },
-        ],
+        // Derived from the canonical label map so the form and every display
+        // path can never disagree about what a type is called.
+        types: INCIDENT_TYPE_OPTIONS,
     },
 };
 

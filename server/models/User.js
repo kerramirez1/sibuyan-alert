@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { PASSWORD_MAX_UTF8_BYTES, PASSWORD_MIN_CHARACTERS } from '../utils/passwordPolicy.js';
+import { ACCEPTED_UNIT_TYPE_VALUES } from '../config/responderUnits.js';
 
 const userSchema = new mongoose.Schema(
     {
@@ -52,7 +53,11 @@ const userSchema = new mongoose.Schema(
         },
         agency: {
             type: String,
-            enum: ['MDRRMO', 'PNP', 'Medical Team', 'BFP', null],
+            // Shares the canonical list, plus the legacy `LGU` alias that older
+            // accounts still carry. Widening the enum is non-breaking; the
+            // previous four-value list meant an operator seeding a BARANGAY or
+            // MEDICAL account hit a validation error at boot.
+            enum: [...ACCEPTED_UNIT_TYPE_VALUES, null],
             default: null,
         },
         address: {
@@ -139,6 +144,14 @@ const userSchema = new mongoose.Schema(
         },
         resetPasswordExpires: {
             type: Date,
+            default: null,
+        },
+        termsAcceptedAt: {
+            type: Date,
+            default: null,
+        },
+        termsVersion: {
+            type: String,
             default: null,
         },
         lastLogin: {

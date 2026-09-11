@@ -1,4 +1,5 @@
 import { normalizeSpreadsheetValue } from './csvExport';
+import { formatCasualtyMetric } from './incidentDetails';
 
 const TITLE_FONT = { bold: true, size: 14, color: { argb: 'FF111827' } };
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E5F46' } };
@@ -159,9 +160,11 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             barangay: report?.barangay || 'Unknown',
             address: report?.address || 'Unknown',
             coordinates: formatCoordinates(report),
-            injured: Number(report?.casualties?.injured) || 0,
-            fatalities: Number(report?.casualties?.fatalities) || 0,
-            missing: Number(report?.casualties?.missing) || 0,
+            // formatCasualtyMetric keeps "not recorded" distinct from 0 in the
+            // export, matching the UI rather than silently coercing to a number.
+            injured: formatCasualtyMetric(report?.casualties?.injured),
+            fatalities: formatCasualtyMetric(report?.casualties?.fatalities),
+            missing: formatCasualtyMetric(report?.casualties?.missing),
             verifiedAt: toDateCell(report?.verifiedAt),
             resolvedAt: toDateCell(report?.resolvedAt),
             resolutionNotes: report?.resolutionNotes || '',

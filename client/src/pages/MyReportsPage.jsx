@@ -25,6 +25,7 @@ import ImageViewer from '../components/ui/ImageViewer';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 
 // Canonical lifecycle vocabulary shared with the reporter dashboard, so one
 // state is never named two different ways across pages.
@@ -68,11 +69,7 @@ const formatCoordinates = (report) => {
         : 'Not available';
 };
 
-const formatIncidentType = (report) => (
-    String(report?.incidentType || report?.accidentType || 'Unspecified incident')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (letter) => letter.toUpperCase())
-);
+const formatIncidentType = (report) => getReportIncidentTypeLabel(report);
 
 const getLocation = (report) => {
     const address = typeof report?.address === 'string' ? report.address.trim() : '';

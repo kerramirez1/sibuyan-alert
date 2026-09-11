@@ -67,6 +67,7 @@ describe('server-side reporter selfie face validation', () => {
             .field('password', 'secure-password-123')
             .field('municipality', 'Cajidiocan')
             .field('barangay', 'Gutivan')
+            .field('agreeToTerms', 'true')
             .attach('idDocument', createPngHeader(), {
                 filename: 'id.png',
                 contentType: 'image/png',
@@ -98,6 +99,7 @@ describe('server-side reporter selfie face validation', () => {
             .field('password', 'secure-password-123')
             .field('municipality', 'Cajidiocan')
             .field('barangay', 'Gutivan')
+            .field('agreeToTerms', 'true')
             .attach('idDocument', createPngHeader(), {
                 filename: 'id.png',
                 contentType: 'image/png',
@@ -125,6 +127,7 @@ describe('server-side reporter selfie face validation', () => {
             .field('password', 'secure-password-123')
             .field('municipality', 'Cajidiocan')
             .field('barangay', 'Gutivan')
+            .field('agreeToTerms', 'true')
             .attach('idDocument', createPngHeader(), {
                 filename: 'id.png',
                 contentType: 'image/png',
@@ -137,6 +140,28 @@ describe('server-side reporter selfie face validation', () => {
         expect(response.status).toBe(400);
         expect(response.body.success).toBe(false);
         expect(response.body.message).toMatch(/corrupted or invalid/i);
+    });
+
+    test('rejects registration when terms are not accepted', async () => {
+        const response = await request(createRegisterApp())
+            .post('/api/auth/register')
+            .field('name', 'Juan Dela Cruz')
+            .field('email', 'juan@example.com')
+            .field('password', 'secure-password-123')
+            .field('municipality', 'Cajidiocan')
+            .field('barangay', 'Gutivan')
+            .attach('idDocument', createPngHeader(), {
+                filename: 'id.png',
+                contentType: 'image/png',
+            })
+            .attach('selfiePhoto', createPngHeader(750, 1200), {
+                filename: 'selfie.png',
+                contentType: 'image/png',
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toMatch(/agree to the terms of use and privacy policy/i);
     });
 
     test('accepts registration and creates pending reporter when exactly one face is validated', async () => {
@@ -153,6 +178,7 @@ describe('server-side reporter selfie face validation', () => {
             .field('password', 'secure-password-123')
             .field('municipality', 'Cajidiocan')
             .field('barangay', 'Gutivan')
+            .field('agreeToTerms', 'true')
             .attach('idDocument', createPngHeader(), {
                 filename: 'id.png',
                 contentType: 'image/png',
