@@ -12,6 +12,7 @@ const mockEaseTo = vi.fn();
 
 vi.mock('maplibre-gl', () => ({
     default: {
+        supported: vi.fn(() => true),
         addProtocol: vi.fn(),
         Map: vi.fn(function (options) {
             this.options = options;
@@ -48,6 +49,11 @@ describe('HighRisk3DMap Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockMapInstances.length = 0;
+        // Avoid real network for the default /maps/*.pmtiles env URL: fail
+        // validation fast so the Esri fallback style mounts deterministically.
+        vi.stubEnv('VITE_3D_LABELS_PMTILES_URL', '');
+        vi.stubEnv('VITE_PMTILES_URL', '');
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     });
 
     test('renders 3D visualization mode legend and controls', () => {

@@ -1,5 +1,8 @@
 import { useEffect, useId, useState } from 'react';
-import { format, formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
+import { formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
+import toast from '../../utils/appToast';
+import { toSafeArray, safeCount } from '../../utils/safeCollection';
+import { formatMonthLabel, toValidDate } from '../../utils/safeDate';
 import {
     Bar,
     BarChart,
@@ -63,11 +66,12 @@ export const formatXAxisDay = (value) => {
 
 const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
+    const firstPayload = payload[0]?.payload;
     return (
         <div className="rounded-lg border border-gray-200/90 bg-white/95 p-2.5 text-xs shadow-md backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95">
-            <p className="mb-1 font-bold text-gray-900 dark:text-white">{payload[0].payload.fullDate || label}</p>
+            <p className="mb-1 font-bold text-gray-900 dark:text-white">{firstPayload?.fullDate || label}</p>
             {payload.map((entry) => (
-                <div key={entry.dataKey} className="flex items-center justify-between gap-3 py-0.5">
+                <div key={String(entry?.dataKey ?? entry?.name ?? Math.random())} className="flex items-center justify-between gap-3 py-0.5">
                     <span className="text-[11px] text-gray-500 dark:text-gray-400">{entry.name || entry.dataKey}</span>
                     <span className="font-bold text-gray-900 dark:text-white tabular-nums">{entry.value}</span>
                 </div>
@@ -107,16 +111,18 @@ const dominantSeverityFill = (day) => {
     return SEVERITY_SERIES.find(({ key }) => key === top)?.fill || '#9CA3AF';
 };
 
-const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, selectedDay, onSelectDay }) => {
-    const activeDays = chartData.filter((day) => day.total > 0);
+const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthCount = 0, selectedDay, onSelectDay }) => {
+    const safeChartData = toSafeArray(chartData);
+    const safeReportCount = Number.isFinite(Number(reportCount)) ? Number(reportCount) : 0;
+    const activeDays = safeChartData.filter((day) => Number(day?.total) > 0);
     const summaryId = useId();
     const hasTrendData = activeDays.length > 0;
     // A full month with almost nothing in it reads as a broken chart, so list
     // the active days instead. Short excerpts (drill-downs, tests) keep bars.
-    const isSparseTrend = hasTrendData && chartData.length >= 28 && activeDays.length <= 2;
-    const insight = getTrendInsight(chartData, { selectedMonth, prevMonthCount });
-    const presentSeverities = SEVERITY_SERIES.filter(({ key }) => chartData.some((day) => (Number(day?.[key]) || 0) > 0));
-    const reportLabel = `${reportCount} ${reportCount === 1 ? 'report' : 'reports'}`;
+    const isSparseTrend = hasTrendData && safeChartData.length >= 28 && activeDays.length <= 2;
+    const insight = getTrendInsight(safeChartData, { selectedMonth, prevMonthCount });
+    const presentSeverities = SEVERITY_SERIES.filter(({ key }) => safeChartData.some((day) => (Number(day?.[key]) || 0) > 0));
+    const reportLabel = `${safeReportCount} ${safeReportCount === 1 ? 'report' : 'reports'}`;
     const activeDaySummary = activeDays
         .map((day) => `${day.fullDate}: ${day.total}`)
         .join(', ');
@@ -141,7 +147,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-white/5">
                 <div>
                     <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Incident trend</h2>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily volume for {format(selectedMonth, 'MMMM yyyy')}</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                     <p data-testid="trend-insight">
@@ -162,7 +168,7 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                             </>
                         )}
                         {insight.total > 0 && insight.quietDays > 0 && (
-                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {chartData.length}</span>
+                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {safeChartData.length}</span>
                         )}
                         {insight.delta && (
                             <span className="tabular-nums"> · {insight.delta.label}</span>
@@ -184,8 +190,8 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
             {!hasTrendData ? (
                 <div className="mt-3">
                     <EmptyChart
-                        message={reportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
-                        detail={reportCount === 0
+                        message={safeReportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
+                        detail={safeReportCount === 0
                             ? 'Choose another month.'
                             : 'Some reports could not be plotted because their timestamps are missing or invalid.'}
                     />
@@ -224,11 +230,11 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
                     <div
                         className="h-44 min-w-0 w-full sm:h-48"
                         role="img"
-                        aria-label={`Daily incident report trend for ${format(selectedMonth, 'MMMM yyyy')}`}
+                        aria-label={`Daily incident report trend for ${formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}`}
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} data-testid="incident-bar-chart" margin={{ top: 12, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
+                            <BarChart data={safeChartData} data-testid="incident-bar-chart" margin={{ top: 12, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
                                 <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
@@ -273,29 +279,32 @@ const TrendPanel = ({ chartData, selectedMonth, reportCount, prevMonthCount, sel
     );
 };
 
-const LifecyclePanel = ({ statusData, totalReports }) => (
+const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
+    const safeStatus = toSafeArray(statusData);
+    const safeTotal = Number.isFinite(Number(totalReports)) ? Number(totalReports) : 0;
+    return (
     <div className={PANEL_CLASS}>
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
             <div>
                 <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
             </div>
-            {totalReports > 0 && (
+            {safeTotal > 0 && (
                 <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500">
-                    {totalReports} total
+                    {safeTotal} total
                 </span>
             )}
         </div>
-        {statusData.length ? (
+        {safeStatus.length ? (
             <div className="mt-3 space-y-3" aria-label="Report lifecycle distribution">
                 {/* Visual Segmented Proportional Distribution Track */}
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5 gap-0.5" aria-hidden="true">
-                    {statusData.map((item) => {
-                        const pct = totalReports ? (item.value / totalReports) * 100 : 0;
+                    {safeStatus.map((item) => {
+                        const pct = safeTotal ? (Number(item?.value || 0) / safeTotal) * 100 : 0;
                         if (pct <= 0) return null;
                         return (
                             <div
-                                key={item.name}
+                                key={String(item?.name || Math.random())}
                                 style={{ width: `${pct}%`, backgroundColor: item.color }}
                                 className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
                                 title={`${item.name}: ${item.value}`}
@@ -306,10 +315,10 @@ const LifecyclePanel = ({ statusData, totalReports }) => (
 
                 {/* Status Breakdown Rows */}
                 <div className="divide-y divide-gray-100/80 dark:divide-white/5">
-                    {statusData.map((item) => {
-                        const percentage = totalReports ? Math.round((item.value / totalReports) * 100) : 0;
+                    {safeStatus.map((item) => {
+                        const percentage = safeTotal ? Math.round((Number(item?.value || 0) / safeTotal) * 100) : 0;
                         return (
-                            <div key={item.name} className="flex items-center justify-between py-2 text-xs">
+                            <div key={String(item?.name || Math.random())} className="flex items-center justify-between py-2 text-xs">
                                 <div className="flex items-center gap-2 min-w-0">
                                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
                                     <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{item.name}</span>
@@ -326,10 +335,12 @@ const LifecyclePanel = ({ statusData, totalReports }) => (
             <div className="mt-3"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
         )}
     </div>
-);
+    );
+};
 
-const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicipality = false }) => {
-    const totalCount = data.reduce((sum, item) => sum + (item.count || 0), 0);
+const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMunicipality = false }) => {
+    const safeData = toSafeArray(data);
+    const totalCount = safeData.reduce((sum, item) => sum + (Number(item?.count) || 0), 0);
 
     return (
         <div className={PANEL_CLASS}>
@@ -338,23 +349,23 @@ const RankedBreakdownPanel = ({ title, description, data, emptyDetail, isMunicip
                     <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">{title}</h2>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
                 </div>
-                {data.length > 0 && (
+                {safeData.length > 0 && (
                     <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                        {data.length} {isMunicipality ? 'municipalities' : 'recorded'}
+                        {safeData.length} {isMunicipality ? 'municipalities' : 'recorded'}
                     </span>
                 )}
             </div>
 
-            {data.length ? (
+            {safeData.length ? (
                 <div className="mt-3 space-y-1.5" role="list" aria-label={`${title}: ${description}`}>
-                    {data.map((item, index) => {
-                        const count = item.count || 0;
+                    {safeData.map((item, index) => {
+                        const count = Number(item?.count) || 0;
                         const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
                         const isTop = index === 0 && count > 0;
 
                         return (
                             <div
-                                key={item.name}
+                                key={String(item?.name ?? `row-${index}`)}
                                 className="group relative rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                                 role="listitem"
                             >
@@ -416,7 +427,13 @@ const DashboardAnalyticsWorkspace = ({
     onOpenMap,
     onOpenReports,
 }) => {
-    const activeRiskZoneCount = highRiskZones.filter((zone) => zone.isActive !== false).length;
+    const safeReports = toSafeArray(reports);
+    const safeAllReports = toSafeArray(allReports);
+    const safeZones = toSafeArray(highRiskZones);
+    const safeChartData = toSafeArray(chartData);
+    const safeMetrics = (performanceMetrics && typeof performanceMetrics === 'object') ? performanceMetrics : {};
+    const effectiveMonth = toValidDate(selectedMonth) || new Date();
+    const activeRiskZoneCount = safeZones.filter((zone) => zone?.isActive !== false).length;
     const [mapStatusFilter, setMapStatusFilter] = useState('all');
     const [selectedDay, setSelectedDay] = useState(null);
 
@@ -429,66 +446,86 @@ const DashboardAnalyticsWorkspace = ({
         // Pace-fair delta: when viewing the in-progress Manila month, compare
         // against the previous month's first N days — never a partial month
         // against a full one.
-        const nowManila = new Date(Date.now() + MANILA_OFFSET_MS);
-        const viewingCurrentManilaMonth = getManilaMonthKey(selectedMonth) === getManilaMonthKey(nowManila);
-        return countReportsInMonth(
-            allReports,
-            subMonths(selectedMonth, 1),
-            viewingCurrentManilaMonth
-                ? { throughDayOfMonth: nowManila.getUTCDate() }
-                : {},
-        );
+        try {
+            const nowManila = new Date(Date.now() + MANILA_OFFSET_MS);
+            const viewingCurrentManilaMonth = getManilaMonthKey(effectiveMonth) === getManilaMonthKey(nowManila);
+            return countReportsInMonth(
+                safeAllReports,
+                subMonths(effectiveMonth, 1),
+                viewingCurrentManilaMonth
+                    ? { throughDayOfMonth: nowManila.getUTCDate() }
+                    : {},
+            );
+        } catch {
+            return 0;
+        }
     })();
-    const mapDayReports = selectedDay ? filterReportsByDayKey(reports, selectedDay) : reports;
-    const selectedDayLabel = (chartData || []).find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
+    const mapDayReports = selectedDay ? filterReportsByDayKey(safeReports, selectedDay) : safeReports;
+    const selectedDayLabel = safeChartData.find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
 
     const getMapFilterCount = (filterValue) => {
         if (filterValue === 'risk-zones') {
             return activeRiskZoneCount;
         }
-        return getFilteredMapReports(reports, {
-            includePending: true,
-            statusFilter: filterValue,
-            filterMode: 'review',
-        }).length;
+        try {
+            return getFilteredMapReports(safeReports, {
+                includePending: true,
+                statusFilter: filterValue,
+                filterMode: 'review',
+            }).length;
+        } catch {
+            return 0;
+        }
     };
 
-    const recentReports = [...allReports]
-        .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt))
+    const recentReports = [...safeAllReports]
+        .sort((left, right) => new Date(right?.updatedAt || right?.createdAt) - new Date(left?.updatedAt || left?.createdAt))
         .slice(0, 5);
 
     const exportDashboard = async () => {
-        const [{ default: ExcelJS }, { buildAnalyticsWorkbook, writeWorkbookToBuffer }, { default: fileSaver }] = await Promise.all([
-            import('exceljs'),
-            import('../../utils/excelExport'),
-            import('file-saver'),
-        ]);
-        const monthLabel = format(selectedMonth, 'MMMM yyyy');
-        const workbook = buildAnalyticsWorkbook(ExcelJS, {
-            scopeLabel: hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide',
-            monthLabel,
-            exportedAt: new Date(),
-            summary: [
-                { metric: 'New Reports in Selected Month', value: reports.length },
-                { metric: 'Total Reports in Scope', value: allReports.length },
-                { metric: 'Pending Review', value: performanceMetrics.pendingCount },
-                { metric: 'Available for Dispatch', value: performanceMetrics.dispatchReadyCount },
-                { metric: 'Active Responses', value: performanceMetrics.respondingCount },
-                { metric: 'Resolved Cases', value: performanceMetrics.resolvedCount },
-                { metric: 'Resolution Rate', value: `${performanceMetrics.resolutionRate}%` },
-                { metric: 'Average Response Time (Minutes)', value: performanceMetrics.avgResponseMin ?? 'No data' },
-                { metric: 'Median Response Time (Minutes)', value: performanceMetrics.medianResponseMin ?? 'No data' },
-                { metric: 'Active High-Risk Zones', value: activeRiskZoneCount },
-            ],
-            incidents: allReports,
-            zones: highRiskZones,
-        });
+        const toastId = 'dashboard-export';
+        try {
+            const [{ default: ExcelJS }, { buildAnalyticsWorkbook, writeWorkbookToBuffer }, { default: fileSaver }] = await Promise.all([
+                import('exceljs'),
+                import('../../utils/excelExport'),
+                import('file-saver'),
+            ]);
+            const monthLabel = formatMonthLabel(effectiveMonth, 'MMMM yyyy', '');
+            // Cap export rows: a full prod history can OOM the tab on EOC hardware.
+            const MAX_EXPORT_ROWS = 5000;
+            const exportIncidents = safeAllReports.slice(0, MAX_EXPORT_ROWS);
+            if (safeAllReports.length > MAX_EXPORT_ROWS) {
+                toast(`Exporting first ${MAX_EXPORT_ROWS} of ${safeAllReports.length} rows.`, { id: toastId });
+            }
+            const workbook = buildAnalyticsWorkbook(ExcelJS, {
+                scopeLabel: hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide',
+                monthLabel,
+                exportedAt: new Date(),
+                summary: [
+                    { metric: 'New Reports in Selected Month', value: safeCount(safeReports) },
+                    { metric: 'Total Reports in Scope', value: safeCount(safeAllReports) },
+                    { metric: 'Pending Review', value: safeMetrics.pendingCount ?? 0 },
+                    { metric: 'Available for Dispatch', value: safeMetrics.dispatchReadyCount ?? 0 },
+                    { metric: 'Active Responses', value: safeMetrics.respondingCount ?? 0 },
+                    { metric: 'Resolved Cases', value: safeMetrics.resolvedCount ?? 0 },
+                    { metric: 'Resolution Rate', value: `${safeMetrics.resolutionRate ?? 0}%` },
+                    { metric: 'Average Response Time (Minutes)', value: safeMetrics.avgResponseMin ?? 'No data' },
+                    { metric: 'Median Response Time (Minutes)', value: safeMetrics.medianResponseMin ?? 'No data' },
+                    { metric: 'Active High-Risk Zones', value: activeRiskZoneCount },
+                ],
+                incidents: exportIncidents,
+                zones: safeZones,
+            });
 
-        const buffer = await writeWorkbookToBuffer(workbook);
-        fileSaver.saveAs(
-            new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-            `Sibuyan_Alert_Analytics_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
-        );
+            const buffer = await writeWorkbookToBuffer(workbook);
+            fileSaver.saveAs(
+                new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+                `Sibuyan_Alert_Analytics_${formatMonthLabel(new Date(), 'yyyy-MM-dd', 'export')}.xlsx`
+            );
+        } catch (exportError) {
+            console.error('Dashboard export failed:', exportError);
+            toast.error('Export failed. Check your connection and try again.', { id: toastId });
+        }
     };
 
     if (loading) {
@@ -523,8 +560,8 @@ const DashboardAnalyticsWorkspace = ({
                         </h1>
                         <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                             {hasMunicipality
-                                ? `${user?.assignedMunicipality} incident status and response readiness for ${format(selectedMonth, 'MMMM yyyy')}.`
-                                : `Island-wide incident briefing and municipal comparisons for ${format(selectedMonth, 'MMMM yyyy')}.`}
+                                ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`
+                                : `Island-wide incident briefing and municipal comparisons for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`}
                         </p>
                     </div>
                 </div>
@@ -533,7 +570,14 @@ const DashboardAnalyticsWorkspace = ({
                     <div className="flex min-h-9 w-full items-center justify-between rounded-lg border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 lg:w-52">
                         <button
                             type="button"
-                            onClick={() => setSelectedMonth((current) => subMonths(current, 1))}
+                            onClick={() => setSelectedMonth((current) => {
+                                try {
+                                    const base = toValidDate(current) || new Date();
+                                    return subMonths(base, 1);
+                                } catch {
+                                    return new Date();
+                                }
+                            })}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Previous month"
                         >
@@ -545,15 +589,26 @@ const DashboardAnalyticsWorkspace = ({
                             className="min-w-0 flex-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Return to current month"
                         >
-                            {format(selectedMonth, 'MMM yyyy')}
+                            {formatMonthLabel(effectiveMonth, 'MMM yyyy', '')}
                         </button>
                         <button
                             type="button"
                             onClick={() => {
-                                const nextMonth = addMonths(selectedMonth, 1);
-                                if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
+                                try {
+                                    const base = toValidDate(selectedMonth) || new Date();
+                                    const nextMonth = addMonths(base, 1);
+                                    if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
+                                } catch {
+                                    setSelectedMonth(new Date());
+                                }
                             }}
-                            disabled={isSameMonth(selectedMonth, new Date())}
+                            disabled={(() => {
+                                try {
+                                    return isSameMonth(effectiveMonth, new Date());
+                                } catch {
+                                    return false;
+                                }
+                            })()}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
                             aria-label="Next month"
                         >
@@ -599,12 +654,12 @@ const DashboardAnalyticsWorkspace = ({
                             Pending review
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {performanceMetrics.pendingCount}
+                            {safeMetrics.pendingCount ?? 0}
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {performanceMetrics.pendingCount > 0 ? 'Awaiting review' : 'No pending reports'}
+                            {(safeMetrics.pendingCount ?? 0) > 0 ? 'Awaiting review' : 'No pending reports'}
                         </p>
-                        {performanceMetrics.pendingCount > 0 && (
+                        {(safeMetrics.pendingCount ?? 0) > 0 && (
                             <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
                                 Action needed
                             </p>
@@ -617,10 +672,10 @@ const DashboardAnalyticsWorkspace = ({
                             Dispatch ready
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {performanceMetrics.dispatchReadyCount}
+                            {safeMetrics.dispatchReadyCount ?? 0}
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {performanceMetrics.dispatchReadyCount > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
+                            {(safeMetrics.dispatchReadyCount ?? 0) > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
                         </p>
                     </div>
 
@@ -630,10 +685,10 @@ const DashboardAnalyticsWorkspace = ({
                             Responding
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {performanceMetrics.respondingCount}
+                            {safeMetrics.respondingCount ?? 0}
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {performanceMetrics.respondingCount > 0 ? 'Field response active' : 'No active field response'}
+                            {(safeMetrics.respondingCount ?? 0) > 0 ? 'Field response active' : 'No active field response'}
                         </p>
                     </div>
 
@@ -643,10 +698,10 @@ const DashboardAnalyticsWorkspace = ({
                             Resolved
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {performanceMetrics.resolvedCount}
+                            {safeMetrics.resolvedCount ?? 0}
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {performanceMetrics.resolutionRate}% resolution rate
+                            {safeMetrics.resolutionRate ?? 0}% resolution rate
                         </p>
                     </div>
                 </div>
@@ -656,17 +711,17 @@ const DashboardAnalyticsWorkspace = ({
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
-                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{reports.length}</span>
+                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{safeCount(safeReports)}</span>
                             </span>
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                                    {performanceMetrics.medianResponseMin === null ? '—' : `${performanceMetrics.medianResponseMin}m`}
+                                    {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
                                 </span>
                                 <span className="text-[11px] text-gray-400">
-                                    {performanceMetrics.responseSampleCount
-                                        ? `(${performanceMetrics.responseSampleCount} responded incident${performanceMetrics.responseSampleCount === 1 ? '' : 's'})`
+                                    {safeMetrics.responseSampleCount
+                                        ? `(${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'})`
                                         : 'No responded incidents'}
                                 </span>
                             </span>
@@ -677,15 +732,15 @@ const DashboardAnalyticsWorkspace = ({
                             </span>
                         </div>
                         <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                            {format(selectedMonth, 'MMMM yyyy')} scope
+                            {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
                         </span>
                     </div>
             </section>
 
             {/* Monthly Insights Section: Incident Trend & Lifecycle */}
             <section className="grid gap-3 lg:grid-cols-3" aria-label="Monthly insights">
-                <TrendPanel chartData={chartData} selectedMonth={selectedMonth} reportCount={reports.length} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-                <LifecyclePanel statusData={statusData} totalReports={reports.length} />
+                <TrendPanel chartData={safeChartData} selectedMonth={effectiveMonth} reportCount={safeCount(safeReports)} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+                <LifecyclePanel statusData={toSafeArray(statusData)} totalReports={safeCount(safeReports)} />
             </section>
 
             {/* Incident Map Section */}
@@ -695,7 +750,7 @@ const DashboardAnalyticsWorkspace = ({
                         <div className="flex min-w-0 items-baseline gap-2">
                             <h2 className="shrink-0 text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">Monthly incident map</h2>
                             <p className="hidden truncate text-[11px] text-gray-500 sm:block dark:text-gray-400">
-                                Geographic incident distribution for {format(selectedMonth, 'MMMM yyyy')}
+                                Geographic incident distribution for {formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}
                             </p>
                         </div>
                         <button
@@ -764,7 +819,7 @@ const DashboardAnalyticsWorkspace = ({
                 <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
                     <MapView
                         reports={mapDayReports}
-                        highRiskZones={highRiskZones}
+                        highRiskZones={safeZones}
                         showPending
                         filterMode="review"
                         filterStatus={mapStatusFilter}
@@ -785,13 +840,13 @@ const DashboardAnalyticsWorkspace = ({
                         <RankedBreakdownPanel
                             title="By barangay"
                             description={`Reports within ${user?.assignedMunicipality || 'the assigned municipality'}`}
-                            data={barangayBarData.slice(0, 8)}
+                            data={toSafeArray(barangayBarData).slice(0, 8)}
                             emptyDetail="Barangay information was not supplied for reports in this period."
                         />
                         <RankedBreakdownPanel
                             title="By incident type"
                             description="Most reported incident classifications"
-                            data={incidentTypeBarData.slice(0, 8)}
+                            data={toSafeArray(incidentTypeBarData).slice(0, 8)}
                             emptyDetail="Incident type information is unavailable for this period."
                         />
                     </>
@@ -800,14 +855,14 @@ const DashboardAnalyticsWorkspace = ({
                         <RankedBreakdownPanel
                             title="By municipality"
                             description="Reports per municipality"
-                            data={municipalityBarData}
+                            data={toSafeArray(municipalityBarData)}
                             isMunicipality
                             emptyDetail="No municipality totals are available for this period."
                         />
                         <RankedBreakdownPanel
                             title="By barangay"
                             description="Top barangays by report count"
-                            data={barangayBarData.slice(0, 8)}
+                            data={toSafeArray(barangayBarData).slice(0, 8)}
                             emptyDetail="Barangay information was not supplied for reports in this period."
                         />
                     </>

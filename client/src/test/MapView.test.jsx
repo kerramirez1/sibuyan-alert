@@ -3,7 +3,27 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mockMapInstances = [];
 const mockSetLayoutProperty = vi.fn();
-const mockGetLayer = vi.fn((id) => ({ id }));
+const LOAD_ADDED_IDS = new Set([
+    'risk-zone-source',
+    'risk-zones',
+    'user-location',
+    'gps-accuracy',
+]);
+// Fresh maps have no sources/layers: get* returns null so the component's
+// idempotent ensureSource/ensureLayer path adds them (prod behavior). Style
+// layers queried later for visibility toggles report as existing.
+const mockGetLayer = vi.fn((id) => {
+    if (typeof id === 'string' && (id.includes('risk-zone') || id.includes('risk_zone') || id.includes('user-location') || id.includes('gps-accuracy'))) {
+        return LOAD_ADDED_IDS.has(id) ? { id } : null;
+    }
+    return { id };
+});
+const mockGetSource = vi.fn((id) => {
+    if (typeof id === 'string' && (id.includes('risk-zone') || id.includes('risk_zone') || id.includes('user-location') || id.includes('gps-accuracy'))) {
+        return null;
+    }
+    return { setData: vi.fn() };
+});
 const mockSetMaxZoom = vi.fn();
 const mockEaseTo = vi.fn();
 const mockOnCallbacks = {};
@@ -14,6 +34,7 @@ const mockRemove = vi.fn();
 
 vi.mock('maplibre-gl', () => ({
     default: {
+        supported: vi.fn(() => true),
         addProtocol: vi.fn(),
         Map: vi.fn(function (options) {
             this.options = options;
@@ -26,7 +47,7 @@ vi.mock('maplibre-gl', () => ({
             this.addControl = mockAddControl;
             this.addSource = mockAddSource;
             this.addLayer = mockAddLayer;
-            this.getSource = vi.fn(() => ({ setData: vi.fn() }));
+            this.getSource = mockGetSource;
             this.remove = mockRemove;
             this.on = vi.fn((event, cb) => {
                 mockOnCallbacks[event] = cb;

@@ -107,13 +107,27 @@ export const fetchProtectedBlob = async (rawUrl, options = {}) => {
     const requestPromise = (async () => {
         try {
             const response = await filesAPI.getProtected(rawUrl, options);
-            if (!response?.data) {
+            const payload = response?.data;
+            if (!payload) {
                 throw new Error('Failed to retrieve binary data for asset');
+            }
+            // Prod CDN/WAF misconfig can return an HTML login page with 200:
+            // createObjectURL(non-Blob) throws — validate first.
+            const blobPayload = payload instanceof Blob
+                ? payload
+                : (typeof Blob !== 'undefined' && payload instanceof ArrayBuffer)
+                    ? new Blob([payload])
+                    : null;
+            if (!blobPayload) {
+                throw new Error('Protected asset did not return binary data');
             }
 
             const createdBlobUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
-                ? URL.createObjectURL(response.data)
+                ? URL.createObjectURL(blobPayload)
                 : '';
+            if (!createdBlobUrl) {
+                throw new Error('Object URLs are unavailable in this browser');
+            }
 
             // Enforce capacity bounds
             while (cache.size >= maxCacheSize) {

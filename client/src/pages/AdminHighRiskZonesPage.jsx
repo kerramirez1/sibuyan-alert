@@ -315,10 +315,11 @@ const AdminHighRiskZonesPage = () => {
             municipality: zone?.municipality || user?.assignedMunicipality || MUNICIPALITIES[0],
         });
         if (Array.isArray(zone?.photos) && zone.photos.length > 0) {
+            const safePhotos = zone.photos.filter(Boolean);
             setPhotoPreviews(
-                zone.photos.filter(Boolean).map((p) => ({ url: p?.url, isNew: false, filename: p?.filename }))
+                safePhotos.map((p) => ({ url: p?.url, isNew: false, filename: p?.filename }))
             );
-            setPhotos(zone.photos.filter(Boolean));
+            setPhotos(safePhotos);
         } else {
             setPhotos([]);
             setPhotoPreviews([]);

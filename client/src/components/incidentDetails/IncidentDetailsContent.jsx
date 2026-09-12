@@ -3,6 +3,7 @@ import { HiOutlineExclamationCircle, HiOutlineRefresh } from 'react-icons/hi';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getTransferLine } from '../../utils/incidentDetails';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
+import { normalizeMunicipalityKey } from '../../utils/safeCollection';
 import IncidentDetailsLocationSection from './IncidentDetailsLocationSection';
 import IncidentDetailsCoreSection from './IncidentDetailsCoreSection';
 import IncidentDetailsDescriptionSection from './IncidentDetailsDescriptionSection';
@@ -49,14 +50,16 @@ const IncidentDetailsContent = ({
         isOwner,
     });
 
+    const viewerMunicipality = normalizeMunicipalityKey(user?.assignedMunicipality);
+    const reportMunicipality = normalizeMunicipalityKey(report?.municipalityName);
     const isOriginatingTransferredViewer = Boolean(
-        user?.assignedMunicipality
-        && report?.municipalityName
-        && user.assignedMunicipality.toLowerCase() !== report.municipalityName.toLowerCase()
+        viewerMunicipality
+        && reportMunicipality
+        && viewerMunicipality !== reportMunicipality
         && (
-            report.originalMunicipalityName?.toLowerCase() === user.assignedMunicipality.toLowerCase()
-            || (Array.isArray(report.transferHistory) && report.transferHistory.some(
-                (t) => t?.fromMunicipalityName?.toLowerCase() === user.assignedMunicipality.toLowerCase()
+            normalizeMunicipalityKey(report?.originalMunicipalityName) === viewerMunicipality
+            || (Array.isArray(report?.transferHistory) && report.transferHistory.some(
+                (t) => normalizeMunicipalityKey(t?.fromMunicipalityName) === viewerMunicipality
             ))
         )
     );

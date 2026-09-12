@@ -1,7 +1,9 @@
-import { Suspense, lazy, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from './router';
 import { useAuth } from './context/AuthContext';
 import { getDefaultRoleRoute, resolvePostLoginRedirect } from './utils/authUtils';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 // Layouts
 import AuthLayout from './components/layout/AuthLayout';
@@ -11,26 +13,26 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Public Pages (eager load)
 import HomePage from './pages/HomePage';
 
-// Lazy-loaded Public Pages
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const RegistrationSubmittedPage = lazy(() => import('./pages/RegistrationSubmittedPage'));
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+// Lazy-loaded Public Pages (retry-once so stale deploys self-heal)
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
+const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
+const RegisterPage = lazyWithRetry(() => import('./pages/RegisterPage'));
+const RegistrationSubmittedPage = lazyWithRetry(() => import('./pages/RegistrationSubmittedPage'));
+const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPasswordPage'));
 
 // Protected Pages (lazy load)
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const ReporterDashboardPage = lazy(() => import('./pages/ReporterDashboardPage'));
-const ReportPage = lazy(() => import('./pages/ReportPage'));
-const MyReportsPage = lazy(() => import('./pages/MyReportsPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
-const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
-const AdminReportsPage = lazy(() => import('./pages/AdminReportsPage'));
-const AdminHighRiskZonesPage = lazy(() => import('./pages/AdminHighRiskZonesPage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
-const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
-const AccidentHistoryPage = lazy(() => import('./pages/AccidentHistoryPage'));
+const DashboardPage = lazyWithRetry(() => import('./pages/DashboardPage'));
+const ReporterDashboardPage = lazyWithRetry(() => import('./pages/ReporterDashboardPage'));
+const ReportPage = lazyWithRetry(() => import('./pages/ReportPage'));
+const MyReportsPage = lazyWithRetry(() => import('./pages/MyReportsPage'));
+const AdminPage = lazyWithRetry(() => import('./pages/AdminPage'));
+const AdminUsersPage = lazyWithRetry(() => import('./pages/AdminUsersPage'));
+const AdminReportsPage = lazyWithRetry(() => import('./pages/AdminReportsPage'));
+const AdminHighRiskZonesPage = lazyWithRetry(() => import('./pages/AdminHighRiskZonesPage'));
+const NotificationsPage = lazyWithRetry(() => import('./pages/NotificationsPage'));
+const ProfileSettingsPage = lazyWithRetry(() => import('./pages/ProfileSettingsPage'));
+const AccidentHistoryPage = lazyWithRetry(() => import('./pages/AccidentHistoryPage'));
 
 import { PageSkeleton } from './components/ui/Skeleton';
 
@@ -112,6 +114,7 @@ function App() {
     const authRedirectTarget = resolvePostLoginRedirect(user, redirectQuery);
 
     return (
+        <ErrorBoundary resetKey={`${location.pathname}${location.search}`} title="This section failed to load" message="Something went wrong while rendering this page. Try again or reload.">
         <Suspense fallback={<PageLoader />}>
             <Routes>
                 {/* Public Routes */}
@@ -160,6 +163,7 @@ function App() {
                 <Route element={<NotFoundPage />} />
             </Routes>
         </Suspense>
+        </ErrorBoundary>
     );
 }
 

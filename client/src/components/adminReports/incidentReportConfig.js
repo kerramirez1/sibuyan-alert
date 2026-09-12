@@ -1,5 +1,6 @@
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getEntityId } from '../../utils/reportResolution';
+import { normalizeMunicipalityKey } from '../../utils/safeCollection';
 
 export const INCIDENT_LIFECYCLE = [
     'pending',
@@ -88,22 +89,25 @@ export const isAssignedResponder = (user, report) => {
 export const isWithinResponderScope = (user, report) => {
     if (user?.role !== 'responder') return false;
     if (!user.assignedMunicipality) return true;
-    const assignedMunicipality = user.assignedMunicipality.trim().toLocaleLowerCase();
-    const reportMunicipality = report?.municipalityName?.trim().toLocaleLowerCase();
+    const assignedMunicipality = normalizeMunicipalityKey(user.assignedMunicipality);
+    if (!assignedMunicipality) return true;
+    const reportMunicipality = normalizeMunicipalityKey(report?.municipalityName);
     return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
 };
 
 export const isWithinMunicipalAdminScope = (user, report) => {
     if (!ADMIN_ROLES.includes(user?.role)) return false;
     if (!user.assignedMunicipality) return true;
-    const assignedMunicipality = user.assignedMunicipality.trim().toLocaleLowerCase();
-    const reportMunicipality = report?.municipalityName?.trim().toLocaleLowerCase();
+    const assignedMunicipality = normalizeMunicipalityKey(user.assignedMunicipality);
+    if (!assignedMunicipality) return true;
+    const reportMunicipality = normalizeMunicipalityKey(report?.municipalityName);
     return Boolean(reportMunicipality) && reportMunicipality === assignedMunicipality;
 };
 
 export const isTransferOriginMunicipality = (user, report) => {
     if (!ADMIN_ROLES.includes(user?.role) || !user.assignedMunicipality || !report) return false;
-    const assigned = user.assignedMunicipality.trim().toLocaleLowerCase();
+    const assigned = normalizeMunicipalityKey(user.assignedMunicipality);
+    if (!assigned) return false;
     const history = Array.isArray(report.transferHistory) && report.transferHistory.length > 0
         ? report.transferHistory
         : report.transferTrail;
@@ -114,7 +118,8 @@ export const isTransferOriginMunicipality = (user, report) => {
             : []),
     ]
         .filter(Boolean)
-        .map((name) => String(name).trim().toLocaleLowerCase());
+        .map((name) => normalizeMunicipalityKey(name))
+        .filter(Boolean);
     return origins.includes(assigned);
 };
 

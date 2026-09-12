@@ -22,8 +22,13 @@
 const DEFAULT_URL = '/dashboard';
 const DEFAULT_ICON = '/icons/Alert.png';
 
-const SHELL_CACHE = 'sibuyan-shell-v1';
+// Bump alongside breaking shell changes so `activate` purges the previous
+// deploy's hashed chunks and index.html. Old hashes never collide (Vite
+// content-addresses /assets/*), but without versioning the stale shell keeps
+// referencing deleted chunks after each deploy -> lazy() 404s.
+const SHELL_CACHE = 'sibuyan-shell-v2';
 const DATA_CACHE = 'sibuyan-data-v1';
+const LEGACY_SHELL_CACHES = ['sibuyan-shell-v1'];
 const SHELL_ASSETS = [
     '/',
     '/index.html',
@@ -140,12 +145,20 @@ self.addEventListener('activate', (event) => {
         const keep = new Set([SHELL_CACHE, DATA_CACHE]);
         const names = await caches.keys();
         await Promise.all(names.filter((name) => !keep.has(name)).map((name) => caches.delete(name)));
+        // Defense in depth: an older SW may have created the legacy shell
+        // cache under the same keep-set logic of its era. Delete explicitly.
+        await Promise.all(LEGACY_SHELL_CACHES.map((name) => caches.delete(name).catch(() => false)));
         await self.clients.claim();
     })());
 });
 
 self.addEventListener('message', (event) => {
     const data = event.data || {};
+
+    if (data.type === 'skip-waiting') {
+        event.waitUntil(self.skipWaiting());
+        return;
+    }
 
     if (data.type === 'set-cache-scope') {
         event.waitUntil(writeKv('cacheScope', typeof data.scope === 'string' && data.scope ? data.scope : null));
@@ -190,18 +203,30 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Navigations: serve the cached shell immediately, refresh in the
-    // background. An offline launch still renders the app.
+    // Navigations: network-first so each deploy's fresh index.html (new hashed
+    // chunk URLs) wins immediately; the cached shell is only a fallback for
+    // true offline launches. The previous cache-first order served a stale
+    // shell that referenced deleted chunks -> lazy() 404 after every deploy.
     if (request.mode === 'navigate') {
         event.respondWith((async () => {
             const cache = await caches.open(SHELL_CACHE);
-            const cached = await cache.match('/index.html');
-            const network = fetch(request).then((response) => {
-                if (response && response.ok) cache.put('/index.html', response.clone());
-                return response;
-            }).catch(() => null);
-
-            return cached || (await network) || Response.error();
+            try {
+                const network = await fetch(request);
+                if (network && network.ok) {
+                    try {
+                        await cache.put('/index.html', network.clone());
+                    } catch {
+                        // Quota / opaque-response put failures must not break nav.
+                    }
+                    return network;
+                }
+                const cached = await cache.match('/index.html');
+                return cached || network;
+            } catch {
+                const cached = await cache.match('/index.html');
+                if (cached) return cached;
+                return Response.error();
+            }
         })());
         return;
     }

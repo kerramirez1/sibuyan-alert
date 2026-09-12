@@ -98,6 +98,9 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     incidents = [],
     zones = [],
 } = {}) => {
+    const safeIncidents = Array.isArray(incidents) ? incidents : [];
+    const safeZones = Array.isArray(zones) ? zones : [];
+    const safeSummary = Array.isArray(summary) ? summary : [];
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Sibuyan Alert';
     workbook.created = exportedAt instanceof Date ? exportedAt : new Date();
@@ -112,7 +115,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
         rows: [
             { metric: 'Scope', value: scopeLabel },
             ...(monthLabel ? [{ metric: 'Month', value: monthLabel }] : []),
-            ...summary,
+            ...safeSummary,
             { metric: 'Exported At', value: exportedAt instanceof Date ? exportedAt : new Date() },
         ],
     });
@@ -144,7 +147,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             { key: 'description', label: 'Description', width: 50, wrap: true },
             { key: 'reporter', label: 'Reporter', width: 20 },
         ],
-        rows: incidents.map((report) => ({
+        rows: safeIncidents.map((report) => ({
             dateReported: toDateCell(report?.createdAt),
             incidentTime: toDateCell(report?.incidentTime),
             title: report?.title || 'Unknown',
@@ -186,7 +189,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             { key: 'incidentCount', label: 'Incident Count', width: 16 },
             { key: 'radius', label: 'Radius (m)', width: 12 },
         ],
-        rows: zones.map((zone) => ({
+        rows: safeZones.map((zone) => ({
             name: zone?.name || 'Unnamed Zone',
             type: String(zone?.type || 'unknown').replace(/_/g, ' ').toUpperCase(),
             municipality: zone?.municipality || zone?.municipalityName || 'Unknown',

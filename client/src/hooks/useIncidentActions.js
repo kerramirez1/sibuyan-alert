@@ -100,8 +100,8 @@ const useIncidentActions = ({
 
         if (user?.agency) {
             performRespond(report, {
-                unitName: user.responderUnit || `${user.agency} - ${user.assignedMunicipality}`,
-                unitType: user.agency,
+                unitName: user?.responderUnit || `${user?.agency} - ${user?.assignedMunicipality || 'Sibuyan'}`,
+                unitType: user?.agency,
             });
             return;
         }

@@ -21,10 +21,30 @@ export const registerServiceWorker = async () => {
             scope: '/',
             updateViaCache: 'none',
         });
+        // Proactively pick up each deploy's fresh shell in the background.
+        try {
+            await registration.update().catch(() => {});
+        } catch {
+            // Update check is best-effort; navigation fallback covers staleness.
+        }
         return registration;
     } catch (error) {
         console.error('Service worker registration failed:', error);
         return null;
+    }
+};
+
+/** Ask the waiting worker (new deploy) to activate immediately. */
+export const activateWaitingWorker = async () => {
+    if (!isServiceWorkerSupported()) return false;
+    try {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        const waiting = registration?.waiting;
+        if (!waiting) return false;
+        waiting.postMessage({ type: 'skip-waiting' });
+        return true;
+    } catch {
+        return false;
     }
 };
 
@@ -91,6 +111,7 @@ export const onServiceWorkerControllerChange = (callback) => {
 export default {
     isServiceWorkerSupported,
     registerServiceWorker,
+    activateWaitingWorker,
     setCacheScope,
     clearOfflineCaches,
     sharePushConfig,

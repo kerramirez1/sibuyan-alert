@@ -56,22 +56,23 @@ const DisclosureSection = ({ id, icon: Icon, title, summary, defaultOpen = false
     </details>
 );
 
-const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
-    const casualties = report.casualties || {};
-    const updates = Array.isArray(report.reportUpdates)
-        ? [...report.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
+    const safeReport = (report && typeof report === 'object') ? report : {};
+    const casualties = safeReport.casualties || {};
+    const updates = Array.isArray(safeReport.reportUpdates)
+        ? [...safeReport.reportUpdates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         : [];
-    const responders = Array.isArray(report.responders) ? report.responders : [];
-    const transfers = Array.isArray(report.transferHistory) ? [...report.transferHistory].reverse() : [];
-    const images = Array.isArray(report.images) ? report.images : [];
-    const declaredEvidenceCount = Number(report.evidenceCount);
+    const responders = Array.isArray(safeReport.responders) ? safeReport.responders : [];
+    const transfers = Array.isArray(safeReport.transferHistory) ? [...safeReport.transferHistory].reverse() : [];
+    const images = Array.isArray(safeReport.images) ? safeReport.images : [];
+    const declaredEvidenceCount = Number(safeReport.evidenceCount);
     const evidenceCount = Math.max(
         Number.isFinite(declaredEvidenceCount) && declaredEvidenceCount > 0 ? Math.floor(declaredEvidenceCount) : 0,
         images.length,
     );
-    const accuracy = Number(report.locationCapture?.accuracyMeters);
-    const coordinatesAvailable = Number.isFinite(Number(report.coordinates?.lat))
-        && Number.isFinite(Number(report.coordinates?.lng));
+    const accuracy = Number(safeReport.locationCapture?.accuracyMeters);
+    const coordinatesAvailable = Number.isFinite(Number(safeReport.coordinates?.lat))
+        && Number.isFinite(Number(safeReport.coordinates?.lng));
 
     const impactDetails = [
         { label: 'Injured', value: toPositiveNumber(casualties.injured), unit: 'injured' },
@@ -83,7 +84,7 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
         : 'No casualties recorded';
     const responseSummary = responders.length
         ? `${responders.length} response unit${responders.length === 1 ? '' : 's'} recorded`
-        : report.respondedBy
+        : safeReport.respondedBy
             ? 'One assigned response unit'
             : 'No response unit assigned';
 
@@ -97,9 +98,9 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 defaultOpen
             >
                 <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Detail label="Priority" value={report.priority} />
-                    <Detail label="Reported" value={formatDate(report.reportedAt || report.createdAt)} />
-                    <Detail label="Incident time" value={formatDate(report.incidentTime)} />
+                    <Detail label="Priority" value={safeReport.priority} />
+                    <Detail label="Reported" value={formatDate(safeReport.reportedAt || safeReport.createdAt)} />
+                    <Detail label="Incident time" value={formatDate(safeReport.incidentTime)} />
                 </dl>
             </DisclosureSection>
 
@@ -145,7 +146,7 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 ) : (
                     <ProtectedEvidenceGallery
                         images={images}
-                        evidence={report.evidence}
+                        evidence={safeReport.evidence}
                         accessLevel="original"
                         isOperational={true}
                         variant="stacked"
@@ -157,14 +158,14 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 id="reporter-contact-heading"
                 icon={HiOutlineUser}
                 title="Reporter information"
-                summary={report.reporter?.isVerified ? 'Verified reporter account' : 'Identity verification not confirmed'}
+                summary={safeReport.reporter?.isVerified ? 'Verified reporter account' : 'Identity verification not confirmed'}
             >
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-sm font-semibold text-gray-900">{report.reporter?.name || 'Reporter name unavailable'}</p>
-                    {report.reporter?.email ? (
-                        <a href={`mailto:${report.reporter.email}`} className="mt-3 inline-flex min-h-10 max-w-full items-center gap-2 break-all rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                    <p className="text-sm font-semibold text-gray-900">{safeReport.reporter?.name || 'Reporter name unavailable'}</p>
+                    {safeReport.reporter?.email ? (
+                        <a href={`mailto:${safeReport.reporter.email}`} className="mt-3 inline-flex min-h-10 max-w-full items-center gap-2 break-all rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
                             <HiOutlineMail className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            {report.reporter.email}
+                            {safeReport.reporter.email}
                         </a>
                     ) : (
                         <p className="mt-3 text-xs leading-5 text-gray-500">Contact details become available after you join the response.</p>
@@ -200,9 +201,9 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 icon={HiOutlineTruck}
                 title="Response coordination"
                 summary={responseSummary}
-                defaultOpen={responders.length > 0 || Boolean(report.respondedBy)}
+                defaultOpen={responders.length > 0 || Boolean(safeReport.respondedBy)}
             >
-                {responders.length || report.respondedBy ? (
+                {responders.length || safeReport.respondedBy ? (
                     <div className="space-y-2">
                         {responders.map((responder, index) => (
                             <div key={responder.id || `${responder.unitName}-${index}`} className="rounded-xl border border-blue-200 bg-blue-50 p-3">
@@ -214,9 +215,9 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                                 {responder.notes && <p className="mt-2 text-sm text-blue-900">{responder.notes}</p>}
                             </div>
                         ))}
-                        {!responders.length && report.respondedBy && (
+                        {!responders.length && safeReport.respondedBy && (
                             <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                                {report.respondedBy.name || 'Assigned responder'} · {report.respondedBy.agency || report.responderAgency || 'Response unit'}
+                                {safeReport.respondedBy.name || 'Assigned responder'} · {safeReport.respondedBy.agency || safeReport.responderAgency || 'Response unit'}
                             </div>
                         )}
                     </div>
@@ -244,18 +245,18 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 </DisclosureSection>
             )}
 
-            {report.status === 'resolved' && (
+            {safeReport.status === 'resolved' && (
                 <DisclosureSection
                     id="resolution-heading"
                     icon={HiOutlineShieldCheck}
                     title="Resolution record"
-                    summary={`Resolved ${formatDate(report.resolvedAt)}`}
+                    summary={`Resolved ${formatDate(safeReport.resolvedAt)}`}
                     defaultOpen
                 >
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                        <p className="text-sm font-semibold text-emerald-950">Resolved {formatDate(report.resolvedAt)}</p>
-                        <p className="mt-1 text-xs text-emerald-700">{report.resolvedBy?.name || 'Authorized responder'}</p>
-                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-900">{report.resolutionNotes || 'No resolution notes were recorded.'}</p>
+                        <p className="text-sm font-semibold text-emerald-950">Resolved {formatDate(safeReport.resolvedAt)}</p>
+                        <p className="mt-1 text-xs text-emerald-700">{safeReport.resolvedBy?.name || 'Authorized responder'}</p>
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-900">{safeReport.resolutionNotes || 'No resolution notes were recorded.'}</p>
                     </div>
                 </DisclosureSection>
             )}
@@ -267,10 +268,10 @@ const OperationalIncidentSections = ({ report, onRetryEvidence }) => {
                 summary={coordinatesAvailable ? 'Coordinates and capture quality available' : 'Limited capture metadata'}
             >
                 <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Detail label="Location source" value={report.locationCapture?.source?.replaceAll('_', ' ') || report.locationConfidence?.replaceAll('_', ' ')} />
+                    <Detail label="Location source" value={safeReport.locationCapture?.source?.replaceAll('_', ' ') || safeReport.locationConfidence?.replaceAll('_', ' ')} />
                     <Detail label="GPS accuracy" value={Number.isFinite(accuracy) ? `${Math.round(accuracy)} meters` : 'Not recorded'} />
                     <div className="sm:col-span-2">
-                        <Detail label="Coordinates" value={coordinatesAvailable ? `${Number(report.coordinates.lat).toFixed(6)}, ${Number(report.coordinates.lng).toFixed(6)}` : 'Not available'} />
+                        <Detail label="Coordinates" value={coordinatesAvailable ? `${Number(safeReport.coordinates.lat).toFixed(6)}, ${Number(safeReport.coordinates.lng).toFixed(6)}` : 'Not available'} />
                     </div>
                 </dl>
             </DisclosureSection>

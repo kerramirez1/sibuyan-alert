@@ -21,7 +21,7 @@ import {
 } from 'react-icons/hi';
 
 const getEventMarker = (notification) => {
-    switch (notification.type) {
+    switch (notification?.type) {
         case 'report_verified':
         case 'reporter_verified':
             return {
@@ -174,9 +174,10 @@ const NotificationBell = () => {
         setError(null);
         try {
             const response = await notificationsAPI.getAll({ limit: 25 });
-            setNotifications(response.data.data.notifications || []);
+            const list = response?.data?.data?.notifications;
+            setNotifications(Array.isArray(list) ? list.filter((n) => n && typeof n === 'object') : []);
             // The list endpoint already returns the fresh unread count — reconcile for free.
-            if (typeof response.data.data.unreadCount === 'number') {
+            if (typeof response?.data?.data?.unreadCount === 'number') {
                 setUnreadCount(response.data.data.unreadCount);
             }
         } catch (err) {
@@ -262,10 +263,14 @@ const NotificationBell = () => {
     }, [setUnreadCount]);
 
     const markAsRead = async (id) => {
+        const targetId = id ?? null;
+        if (!targetId) return;
         try {
-            await notificationsAPI.markAsRead(id);
+            await notificationsAPI.markAsRead(targetId);
             setNotifications((prev) =>
-                prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+                Array.isArray(prev)
+                    ? prev.map((n) => (String(n?._id ?? n?.id) === String(targetId) ? { ...n, isRead: true } : n))
+                    : prev
             );
             setUnreadCount((prev) => Math.max(0, prev - 1));
         } catch (err) {
@@ -274,9 +279,11 @@ const NotificationBell = () => {
     };
 
     const handleNotificationClick = async (notification) => {
+        if (!notification || typeof notification !== 'object') return;
+        const notificationId = notification._id ?? notification.id ?? null;
         const deferRead = shouldDeferNotificationRead(notification, user?.role);
-        if (!notification.isRead && !deferRead) {
-            await markAsRead(notification._id);
+        if (!notification.isRead && !deferRead && notificationId) {
+            await markAsRead(notificationId);
         }
         setIsOpen(false);
         const target = buildNotificationTarget(notification, user?.role);
@@ -294,7 +301,9 @@ const NotificationBell = () => {
     };
 
     const filteredNotifications = useMemo(() => (
-        notifications.filter((n) => (activeTab === 'all' ? true : !n.isRead))
+        Array.isArray(notifications)
+            ? notifications.filter((n) => n && typeof n === 'object' && (activeTab === 'all' ? true : !n.isRead))
+            : []
     ), [activeTab, notifications]);
 
     const accessibleBellLabel = unreadCount > 0
@@ -428,16 +437,16 @@ const NotificationBell = () => {
                         </p>
                     </div>
                 ) : (
-                    filteredNotifications.map((notification) => {
+                    filteredNotifications.map((notification, index) => {
                         const marker = getEventMarker(notification);
-                        const address = notification.data?.address;
-                        const title = cleanNotificationTitle(notification.title);
-                        const message = notification.data?.updatePreview || cleanNotificationMessage(notification.message);
-                        const timeStr = getRelativeTime(notification.createdAt);
+                        const address = notification?.data?.address;
+                        const title = cleanNotificationTitle(notification?.title);
+                        const message = notification?.data?.updatePreview || cleanNotificationMessage(notification?.message);
+                        const timeStr = getRelativeTime(notification?.createdAt);
 
                         return (
                             <button
-                                key={notification._id}
+                                key={String(notification?._id ?? notification?.id ?? `notification-${index}`)}
                                 type="button"
                                 onClick={() => handleNotificationClick(notification)}
                                 className={`group flex w-full items-start gap-3 p-3 sm:p-3.5 text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${

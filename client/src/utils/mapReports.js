@@ -20,6 +20,7 @@ export const getMapCoordinates = (report) => {
 };
 
 export const getVisibleMapReports = (reports = [], { includePending = false, includeRejected = false } = {}) => {
+    if (!Array.isArray(reports)) return [];
     const allowedStatuses = new Set([
         ...MAP_REPORT_STATUSES,
         ...(includePending ? ['pending'] : []),
@@ -50,6 +51,7 @@ export const getFilteredMapReports = (reports = [], {
     statusFilter = null,
     _filterMode = 'public',
 } = {}) => {
+    if (!Array.isArray(reports)) return [];
     const visibleReports = getVisibleMapReports(reports, { includePending });
     const categoryFilteredReports = category
         ? visibleReports.filter((report) => report.incidentCategory === category)
@@ -96,6 +98,7 @@ export const getFilteredMapReports = (reports = [], {
 };
 
 export const groupReportsByMapLocation = (reports = [], precision = 5) => {
+    if (!Array.isArray(reports)) return [];
     const groups = new Map();
 
     getVisibleMapReports(reports, { includePending: true, includeRejected: true }).forEach((report) => {

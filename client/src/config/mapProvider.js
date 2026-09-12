@@ -53,7 +53,15 @@ export const toPmtilesProtocolUrl = (value) => {
 export const ensurePmtilesProtocol = () => {
     if (pmtilesProtocol) return pmtilesProtocol;
     pmtilesProtocol = new Protocol();
-    maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+    try {
+        maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+    } catch (error) {
+        // Vite HMR (or a double-mount race) re-evaluates this module while the
+        // previous protocol registration is still live: "already added" means
+        // the existing registration is usable, so keep going instead of
+        // crashing the mount effect.
+        if (!String(error?.message || '').toLowerCase().includes('already')) throw error;
+    }
     return pmtilesProtocol;
 };
 
@@ -232,8 +240,22 @@ export const createOperationalMapStyle = ({
         }
     }
 
-    if (normalizedStreetPmtilesUrl) getPmtilesArchive(toPmtilesHttpUrl(pmtilesUrl));
-    if (normalized3DLabelsUrl) getPmtilesArchive(toPmtilesHttpUrl(labels3DPmtilesUrl));
+    // Archive registration touches the shared PMTiles protocol registry and
+    // re-parses the URL: both can throw on malformed env values. The style
+    // itself is still valid without the vector source (callers fall back to
+    // OSM/Esri), so never let registration crash the mount effect.
+    try {
+        if (normalizedStreetPmtilesUrl) getPmtilesArchive(toPmtilesHttpUrl(pmtilesUrl));
+    } catch (error) {
+        console.warn('Ignoring unreachable street PMTiles archive.', error);
+        normalizedStreetPmtilesUrl = '';
+    }
+    try {
+        if (normalized3DLabelsUrl) getPmtilesArchive(toPmtilesHttpUrl(labels3DPmtilesUrl));
+    } catch (error) {
+        console.warn('Ignoring unreachable 3D-label PMTiles archive.', error);
+        normalized3DLabelsUrl = '';
+    }
 
     const sources = {
         'esri-imagery': {

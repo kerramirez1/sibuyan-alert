@@ -31,8 +31,10 @@ import {
 import {
     OPERATIONAL_MAX_ZOOM,
     PMTILES_SOURCE_ID,
+    createOperationalMapStyle,
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
+import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSupport';
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
@@ -140,6 +142,7 @@ const MapView = ({
     const streetFallbackActivatedRef = useRef(false);
     const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
+    const [mapError, setMapError] = useState(null);
     const [showMuniMenu, setShowMuniMenu] = useState(false);
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
@@ -271,15 +274,32 @@ const MapView = ({
     useEffect(() => {
         let active = true;
 
-        prepareOperationalMapStyle().then((provider) => {
-            if (!active) return;
-            setMapProvider(provider);
-            if (provider.pmtilesError) {
-                toast.error(`Street map archive unavailable: ${provider.pmtilesError}`, {
-                    id: 'street-map-validation-fallback',
-                });
-            }
-        });
+        // Never leave the UI on an infinite skeleton: any validation failure
+        // falls back to the self-contained Esri/OSM style so the map still
+        // mounts. Only a total style-construction failure surfaces as error.
+        prepareOperationalMapStyle()
+            .then((provider) => {
+                if (!active) return;
+                setMapProvider(provider);
+                if (provider?.pmtilesError) {
+                    toast.error(`Street map archive unavailable: ${provider.pmtilesError}`, {
+                        id: 'street-map-validation-fallback',
+                    });
+                }
+            })
+            .catch((error) => {
+                if (!active) return;
+                console.warn('Operational map style failed; using built-in fallback.', error);
+                try {
+                    setMapProvider(createOperationalMapStyle({
+                        pmtilesUrl: '',
+                        labels3DPmtilesUrl: '',
+                    }));
+                } catch (fallbackError) {
+                    console.error('Map style fallback failed:', fallbackError);
+                    setMapError('map-style');
+                }
+            });
 
         return () => {
             active = false;
@@ -304,6 +324,35 @@ const MapView = ({
     // Initialize map
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current || !mapProvider) return;
+        if (mapError) return;
+
+        // Fail-closed instead of throwing out of the effect: a throw here
+        // would be caught only by the root ErrorBoundary ("Reload page").
+        const blocker = getMapMountBlocker(mapContainerRef.current);
+        if (blocker === MAP_UNAVAILABLE_REASON.WEBGL) {
+            setMapError('webgl');
+            return undefined;
+        }
+        if (blocker === MAP_UNAVAILABLE_REASON.SIZE) {
+            // Hidden tab / display:none parent: retry when layout settles.
+            if (typeof ResizeObserver === 'undefined') return undefined;
+            const pendingContainer = mapContainerRef.current;
+            const observer = new ResizeObserver(() => {
+                if (!mapInstanceRef.current && pendingContainer?.clientWidth > 0 && pendingContainer?.clientHeight > 0) {
+                    // Trigger a re-run by bumping provider state through a no-op;
+                    // simplest reliable path is to disconnect and let the next
+                    // style/effect cycle mount once visible.
+                    observer.disconnect();
+                    setMapProvider((current) => (current ? { ...current } : current));
+                }
+            });
+            try {
+                observer.observe(pendingContainer);
+            } catch {
+                observer.disconnect();
+            }
+            return () => observer.disconnect();
+        }
 
         const provider = mapProvider;
         streetLayersRef.current = {
@@ -322,8 +371,13 @@ const MapView = ({
         streetFallbackActivatedRef.current = false;
 
         let cancelled = false;
+        let mapInstance = null;
+        let resizeObserver = null;
+        let removeCompactAttribution = () => {};
+        let removeCompassToggle = () => {};
 
-        const mapInstance = new maplibregl.Map({
+        try {
+            mapInstance = new maplibregl.Map({
             ...MAP_INTERACTION_OPTIONS,
             container: mapContainerRef.current,
             style: provider.style,
@@ -344,25 +398,64 @@ const MapView = ({
         });
 
         if (disableScrollZoom) {
-            mapInstance.scrollZoom.disable();
+            try {
+                mapInstance.scrollZoom.disable();
+            } catch {
+                // Scroll-zoom control may be unavailable on minimal builds.
+            }
         }
 
-        const removeCompactAttribution = installCompactAttribution(mapInstance);
+        try {
+            removeCompactAttribution = installCompactAttribution(mapInstance) || (() => {});
+        } catch {
+            removeCompactAttribution = () => {};
+        }
 
-        let removeCompassToggle = () => { };
         if (mode === 'incident-preview') {
-            const navigationControl = new maplibregl.NavigationControl({
-                showCompass: false,
-                showZoom: true,
-            });
-            mapInstance.addControl(navigationControl, 'top-right');
+            try {
+                const navigationControl = new maplibregl.NavigationControl({
+                    showCompass: false,
+                    showZoom: true,
+                });
+                mapInstance.addControl(navigationControl, 'top-right');
+            } catch {
+                // Navigation control is progressive enhancement.
+            }
         } else {
-            const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
-            mapInstance.addControl(navigationControl, 'top-right');
-            removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
-                pitch: effective3D ? 45 : 0,
-                bearing: effective3D ? -17 : 0,
+            try {
+                const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
+                mapInstance.addControl(navigationControl, 'top-right');
+                removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
+                    pitch: effective3D ? 45 : 0,
+                    bearing: effective3D ? -17 : 0,
+                }) || (() => {});
+            } catch {
+                removeCompassToggle = () => {};
+            }
+        }
+
+        // Keep the canvas fitted when side panels collapse, the device rotates,
+        // or the responsive container height changes. Visual-only without this.
+        if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+            const container = mapContainerRef.current;
+            let resizeRaf = 0;
+            resizeObserver = new ResizeObserver(() => {
+                cancelAnimationFrame(resizeRaf);
+                resizeRaf = requestAnimationFrame(() => {
+                    if (cancelled || !mapInstanceRef.current) return;
+                    try {
+                        mapInstanceRef.current.resize();
+                    } catch {
+                        // Resize during teardown is harmless.
+                    }
+                });
             });
+            try {
+                resizeObserver.observe(container);
+            } catch {
+                resizeObserver.disconnect();
+                resizeObserver = null;
+            }
         }
 
         mapInstance.on('error', (event) => {
@@ -404,11 +497,25 @@ const MapView = ({
         mapInstance.on('load', () => {
             if (cancelled) return;
             try {
-            mapInstance.addSource(RISK_ZONE_SOURCE_ID, {
+            const ensureSource = (id, definition) => {
+                try {
+                    if (!mapInstance.getSource(id)) mapInstance.addSource(id, definition);
+                } catch {
+                    // Double-fired load: source already exists.
+                }
+            };
+            const ensureLayer = (definition) => {
+                try {
+                    if (!mapInstance.getLayer(definition.id)) mapInstance.addLayer(definition);
+                } catch {
+                    // Layer raced with a style reload — safe to skip.
+                }
+            };
+            ensureSource(RISK_ZONE_SOURCE_ID, {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
             });
-            mapInstance.addLayer({
+            ensureLayer({
                 id: RISK_ZONE_FILL_LAYER_ID,
                 type: 'fill',
                 source: RISK_ZONE_SOURCE_ID,
@@ -418,7 +525,7 @@ const MapView = ({
                     'fill-opacity': 0.22,
                 },
             });
-            mapInstance.addLayer({
+            ensureLayer({
                 id: RISK_ZONE_OUTLINE_LAYER_ID,
                 type: 'line',
                 source: RISK_ZONE_SOURCE_ID,
@@ -431,12 +538,12 @@ const MapView = ({
             });
 
             // Add user location layer (Blue Dot)
-            mapInstance.addSource('user-location', {
+            ensureSource('user-location', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
             });
 
-            mapInstance.addLayer({
+            ensureLayer({
                 id: 'user-location-inner',
                 type: 'circle',
                 source: 'user-location',
@@ -452,34 +559,46 @@ const MapView = ({
             // Let's keep it simple for now: Blue Dot + Accuracy Circle
 
             // Add GPS accuracy circle source and layer
-            mapInstance.addSource('gps-accuracy', {
+            ensureSource('gps-accuracy', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
             });
 
-            mapInstance.addLayer({
-                id: 'gps-accuracy-layer',
-                type: 'fill',
-                source: 'gps-accuracy',
-                paint: {
-                    'fill-color': '#3B82F6',
-                    'fill-opacity': 0.15,
-                },
-                beforeId: 'user-location-inner' // Draw below the blue dot
-            });
+            try {
+                if (!mapInstance.getLayer('gps-accuracy-layer')) {
+                    mapInstance.addLayer({
+                        id: 'gps-accuracy-layer',
+                        type: 'fill',
+                        source: 'gps-accuracy',
+                        paint: {
+                            'fill-color': '#3B82F6',
+                            'fill-opacity': 0.15,
+                        },
+                        beforeId: mapInstance.getLayer('user-location-inner') ? 'user-location-inner' : undefined, // Draw below the blue dot
+                    });
+                }
+            } catch {
+                // Optional overlay — never block readiness.
+            }
 
-            mapInstance.addLayer({
-                id: 'gps-accuracy-outline',
-                type: 'line',
-                source: 'gps-accuracy',
-                paint: {
-                    'line-color': '#3B82F6',
-                    'line-width': 1,
-                    'line-opacity': 0.4,
-                    'line-dasharray': [2, 2],
-                },
-                beforeId: 'user-location-inner'
-            });
+            try {
+                if (!mapInstance.getLayer('gps-accuracy-outline')) {
+                    mapInstance.addLayer({
+                        id: 'gps-accuracy-outline',
+                        type: 'line',
+                        source: 'gps-accuracy',
+                        paint: {
+                            'line-color': '#3B82F6',
+                            'line-width': 1,
+                            'line-opacity': 0.4,
+                            'line-dasharray': [2, 2],
+                        },
+                        beforeId: mapInstance.getLayer('user-location-inner') ? 'user-location-inner' : undefined,
+                    });
+                }
+            } catch {
+                // Optional overlay — never block readiness.
+            }
 
             mapInstanceRef.current = mapInstance;
             if (!cancelled) setMapReady(true);
@@ -493,10 +612,15 @@ const MapView = ({
             // Operational markers are accessible HTML controls and stop event
             // propagation themselves. A canvas click therefore always means map
             // selection and no duplicate WebGL hit layer is required.
-            popupRef.current?.remove();
+            try {
+                popupRef.current?.remove();
+            } catch {
+                // Popup already removed during teardown.
+            }
             closeMapSelection();
             if (onLocationSelectRef.current) {
-                const location = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+                const location = { lat: e?.lngLat?.lat, lng: e?.lngLat?.lng };
+                if (!Number.isFinite(location.lat) || !Number.isFinite(location.lng)) return;
                 if (!isWithinSibuyanInteractionBounds(location)) {
                     toast.error('Choose a point within Sibuyan Island.', { id: 'sibuyan-map-bounds' });
                     return;
@@ -507,10 +631,31 @@ const MapView = ({
 
         return () => {
             cancelled = true;
-            removeCompassToggle();
-            removeCompactAttribution();
-            markerFocusCleanupRef.current?.();
-            popupRef.current?.remove();
+            try {
+                resizeObserver?.disconnect();
+            } catch {
+                // Observer already disconnected.
+            }
+            try {
+                removeCompassToggle();
+            } catch {
+                // Toggle already removed.
+            }
+            try {
+                removeCompactAttribution();
+            } catch {
+                // Attribution already removed.
+            }
+            try {
+                markerFocusCleanupRef.current?.();
+            } catch {
+                // Marker cleanup is best-effort during unmount.
+            }
+            try {
+                popupRef.current?.remove();
+            } catch {
+                // Already removed — safe to ignore on fast navigation.
+            }
             try {
                 mapInstance.remove();
             } catch {
@@ -518,7 +663,23 @@ const MapView = ({
             }
             mapInstanceRef.current = null;
         };
-    }, [closeMapSelection, effective3D, mapProvider, performanceProfile]);
+        } catch (error) {
+            console.error('Map initialization failed:', error);
+            try {
+                resizeObserver?.disconnect();
+            } catch {
+                // Ignore teardown errors.
+            }
+            try {
+                mapInstance?.remove();
+            } catch {
+                // Partially constructed instance — ignore.
+            }
+            mapInstanceRef.current = null;
+            if (!cancelled) setMapError('init');
+            return undefined;
+        }
+    }, [closeMapSelection, disableScrollZoom, effective3D, mapError, mapProvider, mode, performanceProfile]);
 
     // Handle map style switching
     useEffect(() => {
@@ -991,26 +1152,37 @@ const MapView = ({
 
     // Navigation handlers
     const recenterMap = () => {
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo({
+        if (!mapReady || !mapInstanceRef.current) return;
+        try {
+            const map = mapInstanceRef.current;
+            if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return;
+            map.flyTo({
                 center: SIBUYAN_CENTER,
                 zoom: performanceProfile.compactViewport ? 10 : 11,
                 pitch: effective3D ? 45 : 0,
                 bearing: effective3D ? -17 : 0,
                 duration: performanceProfile.navigationDuration,
             });
+        } catch {
+            // Camera move before style load throws — next interaction retries.
         }
     };
 
     const goToMunicipality = (center) => {
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo({
-                center: center,
-                zoom: 13,
-                pitch: effective3D ? 45 : 0,
-                bearing: effective3D ? -17 : 0,
-                duration: performanceProfile.navigationDuration,
-            });
+        if (mapReady && mapInstanceRef.current) {
+            try {
+                const map = mapInstanceRef.current;
+                if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return;
+                map.flyTo({
+                    center: center,
+                    zoom: 13,
+                    pitch: effective3D ? 45 : 0,
+                    bearing: effective3D ? -17 : 0,
+                    duration: performanceProfile.navigationDuration,
+                });
+            } catch {
+                // Camera move before style load throws — next interaction retries.
+            }
         }
         setShowMuniMenu(false);
     };
@@ -1079,7 +1251,33 @@ const MapView = ({
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
 
-            {!mapReady && (
+            {mapError && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-gray-100 p-6 text-center dark:bg-gray-900" role="alert">
+                    <HiOutlineMap className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                        {mapError === 'webgl' ? '3D map is not supported on this device' : 'Map failed to load'}
+                    </p>
+                    <p className="max-w-sm text-xs text-gray-500 dark:text-gray-400">
+                        {mapError === 'webgl'
+                            ? 'Your browser has WebGL disabled. Incident lists and details below remain fully usable.'
+                            : 'The interactive map could not start, but all incident data below remains available.'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMapError(null);
+                            setMapReady(false);
+                            mapInstanceRef.current = null;
+                            setMapProvider((current) => (current ? { ...current } : current));
+                        }}
+                        className="mt-1 inline-flex min-h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
+                    >
+                        Try again
+                    </button>
+                </div>
+            )}
+
+            {!mapReady && !mapError && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-100 text-sm font-medium text-gray-600 dark:bg-gray-900 dark:text-gray-300" role="status">
                     Preparing map&hellip;
                 </div>

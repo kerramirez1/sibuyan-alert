@@ -30,6 +30,7 @@ import {
     groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { scheduleElementScroll } from '../../utils/mapNavigation';
+import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
@@ -56,20 +57,21 @@ const EmptyState = ({ title, description }) => (
     </div>
 );
 
-const IncidentList = ({ reports, emptyTitle, emptyDescription, onLocate, canLocate, onInspect }) => {
-    if (!reports.length) {
+const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, canLocate, onInspect }) => {
+    const safeReports = toSafeArray(reports);
+    if (safeReports.length === 0) {
         return <EmptyState title={emptyTitle} description={emptyDescription} />;
     }
 
     return (
         <div className="divide-y divide-gray-100 dark:divide-white/5">
-            {reports.map((report) => {
-                const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
+            {safeReports.map((report, index) => {
+                const status = STATUS_CONFIG[report?.status] || STATUS_CONFIG.pending;
                 const coordinates = getMapCoordinates(report);
                 const locateAvailable = Boolean(coordinates && onLocate && (!canLocate || canLocate(report)));
-                const location = report.address || report.title || report.barangay || report.municipalityName || 'Location unavailable';
+                const location = report?.address || report?.title || report?.barangay || report?.municipalityName || 'Location unavailable';
                 return (
-                    <article key={report._id || report.id} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <article key={getEntityKey(report, `report-${index}`)} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
                             <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
                                 {location}
@@ -144,8 +146,9 @@ const TrustPointsSummary = ({ value = 0 }) => (
     </div>
 );
 
-const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '', onRetry }) => {
-    if (loading && zones.length === 0) {
+const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error = '', onRetry }) => {
+    const safeZones = toSafeArray(zones);
+    if (loading && safeZones.length === 0) {
         return <PanelLoadingState label="Loading risk zones" />;
     }
 
@@ -167,17 +170,17 @@ const RiskZoneList = ({ zones, onInspect, onLocate, loading = false, error = '',
         );
     }
 
-    if (!zones.length) {
+    if (!safeZones.length) {
         return <EmptyState title="No active risk zones" description="No high-risk areas are currently listed." />;
     }
 
     return (
         <div className="divide-y divide-gray-100 dark:divide-white/5">
-            {zones.map((zone) => {
-                const config = getMapRiskTypeConfig(zone.type);
+            {safeZones.map((zone, index) => {
+                const config = getMapRiskTypeConfig(zone?.type);
                 const coordinates = getMapCoordinates(zone);
                 return (
-                    <article key={zone._id || zone.id} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <article key={getEntityKey(zone, `zone-${index}`)} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
                             <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
                             <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 break-words leading-normal">{config.label}</p>
@@ -252,11 +255,11 @@ const DashboardMapWorkspace = ({
     isResponder,
     loading,
     error,
-    reports,
-    pendingReports,
-    respondingReports,
-    resolvedTodayReports,
-    highRiskZones,
+    reports = [],
+    pendingReports = [],
+    respondingReports = [],
+    resolvedTodayReports = [],
+    highRiskZones = [],
     highRiskZonesLoading = false,
     highRiskZonesError = '',
     onRetryHighRiskZones,
@@ -562,7 +565,7 @@ const DashboardMapWorkspace = ({
 
     const locateActiveIncident = (report) => {
         setSelectedActiveIncidentId('');
-        if (mapExperience.filters.length > 0 && !displayedMapReportIds.has(String(report._id || report.id))) {
+        if (mapExperience.filters.length > 0 && !displayedMapReportIds.has(getEntityKey(report))) {
             setResponderMapFilter('all');
         }
         locateReport(report, () => closeMapSummaryPanel({ preserveNavigation: true }));
@@ -598,14 +601,14 @@ const DashboardMapWorkspace = ({
                 : activeOverviewMetric.error
                     ? 'Metric details unavailable'
                     : activeOverviewMetric.panelDescription
-                    || `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`
+                    || `${safeCount(highRiskZones)} monitored ${safeCount(highRiskZones) === 1 ? 'zone' : 'zones'}`
             : mapSummaryPanel === 'incidents'
-                ? `${displayedMapReports.length} currently visible`
+                ? `${safeCount(displayedMapReports)} currently visible`
                 : highRiskZonesLoading
                     ? 'Loading monitored zones'
                     : highRiskZonesError
                         ? 'Risk zone data unavailable'
-                        : `${highRiskZones.length} monitored ${highRiskZones.length === 1 ? 'zone' : 'zones'}`;
+                        : `${safeCount(highRiskZones)} monitored ${safeCount(highRiskZones) === 1 ? 'zone' : 'zones'}`;
     const panelCloseLabel = selectedActiveIncident
         ? 'Close incident details'
         : selectedActiveRiskZone
@@ -616,10 +619,10 @@ const DashboardMapWorkspace = ({
                     ? 'Close risk zones panel'
                     : `Close ${activeOverviewMetric?.panelTitle?.toLowerCase() || 'overview'} panel`;
     const isReportInResponderMunicipality = (report) => {
-        if (!user?.assignedMunicipality) return true;
-        if (!report?.municipalityName) return true;
-        const assigned = user.assignedMunicipality.trim().toLowerCase();
-        const incidentMuni = report.municipalityName.trim().toLowerCase();
+        if (!normalizeMunicipalityKey(user?.assignedMunicipality)) return true;
+        if (!normalizeMunicipalityKey(report?.municipalityName)) return true;
+        const assigned = normalizeMunicipalityKey(user.assignedMunicipality);
+        const incidentMuni = normalizeMunicipalityKey(report.municipalityName);
         return incidentMuni === assigned;
     };
     const selectedIncidentCanRespond = Boolean(
@@ -652,13 +655,17 @@ const DashboardMapWorkspace = ({
 
     const getFilterCount = (filterValue) => {
         if (filterValue === 'risk-zones') {
-            return highRiskZones.length;
+            return safeCount(highRiskZones);
         }
-        return getFilteredMapReports(reports, {
-            includePending: mapExperience.showPendingReports,
-            statusFilter: filterValue,
-            filterMode: mapExperience.filterMode,
-        }).length;
+        try {
+            return getFilteredMapReports(toSafeArray(reports), {
+                includePending: mapExperience.showPendingReports,
+                statusFilter: filterValue,
+                filterMode: mapExperience.filterMode,
+            }).length;
+        } catch {
+            return 0;
+        }
     };
 
     return (
@@ -842,7 +849,7 @@ const DashboardMapWorkspace = ({
                 </div>
 
                 <div className="relative h-[46svh] min-h-[280px] max-h-[380px] w-full overflow-hidden rounded-lg sm:h-[460px] sm:max-h-none lg:h-[500px]">
-                    {loading && reports.length === 0 && (
+                    {loading && safeCount(reports) === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
                                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-brand-600 dark:border-gray-700 dark:border-t-brand-400" />
