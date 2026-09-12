@@ -1438,7 +1438,7 @@ export const respondToReport = async (req, res) => {
                 await sendPushToUser(report.reporter, {
                     title: isFirstResponder ? 'Help is on the way' : 'More help arriving',
                     body: `${unitName} is responding to your report. ${report.responders.length} unit(s) responding.`,
-                    icon: '/icon-192x192.png',
+                    icon: '/icons/icon-192.png',
                     data: { url: '/my-reports' },
                 });
             } catch (pushError) {
@@ -1564,7 +1564,7 @@ export const resolveReport = async (req, res) => {
                     await sendPushToUser(report.reporter, {
                         title: 'Incident Resolved',
                         body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
-                        icon: '/icon-192x192.png',
+                        icon: '/icons/icon-192.png',
                         data: { url: '/my-reports' },
                     });
                 }

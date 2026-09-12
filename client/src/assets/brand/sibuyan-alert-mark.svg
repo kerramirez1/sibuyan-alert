@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Sibuyan Alert — app mark.
+    Vector replica of the supplied final-logo.jpg design.
+
+    Geometry measured from the source raster (1024x1024):
+      ring centre          (506, 408)   outer radius 323   inner radius 255
+      tail tangent points  (285, 646) and (727, 646);  tip (506, 852)
+      inner void closes    (506, 648)   — the tail is solid, so the band
+                                          thickens toward the point
+      warning triangle     apex (603, 242), base (513, 390)-(692, 390)
+      alert arcs           centred on the triangle, radii 110.7 and 158
+      base leaves          left tip (190, 768), peak (280, 728), inner end (470, 818)
+      base crescent        left tip (192, 798), keel (506, 946)
+
+    Colours sampled from the source:
+      gradient top #33568f -> bottom #1a2a5c,  warning glyph #800000
+
+    The source raster is very slightly asymmetric (the AI-generated original
+    leans a few pixels left). The vector is built symmetric about x = 506,
+    which is what makes it clean and scalable at small sizes.
+  -->
+  <defs>
+    <linearGradient id="brandGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33568f"/>
+      <stop offset="0.35" stop-color="#26497e"/>
+      <stop offset="0.65" stop-color="#203c6d"/>
+      <stop offset="1" stop-color="#1a2a5c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===================== BASE LEAVES / WAVES ===================== -->
+  <!-- Drawn first so the teardrop overlaps them, as in the source. -->
+  <g fill="url(#brandGradient)">
+    <path d="M 188 768
+             C 230 706 340 700 472 830
+             C 385 790 295 762 188 768 Z"/>
+    <path d="M 824 768
+             C 782 706 672 700 540 830
+             C 627 790 717 762 824 768 Z"/>
+  </g>
+
+  <!-- Lower crescent: the coastal swell beneath the pin. -->
+  <path d="M 192 800
+           C 250 872 360 930 506 946
+           C 652 930 762 872 820 800
+           C 762 838 660 856 560 864
+           C 500 868 400 856 320 826
+           C 270 808 225 800 192 800 Z"
+        fill="url(#brandGradient)"/>
+
+  <!-- ===================== TEARDROP RING ===================== -->
+  <path d="M 285 646
+           A 323 323 0 1 1 727 646
+           L 506 852 Z"
+        fill="url(#brandGradient)"/>
+
+  <!-- Inner void. The tail stays solid, so this closes above the tip. -->
+  <path d="M 277 520
+           A 255 255 0 1 1 735 520
+           C 678 637 616 648 506 648
+           C 396 648 334 637 277 520 Z"
+        fill="#ffffff"/>
+
+  <!-- ===================== WARNING GLYPH ===================== -->
+  <g fill="#800000">
+    <!-- Rounded warning triangle. The base bows gently downward, as in the
+         source, so the lowest point sits at y = 401 rather than the corner line. -->
+    <path d="M 587.5 267.5
+             A 18 18 0 0 1 618.5 267.5
+             L 677.2 365.6
+             A 16 16 0 0 1 663.5 390
+             Q 602.5 412 541.5 390
+             A 16 16 0 0 1 527.8 365.6 Z"/>
+
+    <!-- Exclamation stem + dot, knocked out in white -->
+    <rect x="593" y="288" width="21" height="64" rx="10.5" fill="#ffffff"/>
+    <circle cx="603.5" cy="378" r="13" fill="#ffffff"/>
+  </g>
+
+  <!-- Radiating alert arcs: two per side, sweeping around the triangle. -->
+  <g fill="none" stroke="#800000" stroke-width="23" stroke-linecap="round">
+    <!-- Left pair -->
+    <path d="M 534 235 A 110.7 110.7 0 0 0 490 360"/>
+    <path d="M 536 195 A 158 158 0 0 0 466 415"/>
+    <!-- Right pair (mirrored about x = 603) -->
+    <path d="M 672 235 A 110.7 110.7 0 0 1 716 360"/>
+    <path d="M 670 195 A 158 158 0 0 1 740 415"/>
+  </g>
+</svg>

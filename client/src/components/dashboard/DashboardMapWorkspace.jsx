@@ -9,7 +9,6 @@ import {
     HiOutlineArrowRight,
     HiOutlineCheckCircle,
     HiOutlineClock,
-    HiOutlineExclamation,
     HiOutlineFilter,
     HiOutlineLightningBolt,
     HiOutlineTruck,
@@ -254,9 +253,6 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
             {value}
         </span>
-        <p className="mt-0 hidden break-words text-[11px] leading-tight text-gray-500 sm:block sm:text-xs dark:text-gray-400">
-            {helper}
-        </p>
     </button>
 );
 
@@ -281,7 +277,6 @@ const DashboardMapWorkspace = ({
     focusedReport,
     focusedRiskZone,
     focusedReportMissing = false,
-    onReturnToReport,
     responderMapFilter,
     setResponderMapFilter,
     canCurrentResponderResolve,
@@ -374,7 +369,11 @@ const DashboardMapWorkspace = ({
     const reporterPendingReports = allMappedReports.filter((report) => report?.status === 'pending');
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
-    const transferredReports = activeReports.filter((report) => report.status === 'transferred');
+    // Active incidents is the umbrella set. A transferred report is still an
+    // open incident — it has simply been handed to another area — so it is
+    // counted here rather than surfaced as a category of its own. Verified and
+    // responding sit inside this set too; the responder/response cards are
+    // deliberately narrower views of the same population.
     const publicActiveReports = activeReports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
     const publicActiveLocationCount = groupReportsByMapLocation(publicActiveReports).length;
 
@@ -402,8 +401,11 @@ const DashboardMapWorkspace = ({
     const publicMetrics = [
                 {
                     id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
+                    // Names the three statuses folded into this count so the
+                    // number is never mistaken for verified-only. Transferred
+                    // reports are included by design.
                     helper: publicActiveReports.length === publicActiveLocationCount
-                        ? 'Verified in community'
+                        ? 'Verified, transferred, or responding'
                         : `Across ${publicActiveLocationCount} map locations`,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
                     panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
@@ -423,16 +425,6 @@ const DashboardMapWorkspace = ({
                     emptyTitle: 'No active responses',
                     emptyDescription: 'No public incidents are currently in active response.',
                     statusDot: 'bg-cyan-500',
-                },
-                {
-                    id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
-                    helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
-                    panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
-                    records: transferredReports,
-                    mapFilter: 'transferred',
-                    emptyTitle: 'No transferred incidents',
-                    emptyDescription: 'No public incidents are currently transferred to another area.',
-                    statusDot: 'bg-violet-500',
                 },
                 {
                     id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
@@ -532,6 +524,16 @@ const DashboardMapWorkspace = ({
             : isReporter
                 ? reporterMetrics
                 : publicMetrics;
+
+    // Match the desktop row to the card count. Guests see 3 cards (the
+    // transferred card was folded into active incidents) and signed-in roles
+    // see 4; sizing this off metrics.length keeps a trailing empty column from
+    // appearing whenever the set changes.
+    const overviewGridColumns = metrics.length >= 5
+        ? 'lg:grid-cols-5'
+        : metrics.length === 4
+            ? 'lg:grid-cols-4'
+            : 'lg:grid-cols-3';
 
     const activeOverviewMetric = metrics.find(
         (metric) => `${OVERVIEW_PANEL_PREFIX}${metric.id}` === mapSummaryPanel,
@@ -746,25 +748,6 @@ const DashboardMapWorkspace = ({
                 <section className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30" role="alert" aria-label="Selected incident unavailable">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Selected incident unavailable</p>
                     <p className="text-xs text-amber-700 dark:text-amber-200">It may have been removed or you may not have access. Showing the latest map instead.</p>
-                </section>
-            )}
-
-            {focusedReport && (
-                <section className="flex flex-col gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/5" aria-label="Focused incident context">
-                    <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">Focused incident</p>
-                        <p className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{focusedReport.address || 'Selected incident'}</p>
-                    </div>
-                    {onReturnToReport && (
-                        <Button
-                            onClick={onReturnToReport}
-                            variant="secondary"
-                            icon={HiOutlineArrowLeft}
-                            className="rounded-lg text-xs min-h-[44px] sm:min-h-9 px-3 py-1.5"
-                        >
-                            Back to incident
-                        </Button>
-                    )}
                 </section>
             )}
 
@@ -1038,7 +1021,7 @@ const DashboardMapWorkspace = ({
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
                 </div>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4">
+                <div className={`mt-3 grid grid-cols-1 gap-2 sm:gap-3 ${overviewGridColumns}`}>
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}

@@ -299,13 +299,6 @@ const DashboardPage = () => {
         () => findRiskZoneById(highRiskZones, focusedRiskZoneId),
         [highRiskZones, focusedRiskZoneId],
     );
-    const returnToFocusedReport = useCallback(() => {
-        if (!focusedMapReportId) return;
-        const params = new URLSearchParams({ report: focusedMapReportId });
-        const returnView = searchParams.get('returnView');
-        if (returnView) params.set('view', returnView);
-        navigate(`/admin/reports?${params.toString()}`);
-    }, [focusedMapReportId, navigate, searchParams]);
 
     const isReportAssigned = useCallback((report) => {
         if (!report) return false;
@@ -929,9 +922,6 @@ const DashboardPage = () => {
                     focusedReport={focusedMapReport}
                     focusedRiskZone={focusedRiskZone}
                     focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
-                    // "Back to incident" returns to the admin queue, which only
-                    // operational roles can open. Reporters stay on the map.
-                    onReturnToReport={focusedMapReportId && (isAdmin || isResponder) ? returnToFocusedReport : null}
                     responderMapFilter={responderMapFilter}
                     setResponderMapFilter={setResponderMapFilter}
                     canCurrentResponderResolve={canCurrentResponderResolve}

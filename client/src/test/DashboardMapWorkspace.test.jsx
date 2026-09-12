@@ -129,6 +129,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const riskZonesAction = within(summary).getByRole('button', { name: /View 0 risk zones/i });
 
         expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        // Reporter has 4 metrics: single column on mobile, one row on desktop
         expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
     });
@@ -143,8 +144,10 @@ describe('DashboardMapWorkspace permissions', () => {
         const summary = screen.getByRole('region', { name: 'Map summary' });
         const cards = Array.from(summary.lastElementChild.children);
 
-        expect(cards).toHaveLength(4);
-        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
+        // Guest sees 3 cards: active incidents, active response, risk zones.
+        // Transferred is folded into active incidents, not shown separately.
+        expect(cards).toHaveLength(3);
+        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3');
         cards.forEach((card) => {
             expect(card).toHaveClass('rounded-xl', 'border-2');
         });
@@ -159,16 +162,17 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
                 isResponder: false,
                 isReporter: false,
-                expectedMetrics: 4,
+                expectedMetrics: 3,
             },
             {
-                // Reporter gains the pending community-watch card.
+                // Reporter gains the pending community-watch card on top of the
+                // public set, which itself excludes a standalone transferred card.
                 user: { _id: 'reporter-1', role: 'reporter' },
                 isAuthenticated: true,
                 isAdmin: false,
                 isResponder: false,
                 isReporter: true,
-                expectedMetrics: 5,
+                expectedMetrics: 4,
             },
             {
                 user: { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Cajidiocan' },
@@ -201,6 +205,39 @@ describe('DashboardMapWorkspace permissions', () => {
             });
             unmount();
         });
+    });
+
+    test('counts transferred reports inside active incidents instead of a separate card', () => {
+        renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+            isResponder: false,
+            isAdmin: false,
+            reports: [
+                { _id: 'v1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+                { _id: 't1', status: 'transferred', coordinates: { lat: 12.41, lng: 122.61 } },
+                { _id: 't2', status: 'transferred', coordinates: { lat: 12.42, lng: 122.62 } },
+                { _id: 'r1', status: 'responding', coordinates: { lat: 12.43, lng: 122.63 } },
+                { _id: 'x1', status: 'resolved', coordinates: { lat: 12.44, lng: 122.64 } },
+            ],
+        }));
+
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+
+        // Active incidents = verified + transferred + responding = 1 + 2 + 1.
+        // The resolved report is excluded, so the umbrella count is exact and
+        // the two transferred rows are provably part of it.
+        const activeCard = within(summary).getByRole('button', { name: /View 4 active incidents/i });
+        expect(activeCard).toBeInTheDocument();
+        expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('transferred'));
+
+        // Active response remains a narrower view of the same population.
+        expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
+
+        // Transferred must no longer exist as a category card of its own.
+        expect(within(summary).queryByRole('button', { name: /^View \d+ transferred/i })).not.toBeInTheDocument();
+        expect(within(summary).queryByText('Transferred')).not.toBeInTheDocument();
     });
 
     test('keeps municipal admin counts and contextual panel records on the same status definitions', () => {
@@ -869,10 +906,14 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
+        // Counts stay independent of the active map filter. Active incidents
+        // already folds in the transferred row: 1 verified + 1 responding + 1
+        // transferred = 3, so the merged total is what the card must show.
         expect(within(summary).getByRole('button', { name: /View 3 active incidents/i })).toBeInTheDocument();
         expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
-        expect(within(summary).getByRole('button', { name: /View 1 transferred/i })).toBeInTheDocument();
         expect(within(summary).getByRole('button', { name: /View 1 risk zones/i })).toBeInTheDocument();
+        // Transferred is no longer a category card of its own.
+        expect(within(summary).queryByRole('button', { name: /^View \d+ transferred/i })).not.toBeInTheDocument();
     });
 
     describe('Mobile Map Dashboard Filter Controls & Bottom Sheet', () => {
@@ -1151,7 +1192,8 @@ describe('DashboardMapWorkspace permissions', () => {
 
             const summary = screen.getByRole('region', { name: 'Map summary' });
             const metricButtons = within(summary).getAllByRole('button');
-            expect(metricButtons).toHaveLength(4);
+            // Guest: active incidents, active response, risk zones.
+            expect(metricButtons).toHaveLength(3);
 
             metricButtons.forEach((btn) => {
                 // Slim mobile row (py-2) with stacked desktop card (sm:py-3.5)

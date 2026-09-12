@@ -369,7 +369,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(summaryRegion).toBeInTheDocument();
 
             const buttons = within(summaryRegion).getAllByRole('button');
-            expect(buttons).toHaveLength(4);
+            expect(buttons).toHaveLength(3);
             buttons.forEach((btn) => {
                 expect(btn).toHaveAttribute('type', 'button');
                 expect(btn).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
@@ -378,11 +378,15 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 expect(btn).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-inset');
             });
 
-            // Verify the 4 labeled actions exist with full text
+            // Verify the 3 labeled actions exist with full text (mobile slim
+            // row + desktop card render the label, so duplicates are expected)
             expect(within(summaryRegion).getAllByText('Active incidents').length).toBeGreaterThanOrEqual(1);
-            expect(within(summaryRegion).getByText('Active response')).toBeInTheDocument();
-            expect(within(summaryRegion).getByText('Transferred')).toBeInTheDocument();
-            expect(within(summaryRegion).getByText('Risk zones')).toBeInTheDocument();
+            expect(within(summaryRegion).getAllByText('Active response').length).toBeGreaterThanOrEqual(1);
+            expect(within(summaryRegion).getAllByText('Risk zones').length).toBeGreaterThanOrEqual(1);
+
+            // Transferred is a status folded into active incidents, so it must
+            // not reappear as a category card of its own.
+            expect(within(summaryRegion).queryByText('Transferred')).not.toBeInTheDocument();
         });
 
         test('navigates and synchronizes selection state when overview metric buttons are clicked', () => {
@@ -436,7 +440,9 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             const buttons = within(summaryRegion).getAllByRole('button');
 
             buttons.forEach((btn) => {
-                const labelSpan = btn.querySelector('span.uppercase');
+                // Desktop card label keeps the one-line no-clip contract; the
+                // mobile slim row intentionally truncates instead.
+                const labelSpan = btn.querySelector('span.uppercase.whitespace-nowrap');
                 expect(labelSpan).toBeInTheDocument();
                 // Labels stay on a single responsive line: never wrapped, never clipped
                 expect(labelSpan.className).toContain('whitespace-nowrap');
