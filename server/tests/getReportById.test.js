@@ -184,7 +184,7 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         expect(res.body.data.evidence.viewerAccess).toBe('redacted');
     });
 
-    test('6. Unverified pending report returns 403 for unauthorized users and out-of-scope admins', async () => {
+    test('6. Unverified pending report returns 403 for guests; members get the redacted public view', async () => {
         const pendingReport = {
             ...baseReport,
             status: 'pending',
@@ -198,16 +198,21 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         expect(guestRes.body.success).toBe(false);
         expect(guestRes.body.message).toMatch(/not authorized/i);
 
-        // Out-of-scope admin -> 403
+        // Out-of-scope admin -> 200 public projection (member-visible pending)
         const outScopeApp = createTestApp(mockOutScopeAdmin);
         const outScopeRes = await request(outScopeApp).get(`/api/reports/${reportId.toString()}`);
-        expect(outScopeRes.status).toBe(403);
-        expect(outScopeRes.body.success).toBe(false);
+        expect(outScopeRes.status).toBe(200);
+        expect(outScopeRes.body.data.detailAccess).toBe('public');
+        expect(outScopeRes.body.data.reporter).toBeUndefined();
+        expect(outScopeRes.body.data.images).toBeUndefined();
 
-        // Other citizen reporter -> 403
+        // Other citizen reporter -> 200 public projection (member-visible pending)
         const otherCitizenApp = createTestApp(mockOtherUser);
         const otherCitizenRes = await request(otherCitizenApp).get(`/api/reports/${reportId.toString()}`);
-        expect(otherCitizenRes.status).toBe(403);
+        expect(otherCitizenRes.status).toBe(200);
+        expect(otherCitizenRes.body.data.detailAccess).toBe('public');
+        expect(otherCitizenRes.body.data.reporter).toBeUndefined();
+        expect(otherCitizenRes.body.data.images).toBeUndefined();
     });
 
     test('7. Unverified pending report returns 200 for report owner and in-scope municipal admin', async () => {

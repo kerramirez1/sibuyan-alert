@@ -525,8 +525,8 @@ function MyReportsPage() {
 
     return (
         <div className="mx-auto w-full max-w-5xl">
-            {/* Single page title block */}
-            <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
+            {/* Single page title block. Submit lives in the bottom nav + sidebar. */}
+            <header className="pb-5 sm:pb-6">
                 <div className="min-w-0">
                     <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         My reports
@@ -534,16 +534,6 @@ function MyReportsPage() {
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         Track the review and response status of your incident submissions.
                     </p>
-                </div>
-
-                <div className="hidden sm:block sm:shrink-0">
-                    <Link
-                        to="/report"
-                        className="inline-flex h-9 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                        <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        Submit incident report
-                    </Link>
                 </div>
             </header>
 
@@ -578,17 +568,6 @@ function MyReportsPage() {
                             </div>
                         ))}
                     </section>
-
-                    {/* Mobile primary action: same minimalist button as Dashboard */}
-                    <div className="py-4 sm:hidden">
-                        <Link
-                            to="/report"
-                            className="inline-flex min-h-[40px] w-full items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                            <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            Submit incident report
-                        </Link>
-                    </div>
 
                     {/* Submitted incident records */}
                     <section className="mt-6 border-t border-gray-200 pt-5 sm:mt-8 sm:pt-6 dark:border-white/10" aria-label="Submitted reports">

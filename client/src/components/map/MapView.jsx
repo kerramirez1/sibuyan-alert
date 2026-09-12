@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import toast from '../../utils/appToast';
-import { HiOutlineLocationMarker, HiOutlineMap, HiOutlineOfficeBuilding, HiOutlineShieldExclamation } from 'react-icons/hi';
+import { HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
 import {
     getMapCoordinates,
     getFilteredMapReports,
@@ -38,7 +38,6 @@ import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSuppo
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
-import MapLegend from './MapLegend';
 import { isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import {
     createOperationalMarkerElement,
@@ -50,13 +49,6 @@ import {
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
 const SIBUYAN_CAMERA_BOUNDS = [[122.35, 12.20], [122.80, 12.65]];
 const GENERAL_CAMERA_BOUNDS = [[121.5, 11.5], [123.5, 13.5]];
-
-// Municipality centers for quick navigation
-const MUNICIPALITIES = {
-    cajidiocan: { name: 'Cajidiocan', center: [122.6897, 12.4044] },
-    magdiwang: { name: 'Magdiwang', center: [122.5097, 12.4778] },
-    sanfernando: { name: 'San Fernando', center: [122.5469, 12.3536] },
-};
 
 // Incident category colors
 const INCIDENT_COLORS = {
@@ -76,7 +68,7 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
-const MAP_TOOL_BUTTON_CLASS = 'relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-1.5 before:content-[\'\']';
+const MAP_TOOL_BUTTON_CLASS = 'relative flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-2 before:content-[\'\']';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
     <button
@@ -86,7 +78,7 @@ const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
         className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-emerald-400/80 !bg-emerald-50/95 !text-emerald-800 shadow-xs dark:!border-emerald-600/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
         {...props}
     >
-        <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+        <Icon className="h-3 w-3" aria-hidden="true" />
     </button>
 );
 
@@ -122,9 +114,6 @@ const MapView = ({
     showDataState = false,
     disableScrollZoom = false,
     mode = 'full',
-    showLegend = true,
-    showIncidentStatusLegend = true,
-    showDesktopLegend = true,
     pulseReportIds = [],
 }) => {
     const mapContainerRef = useRef(null);
@@ -143,7 +132,6 @@ const MapView = ({
     const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState(null);
-    const [showMuniMenu, setShowMuniMenu] = useState(false);
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
     const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
@@ -151,7 +139,6 @@ const MapView = ({
     const [actionLoading, setActionLoading] = useState(false);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onEntityInspectorOpenRef = useRef(onEntityInspectorOpen);
-    const municipalityMenuRef = useRef(null);
     const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
     const effectiveLocateRequest = useMemo(() => {
         if (locateRequest?.entity) return locateRequest;
@@ -197,10 +184,6 @@ const MapView = ({
         if (!showHazardZones || !isRiskZoneFilterActive) return [];
         return highRiskZones;
     }, [highRiskZones, isRiskZoneFilterActive, showHazardZones]);
-    const hasGroupedReports = useMemo(
-        () => groupReportsByMapLocation(filteredReports).some((group) => group.reports.length > 1),
-        [filteredReports],
-    );
 
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
@@ -217,24 +200,6 @@ const MapView = ({
     useEffect(() => {
         mapStyleRef.current = mapStyle;
     }, [mapStyle]);
-
-    useEffect(() => {
-        if (!showMuniMenu) return undefined;
-
-        const handlePointerDown = (event) => {
-            if (!municipalityMenuRef.current?.contains(event.target)) setShowMuniMenu(false);
-        };
-        const handleKeyDown = (event) => {
-            if (event.key === 'Escape') setShowMuniMenu(false);
-        };
-
-        document.addEventListener('pointerdown', handlePointerDown);
-        window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('pointerdown', handlePointerDown);
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [showMuniMenu]);
 
     const selectOperationalMarker = useCallback((element) => {
         selectedOperationalMarkerRef.current?.classList.remove('map-marker--selected');
@@ -1168,25 +1133,6 @@ const MapView = ({
         }
     };
 
-    const goToMunicipality = (center) => {
-        if (mapReady && mapInstanceRef.current) {
-            try {
-                const map = mapInstanceRef.current;
-                if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return;
-                map.flyTo({
-                    center: center,
-                    zoom: 13,
-                    pitch: effective3D ? 45 : 0,
-                    bearing: effective3D ? -17 : 0,
-                    duration: performanceProfile.navigationDuration,
-                });
-            } catch {
-                // Camera move before style load throws — next interaction retries.
-            }
-        }
-        setShowMuniMenu(false);
-    };
-
     const getStatusBadgeClass = (status) => {
         return MAP_STATUS_CONFIG[status]?.badge || 'border-gray-200 bg-gray-50 text-gray-700';
     };
@@ -1381,56 +1327,11 @@ const MapView = ({
                     />
 
                     <MapToolButton
-                        label={showHazardZones ? 'Hide high-risk hazard zones' : 'Show high-risk hazard zones'}
-                        icon={HiOutlineShieldExclamation}
-                        active={showHazardZones}
-                        onClick={() => setShowHazardZones((prev) => !prev)}
-                        aria-pressed={showHazardZones}
-                    />
-
-                    <div ref={municipalityMenuRef} className="relative">
-                        <MapToolButton
-                            label="Choose municipality"
-                            icon={HiOutlineOfficeBuilding}
-                            onClick={() => setShowMuniMenu(!showMuniMenu)}
-                            aria-expanded={showMuniMenu}
-                            aria-controls="municipality-map-menu"
-                        />
-                        {showMuniMenu && (
-                            <div
-                                id="municipality-map-menu"
-                                className="menu-enter absolute bottom-10 sm:bottom-10 right-0 min-w-[150px] rounded-lg border border-gray-200/90 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#0c1813]"
-                            >
-                                {Object.entries(MUNICIPALITIES).map(([key, muni]) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => goToMunicipality(muni.center)}
-                                        className="relative flex h-8 w-full items-center rounded-md px-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer before:absolute before:-inset-1 before:content-['']"
-                                    >
-                                        {muni.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <MapToolButton
                         label="Reset map view"
                         icon={HiOutlineLocationMarker}
                         onClick={recenterMap}
                     />
                 </div>
-            )}
-
-            {showLegend && !['incident-preview', 'report-location', 'risk-zones'].includes(mode) && (
-                <MapLegend
-                    showPending={showPending}
-                    filterStatus={filterStatus}
-                    filterMode={filterMode}
-                    hasGroupedReports={hasGroupedReports}
-                    showIncidentStatus={showIncidentStatusLegend}
-                    showRiskZone={showHazardZones}
-                    showDesktopLegend={showDesktopLegend}
-                />
             )}
         </div>
     );

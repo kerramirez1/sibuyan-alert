@@ -58,6 +58,44 @@ const renderWorkspace = (props) => render(
 describe('DashboardMapWorkspace permissions', () => {
     beforeEach(() => mapPropsSpy.mockClear());
 
+    test('shows an unavailable notice for deep-linked reports that cannot resolve', () => {
+        renderWorkspace(createProps({ focusedReport: null, focusedReportMissing: true }));
+
+        expect(screen.getByRole('alert', { name: 'Selected incident unavailable' })).toBeInTheDocument();
+    });
+
+    test('hides the unavailable notice when the focused report resolves', () => {
+        renderWorkspace(createProps({
+            focusedReport: { _id: 'report-1', address: 'Poblacion' },
+            focusedReportMissing: false,
+        }));
+
+        expect(screen.queryByRole('alert', { name: 'Selected incident unavailable' })).not.toBeInTheDocument();
+    });
+
+    test('shows a pending community-watch metric for reporters but not guests', () => {
+        const pendingReport = {
+            _id: 'pending-1',
+            status: 'pending',
+            title: 'Unverified crash',
+            coordinates: { lat: 12.45, lng: 122.55 },
+            incidentTime: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+        };
+
+        const { unmount } = renderWorkspace(createProps({ reports: [pendingReport] }));
+        expect(screen.getByRole('button', { name: /View 1 pending review/i })).toBeInTheDocument();
+        unmount();
+
+        renderWorkspace(createProps({
+            reports: [pendingReport],
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+        }));
+        expect(screen.queryByRole('button', { name: /Pending review/i })).not.toBeInTheDocument();
+    });
+
     test('keeps claim and resolve actions disabled for administrators', () => {
         renderWorkspace(createProps({
             user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
@@ -91,7 +129,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const riskZonesAction = within(summary).getByRole('button', { name: /View 0 risk zones/i });
 
         expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
+        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
     });
 
@@ -106,7 +144,7 @@ describe('DashboardMapWorkspace permissions', () => {
         const cards = Array.from(summary.lastElementChild.children);
 
         expect(cards).toHaveLength(4);
-        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4');
+        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
         cards.forEach((card) => {
             expect(card).toHaveClass('rounded-xl', 'border-2');
         });
@@ -121,13 +159,16 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
                 isResponder: false,
                 isReporter: false,
+                expectedMetrics: 4,
             },
             {
+                // Reporter gains the pending community-watch card.
                 user: { _id: 'reporter-1', role: 'reporter' },
                 isAuthenticated: true,
                 isAdmin: false,
                 isResponder: false,
                 isReporter: true,
+                expectedMetrics: 5,
             },
             {
                 user: { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Cajidiocan' },
@@ -135,6 +176,7 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
                 isResponder: true,
                 isReporter: false,
+                expectedMetrics: 4,
             },
             {
                 user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
@@ -142,14 +184,16 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: true,
                 isResponder: false,
                 isReporter: false,
+                expectedMetrics: 4,
             },
         ];
 
         roleCases.forEach((roleProps) => {
-            const { unmount } = renderWorkspace(createProps(roleProps));
+            const { expectedMetrics, ...props } = roleProps;
+            const { unmount } = renderWorkspace(createProps(props));
             const metricButtons = within(screen.getByRole('region', { name: 'Map summary' })).getAllByRole('button');
 
-            expect(metricButtons).toHaveLength(4);
+            expect(metricButtons).toHaveLength(expectedMetrics);
             metricButtons.forEach((button) => {
                 expect(button).toHaveAttribute('type', 'button');
                 expect(button).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
@@ -1110,7 +1154,8 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(4);
 
             metricButtons.forEach((btn) => {
-                expect(btn).toHaveClass('py-2.5');
+                // Slim mobile row (py-2) with stacked desktop card (sm:py-3.5)
+                expect(btn).toHaveClass('py-2', 'sm:py-3.5');
                 const num = btn.querySelector('.tabular-nums');
                 expect(num).toBeInTheDocument();
             });

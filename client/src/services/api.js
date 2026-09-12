@@ -140,6 +140,10 @@ export const authAPI = {
 // Reports API
 export const reportsAPI = {
     getAll: (params) => api.get('/reports', { params }),
+    search: (query, { limit = 8, signal } = {}) => api.get('/reports/search', {
+        params: { q: query, limit },
+        ...(signal ? { signal } : {}),
+    }),
     getById: (id, config = {}) => api.get(`/reports/${id}`, config),
     getMyReports: () => api.get('/reports/my-reports'),
     addUpdate: (id, data) => api.post(`/reports/${id}/updates`, data),

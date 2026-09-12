@@ -14,9 +14,7 @@ import {
     HiCheck,
     HiOutlineArrowRight,
     HiOutlineChevronRight,
-    HiOutlineDocumentAdd,
     HiOutlineExclamationCircle,
-    HiOutlineMap,
     HiOutlineRefresh,
 } from 'react-icons/hi';
 import Button from '../components/ui/Button';
@@ -290,8 +288,10 @@ const ReporterDashboardPage = () => {
 
     return (
         <div className="mx-auto w-full max-w-5xl">
-            {/* Single page title block: live subline replaces the static tagline */}
-            <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
+            {/* Single page title block: live subline replaces the static tagline.
+                Quick actions live in the mobile bottom nav + sidebar, so no
+                header buttons here. */}
+            <header className="pb-4 sm:pb-5">
                 <div className="min-w-0">
                     <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                         Dashboard
@@ -299,24 +299,6 @@ const ReporterDashboardPage = () => {
                     <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         {loading ? 'Loading your report overview.' : headerSummary}
                     </p>
-                </div>
-
-                {/* Minimalist header actions: light solid primary + quiet text link */}
-                <div className="flex flex-row items-center gap-2 sm:gap-3 sm:shrink-0">
-                    <Link
-                        to="/report"
-                        className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-red-600 transition-colors hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:min-h-0 sm:h-9 sm:flex-none sm:px-1.5 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                        <HiOutlineDocumentAdd className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        Submit incident report
-                    </Link>
-                    <Link
-                        to="/dashboard?view=map"
-                        className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 whitespace-nowrap px-1 text-[13px] font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 sm:min-h-0 sm:h-9 sm:flex-none sm:px-1.5"
-                    >
-                        <HiOutlineMap className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        Live incident map
-                    </Link>
                 </div>
             </header>
 

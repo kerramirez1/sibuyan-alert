@@ -309,7 +309,7 @@ const AccidentHistoryPage = () => {
         const cached = getStaleData(historyCacheKey);
         return cached == null || !Array.isArray(cached);
     });
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
     const [dateFilter, setDateFilter] = useState(() => normalizeDateFilter(requestedDateFilter));
     const [severityFilter, setSeverityFilter] = useState('all');
     const [municipalityFilter, setMunicipalityFilter] = useState('all');
@@ -351,6 +351,13 @@ const AccidentHistoryPage = () => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Deep link from header search ("See all results"): apply ?q= to the
+    // archive's own filter so the full list continues the same query.
+    useEffect(() => {
+        const incoming = searchParams.get('q') || '';
+        setSearchQuery((current) => (current === incoming ? current : incoming));
+    }, [searchParams]);
 
     const fetchReports = useCallback(async (silent = false) => {
         const stale = getStaleData(historyCacheKey);

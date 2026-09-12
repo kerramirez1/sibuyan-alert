@@ -802,6 +802,25 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.queryByText('Transferred from')).not.toBeInTheDocument();
             expect(screen.queryByText('Transferred to')).not.toBeInTheDocument();
         });
+
+        test("reporter opening another reporter's pending sees the unverified notice", () => {
+            renderDetails({
+                report: {
+                    ...sampleReport,
+                    _id: 'report-pending-other',
+                    status: 'pending',
+                    isOwnedByCurrentUser: false,
+                    reporter: { name: 'Someone Else' },
+                },
+                viewerRole: 'reporter',
+                viewer: { _id: 'reporter-1', role: 'reporter' },
+            });
+
+            expect(screen.getByText(/unverified community report/i)).toBeInTheDocument();
+            // No contact or identity leak for non-owned pending
+            expect(screen.queryByText('private@example.com')).not.toBeInTheDocument();
+            expect(screen.queryByText('Someone Else')).not.toBeInTheDocument();
+        });
     });
 });
 

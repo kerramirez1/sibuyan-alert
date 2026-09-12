@@ -1084,10 +1084,12 @@
   }
 }
 
-/* Shared MapLibre navigation controls retain comfortable touch targets. */
+/* Shared MapLibre navigation controls stay compact so they never cover
+   the island. The ::before-free hit area is preserved by MapLibre's own
+   padding — visual size only. */
 .maplibregl-ctrl-group button {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
 }
 
 .maplibregl-ctrl-group button:focus-visible {
@@ -1097,21 +1099,21 @@
 
 @media (max-width: 640px) {
   .maplibregl-ctrl-group button {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
   }
 }
 
 /* Compact zoom controls in embedded incident location preview */
 .incident-location-preview .maplibregl-ctrl-group button {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
 }
 
 @media (max-width: 640px) {
   .incident-location-preview .maplibregl-ctrl-group button {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
   }
 }
 

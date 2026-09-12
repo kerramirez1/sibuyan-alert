@@ -246,9 +246,53 @@ const DashboardPage = () => {
         ));
     }, [reports, activeMunicipality]);
     const focusedMapReportId = searchParams.get('report') || '';
+    // Deep-link guarantee: the preloaded list can miss the target (own pending
+    // reports for reporters, municipality-filtered admin lists, stale cache).
+    // Fall back to a direct RBAC-enforced fetch so a search tap always lands.
+    const [focusedReportFallback, setFocusedReportFallback] = useState(null);
+    const [focusedReportMissing, setFocusedReportMissing] = useState(false);
+    const focusedFetchRef = useRef('');
+    useEffect(() => {
+        if (!focusedMapReportId) {
+            focusedFetchRef.current = '';
+            setFocusedReportFallback(null);
+            setFocusedReportMissing(false);
+            return;
+        }
+        const inList = (Array.isArray(dashboardReports) ? dashboardReports : [])
+            .some((report) => String(report?._id) === focusedMapReportId);
+        if (inList) {
+            focusedFetchRef.current = focusedMapReportId;
+            setFocusedReportFallback(null);
+            setFocusedReportMissing(false);
+            return;
+        }
+        if (focusedFetchRef.current === focusedMapReportId) return;
+        focusedFetchRef.current = focusedMapReportId;
+        let cancelled = false;
+        setFocusedReportFallback(null);
+        setFocusedReportMissing(false);
+        reportsAPI.getById(focusedMapReportId)
+            .then((response) => {
+                if (cancelled) return;
+                const data = response?.data?.data;
+                if (data && typeof data === 'object') {
+                    setFocusedReportFallback(data);
+                } else {
+                    setFocusedReportMissing(true);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setFocusedReportMissing(true);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [focusedMapReportId, dashboardReports]);
     const focusedMapReport = useMemo(
-        () => dashboardReports.find((report) => String(report?._id) === focusedMapReportId) || null,
-        [dashboardReports, focusedMapReportId],
+        () => dashboardReports.find((report) => String(report?._id) === focusedMapReportId)
+            || focusedReportFallback,
+        [dashboardReports, focusedMapReportId, focusedReportFallback],
     );
     const focusedRiskZoneId = normalizeRiskZoneId(searchParams.get('riskZone'));
     const focusedRiskZone = useMemo(
@@ -545,6 +589,10 @@ const DashboardPage = () => {
                 const currentUserId = user?._id || user?.id;
                 const reporterId = report.reporter?._id || report.reporter?.id || report.reporter;
                 const isOwner = Boolean(currentUserId && reporterId && String(currentUserId) === String(reporterId));
+                // Explicit ownership: map detail and scope checks read this flag
+                // to decide between owner and redacted treatment. Never leave it
+                // undefined, or owned rows silently render as someone else's.
+                sanitized.isOwnedByCurrentUser = isOwner;
 
                 if (!isOwner) {
                     delete sanitized.images;
@@ -705,10 +753,13 @@ const DashboardPage = () => {
         // Reporter-scoped rejection (delivered to the reporter's user room).
         // Mirrors the rejection into the loaded reporter overview; operational
         // viewers receive the equivalent reportRejectedUpdate above.
+        // Pending pins are member-visible now, so a global id-only rejection
+        // must also drop the pin from the shared map list.
         const unsubReporterRejected = subscribe('reportRejected', (data) => {
             if (!data || typeof data !== 'object') return;
             const rejectedId = data?.id ?? data?._id;
             if (!rejectedId) return;
+            patchStatusAndCache(rejectedId, 'rejected');
             updateLoadedReporterOverviewReport({ ...data, _id: rejectedId, status: 'rejected' });
         });
 
@@ -877,7 +928,10 @@ const DashboardPage = () => {
                     focusLocation={focusLocation}
                     focusedReport={focusedMapReport}
                     focusedRiskZone={focusedRiskZone}
-                    onReturnToReport={focusedMapReportId ? returnToFocusedReport : null}
+                    focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
+                    // "Back to incident" returns to the admin queue, which only
+                    // operational roles can open. Reporters stay on the map.
+                    onReturnToReport={focusedMapReportId && (isAdmin || isResponder) ? returnToFocusedReport : null}
                     responderMapFilter={responderMapFilter}
                     setResponderMapFilter={setResponderMapFilter}
                     canCurrentResponderResolve={canCurrentResponderResolve}

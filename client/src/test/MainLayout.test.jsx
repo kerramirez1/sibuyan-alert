@@ -202,14 +202,17 @@ describe('MainLayout responsive navigation', () => {
 
         renderLayout('/reporter');
 
-        expect(screen.queryByText('Operations')).not.toBeInTheDocument();
-        expect(screen.queryByText('Mapping')).not.toBeInTheDocument();
-        expect(screen.queryByText('History')).not.toBeInTheDocument();
+        const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });
+        expect(within(sidebar).queryByText('Operations')).not.toBeInTheDocument();
+        expect(within(sidebar).queryByText('Mapping')).not.toBeInTheDocument();
+        expect(within(sidebar).queryByText('History')).not.toBeInTheDocument();
 
         expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'My Reports' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        // Reporter bottom nav mirrors Accident History for thumb reach
+        expect(screen.getByRole('navigation', { name: 'Reporter quick navigation' })).toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();

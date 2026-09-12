@@ -219,6 +219,12 @@ io.on('connection', (socket) => {
 
         socket.join(`user_${socket.data.user.id}`);
 
+        // Reporters receive redacted live pins (new pending reports) here.
+        // They never join municipality rooms, which stay operational-only.
+        if (socket.data.user.role === 'reporter') {
+            socket.join('reporters');
+        }
+
         // Authentication and authorization are complete at this point, so join
         // all permitted rooms here instead of relying on follow-up client events.
         if (
@@ -276,6 +282,9 @@ io.on('connection', (socket) => {
         const user = getAuthenticatedUser();
         if (user) {
             socket.leave(`user_${user.id}`);
+            if (user.role === 'reporter') {
+                socket.leave('reporters');
+            }
             if (user.assignedMunicipality) {
                 socket.leave(`municipality_${user.assignedMunicipality}`);
                 socket.leave(`municipality_${user.assignedMunicipality}_responders`);

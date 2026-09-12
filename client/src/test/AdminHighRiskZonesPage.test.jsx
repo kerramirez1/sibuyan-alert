@@ -148,11 +148,10 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByText('Cambajao River Overflow')).toBeInTheDocument();
         expect(screen.getByText('Magdiwang Highway Curve')).toBeInTheDocument();
 
-        // MapView configured specifically for hazard zones without incident status legend
+        // MapView configured specifically for hazard zones
         expect(mockMapViewProps).toHaveBeenCalledWith(
             expect.objectContaining({
                 mode: 'risk-zones',
-                showLegend: false,
                 highRiskZones: mockZones,
             })
         );

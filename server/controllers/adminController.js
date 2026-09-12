@@ -785,6 +785,11 @@ export const verifyReport = async (req, res) => {
                     id: report._id,
                     status: 'rejected',
                 });
+
+                // Pending pins are visible to all members now: drop the pin
+                // everywhere with an id-only payload (reason stays owner-only
+                // in the user-room emit above).
+                io.emit('reportRejected', { id: report._id });
             }
         }
 

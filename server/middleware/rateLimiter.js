@@ -92,6 +92,18 @@ export const reportViewLimiter = rateLimit(withStore({
     },
 }));
 
+/** Typeahead search: generous burst for keystroke-driven queries, no PII in payload. */
+export const searchLimiter = rateLimit(withStore({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many searches. Please wait a moment and try again.',
+    },
+}));
+
 /** Protect subscription persistence without interfering with normal silent resync. */
 export const pushSubscriptionLimiter = rateLimit(withStore({
     windowMs: 15 * 60 * 1000,

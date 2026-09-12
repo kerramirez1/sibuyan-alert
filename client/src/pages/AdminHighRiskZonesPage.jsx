@@ -522,7 +522,6 @@ const AdminHighRiskZonesPage = () => {
                             focusLocation={focusLocation}
                             enable3D
                             mode="risk-zones"
-                            showLegend={false}
                             className="h-full w-full"
                         />
                     </div>

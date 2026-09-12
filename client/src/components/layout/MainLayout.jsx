@@ -3,6 +3,7 @@ import { NavLink, Link, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../ui/NotificationBell';
 import OfflineBanner from '../ui/OfflineBanner';
+import ReportSearch from '../search/ReportSearch';
 import { useOfflineReportSync } from '../../hooks/useOfflineReportSync';
 import { resolveAssetUrl } from '../../utils/assets';
 import {
@@ -17,6 +18,7 @@ import {
     HiOutlineGlobe,
     HiOutlineClock,
     HiOutlineChartBar,
+    HiOutlineSearch,
 } from 'react-icons/hi';
 
 const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
@@ -47,6 +49,7 @@ const MainLayout = ({ children }) => {
     const currentPanel = currentSearchParams.get('panel');
     const menuButtonRef = useRef(null);
     const closeButtonRef = useRef(null);
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
     // Delivers reports filed while offline. Mounted at the authenticated layout
     // so a queued report is sent from wherever the reporter happens to be, not
@@ -80,6 +83,10 @@ const MainLayout = ({ children }) => {
             document.documentElement.style.overflow = previousDocumentOverflow;
         };
     }, []);
+
+    useEffect(() => {
+        setMobileSearchOpen(false);
+    }, [location.pathname, location.search]);
 
     // Close drawer on Escape key
     useEffect(() => {
@@ -115,6 +122,10 @@ const MainLayout = ({ children }) => {
             return true;
         })
         : [];
+
+    const isReporter = isAuthenticated && user?.role === 'reporter';
+    const canSubmit = isReporter && canSubmitReports();
+    const isMapView = location.pathname === '/dashboard' && currentView === 'map' && !currentPanel;
 
     return (
         <>
@@ -402,7 +413,26 @@ const MainLayout = ({ children }) => {
                             </div>
                         </div>
 
+                        {/* Laptop/desktop: inline search bar in the top row, next to
+                            the notification button. */}
+                        {isAuthenticated && (
+                            <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
+                                <ReportSearch className="w-full max-w-md" />
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                            {isAuthenticated && (
+                                <button
+                                    type="button"
+                                    onClick={() => setMobileSearchOpen((current) => !current)}
+                                    aria-label="Search incident reports"
+                                    aria-expanded={mobileSearchOpen}
+                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 active:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 md:hidden dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                >
+                                    <HiOutlineSearch className="h-5 w-5" aria-hidden="true" />
+                                </button>
+                            )}
                             {isAuthenticated && <NotificationBell />}
                             {!isAuthenticated && (
                                 <Link
@@ -415,6 +445,15 @@ const MainLayout = ({ children }) => {
                         </div>
                     </header>
 
+                    {/* Mobile: icon button in the header opens this row. Laptop
+                        uses the inline top-row bar above. One search entry per
+                        viewport; the server filters rows, detail routes re-check. */}
+                    {isAuthenticated && mobileSearchOpen && (
+                        <div className="border-b border-gray-200/80 bg-white/95 px-3 pb-2.5 pt-1 sm:px-4 md:hidden dark:border-white/10 dark:bg-gray-950/95">
+                            <ReportSearch className="mx-auto w-full max-w-xl" />
+                        </div>
+                    )}
+
                     {/* Offline state sits directly above the content so a
                         responder can never mistake stale data for live data. */}
                     <OfflineBanner />
@@ -423,11 +462,79 @@ const MainLayout = ({ children }) => {
                         enter animation on navigation. Unlike the previous
                         AnimatePresence "wait" mode there is no exit delay, so the
                         next page mounts immediately and fades in. */}
-                    <main data-map-scroll-container className="custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
+                    <main data-map-scroll-container className={`custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
                         <div key={location.pathname} className="page-enter">
                             {children}
                         </div>
                     </main>
+
+                    {/* Reporter mobile bottom nav: thumb-reach primary actions.
+                        Sidebar stays for full navigation + desktop; this bar only
+                        handles the 4 highest-frequency reporter destinations with
+                        Submit as the center FAB. */}
+                    {isReporter && (
+                        <nav
+                            aria-label="Reporter quick navigation"
+                            className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-md min-[501px]:hidden dark:border-white/10 dark:bg-gray-950/95"
+                        >
+                            <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2">
+                                <NavLink
+                                    to="/reporter"
+                                    aria-label="Reporter home"
+                                    aria-current={location.pathname === '/reporter' ? 'page' : undefined}
+                                    className={({ isActive }) => `flex min-h-[44px] flex-col items-center justify-center gap-px rounded-lg text-[9px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isActive || location.pathname === '/reporter' ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                                >
+                                    <HiOutlineHome className="h-[18px] w-[18px]" aria-hidden="true" />
+                                    <span>Home</span>
+                                </NavLink>
+                                <NavLink
+                                    to="/my-reports"
+                                    aria-label="My reports"
+                                    aria-current={location.pathname === '/my-reports' ? 'page' : undefined}
+                                    className={({ isActive }) => `flex min-h-[44px] flex-col items-center justify-center gap-px rounded-lg text-[9px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isActive ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                                >
+                                    <HiOutlineClipboardList className="h-[18px] w-[18px]" aria-hidden="true" />
+                                    <span>Reports</span>
+                                </NavLink>
+                                <div className="flex min-h-[44px] items-start justify-center">
+                                    {canSubmit ? (
+                                        <Link
+                                            to="/report"
+                                            aria-label="Submit incident report"
+                                            className="inline-flex h-10 w-10 -translate-y-2 items-center justify-center rounded-full bg-red-600 text-white shadow-md shadow-red-600/30 transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 active:bg-red-800 dark:bg-red-600 dark:hover:bg-red-500"
+                                        >
+                                            <HiOutlineDocumentAdd className="h-5 w-5" aria-hidden="true" />
+                                        </Link>
+                                    ) : (
+                                        <span
+                                            aria-hidden="true"
+                                            className="inline-flex h-10 w-10 -translate-y-2 items-center justify-center rounded-full bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+                                        >
+                                            <HiOutlineDocumentAdd className="h-5 w-5" aria-hidden="true" />
+                                        </span>
+                                    )}
+                                </div>
+                                <NavLink
+                                    to="/dashboard?view=map"
+                                    aria-label="Live incident map"
+                                    aria-current={isMapView ? 'page' : undefined}
+                                    className={() => `flex min-h-[44px] flex-col items-center justify-center gap-px rounded-lg text-[9px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isMapView ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                                >
+                                    <HiOutlineGlobe className="h-[18px] w-[18px]" aria-hidden="true" />
+                                    <span>Map</span>
+                                </NavLink>
+                                <NavLink
+                                    to="/accident-history"
+                                    aria-label="Accident history"
+                                    aria-current={location.pathname === '/accident-history' ? 'page' : undefined}
+                                    className={({ isActive }) => `flex min-h-[44px] flex-col items-center justify-center gap-px rounded-lg text-[9px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isActive ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                                >
+                                    <HiOutlineClock className="h-[18px] w-[18px]" aria-hidden="true" />
+                                    <span>History</span>
+                                </NavLink>
+                            </div>
+                        </nav>
+                    )}
                 </div>
             </div>
 

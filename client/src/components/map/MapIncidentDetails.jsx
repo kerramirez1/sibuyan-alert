@@ -179,11 +179,14 @@ const MapIncidentDetails = ({
     const lastUpdatedText = details.updatedAt ? ` Last updated ${formatIncidentRelativeTime(details.updatedAt)}.` : '';
 
     const hasPrivacySafePreview = !isOperational && !ownsReport && totalEvidenceCount > 0;
+    const isUnverifiedCommunityReport = !isOperational && !ownsReport && displayedReport?.status === 'pending';
     let privacyNotice = '';
     if (isOperational) {
         privacyNotice = 'This operational view contains protected incident information. Access to original evidence and sensitive coordination details is restricted by role.';
     } else if (ownsReport && isOriginalAllowed) {
         privacyNotice = `This is verified public safety information. Sensitive responder identities and internal coordination details are protected.${lastUpdatedText}`;
+    } else if (isUnverifiedCommunityReport) {
+        privacyNotice = `This is an unverified community report awaiting municipal verification. Treat details as unconfirmed. Personal identities and original evidence are protected.${lastUpdatedText}`;
     } else if (hasPrivacySafePreview) {
         privacyNotice = `This is verified public safety information. Personal identities and original evidence are protected. A privacy-safe preview may be shown.${lastUpdatedText}`;
     } else {

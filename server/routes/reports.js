@@ -4,6 +4,7 @@ import {
     getReports,
     getReportById,
     getMyReports,
+    searchReports,
     addReportUpdate,
     getHighRiskZones,
     getMapConfig,
@@ -18,7 +19,7 @@ import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
-import { locationLookupLimiter, reportCreationLimiter, reportViewLimiter } from '../middleware/rateLimiter.js';
+import { locationLookupLimiter, reportCreationLimiter, reportViewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -32,6 +33,10 @@ router.post('/geocode', locationLookupLimiter, geocodeLocation);
 
 // Public report listing for map visibility (verified/responding only by default)
 router.get('/', optionalAuth, getReports);
+
+// RBAC-filtered typeahead search. MUST stay above '/:id' so 'search' is not
+// parsed as a report id.
+router.get('/search', optionalAuth, searchLimiter, searchReports);
 
 // Protected routes - require authentication AND block ordinary users
 router.get('/my-reports', protect, blockOrdinaryUsers, getMyReports);  // ❌ Ordinary users CANNOT access

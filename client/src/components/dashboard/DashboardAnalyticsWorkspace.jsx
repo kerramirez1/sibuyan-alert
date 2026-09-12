@@ -826,7 +826,6 @@ const DashboardAnalyticsWorkspace = ({
                         viewerRole={user?.role || 'guest'}
                         showDataState
                         enable3D
-                        showLegend={false}
                         className="h-full w-full"
                         focusLocation={focusLocation}
                     />

@@ -143,14 +143,16 @@ describe('Evidence Preview Endpoint (GET /api/reports/:id/evidence/:index/previe
         expect(res.status).toBe(200);
     });
 
-    test('6. Denies out-of-scope municipal admin from viewing pending report evidence', async () => {
+    test('6. Out-of-scope municipal admin gets the blurred derivative (not originals) for pending evidence', async () => {
         const pendingReport = { ...sampleReport, status: 'pending' };
         vi.spyOn(Report, 'findById').mockResolvedValue(pendingReport);
 
         const app = createTestApp(otherAdminUser);
         const res = await request(app).get(`/api/reports/${reportId.toString()}/evidence/0/preview`);
 
-        expect(res.status).toBe(403);
+        // Member-visible pending: gate passes, bytes stay blurred for non-owners.
+        expect(res.status).toBe(200);
+        expect(res.headers['x-evidence-variant']).toBe('redacted');
     });
 
     test('7. Returns 404 for invalid report ID or non-existent report', async () => {

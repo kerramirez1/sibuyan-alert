@@ -98,8 +98,22 @@ describe('mapMarkerVisuals', () => {
             markerColor: '#2563EB',
         });
 
-        expect(el.getAttribute('aria-label')).toBe('3 incidents at this location');
+        expect(el.getAttribute('aria-label')).toBe('3 incidents at this location, including unverified');
+        expect(el.getAttribute('title')).toBe('3 incidents at this location, including unverified');
         expect(el.innerHTML).toContain('>3<');
+    });
+
+    test('createOperationalMarkerElement labels single pending pins as unverified', () => {
+        const report = { id: 'rep-9', status: 'pending', title: 'Incident P' };
+
+        const el = createOperationalMarkerElement({
+            report,
+            groupedReports: [report],
+            markerColor: '#F59E0B',
+        });
+
+        expect(el.getAttribute('aria-label')).toBe('Unverified report');
+        expect(el.getAttribute('title')).toBe('Unverified report');
     });
 
     test('createRiskZoneMarkerElement configures accessible attributes', () => {

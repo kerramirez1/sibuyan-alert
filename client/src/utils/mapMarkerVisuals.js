@@ -102,12 +102,20 @@ export const createOperationalMarkerElement = ({
     el.style.zIndex = report?.status === 'pending' ? '2' : '1';
     el.setAttribute('role', 'button');
     el.setAttribute('tabindex', '0');
-    el.setAttribute(
-        'aria-label',
-        groupedReports.length > 1
-            ? `${groupedReports.length} incidents at this location`
-            : `${report?.title || report?.incidentType || 'Incident'} map marker`
-    );
+    const markerStatusLabel = report?.status === 'pending'
+        ? 'Unverified report'
+        : groupedReports.length > 1 && groupedReports.some((item) => item?.status === 'pending')
+            ? `${groupedReports.length} incidents at this location, including unverified`
+            : null;
+    const fallbackLabel = groupedReports.length > 1
+        ? `${groupedReports.length} incidents at this location`
+        : `${report?.title || report?.incidentType || 'Incident'} map marker`;
+    el.setAttribute('aria-label', markerStatusLabel ?? fallbackLabel);
+    // Non-color unverified cue: screen-reader label always carries it, and the
+    // hover tooltip only appears on pins that actually need the warning.
+    if (markerStatusLabel) {
+        el.setAttribute('title', markerStatusLabel);
+    }
 
     const isResponding = report?.status === 'responding';
     const markerSvg = getOperationalMarkerSvg(report?.status, markerColor);

@@ -87,9 +87,9 @@ describe('ReporterDashboardPage', () => {
         expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('3')).toBeInTheDocument(); // Total
 
-        // Actions in header: one primary button, one quiet secondary link
-        expect(screen.getByRole('link', { name: /Live incident map/i })).toHaveAttribute('href', '/dashboard?view=map');
-        expect(screen.getByRole('link', { name: /Submit incident report/i })).toHaveAttribute('href', '/report');
+        // Quick actions live in the mobile bottom nav + sidebar, not the header
+        expect(screen.queryByRole('link', { name: /Live incident map/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /^Submit incident report$/i })).not.toBeInTheDocument();
 
         // Recent report rows are the links (no Action column)
         expect(screen.getByText('Poblacion, San Fernando')).toBeInTheDocument();

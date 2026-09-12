@@ -1,4 +1,5 @@
 import Report from '../models/Report.js';
+import HighRiskZone from '../models/HighRiskZone.js';
 import mongoose from 'mongoose';
 import { toPublicReport, buildReportEvidenceObject } from '../utils/publicReport.js';
 import { canViewOperationalReport, getEntityId } from '../utils/reportAccess.js';
@@ -384,6 +385,25 @@ export const createReport = async (req, res) => {
                 io.to(`municipality_${locationResult.municipalityName}`).emit('newReport', newReportPayload);
             }
 
+            // Reporters never join municipality rooms, so live pending pins
+            // would only appear on refetch. Emit a redacted subset to the
+            // reporters room mirroring the public projection (no reporter
+            // identity, priority, casualties, or response estimate).
+            io.to('reporters').emit('newReport', {
+                id: report._id,
+                title: report.title,
+                incidentCategory: finalCategory,
+                incidentType: finalType,
+                address: report.address,
+                barangay: report.barangay,
+                municipalityName: locationResult.municipalityName,
+                coordinates: report.coordinates,
+                status: report.status,
+                incidentTime: report.incidentTime,
+                severity: report.severity,
+                createdAt: report.createdAt,
+            });
+
             // Notify municipality-specific responder room using municipality NAME
             // (frontend joins rooms as `municipality_${user.assignedMunicipality}`)
             if (locationResult.municipalityName) {
@@ -535,9 +555,26 @@ export const getReports = async (req, res) => {
 
         // Public feeds may only expose reports that have passed verification.
         // "all" means all publishable lifecycle states, not every database state.
+        // Authenticated members (reporter/responder/municipal_admin) additionally
+        // see pending reports with the same redacted public projection, so
+        // community members can spot unverified activity on the shared map.
+        // Guests and ordinary users keep the publishable-only boundary.
         const publishableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
+        const isMemberViewer = Boolean(
+            req.user && ['reporter', 'responder', 'municipal_admin'].includes(req.user.role)
+        );
         if (status === 'all') {
-            query.status = { $in: publishableStatuses };
+            query.status = isMemberViewer
+                ? { $in: [...publishableStatuses, 'pending'] }
+                : { $in: publishableStatuses };
+        } else if (status === 'pending') {
+            if (!isMemberViewer) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid public report status',
+                });
+            }
+            query.status = 'pending';
         } else if (publishableStatuses.includes(status)) {
             query.status = status;
         } else {
@@ -674,6 +711,159 @@ export const getReports = async (req, res) => {
 };
 
 /**
+ * @desc    RBAC-filtered typeahead search over incident reports + high-risk zones (MVP)
+ * @route   GET /api/reports/search?q=&limit=
+ * @access  Public (published) / Private (owner or in-scope operational user)
+ *
+ * Facebook-style box, RBAC-enforced at the query — never UI-only:
+ * - guests/reporters: publishable statuses + own reports (any status)
+ * - municipal_admin/responder with a municipality: + in-scope reports at
+ *   operational statuses (covers pending review in their jurisdiction,
+ *   including transferred-in/out via originalMunicipalityName)
+ * - zones are public island-wide active-only (mirrors GET /api/high-risk-zones),
+ *   identical rows for every role
+ * - payload is redacted (no reporter identity, contacts, images): the detail
+ *   endpoint re-checks RBAC on open.
+ */
+const SEARCH_PUBLISHABLE_STATUSES = ['verified', 'transferred', 'responding', 'resolved'];
+const SEARCH_OPERATIONAL_STATUSES = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
+const SEARCH_TEXT_FIELDS = ['title', 'address', 'barangay', 'municipalityName', 'incidentType', 'description'];
+// Zones are public, island-wide, and active-only by design (mirrors
+// GET /api/high-risk-zones) — no per-role filter needed, same rows for all.
+const SEARCH_ZONE_TEXT_FIELDS = ['name', 'description', 'barangay', 'municipality', 'type'];
+const SEARCH_ZONE_LIMIT = 8;
+
+const escapeSearchRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export const searchReports = async (req, res) => {
+    try {
+        const rawQuery = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+        if (rawQuery.length < 2) {
+            return res.json({ success: true, data: { results: [], zones: [] } });
+        }
+        const queryText = rawQuery.slice(0, 100);
+
+        const parsedLimit = Number.parseInt(req.query.limit, 10);
+        const safeLimit = Number.isFinite(parsedLimit)
+            ? Math.min(Math.max(parsedLimit, 1), 20)
+            : 8;
+
+        const pattern = new RegExp(escapeSearchRegex(queryText), 'i');
+        const textClause = {
+            $or: SEARCH_TEXT_FIELDS.map((field) => ({ [field]: pattern })),
+        };
+
+        // Visibility mirrors getReportById: publishable for everyone, plus
+        // owner access and in-scope operational access. Members additionally
+        // match pending island-wide so the shared map and search agree.
+        // Built into the Mongo query so unauthorized rows never leave the server.
+        const user = req.user || null;
+        const visibilityOr = [{ status: { $in: SEARCH_PUBLISHABLE_STATUSES } }];
+
+        if (user?._id) {
+            visibilityOr.push({ reporter: user._id });
+        }
+
+        if (user && ['reporter', 'responder', 'municipal_admin'].includes(user.role)) {
+            visibilityOr.push({ status: 'pending' });
+        }
+
+        const assignedMunicipality = typeof user?.assignedMunicipality === 'string'
+            ? user.assignedMunicipality.trim()
+            : '';
+        if (
+            assignedMunicipality
+            && ['municipal_admin', 'responder'].includes(user?.role)
+        ) {
+            visibilityOr.push({
+                status: { $in: SEARCH_OPERATIONAL_STATUSES },
+                $or: [
+                    { municipalityName: assignedMunicipality },
+                    { originalMunicipalityName: assignedMunicipality },
+                    { 'transferHistory.fromMunicipalityName': assignedMunicipality },
+                ],
+            });
+        }
+
+        const policy = resolveQueryPolicy();
+
+        const [docs, zoneDocs] = await Promise.all([
+            Report.find({ $and: [{ $or: visibilityOr }, textClause] })
+                .select([
+                    '_id',
+                    'reporter',
+                    'incidentCategory',
+                    'incidentType',
+                    'title',
+                    'address',
+                    'barangay',
+                    'municipalityName',
+                    'status',
+                    'severity',
+                    'incidentTime',
+                    'createdAt',
+                ].join(' '))
+                .sort({ incidentTime: -1 })
+                .limit(safeLimit)
+                .maxTimeMS(policy.maxTimeMs)
+                .lean(),
+            HighRiskZone.find({
+                isActive: true,
+                $or: SEARCH_ZONE_TEXT_FIELDS.map((field) => ({ [field]: pattern })),
+            })
+                .select('_id name description type severity municipality barangay coordinates radius createdAt')
+                .sort({ createdAt: -1 })
+                .limit(SEARCH_ZONE_LIMIT)
+                .maxTimeMS(policy.maxTimeMs)
+                .lean(),
+        ]);
+
+        const viewerId = getEntityId(user);
+        const results = docs.map((doc) => ({
+            kind: 'report',
+            _id: String(doc._id),
+            title: doc.title || 'Untitled report',
+            incidentType: doc.incidentType || null,
+            incidentCategory: doc.incidentCategory || null,
+            status: doc.status || null,
+            severity: doc.severity || null,
+            address: doc.address || null,
+            barangay: doc.barangay || null,
+            municipalityName: doc.municipalityName || null,
+            incidentTime: doc.incidentTime || null,
+            createdAt: doc.createdAt || null,
+            isOwnedByCurrentUser: Boolean(viewerId && getEntityId(doc.reporter) === viewerId),
+        }));
+        // Coordinates are public map pins (same as the island-wide zone list),
+        // so the client can focus the map without a second round-trip.
+        const zones = zoneDocs.map((zone) => ({
+            kind: 'zone',
+            _id: String(zone._id),
+            title: zone.name || 'Unnamed zone',
+            type: zone.type || null,
+            severity: zone.severity || null,
+            description: zone.description || null,
+            barangay: zone.barangay || null,
+            municipalityName: zone.municipality || null,
+            coordinates: zone.coordinates && Number.isFinite(Number(zone.coordinates.lat))
+                && Number.isFinite(Number(zone.coordinates.lng))
+                ? { lat: Number(zone.coordinates.lat), lng: Number(zone.coordinates.lng) }
+                : null,
+            radius: Number.isFinite(Number(zone.radius)) ? Number(zone.radius) : null,
+            createdAt: zone.createdAt || null,
+        }));
+
+        return res.json({ success: true, data: { results, zones } });
+    } catch (error) {
+        console.error('Search reports error:', error?.message);
+        return res.status(500).json({
+            success: false,
+            message: 'Search is temporarily unavailable',
+        });
+    }
+};
+
+/**
  * @desc    Get single report by ID
  * @route   GET /api/reports/:id
  * @access  Public (published) / Private (owner or in-scope municipal administrator/responder)
@@ -712,9 +902,16 @@ export const getReportById = async (req, res) => {
         );
 
         // Match the public list visibility rules for individual report access.
+        // Pending reports are additionally viewable (public projection) by
+        // authenticated members so shared-map pins always open. Rejected
+        // reports stay owner-or-operational only.
         const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
+        const isMemberViewer = Boolean(
+            req.user && ['reporter', 'responder', 'municipal_admin'].includes(req.user.role)
+        );
         if (!publicViewableStatuses.includes(report.status)) {
-            if (!isOwner && !isOperational) {
+            const memberPendingVisible = report.status === 'pending' && isMemberViewer;
+            if (!isOwner && !isOperational && !memberPendingVisible) {
                 return res.status(403).json({
                     success: false,
                     code: 'REPORT_RESTRICTED',
@@ -805,11 +1002,19 @@ export const getReportEvidencePreview = async (req, res) => {
         );
         const publicViewableStatuses = ['verified', 'transferred', 'responding', 'resolved'];
 
+        // Pending previews open to members with the same gate as the detail
+        // endpoint; everyone else still receives the blurred derivative only
+        // for publishable reports. The bytes are always the blurred derivative.
+        const isMemberViewer = Boolean(
+            req.user && ['reporter', 'responder', 'municipal_admin'].includes(req.user.role)
+        );
         if (!publicViewableStatuses.includes(report.status) && !isOwner && !isOperational) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to view evidence for this incident',
-            });
+            if (!(report.status === 'pending' && isMemberViewer)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to view evidence for this incident',
+                });
+            }
         }
 
         const rawImages = Array.isArray(report.images) ? report.images : [];

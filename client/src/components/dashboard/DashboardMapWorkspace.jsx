@@ -227,22 +227,34 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
         title={`${value} ${label} — ${helper}`}
-        className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2.5 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
+        className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
             ? 'border border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-white/5'
             : 'border-2 border-brand-700 bg-brand-100/80 shadow hover:border-brand-800 hover:bg-brand-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
             }`}
     >
-        <span className="flex w-full items-center gap-1.5">
+        {/* Mobile: single-line row (label left, value + chevron right) */}
+        <span className="flex w-full items-center gap-2 sm:hidden">
+            {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+            <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {label}
+            </span>
+            <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-gray-900 dark:text-white">
+                {value}
+            </span>
+            <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 dark:text-gray-600" aria-hidden="true" />
+        </span>
+        {/* Desktop: stacked card (unchanged) */}
+        <span className="hidden w-full items-center gap-1.5 sm:flex">
             <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase whitespace-nowrap tracking-wide sm:text-[11px] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
                 {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
                 <span>{label}</span>
             </span>
             <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
         </span>
-        <span className="mt-0.5 block text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+        <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
             {value}
         </span>
-        <p className="mt-0 block break-words text-[11px] leading-tight text-gray-500 sm:text-xs dark:text-gray-400">
+        <p className="mt-0 hidden break-words text-[11px] leading-tight text-gray-500 sm:block sm:text-xs dark:text-gray-400">
             {helper}
         </p>
     </button>
@@ -268,6 +280,7 @@ const DashboardMapWorkspace = ({
     focusLocation,
     focusedReport,
     focusedRiskZone,
+    focusedReportMissing = false,
     onReturnToReport,
     responderMapFilter,
     setResponderMapFilter,
@@ -355,6 +368,10 @@ const DashboardMapWorkspace = ({
     });
     const allMappedReports = getVisibleMapReports(reports, { includePending: true });
     const adminPendingReports = allMappedReports.filter((report) => report.status === 'pending');
+    // Reporter community watch: others' pending pins render for reporters, so
+    // they get their own metric. Guests never receive pending rows.
+    const isReporter = user?.role === 'reporter';
+    const reporterPendingReports = allMappedReports.filter((report) => report?.status === 'pending');
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
     const transferredReports = activeReports.filter((report) => report.status === 'transferred');
@@ -381,6 +398,66 @@ const DashboardMapWorkspace = ({
     const handleMapInspectorOpen = useCallback(() => {
         closeMapSummaryPanel();
     }, [closeMapSummaryPanel]);
+
+    const publicMetrics = [
+                {
+                    id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
+                    helper: publicActiveReports.length === publicActiveLocationCount
+                        ? 'Verified in community'
+                        : `Across ${publicActiveLocationCount} map locations`,
+                    icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
+                    panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
+                    records: publicActiveReports,
+                    // 'incidents' shows the same active report set as 'all' but
+                    // suppresses the hazard layer, isolating incident pins.
+                    mapFilter: 'incidents',
+                    emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
+                    statusDot: 'bg-blue-500',
+                },
+                {
+                    id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
+                    helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
+                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
+                    records: activeResponseReports,
+                    mapFilter: 'responding',
+                    emptyTitle: 'No active responses',
+                    emptyDescription: 'No public incidents are currently in active response.',
+                    statusDot: 'bg-cyan-500',
+                },
+                {
+                    id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
+                    helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
+                    panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
+                    records: transferredReports,
+                    mapFilter: 'transferred',
+                    emptyTitle: 'No transferred incidents',
+                    emptyDescription: 'No public incidents are currently transferred to another area.',
+                    statusDot: 'bg-violet-500',
+                },
+                {
+                    id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
+                    helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
+                    panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
+                    loading: highRiskZonesLoading, error: highRiskZonesError,
+                    statusDot: 'bg-red-500',
+                },
+            ];
+
+    // Reporters share the public metrics plus an unverified community watch
+    // card. Guests keep the publishable-only set (they never receive pending).
+    const reporterMetrics = [
+        {
+            id: 'reporter-pending', label: 'Pending review', value: reporterPendingReports.length,
+            helper: 'Unverified community reports', icon: HiOutlineClock, panelType: 'incidents',
+            panelTitle: 'Pending review', panelDescription: `${reporterPendingReports.length} unverified ${reporterPendingReports.length === 1 ? 'report' : 'reports'} awaiting verification`,
+            records: reporterPendingReports,
+            mapFilter: 'pending',
+            emptyTitle: 'No pending reports',
+            emptyDescription: 'No community reports are currently awaiting verification.',
+            statusDot: 'bg-amber-500',
+        },
+        ...publicMetrics,
+    ];
 
     const metrics = isResponder
         ? [
@@ -452,49 +529,9 @@ const DashboardMapWorkspace = ({
                 },
             ]
 
-            : [
-                {
-                    id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
-                    helper: publicActiveReports.length === publicActiveLocationCount
-                        ? 'Verified in community'
-                        : `Across ${publicActiveLocationCount} map locations`,
-                    icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
-                    panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
-                    records: publicActiveReports,
-                    // 'incidents' shows the same active report set as 'all' but
-                    // suppresses the hazard layer, isolating incident pins.
-                    mapFilter: 'incidents',
-                    emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
-                    statusDot: 'bg-blue-500',
-                },
-                {
-                    id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
-                    helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
-                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
-                    records: activeResponseReports,
-                    mapFilter: 'responding',
-                    emptyTitle: 'No active responses',
-                    emptyDescription: 'No public incidents are currently in active response.',
-                    statusDot: 'bg-cyan-500',
-                },
-                {
-                    id: 'public-transferred', label: 'Transferred', value: transferredReports.length,
-                    helper: 'Forwarded to another area', icon: HiOutlineExclamation, panelType: 'incidents',
-                    panelTitle: 'Transferred incidents', panelDescription: `${transferredReports.length} transferred ${transferredReports.length === 1 ? 'incident' : 'incidents'}`,
-                    records: transferredReports,
-                    mapFilter: 'transferred',
-                    emptyTitle: 'No transferred incidents',
-                    emptyDescription: 'No public incidents are currently transferred to another area.',
-                    statusDot: 'bg-violet-500',
-                },
-                {
-                    id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
-                    helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
-                    panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
-                    loading: highRiskZonesLoading, error: highRiskZonesError,
-                    statusDot: 'bg-red-500',
-                },
-            ];
+            : isReporter
+                ? reporterMetrics
+                : publicMetrics;
 
     const activeOverviewMetric = metrics.find(
         (metric) => `${OVERVIEW_PANEL_PREFIX}${metric.id}` === mapSummaryPanel,
@@ -705,6 +742,13 @@ const DashboardMapWorkspace = ({
                 </div>
             )}
 
+            {focusedReportMissing && !focusedReport && (
+                <section className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30" role="alert" aria-label="Selected incident unavailable">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Selected incident unavailable</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-200">It may have been removed or you may not have access. Showing the latest map instead.</p>
+                </section>
+            )}
+
             {focusedReport && (
                 <section className="flex flex-col gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/5" aria-label="Focused incident context">
                     <div className="min-w-0">
@@ -881,7 +925,6 @@ const DashboardMapWorkspace = ({
                         viewer={user}
                         showDataState
                         enable3D
-                        showDesktopLegend={false}
                         pulseReportIds={pulseReportIds}
                     />
                     {hasSummaryPanel && (
@@ -995,7 +1038,7 @@ const DashboardMapWorkspace = ({
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}

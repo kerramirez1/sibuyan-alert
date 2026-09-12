@@ -4,7 +4,8 @@ import { getMapExperience } from '../config/mapExperience';
 describe('shared role-aware map experience', () => {
     test.each([
         ['guest', undefined, false, false],
-        ['reporter', 'reporter', false, true],
+        // Reporters see community pending pins (read-only); actions stay closed.
+        ['reporter', 'reporter', true, true],
         ['admin', 'municipal_admin', true, false],
         ['responder', 'responder', true, false],
     ])('configures the %s mode without expanding permissions', (mode, role, showPendingReports, showSubmitReport) => {
@@ -26,7 +27,7 @@ describe('shared role-aware map experience', () => {
         expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
         expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
         expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
-        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
 
         expect(responder.filterMode).toBe('response');
         expect(admin.filterMode).toBe('review');
