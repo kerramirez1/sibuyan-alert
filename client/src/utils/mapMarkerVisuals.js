@@ -16,6 +16,25 @@ export const STATUS_PIN_PALETTES = Object.freeze({
 });
 
 /**
+ * Darkens (negative percent) or lightens a #rrggbb hex toward black/white.
+ * Used to derive the pin gradient's lower tone from an explicit override
+ * color so unified pins never mix hues (e.g. blue top + purple bottom).
+ */
+export const shadeHexColor = (hex, percent = -14) => {
+    if (typeof hex !== 'string') return hex;
+    const match = hex.trim().match(/^#([0-9a-f]{6})$/i);
+    if (!match) return hex;
+    const amount = Math.max(-100, Math.min(100, Number(percent) || 0)) / 100;
+    const num = parseInt(match[1], 16);
+    const target = amount < 0 ? 0 : 255;
+    const blend = (channel) => Math.round(channel + (target - channel) * Math.abs(amount));
+    const r = blend((num >> 16) & 255);
+    const g = blend((num >> 8) & 255);
+    const b = blend(num & 255);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+};
+
+/**
  * Center glyph for the teardrop pin head — white dot for incidents,
  * white exclamation for hazard zones so the two never read the same.
  */
@@ -38,13 +57,15 @@ export const getStatusIconInnerSvg = (status) => {
 export const getMapPinSvg = ({
     status = 'default',
     color = null,
-    width = 20,
-    height = 28,
+    width = 16,
+    height = 22,
 } = {}) => {
     const palette = STATUS_PIN_PALETTES[status]
         || (color ? { base: color, dark: color } : STATUS_PIN_PALETTES.default);
     const base = color || palette.base;
-    const dark = palette.dark || base;
+    // Explicit override colors derive their own lower tone so unified pins
+    // never mix hues (blue base must not fall back to a purple palette dark).
+    const dark = color ? shadeHexColor(color) : (palette.dark || base);
     const safeId = (status || 'pin').replace(/[^a-z0-9]/gi, '') + (base || '').replace(/[^a-z0-9]/gi, '');
     const gradId = `mp-${safeId}`;
     const icon = getStatusIconInnerSvg(status);
@@ -69,7 +90,7 @@ export const getMapPinSvg = ({
 /**
  * Standard operational incident marker SVG.
  */
-export const getOperationalMarkerSvg = (status, color, { width = 20, height = 28 } = {}) => {
+export const getOperationalMarkerSvg = (status, color, { width = 16, height = 22 } = {}) => {
     const effectiveColor = color || MAP_STATUS_CONFIG[status]?.markerColor || MAP_STATUS_CONFIG.verified.markerColor;
     return getMapPinSvg({ status, color: effectiveColor, width, height });
 };
@@ -77,14 +98,14 @@ export const getOperationalMarkerSvg = (status, color, { width = 20, height = 28
 /**
  * High-risk hazard zone marker SVG — same pin shape, risk-red.
  */
-export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, { width = 20, height = 28 } = {}) => (
+export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, { width = 16, height = 22 } = {}) => (
     getMapPinSvg({ status: 'risk', color, width, height })
 );
 
 /**
  * Draggable selected-location marker SVG.
  */
-export const getSelectedLocationMarkerSvg = ({ width = 20, height = 28 } = {}) => (
+export const getSelectedLocationMarkerSvg = ({ width = 16, height = 22 } = {}) => (
     getMapPinSvg({ status: 'selected', color: '#EF4444', width, height })
 );
 
@@ -97,7 +118,7 @@ export const createOperationalMarkerElement = ({
     markerColor,
 }) => {
     const el = document.createElement('div');
-    el.className = 'report-marker';
+    el.className = `report-marker${report?.status === 'responding' ? ' report-marker--responding' : ''}`;
     el.style.cursor = 'pointer';
     el.style.zIndex = report?.status === 'pending' ? '2' : '1';
     el.setAttribute('role', 'button');
@@ -121,14 +142,14 @@ export const createOperationalMarkerElement = ({
     const markerSvg = getOperationalMarkerSvg(report?.status, markerColor);
 
     el.innerHTML = `
-        <div style="position:relative;width:24px;height:30px;display:flex;align-items:flex-end;justify-content:center;">
-            ${isResponding ? '<span class="report-marker__pulse" aria-hidden="true"></span>' : ''}
+        <div style="position:relative;width:20px;height:24px;display:flex;align-items:flex-end;justify-content:center;">
+            ${isResponding ? '<span class="report-marker__pulse" aria-hidden="true"></span><span class="report-marker__pulse report-marker__pulse--delayed" aria-hidden="true"></span>' : ''}
             ${markerSvg}
             ${groupedReports.length > 1 ? `
                 <span style="
                     position:absolute;
-                    right:-5px;
-                    top:-4px;
+                    right:-6px;
+                    top:-5px;
                     min-width:16px;
                     height:16px;
                     padding:0 3px;
@@ -167,7 +188,7 @@ export const createRiskZoneMarkerElement = ({ zone, color }) => {
     const markerSvg = getRiskZoneMarkerSvg(color);
 
     el.innerHTML = `
-        <div style="position:relative;width:24px;height:30px;display:flex;align-items:flex-end;justify-content:center;">
+        <div style="position:relative;width:20px;height:24px;display:flex;align-items:flex-end;justify-content:center;">
             ${markerSvg}
         </div>
     `;

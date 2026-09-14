@@ -1,3 +1,56 @@
+export const getReportOwnerId = (report) => {
+    const owner = report?.reporter;
+    const rawId = (owner && typeof owner === 'object' ? owner._id ?? owner.id : owner)
+        ?? report?.reporterId ?? report?.ownerId ?? null;
+    if (rawId && typeof rawId === 'object') {
+        return rawId.$oid ? String(rawId.$oid) : null;
+    }
+    return rawId === null || rawId === undefined ? null : String(rawId);
+};
+
+export const isOwnedByUser = (report, userId) => {
+    if (!report || !userId) return false;
+    if (report.isOwnedByCurrentUser === true) return true;
+    const ownerId = getReportOwnerId(report);
+    return Boolean(ownerId && String(ownerId) === String(userId));
+};
+
+export const countOwnedReports = (reports = [], userId) => {
+    if (!Array.isArray(reports) || !userId) return 0;
+    const normalized = String(userId);
+    return reports.filter((report) => isOwnedByUser(report, normalized)).length;
+};
+
+/**
+ * Builds reporter-friendly copy for the Pending review card that separates
+ * the viewer's own reports from the wider community queue.
+ */
+export const buildReporterPendingSummary = ({ total = 0, owned = 0 } = {}) => {
+    const safeTotal = Number.isFinite(Number(total)) ? Number(total) : 0;
+    const safeOwned = Number.isFinite(Number(owned)) ? Math.min(Number(owned), safeTotal) : 0;
+    const community = safeTotal - safeOwned;
+    if (safeTotal === 0) {
+        return {
+            helper: 'Nothing waiting — submit the first report',
+            description: 'No community reports are currently awaiting verification.',
+        };
+    }
+    if (safeOwned > 0) {
+        const ownLabel = `${safeOwned} yours`;
+        const communityLabel = community > 0
+            ? ` · ${community} community`
+            : ' · all yours';
+        return {
+            helper: `${ownLabel}${communityLabel}`,
+            description: `${safeTotal} unverified ${safeTotal === 1 ? 'report' : 'reports'} awaiting verification (${safeOwned} yours)`,
+        };
+    }
+    return {
+        helper: 'Unverified community reports',
+        description: `${safeTotal} unverified ${safeTotal === 1 ? 'report' : 'reports'} awaiting verification`,
+    };
+};
+
 export const getDashboardReportId = (report) => {
     const rawId = report?._id ?? report?.id;
     // Extended-JSON object ids ({ $oid }) must not collapse to "[object Object]".

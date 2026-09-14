@@ -32,6 +32,27 @@ export const SIBUYAN_LOCATIONS = Object.freeze({
 export const SIBUYAN_MUNICIPALITY_NAMES = Object.freeze(Object.keys(SIBUYAN_LOCATIONS));
 
 /**
+ * Default map camera targets per municipality (lon/lat mirrored from
+ * server/seeds/municipalitySeed.js centers). Used to open the reporter map
+ * near the reporter's home municipality instead of the whole-island view.
+ */
+export const MUNICIPALITY_MAP_FOCUS = Object.freeze({
+    Cajidiocan: Object.freeze({ lat: 12.4044, lng: 122.6897, zoom: 12 }),
+    Magdiwang: Object.freeze({ lat: 12.4778, lng: 122.5097, zoom: 12 }),
+    'San Fernando': Object.freeze({ lat: 12.3536, lng: 122.5469, zoom: 12 }),
+});
+
+/**
+ * Returns a MapView-compatible focus target for a municipality, or null when
+ * unknown so callers fall back to the island-wide camera.
+ */
+export const getMunicipalityMapFocus = (municipality) => {
+    if (!municipality || typeof municipality !== 'string') return null;
+    const focus = MUNICIPALITY_MAP_FOCUS[municipality.trim()];
+    return focus ? { ...focus } : null;
+};
+
+/**
  * Returns sorted official barangays for a municipality or all distinct barangays across Sibuyan Island.
  * @param {string} municipality - Municipality name or 'all'
  * @returns {string[]} Alphabetically sorted array of barangay names

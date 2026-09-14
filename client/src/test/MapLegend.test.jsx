@@ -13,13 +13,16 @@ describe('MapLegend', () => {
         expect(MAP_STATUS_CONFIG.rejected.markerColor).toBe('#64748B');
     });
 
-    test('shows only public active statuses when pending reports are hidden', () => {
+    test('shows a single unified active entry on the public map', () => {
         render(<MapLegend />);
 
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
-        expect(screen.getByText('Verified')).toBeInTheDocument();
-        expect(screen.getByText('Transferred')).toBeInTheDocument();
-        expect(screen.getByText('Responding')).toBeInTheDocument();
+        // Reporter/guest map collapses verified/transferred/responding into
+        // one blue pin; motion (pulse) alone marks responding.
+        expect(screen.getByText('Active incident')).toBeInTheDocument();
+        expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+        expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
     });
 
@@ -87,8 +90,7 @@ describe('MapLegend', () => {
         render(<MapLegend filterStatus="incidents" />);
 
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
-        expect(screen.getByText('Verified')).toBeInTheDocument();
-        expect(screen.getByText('Responding')).toBeInTheDocument();
+        expect(screen.getByText('Active incident')).toBeInTheDocument();
     });
 
     test('shows only high-risk zone for the risk-zones filter', () => {

@@ -675,15 +675,63 @@
 
 .report-marker__pulse {
   position: absolute;
-  top: -3px;
-  left: -1px;
-  width: 24px;
-  height: 24px;
+  top: -6px;
+  left: -5px;
+  width: 30px;
+  height: 30px;
   border-radius: 9999px;
-  background-color: rgba(8, 145, 178, 0.4);
-  animation: operationalMarkerPulse 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  background-color: rgba(37, 99, 235, 0.35);
+  border: 3px solid rgba(147, 197, 253, 0.95);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px rgba(37, 99, 235, 1);
+  animation: respondingPulse 1s ease-out infinite;
   pointer-events: none;
   z-index: 0;
+}
+
+/* Second ripple, half a cycle behind: there is always a visible ring, so the
+   responding state never depends on catching a single pulse mid-flight. */
+.report-marker__pulse--delayed {
+  animation-delay: 0.5s;
+}
+
+/* Dedicated 1s responding sweep: fully visible blue expansion with no dead
+   transparent tail, so a pulse fires every second on the map. Kept separate
+   from operationalMarkerPulse (one-shot red fresh-event ring) on purpose. */
+@keyframes respondingPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Responding pins keep a constant halo so the state reads even in a static
+   frame or mid-cycle when the expanding ring is transparent. Motion-blind
+   safe: no animation dependency. */
+.report-marker--responding {
+  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 1)) drop-shadow(0 0 34px rgba(37, 99, 235, 0.9)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+}
+
+/* Beacon: the responding pin hops and flares every second — motion plus glow,
+   impossible to mistake for a static ordinary pin. Runs alongside the twin
+   ripple rings for a triple cue (hop + glow + ripples). */
+@keyframes respondingBeacon {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1) drop-shadow(0 0 2px rgba(37, 99, 235, 0.55));
+  }
+  50% {
+    transform: translateY(-5px) scale(1.14);
+    filter: brightness(1.4) drop-shadow(0 0 20px rgba(96, 165, 250, 1)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.95)) drop-shadow(0 0 5px rgba(255, 255, 255, 1));
+  }
+}
+
+.report-marker--responding svg {
+  animation: respondingBeacon 1s ease-in-out infinite;
+  transform-origin: 50% 100%;
 }
 
 /* Fresh-event pulse: temporary red ring on markers touched by the latest
@@ -751,9 +799,12 @@
   .zone-marker {
     transition: none !important;
   }
-  .report-marker__pulse {
+.report-marker__pulse {
     animation: none !important;
     display: none !important;
+  }
+  .report-marker--responding svg {
+    animation: none !important;
   }
   .report-marker.map-marker--fresh::after {
     animation: none !important;

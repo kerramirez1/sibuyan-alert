@@ -49,6 +49,20 @@ export const MAP_STATUS_CONFIG = Object.freeze({
     }),
 });
 
+/**
+ * Unified public active-incident presentation (reporter/guest map).
+ * Verified, transferred, and responding pins share one blue so reporters
+ * read a single "being handled" state; motion (pulse) alone marks the
+ * responding pin. Operational roles keep per-status colors.
+ */
+export const ACTIVE_INCIDENT_STATUS_KEY = 'active';
+
+export const MAP_ACTIVE_INCIDENT_CONFIG = Object.freeze({
+    label: 'Active incident',
+    markerColor: '#2563EB',
+    dot: 'bg-blue-500',
+});
+
 export const MAP_RISK_ZONE_CONFIG = Object.freeze({
     label: 'High-risk zone',
     markerColor: '#DC2626',
@@ -92,13 +106,18 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         if (filterStatus === 'pending') {
             return showPending ? ['pending'] : [];
         }
+        // Reporter "Active incidents" tab collapses the three operational
+        // states into one legend entry; motion (pulse) marks responding.
+        if (filterStatus === 'active' || filterStatus === 'incidents') {
+            return [ACTIVE_INCIDENT_STATUS_KEY];
+        }
         if (MAP_STATUS_CONFIG[filterStatus]) {
             return [filterStatus];
         }
     }
 
     if (filterMode === 'public') {
-        return ['verified', 'transferred', 'responding'];
+        return [ACTIVE_INCIDENT_STATUS_KEY];
     }
 
     return ACTIVE_MAP_STATUS_KEYS.filter((status) => (showPending || status !== 'pending') && status !== 'resolved');

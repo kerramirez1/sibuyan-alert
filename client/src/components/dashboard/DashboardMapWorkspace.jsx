@@ -34,6 +34,8 @@ import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
+import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
+import { buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
 
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
 const MAP_SUMMARY_PANEL_ID = 'dashboard-map-summary-panel';
@@ -56,7 +58,7 @@ const EmptyState = ({ title, description }) => (
     </div>
 );
 
-const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, canLocate, onInspect }) => {
+const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, canLocate, onInspect, currentUserId = null, showOwnershipBadge = false }) => {
     const safeReports = toSafeArray(reports);
     if (safeReports.length === 0) {
         return <EmptyState title={emptyTitle} description={emptyDescription} />;
@@ -66,17 +68,34 @@ const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, ca
         <div className="divide-y divide-gray-100 dark:divide-white/5">
             {safeReports.map((report, index) => {
                 const status = STATUS_CONFIG[report?.status] || STATUS_CONFIG.pending;
+                // MVP reporter-friendly: "Transferred" is operational jargon.
+                // Reporters see "Coordinated" with the same dot color.
+                const isTransferred = report?.status === 'transferred';
+                const statusLabel = showOwnershipBadge && isTransferred ? 'Coordinated' : status.label;
                 const coordinates = getMapCoordinates(report);
                 const locateAvailable = Boolean(coordinates && onLocate && (!canLocate || canLocate(report)));
                 const location = report?.address || report?.title || report?.barangay || report?.municipalityName || 'Location unavailable';
+                const ownerId = report?.reporter && typeof report.reporter === 'object'
+                    ? report.reporter._id ?? report.reporter.id
+                    : report?.reporter ?? report?.reporterId ?? report?.ownerId ?? null;
+                const isOwned = showOwnershipBadge && Boolean(currentUserId && ownerId && String(ownerId) === String(currentUserId))
+                    || (showOwnershipBadge && report?.isOwnedByCurrentUser === true);
                 return (
                     <article key={getEntityKey(report, `report-${index}`)} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
-                                {location}
+                            <h3 className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
+                                <span className="min-w-0 break-words">{location}</span>
+                                {isOwned && (
+                                    <span className="inline-flex shrink-0 items-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800 dark:bg-brand-500/15 dark:text-sky-300">
+                                        Yours
+                                    </span>
+                                )}
                             </h3>
                             <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300 break-words leading-normal">
-                                {formatIncidentType(report)} <span aria-hidden="true">·</span> {status.label}
+                                {formatIncidentType(report)} <span aria-hidden="true">·</span> {statusLabel}
+                                {showOwnershipBadge && isTransferred && (
+                                    <span className="font-normal text-gray-500 dark:text-gray-400"> · still being handled</span>
+                                )}
                             </p>
                             <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 break-words leading-normal">
                                 {getPhysicalMunicipality(report) || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
@@ -242,6 +261,11 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
             </span>
             <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 dark:text-gray-600" aria-hidden="true" />
         </span>
+        {helper && (
+            <span className="mt-0.5 block truncate text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
+                {helper}
+            </span>
+        )}
         {/* Desktop: stacked card (unchanged) */}
         <span className="hidden w-full items-center gap-1.5 sm:flex">
             <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase whitespace-nowrap tracking-wide sm:text-[11px] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -253,6 +277,11 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
             {value}
         </span>
+        {helper && (
+            <span className="mt-0.5 hidden truncate text-[11px] font-normal text-gray-500 sm:block dark:text-gray-400" title={helper}>
+                {helper}
+            </span>
+        )}
     </button>
 );
 
@@ -271,6 +300,7 @@ const DashboardMapWorkspace = ({
     highRiskZonesLoading = false,
     highRiskZonesError = '',
     onRetryHighRiskZones,
+    reporterOverviewReports = [],
     reporterOverviewReportsLoading = false,
     onLoadReporterOverviewReports,
     focusLocation,
@@ -377,6 +407,41 @@ const DashboardMapWorkspace = ({
     const publicActiveReports = activeReports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
     const publicActiveLocationCount = groupReportsByMapLocation(publicActiveReports).length;
 
+    // Reporter home viewport: open near their municipality when there is no
+    // deep link or explicit focus, instead of the whole-island camera.
+    const currentUserId = user?._id ?? user?.id ?? null;
+    const reporterHomeFocus = useMemo(() => {
+        if (!isReporter || focusLocation || focusedReport || focusedRiskZone) return null;
+        const home = getMunicipalityMapFocus(user?.assignedMunicipality);
+        if (!home) return null;
+        return { ...home, requestId: `reporter-home:${user.assignedMunicipality}` };
+    }, [isReporter, focusLocation, focusedReport, focusedRiskZone, user?.assignedMunicipality]);
+    const effectiveFocusLocation = focusLocation ?? reporterHomeFocus;
+
+    // Reporter ownership: prefer the loaded My Reports overview (source of
+    // truth for "yours"), fall back to ownership flags on map rows.
+    const reporterOwnedPendingCount = useMemo(() => {
+        if (!isReporter) return 0;
+        const overviewPending = Array.isArray(reporterOverviewReports)
+            ? reporterOverviewReports.filter((report) => report?.status === 'pending')
+            : [];
+        if (overviewPending.length > 0 || reporterOverviewReportsLoading) {
+            return countOwnedReports(overviewPending.length > 0 ? overviewPending : reporterPendingReports, currentUserId);
+        }
+        return countOwnedReports(reporterPendingReports, currentUserId);
+    }, [isReporter, reporterOverviewReports, reporterOverviewReportsLoading, reporterPendingReports, currentUserId]);
+    const reporterPendingSummary = useMemo(() => buildReporterPendingSummary({
+        total: reporterPendingReports.length,
+        owned: reporterOwnedPendingCount,
+    }), [reporterPendingReports.length, reporterOwnedPendingCount]);
+    // Disambiguate the two numbers reporters kept confusing: the "All open"
+    // tab includes pending, while this card intentionally excludes it.
+    const publicActiveHelper = isReporter
+        ? 'Verified or being handled (excludes pending)'
+        : (publicActiveReports.length === publicActiveLocationCount
+            ? 'Verified, transferred, or responding'
+            : `Across ${publicActiveLocationCount} map locations`);
+
 
     const closeMapSummaryPanel = useCallback((options = {}) => {
         setSelectedActiveIncidentId('');
@@ -404,9 +469,7 @@ const DashboardMapWorkspace = ({
                     // Names the three statuses folded into this count so the
                     // number is never mistaken for verified-only. Transferred
                     // reports are included by design.
-                    helper: publicActiveReports.length === publicActiveLocationCount
-                        ? 'Verified, transferred, or responding'
-                        : `Across ${publicActiveLocationCount} map locations`,
+                    helper: publicActiveHelper,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
                     panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
                     records: publicActiveReports,
@@ -437,18 +500,48 @@ const DashboardMapWorkspace = ({
 
     // Reporters share the public metrics plus an unverified community watch
     // card. Guests keep the publishable-only set (they never receive pending).
+    // MVP: no subset-duplicate card. "Active response" is a subset of
+    // "Active incidents", so reporters get Pending / Active / Resolved / Risk
+    // (mutually exclusive) instead of Active + Active response side by side.
+    const reporterResolvedReports = allMappedReports.filter((report) => report?.status === 'resolved');
+    const reporterActivePanelDescription = `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} being handled now (excludes pending)`;
     const reporterMetrics = [
         {
             id: 'reporter-pending', label: 'Pending review', value: reporterPendingReports.length,
-            helper: 'Unverified community reports', icon: HiOutlineClock, panelType: 'incidents',
-            panelTitle: 'Pending review', panelDescription: `${reporterPendingReports.length} unverified ${reporterPendingReports.length === 1 ? 'report' : 'reports'} awaiting verification`,
+            helper: reporterPendingSummary.helper, icon: HiOutlineClock, panelType: 'incidents',
+            panelTitle: 'Pending review', panelDescription: reporterPendingSummary.description,
             records: reporterPendingReports,
             mapFilter: 'pending',
             emptyTitle: 'No pending reports',
             emptyDescription: 'No community reports are currently awaiting verification.',
             statusDot: 'bg-amber-500',
         },
-        ...publicMetrics,
+        {
+            id: 'reporter-active', label: 'Active incidents', value: publicActiveReports.length,
+            helper: 'Being handled now (excludes pending)', icon: HiOutlineCheckCircle, panelType: 'incidents',
+            panelTitle: 'Active incidents', panelDescription: reporterActivePanelDescription,
+            records: publicActiveReports,
+            mapFilter: 'active',
+            emptyTitle: 'No active incidents', emptyDescription: 'No verified or handled incidents are currently active.',
+            statusDot: 'bg-blue-500',
+        },
+        {
+            id: 'reporter-resolved', label: 'Resolved', value: reporterResolvedReports.length,
+            helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
+            panelTitle: 'Resolved incidents', panelDescription: `${reporterResolvedReports.length} ${reporterResolvedReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
+            records: reporterResolvedReports,
+            mapFilter: 'resolved',
+            emptyTitle: 'No resolved incidents',
+            emptyDescription: 'No resolved incidents yet.',
+            statusDot: 'bg-emerald-500',
+        },
+        {
+            id: 'reporter-risk-zones', label: 'Risk zones', value: highRiskZones.length,
+            helper: 'Mapped hazards — stay cautious', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
+            panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
+            loading: highRiskZonesLoading, error: highRiskZonesError,
+            statusDot: 'bg-red-500',
+        },
     ];
 
     const metrics = isResponder
@@ -827,15 +920,24 @@ const DashboardMapWorkspace = ({
                                     aria-label="Map status filter"
                                     role="group"
                                 >
-                                    {mapExperience.filters.map((filter) => {
+                                    {(isReporter
+                                        ? mapExperience.filters.filter((f) => ['all', 'pending', 'active'].includes(f.value))
+                                        : mapExperience.filters
+                                    ).map((filter) => {
                                         const count = getFilterCount(filter.value);
                                         const isSelected = responderMapFilter === filter.value;
                                         const statusCfg = filter.value === 'risk-zones'
                                             ? { dot: 'bg-red-500' }
-                                            : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
+                                            : filter.value === 'active'
+                                                ? { dot: 'bg-blue-500' }
+                                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
                                         const isRiskZoneTab = filter.value === 'risk-zones';
                                         const tooltip = filter.value === 'all'
-                                            ? 'Active ongoing incidents'
+                                            ? (isReporter
+                                                ? 'All open reports (pending + being handled)'
+                                                : 'Active ongoing incidents')
+                                            : filter.value === 'active'
+                                                ? 'Verified or handled incidents (excludes pending)'
                                             : filter.value === 'risk-zones'
                                                 ? 'Mapped hazard and risk zones'
                                                 : filter.value === 'resolved'
@@ -869,6 +971,55 @@ const DashboardMapWorkspace = ({
                                             </Fragment>
                                         );
                                     })}
+                                    {isReporter && (() => {
+                                        const riskCount = getFilterCount('risk-zones');
+                                        const resolvedCount = getFilterCount('resolved');
+                                        const isRiskSelected = responderMapFilter === 'risk-zones';
+                                        const isResolvedSelected = responderMapFilter === 'resolved';
+                                        return (
+                                            <Fragment>
+                                                <span className="flex shrink-0 items-end gap-5 self-stretch border-l border-gray-200 pl-5 dark:border-white/10" role="group" aria-label="Layers and archive">
+                                                    <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 xl:inline dark:text-gray-500" aria-hidden="true">
+                                                        Layers &amp; archive
+                                                    </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResponderMapFilter(isRiskSelected ? 'all' : 'risk-zones')}
+                                                    aria-pressed={isRiskSelected}
+                                                    title="Toggle the mapped hazard layer"
+                                                    aria-label={`Risk zones layer (${riskCount} ${riskCount === 1 ? 'zone' : 'zones'})${isRiskSelected ? ', shown' : ''}`}
+                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isRiskSelected
+                                                        ? 'border-red-500 bg-red-50/70 font-semibold text-red-700 dark:border-red-500 dark:bg-white/5 dark:text-red-300'
+                                                        : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                                        }`}
+                                                >
+                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
+                                                    <span>Risk zones</span>
+                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                                        {riskCount}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResponderMapFilter('resolved')}
+                                                    aria-pressed={isResolvedSelected}
+                                                    title="View the resolved incident archive"
+                                                    aria-label={`Resolved archive (${resolvedCount} ${resolvedCount === 1 ? 'record' : 'records'})${isResolvedSelected ? ', selected' : ''}`}
+                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isResolvedSelected
+                                                        ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
+                                                        : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                                        }`}
+                                                >
+                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-600" aria-hidden="true" />
+                                                    <span>Resolved archive</span>
+                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                                        {resolvedCount}
+                                                    </span>
+                                                </button>
+                                                </span>
+                                            </Fragment>
+                                        );
+                                    })()}
                                 </div>
                             </>
                         );
@@ -891,7 +1042,7 @@ const DashboardMapWorkspace = ({
                         externalContextPanelOpen={Boolean(mapSummaryPanel)}
                         onEntityInspectorOpen={handleMapInspectorOpen}
                         className="h-full w-full"
-                        focusLocation={focusLocation}
+                        focusLocation={effectiveFocusLocation}
                         showPending={mapExperience.showPendingReports}
                         filterStatus={mapExperience.filters.length > 0 ? responderMapFilter : null}
                         filterMode={mapExperience.filterMode}
@@ -973,10 +1124,12 @@ const DashboardMapWorkspace = ({
                                     emptyDescription={activeOverviewMetric?.emptyDescription
                                         || (mapExperience.filters.length > 0 && responderMapFilter !== 'all'
                                             ? 'No incidents match the selected map filter.'
-                                            : 'There are no verified, transferred, or responding incidents on the map.')}
+                                            : 'There are no verified or handled incidents on the map.')}
                                     onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
                                     onLocate={locateActiveIncident}
                                     canLocate={canLocatePanelReport}
+                                    currentUserId={currentUserId}
+                                    showOwnershipBadge={isReporter}
                                 />
                             )}
                             {isRiskZoneSummaryPanel && selectedActiveRiskZone && (

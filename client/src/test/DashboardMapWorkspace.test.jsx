@@ -557,14 +557,14 @@ describe('DashboardMapWorkspace permissions', () => {
         renderWorkspace(createProps({ reports, mapSummaryPanel: 'incidents', setMapSummaryPanel, setResponderMapFilter }));
 
         expect(screen.getByText(/Vehicular/i)).toHaveTextContent(/Vehicular.*Verified/i);
-        expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Transferred/i);
+        expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Coordinated/i);
         expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Responding/i);
 
         fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-active');
-        // The Active incidents card isolates incident pins (hazard layer hidden),
-        // unlike the aggregate 'all' view which renders both layers.
-        expect(setResponderMapFilter).toHaveBeenCalledWith('incidents');
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:reporter-active');
+        // The Active incidents card filters to the pending-excluded active set,
+        // unlike the aggregate 'all' view which includes pending.
+        expect(setResponderMapFilter).toHaveBeenCalledWith('active');
     });
 
     test('keeps the guest map public and free of operational controls', () => {
@@ -733,7 +733,7 @@ describe('DashboardMapWorkspace permissions', () => {
             coordinates: { lat: 12.405, lng: 122.69 },
         };
         const props = createProps({ reports: [report], highRiskZones: [zone] });
-        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'overview:public-active' });
+        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'overview:reporter-active' });
 
         const incidentControl = screen.getByRole('button', { name: /View 1 active incidents/i });
         const riskZoneControl = screen.getByRole('button', { name: /View 1 risk zones/i });
@@ -744,7 +744,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:public-risk-zones" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:reporter-risk-zones" />
             </MemoryRouter>,
         );
 
@@ -1114,7 +1114,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(setResponderMapFilter).toHaveBeenCalledWith('transferred');
         });
 
-        test('2. Reporter user sees Transferred filter with exact count and can apply it in mobile filter sheet', () => {
+        test('2. Reporter user folds Transferred into All open (no separate tab)', () => {
             const setResponderMapFilter = vi.fn();
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
@@ -1131,14 +1131,17 @@ describe('DashboardMapWorkspace permissions', () => {
             const sheet = screen.getByRole('dialog', { name: /Map filters/i });
             expect(sheet).toBeInTheDocument();
 
-            const transferredRadio = within(sheet).getByRole('radio', { name: /^transferred$/i });
-            expect(transferredRadio).toBeInTheDocument();
-            expect(within(transferredRadio).getByText('2')).toBeInTheDocument();
+            // Operational jargon is intentionally hidden from reporters.
+            expect(within(sheet).queryByRole('radio', { name: /^transferred$/i })).not.toBeInTheDocument();
+            expect(within(sheet).queryByRole('radio', { name: /^verified$/i })).not.toBeInTheDocument();
+            // All open umbrella still counts the folded transferred rows.
+            const allOpenRadio = within(sheet).getByRole('radio', { name: /^all open$/i });
+            expect(allOpenRadio).toBeInTheDocument();
 
-            fireEvent.click(transferredRadio);
-            fireEvent.click(within(sheet).getByRole('button', { name: /Show 2 incidents/i }));
+            fireEvent.click(within(sheet).getByRole('radio', { name: /^pending review$/i }));
+            fireEvent.click(within(sheet).getByRole('button', { name: /Show \d+ incidents/i }));
 
-            expect(setResponderMapFilter).toHaveBeenCalledWith('transferred');
+            expect(setResponderMapFilter).toHaveBeenCalledWith('pending');
         });
 
         test('3. Passes transferred filterStatus to MapView and filters reports correctly', () => {
@@ -1156,6 +1159,39 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(mapProps.filterStatus).toBe('transferred');
             expect(mapProps.filterMode).toBe('public');
             expect(mapProps.reports).toEqual(publicReports);
+        });
+
+        test('4. Reporter desktop strip shows only status tabs plus separate layer/archive controls', () => {
+            const setResponderMapFilter = vi.fn();
+            renderWorkspace(createProps({
+                user: { _id: 'reporter-1', role: 'reporter' },
+                isAuthenticated: true,
+                isAdmin: false,
+                isReporter: true,
+                isResponder: false,
+                reports: publicReports,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            // Primary status tabs reconcile: All open = Pending + Active.
+            // Fixture: 0 pending + 4 active (1 verified + 2 transferred + 1 responding).
+            expect(screen.getByRole('button', { name: /All open filter \(4 records\)/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Pending review filter \(0 records\)/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Active incidents filter \(4 records\)/i })).toBeInTheDocument();
+            // Archive and hazard layer are separate controls, not status tabs.
+            expect(screen.queryByRole('button', { name: /Resolved filter/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Risk Zones filter/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Risk zones layer/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
+            // Secondary controls sit in a labeled group so they never read as status tabs.
+            expect(screen.getByRole('group', { name: /Layers and archive/i })).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: /Resolved archive/i }));
+            expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
+
+            fireEvent.click(screen.getByRole('button', { name: /Risk zones layer/i }));
+            expect(setResponderMapFilter).toHaveBeenCalledWith('risk-zones');
         });
     });
 

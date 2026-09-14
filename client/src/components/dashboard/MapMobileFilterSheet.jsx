@@ -19,6 +19,7 @@ const FOCUSABLE_SELECTOR = [
 const getStatusDotClass = (filterValue) => {
     if (filterValue === 'risk-zones') return 'bg-red-500';
     if (filterValue === 'all') return 'bg-emerald-500';
+    if (filterValue === 'active') return 'bg-blue-500';
     return MAP_STATUS_CONFIG[filterValue]?.dot || 'bg-gray-400';
 };
 
@@ -122,9 +123,7 @@ const MapMobileFilterSheet = ({
     const activeCount = getFilterCount(pendingFilter);
     const summaryText = pendingFilter === 'risk-zones'
         ? `Showing risk zones · ${activeCount} ${activeCount === 1 ? 'mapped zone' : 'mapped zones'}`
-        : pendingFilter === 'all'
-            ? `Showing active incidents · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`
-            : `Showing ${activeLabel.toLowerCase()} · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
+        : `Showing ${activeLabel.toLowerCase()} · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
 
     // Compute Apply button label
     const applyLabel = pendingFilter === 'risk-zones'
@@ -211,7 +210,9 @@ const MapMobileFilterSheet = ({
                                                 {scopeOption?.label || 'Active Incidents'}
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
-                                                Verified, responding, and active emergency operations
+                                                {scopeOption?.label === 'All open'
+                                                    ? 'Pending + being handled'
+                                                    : 'Verified, responding, and active emergency operations'}
                                             </span>
                                         </div>
                                     </div>

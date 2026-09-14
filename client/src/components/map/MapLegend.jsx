@@ -3,12 +3,14 @@ import { HiChevronDown, HiOutlineMap } from 'react-icons/hi';
 import {
     getMapLegendStatusKeys,
     isRiskZoneLayerVisibleForFilter,
+    MAP_ACTIVE_INCIDENT_CONFIG,
     MAP_RISK_ZONE_CONFIG,
     MAP_STATUS_CONFIG,
 } from '../../config/mapVisuals';
 
 const LEGEND_RING_CLASSES = {
     risk: 'ring-red-200 dark:ring-red-900',
+    active: 'ring-blue-200 dark:ring-blue-900',
     pending: 'ring-amber-200 dark:ring-amber-900',
     verified: 'ring-blue-200 dark:ring-blue-900',
     transferred: 'ring-violet-200 dark:ring-violet-900',
@@ -52,7 +54,9 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
                 </div>
             )}
             {statusKeys.map((status) => {
-                const config = MAP_STATUS_CONFIG[status];
+                const config = MAP_STATUS_CONFIG[status]
+                    || (status === 'active' ? MAP_ACTIVE_INCIDENT_CONFIG : null);
+                if (!config) return null;
                 return (
                     <div key={status} className={itemClass}>
                         <LegendSymbol status={status} color={config.markerColor} />

@@ -6,6 +6,7 @@ import {
     getMapPinSvg,
     createOperationalMarkerElement,
     createRiskZoneMarkerElement,
+    shadeHexColor,
     STATUS_PIN_PALETTES,
 } from '../utils/mapMarkerVisuals';
 import { MAP_STATUS_CONFIG, MAP_RISK_ZONE_CONFIG } from '../config/mapVisuals';
@@ -80,11 +81,46 @@ describe('mapMarkerVisuals', () => {
             markerColor: '#0891B2',
         });
 
-        expect(el.className).toBe('report-marker');
+        expect(el.className).toContain('report-marker');
+        expect(el.className).toContain('report-marker--responding');
         expect(el.getAttribute('role')).toBe('button');
         expect(el.getAttribute('tabindex')).toBe('0');
         expect(el.getAttribute('aria-label')).toBe('Motorcycle collision map marker');
         expect(el.innerHTML).toContain('report-marker__pulse');
+        expect(el.innerHTML).not.toContain('report-marker__halo');
+    });
+
+    test('non-responding pins carry no responding halo or pulse', () => {
+        const report = { id: 'rep-2', status: 'verified', title: 'Incident V' };
+
+        const el = createOperationalMarkerElement({
+            report,
+            groupedReports: [report],
+            markerColor: '#2563EB',
+        });
+
+        expect(el.className).toBe('report-marker');
+        expect(el.innerHTML).not.toContain('report-marker__pulse');
+    });
+
+    test('shadeHexColor derives a same-hue lower tone and passes through bad input', () => {
+        const shaded = shadeHexColor('#2563EB');
+        expect(shaded).toMatch(/^#[0-9A-F]{6}$/);
+        expect(shaded).not.toBe('#2563EB');
+        // Same hue family: blue stays dominant.
+        const r = parseInt(shaded.slice(1, 3), 16);
+        const b = parseInt(shaded.slice(5, 7), 16);
+        expect(b).toBeGreaterThan(r);
+        expect(shadeHexColor('not-a-color')).toBe('not-a-color');
+        expect(shadeHexColor(null)).toBe(null);
+    });
+
+    test('explicit override colors never leak another status hue into the gradient', () => {
+        // Unified public pin: transferred status painted verified-blue must be
+        // blue top-to-bottom, not blue over the transferred purple dark tone.
+        const svg = getOperationalMarkerSvg('transferred', '#2563EB');
+        expect(svg).toContain('#2563EB');
+        expect(svg).not.toContain(STATUS_PIN_PALETTES.transferred.dark);
     });
 
     test('createOperationalMarkerElement attaches grouped count badge for multi-incident locations', () => {

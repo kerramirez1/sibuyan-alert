@@ -61,14 +61,23 @@ export const getFilteredMapReports = (reports = [], {
         return [];
     }
 
-    // 'all' and 'incidents' select the same active report set; they differ
-    // only in hazard-layer visibility, which isRiskZoneLayerVisibleForFilter
-    // resolves at the map/legend level ('incidents' suppresses hazard zones).
+    // 'all' and 'incidents' select the same open report set (pending +
+    // verified + transferred + responding); they differ only in hazard-layer
+    // visibility, which isRiskZoneLayerVisibleForFilter resolves at the
+    // map/legend level ('incidents' suppresses hazard zones).
+    // 'active' is the pending-excluded subset (verified + transferred +
+    // responding) so reporter tabs reconcile: All open = Pending + Active.
     if (!statusFilter || statusFilter === 'all' || statusFilter === 'incidents') {
         return categoryFilteredReports.filter((report) => (
             includePending
                 ? ['pending', 'verified', 'transferred', 'responding'].includes(report.status)
                 : ['verified', 'transferred', 'responding'].includes(report.status)
+        ));
+    }
+
+    if (statusFilter === 'active') {
+        return categoryFilteredReports.filter((report) => (
+            ['verified', 'transferred', 'responding'].includes(report.status)
         ));
     }
 

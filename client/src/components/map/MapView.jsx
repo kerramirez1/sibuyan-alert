@@ -724,6 +724,13 @@ const MapView = ({
         const map = mapInstanceRef.current;
 
         const getReportMarkerColor = (report) => {
+            // Public map (reporter/guest): verified, transferred, and
+            // responding share one blue "active" pin. Motion (pulse) alone
+            // marks the responding pin. Operational roles keep per-status
+            // colors for dispatch triage.
+            if (filterMode === 'public' && ['verified', 'transferred', 'responding'].includes(report.status)) {
+                return MAP_STATUS_CONFIG.verified.markerColor;
+            }
             if (MAP_STATUS_CONFIG[report.status]) return MAP_STATUS_CONFIG[report.status].markerColor;
             return INCIDENT_COLORS[report.incidentCategory] || MAP_STATUS_CONFIG.verified.markerColor;
         };
@@ -847,7 +854,7 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, filterMode, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
 
     // Fresh-event pulse: toggle the temporary ring on markers touched by the
     // latest socket events. Runs after the marker sync above (same deps plus

@@ -27,7 +27,11 @@ describe('shared role-aware map experience', () => {
         expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
         expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
         expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
-        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        // Reporter folds operational jargon (verified/transferred/responding)
+        // into a single "Active incidents" tab so counts reconcile with no
+        // hidden remainder: All open = Pending review + Active incidents.
+        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'active', 'resolved', 'risk-zones']);
+        expect(reporter.filters.find(({ value }) => value === 'all')?.label).toBe('All open');
 
         expect(responder.filterMode).toBe('response');
         expect(admin.filterMode).toBe('review');
