@@ -777,8 +777,109 @@
 .zone-marker.is-selected,
 .zone-marker.map-marker--selected {
   transform: scale(1.14) translateY(-3px);
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
   z-index: 20 !important;
+}
+
+/* Incident pins get a white kicker so selection reads against their
+   blue / amber / violet bodies. Hazard zones stay strictly monochromatic
+   red — their selection glow is red-tinted, never white. */
+.report-marker.is-selected {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+}
+
+.zone-marker.is-selected,
+.zone-marker.map-marker--selected {
+  filter: drop-shadow(0 0 7px rgba(220, 38, 38, 0.95)) drop-shadow(0 3px 7px rgba(127, 29, 29, 0.5));
+}
+
+/* ==========================================================================
+   High-risk zone radar marker
+   --------------------------------------------------------------------------
+   An infinite radar ripple: a stationary, 100% solid red core dot with pure
+   red waves radiating outwards. Strictly monochromatic red — no white border,
+   ring, stroke, or halo anywhere; the only shadow is a dark red tint.
+
+   Only `transform: scale()` and `opacity` are animated. Those two properties
+   are composited on the GPU, so the effect cannot repaint the map while it
+   pans or zooms. A permanent `will-change` hint is deliberately omitted: it
+   would cost one extra layer per wave per zone for no compositing benefit.
+   ========================================================================== */
+
+@keyframes zoneRadarRipple {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.5;
+  }
+
+  60% {
+    opacity: 0.28;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Reduced-motion counterpart to zoneRadarRipple: opacity only, no scale, so
+   there is no expanding motion to trigger vestibular discomfort. The peak is
+   driven per ring by --zone-breathe so the two rings keep their depth instead
+   of breathing as one flat disc. */
+@keyframes zoneRadarBreathe {
+  0%,
+  100% {
+    opacity: calc(var(--zone-breathe, 0.3) * 0.45);
+  }
+
+  50% {
+    opacity: var(--zone-breathe, 0.3);
+  }
+}
+
+.zone-marker__radar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+/* One wave: a pure red disc that grows outwards and fades to fully
+   transparent. `animation-delay` is written per wave from JS as a negative
+   value, so every ring starts part-way through its cycle. That stagger is what
+   makes the pulse seamless on the first frame and keeps it seamless forever
+   after — as one wave hits full scale at zero opacity, the next is already
+   expanding.
+
+   `will-change` is deliberate here: MapLibre rewrites the marker element's
+   transform on every map frame, which churns compositor layers. Pinning one
+   stable layer per wave keeps the ripple on the compositor instead of letting
+   it be dropped and re-attached mid-flight. The cost is one layer per wave per
+   zone, which is fine for the island-wide hazard set (single digits); revisit
+   if zone counts ever reach the hundreds. */
+.zone-marker__ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: var(--zone-radar-color, #dc2626);
+  transform-origin: 50% 50%;
+  animation: zoneRadarRipple var(--zone-radar-duration, 2.4s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* The stationary core: 100% solid red, no border, no outline, no white accent.
+   The single shadow is dark red-tinted purely for definition against bright
+   satellite imagery. */
+.zone-marker__core {
+  position: relative;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background-color: var(--zone-radar-color, #dc2626);
+  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.55);
 }
 
 .sibuyan-map-credit {
@@ -799,7 +900,7 @@
   .zone-marker {
     transition: none !important;
   }
-.report-marker__pulse {
+  .report-marker__pulse {
     animation: none !important;
     display: none !important;
   }
@@ -808,6 +909,28 @@
   }
   .report-marker.map-marker--fresh::after {
     animation: none !important;
+    display: none !important;
+  }
+  /* Radar marker under reduced motion.
+     The expanding scale animation is the part that triggers vestibular
+     discomfort, so it is removed and the rings are pinned at fixed sizes.
+     What remains is a slow opacity-only breathe, which stops a hazard zone
+     from reading as a dead static blob without any movement at all.
+
+     To go fully static instead, replace the first rule with
+     `animation: none !important` and delete the --zone-breathe declarations. */
+  .zone-marker__ripple {
+    animation: zoneRadarBreathe 3s ease-in-out infinite !important;
+  }
+  .zone-marker__ripple:nth-child(1) {
+    --zone-breathe: 0.26;
+    transform: scale(1);
+  }
+  .zone-marker__ripple:nth-child(2) {
+    --zone-breathe: 0.36;
+    transform: scale(0.6);
+  }
+  .zone-marker__ripple:nth-child(3) {
     display: none !important;
   }
   .overlay-fade-in,

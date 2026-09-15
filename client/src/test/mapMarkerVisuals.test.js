@@ -168,6 +168,52 @@ describe('mapMarkerVisuals', () => {
         expect(el.getAttribute('role')).toBe('button');
         expect(el.getAttribute('tabindex')).toBe('0');
         expect(el.getAttribute('aria-label')).toBe('Cambajao River Overflow map marker');
-        expect(el.innerHTML).toContain('<path'); // Teardrop silhouette
+        expect(el.innerHTML).toContain('zone-marker__radar');
+        expect(el.innerHTML).toContain('zone-marker__core');
+    });
+
+    test('zone marker core is pure red — no white border, ring, stroke, or halo', () => {
+        const el = createRiskZoneMarkerElement({
+            zone: { id: 'zone-2', name: 'Mount Guiting Ridge', type: 'landslide_prone' },
+            color: MAP_RISK_ZONE_CONFIG.markerColor,
+        });
+
+        expect(el.innerHTML).toContain(MAP_RISK_ZONE_CONFIG.markerColor);
+        // The previous teardrop hazard pin painted a white exclamation glyph
+        // inside a white-bordered silhouette. The radar core carries neither.
+        expect(el.innerHTML).not.toContain('white');
+        expect(el.innerHTML).not.toContain('#FFFFFF');
+        expect(el.innerHTML).not.toContain('#ffffff');
+        expect(el.innerHTML).not.toContain('stroke');
+        expect(el.innerHTML).not.toContain('<path');
+    });
+
+    test('zone marker renders at least two staggered waves so the pulse never blanks', () => {
+        const el = createRiskZoneMarkerElement({
+            zone: { id: 'zone-3', name: 'Cambajao River Overflow', type: 'flood_prone' },
+            color: MAP_RISK_ZONE_CONFIG.markerColor,
+        });
+
+        const delays = [...el.innerHTML.matchAll(/animation-delay:(-?[\d.]+)s/g)].map((match) => Number(match[1]));
+
+        expect(delays.length).toBeGreaterThanOrEqual(2);
+        // Distinct phases — identical delays would stack the rings into one.
+        expect(new Set(delays).size).toBe(delays.length);
+        // At least one wave starts at 0 and the rest start part-way through
+        // their cycle, so the radar is already mid-pulse on the first frame.
+        expect(delays).toContain(0);
+        delays.forEach((delay) => expect(delay).toBeLessThanOrEqual(0));
+        // The cycle length is handed to CSS as a variable, not baked into a
+        // class name, so the wave phase spacing always matches the animation.
+        expect(el.innerHTML).toContain('--zone-radar-duration:');
+        expect(el.innerHTML).toContain('--zone-radar-color:');
+    });
+
+    test('zone marker defaults to the hazard red when no color is supplied', () => {
+        const el = createRiskZoneMarkerElement({
+            zone: { id: 'zone-4', name: 'Unnamed zone', type: 'other' },
+        });
+
+        expect(el.innerHTML).toContain(MAP_RISK_ZONE_CONFIG.markerColor);
     });
 });

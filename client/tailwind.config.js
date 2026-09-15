@@ -126,6 +126,10 @@ export default {
                 'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
                 'gradient': 'gradient 8s ease infinite',
                 'shimmer': 'shimmer 2.5s ease-in-out infinite',
+                // High-risk zone marker ripple. The duration is read from a CSS
+                // variable so a React prop can retune it at runtime (Tailwind's
+                // JIT can only emit static arbitrary values).
+                'risk-ripple': 'riskRipple var(--risk-ripple-duration, 2s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite',
             },
             keyframes: {
                 slideIn: {
@@ -165,6 +169,14 @@ export default {
                 shimmer: {
                     '0%': { transform: 'translateX(-100%)' },
                     '100%': { transform: 'translateX(100%)' },
+                },
+                // One ripple wave: a filled red disc that grows outwards and
+                // fades to fully transparent. Staggering several of these with
+                // negative animation delays produces the continuous pulse.
+                riskRipple: {
+                    '0%': { transform: 'scale(0.32)', opacity: '0.85' },
+                    '70%': { opacity: '0.28' },
+                    '100%': { transform: 'scale(1)', opacity: '0' },
                 },
             },
             backgroundSize: {

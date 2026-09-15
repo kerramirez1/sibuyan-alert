@@ -97,6 +97,10 @@ export const getOperationalMarkerSvg = (status, color, { width = 16, height = 22
 
 /**
  * High-risk hazard zone marker SVG — same pin shape, risk-red.
+ *
+ * Retained for non-map surfaces that need a static zone glyph. The live map
+ * marker does NOT use this: `createRiskZoneMarkerElement` renders the animated
+ * pure-red radar instead (see below).
  */
 export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, { width = 16, height = 22 } = {}) => (
     getMapPinSvg({ status: 'risk', color, width, height })
@@ -173,9 +177,42 @@ export const createOperationalMarkerElement = ({
 };
 
 /**
- * Creates the HTML container element for high-risk hazard zones.
+ * Radar cycle length for high-risk zone markers, in seconds.
+ *
+ * Single source of truth: the same constant is written to the
+ * `--zone-radar-duration` CSS variable AND used to derive every wave's stagger
+ * offset, so the animation length and the phase spacing can never drift apart.
  */
-export const createRiskZoneMarkerElement = ({ zone, color }) => {
+const RISK_ZONE_RADAR_CYCLE_SECONDS = 2.4;
+
+/**
+ * Staggered waves radiating from a zone marker's core.
+ *
+ * Three waves offset by a third of the cycle each guarantee that at least one
+ * ring is always mid-expansion. As one wave reaches full scale at zero opacity
+ * the next is already growing, so the radar never shows a blank frame — not on
+ * the first paint, and not on any frame after it.
+ */
+const RISK_ZONE_RADAR_WAVES = 3;
+
+/**
+ * Creates the HTML container element for high-risk hazard zones.
+ *
+ * Renders an infinite radar ripple: a stationary, 100% solid red core dot with
+ * pure-red waves radiating outwards. Strictly monochromatic red — no white
+ * border, ring, stroke, or halo anywhere, so the hazard pin stays
+ * unmistakable against both the operational status pins (which own the
+ * blue / amber / violet / cyan / green palette) and the map imagery.
+ *
+ * Only `transform: scale()` and `opacity` are animated (see
+ * `.zone-marker__ripple` in `index.css`), so the effect is composited on the
+ * GPU and cannot stutter the map while panning or zooming.
+ *
+ * @param {object} [options]
+ * @param {object} [options.zone]  Zone record — only `name` reaches the DOM.
+ * @param {string} [options.color] Pure-red override; defaults to the zone red.
+ */
+export const createRiskZoneMarkerElement = ({ zone, color } = {}) => {
     const el = document.createElement('div');
     el.className = 'zone-marker';
     el.style.cursor = 'pointer';
@@ -185,11 +222,23 @@ export const createRiskZoneMarkerElement = ({ zone, color }) => {
     el.setAttribute('tabindex', '0');
     el.setAttribute('aria-label', `${zone?.name || 'Risk zone'} map marker`);
 
-    const markerSvg = getRiskZoneMarkerSvg(color);
+    const coreColor = color || MAP_RISK_ZONE_CONFIG.markerColor;
+
+    // Negative delays start each wave part-way through its cycle, so the ripple
+    // is already continuous on the very first frame instead of beginning with a
+    // single ring growing from nothing. Rounding keeps float noise (e.g.
+    // -1.5999999999999999s) out of the emitted CSS, and `|| 0` normalises the
+    // first wave's -0 to a plain 0.
+    const waves = Array.from({ length: RISK_ZONE_RADAR_WAVES }, (_, index) => {
+        const rawDelay = -((index * RISK_ZONE_RADAR_CYCLE_SECONDS) / RISK_ZONE_RADAR_WAVES);
+        const delay = Number(rawDelay.toFixed(3)) || 0;
+        return `<span class="zone-marker__ripple" aria-hidden="true" style="animation-delay:${delay}s"></span>`;
+    }).join('');
 
     el.innerHTML = `
-        <div style="position:relative;width:20px;height:24px;display:flex;align-items:flex-end;justify-content:center;">
-            ${markerSvg}
+        <div class="zone-marker__radar" style="--zone-radar-color:${coreColor};--zone-radar-duration:${RISK_ZONE_RADAR_CYCLE_SECONDS}s;">
+            ${waves}
+            <span class="zone-marker__core" aria-hidden="true"></span>
         </div>
     `;
 

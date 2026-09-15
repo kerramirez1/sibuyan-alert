@@ -903,10 +903,13 @@ const MapView = ({
                 }
                 const el = createRiskZoneMarkerElement({ zone, color });
 
+                // The radar marker is a symmetric dot rather than a teardrop
+                // pin, so it centres on the hazard coordinate — the stationary
+                // red core sits exactly where the zone is.
                 const marker = new maplibregl.Marker({
                     ...OPERATIONAL_MARKER_VISIBILITY,
                     element: el,
-                    anchor: 'bottom',
+                    anchor: 'center',
                 })
                     .setLngLat([coordinates.lng, coordinates.lat])
                     .addTo(map);
