@@ -73,9 +73,9 @@ const runTransaction = async (mode, work) => {
             wrapped.value.onsuccess = () => { requestResult = wrapped.value.result; };
         }
 
-        transaction.oncomplete = () => resolve(isRequest ? requestResult : wrapped);
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error);
+        transaction.oncomplete = () => resolve(isRequest ? (requestResult !== undefined ? requestResult : wrapped?.value?.result) : wrapped);
+        transaction.onerror = () => reject(transaction.error || new Error('IndexedDB transaction error'));
+        transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted'));
     });
 };
 
@@ -84,16 +84,23 @@ const requestValue = (request) => ({ __request: true, value: request });
 /**
  * Stores a report for later delivery.
  *
+ * @param {object} params
+ * @param {object} params.fields
+ * @param {Array<File|Blob>} [params.images=[]]
+ * @param {string} [params.clientReportId] - Optional existing idempotency key to preserve across network drops
  * @returns {Promise<Object|null>} the stored entry, or null when the device
  *   cannot persist (private mode, storage disabled) — the caller must then
  *   fall back to telling the user the report was not saved.
  */
-export const enqueueReport = async ({ fields, images = [] }) => {
+export const enqueueReport = async ({ fields, images = [], clientReportId }) => {
     if (!isOfflineQueueSupported()) return null;
 
     try {
+        const safeClientReportId = typeof clientReportId === 'string' && clientReportId.trim()
+            ? clientReportId.trim()
+            : createClientReportId();
         const entry = {
-            clientReportId: createClientReportId(),
+            clientReportId: safeClientReportId,
             fields,
             images,
             queuedAt: Date.now(),
@@ -111,7 +118,8 @@ export const enqueueReport = async ({ fields, images = [] }) => {
 export const listQueuedReports = async () => {
     if (!isOfflineQueueSupported()) return [];
     try {
-        return await runTransaction('readonly', (store) => requestValue(store.getAll()));
+        const queued = await runTransaction('readonly', (store) => requestValue(store.getAll()));
+        return Array.isArray(queued) ? queued : [];
     } catch {
         return [];
     }
@@ -120,7 +128,8 @@ export const listQueuedReports = async () => {
 export const countQueuedReports = async () => {
     if (!isOfflineQueueSupported()) return 0;
     try {
-        return await runTransaction('readonly', (store) => requestValue(store.count()));
+        const count = await runTransaction('readonly', (store) => requestValue(store.count()));
+        return typeof count === 'number' ? count : 0;
     } catch {
         return 0;
     }
@@ -157,20 +166,29 @@ const markAttempt = async (clientReportId, blockedReason) => {
 };
 
 /** Rebuilds the multipart body from a stored entry, including the idempotency key. */
-export const buildQueuedFormData = (entry) => {
+export const buildQueuedFormData = (entry = {}) => {
     const formData = new FormData();
 
-    for (const [key, value] of Object.entries(entry.fields || {})) {
+    for (const [key, value] of Object.entries(entry?.fields || {})) {
         if (value === undefined || value === null || value === '') continue;
+        if (typeof value === 'object' && !(value instanceof Blob) && !(value instanceof File)) {
+            for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                if (nestedValue === undefined || nestedValue === null || nestedValue === '') continue;
+                formData.append(`${key}[${nestedKey}]`, String(nestedValue));
+            }
+            continue;
+        }
         formData.append(key, String(value));
     }
 
-    (entry.images || []).forEach((image, index) => {
+    (entry?.images || []).forEach((image, index) => {
         if (!image) return;
         formData.append('images', image, image.name || `queued-${index}.jpg`);
     });
 
-    formData.append('clientReportId', entry.clientReportId);
+    if (entry?.clientReportId) {
+        formData.append('clientReportId', entry.clientReportId);
+    }
     return formData;
 };
 
@@ -183,7 +201,10 @@ export const buildQueuedFormData = (entry) => {
  * @param {Function} send - async (formData) => response
  */
 export const flushQueuedReports = async (send) => {
-    const queued = await listQueuedReports();
+    const queued = (await listQueuedReports()) || [];
+    if (typeof send !== 'function') {
+        return { sent: 0, failed: 0, blocked: 0, remaining: queued.length };
+    }
     const deliverable = queued.filter((entry) => !entry.blockedReason);
 
     const result = { sent: 0, failed: 0, blocked: 0, remaining: queued.length };
@@ -193,7 +214,6 @@ export const flushQueuedReports = async (send) => {
             await send(buildQueuedFormData(entry));
             await removeQueuedReport(entry.clientReportId);
             result.sent += 1;
-            result.remaining -= 1;
         } catch (error) {
             const status = error?.response?.status;
             if (status && status >= 400 && status < 500) {
@@ -208,7 +228,7 @@ export const flushQueuedReports = async (send) => {
         }
     }
 
-    result.remaining -= result.blocked;
+    result.remaining = queued.length - result.sent;
     return result;
 };
 

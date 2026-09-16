@@ -8,6 +8,7 @@ import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
 import { createClientReportId, enqueueReport } from '../utils/offlineReportQueue';
+import { useConnectivity } from '../hooks/useConnectivity';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -16,11 +17,13 @@ const LOCATION_TOAST_ID = 'location-acquisition';
 
 const ReportPage = () => {
     const navigate = useNavigate();
+    const { isOffline } = useConnectivity();
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
     // Idempotency key for the report currently being submitted. Held in a ref
     // so a retry, a duplicate confirmation, and an offline replay all reuse it.
     const pendingReportIdRef = useRef(null);
+    const [uploadProgress, setUploadProgress] = useState(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -528,8 +531,16 @@ const ReportPage = () => {
 
     const submitReport = async (options = {}) => {
         setLoading(true);
+        setUploadProgress({ percent: 0, loaded: 0, total: 0 });
         try {
-            await reportsAPI.create(buildSubmitData(options));
+            await reportsAPI.create(buildSubmitData(options), {
+                onUploadProgress: (progressEvent) => {
+                    const loaded = progressEvent.loaded || 0;
+                    const total = progressEvent.total || 0;
+                    const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
+                    setUploadProgress({ percent, loaded, total });
+                },
+            });
             pendingReportIdRef.current = null;
             toast.success('Accident report submitted successfully!');
             navigate('/my-reports');
@@ -548,23 +559,35 @@ const ReportPage = () => {
             }
         } finally {
             setLoading(false);
+            setUploadProgress(null);
         }
     };
 
-    const queueOfflineReport = async () => {
+    const queueOfflineReport = async (options = {}) => {
+        const reportId = pendingReportIdRef.current || createClientReportId();
         const queued = await enqueueReport({
+            clientReportId: reportId,
             fields: buildSubmitFields(),
             images,
         });
 
         if (queued) {
             pendingReportIdRef.current = null;
-            toast.success('You are offline. This report is saved on your device and will be sent automatically.');
+            toast.success(
+                options.isProactive
+                    ? 'Report saved to offline queue. It will sync automatically when online.'
+                    : 'You are offline. This report is saved on your device and will be sent automatically.'
+            );
             navigate('/my-reports');
             return;
         }
 
-        toast.error('You are offline and this device could not store the report. Please retry once you have signal.');
+        toast.error('Could not store report locally. Please retry once you have signal.');
+    };
+
+    const handleSaveOffline = async () => {
+        if (!validate()) return;
+        await queueOfflineReport({ isProactive: true });
     };
 
     const handleSubmit = async (e) => {
@@ -640,6 +663,9 @@ const ReportPage = () => {
                         removeImage={removeImage}
                         onRetakeImage={retakeImage}
                         loading={loading}
+                        uploadProgress={uploadProgress}
+                        onSaveOffline={handleSaveOffline}
+                        isOffline={isOffline}
                     />
                 </div>
             </form>

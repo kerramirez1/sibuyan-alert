@@ -82,14 +82,17 @@ describe('Evidence Image Compression & Validation Utility (evidenceImage.js)', (
 
         expect(result.file).toBeInstanceOf(File);
         expect(result.file.type).toBe('image/jpeg');
-        expect(result.width).toBe(MAX_OUTPUT_EDGE); // Scaled from 3200 to 1600
-        expect(result.height).toBe(1200); // 2400 * (1600/3200) = 1200
-        expect(mockContext.drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1600, 1200);
+        expect(result.width).toBe(1200); // Scaled from 3200 to 1200
+        expect(result.height).toBe(900); // 2400 * (1200/3200) = 900
+        expect(mockContext.drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1200, 900);
+        // Canvas cleanup executed in finally block
+        expect(mockCanvas.width).toBe(0);
+        expect(mockCanvas.height).toBe(0);
 
         createElementSpy.mockRestore();
     });
 
-    test('3. Batch processes multiple images concurrently with prepareEvidenceImages', async () => {
+    test('3. Batch processes multiple images sequentially with prepareEvidenceImages', async () => {
         const file1 = new File(['img1'], 'photo1.jpg', { type: 'image/jpeg' });
         const file2 = new File(['img2'], 'photo2.jpg', { type: 'image/jpeg' });
 
@@ -119,5 +122,122 @@ describe('Evidence Image Compression & Validation Utility (evidenceImage.js)', (
         expect(result.file.name).toContain('corrupt');
 
         globalThis.Image = originalImage;
+    });
+
+    test('5. Adapts compression resolution and quality on 2g/slow-2g connections', async () => {
+        const originalNavigator = globalThis.navigator;
+        Object.defineProperty(globalThis, 'navigator', {
+            value: {
+                ...originalNavigator,
+                connection: { effectiveType: '2g', saveData: false },
+            },
+            writable: true,
+            configurable: true,
+        });
+
+        const mockBlob = new Blob(['compressed-slow-network-bytes'], { type: 'image/jpeg' });
+        const mockToBlob = vi.fn((callback) => callback(mockBlob));
+        const mockContext = {
+            fillStyle: '',
+            fillRect: vi.fn(),
+            drawImage: vi.fn(),
+        };
+        const mockCanvas = {
+            width: 0,
+            height: 0,
+            getContext: vi.fn().mockReturnValue(mockContext),
+            toBlob: mockToBlob,
+        };
+
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+            if (tag === 'canvas') return mockCanvas;
+            return document.createElement(tag);
+        });
+
+        const rawFile = new File(['camera-data'], 'scene.jpg', { type: 'image/jpeg' });
+        const result = await prepareEvidenceImage(rawFile);
+
+        // Under 2g connection, max edge is adapted down to 800px
+        expect(result.width).toBe(800);
+        expect(result.height).toBe(600); // 2400 * (800/3200) = 600
+
+        createElementSpy.mockRestore();
+        Object.defineProperty(globalThis, 'navigator', {
+            value: originalNavigator,
+            writable: true,
+            configurable: true,
+        });
+    });
+
+    test('6. Dynamically exports WebP with matching extension when WebP is supported', async () => {
+        const mockBlob = new Blob(['compressed-webp-bytes'], { type: 'image/webp' });
+        const mockToBlob = vi.fn((callback, mimeType) => {
+            expect(mimeType).toBe('image/webp');
+            callback(mockBlob);
+        });
+        const mockContext = {
+            fillStyle: '',
+            fillRect: vi.fn(),
+            drawImage: vi.fn(),
+        };
+        const mockCanvas = {
+            width: 0,
+            height: 0,
+            getContext: vi.fn().mockReturnValue(mockContext),
+            toBlob: mockToBlob,
+        };
+
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+            if (tag === 'canvas') return mockCanvas;
+            return document.createElement(tag);
+        });
+
+        const rawFile = new File(['camera-data'], 'scene.jpg', { type: 'image/jpeg' });
+        const result = await prepareEvidenceImage(rawFile, { format: 'image/webp' });
+
+        expect(result.file.name).toBe('scene.webp');
+        expect(result.file.type).toBe('image/webp');
+
+        createElementSpy.mockRestore();
+    });
+
+    test('7. Falls back to JPEG when WebP toBlob exports PNG silently per HTML5 specification', async () => {
+        // HTML5 spec requires unsupported types in toBlob to return image/png
+        const pngFallbackBlob = new Blob(['png-fallback-bytes'], { type: 'image/png' });
+        const jpegBlob = new Blob(['jpeg-fallback-bytes'], { type: 'image/jpeg' });
+
+        const mockToBlob = vi.fn((callback, mimeType) => {
+            if (mimeType === 'image/webp') {
+                callback(pngFallbackBlob);
+            } else {
+                callback(jpegBlob);
+            }
+        });
+        const mockContext = {
+            fillStyle: '',
+            fillRect: vi.fn(),
+            drawImage: vi.fn(),
+        };
+        const mockCanvas = {
+            width: 0,
+            height: 0,
+            getContext: vi.fn().mockReturnValue(mockContext),
+            toBlob: mockToBlob,
+        };
+
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+            if (tag === 'canvas') return mockCanvas;
+            return document.createElement(tag);
+        });
+
+        const rawFile = new File(['camera-data'], 'accident.jpg', { type: 'image/jpeg' });
+        const result = await prepareEvidenceImage(rawFile, { format: 'image/webp' });
+
+        expect(mockToBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', expect.any(Number));
+        expect(mockToBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', expect.any(Number));
+        expect(result.file.name).toBe('accident.jpg');
+        expect(result.file.type).toBe('image/jpeg');
+
+        createElementSpy.mockRestore();
     });
 });

@@ -286,17 +286,17 @@ describe('ReportPage workflow', () => {
             expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
         });
 
-        test('validates file size, rejecting files over 5 MB', () => {
+        test('validates file size, rejecting files over 20 MB', () => {
             renderPage();
 
             const uploadInput = screen.getByLabelText(/upload evidence photos/i);
             const bigFile = new File(['large-content'], 'huge-photo.jpg', { type: 'image/jpeg' });
-            Object.defineProperty(bigFile, 'size', { value: 6 * 1024 * 1024 });
+            Object.defineProperty(bigFile, 'size', { value: 21 * 1024 * 1024 });
 
             fireEvent.change(uploadInput, { target: { files: [bigFile] } });
 
             expect(toastMock.error).toHaveBeenCalledWith(
-                'huge-photo.jpg is too large (max 5MB)',
+                'huge-photo.jpg is too large (max 20MB)',
                 expect.objectContaining({ id: 'app-notification' })
             );
             expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
@@ -343,6 +343,68 @@ describe('ReportPage workflow', () => {
             const payload = createReportMock.mock.calls[0][0];
             expect(payload.getAll('images')).toHaveLength(1);
             expect(payload.getAll('images')[0].name).toBe('camera-evidence.jpg');
+
+            const config = createReportMock.mock.calls[0][1];
+            expect(config).toBeDefined();
+            expect(typeof config.onUploadProgress).toBe('function');
+        });
+
+        test('provides proactive Save offline button that validates and queues report locally', async () => {
+            const originalIndexedDB = globalThis.indexedDB;
+            const storeData = new Map();
+            const mockStore = {
+                put: vi.fn((entry) => {
+                    storeData.set(entry.clientReportId, entry);
+                    return { onsuccess: null };
+                }),
+            };
+            const mockTx = {
+                objectStore: () => mockStore,
+                oncomplete: null,
+                onerror: null,
+                onabort: null,
+            };
+            setTimeout(() => mockTx.oncomplete?.(), 0);
+            const mockDb = {
+                objectStoreNames: { contains: () => true },
+                transaction: () => {
+                    setTimeout(() => mockTx.oncomplete?.(), 0);
+                    return mockTx;
+                },
+            };
+            globalThis.indexedDB = {
+                open: () => {
+                    const req = { result: mockDb };
+                    setTimeout(() => req.onsuccess?.(), 0);
+                    return req;
+                },
+            };
+
+            try {
+                renderPage();
+
+                fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion Market' } });
+                fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+
+                const saveOfflineBtn = screen.getByRole('button', { name: /save offline/i });
+                expect(saveOfflineBtn).toBeInTheDocument();
+
+                fireEvent.click(saveOfflineBtn);
+
+                await waitFor(() => {
+                    expect(toastMock.success).toHaveBeenCalledWith(
+                        'Report saved to offline queue. It will sync automatically when online.',
+                        expect.anything()
+                    );
+                    expect(screen.getByText('My reports destination')).toBeInTheDocument();
+                });
+            } finally {
+                if (originalIndexedDB !== undefined) {
+                    globalThis.indexedDB = originalIndexedDB;
+                } else {
+                    delete globalThis.indexedDB;
+                }
+            }
         });
     });
 });

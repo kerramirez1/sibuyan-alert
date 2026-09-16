@@ -282,36 +282,37 @@ export const createReport = async (req, res) => {
             });
             uploadedImageUrls = storedImages.map(({ url }) => url);
 
-            // Precompute evidence derivative metadata for accurate public descriptor serialization
+            // Precompute evidence derivative metadata resiliently using Promise.allSettled.
+            // Face detection failures or processing delays must never block or fail report creation.
             try {
-                evidenceMetadata = await Promise.all(
+                const derivativeResults = await Promise.allSettled(
                     req.files.map(async (file, idx) => {
-                        try {
-                            const derivative = await generateRedactedEvidenceDerivative(file.buffer);
-                            return {
-                                index: idx,
-                                detectionStatus: derivative.metadata.detectionStatus,
-                                redactionType: derivative.metadata.redactionType,
-                                facesDetected: derivative.metadata.facesDetected,
-                                redactedRegions: derivative.metadata.redactedRegions,
-                                redactionVersion: derivative.metadata.redactionVersion,
-                                detectorVersion: derivative.metadata.detectorVersion,
-                                sourceHash: derivative.metadata.sourceHash,
-                                derivativeHash: derivative.metadata.derivativeHash,
-                            };
-                        } catch {
-                            return {
-                                index: idx,
-                                detectionStatus: 'detector_failed',
-                                redactionType: 'fallback_blur',
-                                facesDetected: 0,
-                                redactedRegions: 0,
-                                redactionVersion: '3.2',
-                                detectorVersion: 'picojs-facefinder-2.3',
-                            };
-                        }
+                        const derivative = await generateRedactedEvidenceDerivative(file.buffer);
+                        return {
+                            index: idx,
+                            detectionStatus: derivative.metadata.detectionStatus,
+                            redactionType: derivative.metadata.redactionType,
+                            facesDetected: derivative.metadata.facesDetected,
+                            redactedRegions: derivative.metadata.redactedRegions,
+                            redactionVersion: derivative.metadata.redactionVersion,
+                            detectorVersion: derivative.metadata.detectorVersion,
+                            sourceHash: derivative.metadata.sourceHash,
+                            derivativeHash: derivative.metadata.derivativeHash,
+                        };
                     })
                 );
+                evidenceMetadata = derivativeResults.map((settled, idx) => {
+                    if (settled.status === 'fulfilled') return settled.value;
+                    return {
+                        index: idx,
+                        detectionStatus: 'detector_failed',
+                        redactionType: 'fallback_blur',
+                        facesDetected: 0,
+                        redactedRegions: 0,
+                        redactionVersion: '3.2',
+                        detectorVersion: 'picojs-facefinder-2.3',
+                    };
+                });
             } catch (err) {
                 console.warn('Could not precompute evidence metadata:', err.message);
             }
@@ -444,8 +445,9 @@ export const createReport = async (req, res) => {
         }
 
         // Notify the responsible municipal administrators and emergency responders.
-        // MVP: never let fan-out delay or fail the 201. In-app notifies are
-        // isolated per recipient; email + push are fire-and-forget background.
+        // MVP: Non-blocking notifications. Never let fan-out delay or fail the 201 response.
+        // In-app notifications are dispatched concurrently via Promise.allSettled;
+        // email and push notifications are fire-and-forget background tasks.
         const categoryConfig = INCIDENT_CATEGORIES[finalCategory] || { emoji: '🚨', label: finalCategory };
 
         const operationalUsersQuery = {
@@ -453,37 +455,47 @@ export const createReport = async (req, res) => {
             assignedMunicipality: locationResult.municipalityName,
         };
 
-        const operationalUsers = await User.find(operationalUsersQuery);
-
-        // Create in-app notifications for each municipal administrator and responder.
-        for (const opUser of operationalUsers) {
+        const dispatchNotifications = async () => {
             try {
-                await Notification.createAndSend(
-                    {
-                        recipient: opUser._id,
-                        type: 'new_report',
-                        title: `${categoryConfig.emoji} New ${categoryConfig.label} Report`,
-                        message: `New ${categoryConfig.label.toLowerCase()} reported at ${report.address}${locationResult.municipalityName ? ` (${locationResult.municipalityName})` : ''}`,
-                        data: { reportId: report._id, category: finalCategory, municipality: locationResult.municipalityName },
-                    },
-                    io
+                const operationalUsers = await User.find(operationalUsersQuery);
+                if (!Array.isArray(operationalUsers) || operationalUsers.length === 0) return;
+
+                await Promise.allSettled(
+                    operationalUsers.map(async (opUser) => {
+                        try {
+                            await Notification.createAndSend(
+                                {
+                                    recipient: opUser._id,
+                                    type: 'new_report',
+                                    title: `${categoryConfig.emoji} New ${categoryConfig.label} Report`,
+                                    message: `New ${categoryConfig.label.toLowerCase()} reported at ${report.address}${locationResult.municipalityName ? ` (${locationResult.municipalityName})` : ''}`,
+                                    data: { reportId: report._id, category: finalCategory, municipality: locationResult.municipalityName },
+                                },
+                                io
+                            );
+                        } catch (notifyError) {
+                            console.error('Background in-app notify failed:', notifyError?.message);
+                        }
+
+                        // Send email notification without blocking
+                        if (opUser.role === 'municipal_admin' && opUser.notificationPreferences?.email) {
+                            sendNewReportAlertEmail(opUser.email, report, req.user)
+                                .catch((emailError) => console.error('Background email failed:', emailError?.message));
+                        }
+                    })
                 );
-            } catch (notifyError) {
-                console.error('Background in-app notify failed:', notifyError?.message);
-            }
 
-            // Send email notification without blocking the HTTP response.
-            if (opUser.role === 'municipal_admin' && opUser.notificationPreferences?.email) {
-                sendNewReportAlertEmail(opUser.email, report, req.user)
-                    .catch((emailError) => console.error('Background email failed:', emailError?.message));
+                // Send push notifications to operational users (admins and responders)
+                sendPushToUsers(
+                    operationalUsers.filter((a) => a.pushSubscription && a.notificationPreferences?.browserPush),
+                    pushTemplates.newReport(report)
+                ).catch((pushError) => console.error('Background push failed:', pushError?.message));
+            } catch (err) {
+                console.error('Background notification dispatch failed:', err?.message);
             }
-        }
+        };
 
-        // Send push notifications to operational users (admins and responders)
-        sendPushToUsers(
-            operationalUsers.filter((a) => a.pushSubscription && a.notificationPreferences?.browserPush),
-            pushTemplates.newReport(report)
-        ).catch((pushError) => console.error('Background push failed:', pushError?.message));
+        dispatchNotifications();
 
         res.status(201).json({
             success: true,
@@ -1632,8 +1644,175 @@ export const recordReportView = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Attach evidence photos to an existing incident report
+ * @route   POST /api/reports/:id/evidence
+ * @access  Private (report owner, responders, or municipal admins)
+ */
+export const attachReportEvidence = async (req, res) => {
+    let uploadedImageUrls = [];
+    let isSaved = false;
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({
+                success: false,
+                code: 'INVALID_REPORT_ID',
+                message: 'Invalid incident report identifier',
+            });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                success: false,
+                code: 'NO_FILES_PROVIDED',
+                message: 'No evidence photos provided',
+            });
+        }
+
+        const report = await Report.findById(id);
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                code: 'REPORT_NOT_FOUND',
+                message: 'Incident report not found',
+            });
+        }
+
+        // Authorization check: owner, system admin, or in-scope operational user (jurisdiction checked)
+        const reporterId = getEntityId(report.reporter);
+        const currentUserId = getEntityId(req.user);
+        const isOwner = Boolean(currentUserId && reporterId && currentUserId === reporterId);
+        const isOperational = Boolean(
+            req.user && (req.user.role === 'admin' || canViewOperationalReport(req.user, report))
+        );
+
+        if (!isOwner && !isOperational) {
+            return res.status(403).json({
+                success: false,
+                code: 'FORBIDDEN',
+                message: 'Not authorized to attach evidence to this incident report',
+            });
+        }
+
+        if (['resolved', 'rejected'].includes(report.status)) {
+            return res.status(400).json({
+                success: false,
+                code: 'REPORT_CLOSED',
+                message: 'Cannot attach evidence to a closed or rejected report',
+            });
+        }
+
+        const existingCount = Array.isArray(report.images) ? report.images.length : 0;
+        const newCount = req.files.length;
+        if (existingCount + newCount > 5) {
+            return res.status(400).json({
+                success: false,
+                code: 'EXCEEDS_IMAGE_LIMIT',
+                message: `Exceeds maximum limit of 5 evidence photos per report. This report currently has ${existingCount} photo(s).`,
+            });
+        }
+
+        // Store new evidence photos in GridFS
+        const storedImages = await uploadFilesToGridFS(req.files, {
+            category: 'report_evidence',
+            visibility: 'private',
+            ownerId: req.user._id,
+            resourceId: report._id,
+            municipalityName: report.municipalityName,
+        });
+        uploadedImageUrls = storedImages.map(({ url }) => url);
+
+        // Resilient precomputation of evidence derivative metadata using Promise.allSettled
+        let newEvidenceMetadata = [];
+        try {
+            const derivativeResults = await Promise.allSettled(
+                req.files.map(async (file, idx) => {
+                    const derivative = await generateRedactedEvidenceDerivative(file.buffer);
+                    return {
+                        index: existingCount + idx,
+                        detectionStatus: derivative.metadata.detectionStatus,
+                        redactionType: derivative.metadata.redactionType,
+                        facesDetected: derivative.metadata.facesDetected,
+                        redactedRegions: derivative.metadata.redactedRegions,
+                        redactionVersion: derivative.metadata.redactionVersion,
+                        detectorVersion: derivative.metadata.detectorVersion,
+                        sourceHash: derivative.metadata.sourceHash,
+                        derivativeHash: derivative.metadata.derivativeHash,
+                    };
+                })
+            );
+
+            newEvidenceMetadata = derivativeResults.map((settled, idx) => {
+                if (settled.status === 'fulfilled') return settled.value;
+                return {
+                    index: existingCount + idx,
+                    detectionStatus: 'detector_failed',
+                    redactionType: 'fallback_blur',
+                    facesDetected: 0,
+                    redactedRegions: 0,
+                    redactionVersion: '3.2',
+                    detectorVersion: 'picojs-facefinder-2.3',
+                };
+            });
+        } catch (derivativeErr) {
+            console.warn('Evidence derivative precomputation warning:', derivativeErr?.message);
+        }
+
+        report.images = [...(report.images || []), ...uploadedImageUrls];
+        if (newEvidenceMetadata.length > 0) {
+            report.evidenceMetadata = [...(report.evidenceMetadata || []), ...newEvidenceMetadata];
+        }
+
+        await report.save();
+        isSaved = true;
+
+        try {
+            await report.populate('reporter', 'name email avatar');
+            await report.populate('municipality', 'name code');
+        } catch (popErr) {
+            console.warn('Report populate warning after evidence attach:', popErr?.message);
+        }
+
+        try {
+            const io = req.app.get('io');
+            if (io) {
+                const evidencePayload = {
+                    reportId: report._id,
+                    evidenceCount: report.images.length,
+                    municipality: report.municipalityName,
+                };
+                if (report.municipalityName) {
+                    io.to(`municipality_${report.municipalityName}`).emit('reportEvidenceUpdated', evidencePayload);
+                }
+                io.to('reporters').emit('reportEvidenceUpdated', evidencePayload);
+            }
+        } catch (socketErr) {
+            console.warn('Socket emit warning after evidence attach:', socketErr?.message);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Evidence photos attached successfully.',
+            data: report,
+        });
+    } catch (error) {
+        if (!isSaved && uploadedImageUrls.length) {
+            await deleteGridFsFilesByUrls(uploadedImageUrls).catch((delErr) => {
+                console.error('GridFS cleanup error after evidence attach failure:', delErr);
+            });
+        }
+        console.error('Attach report evidence error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to attach evidence photos to incident report',
+        });
+    }
+};
+
 export default {
     createReport,
+    attachReportEvidence,
     getReports,
     getReportById,
     getMyReports,
@@ -1644,5 +1823,7 @@ export default {
     getMunicipalities,
     getCategories,
     geocodeLocation,
+    getReportEvidencePreview,
     recordReportView,
+    searchReports,
 };

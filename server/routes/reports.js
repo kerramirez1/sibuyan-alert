@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     createReport,
+    attachReportEvidence,
     getReports,
     getReportById,
     getMyReports,
@@ -16,7 +17,7 @@ import {
     recordReportView,
 } from '../controllers/reportController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
-import { requireVerifiedReporter, blockOrdinaryUsers } from '../middleware/roleCheck.js';
+import { requireVerifiedReporter, blockOrdinaryUsers, requireEvidenceContributor } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
 import { locationLookupLimiter, reportCreationLimiter, reportViewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
@@ -51,6 +52,18 @@ router.post(
     validateCreateReport,
     createReport
 );  // ❌ Ordinary users CANNOT submit reports
+
+router.post(
+    '/:id/evidence',
+    protect,
+    requireEvidenceContributor,
+    validateMongoIdParam,
+    reportCreationLimiter,
+    uploadReportImages,
+    handleMulterError,
+    validateUploadContent,
+    attachReportEvidence
+);
 
 // Single report: public can view verified/responding, private for pending/rejected
 router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);

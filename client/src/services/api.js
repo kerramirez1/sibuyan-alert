@@ -150,10 +150,20 @@ export const reportsAPI = {
     getMapConfig: () => api.get('/reports/map-config'),
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: () => api.get('/reports/municipalities'),
-    geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
     recordView: (id) => api.post(`/reports/${id}/views`),
-    create: (formData) => api.post('/reports', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+    create: (formData, config = {}) => api.post('/reports', formData, {
+        ...config,
+        headers: {
+            'Content-Type': 'multipart/form-data',
+            ...config.headers,
+        },
+    }),
+    uploadEvidence: (id, formData, config = {}) => api.post(`/reports/${id}/evidence`, formData, {
+        ...config,
+        headers: {
+            'Content-Type': 'multipart/form-data',
+            ...config.headers,
+        },
     }),
 };
 

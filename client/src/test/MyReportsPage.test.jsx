@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => ({
     getMyReports: vi.fn(),
     addUpdate: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
+    offlineSync: {
+        pendingCount: 0,
+        isSyncing: false,
+        sync: vi.fn(),
+        refreshCount: vi.fn(),
+    },
+}));
+
+vi.mock('../hooks/useOfflineReportSync', () => ({
+    useOfflineReportSync: () => mocks.offlineSync,
+    default: () => mocks.offlineSync,
 }));
 
 vi.mock('../context/SocketContext', () => ({
@@ -314,5 +325,29 @@ describe('reporter situation update flow', () => {
         fireEvent.click(retryBtn);
 
         expect(await screen.findByText('Poblacion coastal road')).toBeInTheDocument();
+    });
+
+    test('renders offline queued reports banner and allows manual sync', async () => {
+        mocks.offlineSync = {
+            pendingCount: 2,
+            isSyncing: false,
+            sync: vi.fn().mockResolvedValue({ sent: 2, failed: 0, blocked: 0 }),
+            refreshCount: vi.fn(),
+        };
+
+        renderPage();
+
+        expect(await screen.findByText(/2 incident reports are queued on this device/i)).toBeInTheDocument();
+        const syncBtn = screen.getByRole('button', { name: /Sync now/i });
+        fireEvent.click(syncBtn);
+
+        expect(mocks.offlineSync.sync).toHaveBeenCalled();
+
+        mocks.offlineSync = {
+            pendingCount: 0,
+            isSyncing: false,
+            sync: vi.fn(),
+            refreshCount: vi.fn(),
+        };
     });
 });

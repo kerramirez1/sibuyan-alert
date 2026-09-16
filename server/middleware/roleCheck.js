@@ -132,10 +132,50 @@ export const blockOrdinaryUsers = (req, res, next) => {
     next();
 };
 
+/**
+ * Require authorized evidence contributor status.
+ * Allows verified reporters, responders, municipal admins, and admins.
+ * Blocks ordinary users and unverified reporters.
+ */
+export const requireEvidenceContributor = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Not authorized - Please login',
+        });
+    }
+
+    if (req.user.role === 'ordinary') {
+        return res.status(403).json({
+            success: false,
+            message: 'Ordinary users are not permitted to attach evidence',
+        });
+    }
+
+    if (req.user.role === 'reporter' && !req.user.isVerified) {
+        return res.status(403).json({
+            success: false,
+            message: 'Your reporter account is pending verification',
+            verificationStatus: req.user.verificationStatus,
+        });
+    }
+
+    const allowedRoles = ['reporter', 'responder', 'municipal_admin', 'admin'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({
+            success: false,
+            message: 'Access denied - Not authorized to attach evidence',
+        });
+    }
+
+    next();
+};
+
 export default {
     requireRole,
     requireVerifiedReporter,
     requireAdmin,
     requireOwnerOrAdmin,
     blockOrdinaryUsers,
+    requireEvidenceContributor,
 };

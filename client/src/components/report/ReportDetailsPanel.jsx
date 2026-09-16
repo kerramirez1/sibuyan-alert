@@ -29,6 +29,13 @@ const SectionHeader = ({ id, step, title, description }) => (
 
 const inputClass = 'h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200';
 
+const formatBytes = (bytes) => {
+    if (!bytes || bytes <= 0) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const ReportDetailsPanel = ({
     formData,
     setFormData,
@@ -43,6 +50,9 @@ const ReportDetailsPanel = ({
     removeImage,
     onRetakeImage,
     loading,
+    uploadProgress,
+    onSaveOffline,
+    isOffline,
 }) => {
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
@@ -173,7 +183,7 @@ const ReportDetailsPanel = ({
                     id="evidence-heading"
                     step="4"
                     title="Evidence photos"
-                    description="Optional. Capture evidence directly with your camera or select existing photos (up to 5 images, max 5 MB each)."
+                    description="Optional. Capture evidence directly with your camera or select existing photos (up to 5 images, max 20 MB each)."
                 />
 
                 <div className="mt-4 space-y-3">
@@ -304,16 +314,69 @@ const ReportDetailsPanel = ({
                     </div>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
-                >
-                    {loading ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
-                    ) : null}
-                    {loading ? 'Submitting report…' : 'Submit incident report'}
-                </button>
+                {loading && uploadProgress && (
+                    <div className="mt-3 space-y-1.5" role="status" aria-live="polite">
+                        <div className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-gray-300">
+                            <span>
+                                {uploadProgress.percent !== null && uploadProgress.percent < 100
+                                    ? `Uploading data & evidence: ${uploadProgress.percent}%`
+                                    : 'Submitting report to emergency dispatch…'}
+                            </span>
+                            {uploadProgress.total > 0 && (
+                                <span className="tabular-nums text-gray-500 dark:text-gray-400">
+                                    {formatBytes(uploadProgress.loaded)} / {formatBytes(uploadProgress.total)}
+                                </span>
+                            )}
+                        </div>
+                        <div
+                            role="progressbar"
+                            aria-valuenow={uploadProgress.percent ?? 0}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+                        >
+                            <div
+                                className="h-full rounded-full bg-red-600 transition-all duration-200 dark:bg-red-500"
+                                style={{ width: `${uploadProgress.percent ?? 0}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
+                    >
+                        {loading ? (
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                        ) : null}
+                        {loading
+                            ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
+                                ? `Uploading ${uploadProgress.percent}%…`
+                                : 'Submitting report…')
+                            : 'Submit incident report'}
+                    </button>
+
+                    {onSaveOffline && (
+                        <button
+                            type="button"
+                            onClick={onSaveOffline}
+                            disabled={loading}
+                            title="Save report locally to device queue and automatically sync when connection returns"
+                            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-amber-600/30 bg-amber-50 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
+                        >
+                            Save offline
+                        </button>
+                    )}
+                </div>
+
+                {isOffline && (
+                    <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                        Device is offline. Reports saved offline are safely stored locally and submitted automatically once signal is restored.
+                    </p>
+                )}
             </section>
         </div>
     );

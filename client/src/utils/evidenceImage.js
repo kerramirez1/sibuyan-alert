@@ -15,9 +15,66 @@ export const EVIDENCE_IMAGE_TYPES = new Set([
     'image/jpg',
 ]);
 
-export const MAX_RAW_EVIDENCE_BYTES = 5 * 1024 * 1024; // 5 MB max raw input
-export const MAX_OUTPUT_EDGE = 1600; // Optimal balance of crisp details and minimal byte weight
+export const MAX_RAW_EVIDENCE_BYTES = 20 * 1024 * 1024; // 20 MB max raw input
+export const MAX_OUTPUT_EDGE = 1200; // Standardized optimal balance of crisp details and minimal byte weight
 export const JPEG_COMPRESSION_QUALITY = 0.82;
+export const SLOW_NETWORK_MAX_OUTPUT_EDGE = 800;
+export const SLOW_NETWORK_QUALITY = 0.65;
+
+let webpSupportedCache = null;
+
+/**
+ * Detects whether the current environment canvas supports WebP export.
+ * @returns {boolean}
+ */
+export const isWebpSupported = () => {
+    if (webpSupportedCache !== null) return webpSupportedCache;
+    if (typeof document === 'undefined' || !document.createElement) {
+        return false;
+    }
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const uri = canvas.toDataURL ? canvas.toDataURL('image/webp') : '';
+        webpSupportedCache = typeof uri === 'string' && uri.startsWith('data:image/webp');
+    } catch {
+        webpSupportedCache = false;
+    }
+    return webpSupportedCache;
+};
+
+/**
+ * Resets the WebP support cache (primarily for unit testing different browser capabilities).
+ */
+export const resetWebpSupportCacheForTesting = () => {
+    webpSupportedCache = null;
+};
+
+/**
+ * Determines adaptive image scaling and compression quality based on network conditions.
+ * Uses navigator.connection (Network Information API) when available.
+ * @returns {{ maxEdge: number, quality: number, isSlowConnection: boolean }}
+ */
+export const getAdaptiveCompressionSettings = () => {
+    if (typeof navigator !== 'undefined') {
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const effectiveType = conn?.effectiveType;
+        const isSlow = effectiveType === '2g' || effectiveType === 'slow-2g' || conn?.saveData === true;
+        if (isSlow) {
+            return {
+                maxEdge: SLOW_NETWORK_MAX_OUTPUT_EDGE,
+                quality: SLOW_NETWORK_QUALITY,
+                isSlowConnection: true,
+            };
+        }
+    }
+    return {
+        maxEdge: MAX_OUTPUT_EDGE,
+        quality: JPEG_COMPRESSION_QUALITY,
+        isSlowConnection: false,
+    };
+};
 
 /**
  * Validates a user-selected evidence image file.
@@ -31,13 +88,13 @@ export const validateEvidenceImageFile = (file) => {
     }
     if (file.size <= 0) return 'is empty';
     if (file.size > MAX_RAW_EVIDENCE_BYTES) {
-        return 'is too large (max 5MB)';
+        return 'is too large (max 20MB)';
     }
     return '';
 };
 
 /**
- * Reads an image file into an HTMLImageElement.
+ * Reads an image file into an HTMLImageElement with immediate object URL cleanup.
  * @param {File|Blob} file
  * @returns {Promise<HTMLImageElement>}
  */
@@ -64,58 +121,69 @@ const loadImageElement = (file) => new Promise((resolve, reject) => {
 });
 
 /**
- * Converts a canvas element to a JPEG Blob.
+ * Converts a canvas element to a Blob with format and quality options.
  * @param {HTMLCanvasElement} canvas
+ * @param {string} mimeType
  * @param {number} quality
  * @returns {Promise<Blob>}
  */
-const canvasToJpegBlob = (canvas, quality = JPEG_COMPRESSION_QUALITY) => new Promise((resolve, reject) => {
+const canvasToBlob = (canvas, mimeType, quality) => new Promise((resolve, reject) => {
     canvas.toBlob(
         (blob) => {
             if (blob) {
                 resolve(blob);
             } else {
-                reject(new Error('Failed to compress image canvas.'));
+                reject(new Error(`Failed to compress image canvas to ${mimeType}.`));
             }
         },
-        'image/jpeg',
+        mimeType,
         quality
     );
 });
 
 /**
- * Generates a clean output filename preserving original base name with .jpg extension.
+ * Generates a clean output filename preserving original base name with matching extension.
  * @param {string} [originalName]
+ * @param {string} [extension='jpg']
  * @returns {string}
  */
-const sanitizeOutputFileName = (originalName = 'evidence-photo.jpg') => {
+const sanitizeOutputFileName = (originalName = 'evidence-photo.jpg', extension = 'jpg') => {
     const base = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 80);
-    return `${base || 'evidence-photo'}.jpg`;
+    return `${base || 'evidence-photo'}.${extension}`;
 };
 
 /**
- * Compresses and scales an evidence photo before network upload.
+ * Compresses and scales an evidence photo before network upload with adaptive resolution
+ * and dynamic WebP / JPEG format fallback.
+ *
  * @param {File|Blob} sourceFile
  * @param {object} [options]
- * @param {number} [options.maxEdge=1600]
- * @param {number} [options.quality=0.82]
+ * @param {number} [options.maxEdge]
+ * @param {number} [options.quality]
+ * @param {string} [options.format] 'image/webp' | 'image/jpeg'
  * @returns {Promise<{ file: File, width: number, height: number, originalSize: number, compressedSize: number }>}
  */
 export const prepareEvidenceImage = async (sourceFile, options = {}) => {
-    const {
-        maxEdge = MAX_OUTPUT_EDGE,
-        quality = JPEG_COMPRESSION_QUALITY,
-    } = options;
+    const adaptive = getAdaptiveCompressionSettings();
+    const maxEdge = options.maxEdge ?? adaptive.maxEdge;
+    const quality = options.quality ?? adaptive.quality;
 
     const validationError = validateEvidenceImageFile(sourceFile);
     if (validationError) {
         throw new Error(validationError);
     }
 
+    // Determine target format and file extension
+    let targetMime = options.format;
+    if (!targetMime) {
+        targetMime = isWebpSupported() ? 'image/webp' : 'image/jpeg';
+    }
+    const targetExtension = targetMime === 'image/webp' ? 'webp' : 'jpg';
+
     // Node / SSR / Test environment fallback where 2D canvas context is not implemented
     if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) {
         return {
-            file: sourceFile instanceof File ? sourceFile : new File([sourceFile], 'evidence.jpg', { type: 'image/jpeg' }),
+            file: sourceFile instanceof File ? sourceFile : new File([sourceFile], `evidence.${targetExtension}`, { type: targetMime }),
             width: 800,
             height: 600,
             originalSize: sourceFile.size || 0,
@@ -126,7 +194,7 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
     const testCanvas = document.createElement('canvas');
     if (!testCanvas.getContext || !testCanvas.getContext('2d')) {
         return {
-            file: sourceFile instanceof File ? sourceFile : new File([sourceFile], sanitizeOutputFileName(sourceFile.name), { type: sourceFile.type || 'image/jpeg' }),
+            file: sourceFile instanceof File ? sourceFile : new File([sourceFile], sanitizeOutputFileName(sourceFile.name, targetExtension), { type: sourceFile.type || targetMime }),
             width: 800,
             height: 600,
             originalSize: sourceFile.size || 0,
@@ -134,8 +202,10 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
         };
     }
 
+    let canvas = null;
+    let image = null;
     try {
-        const image = await loadImageElement(sourceFile);
+        image = await loadImageElement(sourceFile);
         const naturalWidth = image.naturalWidth || image.width || 800;
         const naturalHeight = image.naturalHeight || image.height || 600;
 
@@ -143,14 +213,14 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
         const targetWidth = Math.max(1, Math.round(naturalWidth * scale));
         const targetHeight = Math.max(1, Math.round(naturalHeight * scale));
 
-        const canvas = document.createElement('canvas');
+        canvas = document.createElement('canvas');
         canvas.width = targetWidth;
         canvas.height = targetHeight;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             return {
-                file: sourceFile instanceof File ? sourceFile : new File([sourceFile], sanitizeOutputFileName(sourceFile.name), { type: sourceFile.type || 'image/jpeg' }),
+                file: sourceFile instanceof File ? sourceFile : new File([sourceFile], sanitizeOutputFileName(sourceFile.name, targetExtension), { type: sourceFile.type || targetMime }),
                 width: naturalWidth,
                 height: naturalHeight,
                 originalSize: sourceFile.size || 0,
@@ -163,13 +233,39 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
         ctx.fillRect(0, 0, targetWidth, targetHeight);
         ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
 
-        const blob = await canvasToJpegBlob(canvas, quality);
+        // Clear decoded image source immediately to free decoded bitmap in RAM
+        if (typeof image.src === 'string') {
+            image.src = '';
+        }
+
+        let blob;
+        let finalMime = targetMime;
+        let finalExtension = targetExtension;
+
+        try {
+            blob = await canvasToBlob(canvas, finalMime, quality);
+            // Detect silent PNG fallback from browser canvas toBlob (HTML5 spec behavior when WebP is unsupported)
+            if (finalMime === 'image/webp' && blob && blob.type && blob.type !== 'image/webp') {
+                finalMime = 'image/jpeg';
+                finalExtension = 'jpg';
+                blob = await canvasToBlob(canvas, finalMime, quality);
+            }
+        } catch {
+            // WebP export fallback to standard JPEG if toBlob with webp fails
+            if (finalMime === 'image/webp') {
+                finalMime = 'image/jpeg';
+                finalExtension = 'jpg';
+                blob = await canvasToBlob(canvas, finalMime, quality);
+            } else {
+                throw new Error('Canvas compression failed');
+            }
+        }
 
         const outputFile = new File(
             [blob],
-            sanitizeOutputFileName(sourceFile.name || 'evidence-photo.jpg'),
+            sanitizeOutputFileName(sourceFile.name || `evidence-photo.${finalExtension}`, finalExtension),
             {
-                type: 'image/jpeg',
+                type: finalMime,
                 lastModified: Date.now(),
             }
         );
@@ -182,10 +278,10 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
             compressedSize: outputFile.size,
         };
     } catch {
-        // Safe fallback: return the original file if compression encountered any issues
+        // Safe fallback: return original file or safe copy if compression encountered any issues
         const safeFile = sourceFile instanceof File
             ? sourceFile
-            : new File([sourceFile], sanitizeOutputFileName(sourceFile.name), { type: sourceFile.type || 'image/jpeg' });
+            : new File([sourceFile], sanitizeOutputFileName(sourceFile.name, targetExtension), { type: sourceFile.type || targetMime });
         return {
             file: safeFile,
             width: 800,
@@ -193,16 +289,34 @@ export const prepareEvidenceImage = async (sourceFile, options = {}) => {
             originalSize: sourceFile.size || 0,
             compressedSize: safeFile.size || 0,
         };
+    } finally {
+        // Explicitly release decoded image bitmap and canvas memory buffer immediately to prevent browser OOM tab crashes
+        if (image) {
+            image.onload = null;
+            image.onerror = null;
+            image.src = '';
+        }
+        if (canvas) {
+            canvas.width = 0;
+            canvas.height = 0;
+        }
     }
 };
 
 /**
- * Batch processes multiple evidence images concurrently.
+ * Sequential batch processing of multiple evidence images to prevent memory spikes (OOM)
+ * on low-memory mobile devices.
+ *
  * @param {Array<File|Blob>} files
  * @param {object} [options]
  * @returns {Promise<Array<{ file: File, width: number, height: number, originalSize: number, compressedSize: number }>>}
  */
 export const prepareEvidenceImages = async (files, options = {}) => {
     if (!Array.isArray(files) || files.length === 0) return [];
-    return Promise.all(files.map((file) => prepareEvidenceImage(file, options)));
+    const results = [];
+    for (const file of files) {
+        const result = await prepareEvidenceImage(file, options);
+        results.push(result);
+    }
+    return results;
 };
