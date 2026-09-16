@@ -35,7 +35,7 @@ import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
-import { buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
+import { buildActiveIncidentsSummary, buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
 
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
 const MAP_SUMMARY_PANEL_ID = 'dashboard-map-summary-panel';
@@ -434,13 +434,15 @@ const DashboardMapWorkspace = ({
         total: reporterPendingReports.length,
         owned: reporterOwnedPendingCount,
     }), [reporterPendingReports.length, reporterOwnedPendingCount]);
-    // Disambiguate the two numbers reporters kept confusing: the "All open"
-    // tab includes pending, while this card intentionally excludes it.
-    const publicActiveHelper = isReporter
-        ? 'Verified or being handled (excludes pending)'
-        : (publicActiveReports.length === publicActiveLocationCount
-            ? 'Verified, transferred, or responding'
-            : `Across ${publicActiveLocationCount} map locations`);
+    // The count folds verified + transferred + responding together, so the
+    // supporting line is derived from the actual mix. A fixed phrase ("Being
+    // handled now") was wrong as soon as one incident still had no responder —
+    // which is the normal state early in an incident's life.
+    const activeIncidentsSummary = buildActiveIncidentsSummary({
+        total: publicActiveReports.length,
+        responding: activeResponseReports.length,
+        locations: publicActiveLocationCount,
+    });
 
 
     const closeMapSummaryPanel = useCallback((options = {}) => {
@@ -466,12 +468,15 @@ const DashboardMapWorkspace = ({
     const publicMetrics = [
                 {
                     id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
-                    // Names the three statuses folded into this count so the
-                    // number is never mistaken for verified-only. Transferred
-                    // reports are included by design.
-                    helper: publicActiveHelper,
+                    // Derived from the actual verified / transferred /
+                    // responding mix, so the supporting line can never
+                    // contradict the number above it. The status list that used
+                    // to live in the helper moved here: the card line only has
+                    // room for one of the two facts, and the mix is the
+                    // actionable one.
+                    helper: activeIncidentsSummary.helper,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
-                    panelDescription: `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} currently active`,
+                    panelDescription: `${activeIncidentsSummary.description} Verified and transferred count too.`,
                     records: publicActiveReports,
                     // 'incidents' shows the same active report set as 'all' but
                     // suppresses the hazard layer, isolating incident pins.
@@ -504,7 +509,6 @@ const DashboardMapWorkspace = ({
     // "Active incidents", so reporters get Pending / Active / Resolved / Risk
     // (mutually exclusive) instead of Active + Active response side by side.
     const reporterResolvedReports = allMappedReports.filter((report) => report?.status === 'resolved');
-    const reporterActivePanelDescription = `${publicActiveReports.length} ${publicActiveReports.length === 1 ? 'incident' : 'incidents'} being handled now (excludes pending)`;
     const reporterMetrics = [
         {
             id: 'reporter-pending', label: 'Pending review', value: reporterPendingReports.length,
@@ -518,8 +522,11 @@ const DashboardMapWorkspace = ({
         },
         {
             id: 'reporter-active', label: 'Active incidents', value: publicActiveReports.length,
-            helper: 'Being handled now (excludes pending)', icon: HiOutlineCheckCircle, panelType: 'incidents',
-            panelTitle: 'Active incidents', panelDescription: reporterActivePanelDescription,
+            helper: activeIncidentsSummary.helper, icon: HiOutlineCheckCircle, panelType: 'incidents',
+            panelTitle: 'Active incidents',
+            // The helper is kept short so the card cannot truncate it, so the
+            // "pending is counted separately" note lives here instead.
+            panelDescription: `${activeIncidentsSummary.description} Pending is counted separately.`,
             records: publicActiveReports,
             mapFilter: 'active',
             emptyTitle: 'No active incidents', emptyDescription: 'No verified or handled incidents are currently active.',

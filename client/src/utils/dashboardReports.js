@@ -51,6 +51,63 @@ export const buildReporterPendingSummary = ({ total = 0, owned = 0 } = {}) => {
     };
 };
 
+/**
+ * Helper and panel copy for the Active incidents card.
+ *
+ * That count folds three statuses together — verified, transferred and
+ * responding — so no fixed phrase can describe it. "Being handled now" is
+ * already wrong the moment one of the incidents is still waiting for a
+ * responder, which is the normal state early in an incident's life. The copy has
+ * to be derived from the actual mix.
+ *
+ * `responding` is the subset already being handled; every other report in the
+ * total is verified or transferred, i.e. still waiting for a responder.
+ *
+ * Deliberately plain wording: "waiting", not "awaiting"; a comma, not a
+ * separator glyph. The helper also stays short, because the KPI card truncates
+ * its supporting line and a description cut off mid-word matches the data no
+ * better than a wrong one does.
+ */
+export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, locations = null } = {}) => {
+    const safeTotal = Number.isFinite(Number(total)) ? Math.max(0, Number(total)) : 0;
+    const safeResponding = Math.min(
+        Number.isFinite(Number(responding)) ? Math.max(0, Number(responding)) : 0,
+        safeTotal,
+    );
+    const awaiting = safeTotal - safeResponding;
+    // Only worth saying when the incidents are actually spread across more
+    // places than there are incidents to count.
+    const spread = Number(locations) > 0 && Number(locations) !== safeTotal
+        ? ` across ${Number(locations)} map ${Number(locations) === 1 ? 'location' : 'locations'}`
+        : '';
+
+    if (safeTotal === 0) {
+        return {
+            helper: 'Nothing active',
+            description: 'No active incidents right now.',
+        };
+    }
+
+    if (safeResponding === 0) {
+        return {
+            helper: `${safeTotal} waiting for a responder`,
+            description: `${safeTotal} active${spread}, none responding yet.`,
+        };
+    }
+
+    if (awaiting === 0) {
+        return {
+            helper: safeTotal === 1 ? 'Responding' : 'All responding',
+            description: `${safeTotal} active${spread}, all responding.`,
+        };
+    }
+
+    return {
+        helper: `${safeResponding} responding, ${awaiting} waiting`,
+        description: `${safeTotal} active${spread}: ${safeResponding} responding, ${awaiting} waiting.`,
+    };
+};
+
 export const getDashboardReportId = (report) => {
     const rawId = report?._id ?? report?.id;
     // Extended-JSON object ids ({ $oid }) must not collapse to "[object Object]".

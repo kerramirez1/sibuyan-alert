@@ -230,7 +230,11 @@ describe('DashboardMapWorkspace permissions', () => {
         // the two transferred rows are provably part of it.
         const activeCard = within(summary).getByRole('button', { name: /View 4 active incidents/i });
         expect(activeCard).toBeInTheDocument();
-        expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('transferred'));
+        // The count folds verified + transferred + responding, so all four rows
+        // are inside it — and the supporting line now reports the responding
+        // mix rather than a status list.
+        expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('1 responding'));
+        expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('3 waiting'));
 
         // Active response remains a narrower view of the same population.
         expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
@@ -635,7 +639,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(setMapSummaryPanel).toHaveBeenCalledWith('');
     });
 
-    test('explains when active incidents share fewer marker locations', () => {
+    test('reports the responding mix on the active incidents card', () => {
         const reports = [
             { _id: 'verified-1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
             { _id: 'verified-2', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
@@ -650,7 +654,13 @@ describe('DashboardMapWorkspace permissions', () => {
             reports,
         }));
 
-        expect(screen.getByRole('button', { name: /View 4 active incidents\. Across 3 map locations/i })).toBeInTheDocument();
+        // 4 active with 1 responding, so 3 are still waiting for a responder.
+        // The map-location spread moved to the panel description — the card line
+        // has room for one fact, and the mix is the actionable one. The spread
+        // itself is covered by the dashboardReports unit tests.
+        expect(screen.getByRole('button', {
+            name: /View 4 active incidents\. 1 responding, 3 waiting/i,
+        })).toBeInTheDocument();
     });
 
     test('locates an incident through the mounted map without URL navigation', () => {

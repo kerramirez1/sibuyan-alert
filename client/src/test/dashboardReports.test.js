@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+    buildActiveIncidentsSummary,
     deduplicateDashboardReports,
     fetchAllReportPages,
     getDashboardReportId,
@@ -163,5 +164,70 @@ describe('dashboard report data synchronization', () => {
         expect(reports).toHaveLength(2);
         expect(reports[0]).toMatchObject({ _id: 'report-1' });
         expect(reports[1]).toMatchObject({ status: 'pending' });
+    });
+});
+
+describe('active incidents summary copy', () => {
+    test('describes a mix of responding and not-yet-responding incidents', () => {
+        // The case that made the old fixed phrase wrong: two active incidents,
+        // only one of them with a responder.
+        const summary = buildActiveIncidentsSummary({ total: 2, responding: 1 });
+
+        expect(summary.helper).toBe('1 responding, 1 waiting');
+        expect(summary.description).toContain('1 responding');
+        expect(summary.description).toContain('1 waiting');
+    });
+
+    test('never claims anything is responding when nothing is', () => {
+        const summary = buildActiveIncidentsSummary({ total: 2, responding: 0 });
+
+        expect(summary.helper).toBe('2 waiting for a responder');
+        expect(summary.helper).not.toMatch(/responding/);
+        expect(summary.description).toContain('none responding yet');
+    });
+
+    test('says so plainly when every active incident is responding', () => {
+        expect(buildActiveIncidentsSummary({ total: 3, responding: 3 }).helper).toBe('All responding');
+        expect(buildActiveIncidentsSummary({ total: 1, responding: 1 }).helper).toBe('Responding');
+    });
+
+    test('handles the empty state without a stray count', () => {
+        const summary = buildActiveIncidentsSummary({ total: 0, responding: 0 });
+
+        expect(summary.helper).toBe('Nothing active');
+        expect(summary.description).toMatch(/^No active/);
+    });
+
+    test('clamps a responding count that exceeds the total', () => {
+        // Socket updates can briefly deliver the two lists out of step; the copy
+        // must never invent a negative "waiting" figure.
+        const summary = buildActiveIncidentsSummary({ total: 1, responding: 5 });
+
+        expect(summary.helper).toBe('Responding');
+        expect(summary.helper).not.toContain('-');
+    });
+
+    test('mentions the spread only when incidents share fewer locations than they number', () => {
+        expect(buildActiveIncidentsSummary({ total: 3, responding: 1, locations: 2 }).description)
+            .toContain('across 2 map locations');
+        // One incident at one location is not spread across anything.
+        expect(buildActiveIncidentsSummary({ total: 1, responding: 1, locations: 1 }).description)
+            .not.toContain('across');
+    });
+
+    test('keeps the helper short enough that the card cannot truncate it', () => {
+        // The KPI card clips its supporting line, and a description cut off
+        // mid-word matches the data no better than a wrong one does.
+        const cases = [
+            { total: 0, responding: 0 },
+            { total: 1, responding: 0 },
+            { total: 2, responding: 1 },
+            { total: 12, responding: 7 },
+            { total: 9, responding: 9 },
+        ];
+
+        cases.forEach((input) => {
+            expect(buildActiveIncidentsSummary(input).helper.length).toBeLessThanOrEqual(30);
+        });
     });
 });
