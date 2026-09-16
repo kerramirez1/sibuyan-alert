@@ -68,7 +68,7 @@ describe('mapMarkerVisuals', () => {
         expect(svg).toContain('<path');
     });
 
-    test('createOperationalMarkerElement sets up accessible role, aria-label, and pulse on responding', () => {
+    test('createOperationalMarkerElement puts the responding beat on a halo behind the pin', () => {
         const report = {
             id: 'rep-1',
             status: 'responding',
@@ -86,11 +86,17 @@ describe('mapMarkerVisuals', () => {
         expect(el.getAttribute('role')).toBe('button');
         expect(el.getAttribute('tabindex')).toBe('0');
         expect(el.getAttribute('aria-label')).toBe('Motorcycle collision map marker');
-        expect(el.innerHTML).toContain('report-marker__pulse');
-        expect(el.innerHTML).not.toContain('report-marker__halo');
+        // The beat sits on a halo element BEHIND the pin, so the pin itself
+        // never moves. The old 30px ring is gone for good — it out-shouted the
+        // high-risk zone indicator.
+        // Three staggered rings, so the marker shows a sequence of waves rather
+        // than one on/off blink. The stagger itself is CSS nth-child delays.
+        expect(el.innerHTML.match(/report-marker__halo/g)).toHaveLength(3);
+        expect(el.innerHTML).not.toContain('report-marker__pulse');
+        expect(el.innerHTML).not.toContain('zone-marker__ripple');
     });
 
-    test('non-responding pins carry no responding halo or pulse', () => {
+    test('non-responding pins carry no halo', () => {
         const report = { id: 'rep-2', status: 'verified', title: 'Incident V' };
 
         const el = createOperationalMarkerElement({
@@ -100,7 +106,8 @@ describe('mapMarkerVisuals', () => {
         });
 
         expect(el.className).toBe('report-marker');
-        expect(el.innerHTML).not.toContain('report-marker__pulse');
+        expect(el.className).not.toContain('report-marker--responding');
+        expect(el.innerHTML).not.toContain('report-marker__halo');
     });
 
     test('shadeHexColor derives a same-hue lower tone and passes through bad input', () => {
@@ -188,24 +195,26 @@ describe('mapMarkerVisuals', () => {
         expect(el.innerHTML).not.toContain('<path');
     });
 
-    test('zone marker renders at least two staggered waves so the pulse never blanks', () => {
+    test('zone marker renders a three-ring radar pulse around a single core', () => {
         const el = createRiskZoneMarkerElement({
             zone: { id: 'zone-3', name: 'Cambajao River Overflow', type: 'flood_prone' },
             color: MAP_RISK_ZONE_CONFIG.markerColor,
         });
 
-        const delays = [...el.innerHTML.matchAll(/animation-delay:(-?[\d.]+)s/g)].map((match) => Number(match[1]));
+        // Three rings, so the sweep is continuous instead of a single blink
+        // with a dead gap between beats.
+        expect(el.innerHTML.match(/zone-marker__ripple/g)).toHaveLength(3);
+        // Exactly one core dot for them to emanate from.
+        expect(el.innerHTML.match(/zone-marker__core/g)).toHaveLength(1);
+        // The stagger is per-ring CSS, never inline markup.
+        expect(el.innerHTML).not.toContain('animation-delay');
 
-        expect(delays.length).toBeGreaterThanOrEqual(2);
-        // Distinct phases — identical delays would stack the rings into one.
-        expect(new Set(delays).size).toBe(delays.length);
-        // At least one wave starts at 0 and the rest start part-way through
-        // their cycle, so the radar is already mid-pulse on the first frame.
-        expect(delays).toContain(0);
-        delays.forEach((delay) => expect(delay).toBeLessThanOrEqual(0));
-        // The cycle length is handed to CSS as a variable, not baked into a
-        // class name, so the wave phase spacing always matches the animation.
-        expect(el.innerHTML).toContain('--zone-radar-duration:');
+        // No duration is baked into the markup either: the beat comes from the
+        // shared `--marker-beat` in index.css, which the responding incident pin
+        // reads too. Hard-coding one here is what would let the two "look here"
+        // cues drift apart.
+        expect(el.innerHTML).not.toContain('--zone-core-pulse');
+        expect(el.innerHTML).not.toContain('animation-duration');
         expect(el.innerHTML).toContain('--zone-radar-color:');
     });
 

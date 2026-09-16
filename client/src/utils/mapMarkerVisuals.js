@@ -114,6 +114,16 @@ export const getSelectedLocationMarkerSvg = ({ width = 16, height = 22 } = {}) =
 );
 
 /**
+ * Halo rings drawn behind a responding pin.
+ *
+ * Three, not one: a single ring can only blink, while three staggered a beat
+ * apart give the eye a sequence — a wave leaves the pin every 0.5s while the
+ * other two are still mid-flight. The stagger itself lives in CSS (`nth-child`
+ * delays in index.css) so the timing stays next to the animation it belongs to.
+ */
+const RESPONDING_HALO_RINGS = 3;
+
+/**
  * Creates the HTML container element for incident report markers on the map.
  */
 export const createOperationalMarkerElement = ({
@@ -145,9 +155,20 @@ export const createOperationalMarkerElement = ({
     const isResponding = report?.status === 'responding';
     const markerSvg = getOperationalMarkerSvg(report?.status, markerColor);
 
+    // The beat lives BEHIND the responding pin, never on it. A map pin is a
+    // fixed reference point, and scaling a teardrop from its tip reads as the
+    // pin inflating rather than as activity. A halo has no silhouette to
+    // distort, so the motion reads as energy instead.
+    const halos = isResponding
+        ? Array.from(
+            { length: RESPONDING_HALO_RINGS },
+            () => '<span class="report-marker__halo" aria-hidden="true"></span>',
+        ).join('')
+        : '';
+
     el.innerHTML = `
         <div style="position:relative;width:20px;height:24px;display:flex;align-items:flex-end;justify-content:center;">
-            ${isResponding ? '<span class="report-marker__pulse" aria-hidden="true"></span><span class="report-marker__pulse report-marker__pulse--delayed" aria-hidden="true"></span>' : ''}
+            ${halos}
             ${markerSvg}
             ${groupedReports.length > 1 ? `
                 <span style="
@@ -177,36 +198,33 @@ export const createOperationalMarkerElement = ({
 };
 
 /**
- * Radar cycle length for high-risk zone markers, in seconds.
+ * Radar rings drawn behind the core dot.
  *
- * Single source of truth: the same constant is written to the
- * `--zone-radar-duration` CSS variable AND used to derive every wave's stagger
- * offset, so the animation length and the phase spacing can never drift apart.
+ * Three, not one: a single ring can only blink, while three staggered a beat
+ * apart give the marker a continuous radar sweep — a ring leaves the pin every
+ * beat while the other two are still travelling. The stagger itself lives in
+ * CSS (`nth-child` delays in index.css) so the timing sits next to the
+ * animation it belongs to.
  */
-const RISK_ZONE_RADAR_CYCLE_SECONDS = 2.4;
-
-/**
- * Staggered waves radiating from a zone marker's core.
- *
- * Three waves offset by a third of the cycle each guarantee that at least one
- * ring is always mid-expansion. As one wave reaches full scale at zero opacity
- * the next is already growing, so the radar never shows a blank frame — not on
- * the first paint, and not on any frame after it.
- */
-const RISK_ZONE_RADAR_WAVES = 3;
+const RISK_ZONE_RADAR_RINGS = 3;
 
 /**
  * Creates the HTML container element for high-risk hazard zones.
  *
- * Renders an infinite radar ripple: a stationary, 100% solid red core dot with
- * pure-red waves radiating outwards. Strictly monochromatic red — no white
- * border, ring, stroke, or halo anywhere, so the hazard pin stays
- * unmistakable against both the operational status pins (which own the
- * blue / amber / violet / cyan / green palette) and the map imagery.
+ * Renders a radar / ripple pulse: pure-red rings expanding outward from a solid,
+ * static core dot. Strictly monochromatic red — no white border, ring, stroke,
+ * or halo anywhere, so the hazard pin stays unmistakable against both the
+ * operational status pins (which own the blue / amber / violet / cyan / green
+ * palette) and the map imagery.
  *
- * Only `transform: scale()` and `opacity` are animated (see
- * `.zone-marker__ripple` in `index.css`), so the effect is composited on the
- * GPU and cannot stutter the map while panning or zooming.
+ * The dot never moves. It is the marker's anchor, so a moving centre reads as
+ * the pin drifting off the coordinate it is meant to mark; the rings carry all
+ * of the motion instead. Neither the rate nor the ring count is set here —
+ * `--marker-beat` in `index.css` is the single source of truth for the beat and
+ * `--marker-wave` (three beats) is one full sweep, which the responding
+ * incident pin reads as well. Only `transform: scale()` and `opacity` animate,
+ * so the effect is composited on the GPU and cannot stutter the map while
+ * panning or zooming.
  *
  * @param {object} [options]
  * @param {object} [options.zone]  Zone record — only `name` reaches the DOM.
@@ -224,20 +242,15 @@ export const createRiskZoneMarkerElement = ({ zone, color } = {}) => {
 
     const coreColor = color || MAP_RISK_ZONE_CONFIG.markerColor;
 
-    // Negative delays start each wave part-way through its cycle, so the ripple
-    // is already continuous on the very first frame instead of beginning with a
-    // single ring growing from nothing. Rounding keeps float noise (e.g.
-    // -1.5999999999999999s) out of the emitted CSS, and `|| 0` normalises the
-    // first wave's -0 to a plain 0.
-    const waves = Array.from({ length: RISK_ZONE_RADAR_WAVES }, (_, index) => {
-        const rawDelay = -((index * RISK_ZONE_RADAR_CYCLE_SECONDS) / RISK_ZONE_RADAR_WAVES);
-        const delay = Number(rawDelay.toFixed(3)) || 0;
-        return `<span class="zone-marker__ripple" aria-hidden="true" style="animation-delay:${delay}s"></span>`;
-    }).join('');
+    // No inline animation-delay: the stagger is per-ring CSS.
+    const rings = Array.from(
+        { length: RISK_ZONE_RADAR_RINGS },
+        () => '<span class="zone-marker__ripple" aria-hidden="true"></span>',
+    ).join('');
 
     el.innerHTML = `
-        <div class="zone-marker__radar" style="--zone-radar-color:${coreColor};--zone-radar-duration:${RISK_ZONE_RADAR_CYCLE_SECONDS}s;">
-            ${waves}
+        <div class="zone-marker__radar" style="--zone-radar-color:${coreColor};">
+            ${rings}
             <span class="zone-marker__core" aria-hidden="true"></span>
         </div>
     `;

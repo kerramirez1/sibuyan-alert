@@ -68,6 +68,17 @@
   /* Map controls */
   --map-control: #ffffff;
   --map-control-hover: #eef7f2;
+
+  /* Map marker beat: how often a ring leaves a pulsing marker. ONE shared value
+     drives both the high-risk zone radar and the responding incident pin, so
+     the two "look here" cues fire at the same rate and neither out-shouts the
+     other. */
+  --marker-beat: 0.5s;
+
+  /* One full pass of a three-ring train. Derived from the beat, so three rings
+     staggered one beat apart always mean a ring leaves the marker every 0.5s.
+     Both the zone radar and the responding halo animate over this. */
+  --marker-wave: calc(var(--marker-beat) * 3);
 }
 
 .dark {
@@ -673,65 +684,98 @@
   z-index: 10 !important;
 }
 
-.report-marker__pulse {
+/* Responding halo — the beat lives HERE, behind the pin, never on the pin.
+   A map pin is a fixed reference point, and scaling a teardrop from its tip
+   reads as the pin inflating rather than as activity. A halo has no silhouette
+   to distort, so motion in it reads as energy instead.
+
+   There are three of them. A single ring can only blink; three rings a beat
+   apart give the eye a sequence — a wave leaves the pin every 0.5s while the
+   other two are still mid-flight, so the marker never reads as one on/off flash.
+
+   They are soft filled discs on purpose: no border, no white outline. The 30px
+   ring this replaces failed because a hard 3px light border plus a white
+   box-shadow turned it into a loud graphic element that out-shouted the
+   high-risk zone indicator.
+
+   36px matches the high-risk zone halo's own footprint, and it is also the
+   smallest size that works: the ring starts at scale 0.5, so anything smaller
+   than ~36px spends the first half of its travel hidden behind the 16px pin
+   head, and the wave train becomes invisible. */
+.report-marker__halo {
   position: absolute;
-  top: -6px;
-  left: -5px;
-  width: 30px;
-  height: 30px;
+  top: -8px;
+  left: -8px;
+  width: 36px;
+  height: 36px;
   border-radius: 9999px;
-  background-color: rgba(37, 99, 235, 0.35);
-  border: 3px solid rgba(147, 197, 253, 0.95);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px rgba(37, 99, 235, 1);
-  animation: respondingPulse 1s ease-out infinite;
+  background-color: rgb(37 99 235);
+  transform-origin: 50% 50%;
+  animation: respondingHaloWave var(--marker-wave, 1.5s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
   pointer-events: none;
-  z-index: 0;
 }
 
-/* Second ripple, half a cycle behind: there is always a visible ring, so the
-   responding state never depends on catching a single pulse mid-flight. */
-.report-marker__pulse--delayed {
-  animation-delay: 0.5s;
+/* The pin must be lifted above the halo explicitly.
+   The halo is absolutely positioned while the svg is a plain flex item, so with
+   no z-index the positioned halo paints OVER the pin — washing it out and
+   tinting its white centre dot. It was invisible in review because the halo and
+   the pin are both blue; a red-halo harness is what exposed it. The zone marker
+   solves the same problem by raising its core instead (z-index 2). */
+.report-marker svg {
+  position: relative;
+  z-index: 1;
 }
 
-/* Dedicated 1s responding sweep: fully visible blue expansion with no dead
-   transparent tail, so a pulse fires every second on the map. Kept separate
-   from operationalMarkerPulse (one-shot red fresh-event ring) on purpose. */
-@keyframes respondingPulse {
+/* Negative delays start each ring part-way through the wave train, so the
+   sequence is already running on the very first frame instead of filling in
+   over the first 1.5s.
+
+   These are `!important` deliberately. The reduced-motion block swaps the
+   animation in with `animation: ... !important`, and an `!important` shorthand
+   resets `animation-delay` — a plain longhand here would lose to it and sync
+   all three rings into a single blink, destroying the very sequence this is
+   here to create. */
+.report-marker__halo:nth-child(2) {
+  animation-delay: calc(var(--marker-beat, 0.5s) * -1) !important;
+}
+
+.report-marker__halo:nth-child(3) {
+  animation-delay: calc(var(--marker-beat, 0.5s) * -2) !important;
+}
+
+/* One wave: a soft disc that grows outwards and fades away. The easing
+   decelerates, so the ring leaves quickly and dissolves slowly rather than
+   snapping — that gradual tail is what makes it read as a wave and not a
+   strobe. It holds some brightness through the middle of its travel so the
+   three rings overlap into a continuous train instead of three thin blips. */
+@keyframes respondingHaloWave {
   0% {
-    transform: scale(0.8);
-    opacity: 0.9;
+    opacity: 0.36;
+    transform: scale(0.5);
   }
+
+  55% {
+    opacity: 0.18;
+  }
+
   100% {
-    transform: scale(1.6);
     opacity: 0;
+    transform: scale(1);
   }
 }
 
-/* Responding pins keep a constant halo so the state reads even in a static
-   frame or mid-cycle when the expanding ring is transparent. Motion-blind
-   safe: no animation dependency. */
-.report-marker--responding {
-  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 1)) drop-shadow(0 0 34px rgba(37, 99, 235, 0.9)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
-}
-
-/* Beacon: the responding pin hops and flares every second — motion plus glow,
-   impossible to mistake for a static ordinary pin. Runs alongside the twin
-   ripple rings for a triple cue (hop + glow + ripples). */
-@keyframes respondingBeacon {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-    filter: brightness(1) drop-shadow(0 0 2px rgba(37, 99, 235, 0.55));
+/* Reduced-motion counterpart: opacity only, nothing changes size. The rings
+   hold three fixed concentric sizes instead, so the sequence is still legible —
+   it shimmers in place rather than travelling outwards. */
+@keyframes respondingHaloGlow {
+  0%,
+  100% {
+    opacity: 0.08;
   }
-  50% {
-    transform: translateY(-5px) scale(1.14);
-    filter: brightness(1.4) drop-shadow(0 0 20px rgba(96, 165, 250, 1)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.95)) drop-shadow(0 0 5px rgba(255, 255, 255, 1));
-  }
-}
 
-.report-marker--responding svg {
-  animation: respondingBeacon 1s ease-in-out infinite;
-  transform-origin: 50% 100%;
+  40% {
+    opacity: 0.3;
+  }
 }
 
 /* Fresh-event pulse: temporary red ring on markers touched by the latest
@@ -793,22 +837,72 @@
 }
 
 /* ==========================================================================
-   High-risk zone radar marker
+   High-risk zone marker
    --------------------------------------------------------------------------
-   An infinite radar ripple: a stationary, 100% solid red core dot with pure
-   red waves radiating outwards. Strictly monochromatic red — no white border,
-   ring, stroke, or halo anywhere; the only shadow is a dark red tint.
+   A radar / ripple pulse: pure-red rings expanding outward from a solid, static
+   core dot. Strictly monochromatic red — no white border, ring, stroke, or halo
+   anywhere; the only shadow is a dark red tint.
 
-   Only `transform: scale()` and `opacity` are animated. Those two properties
-   are composited on the GPU, so the effect cannot repaint the map while it
-   pans or zooms. A permanent `will-change` hint is deliberately omitted: it
-   would cost one extra layer per wave per zone for no compositing benefit.
+   The dot is the fixed anchor and never moves. The rings carry all of the
+   motion, which is the classic radar reading and keeps the marker's centre
+   rock-steady on the hazard coordinate. Only `transform: scale()` and
+   `opacity` animate, so nothing repaints the map while it pans or zooms.
    ========================================================================== */
 
+/* 18px — half the original 36px.
+   The ripple's reach is the single biggest thing deciding how much of the map a
+   hazard zone paints over, and at 36px each zone covered a 4.5x-dot-wide red
+   disc. 26px still read as too wide on the map, so it is now 2.25x the dot. */
+.zone-marker__radar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+/* Radar ripple. Three pure-red rings expand outward from the core and fade as
+   they travel, one leaving the pin every beat, so the marker reads as live
+   rather than as a dot parked on a fixed glow.
+
+   Plain filled discs — no border, no white rim, no gradient. A hard light rim
+   is what previously made a ring read as a loud graphic element instead of a
+   wave. */
+.zone-marker__ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: var(--zone-radar-color, #dc2626);
+  transform-origin: 50% 50%;
+  animation: zoneRadarRipple var(--marker-wave, 1.5s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+/* Negative delays start each ring part-way through the train, so the ripple is
+   already running on the very first frame instead of filling in over 1.5s.
+
+   These are `!important` deliberately: the reduced-motion block swaps the
+   animation in with `animation: ... !important`, and an `!important` shorthand
+   resets `animation-delay` — a plain longhand would lose to it and stack all
+   three rings into a single blink. */
+.zone-marker__ripple:nth-child(2) {
+  animation-delay: calc(var(--marker-beat, 0.5s) * -1) !important;
+}
+
+.zone-marker__ripple:nth-child(3) {
+  animation-delay: calc(var(--marker-beat, 0.5s) * -2) !important;
+}
+
+/* One sweep: the ring starts just clear of the 8px core and expands to the full
+   18px footprint while fading to nothing. The easing decelerates, so it leaves
+   quickly and dissolves slowly — that tail is what reads as a wave rather than
+   as a strobe. The start scale tracks the footprint: at 18px the ring must
+   begin at 0.5 (9px) or it starts hidden inside the core dot. */
 @keyframes zoneRadarRipple {
   0% {
-    transform: scale(0.3);
     opacity: 0.5;
+    transform: scale(0.5);
   }
 
   60% {
@@ -816,67 +910,38 @@
   }
 
   100% {
-    transform: scale(1);
     opacity: 0;
+    transform: scale(1);
   }
 }
 
-/* Reduced-motion counterpart to zoneRadarRipple: opacity only, no scale, so
-   there is no expanding motion to trigger vestibular discomfort. The peak is
-   driven per ring by --zone-breathe so the two rings keep their depth instead
-   of breathing as one flat disc. */
-@keyframes zoneRadarBreathe {
+/* Reduced-motion counterpart: opacity only, nothing changes size. The rings
+   hold three fixed concentric sizes, so the sequence still reads — it shimmers
+   in place rather than travelling outward. */
+@keyframes zoneRadarGlow {
   0%,
   100% {
-    opacity: calc(var(--zone-breathe, 0.3) * 0.45);
+    opacity: 0.08;
   }
 
-  50% {
-    opacity: var(--zone-breathe, 0.3);
+  40% {
+    opacity: 0.3;
   }
 }
 
-.zone-marker__radar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-}
+/* The core dot. 100% solid red, no border, no outline, no white accent — the
+   single shadow is dark red-tinted purely for definition against bright
+   satellite imagery.
 
-/* One wave: a pure red disc that grows outwards and fades to fully
-   transparent. `animation-delay` is written per wave from JS as a negative
-   value, so every ring starts part-way through its cycle. That stagger is what
-   makes the pulse seamless on the first frame and keeps it seamless forever
-   after — as one wave hits full scale at zero opacity, the next is already
-   expanding.
-
-   `will-change` is deliberate here: MapLibre rewrites the marker element's
-   transform on every map frame, which churns compositor layers. Pinning one
-   stable layer per wave keeps the ripple on the compositor instead of letting
-   it be dropped and re-attached mid-flight. The cost is one layer per wave per
-   zone, which is fine for the island-wide hazard set (single digits); revisit
-   if zone counts ever reach the hundreds. */
-.zone-marker__ripple {
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  background-color: var(--zone-radar-color, #dc2626);
-  transform-origin: 50% 50%;
-  animation: zoneRadarRipple var(--zone-radar-duration, 2.4s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-  will-change: transform, opacity;
-  pointer-events: none;
-}
-
-/* The stationary core: 100% solid red, no border, no outline, no white accent.
-   The single shadow is dark red-tinted purely for definition against bright
-   satellite imagery. */
+   It is completely static, and that is deliberate: the dot is the marker's
+   anchor, so a moving centre makes the whole pin look like it is drifting off
+   the hazard coordinate it is supposed to mark. The rings carry all of the
+   motion instead. */
 .zone-marker__core {
   position: relative;
   z-index: 2;
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 9999px;
   background-color: var(--zone-radar-color, #dc2626);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.55);
@@ -900,39 +965,38 @@
   .zone-marker {
     transition: none !important;
   }
-  .report-marker__pulse {
-    animation: none !important;
-    display: none !important;
+  /* Responding halo: opacity only, so nothing changes size at all. The rings
+     hold three fixed concentric sizes so the staggered sequence still reads
+     without any movement, and the pin was never animated to begin with. */
+  .report-marker__halo {
+    animation: respondingHaloGlow var(--marker-wave, 1.5s) ease-in-out infinite !important;
   }
-  .report-marker--responding svg {
-    animation: none !important;
+  .report-marker__halo:nth-child(1) {
+    transform: scale(0.55);
+  }
+  .report-marker__halo:nth-child(2) {
+    transform: scale(0.78);
   }
   .report-marker.map-marker--fresh::after {
     animation: none !important;
     display: none !important;
   }
-  /* Radar marker under reduced motion.
-     The expanding scale animation is the part that triggers vestibular
-     discomfort, so it is removed and the rings are pinned at fixed sizes.
-     What remains is a slow opacity-only breathe, which stops a hazard zone
-     from reading as a dead static blob without any movement at all.
-
-     To go fully static instead, replace the first rule with
-     `animation: none !important` and delete the --zone-breathe declarations. */
+  /* Radar ripple under reduced motion: the rings stop travelling and hold three
+     fixed concentric sizes, pulsing only their brightness. Nothing changes
+     size, so the radar still reads without any expansion. */
   .zone-marker__ripple {
-    animation: zoneRadarBreathe 3s ease-in-out infinite !important;
+    animation: zoneRadarGlow var(--marker-wave, 1.5s) ease-in-out infinite !important;
   }
   .zone-marker__ripple:nth-child(1) {
-    --zone-breathe: 0.26;
     transform: scale(1);
   }
   .zone-marker__ripple:nth-child(2) {
-    --zone-breathe: 0.36;
-    transform: scale(0.6);
+    transform: scale(0.78);
   }
   .zone-marker__ripple:nth-child(3) {
-    display: none !important;
+    transform: scale(0.56);
   }
+  /* The dot needs no override: it is already static in both motion modes. */
   .overlay-fade-in,
   .page-enter {
     animation: none !important;
