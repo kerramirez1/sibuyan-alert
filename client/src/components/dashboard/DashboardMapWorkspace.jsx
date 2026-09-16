@@ -407,16 +407,24 @@ const DashboardMapWorkspace = ({
     const publicActiveReports = activeReports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
     const publicActiveLocationCount = groupReportsByMapLocation(publicActiveReports).length;
 
-    // Reporter home viewport: open near their municipality when there is no
-    // deep link or explicit focus, instead of the whole-island camera.
     const currentUserId = user?._id ?? user?.id ?? null;
-    const reporterHomeFocus = useMemo(() => {
-        if (!isReporter || focusLocation || focusedReport || focusedRiskZone) return null;
+
+    // Home viewport: open on the viewer's own municipality instead of the
+    // whole-island camera.
+    //
+    // This applies to EVERY role with an assignment, not just reporters. A
+    // municipal admin's page is literally titled "<Municipality> incident map"
+    // and promises activity "in <Municipality>", so opening on the whole island
+    // hid the very incidents they came to triage. Guests have no assignment, so
+    // getMunicipalityMapFocus returns null for them and they keep the
+    // island-wide view unchanged.
+    const municipalityHomeFocus = useMemo(() => {
+        if (focusLocation || focusedReport || focusedRiskZone) return null;
         const home = getMunicipalityMapFocus(user?.assignedMunicipality);
         if (!home) return null;
-        return { ...home, requestId: `reporter-home:${user.assignedMunicipality}` };
-    }, [isReporter, focusLocation, focusedReport, focusedRiskZone, user?.assignedMunicipality]);
-    const effectiveFocusLocation = focusLocation ?? reporterHomeFocus;
+        return { ...home, requestId: `municipality-home:${user.assignedMunicipality}` };
+    }, [focusLocation, focusedReport, focusedRiskZone, user?.assignedMunicipality]);
+    const effectiveFocusLocation = focusLocation ?? municipalityHomeFocus;
 
     // Reporter ownership: prefer the loaded My Reports overview (source of
     // truth for "yours"), fall back to ownership flags on map rows.
@@ -438,6 +446,10 @@ const DashboardMapWorkspace = ({
     // supporting line is derived from the actual mix. A fixed phrase ("Being
     // handled now") was wrong as soon as one incident still had no responder —
     // which is the normal state early in an incident's life.
+    // Shared by the reporter and guest overviews — resolved rows are public.
+    // Declared here, above both metric arrays, because a `const` referenced
+    // before its declaration throws rather than reading as undefined.
+    const resolvedMapReports = allMappedReports.filter((report) => report?.status === 'resolved');
     const activeIncidentsSummary = buildActiveIncidentsSummary({
         total: publicActiveReports.length,
         responding: activeResponseReports.length,
@@ -478,21 +490,26 @@ const DashboardMapWorkspace = ({
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
                     panelDescription: `${activeIncidentsSummary.description} Verified and transferred count too.`,
                     records: publicActiveReports,
-                    // 'incidents' shows the same active report set as 'all' but
-                    // suppresses the hazard layer, isolating incident pins.
-                    mapFilter: 'incidents',
+                    // 'all' is the guest's active set — see GUEST_FILTERS. The
+                    // hazard layer stays hidden for it, exactly as 'incidents'
+                    // did, because only 'risk-zones' reveals the hazard layer.
+                    mapFilter: 'all',
                     emptyTitle: 'No active incidents', emptyDescription: 'No verified, transferred, or responding incidents are currently active.',
                     statusDot: 'bg-blue-500',
                 },
                 {
-                    id: 'public-responding', label: 'Active response', value: activeResponseReports.length,
-                    helper: 'Being handled now', icon: HiOutlineTruck, panelType: 'incidents',
-                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} being handled now`,
-                    records: activeResponseReports,
-                    mapFilter: 'responding',
-                    emptyTitle: 'No active responses',
-                    emptyDescription: 'No public incidents are currently in active response.',
-                    statusDot: 'bg-cyan-500',
+                    // Same card the reporter map shows, minus the pending one.
+                    // Resolved rows were always public — guests already had a
+                    // Resolved filter tab — so this exposes no new data, it only
+                    // stops hiding a lifecycle stage from the overview.
+                    id: 'public-resolved', label: 'Resolved', value: resolvedMapReports.length,
+                    helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
+                    panelTitle: 'Resolved incidents', panelDescription: `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
+                    records: resolvedMapReports,
+                    mapFilter: 'resolved',
+                    emptyTitle: 'No resolved incidents',
+                    emptyDescription: 'No resolved incidents yet.',
+                    statusDot: 'bg-emerald-500',
                 },
                 {
                     id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
@@ -508,7 +525,6 @@ const DashboardMapWorkspace = ({
     // MVP: no subset-duplicate card. "Active response" is a subset of
     // "Active incidents", so reporters get Pending / Active / Resolved / Risk
     // (mutually exclusive) instead of Active + Active response side by side.
-    const reporterResolvedReports = allMappedReports.filter((report) => report?.status === 'resolved');
     const reporterMetrics = [
         {
             id: 'reporter-pending', label: 'Pending review', value: reporterPendingReports.length,
@@ -533,10 +549,10 @@ const DashboardMapWorkspace = ({
             statusDot: 'bg-blue-500',
         },
         {
-            id: 'reporter-resolved', label: 'Resolved', value: reporterResolvedReports.length,
+            id: 'reporter-resolved', label: 'Resolved', value: resolvedMapReports.length,
             helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
-            panelTitle: 'Resolved incidents', panelDescription: `${reporterResolvedReports.length} ${reporterResolvedReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
-            records: reporterResolvedReports,
+            panelTitle: 'Resolved incidents', panelDescription: `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
+            records: resolvedMapReports,
             mapFilter: 'resolved',
             emptyTitle: 'No resolved incidents',
             emptyDescription: 'No resolved incidents yet.',
@@ -599,7 +615,14 @@ const DashboardMapWorkspace = ({
                     id: 'admin-dispatchable', label: 'Verified / transferred', value: dispatchableReports.length,
                     helper: 'Available for dispatch', icon: HiOutlineCheckCircle, panelType: 'incidents',
                     panelTitle: 'Verified / transferred incidents', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} available for dispatch`,
-                    records: dispatchableReports, mapFilter: 'all', emptyTitle: 'No incidents available for dispatch',
+                    records: dispatchableReports,
+                    // Deliberately no `mapFilter`. This card counts verified +
+                    // transferred, and the rail has no single tab that matches
+                    // that pair — 'all' would WIDEN the map to every active
+                    // incident, so a card reading "1" would show four pins. The
+                    // panel still lists exactly the card's records; the map is
+                    // left on whatever the admin chose.
+                    emptyTitle: 'No incidents available for dispatch',
                     emptyDescription: 'No verified or transferred incidents are currently available for dispatch.',
                     statusDot: 'bg-blue-500',
                 },

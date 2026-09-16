@@ -10,14 +10,6 @@ const OPERATIONAL_FILTERS = Object.freeze({
         Object.freeze({ value: 'resolved', label: 'Resolved' }),
         Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
     ]),
-    public: Object.freeze([
-        Object.freeze({ value: 'all', label: 'Active Incidents' }),
-        Object.freeze({ value: 'verified', label: 'Verified' }),
-        Object.freeze({ value: 'responding', label: 'Responding' }),
-        Object.freeze({ value: 'transferred', label: 'Transferred' }),
-        Object.freeze({ value: 'resolved', label: 'Resolved' }),
-        Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
-    ]),
 });
 
 // Reporter-friendly filters: verified/transferred/responding are operational
@@ -28,6 +20,22 @@ const REPORTER_FILTERS = Object.freeze([
     Object.freeze({ value: 'all', label: 'All open' }),
     Object.freeze({ value: 'pending', label: 'Pending review' }),
     Object.freeze({ value: 'active', label: 'Active incidents' }),
+    Object.freeze({ value: 'resolved', label: 'Resolved' }),
+    Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
+]);
+
+// Guest filters: the same shape as the reporter list — one "Active Incidents"
+// tab instead of three pieces of operational jargon — minus the pending tab.
+// Guests are never sent pending rows (see `showPendingReports` below), so a
+// pending tab would be permanently empty.
+//
+// There is deliberately no separate "Active incidents" tab either. For a guest
+// `all` and `active` resolve to the SAME set, because the only difference
+// between them is whether pending is included (see getFilteredMapReports). So
+// `all` IS the active set, which is why it keeps that label rather than the
+// reporter's "All open".
+const GUEST_FILTERS = Object.freeze([
+    Object.freeze({ value: 'all', label: 'Active Incidents' }),
     Object.freeze({ value: 'resolved', label: 'Resolved' }),
     Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
 ]);
@@ -88,7 +96,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         eyebrow: 'Public safety map',
         title: 'Sibuyan Island incident map',
         description: 'Explore verified incidents, active responses, and mapped hazards across Sibuyan Island.',
-        filters: OPERATIONAL_FILTERS.public,
+        filters: GUEST_FILTERS,
         filterMode: 'public',
         showPendingReports: false,
         showSubmitReport: false,

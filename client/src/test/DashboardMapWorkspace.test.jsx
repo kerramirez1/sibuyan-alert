@@ -236,12 +236,57 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('1 responding'));
         expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('3 waiting'));
 
-        // Active response remains a narrower view of the same population.
-        expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
+        // The guest overview now mirrors the reporter's: Active incidents,
+        // Resolved, Risk zones. "Active response" was a subset-duplicate of
+        // Active incidents and is gone. The fixture's single resolved row lands
+        // on the Resolved card, not on Active incidents.
+        expect(within(summary).getByRole('button', { name: /View 1 resolved/i })).toBeInTheDocument();
+        expect(within(summary).queryByRole('button', { name: /active response/i })).not.toBeInTheDocument();
 
         // Transferred must no longer exist as a category card of its own.
         expect(within(summary).queryByRole('button', { name: /^View \d+ transferred/i })).not.toBeInTheDocument();
         expect(within(summary).queryByText('Transferred')).not.toBeInTheDocument();
+    });
+
+    test('gives guests the reporter overview shape, minus the pending card only', () => {
+        const reports = [
+            { _id: 'v1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+            { _id: 'r1', status: 'responding', coordinates: { lat: 12.41, lng: 122.61 } },
+            { _id: 'x1', status: 'resolved', coordinates: { lat: 12.42, lng: 122.62 } },
+        ];
+        const cardsOf = (region) => within(region).getAllByRole('button')
+            .map((button) => button.getAttribute('aria-label')?.split('.')[0] || '');
+
+        const guest = renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+            isResponder: false,
+            isAdmin: false,
+            reports,
+        }));
+        const guestCards = cardsOf(screen.getByRole('region', { name: 'Map summary' }));
+        guest.unmount();
+
+        renderWorkspace(createProps({
+            user: { _id: 'u1', role: 'reporter', name: 'Reporter' },
+            isAuthenticated: true,
+            isReporter: true,
+            isResponder: false,
+            isAdmin: false,
+            reports,
+        }));
+        const reporterCards = cardsOf(screen.getByRole('region', { name: 'Map summary' }));
+
+        // The whole point of the guest overview: identical to the reporter's,
+        // same cards in the same order, minus Pending review — the one card
+        // whose data never reaches an unauthenticated viewer. This is the RBAC
+        // boundary expressed as a test, so a future "just copy it all" change
+        // cannot quietly leak pending counts to the public map.
+        expect(reporterCards).toHaveLength(4);
+        expect(guestCards).toHaveLength(3);
+        expect(guestCards).not.toEqual(expect.arrayContaining([expect.stringMatching(/pending/i)]));
+        expect(reporterCards.filter((card) => !/pending review/i.test(card))).toEqual(guestCards);
     });
 
     test('keeps municipal admin counts and contextual panel records on the same status definitions', () => {
@@ -339,19 +384,21 @@ describe('DashboardMapWorkspace permissions', () => {
         const reports = [
             { _id: 'verified-1', status: 'verified', incidentType: 'fire', coordinates: { lat: 12.4, lng: 122.6 } },
             { _id: 'transferred-1', status: 'transferred', incidentType: 'medical', coordinates: { lat: 12.41, lng: 122.61 } },
-            { _id: 'responding-1', status: 'responding', incidentType: 'marine', coordinates: { lat: 12.42, lng: 122.62 } },
+            { _id: 'resolved-1', status: 'resolved', incidentType: 'marine', coordinates: { lat: 12.42, lng: 122.62 } },
         ];
         renderWorkspace(createProps({
             user: null,
             isAuthenticated: false,
             isReporter: false,
             reports,
-            mapSummaryPanel: 'overview:public-responding',
+            mapSummaryPanel: 'overview:public-resolved',
         }));
 
-        const panel = screen.getByRole('dialog', { name: 'Active response' });
+        // The Resolved card opens a panel holding only resolved rows, so the
+        // card's number and its list can never disagree.
+        const panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
-        expect(within(panel).getByText(/Marine.*Responding/i)).toBeInTheDocument();
+        expect(within(panel).getByText(/Marine.*Resolved/i)).toBeInTheDocument();
         expect(within(panel).queryByText(/Medical.*Transferred/i)).not.toBeInTheDocument();
     });
 
@@ -894,6 +941,76 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapPropsSpy.mock.lastCall[0].highRiskZones).toEqual(highRiskZones);
     });
 
+    test('opens the map on the viewer municipality for every assigned role, not just reporters', () => {
+        const assignedRoles = [
+            ['municipal admin', { _id: 'a1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' }, { isAdmin: true }],
+            ['responder', { _id: 'r1', role: 'responder', assignedMunicipality: 'Magdiwang' }, { isResponder: true }],
+            ['reporter', { _id: 'u1', role: 'reporter', assignedMunicipality: 'San Fernando' }, { isReporter: true }],
+        ];
+
+        assignedRoles.forEach(([label, user, flags]) => {
+            const { unmount } = renderWorkspace(createProps({
+                user,
+                isAuthenticated: true,
+                isReporter: false,
+                isResponder: false,
+                isAdmin: false,
+                ...flags,
+            }));
+
+            // The page is titled "<Municipality> incident map" for all of them,
+            // so all of them must open on that municipality. Only reporters used
+            // to, which left an admin staring at the whole island with their own
+            // incidents off-screen.
+            expect(mapPropsSpy.mock.lastCall[0].focusLocation, label).toMatchObject({
+                requestId: `municipality-home:${user.assignedMunicipality}`,
+            });
+            unmount();
+        });
+
+        // Guests have no assignment, so they keep the island-wide camera.
+        const guest = renderWorkspace(createProps({
+            user: null,
+            isAuthenticated: false,
+            isReporter: false,
+            isResponder: false,
+            isAdmin: false,
+        }));
+        expect(mapPropsSpy.mock.lastCall[0].focusLocation).toBeFalsy();
+        guest.unmount();
+    });
+
+    test('does not widen the map filter when the dispatchable card is opened', () => {
+        const setResponderMapFilter = vi.fn();
+        const setMapSummaryPanel = vi.fn();
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAuthenticated: true,
+            isAdmin: true,
+            isReporter: false,
+            isResponder: false,
+            reports: [
+                { _id: 'v1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
+                { _id: 't1', status: 'transferred', coordinates: { lat: 12.41, lng: 122.61 } },
+                { _id: 'r1', status: 'responding', coordinates: { lat: 12.42, lng: 122.62 } },
+            ],
+            responderMapFilter: 'all',
+            setResponderMapFilter,
+            setMapSummaryPanel,
+        }));
+
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        // The card counts verified + transferred only.
+        fireEvent.click(within(summary).getByRole('button', { name: /View 2 verified \/ transferred/i }));
+
+        // It still opens its own panel, which lists exactly those two records…
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:admin-dispatchable');
+        // …but it does NOT touch the map filter. The rail has no tab matching
+        // verified+transferred, so filtering here would have widened the map to
+        // all three active incidents for a card reading "2".
+        expect(setResponderMapFilter).not.toHaveBeenCalled();
+    });
+
     test('keeps overview metrics decoupled from active map status filters (e.g. risk-zones filter)', () => {
         const now = new Date().toISOString();
         const reports = [
@@ -920,7 +1037,7 @@ describe('DashboardMapWorkspace permissions', () => {
         // already folds in the transferred row: 1 verified + 1 responding + 1
         // transferred = 3, so the merged total is what the card must show.
         expect(within(summary).getByRole('button', { name: /View 3 active incidents/i })).toBeInTheDocument();
-        expect(within(summary).getByRole('button', { name: /View 1 active response/i })).toBeInTheDocument();
+        expect(within(summary).getByRole('button', { name: /View 0 resolved/i })).toBeInTheDocument();
         expect(within(summary).getByRole('button', { name: /View 1 risk zones/i })).toBeInTheDocument();
         // Transferred is no longer a category card of its own.
         expect(within(summary).queryByRole('button', { name: /^View \d+ transferred/i })).not.toBeInTheDocument();
@@ -1104,7 +1221,7 @@ describe('DashboardMapWorkspace permissions', () => {
             },
         ];
 
-        test('1. Guest user sees Transferred filter with exact count in desktop filter rail', () => {
+        test('1. Guest user sees the folded filter rail with no operational jargon', () => {
             const setResponderMapFilter = vi.fn();
             renderWorkspace(createProps({
                 user: null,
@@ -1117,11 +1234,17 @@ describe('DashboardMapWorkspace permissions', () => {
                 setResponderMapFilter,
             }));
 
-            const transferredBtn = screen.getByRole('button', { name: /Transferred filter \(2 records\)/i });
-            expect(transferredBtn).toBeInTheDocument();
+            // Guests get the reporter's filter shape — one Active Incidents tab
+            // instead of Verified / Responding / Transferred — minus the pending
+            // tab, which they are never sent data for.
+            expect(screen.getByRole('button', { name: /Active Incidents filter/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Resolved filter/i })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Transferred filter/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Verified filter/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Pending filter/i })).not.toBeInTheDocument();
 
-            fireEvent.click(transferredBtn);
-            expect(setResponderMapFilter).toHaveBeenCalledWith('transferred');
+            fireEvent.click(screen.getByRole('button', { name: /Resolved filter/i }));
+            expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
         });
 
         test('2. Reporter user folds Transferred into All open (no separate tab)', () => {

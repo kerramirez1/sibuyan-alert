@@ -351,14 +351,21 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
 
             const tablist = screen.getByRole('group', { name: 'Map status filter' });
             expect(tablist).toBeInTheDocument();
-            const verifiedFilterBtn = within(tablist).getByRole('button', { name: /Verified filter/i });
-            expect(verifiedFilterBtn).toBeInTheDocument();
+            // Guests now get the reporter's folded rail: a single Active
+            // Incidents tab instead of Verified / Responding / Transferred
+            // jargon, and no pending tab, which they are never sent data for.
+            expect(within(tablist).getByRole('button', { name: /Active Incidents filter/i })).toBeInTheDocument();
+            expect(within(tablist).queryByRole('button', { name: /Verified filter/i })).not.toBeInTheDocument();
+            expect(within(tablist).queryByRole('button', { name: /Pending filter/i })).not.toBeInTheDocument();
 
-            fireEvent.click(verifiedFilterBtn);
-            expect(workspaceProps.setResponderMapFilter).toHaveBeenCalledWith('verified');
+            const resolvedFilterBtn = within(tablist).getByRole('button', { name: /Resolved filter/i });
+            expect(resolvedFilterBtn).toBeInTheDocument();
+
+            fireEvent.click(resolvedFilterBtn);
+            expect(workspaceProps.setResponderMapFilter).toHaveBeenCalledWith('resolved');
         });
 
-        test('renders 4 slim overview items with aligned values, chevrons, and accessible button semantics', () => {
+        test('renders 3 slim overview items with aligned values, chevrons, and accessible button semantics', () => {
             render(
                 <MemoryRouter>
                     <DashboardMapWorkspace {...workspaceProps} />
@@ -381,7 +388,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             // Verify the 3 labeled actions exist with full text (mobile slim
             // row + desktop card render the label, so duplicates are expected)
             expect(within(summaryRegion).getAllByText('Active incidents').length).toBeGreaterThanOrEqual(1);
-            expect(within(summaryRegion).getAllByText('Active response').length).toBeGreaterThanOrEqual(1);
+            expect(within(summaryRegion).getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
             expect(within(summaryRegion).getAllByText('Risk zones').length).toBeGreaterThanOrEqual(1);
 
             // Transferred is a status folded into active incidents, so it must
