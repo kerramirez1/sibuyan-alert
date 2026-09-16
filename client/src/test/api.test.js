@@ -95,6 +95,7 @@ describe('API service', () => {
         expect(typeof reportsAPI.getMapConfig).toBe('function');
         expect(typeof reportsAPI.getStats).toBe('function');
         expect(typeof reportsAPI.getMunicipalities).toBe('function');
+        expect(typeof reportsAPI.geocodeLocation).toBe('function');
         expect(typeof reportsAPI.uploadEvidence).toBe('function');
     });
 
