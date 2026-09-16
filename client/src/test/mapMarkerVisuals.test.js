@@ -8,6 +8,8 @@ import {
     createRiskZoneMarkerElement,
     shadeHexColor,
     STATUS_PIN_PALETTES,
+    INCIDENT_MARKER_SIZE,
+    SELECTED_MARKER_SIZE,
 } from '../utils/mapMarkerVisuals';
 import { MAP_STATUS_CONFIG, MAP_RISK_ZONE_CONFIG } from '../config/mapVisuals';
 
@@ -224,5 +226,40 @@ describe('mapMarkerVisuals', () => {
         });
 
         expect(el.innerHTML).toContain(MAP_RISK_ZONE_CONFIG.markerColor);
+    });
+});
+
+describe('incident marker sizing', () => {
+    const sizeAttr = `width="${INCIDENT_MARKER_SIZE.width}" height="${INCIDENT_MARKER_SIZE.height}"`;
+
+    test('every incident marker renders at the one declared size', () => {
+        const report = { _id: 'r1', status: 'verified', title: 'Incident' };
+        const el = createOperationalMarkerElement({
+            report,
+            groupedReports: [report],
+            markerColor: '#2563EB',
+        });
+
+        // The glyph itself...
+        expect(el.innerHTML).toContain(sizeAttr);
+        // ...and the body that positions it. The halo and the count badge are
+        // sized from these two custom properties in index.css, which is what
+        // makes one number control the whole marker.
+        expect(el.innerHTML).toContain(`--marker-w:${INCIDENT_MARKER_SIZE.width}px`);
+        expect(el.innerHTML).toContain(`--marker-h:${INCIDENT_MARKER_SIZE.height}px`);
+    });
+
+    test('every pin-producing helper shares the incident size by default', () => {
+        // Six surfaces mount MapView. None of them may pass a size, and none of
+        // these helpers may carry a private default, or the maps drift apart.
+        expect(getOperationalMarkerSvg('verified', '#2563EB')).toContain(sizeAttr);
+        expect(getRiskZoneMarkerSvg('#DC2626')).toContain(sizeAttr);
+    });
+
+    test('the draggable placement pin is its own size and stays larger', () => {
+        expect(getSelectedLocationMarkerSvg()).toContain(
+            `width="${SELECTED_MARKER_SIZE.width}" height="${SELECTED_MARKER_SIZE.height}"`,
+        );
+        expect(SELECTED_MARKER_SIZE.width).toBeGreaterThan(INCIDENT_MARKER_SIZE.width);
     });
 });

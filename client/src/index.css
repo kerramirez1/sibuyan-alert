@@ -702,12 +702,53 @@
    smallest size that works: the ring starts at scale 0.5, so anything smaller
    than ~36px spends the first half of its travel hidden behind the 16px pin
    head, and the wave train becomes invisible. */
+/* Marker body. Sized from --marker-w / --marker-h, which the builder writes from
+   INCIDENT_MARKER_SIZE. Everything inside the marker derives from those two
+   values, so shrinking the marker shrinks the halo and the count badge with it
+   and no number has to be kept in sync by hand. */
+.report-marker__body {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: var(--marker-w, 12px);
+  /* 2px of breathing room under the tip for the drop shadow. */
+  height: calc(var(--marker-h, 17px) + 2px);
+}
+
+/* Grouped-location count badge. */
+.report-marker__count {
+  position: absolute;
+  right: -6px;
+  top: -5px;
+  z-index: 3;
+  display: flex;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  border-radius: 9999px;
+  background: #0f172a;
+  color: #ffffff;
+  font: 700 9px/1 Inter, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+/* Halo centred on the pin HEAD, not on the whole teardrop — the head sits at
+   ~33% of the teardrop's height (10.5 of 32 in the pin's viewBox), so a halo
+   centred on the body would sit visibly low. The leading 2px matches the body's
+   breathing room under the tip.
+   Sized in absolute terms on purpose: a glow has to clear the glyph, so it does
+   not scale down with it. */
 .report-marker__halo {
   position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 36px;
-  height: 36px;
+  left: calc(50% - 14px);
+  top: calc(2px + var(--marker-h, 17px) * 0.328 - 14px);
+  width: 28px;
+  height: 28px;
   border-radius: 9999px;
   background-color: rgb(37 99 235);
   transform-origin: 50% 50%;

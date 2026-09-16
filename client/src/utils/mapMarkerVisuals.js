@@ -16,6 +16,30 @@ export const STATUS_PIN_PALETTES = Object.freeze({
 });
 
 /**
+ * The one size every incident marker renders at, on every map.
+ *
+ * There are six surfaces that mount `MapView` (the dashboard, the analytics
+ * workspace, the admin zone page, and three location previews), and each used to
+ * reach the pin builder through its own default argument. Declaring the size once
+ * here and passing it explicitly from `getOperationalMarkerSvg` means a preview
+ * map, a detail map and the dashboard physically cannot drift apart — shrinking
+ * the marker is a one-line change that lands everywhere at once.
+ *
+ * The marker body in `index.css` reads the same numbers through the
+ * `--marker-w` / `--marker-h` custom properties the builder writes, so the halo
+ * and the grouped-count badge scale with it instead of being hand-tuned twice.
+ */
+export const INCIDENT_MARKER_SIZE = Object.freeze({ width: 12, height: 17 });
+
+/**
+ * Draggable placement pin for the report flow. Deliberately larger than an
+ * incident marker: it is a target the user grabs and drags, not a map label.
+ * Recorded here at its existing size so the number lives in one place — this
+ * change is not meant to resize it.
+ */
+export const SELECTED_MARKER_SIZE = Object.freeze({ width: 30, height: 34 });
+
+/**
  * Darkens (negative percent) or lightens a #rrggbb hex toward black/white.
  * Used to derive the pin gradient's lower tone from an explicit override
  * color so unified pins never mix hues (e.g. blue top + purple bottom).
@@ -57,8 +81,8 @@ export const getStatusIconInnerSvg = (status) => {
 export const getMapPinSvg = ({
     status = 'default',
     color = null,
-    width = 16,
-    height = 22,
+    width = INCIDENT_MARKER_SIZE.width,
+    height = INCIDENT_MARKER_SIZE.height,
 } = {}) => {
     const palette = STATUS_PIN_PALETTES[status]
         || (color ? { base: color, dark: color } : STATUS_PIN_PALETTES.default);
@@ -90,7 +114,10 @@ export const getMapPinSvg = ({
 /**
  * Standard operational incident marker SVG.
  */
-export const getOperationalMarkerSvg = (status, color, { width = 16, height = 22 } = {}) => {
+export const getOperationalMarkerSvg = (status, color, {
+    width = INCIDENT_MARKER_SIZE.width,
+    height = INCIDENT_MARKER_SIZE.height,
+} = {}) => {
     const effectiveColor = color || MAP_STATUS_CONFIG[status]?.markerColor || MAP_STATUS_CONFIG.verified.markerColor;
     return getMapPinSvg({ status, color: effectiveColor, width, height });
 };
@@ -102,14 +129,20 @@ export const getOperationalMarkerSvg = (status, color, { width = 16, height = 22
  * marker does NOT use this: `createRiskZoneMarkerElement` renders the animated
  * pure-red radar instead (see below).
  */
-export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, { width = 16, height = 22 } = {}) => (
+export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, {
+    width = INCIDENT_MARKER_SIZE.width,
+    height = INCIDENT_MARKER_SIZE.height,
+} = {}) => (
     getMapPinSvg({ status: 'risk', color, width, height })
 );
 
 /**
  * Draggable selected-location marker SVG.
  */
-export const getSelectedLocationMarkerSvg = ({ width = 16, height = 22 } = {}) => (
+export const getSelectedLocationMarkerSvg = ({
+    width = SELECTED_MARKER_SIZE.width,
+    height = SELECTED_MARKER_SIZE.height,
+} = {}) => (
     getMapPinSvg({ status: 'selected', color: '#EF4444', width, height })
 );
 
@@ -166,31 +199,14 @@ export const createOperationalMarkerElement = ({
         ).join('')
         : '';
 
+    // The body takes its size from these two custom properties, so the halo and
+    // the grouped-count badge in index.css scale with the marker instead of
+    // being hand-tuned a second time.
     el.innerHTML = `
-        <div style="position:relative;width:20px;height:24px;display:flex;align-items:flex-end;justify-content:center;">
+        <div class="report-marker__body" style="--marker-w:${INCIDENT_MARKER_SIZE.width}px;--marker-h:${INCIDENT_MARKER_SIZE.height}px;">
             ${halos}
             ${markerSvg}
-            ${groupedReports.length > 1 ? `
-                <span style="
-                    position:absolute;
-                    right:-6px;
-                    top:-5px;
-                    min-width:16px;
-                    height:16px;
-                    padding:0 3px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    border-radius:9999px;
-                    border:1.5px solid #ffffff;
-                    background:#0f172a;
-                    color:#ffffff;
-                    font:700 9px/1 Inter,system-ui,sans-serif;
-                    box-shadow:0 1px 3px rgba(0,0,0,0.3);
-                    letter-spacing:-0.02em;
-                    z-index:3;
-                ">${groupedReports.length}</span>
-            ` : ''}
+            ${groupedReports.length > 1 ? `<span class="report-marker__count">${groupedReports.length}</span>` : ''}
         </div>
     `;
 

@@ -43,6 +43,7 @@ import {
     createOperationalMarkerElement,
     createRiskZoneMarkerElement,
     getSelectedLocationMarkerSvg,
+    SELECTED_MARKER_SIZE,
 } from '../../utils/mapMarkerVisuals';
 
 // Sibuyan Island bounds and center
@@ -1025,8 +1026,8 @@ const MapView = ({
                 const el = document.createElement('div');
                 el.className = 'selected-location-marker';
                 el.innerHTML = `
-                    <div style="position:relative; width:34px; height:38px; display:flex; align-items:flex-end; justify-content:center;">
-                        ${getSelectedLocationMarkerSvg({ width: 30, height: 34 })}
+                    <div style="position:relative; width:${SELECTED_MARKER_SIZE.width + 4}px; height:${SELECTED_MARKER_SIZE.height + 4}px; display:flex; align-items:flex-end; justify-content:center;">
+                        ${getSelectedLocationMarkerSvg()}
                     </div>
                 `;
                 el.style.cursor = 'pointer';
