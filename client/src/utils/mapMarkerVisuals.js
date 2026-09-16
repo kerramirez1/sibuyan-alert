@@ -147,16 +147,6 @@ export const getSelectedLocationMarkerSvg = ({
 );
 
 /**
- * Halo rings drawn behind a responding pin.
- *
- * Three, not one: a single ring can only blink, while three staggered a beat
- * apart give the eye a sequence — a wave leaves the pin every 0.5s while the
- * other two are still mid-flight. The stagger itself lives in CSS (`nth-child`
- * delays in index.css) so the timing stays next to the animation it belongs to.
- */
-const RESPONDING_HALO_RINGS = 3;
-
-/**
  * Creates the HTML container element for incident report markers on the map.
  */
 export const createOperationalMarkerElement = ({
@@ -185,26 +175,13 @@ export const createOperationalMarkerElement = ({
         el.setAttribute('title', markerStatusLabel);
     }
 
-    const isResponding = report?.status === 'responding';
     const markerSvg = getOperationalMarkerSvg(report?.status, markerColor);
 
-    // The beat lives BEHIND the responding pin, never on it. A map pin is a
-    // fixed reference point, and scaling a teardrop from its tip reads as the
-    // pin inflating rather than as activity. A halo has no silhouette to
-    // distort, so the motion reads as energy instead.
-    const halos = isResponding
-        ? Array.from(
-            { length: RESPONDING_HALO_RINGS },
-            () => '<span class="report-marker__halo" aria-hidden="true"></span>',
-        ).join('')
-        : '';
-
-    // The body takes its size from these two custom properties, so the halo and
-    // the grouped-count badge in index.css scale with the marker instead of
-    // being hand-tuned a second time.
+    // The body takes its size from these two custom properties, so the
+    // grouped-count badge in index.css scales with the marker instead of being
+    // hand-tuned a second time.
     el.innerHTML = `
         <div class="report-marker__body" style="--marker-w:${INCIDENT_MARKER_SIZE.width}px;--marker-h:${INCIDENT_MARKER_SIZE.height}px;">
-            ${halos}
             ${markerSvg}
             ${groupedReports.length > 1 ? `<span class="report-marker__count">${groupedReports.length}</span>` : ''}
         </div>
@@ -237,10 +214,10 @@ const RISK_ZONE_RADAR_RINGS = 3;
  * the pin drifting off the coordinate it is meant to mark; the rings carry all
  * of the motion instead. Neither the rate nor the ring count is set here —
  * `--marker-beat` in `index.css` is the single source of truth for the beat and
- * `--marker-wave` (three beats) is one full sweep, which the responding
- * incident pin reads as well. Only `transform: scale()` and `opacity` animate,
- * so the effect is composited on the GPU and cannot stutter the map while
- * panning or zooming.
+ * `--marker-wave` (three beats) is one full sweep. This is now the only animated
+ * marker on the map: the responding incident marker is static. Only
+ * `transform: scale()` and `opacity` animate, so the effect is composited on the
+ * GPU and cannot stutter the map while panning or zooming.
  *
  * @param {object} [options]
  * @param {object} [options.zone]  Zone record — only `name` reaches the DOM.

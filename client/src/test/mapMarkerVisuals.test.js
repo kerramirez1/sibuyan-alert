@@ -70,7 +70,7 @@ describe('mapMarkerVisuals', () => {
         expect(svg).toContain('<path');
     });
 
-    test('createOperationalMarkerElement puts the responding beat on a halo behind the pin', () => {
+    test('createOperationalMarkerElement marks the responding state by class only', () => {
         const report = {
             id: 'rep-1',
             status: 'responding',
@@ -88,17 +88,17 @@ describe('mapMarkerVisuals', () => {
         expect(el.getAttribute('role')).toBe('button');
         expect(el.getAttribute('tabindex')).toBe('0');
         expect(el.getAttribute('aria-label')).toBe('Motorcycle collision map marker');
-        // The beat sits on a halo element BEHIND the pin, so the pin itself
-        // never moves. The old 30px ring is gone for good — it out-shouted the
-        // high-risk zone indicator.
-        // Three staggered rings, so the marker shows a sequence of waves rather
-        // than one on/off blink. The stagger itself is CSS nth-child delays.
-        expect(el.innerHTML.match(/report-marker__halo/g)).toHaveLength(3);
+        // The responding state adds no DOM at all any more — no halo, no pulse,
+        // no ring. The class modifier is the only thing marking it, and on the
+        // reporter/guest map nothing styles it: a responding incident and a
+        // verified one now render identically. That is the requested behaviour,
+        // not an oversight.
+        expect(el.innerHTML).not.toContain('report-marker__halo');
         expect(el.innerHTML).not.toContain('report-marker__pulse');
         expect(el.innerHTML).not.toContain('zone-marker__ripple');
     });
 
-    test('non-responding pins carry no halo', () => {
+    test('non-responding markers carry no responding modifier', () => {
         const report = { id: 'rep-2', status: 'verified', title: 'Incident V' };
 
         const el = createOperationalMarkerElement({
@@ -212,9 +212,9 @@ describe('mapMarkerVisuals', () => {
         expect(el.innerHTML).not.toContain('animation-delay');
 
         // No duration is baked into the markup either: the beat comes from the
-        // shared `--marker-beat` in index.css, which the responding incident pin
-        // reads too. Hard-coding one here is what would let the two "look here"
-        // cues drift apart.
+        // shared `--marker-beat` in index.css. Hard-coding one here is what
+        // would let the radar drift out of step with the rest of the marker
+        // system.
         expect(el.innerHTML).not.toContain('--zone-core-pulse');
         expect(el.innerHTML).not.toContain('animation-duration');
         expect(el.innerHTML).toContain('--zone-radar-color:');

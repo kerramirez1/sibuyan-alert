@@ -737,88 +737,6 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
 }
 
-/* Halo centred on the pin HEAD, not on the whole teardrop — the head sits at
-   ~33% of the teardrop's height (10.5 of 32 in the pin's viewBox), so a halo
-   centred on the body would sit visibly low. The leading 2px matches the body's
-   breathing room under the tip.
-   Sized in absolute terms on purpose: a glow has to clear the glyph, so it does
-   not scale down with it. */
-.report-marker__halo {
-  position: absolute;
-  left: calc(50% - 14px);
-  top: calc(2px + var(--marker-h, 17px) * 0.328 - 14px);
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background-color: rgb(37 99 235);
-  transform-origin: 50% 50%;
-  animation: respondingHaloWave var(--marker-wave, 1.5s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-  pointer-events: none;
-}
-
-/* The pin must be lifted above the halo explicitly.
-   The halo is absolutely positioned while the svg is a plain flex item, so with
-   no z-index the positioned halo paints OVER the pin — washing it out and
-   tinting its white centre dot. It was invisible in review because the halo and
-   the pin are both blue; a red-halo harness is what exposed it. The zone marker
-   solves the same problem by raising its core instead (z-index 2). */
-.report-marker svg {
-  position: relative;
-  z-index: 1;
-}
-
-/* Negative delays start each ring part-way through the wave train, so the
-   sequence is already running on the very first frame instead of filling in
-   over the first 1.5s.
-
-   These are `!important` deliberately. The reduced-motion block swaps the
-   animation in with `animation: ... !important`, and an `!important` shorthand
-   resets `animation-delay` — a plain longhand here would lose to it and sync
-   all three rings into a single blink, destroying the very sequence this is
-   here to create. */
-.report-marker__halo:nth-child(2) {
-  animation-delay: calc(var(--marker-beat, 0.5s) * -1) !important;
-}
-
-.report-marker__halo:nth-child(3) {
-  animation-delay: calc(var(--marker-beat, 0.5s) * -2) !important;
-}
-
-/* One wave: a soft disc that grows outwards and fades away. The easing
-   decelerates, so the ring leaves quickly and dissolves slowly rather than
-   snapping — that gradual tail is what makes it read as a wave and not a
-   strobe. It holds some brightness through the middle of its travel so the
-   three rings overlap into a continuous train instead of three thin blips. */
-@keyframes respondingHaloWave {
-  0% {
-    opacity: 0.36;
-    transform: scale(0.5);
-  }
-
-  55% {
-    opacity: 0.18;
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(1);
-  }
-}
-
-/* Reduced-motion counterpart: opacity only, nothing changes size. The rings
-   hold three fixed concentric sizes instead, so the sequence is still legible —
-   it shimmers in place rather than travelling outwards. */
-@keyframes respondingHaloGlow {
-  0%,
-  100% {
-    opacity: 0.08;
-  }
-
-  40% {
-    opacity: 0.3;
-  }
-}
-
 /* Fresh-event pulse: temporary red ring on markers touched by the latest
    socket event (new/verified/responding/resolved/transferred). Finite
    iterations so it draws the eye once, then settles. */
@@ -1006,18 +924,7 @@
   .zone-marker {
     transition: none !important;
   }
-  /* Responding halo: opacity only, so nothing changes size at all. The rings
-     hold three fixed concentric sizes so the staggered sequence still reads
-     without any movement, and the pin was never animated to begin with. */
-  .report-marker__halo {
-    animation: respondingHaloGlow var(--marker-wave, 1.5s) ease-in-out infinite !important;
-  }
-  .report-marker__halo:nth-child(1) {
-    transform: scale(0.55);
-  }
-  .report-marker__halo:nth-child(2) {
-    transform: scale(0.78);
-  }
+  /* The responding halo needs no override: it is static in both motion modes. */
   .report-marker.map-marker--fresh::after {
     animation: none !important;
     display: none !important;
