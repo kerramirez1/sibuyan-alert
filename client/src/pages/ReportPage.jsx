@@ -7,13 +7,50 @@ import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
-import { createClientReportId, enqueueReport } from '../utils/offlineReportQueue';
+import {
+    clearQueuedReportSending,
+    createClientReportId,
+    enqueueReport,
+    isTransientSubmitFailure,
+    removeQueuedReport,
+} from '../utils/offlineReportQueue';
 import { useConnectivity } from '../hooks/useConnectivity';
+import { REPORT_SUBMIT_TIMEOUT_MS } from '../config/reportSubmission';
+import { clearReportDraft, loadReportDraft, saveReportDraft } from '../utils/reportDraft';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
+
+// What the reporter is told when the report is safe on the device but not yet
+// in the dispatch queue. Each variant names the real reason, because "offline"
+// and "the upload was cut halfway" need different reactions from the reporter.
+const QUEUED_REPORT_MESSAGES = {
+    offline: 'You are offline. This report is saved on your device and will be sent automatically.',
+    signalLost: 'Signal lost while submitting. This report is saved on your device and will be sent automatically once the connection returns.',
+};
+
+// Shown only when the report could neither be stored nor delivered. Saying so is
+// the point: navigating away would hide a report that no longer exists anywhere.
+const DEVICE_STORAGE_ERROR = 'This device could not store the report locally. Keep this screen open and retry, or free up storage.';
+
+const DEFAULT_REPORT_FORM = {
+    incidentCategory: 'accident',
+    incidentType: 'vehicular',
+    description: '',
+    address: '',
+    barangay: '',
+    incidentTime: '',
+    severity: 'moderate',
+    // Empty means "not recorded" and is deliberately distinct from 0, which
+    // the user enters only when they know there were none.
+    casualties: {
+        injured: '',
+        fatalities: '',
+        missing: '',
+    },
+};
 
 const ReportPage = () => {
     const navigate = useNavigate();
@@ -24,32 +61,38 @@ const ReportPage = () => {
     // so a retry, a duplicate confirmation, and an offline replay all reuse it.
     const pendingReportIdRef = useRef(null);
     const [uploadProgress, setUploadProgress] = useState(null);
+    // True once the current attempt is staged on the device: the reporter can
+    // be told the report is safe even while the upload is still running.
+    const [deviceSaved, setDeviceSaved] = useState(false);
+    // Draft restoration is localStorage-only (fields, never photos).
+    const [initialDraft] = useState(() => {
+        try {
+            return loadReportDraft();
+        } catch {
+            return null;
+        }
+    });
+    const [draftRestored, setDraftRestored] = useState(() => Boolean(initialDraft));
 
     // Form State
-    const [formData, setFormData] = useState({
-        incidentCategory: 'accident',
-        incidentType: 'vehicular',
-        description: '',
-        address: '',
-        barangay: '',
-        incidentTime: '',
-        severity: 'moderate',
-        // Empty means "not recorded" and is deliberately distinct from 0, which
-        // the user enters only when they know there were none.
+    const [formData, setFormData] = useState(() => ({
+        ...DEFAULT_REPORT_FORM,
+        ...initialDraft?.formData,
         casualties: {
-            injured: '',
-            fatalities: '',
-            missing: '',
+            ...DEFAULT_REPORT_FORM.casualties,
+            ...initialDraft?.formData?.casualties,
         },
-    });
+    }));
 
-    const [selectedLocation, setSelectedLocation] = useState(null);
+    const [selectedLocation, setSelectedLocation] = useState(() => initialDraft?.selectedLocation ?? null);
     const [userLocation, setUserLocation] = useState(null);
-    const [focusLocation, setFocusLocation] = useState(null);
+    const [focusLocation, setFocusLocation] = useState(() => (
+        initialDraft?.selectedLocation ? { ...initialDraft.selectedLocation, zoom: 14 } : null
+    ));
     const [geoLoading, setGeoLoading] = useState(false);
-    const [locationStatus, setLocationStatus] = useState('idle');
+    const [locationStatus, setLocationStatus] = useState(() => (initialDraft?.selectedLocation ? 'selected' : 'idle'));
     const [gpsAccuracy, setGpsAccuracy] = useState(null);
-    const [locationCapture, setLocationCapture] = useState(null);
+    const [locationCapture, setLocationCapture] = useState(() => initialDraft?.locationCapture ?? null);
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -375,12 +418,37 @@ const ReportPage = () => {
     };
 
     useEffect(() => {
+        // A restored draft already has the reporter's pin: do not let the
+        // auto GPS pass overwrite it on mount.
+        if (initialDraft?.selectedLocation) return;
         detectLocation();
         return () => {
             stopLocationDetection({ dismissToast: true });
             reverseGeocodeAbortRef.current?.abort();
         };
     }, []);
+
+    // Draft autosave: fields only, debounced, never photos or tokens. A closed
+    // tab or a validation-blocked submit still restores on return.
+    useEffect(() => {
+        if (loading) return undefined;
+        const timer = setTimeout(() => {
+            saveReportDraft({ formData, selectedLocation, locationCapture });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [formData, selectedLocation, locationCapture, loading]);
+
+    const handleDiscardDraft = () => {
+        clearReportDraft();
+        setDraftRestored(false);
+        setFormData({ ...DEFAULT_REPORT_FORM, casualties: { ...DEFAULT_REPORT_FORM.casualties } });
+        setSelectedLocation(null);
+        setFocusLocation(null);
+        setLocationStatus('idle');
+        setGpsAccuracy(null);
+        setLocationCapture(null);
+        setErrors({});
+    };
 
     const handleImageChange = async (e) => {
         const files = Array.from(e.target.files || []);
@@ -512,6 +580,52 @@ const ReportPage = () => {
         return pendingReportIdRef.current;
     };
 
+    /**
+     * Fields for the on-device copy: identical to the live submission, plus the
+     * reporter's answer to the duplicate warning. A replay that dropped that
+     * answer would come back as the same 409 the reporter had already resolved.
+     */
+    const buildQueueFields = ({ confirmDistinct = false } = {}) => {
+        const fields = buildSubmitFields();
+        if (confirmDistinct) fields.confirmDistinct = 'true';
+        return fields;
+    };
+
+    /**
+     * Write-ahead: stores the report on the device before the request leaves, and
+     * - unless this is a proactive save - marks it as in flight so the queue
+     * cannot upload a second copy of a submission that is still running.
+     *
+     * @returns {Promise<{entry: object, imagesDropped: boolean}|null>} null when
+     *   the device stores nothing at all (private mode, blocked IndexedDB,
+     *   quota exhausted). The caller must then treat the report as unsaved.
+     */
+    const stageOnDevice = async (clientReportId, { confirmDistinct = false, leased = true } = {}) => {
+        const fields = buildQueueFields({ confirmDistinct });
+
+        const stored = await enqueueReport({ clientReportId, fields, images, leased });
+        if (stored) return { entry: stored, imagesDropped: false };
+        if (!images.length) return null;
+
+        // Photos are the bulk of the payload. Losing them is bad; losing the
+        // whole report is worse, so the fields are stored on their own.
+        const fieldsOnly = await enqueueReport({ clientReportId, fields, images: [], leased });
+        return fieldsOnly ? { entry: fieldsOnly, imagesDropped: true } : null;
+    };
+
+    /** Hands the reporter to the inbox, where the queue is visible. */
+    const reportQueued = (staged, variant) => {
+        pendingReportIdRef.current = null;
+        clearReportDraft();
+        setDraftRestored(false);
+        toast.success(QUEUED_REPORT_MESSAGES[variant] || QUEUED_REPORT_MESSAGES.offline);
+        if (staged?.imagesDropped) {
+            // Silent photo loss would look like the server dropped them.
+            toast.error('The photos could not be stored on this device. The report will be sent without them.');
+        }
+        navigate('/my-reports');
+    };
+
     // Rebuilt on every attempt: a FormData body cannot be replayed, and the
     // duplicate confirmation resubmits the same report.
     const buildSubmitData = ({ confirmDistinct = false } = {}) => {
@@ -531,63 +645,117 @@ const ReportPage = () => {
 
     const submitReport = async (options = {}) => {
         setLoading(true);
+        setDeviceSaved(false);
         setUploadProgress({ percent: 0, loaded: 0, total: 0 });
+        let removeOfflineAbort = null;
+
         try {
-            await reportsAPI.create(buildSubmitData(options), {
-                onUploadProgress: (progressEvent) => {
-                    const loaded = progressEvent.loaded || 0;
-                    const total = progressEvent.total || 0;
-                    const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
-                    setUploadProgress({ percent, loaded, total });
-                },
+            // Write-ahead. The report is on the device before the request leaves
+            // and is dropped only once the server acknowledges it, so a signal
+            // drop mid-upload, a stall past the request timeout, or the app being
+            // closed can no longer lose an emergency report.
+            const staged = await stageOnDevice(getClientReportId(), {
+                confirmDistinct: Boolean(options.confirmDistinct),
+                leased: !isOffline,
             });
+
+            // Instant safety signal: the reporter knows the report is on the
+            // device before the network answers, instead of staring at a
+            // spinner for the full request timeout when the signal is fading.
+            if (staged) setDeviceSaved(true);
+
+            // Known-offline: there is no route to the server. Sending anyway only
+            // spins the button until the OS gives the request up.
+            if (isOffline) {
+                if (staged) reportQueued(staged, 'offline');
+                else toast.error(DEVICE_STORAGE_ERROR);
+                return;
+            }
+
+            // A signal loss mid-upload aborts the request at once instead of
+            // waiting out the full submit timeout. The abort surfaces as a
+            // transient failure below, which queues the already-staged copy.
+            const submitController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const abortOnOffline = () => {
+                try {
+                    submitController?.abort();
+                } catch {
+                    // Aborting is best-effort; the timeout still bounds the request.
+                }
+            };
+            if (typeof window !== 'undefined' && submitController) {
+                window.addEventListener('offline', abortOnOffline);
+                removeOfflineAbort = () => window.removeEventListener('offline', abortOnOffline);
+            }
+
+            try {
+                await reportsAPI.create(buildSubmitData(options), {
+                    timeout: REPORT_SUBMIT_TIMEOUT_MS,
+                    ...(submitController ? { signal: submitController.signal } : {}),
+                    onUploadProgress: (progressEvent) => {
+                        const loaded = progressEvent.loaded || 0;
+                        const total = progressEvent.total || 0;
+                        const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
+                        setUploadProgress({ percent, loaded, total });
+                    },
+                });
+            } catch (error) {
+                // The server warns rather than blocks: it hands back the nearby
+                // reports so the reporter can confirm this is a different event.
+                if (error.response?.status === 409 && error.response?.data?.code === 'POSSIBLE_DUPLICATE') {
+                    // A deliberate refusal, not a delivery failure, so this copy
+                    // must never be replayed on its own. The idempotency key
+                    // survives, so the explicit "different incident" retry files
+                    // exactly one report.
+                    if (staged) await removeQueuedReport(staged.entry.clientReportId);
+                    setDuplicateWarning({ duplicates: error.response.data.duplicates || [] });
+                    return;
+                }
+
+                if (staged && isTransientSubmitFailure(error)) {
+                    // Nothing reached the server, or an intermediary cut the
+                    // upload. Release the in-flight lease so the queue may retry,
+                    // and keep the stored copy — this is the interrupted submit.
+                    await clearQueuedReportSending(staged.entry.clientReportId);
+                    reportQueued(staged, 'signalLost');
+                    return;
+                }
+
+                // Replaying a server-refused report would fail forever and bury
+                // the real message, so the stored copy is dropped either way.
+                if (staged) await removeQueuedReport(staged.entry.clientReportId);
+
+                const serverMessage = error.response?.data?.message;
+                if (serverMessage) {
+                    toast.error(serverMessage);
+                } else if (staged) {
+                    toast.error('Failed to submit report');
+                } else {
+                    // Neither stored nor delivered: keep the reporter on this
+                    // page with the form intact rather than navigating away from
+                    // a report that is now nowhere.
+                    toast.error(DEVICE_STORAGE_ERROR);
+                }
+                return;
+            }
+
+            // Delivered. The staged copy is dropped only after acknowledgement.
             pendingReportIdRef.current = null;
+            if (staged) await removeQueuedReport(staged.entry.clientReportId);
+            clearReportDraft();
+            setDraftRestored(false);
             toast.success('Accident report submitted successfully!');
             navigate('/my-reports');
-        } catch (error) {
-            // The server warns rather than blocks: it hands back the nearby
-            // reports so the reporter can confirm this is a different incident.
-            if (error.response?.status === 409 && error.response?.data?.code === 'POSSIBLE_DUPLICATE') {
-                setDuplicateWarning({ duplicates: error.response.data.duplicates || [] });
-            } else if (!error.response) {
-                // No response at all: the request never left the device. Keep
-                // the report locally rather than losing an emergency report.
-                await queueOfflineReport();
-            } else {
-                const message = error.response?.data?.message || 'Failed to submit report';
-                toast.error(message);
-            }
         } finally {
+            try {
+                removeOfflineAbort?.();
+            } catch {
+                // Listener cleanup is best-effort.
+            }
             setLoading(false);
+            setDeviceSaved(false);
             setUploadProgress(null);
         }
-    };
-
-    const queueOfflineReport = async (options = {}) => {
-        const reportId = pendingReportIdRef.current || createClientReportId();
-        const queued = await enqueueReport({
-            clientReportId: reportId,
-            fields: buildSubmitFields(),
-            images,
-        });
-
-        if (queued) {
-            pendingReportIdRef.current = null;
-            toast.success(
-                options.isProactive
-                    ? 'Report saved to offline queue. It will sync automatically when online.'
-                    : 'You are offline. This report is saved on your device and will be sent automatically.'
-            );
-            navigate('/my-reports');
-            return;
-        }
-
-        toast.error('Could not store report locally. Please retry once you have signal.');
-    };
-
-    const handleSaveOffline = async () => {
-        if (!validate()) return;
-        await queueOfflineReport({ isProactive: true });
     };
 
     const handleSubmit = async (e) => {
@@ -623,8 +791,25 @@ const ReportPage = () => {
                 <p className="mt-1 max-w-2xl text-xs text-gray-500 sm:text-sm dark:text-gray-400">
                     Pin the incident location and provide the details authorities need to verify and dispatch response units.
                     Required fields are marked with an asterisk (*).
+                    Submitting auto-saves on this device if the signal drops and sends when the connection returns.
                 </p>
             </header>
+
+            {draftRestored && (
+                <div
+                    role="status"
+                    className="flex flex-col gap-2 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 sm:flex-row sm:items-center sm:justify-between dark:border-sky-700/50 dark:bg-sky-950/40 dark:text-sky-200"
+                >
+                    <p>Unfinished draft restored from this device. Photos are not stored in drafts — please re-attach them.</p>
+                    <button
+                        type="button"
+                        onClick={handleDiscardDraft}
+                        className="inline-flex min-h-[36px] shrink-0 items-center justify-center rounded-lg px-3 text-xs font-semibold text-sky-900 underline-offset-4 hover:underline dark:text-sky-200"
+                    >
+                        Discard draft
+                    </button>
+                </div>
+            )}
 
             {/* Guided Form Layout (2-column desktop/tablet, sequential mobile) */}
             <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
@@ -664,7 +849,7 @@ const ReportPage = () => {
                         onRetakeImage={retakeImage}
                         loading={loading}
                         uploadProgress={uploadProgress}
-                        onSaveOffline={handleSaveOffline}
+                        deviceSaved={deviceSaved}
                         isOffline={isOffline}
                     />
                 </div>

@@ -1,4 +1,6 @@
-import { describe, expect, test, vi } from 'vitest';
+// TEMPORARY validation copy (deleted after this task).
+// vitest's direct import is broken in this environment, so this copy relies on
+// the globals injected by the temporary config's `globals: true`.
 import {
     buildQueuedFormData,
     clearOfflineReportQueue,

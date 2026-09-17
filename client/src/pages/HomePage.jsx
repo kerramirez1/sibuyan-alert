@@ -113,10 +113,10 @@ const HomePage = () => {
             {/* ── Compact hairline navbar: solid surface, no blur wash ── */}
             <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-white/5 dark:bg-gray-950">
                 <div className="mx-auto flex h-[58px] max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-8 lg:px-10 xl:px-14">
-                    <Link to="/" className="flex min-w-0 shrink items-center gap-2.5" aria-label="Sibuyan Alert home">
+                    <Link to="/" className="flex min-w-0 shrink items-center gap-0" aria-label="Sibuyan Alert home">
                         <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
-                        <span className="truncate whitespace-nowrap font-display text-sm font-bold tracking-tight text-gray-950 sm:text-base dark:text-white">
-                            Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
+                        <span aria-hidden="true" className="-ml-1 truncate whitespace-nowrap font-display text-sm font-bold tracking-tight text-gray-950 sm:text-base dark:text-white">
+                            ibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
                         </span>
                     </Link>
 
@@ -181,11 +181,12 @@ const HomePage = () => {
                     >
                         {/* Col 1 — Brand + mission */}
                         <div className="col-span-2 lg:col-span-1">
-                            <div className="mb-3.5 flex items-center gap-2.5">
+                            <div className="mb-3.5 flex items-center gap-0">
                                 <img src="/icons/Alert.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
-                                <div className="min-w-0">
-                                    <span className="block font-display text-sm font-bold tracking-tight text-gray-950 dark:text-white sm:text-base">
-                                        Sibuyan <span className="text-brand-700 dark:text-red-400">Alert</span>
+                                <div className="-ml-1 min-w-0">
+                                    <span className="sr-only">Sibuyan Alert</span>
+                                    <span aria-hidden="true" className="block font-display text-sm font-bold tracking-tight text-gray-950 sm:text-base dark:text-white">
+                                        ibuyan <span className="text-brand-700 dark:text-red-400">Alert</span>
                                     </span>
                                     <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-slate-400">
                                         Island Operations

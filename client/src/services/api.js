@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toApiFilePath } from '../utils/assets';
+import { REPORT_SUBMIT_TIMEOUT_MS } from '../config/reportSubmission';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -153,6 +154,11 @@ export const reportsAPI = {
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
     recordView: (id) => api.post(`/reports/${id}/views`),
     create: (formData, config = {}) => api.post('/reports', formData, {
+        // A stalled upload must fail fast enough for the report to be handed to
+        // the offline queue while the reporter is still on the page. Without a
+        // timeout a faded radio leaves the request pending for minutes and the
+        // report dies with the app.
+        timeout: REPORT_SUBMIT_TIMEOUT_MS,
         ...config,
         headers: {
             'Content-Type': 'multipart/form-data',

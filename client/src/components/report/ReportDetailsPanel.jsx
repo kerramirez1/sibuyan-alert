@@ -51,7 +51,7 @@ const ReportDetailsPanel = ({
     onRetakeImage,
     loading,
     uploadProgress,
-    onSaveOffline,
+    deviceSaved,
     isOffline,
 }) => {
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
@@ -314,6 +314,12 @@ const ReportDetailsPanel = ({
                     </div>
                 )}
 
+                {loading && deviceSaved && (
+                    <p role="status" className="mt-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        Saved on this device — sending to dispatch…
+                    </p>
+                )}
+
                 {loading && uploadProgress && (
                     <div className="mt-3 space-y-1.5" role="status" aria-live="polite">
                         <div className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -343,11 +349,11 @@ const ReportDetailsPanel = ({
                     </div>
                 )}
 
-                <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+                <div className="mt-4">
                     <button
                         type="submit"
                         disabled={loading}
-                        className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
+                        className="inline-flex min-h-[44px] w-full flex-1 items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
                     >
                         {loading ? (
                             <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
@@ -358,19 +364,11 @@ const ReportDetailsPanel = ({
                                 : 'Submitting report…')
                             : 'Submit incident report'}
                     </button>
-
-                    {onSaveOffline && (
-                        <button
-                            type="button"
-                            onClick={onSaveOffline}
-                            disabled={loading}
-                            title="Save report locally to device queue and automatically sync when connection returns"
-                            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-amber-600/30 bg-amber-50 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
-                        >
-                            Save offline
-                        </button>
-                    )}
                 </div>
+
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Submitting auto-saves on this device if the signal drops and sends when the connection returns.
+                </p>
 
                 {isOffline && (
                     <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">

@@ -555,7 +555,7 @@ function MyReportsPage() {
                                 {pendingCount} incident {pendingCount === 1 ? 'report is' : 'reports are'} queued on this device
                             </p>
                             <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
-                                Saved locally while offline. {isOnline ? 'Network connection active — ready to sync.' : 'Will automatically sync when internet connection returns.'}
+                                Saved locally while offline. {isOnline ? 'Retrying automatically — you can also Sync now.' : 'Will automatically sync when internet connection returns.'}
                             </p>
                         </div>
                     </div>

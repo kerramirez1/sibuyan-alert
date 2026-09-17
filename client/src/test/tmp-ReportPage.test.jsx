@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+// TEMPORARY validation copy (deleted after this task).
+// vitest's direct import is broken in this environment, so this copy relies on
+// the globals injected by the temporary config's `globals: true`.
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
 
