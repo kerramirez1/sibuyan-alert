@@ -4,6 +4,7 @@ import {
     HiOutlinePhotograph,
 } from 'react-icons/hi';
 import { getMapRiskTypeConfig } from '../../config/mapVisuals';
+import useRecordView from '../../hooks/useRecordView';
 import {
     fetchProtectedBlob,
     getCachedBlobUrl,
@@ -146,6 +147,11 @@ const HighRiskZoneDetails = ({
     zone,
     _viewerRole = 'guest',
 }) => {
+    // Reach: this component mounts only when the zone's details are opened, so
+    // mounting IS the view. Not an impression — a zone pin passing through the
+    // viewport does not mount this.
+    useRecordView({ targetType: 'zone', targetId: zone?._id ?? zone?.id });
+
     const [viewerIndex, setViewerIndex] = useState(null);
 
     const coordinates = useMemo(() => extractCoordinates(zone), [zone]);

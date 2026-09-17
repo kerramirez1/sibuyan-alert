@@ -35,6 +35,7 @@ import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
 import highRiskZonesRoutes from './routes/highRiskZones.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import viewRoutes from './routes/views.js';
 import fileRoutes from './routes/files.js';
 
 // Initialize Express app
@@ -183,6 +184,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/high-risk-zones', highRiskZonesRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/views', viewRoutes);
 
 // Socket.io connection handling
 // NOTE: Operational presence tracking (online-users Map, userOnline/userOffline

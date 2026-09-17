@@ -4,6 +4,7 @@ import {
     HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
+import useRecordView from '../../hooks/useRecordView';
 import { formatIncidentLabel, getIncidentDetailViewModel, getTransferLine, normalizeCasualties } from '../../utils/incidentDetails';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getMapCoordinates } from '../../utils/mapReports';
@@ -109,6 +110,13 @@ const MapIncidentDetails = ({
     const isDescriptionLong = Boolean(details.description && details.description.length > 120);
 
     const incidentId = displayedReport?._id || displayedReport?.id;
+
+    // Reach: this sheet mounts only when an incident's details are opened, so
+    // mounting IS the view. The grouped-location modal is deliberately not
+    // instrumented — it shows a list, not one record, so there is no single
+    // target whose reach it could honestly describe.
+    useRecordView({ targetType: 'report', targetId: incidentId });
+
     useEffect(() => {
         setViewerItem(null);
         setIsDescriptionExpanded(false);

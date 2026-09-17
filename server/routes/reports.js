@@ -20,7 +20,7 @@ import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers, requireEvidenceContributor } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
-import { locationLookupLimiter, reportCreationLimiter, reportViewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
+import { locationLookupLimiter, reportCreationLimiter, viewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ router.post(
 router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);
 router.post('/:id/updates', protect, requireVerifiedReporter, validateMongoIdParam, addReportUpdate);
 // Lightweight view recorder for dossier expands (owner self-views excluded server-side)
-router.post('/:id/views', optionalAuth, reportViewLimiter, validateMongoIdParam, recordReportView);
+router.post('/:id/views', optionalAuth, viewLimiter, validateMongoIdParam, recordReportView);
 router.get('/:id', optionalAuth, getReportById);
 
 export default router;

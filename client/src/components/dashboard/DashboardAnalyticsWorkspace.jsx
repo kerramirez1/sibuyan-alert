@@ -3,6 +3,8 @@ import { formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from
 import toast from '../../utils/appToast';
 import { toSafeArray, safeCount } from '../../utils/safeCollection';
 import { formatMonthLabel, toValidDate } from '../../utils/safeDate';
+import useReachData from '../../hooks/useReachData';
+import ReachPanel from './ReachPanel';
 import {
     Bar,
     BarChart,
@@ -437,6 +439,13 @@ const DashboardAnalyticsWorkspace = ({
     const [mapStatusFilter, setMapStatusFilter] = useState('all');
     const [selectedDay, setSelectedDay] = useState(null);
 
+    // Reach is admin-only and fetched separately: it comes from the ViewEvent
+    // collection, while every other number on this page is derived client-side
+    // from the report list. Keeping the two sources apart means a reach failure
+    // degrades to "not shown" instead of looking like a report failure.
+    const isAdminViewer = user?.role === 'municipal_admin' || user?.role === 'admin';
+    const { reach } = useReachData({ enabled: Boolean(isAdminViewer) });
+
     // Day drill-downs belong to one month view; a new month starts unfiltered.
     useEffect(() => {
         setSelectedDay(null);
@@ -867,6 +876,26 @@ const DashboardAnalyticsWorkspace = ({
                     </>
                 )}
             </section>
+
+            {/* Reach: how many distinct people opened each record's details.
+                Admin-only, and rendered only once data exists so a viewer
+                without permission never sees an empty shell. */}
+            {isAdminViewer && reach ? (
+                <section className="grid gap-3 lg:grid-cols-2" aria-label="Reach">
+                    <ReachPanel
+                        title="Incident reach"
+                        description="Distinct viewers who opened each incident"
+                        rows={reach.reports}
+                        emptyDetail="No incident details have been opened yet."
+                    />
+                    <ReachPanel
+                        title="Risk zone reach"
+                        description="Distinct viewers who opened each hazard area"
+                        rows={reach.zones}
+                        emptyDetail="No hazard area details have been opened yet."
+                    />
+                </section>
+            ) : null}
 
             {/* Recent Operational Activity Section */}
             <section ref={historySectionRef} aria-label="Recent activity">

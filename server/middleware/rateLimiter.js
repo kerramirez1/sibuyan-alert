@@ -80,8 +80,16 @@ export const locationLookupLimiter = rateLimit(withStore({
     },
 }));
 
-/** Lightweight report-view recorder; generous so archive browsing is never blocked. */
-export const reportViewLimiter = rateLimit(withStore({
+/**
+ * View recorder, shared by report and zone views.
+ *
+ * Generous on purpose: opening details is ordinary browsing, and a throttled
+ * view is a silently lost data point rather than a blocked action. The limit
+ * exists to bound a runaway client, not to police reading. 120/min is well above
+ * any human browsing rate while still capping a loop that would otherwise write
+ * on every tick.
+ */
+export const viewLimiter = rateLimit(withStore({
     windowMs: 60 * 1000,
     max: 120,
     standardHeaders: true,

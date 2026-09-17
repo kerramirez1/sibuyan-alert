@@ -322,6 +322,10 @@ const AccidentHistoryPage = () => {
     // Dossier expands count as views (owner self-views excluded server-side).
     // Fire-and-forget: the dossier renders from list data either way.
     // Once per report per page session — re-expands don't inflate the count.
+    //
+    // Migrated to the shared reach endpoint, which records the deduped
+    // unique-viewer row AND keeps the legacy `viewCount` counter alive, so the
+    // "Views" column below keeps updating exactly as before.
     const toggleExpandedDossier = useCallback((report) => {
         if (!report?._id) return;
         const id = String(report._id);
@@ -329,7 +333,7 @@ const AccidentHistoryPage = () => {
         setExpandedId(isCollapsing ? null : report._id);
         if (!isCollapsing && !recordedViewsRef.current.has(id)) {
             recordedViewsRef.current.add(id);
-            reportsAPI.recordView(id)
+            reportsAPI.recordViewEvent({ targetType: 'report', targetId: id })
                 .then((response) => {
                     const viewCount = response.data?.data?.viewCount;
                     if (Number.isFinite(viewCount)) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toApiFilePath } from '../utils/assets';
 import { REPORT_SUBMIT_TIMEOUT_MS } from '../config/reportSubmission';
+import { getAnonymousViewerId } from '../utils/viewerIdentity';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -152,7 +153,17 @@ export const reportsAPI = {
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: (config = {}) => api.get('/reports/municipalities', config),
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
-    recordView: (id) => api.post(`/reports/${id}/views`),
+    // Reach recorder, shared by incidents and risk zones.
+    //
+    // The anonymous id is attached here rather than by each caller, so no
+    // surface can forget it and silently record nothing — a view with no
+    // identity is deliberately not counted server-side, which would otherwise
+    // make the omission invisible.
+    recordViewEvent: ({ targetType, targetId }) => api.post('/views', {
+        targetType,
+        targetId,
+        anonymousId: getAnonymousViewerId(),
+    }),
     create: (formData, config = {}) => api.post('/reports', formData, {
         // A stalled upload must fail fast enough for the report to be handed to
         // the offline queue while the reporter is still on the page. Without a
@@ -177,6 +188,9 @@ export const reportsAPI = {
 // Admin API
 export const adminAPI = {
     getDashboard: (params) => api.get('/admin/dashboard', { params }),
+    // Reach leaderboards: unique viewers per incident and per risk zone.
+    // Admin-gated server-side, aggregate-only by construction.
+    getReach: (params) => api.get('/views/reach', { params }),
     getPresence: () => api.get('/admin/presence'),
     getUsers: (params) => api.get('/admin/users', { params }),
     getUserById: (id) => api.get(`/admin/users/${id}`),
