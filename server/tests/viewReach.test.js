@@ -104,6 +104,16 @@ describe('view event schema', () => {
     });
 });
 
+const makeRes = () => {
+    const res = { statusCode: 200 };
+    res.status = (code) => {
+        res.statusCode = code;
+        return res;
+    };
+    res.json = () => res;
+    return res;
+};
+
 /**
  * Regression guard for the bug that made every guest view vanish.
  *
@@ -114,16 +124,6 @@ describe('view event schema', () => {
  * look like a guest-only mystery rather than a missing allowlist entry.
  */
 describe('reach endpoint reachability', () => {
-    const makeRes = () => {
-        const res = { statusCode: 200 };
-        res.status = (code) => {
-            res.statusCode = code;
-            return res;
-        };
-        res.json = () => res;
-        return res;
-    };
-
     const guestRequest = (path) => ({
         method: 'POST',
         path,
@@ -158,5 +158,95 @@ describe('reach endpoint reachability', () => {
 
         expect(next).not.toHaveBeenCalled();
         expect(res.statusCode).toBe(403);
+    });
+});
+
+/**
+ * Coverage guard for the whole class of bug, not just this instance.
+ *
+ * `optionalAuth` is the marker that says "a guest may reach this route". Any
+ * such route must also be CSRF-exempt, because a guest has no CSRF cookie to
+ * echo — the cookie is only issued when a session is created. When those two
+ * facts drift apart the route silently 403s for guests, which is exactly how
+ * /api/views shipped broken.
+ *
+ * This reads the route sources rather than importing them so it can catch a
+ * route that was added without anyone thinking about CSRF at all. It only sees
+ * single-line registrations; a route split across lines would slip past, so the
+ * assertion is a floor, not a proof.
+ */
+describe('every guest-reachable write route is CSRF-exempt', () => {
+    const routeFiles = [
+        'auth.js', 'reports.js', 'views.js', 'notifications.js',
+        'admin.js', 'highRiskZones.js', 'analyticsRoutes.js', 'files.js',
+    ];
+
+    test('optionalAuth routes all appear in the CSRF exempt list', async () => {
+        const { readFileSync } = await import('node:fs');
+        const { fileURLToPath } = await import('node:url');
+        const { dirname, join } = await import('node:path');
+
+        const serverDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+        const routesDir = join(serverDir, 'routes');
+        const serverSource = readFileSync(join(serverDir, 'server.js'), 'utf8');
+
+        // A route file only knows its own path (`/:id/views`); the middleware
+        // sees the mounted path (`/api/reports/:id/views`). Rebuilding that
+        // requires both halves: the import that names the router, and the
+        // app.use that mounts it. Guessing the prefix would make this guard lie.
+        const fileByImport = {};
+        serverSource.split('\n').forEach((line) => {
+            const imported = line.match(/import\s+(\w+)\s+from\s+'\.\/routes\/([\w.]+)'/);
+            if (imported) fileByImport[imported[1]] = imported[2];
+        });
+
+        const prefixByFile = {};
+        serverSource.split('\n').forEach((line) => {
+            const mounted = line.match(/app\.use\('(\/api[^']*)',\s*(\w+)\)/);
+            if (!mounted) return;
+            const file = fileByImport[mounted[2]];
+            if (file) prefixByFile[file] = mounted[1];
+        });
+
+        const uncovered = [];
+        let checked = 0;
+
+        routeFiles.forEach((file) => {
+            let source = '';
+            try {
+                source = readFileSync(join(routesDir, file), 'utf8');
+            } catch {
+                return;
+            }
+
+            const prefix = prefixByFile[file] || '';
+            source.split('\n').forEach((line) => {
+                if (!line.includes('optionalAuth')) return;
+                const match = line.match(/router\.(get|post|put|patch|delete)\(\s*'([^']+)'/);
+                // GET/HEAD are safe methods and never reach the token check.
+                if (!match || match[1] === 'get') return;
+
+                const routePath = match[2] === '/' ? prefix : `${prefix}${match[2]}`;
+                checked += 1;
+
+                const res = makeRes();
+                const next = vi.fn();
+                csrfProtection({
+                    method: 'POST',
+                    path: routePath,
+                    headers: {},
+                    get: () => undefined,
+                }, res, next);
+
+                if (next.mock.calls.length === 0) uncovered.push(routePath);
+            });
+        });
+
+        // Guard against the guard: if the parsing above silently stops finding
+        // routes, an empty `uncovered` would be meaningless.
+        expect(checked).toBeGreaterThan(0);
+        // Empty means every guest-reachable write can actually be reached by a
+        // guest. A failure here names the route that cannot.
+        expect(uncovered).toEqual([]);
     });
 });
