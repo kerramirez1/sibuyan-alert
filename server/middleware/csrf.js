@@ -17,6 +17,16 @@ const PUBLIC_CSRF_EXEMPT_PATHS = [
     // Counter-only write with no auth side effects; guests must reach it.
     // Rate-limited separately. Origin check above still applies.
     /^\/api\/reports\/[^/]+\/views$/,
+    // Reach recorder, shared by incidents and risk zones.
+    //
+    // This exemption is REQUIRED, not a convenience. The CSRF cookie is only
+    // issued when a session is created (see authSessionService), so an
+    // unauthenticated guest has no token to echo — every guest view would be
+    // answered 403 and silently dropped, which is exactly what happened when
+    // this route was first added. Same shape as the report-view path above:
+    // a counter-only write, no auth side effects, rate-limited separately, and
+    // the origin check still applies to it.
+    /^\/api\/views$/,
 ];
 
 const safeEquals = (left, right) => {

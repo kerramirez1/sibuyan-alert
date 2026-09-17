@@ -1,18 +1,26 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { filesAPIMock } = vi.hoisted(() => ({
+const { filesAPIMock, apiMock } = vi.hoisted(() => ({
     filesAPIMock: {
         getProtected: vi.fn(),
     },
+    apiMock: {
+        recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
+    },
 }));
 
+// The default export is what useRecordView calls. Omitting it here is what let
+// a broken reach call pass this suite silently: the hook swallowed the missing
+// method, so the test proved nothing about whether the view was ever recorded.
 vi.mock('../../services/api', () => ({
+    default: apiMock,
     filesAPI: filesAPIMock,
 }));
 
 // Also support relative import path from components
 vi.mock('../services/api', () => ({
+    default: apiMock,
     filesAPI: filesAPIMock,
 }));
 
@@ -217,5 +225,30 @@ describe('HighRiskZoneDetails Component', () => {
         // Lightbox displays clean string instead of "Evidence photo 1"
         expect(screen.getByText('Field reference preview')).toBeInTheDocument();
         expect(screen.queryByText('Evidence photo 1')).not.toBeInTheDocument();
+    });
+
+    test('records a reach view for the zone it opens, including for guests', async () => {
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+
+        // Mounting this panel IS the view: a guest opening a hazard area must
+        // produce exactly one reach record, keyed to the zone's real id.
+        await waitFor(() => expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1));
+        expect(apiMock.recordViewEvent).toHaveBeenCalledWith({
+            targetType: 'zone',
+            targetId: 'zone-cajidiocan-1',
+        });
+    });
+
+    test('records only once per mount even when the zone object is replaced', async () => {
+        const { rerender } = render(
+            <HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />,
+        );
+
+        await waitFor(() => expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1));
+
+        // A new object identity for the same zone must not fire a second write.
+        rerender(<HighRiskZoneDetails zone={{ ...mockZoneWithPhotos }} viewerRole="guest" />);
+
+        expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1);
     });
 });

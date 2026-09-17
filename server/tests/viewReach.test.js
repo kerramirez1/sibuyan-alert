@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import ViewEvent, {
     VIEW_TARGET_TYPES,
     VIEWER_ROLES,
@@ -6,6 +6,7 @@ import ViewEvent, {
     VIEW_EVENT_RETENTION_DAYS,
 } from '../models/ViewEvent.js';
 import { buildViewerIdentity, recordViewEvent } from '../services/viewEventService.js';
+import { csrfProtection } from '../middleware/csrf.js';
 
 /**
  * Reach tests.
@@ -100,5 +101,62 @@ describe('view event schema', () => {
         // The retention window is a privacy commitment, not a tuning knob; a
         // silent change here should fail loudly.
         expect(VIEW_EVENT_RETENTION_DAYS).toBe(180);
+    });
+});
+
+/**
+ * Regression guard for the bug that made every guest view vanish.
+ *
+ * The CSRF cookie is only issued when a session is created, so an
+ * unauthenticated guest has no token to echo. Without an explicit exemption the
+ * middleware answers 403 and the view is dropped — silently, because the client
+ * is fire-and-forget. Signed-in viewers kept working, which is what made this
+ * look like a guest-only mystery rather than a missing allowlist entry.
+ */
+describe('reach endpoint reachability', () => {
+    const makeRes = () => {
+        const res = { statusCode: 200 };
+        res.status = (code) => {
+            res.statusCode = code;
+            return res;
+        };
+        res.json = () => res;
+        return res;
+    };
+
+    const guestRequest = (path) => ({
+        method: 'POST',
+        path,
+        headers: {},
+        get: () => undefined,
+    });
+
+    test('a guest POST to /api/views passes CSRF', () => {
+        const res = makeRes();
+        const next = vi.fn();
+
+        csrfProtection(guestRequest('/api/views'), res, next);
+
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(res.statusCode).toBe(200);
+    });
+
+    test('a guest POST to the legacy report-view path still passes', () => {
+        const res = makeRes();
+        const next = vi.fn();
+
+        csrfProtection(guestRequest('/api/reports/507f1f77bcf86cd799439011/views'), res, next);
+
+        expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    test('the exemption does not open other API writes', () => {
+        const res = makeRes();
+        const next = vi.fn();
+
+        csrfProtection(guestRequest('/api/reports'), res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(403);
     });
 });
