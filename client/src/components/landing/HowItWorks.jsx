@@ -18,16 +18,6 @@ const steps = [
     },
 ];
 
-// Typical incident journey — a simplified, public-facing progression matching system status colors.
-// Short labels keep all five stages on one row on mobile; full labels return on sm+.
-const JOURNEY_STAGES = [
-    { key: 'reported', label: 'Reported', shortLabel: 'Reported', dotClass: 'bg-gray-400' },
-    { key: 'under_review', label: 'Under review', shortLabel: 'Review', dotClass: 'bg-amber-500' },
-    { key: 'verified', label: 'Verified', shortLabel: 'Verified', dotClass: 'bg-blue-600' },
-    { key: 'in_progress', label: 'Responding', shortLabel: 'Response', dotClass: 'bg-cyan-600' },
-    { key: 'resolved', label: 'Resolved', shortLabel: 'Resolved', dotClass: 'bg-emerald-600' },
-];
-
 const HowItWorks = () => (
     <section id="how-it-works" className="scroll-mt-16 border-y border-gray-200/80 bg-white px-5 py-10 dark:border-white/5 dark:bg-gray-950 sm:px-8 sm:py-12">
         <div className="mx-auto max-w-6xl">
@@ -65,43 +55,6 @@ const HowItWorks = () => (
                         </p>
                     </div>
                 ))}
-            </div>
-
-            {/* ── Incident Journey — flat text ledger, no card chrome ── */}
-            <div className="mt-6 border-t border-gray-200 pt-4 sm:mt-8 dark:border-white/10">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-sky-400">
-                        Typical incident journey
-                    </p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                        Some reports may be transferred to the appropriate municipality during review.
-                    </p>
-                </div>
-                <div
-                    className="relative flex items-start justify-between pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-                    role="list"
-                    aria-label="Incident status stages in order"
-                >
-                    {/* Continuous track behind the stage badges */}
-                    <span className="absolute left-7 right-7 top-[9px] h-[2px] bg-gray-200 sm:left-14 sm:right-14 sm:top-[11px] dark:bg-white/15" aria-hidden="true" />
-                    {JOURNEY_STAGES.map((stage) => (
-                        <span
-                            key={stage.key}
-                            role="listitem"
-                            className="relative z-10 flex w-14 shrink-0 flex-col items-center gap-1.5 sm:w-28"
-                        >
-                            <span className={`flex h-4 w-4 items-center justify-center rounded-full sm:h-5 sm:w-5 ${stage.dotClass}`} aria-hidden="true">
-                                <svg className="h-2.5 w-2.5 text-white sm:h-3 sm:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </span>
-                            <span className="text-center text-[10px] font-medium leading-tight text-gray-700 sm:text-xs dark:text-gray-300">
-                                <span className="sm:hidden" aria-hidden="true">{stage.shortLabel}</span>
-                                <span className="hidden sm:inline">{stage.label}</span>
-                            </span>
-                        </span>
-                    ))}
-                </div>
             </div>
         </div>
     </section>

@@ -99,23 +99,24 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                 aria-label={isRegistrationPortal ? 'Sibuyan Alert reporter registration overview' : 'Sibuyan Alert system overview'}
             >
                 <div className={`relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-between px-8 py-10 xl:px-12 ${isFocusedPortal ? '' : 'justify-center'}`}>
-                    {/* Brand Lockup */}
-                    <div>
-                        <div className="flex items-center gap-3">
+                    {/* Brand Lockup — unified wordmark: the logo IS the letter S,
+                        sharing one flex line with "ibuyan Alert" and sized in em so
+                        the visible S glyph matches the text cap height. */}
+                    <div className="min-w-0">
+                        <span className="sr-only">Sibuyan Alert</span>
+                        <p aria-hidden="true" className="flex items-center font-display text-xl font-bold leading-none tracking-tight">
                             <img
                                 src="/icons/Alert.png"
                                 alt=""
-                                className="h-10 w-10 shrink-0 object-contain"
+                                className="h-[1.3em] w-[1.3em] shrink-0 object-contain"
                             />
-                            <div>
-                                <p className="font-display text-xl font-bold leading-none tracking-tight">
-                                    Sibuyan <span className="text-red-400">Alert</span>
-                                </p>
-                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                                    Accident Alert &amp; Mapping System
-                                </p>
-                            </div>
-                        </div>
+                            <span className="-ml-[0.08em]">
+                                ibuyan <span className="text-red-400">Alert</span>
+                            </span>
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                            Accident Alert &amp; Mapping System
+                        </p>
                     </div>
 
                     {/* Headline & Description */}

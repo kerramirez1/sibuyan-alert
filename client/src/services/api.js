@@ -150,7 +150,7 @@ export const reportsAPI = {
     addUpdate: (id, data) => api.post(`/reports/${id}/updates`, data),
     getMapConfig: () => api.get('/reports/map-config'),
     getStats: (params) => api.get('/reports/stats', { params }),
-    getMunicipalities: () => api.get('/reports/municipalities'),
+    getMunicipalities: (config = {}) => api.get('/reports/municipalities', config),
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
     recordView: (id) => api.post(`/reports/${id}/views`),
     create: (formData, config = {}) => api.post('/reports', formData, {

@@ -157,20 +157,25 @@ const MainLayout = ({ children }) => {
                                         ? '/admin'
                                         : '/';
                             return (
-                                <NavLink to={homeHref} className="group flex min-w-0 items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" aria-label="Sibuyan Alert home">
-                                    <img
-                                        src="/icons/Alert.png"
-                                        alt=""
-                                        className="h-7 w-7 shrink-0 object-contain"
-                                    />
-                                    <div className="min-w-0">
-                                        <span className="block text-xs font-bold tracking-tight text-white">
-                                            Sibuyan <span className="text-red-400">Alert</span>
+                                <NavLink to={homeHref} className="group flex min-w-0 items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" aria-label="Sibuyan Alert home">
+                                    {/* Unified wordmark: the logo IS the letter S, sharing one
+                                        flex line with "ibuyan Alert" and sized in em so the
+                                        visible S glyph matches the text cap height. */}
+                                    <span aria-hidden="true" className="min-w-0">
+                                        <span className="flex items-center text-xs font-bold tracking-tight text-white">
+                                            <img
+                                                src="/icons/Alert.png"
+                                                alt=""
+                                                className="h-[1.3em] w-[1.3em] shrink-0 object-contain"
+                                            />
+                                            <span className="-ml-[0.08em] leading-none">
+                                                ibuyan <span className="text-red-400">Alert</span>
+                                            </span>
                                         </span>
-                                        <span className="block truncate text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                                        <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-widest text-slate-400">
                                             Island Operations
                                         </span>
-                                    </div>
+                                    </span>
                                 </NavLink>
                             );
                         })()}

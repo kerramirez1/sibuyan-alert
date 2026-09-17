@@ -90,10 +90,9 @@ describe('HomePage operational landing page', () => {
         expect(screen.getByRole('list', { name: 'Municipalities covered' })).toBeInTheDocument();
         expect(screen.getByText('14 BRGYS')).toBeInTheDocument();
         expect(screen.getByText('12 BRGYS')).toBeInTheDocument();
-        const coverageMetrics = screen.getByTestId('coverage-metrics');
         const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
         const guarantees = screen.getByTestId('system-guarantees');
-        expect(coverageMetrics).toHaveClass('grid', 'grid-cols-3');
+        expect(screen.queryByTestId('coverage-metrics')).not.toBeInTheDocument();
         expect(municipalityCoverage.tagName).toBe('UL');
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
@@ -109,38 +108,19 @@ describe('HomePage operational landing page', () => {
         expect(guarantees).not.toHaveClass('rounded-3xl', 'bg-white/[0.05]');
         expect(screen.getByText('GPS-based incident location')).toBeInTheDocument();
         expect(screen.queryByText('GPS-based incident location with barangay verification')).not.toBeInTheDocument();
-        const emergencyNoticeLabel = screen.getByText('Important Notice');
-        expect(emergencyNoticeLabel).toHaveClass('text-amber-500');
-        // Sharp-cornered editorial callout: thick solid left border, subtle
-        // amber fill, no rounded outer border.
-        expect(screen.getByTestId('coverage-emergency-notice')).toHaveClass('rounded-none', 'border-l-4', 'border-amber-500', 'bg-transparent');
-        expect(screen.getByTestId('coverage-emergency-notice')).not.toHaveClass('rounded-xl');
+        const emergencyNoticeLabel = screen.queryByText('Important Notice');
+        expect(emergencyNoticeLabel).not.toBeInTheDocument();
+        expect(screen.queryByTestId('coverage-emergency-notice')).not.toBeInTheDocument();
         expect(screen.queryByText('Live across Sibuyan Island')).not.toBeInTheDocument();
         expect(screen.queryByText(/Coordinated with BFP/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'Built around real municipal workflows.' })).not.toBeInTheDocument();
         expect(screen.queryByText('Data Privacy Notice')).not.toBeInTheDocument();
         expect(screen.queryByText(/Data handled in compliance with RA 10173/i)).not.toBeInTheDocument();
 
-        // The lifecycle visual is now a neutral "Typical incident journey"
-        // progression (public-facing happy path), not a colored per-status pill strip.
-        expect(screen.getByText('Typical incident journey')).toBeInTheDocument();
+        // The "Typical incident journey" strip was removed from the landing page.
+        expect(screen.queryByText('Typical incident journey')).not.toBeInTheDocument();
         expect(screen.queryByText('Full incident lifecycle')).not.toBeInTheDocument();
-        const lifecycle = screen.getByRole('list', { name: 'Incident status stages in order' });
-        expect(lifecycle).toHaveClass('justify-between');
-        expect(lifecycle).not.toHaveClass('overflow-x-auto');
-        const lifecycleStages = lifecycle.querySelectorAll('[role="listitem"]');
-        expect(lifecycleStages).toHaveLength(5);
-        const journeyStagesExpected = [
-            { label: 'Reported', dotClass: 'bg-gray-400' },
-            { label: 'Under review', dotClass: 'bg-amber-500' },
-            { label: 'Verified', dotClass: 'bg-blue-600' },
-            { label: 'Responding', dotClass: 'bg-cyan-600' },
-            { label: 'Resolved', dotClass: 'bg-emerald-600' },
-        ];
-        lifecycleStages.forEach((stage, index) => {
-            expect(stage).toHaveTextContent(journeyStagesExpected[index].label);
-            expect(stage.querySelector('span')).toHaveClass(journeyStagesExpected[index].dotClass);
-        });
+        expect(screen.queryByRole('list', { name: 'Incident status stages in order' })).not.toBeInTheDocument();
 
         expect((await screen.findAllByText(/Active risk zones/i)).length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: /Active risk zones/i })).not.toBeInTheDocument();

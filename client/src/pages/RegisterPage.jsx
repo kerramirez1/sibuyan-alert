@@ -57,8 +57,15 @@ const RegisterPage = () => {
     const cameraRequestIdRef = useRef(0);
     const isMountedRef = useRef(true);
 
-    useEffect(() => () => {
-        isMountedRef.current = false;
+    useEffect(() => {
+        // StrictMode runs mount effects, then their cleanups, then the effects
+        // again — without re-running ref initializers. Re-arm here so the
+        // simulated unmount cannot permanently disarm the guards below (which
+        // previously left "Loading locations…" stuck forever in dev).
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
     }, []);
 
     const [formData, setFormData] = useState({
@@ -155,29 +162,42 @@ const RegisterPage = () => {
         onAutoCapture: captureSelfie,
     });
 
-    const loadLocations = useCallback(async () => {
-        if (!isMountedRef.current) return;
+    const loadLocations = useCallback(async (signal) => {
+        if (signal?.aborted) return;
         setLocationsLoading(true);
         setLocationsError('');
         try {
-            const response = await reportsAPI.getMunicipalities();
+            const response = await reportsAPI.getMunicipalities(signal ? { signal } : undefined);
             const records = response?.data?.data;
             if (!Array.isArray(records) || records.length === 0) {
                 throw new Error('No municipality records returned');
             }
-            if (!isMountedRef.current) return;
+            if (signal?.aborted || !isMountedRef.current) return;
             setMunicipalities(records);
         } catch (error) {
+            // A superseded pass (StrictMode remount, Retry while navigating
+            // away) is not a failure: the live pass owns the UI.
+            if (signal?.aborted || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') return;
             console.error('Unable to load registration locations:', error);
             if (!isMountedRef.current) return;
             setLocationsError('Municipality and barangay options could not be loaded.');
         } finally {
-            if (isMountedRef.current) setLocationsLoading(false);
+            if (!signal?.aborted && isMountedRef.current) setLocationsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        loadLocations();
+        // One controller per effect run: the previous pass is aborted on
+        // cleanup so a stale response can never settle the UI after a remount.
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        loadLocations(controller?.signal);
+        return () => {
+            try {
+                controller?.abort();
+            } catch {
+                // Aborting is best-effort; the guards above bound any late write.
+            }
+        };
     }, [loadLocations]);
 
     useEffect(() => {
@@ -563,7 +583,7 @@ const RegisterPage = () => {
                             {locationsError && (
                                 <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200" role="alert">
                                     <span>{locationsError}</span>
-                                    <button type="button" onClick={loadLocations} className="min-h-8 shrink-0 rounded-md border border-amber-300 bg-white px-2.5 font-semibold hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/60 dark:hover:bg-amber-900">Retry</button>
+                                    <button type="button" onClick={() => loadLocations()} className="min-h-8 shrink-0 rounded-md border border-amber-300 bg-white px-2.5 font-semibold hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/60 dark:hover:bg-amber-900">Retry</button>
                                 </div>
                             )}
                             <div className="grid gap-3.5 sm:grid-cols-2">

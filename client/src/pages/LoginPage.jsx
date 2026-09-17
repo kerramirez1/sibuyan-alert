@@ -19,8 +19,13 @@ const LoginPage = () => {
     const [errors, setErrors] = useState({});
     const isMountedRef = useRef(true);
 
-    useEffect(() => () => {
-        isMountedRef.current = false;
+    useEffect(() => {
+        // StrictMode-safe: the simulated unmount must not permanently disarm
+        // the submit guards below.
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
     }, []);
 
     const searchParams = new URLSearchParams(location?.search ?? '');

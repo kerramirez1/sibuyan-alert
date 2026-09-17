@@ -26,10 +26,6 @@ const Coverage = ({ municipalities = [] }) => {
             ? municipality.barangays.length
             : fallbackBarangayCount(municipality?.name)
     );
-    const totalBarangays = list.reduce(
-        (total, municipality) => total + getBarangayCount(municipality),
-        0
-    );
 
     return (
         <section className="relative isolate bg-brand-950 px-5 py-10 text-white sm:px-8 sm:py-12 dark:bg-brand-950">
@@ -40,29 +36,6 @@ const Coverage = ({ municipalities = [] }) => {
                     <p className="mb-5 mt-1.5 max-w-xl text-xs leading-relaxed text-slate-300">
                         The platform serves the island&apos;s three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.
                     </p>
-
-                    {/* Metric tiles — flat editorial grid with hairline dividers.
-                        BFP is excluded from the agency count: fire response is
-                        outside this system's operational scope. */}
-                    <dl
-                        data-testid="coverage-metrics"
-                        aria-label="Island coverage totals"
-                        className="mb-6 grid max-w-md grid-cols-3 divide-x divide-white/10"
-                    >
-                        {[
-                            [list.length, 'Municipalities'],
-                            [totalBarangays, 'Barangays'],
-                            [3, 'Agencies'],
-                        ].map(([value, label]) => (
-                            <div
-                                key={label}
-                                className="flex min-w-0 flex-col p-2 text-left sm:p-3"
-                            >
-                                <dt className="order-2 mt-1 text-[9px] font-bold uppercase tracking-wide text-slate-400 sm:text-[10px] sm:tracking-widest">{label}</dt>
-                                <dd className="order-1 font-mono text-lg font-black tabular-nums text-white sm:text-2xl">{value}</dd>
-                            </div>
-                        ))}
-                    </dl>
 
                     {/* Municipality List — flat ledger with hairline row dividers */}
                     <ul
@@ -117,18 +90,6 @@ const Coverage = ({ municipalities = [] }) => {
                                 </li>
                             ))}
                         </ul>
-                    </div>
-
-                    <div data-testid="coverage-emergency-notice" className="mt-5 rounded-none border-l-4 border-amber-500 bg-transparent p-3">
-                        <div className="flex gap-2.5">
-                            <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <p className="text-[11px] leading-relaxed text-amber-100/85">
-                                <strong className="mb-0.5 block font-bold text-amber-500">Important Notice</strong>
-                                Sibuyan Alert supports accident reporting and coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
-                            </p>
-                        </div>
                     </div>
                 </aside>
             </div>

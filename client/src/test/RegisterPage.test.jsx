@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -92,6 +93,26 @@ describe('RegisterPage location reference and responsive form', () => {
         expect(within(barangay).getByRole('option', { name: 'Agtiwa' })).toBeInTheDocument();
         expect(within(barangay).getByRole('option', { name: 'Panangcalan' })).toBeInTheDocument();
         expect(within(barangay).queryByRole('option', { name: 'Butong' })).not.toBeInTheDocument();
+    });
+
+    test('loads municipalities under StrictMode remount instead of sticking on loading', async () => {
+        // Reproduces the dev double-mount (mount → cleanup → remount): the
+        // locations request must settle on the live pass, not get swallowed by
+        // a mount guard disarmed by the simulated unmount.
+        render(
+            <StrictMode>
+                <MemoryRouter>
+                    <AuthLayout variant="registration">
+                        <RegisterPage />
+                    </AuthLayout>
+                </MemoryRouter>
+            </StrictMode>
+        );
+
+        const municipality = await screen.findByLabelText('Municipality');
+        expect(await within(municipality).findByRole('option', { name: 'Cajidiocan' })).toBeInTheDocument();
+        expect(within(municipality).getByRole('option', { name: 'Magdiwang' })).toBeInTheDocument();
+        expect(municipality).not.toBeDisabled();
     });
 
     test('blocks progression and exposes accessible validation feedback', async () => {
