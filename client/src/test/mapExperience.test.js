@@ -17,6 +17,20 @@ describe('shared role-aware map experience', () => {
         expect(experience.canResolve).toBe(role === 'responder');
     });
 
+    test('opens operators on their incidents and guests on the whole island', () => {
+        // Operators arrive looking for where things happened; an anonymous
+        // visitor arrives without knowing the island at all, so the island — with
+        // the incidents visible in their place on it — is what they should see.
+        expect(getMapExperience({ role: 'responder' }).framesReportsOnOpen).toBe(true);
+        expect(getMapExperience({ role: 'municipal_admin' }).framesReportsOnOpen).toBe(true);
+        expect(getMapExperience({ role: 'reporter' }).framesReportsOnOpen).toBe(true);
+        expect(getMapExperience({ role: 'guest' }).framesReportsOnOpen).toBe(false);
+        // No role at all is the guest path, and it must not inherit operator
+        // framing by omission.
+        expect(getMapExperience({}).framesReportsOnOpen).toBe(false);
+        expect(getMapExperience().framesReportsOnOpen).toBe(false);
+    });
+
     test('does not expose a submit-report flag to the map page', () => {
         // The map has no submit control. A config flag that promised one was
         // never read by any component, so the flag and the copy that referenced

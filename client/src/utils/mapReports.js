@@ -19,6 +19,41 @@ export const getMapCoordinates = (report) => {
     return { lat, lng };
 };
 
+/**
+ * Bounding box of the reports that are actually on this viewer's map.
+ *
+ * Used to open the map on the incidents instead of on open water. It reads the
+ * same array the markers are built from, which is the point: the camera can only
+ * frame what the API already returned for this viewer, so framing an empty map
+ * for a guest who is not allowed to see an incident is not a bug waiting to
+ * happen — it is not expressible.
+ *
+ * Returns `[[west, south], [east, north]]` — MapLibre's corner order — or `null`
+ * when nothing on the map has a usable coordinate, which is the caller's signal
+ * to keep the island-wide default view.
+ */
+export const getMapReportBounds = (reports = []) => {
+    if (!Array.isArray(reports) || reports.length === 0) return null;
+
+    let west = Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let north = -Infinity;
+
+    reports.forEach((report) => {
+        const coords = getMapCoordinates(report);
+        if (!coords) return;
+        west = Math.min(west, coords.lng);
+        east = Math.max(east, coords.lng);
+        south = Math.min(south, coords.lat);
+        north = Math.max(north, coords.lat);
+    });
+
+    if (!Number.isFinite(west) || !Number.isFinite(south)) return null;
+
+    return [[west, south], [east, north]];
+};
+
 export const getVisibleMapReports = (reports = [], { includePending = false, includeRejected = false } = {}) => {
     if (!Array.isArray(reports)) return [];
     const allowedStatuses = new Set([

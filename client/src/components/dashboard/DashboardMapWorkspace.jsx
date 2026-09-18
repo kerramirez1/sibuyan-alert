@@ -1172,6 +1172,13 @@ const DashboardMapWorkspace = ({
                         viewer={user}
                         showDataState
                         enable3D
+                        // Per role: operators open on the incidents in front of
+                        // them, guests open on the whole island. The report set
+                        // is already role-scoped by the API, so the camera
+                        // inherits that boundary rather than needing one of its
+                        // own, and the island view is the fallback whenever
+                        // there is nothing to frame.
+                        frameReportsOnOpen={mapExperience.framesReportsOnOpen}
                         pulseReportIds={pulseReportIds}
                     />
                     {hasSummaryPanel && (

@@ -61,8 +61,26 @@ const GUEST_FILTERS = Object.freeze([
     Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
 ]);
 
+/**
+ * Whether the map's home camera is the incidents or the island.
+ *
+ * True for every signed-in role: an operator opening the dashboard wants to be
+ * looking at where things happened, not at ocean around an island. The island
+ * view remains the fallback whenever there is nothing to frame.
+ *
+ * False for guests, and that is the one deliberate exception. An anonymous
+ * visitor arrives without knowing the island — which municipalities exist, which
+ * barangay a name belongs to, whether the pin at the edge of the frame is near
+ * them. Cropping the view to the incidents answers "where exactly are these two
+ * accidents" for someone who has not yet asked "where am I". The public safety
+ * map therefore opens on the whole island, with the incidents visible in their
+ * place on it.
+ */
+const roleFramesReportsOnOpen = (role) => ['responder', 'municipal_admin', 'reporter'].includes(role);
+
 export const getMapExperience = ({ role, agency, municipality } = {}) => {
     const assignedMunicipality = municipality || DEFAULT_MUNICIPALITY;
+    const framesReportsOnOpen = roleFramesReportsOnOpen(role);
 
     if (role === 'responder') {
         return {
@@ -73,6 +91,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'response',
             showPendingReports: true,
+            framesReportsOnOpen,
             canRespond: true,
             canResolve: true,
             canVerify: false,
@@ -88,6 +107,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'review',
             showPendingReports: true,
+            framesReportsOnOpen,
             canRespond: false,
             canResolve: false,
             canVerify: true,
@@ -109,6 +129,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             filters: REPORTER_FILTERS,
             filterMode: 'public',
             showPendingReports: true,
+            framesReportsOnOpen,
             canRespond: false,
             canResolve: false,
             canVerify: false,
@@ -123,6 +144,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         filters: GUEST_FILTERS,
         filterMode: 'public',
         showPendingReports: false,
+        framesReportsOnOpen,
         canRespond: false,
         canResolve: false,
         canVerify: false,

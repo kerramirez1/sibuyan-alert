@@ -28,6 +28,23 @@ export const MAP_INTERACTION_OPTIONS = Object.freeze({
     cooperativeGestures: false,
 });
 
+/**
+ * Camera for the map's opening framing — the overview a viewer lands on.
+ *
+ * Distinct from `MAP_FOCUS_CONFIG`, which zooms onto one entity the viewer asked
+ * about: this one has to hold several incidents at once and still leave room for
+ * the controls and the legend, so its padding is generous and its zoom is capped.
+ *
+ * The cap is the important number. Fitting a single incident would otherwise
+ * resolve to street level, turning "here is where things are happening" into
+ * "here is one report" — the very thing the overview exists to avoid.
+ */
+export const MAP_CONTENT_FIT_CONFIG = Object.freeze({
+    padding: Object.freeze({ top: 56, bottom: 56, left: 56, right: 56 }),
+    paddingCompact: Object.freeze({ top: 32, bottom: 32, left: 32, right: 32 }),
+    maxZoom: 13,
+});
+
 export const MAP_FOCUS_CONFIG = Object.freeze({
     duration: 3000,
     pointZoom: 16,

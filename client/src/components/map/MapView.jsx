@@ -6,6 +6,7 @@ import toast from '../../utils/appToast';
 import { HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
 import {
     getMapCoordinates,
+    getMapReportBounds,
     getFilteredMapReports,
     getVisibleMapReports,
     groupReportsByMapLocation,
@@ -15,6 +16,7 @@ import {
     installCompactAttribution,
     isWithinSibuyanInteractionBounds,
     focusExistingMapEntity,
+    MAP_CONTENT_FIT_CONFIG,
     MAP_FOCUS_CONFIG,
     MAP_INTERACTION_OPTIONS,
     scheduleMapFocus,
@@ -116,6 +118,16 @@ const MapView = ({
     disableScrollZoom = false,
     mode = 'full',
     pulseReportIds = [],
+    /**
+     * Whether this map's home camera is the reports rather than the island.
+     *
+     * Set per role by the caller (`mapExperience.framesReportsOnOpen`): operators
+     * open on the incidents, guests open on the whole island. It governs the
+     * opening view and the Reset map view control together, because those are the
+     * same camera and letting them disagree would make Reset a way to lose your
+     * bearings.
+     */
+    frameReportsOnOpen = false,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -138,6 +150,14 @@ const MapView = ({
     const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    // Opening framing is a one-time decision: after it is made, data that arrives
+    // later (a refresh, a new report, a filter change) must not move the camera
+    // out from under whatever the viewer is looking at.
+    const framedOnOpenRef = useRef(false);
+    // Set the moment a *viewer* moves the camera — see the interaction listeners
+    // near the map construction. Programmatic moves are excluded, so this is
+    // genuinely "somebody has taken the wheel".
+    const viewerMovedCameraRef = useRef(false);
     const onLocationSelectRef = useRef(onLocationSelect);
     const onEntityInspectorOpenRef = useRef(onEntityInspectorOpen);
     const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
@@ -201,6 +221,81 @@ const MapView = ({
     useEffect(() => {
         mapStyleRef.current = mapStyle;
     }, [mapStyle]);
+
+    // One camera for "show me where things are", shared by the map's opening view
+    // and the Reset map view control, so the two cannot disagree about what the
+    // map's home looks like.
+    const fitToReportBounds = useCallback((bounds, { animate = false } = {}) => {
+        const map = mapInstanceRef.current;
+        if (!map || typeof map.fitBounds !== 'function') return false;
+
+        try {
+            map.fitBounds(bounds, {
+                padding: performanceProfile.compactViewport
+                    ? MAP_CONTENT_FIT_CONFIG.paddingCompact
+                    : MAP_CONTENT_FIT_CONFIG.padding,
+                // Capped, so a single incident frames its surroundings rather
+                // than resolving to street level.
+                maxZoom: MAP_CONTENT_FIT_CONFIG.maxZoom,
+                pitch: effective3D ? 45 : 0,
+                bearing: effective3D ? -17 : 0,
+                duration: animate ? performanceProfile.navigationDuration : 0,
+                essential: false,
+            });
+        } catch {
+            // A camera move before the style loads throws; the caller keeps the
+            // view it had.
+            return false;
+        }
+
+        return true;
+    }, [effective3D, performanceProfile]);
+
+    // Frames the reports this viewer can actually see. It reads `filteredReports`
+    // — the same array the markers are built from — so the camera can never be
+    // aimed at an incident the viewer has no access to, and returns false when
+    // there is nothing to aim at.
+    const frameVisibleReports = useCallback(({ animate = false } = {}) => {
+        const bounds = getMapReportBounds(filteredReports);
+        if (!bounds) return false;
+        return fitToReportBounds(bounds, { animate });
+    }, [filteredReports, fitToReportBounds]);
+
+    // The opening camera. The island view set at construction is the fallback;
+    // when the caller asks for report framing and the viewer's reports are on the
+    // map, the map opens on them instead.
+    useEffect(() => {
+        if (framedOnOpenRef.current || !frameReportsOnOpen || !mapReady) return;
+        // Somebody who has already moved the map has chosen a camera, even if
+        // that happened before the incidents finished loading.
+        if (viewerMovedCameraRef.current) {
+            framedOnOpenRef.current = true;
+            return;
+        }
+        // Nothing on the map to frame: the island-wide default stands, which is
+        // what an empty map should show.
+        if (!frameVisibleReports()) return;
+        framedOnOpenRef.current = true;
+    }, [frameReportsOnOpen, frameVisibleReports, mapReady]);
+
+    // Whether the viewer has taken the wheel. MapLibre fires these same gestures
+    // for its own camera moves, so only the ones carrying an originating DOM
+    // event count as a person's input — the distinction that lets the opening
+    // framing wait for slow data without ever fighting a visitor for the camera.
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!mapReady || !map) return undefined;
+
+        const markViewerMove = (event) => {
+            if (event?.originalEvent) viewerMovedCameraRef.current = true;
+        };
+        const gestures = ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'];
+
+        gestures.forEach((gesture) => map.on(gesture, markViewerMove));
+        return () => {
+            gestures.forEach((gesture) => map.off?.(gesture, markViewerMove));
+        };
+    }, [mapReady]);
 
     const selectOperationalMarker = useCallback((element) => {
         selectedOperationalMarkerRef.current?.classList.remove('map-marker--selected');
@@ -1149,6 +1244,12 @@ const MapView = ({
         try {
             const map = mapInstanceRef.current;
             if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return;
+            // Reset means "back to the view this map opens with", so it reads the
+            // same flag: the incidents for a map that opens on them, the island
+            // for one that does not. A fixed island camera here would undo an
+            // operator's default view, and framing here regardless would undo a
+            // guest's.
+            if (frameReportsOnOpen && frameVisibleReports({ animate: true })) return;
             map.flyTo({
                 center: SIBUYAN_CENTER,
                 zoom: performanceProfile.compactViewport ? 10 : 11,

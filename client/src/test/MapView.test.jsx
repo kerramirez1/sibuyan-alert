@@ -26,6 +26,8 @@ const mockGetSource = vi.fn((id) => {
 });
 const mockSetMaxZoom = vi.fn();
 const mockEaseTo = vi.fn();
+const mockFitBounds = vi.fn();
+const mockFlyTo = vi.fn();
 const mockOnCallbacks = {};
 const mockAddControl = vi.fn();
 const mockAddSource = vi.fn();
@@ -44,6 +46,8 @@ vi.mock('maplibre-gl', () => ({
             this.setMaxZoom = mockSetMaxZoom;
             this.getZoom = vi.fn(() => 11);
             this.easeTo = mockEaseTo;
+            this.fitBounds = mockFitBounds;
+            this.flyTo = mockFlyTo;
             this.addControl = mockAddControl;
             this.addSource = mockAddSource;
             this.addLayer = mockAddLayer;
@@ -238,5 +242,143 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
             expect(maplibregl.Map).toHaveBeenCalled();
             expect(maplibregl.Marker).toHaveBeenCalled();
         });
+    });
+});
+
+describe('MapView opening framing', () => {
+    const visibleReports = [
+        {
+            _id: 'framing-south',
+            status: 'verified',
+            coordinates: { lat: 12.30, lng: 122.50 },
+            incidentCategory: 'accident',
+        },
+        {
+            _id: 'framing-north',
+            status: 'verified',
+            coordinates: { lat: 12.55, lng: 122.70 },
+            incidentCategory: 'accident',
+        },
+    ];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockMapInstances.length = 0;
+        Object.keys(mockOnCallbacks).forEach((k) => delete mockOnCallbacks[k]);
+        vi.stubEnv('VITE_3D_LABELS_PMTILES_URL', '');
+        vi.stubEnv('VITE_PMTILES_URL', '');
+        const bytes = createPmtilesHeader();
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createRangeResponse(bytes)));
+    });
+
+    const renderReady = async (props) => {
+        const view = render(<MapView {...props} />);
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        });
+        // The map is only ready once MapLibre's load callback has fired, which is
+        // when the interaction listeners and the framing effect run.
+        await waitFor(() => {
+            expect(mockOnCallbacks.load).toBeInstanceOf(Function);
+        });
+        return view;
+    };
+
+    test('opens on the incidents the viewer can see, not on open water', async () => {
+        await renderReady({ reports: visibleReports, frameReportsOnOpen: true });
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(1);
+        });
+        const [bounds, options] = mockFitBounds.mock.calls[0];
+        expect(bounds).toEqual([[122.50, 12.30], [122.70, 12.55]]);
+        // Capped, so a lone incident frames its surroundings instead of resolving
+        // to street level, and instant, because an opening view is not a move.
+        expect(options).toMatchObject({ maxZoom: 13, duration: 0 });
+        expect(options.padding).toBeTruthy();
+    });
+
+    test('keeps the island view when the viewer has no incidents to frame', async () => {
+        await renderReady({ reports: [], frameReportsOnOpen: true });
+
+        // The centre set at construction is the fallback; nothing may move it.
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(maplibregl.Map.mock.calls[0][0].center).toEqual([122.5571, 12.4176]);
+    });
+
+    test('leaves maps that do not ask for framing alone', async () => {
+        // Previews and the analytics map set their own camera from a single
+        // entity or a date slice; framing them on the report list would fight it.
+        await renderReady({ reports: visibleReports });
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('never takes the camera back from a viewer who already moved it', async () => {
+        const view = await renderReady({ reports: [], frameReportsOnOpen: true });
+
+        // A gesture with an originating DOM event is a person's input.
+        mockOnCallbacks.dragstart({ originalEvent: { type: 'pointerdown' } });
+
+        // Incidents arrive afterwards — a slow API, or a refresh. The camera the
+        // viewer chose stands.
+        view.rerender(<MapView reports={visibleReports} frameReportsOnOpen />);
+
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalled();
+        });
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('ignores camera moves the map makes by itself', async () => {
+        // Programmatic moves fire the same gesture events without an
+        // originating DOM event, so they must not count as the viewer's input.
+        await renderReady({ reports: [], frameReportsOnOpen: true });
+
+        mockOnCallbacks.zoomstart({});
+        mockOnCallbacks.zoomstart({ originalEvent: null });
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+    });
+
+    test('sends Reset map view back to the same framing the map opened with', async () => {
+        await renderReady({ reports: visibleReports, frameReportsOnOpen: true });
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(1);
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /reset map view/i }));
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(2);
+        });
+        // Same bounds as the opening view, so "reset" and "default" cannot drift.
+        expect(mockFitBounds.mock.calls[1][0]).toEqual(mockFitBounds.mock.calls[0][0]);
+        expect(mockEaseTo).not.toHaveBeenCalled();
+    });
+
+    test('falls back to the island when Reset has nothing to frame', async () => {
+        await renderReady({ reports: [], frameReportsOnOpen: true });
+
+        fireEvent.click(screen.getByRole('button', { name: /reset map view/i }));
+
+        // No incidents on this map, so the button returns to the whole island.
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('sends Reset to the island on a map that opens on the island', async () => {
+        // A guest map has incidents on it and still opens on the island, so Reset
+        // has to read the same flag the opening view did — otherwise the reset
+        // control would be the one place a guest gets cropped onto the incidents.
+        await renderReady({ reports: visibleReports, frameReportsOnOpen: false });
+
+        fireEvent.click(screen.getByRole('button', { name: /reset map view/i }));
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [122.5571, 12.4176],
+        }));
     });
 });

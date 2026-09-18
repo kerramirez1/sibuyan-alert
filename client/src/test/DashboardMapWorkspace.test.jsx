@@ -1305,6 +1305,23 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(mapProps.reports).toEqual(publicReports);
         });
 
+        test('3b. Hands MapView the role\'s own opening camera', () => {
+            // Guest: the public safety map opens on the whole island.
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+                reports: publicReports,
+            }));
+            expect(mapPropsSpy.mock.lastCall[0].frameReportsOnOpen).toBe(false);
+
+            // Reporter: opens on the incidents they can see.
+            renderWorkspace(createProps({ reports: publicReports }));
+            expect(mapPropsSpy.mock.lastCall[0].frameReportsOnOpen).toBe(true);
+        });
+
         test('4. Reporter desktop strip shows only status tabs plus separate layer/archive controls', () => {
             const setResponderMapFilter = vi.fn();
             renderWorkspace(createProps({
