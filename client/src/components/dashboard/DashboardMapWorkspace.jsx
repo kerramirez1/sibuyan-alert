@@ -1174,10 +1174,7 @@ const DashboardMapWorkspace = ({
                                             Back to {activeOverviewMetric?.label || 'active risk zones'}
                                         </button>
                                     </div>
-                                    <HighRiskZoneDetails
-                                        zone={selectedActiveRiskZone}
-                                        viewerRole={user?.role || 'guest'}
-                                    />
+                                    <HighRiskZoneDetails zone={selectedActiveRiskZone} />
                                 </>
                             )}
                             {isRiskZoneSummaryPanel && !selectedActiveRiskZone && (

@@ -11,7 +11,7 @@ import {
     HiOutlineSearch,
     HiOutlineX,
 } from 'react-icons/hi';
-import { adminAPI, reportsAPI } from '../services/api';
+import { adminAPI, reportsAPI, viewsAPI } from '../services/api';
 import {
     dedupedFetch,
     getStaleData,
@@ -333,7 +333,7 @@ const AccidentHistoryPage = () => {
         setExpandedId(isCollapsing ? null : report._id);
         if (!isCollapsing && !recordedViewsRef.current.has(id)) {
             recordedViewsRef.current.add(id);
-            reportsAPI.recordViewEvent({ targetType: 'report', targetId: id })
+            viewsAPI.recordViewEvent({ targetType: 'report', targetId: id })
                 .then((response) => {
                     const viewCount = response.data?.data?.viewCount;
                     if (Number.isFinite(viewCount)) {

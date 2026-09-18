@@ -228,15 +228,6 @@ vi.mock('../models/Report.js', () => ({
     },
 }));
 vi.mock('../models/HighRiskZone.js', () => ({ default: { countDocuments: vi.fn() } }));
-// Reach is a supplementary block on this endpoint. It is stubbed to an empty
-// aggregation so these accuracy tests keep measuring only the report maths they
-// were written for — and, importantly, so the controller never reaches the real
-// model: these tests run under fake timers, so the controller's reach timeout
-// could never fire and the aggregation would hang the whole endpoint.
-vi.mock('../models/ViewEvent.js', async (importOriginal) => {
-    const actual = await importOriginal();
-    return { ...actual, default: { aggregate: vi.fn(async () => []) } };
-});
 
 const { getAdminAnalytics } = await import('../controllers/analyticsController.js');
 const { default: Report } = await import('../models/Report.js');

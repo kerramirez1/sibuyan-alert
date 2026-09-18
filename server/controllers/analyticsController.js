@@ -9,7 +9,6 @@ import {
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
-import { readTopReach } from '../services/viewEventService.js';
 
 const RESPONDER_ACTIVE_STATUSES = ['verified', 'transferred', 'responding'];
 const RESPONDER_PRIORITY_ZONE_SEVERITIES = ['critical', 'high'];
@@ -125,92 +124,6 @@ export const getAdminAnalytics = async (req, res) => {
             ]),
         ]);
 
-        // Reach leaderboards.
-        //
-        // Two steps on purpose. ViewEvent stores no municipality, so the
-        // municipal scope has to be applied against the records themselves:
-        // pull a wider candidate window from the aggregation, then narrow it
-        // with the same `reportFilter` the rest of this endpoint uses. That
-        // keeps the aggregation cheap (one indexed group) while guaranteeing an
-        // admin only ever sees their own municipality's rows.
-        //
-        // Bounded and fault-tolerant. Reach is supplementary to every other
-        // number here, so it must never be able to stall or fail the endpoint:
-        // an unreachable or slow view_events collection degrades to an empty
-        // leaderboard rather than a hung dashboard. Without the timeout a
-        // buffering aggregation would hold the whole response open, which is
-        // exactly what happened the first time this shipped.
-        const REACH_CANDIDATE_LIMIT = 50;
-        const REACH_ROWS = 10;
-        const REACH_TIMEOUT_MS = 2000;
-
-        const withReachTimeout = (promise) => {
-            let timer = null;
-            const timeout = new Promise((resolve) => {
-                timer = setTimeout(() => resolve(null), REACH_TIMEOUT_MS);
-                // Do not hold the process open for a telemetry read.
-                if (typeof timer?.unref === 'function') timer.unref();
-            });
-            return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-        };
-
-        let reportReach = [];
-        let zoneReach = [];
-        try {
-            const [reportRows, zoneRows] = await withReachTimeout(Promise.all([
-                readTopReach({ targetType: 'report', limit: REACH_CANDIDATE_LIMIT }),
-                readTopReach({ targetType: 'zone', limit: REACH_CANDIDATE_LIMIT }),
-            ])) || [];
-            reportReach = Array.isArray(reportRows) ? reportRows : [];
-            zoneReach = Array.isArray(zoneRows) ? zoneRows : [];
-        } catch (reachError) {
-            console.warn('[getAdminAnalytics] Reach lookup failed, continuing without it:', reachError?.message);
-        }
-
-        const [reachReports, reachZones] = await Promise.all([
-            reportReach.length
-                ? Report.find({ _id: { $in: reportReach.map((row) => row._id) }, ...reportFilter })
-                    .select('title incidentType municipalityName status')
-                : [],
-            zoneReach.length
-                ? HighRiskZone.find({ _id: { $in: zoneReach.map((row) => row._id) } })
-                    .select('name type municipalityName')
-                : [],
-        ]);
-
-        const reportReachById = new Map(reportReach.map((row) => [String(row._id), row]));
-        const zoneReachById = new Map(zoneReach.map((row) => [String(row._id), row]));
-
-        const reachReportRows = reachReports
-            .map((report) => {
-                const row = reportReachById.get(String(report._id));
-                return {
-                    id: String(report._id),
-                    label: report.title || report.incidentType || 'Incident',
-                    status: report.status || '',
-                    municipalityName: report.municipalityName || '',
-                    uniqueViewers: row?.uniqueViewers || 0,
-                    guestViewers: row?.guestViewers || 0,
-                };
-            })
-            .sort((a, b) => b.uniqueViewers - a.uniqueViewers)
-            .slice(0, REACH_ROWS);
-
-        const reachZoneRows = reachZones
-            .map((zone) => {
-                const row = zoneReachById.get(String(zone._id));
-                return {
-                    id: String(zone._id),
-                    label: zone.name || zone.type || 'Risk zone',
-                    status: '',
-                    municipalityName: zone.municipalityName || '',
-                    uniqueViewers: row?.uniqueViewers || 0,
-                    guestViewers: row?.guestViewers || 0,
-                };
-            })
-            .sort((a, b) => b.uniqueViewers - a.uniqueViewers)
-            .slice(0, REACH_ROWS);
-
         res.json({
             success: true,
             data: {
@@ -246,16 +159,6 @@ export const getAdminAnalytics = async (req, res) => {
                     fatalities: item.fatalities || 0,
                     missing: item.missing || 0,
                 })),
-                reach: {
-                    // A view means someone OPENED this record's details. Seeing
-                    // a pin on the map is not counted, and neither is loading
-                    // the dashboard — so this is "how many people opened it",
-                    // never "how many people saw it". The note travels with the
-                    // data so any consumer renders it with the right meaning.
-                    note: 'Unique viewers who opened the details. Repeat views from the same viewer count once.',
-                    reports: reachReportRows,
-                    zones: reachZoneRows,
-                },
             },
         });
     } catch (error) {

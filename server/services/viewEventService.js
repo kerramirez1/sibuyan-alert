@@ -1,16 +1,24 @@
 import mongoose from 'mongoose';
-import ViewEvent, { VIEW_TARGET_TYPES, VIEWER_KEY_PATTERN } from '../models/ViewEvent.js';
+import ViewEvent, {
+    PUBLIC_VIEWER_ROLES,
+    VIEW_TARGET_TYPES,
+    VIEWER_KEY_PATTERN,
+} from '../models/ViewEvent.js';
 
 /**
  * D8 View events — recording and reading reach.
  *
  * Two responsibilities, deliberately kept apart:
- *   recordViewEvent()   — idempotent per (record, viewer); repeat calls update
- *                         a timestamp instead of adding a row.
- *   readReachByTargets() / readTopReach()
- *                       — aggregate counts for admin surfaces. Aggregates only:
- *                         no function here can return a per-viewer list, so a
- *                         future caller cannot accidentally expose one.
+ *   recordViewEvent() — idempotent per (record, viewer); repeat calls update a
+ *                       timestamp instead of adding a row.
+ *   readTopReach()    — aggregate counts for admin surfaces. Aggregates only:
+ *                       no function here can return a per-viewer list, so a
+ *                       future caller cannot accidentally expose one.
+ *
+ * There is deliberately a single read path. An earlier revision carried a
+ * second one (`readReachByTargets`, per-record counts) that no caller used and
+ * that duplicated this aggregation — two copies of one rule is how the counts
+ * drift apart, so it was deleted rather than left as a spare.
  */
 
 const isObjectId = (value) => mongoose.isValidObjectId(value);
@@ -109,72 +117,100 @@ export const recordViewEvent = async ({ targetType, targetId, viewerKey, viewerR
 };
 
 /**
- * Unique-viewer counts for a set of records, keyed by target id.
+ * Removes the reach rows for a record that no longer exists.
  *
- * `$group` counts rows, and because one row exists per viewer, the row count IS
- * the distinct-viewer count. `guestViewers` is split out because public reach is
- * the number that drives a decision (whether a warning needs a second channel);
- * the responder and reporter slices were deliberately left out of the MVP, since
- * "a responder opened it" is a weaker signal than the respond action the system
- * already records properly.
+ * Called from the delete paths, and best-effort on purpose. It runs inside a
+ * request whose actual job is the deletion, so a cleanup failure must not turn a
+ * successful delete into a 500 — the TTL is the backstop. Logging keeps the
+ * failure visible instead of hiding it behind that backstop.
  *
- * @returns {Promise<Map<string, { uniqueViewers: number, guestViewers: number }>>}
+ * Best-effort, but not optional: a row for a deleted record can never be read
+ * back (both leaderboards join the aggregate to the record), so leaving them
+ * behind just occupies dedupe slots and TTL windows to no end.
+ *
+ * @returns {Promise<number>} Rows removed; 0 when there was nothing or it failed.
  */
-export const readReachByTargets = async ({ targetType, targetIds = [] } = {}) => {
-    const reach = new Map();
-    if (!VIEW_TARGET_TYPES.includes(targetType)) return reach;
+export const deleteViewEventsForTarget = async ({ targetType, targetId } = {}) => {
+    if (!VIEW_TARGET_TYPES.includes(targetType) || !isObjectId(targetId)) return 0;
 
-    const ids = targetIds.filter(isObjectId).map((id) => new mongoose.Types.ObjectId(String(id)));
-    if (ids.length === 0) return reach;
-
-    const rows = await ViewEvent.aggregate([
-        { $match: { targetType, targetId: { $in: ids } } },
-        {
-            $group: {
-                _id: '$targetId',
-                uniqueViewers: { $sum: 1 },
-                guestViewers: {
-                    $sum: { $cond: [{ $eq: ['$viewerRole', 'guest'] }, 1, 0] },
-                },
-            },
-        },
-    ]);
-
-    rows.forEach((row) => {
-        reach.set(String(row._id), {
-            uniqueViewers: row.uniqueViewers,
-            guestViewers: row.guestViewers,
-        });
-    });
-
-    return reach;
+    try {
+        const result = await ViewEvent.deleteMany({ targetType, targetId });
+        return result?.deletedCount ?? 0;
+    } catch (error) {
+        console.warn(
+            `[viewEvents] Could not clean up reach rows for ${targetType} ${targetId}:`,
+            error?.message,
+        );
+        return 0;
+    }
 };
 
 /**
  * Highest-reach records of one type, for the admin leaderboard.
  *
- * @param {object} [options]
- * @param {string} [options.targetType] 'report' or 'zone'.
- * @param {number} [options.limit]      Maximum rows; clamped to 1..50.
+ * `$group` counts rows, and because one row exists per viewer, the row count IS
+ * the distinct-viewer count. Three slices are returned because they answer
+ * different questions and the headline has to be the right one:
+ *
+ *   publicViewers — the people a hazard warning is for (see
+ *                   PUBLIC_VIEWER_ROLES). This is the headline and the sort key.
+ *   guestViewers  — the anonymous part of that public: the number that decides
+ *                   whether a warning needs a second channel (SMS, radio).
+ *   uniqueViewers — everything, including staff. Kept so the panel can be honest
+ *                   about the difference instead of quietly dropping rows.
+ *
+ * Sorting by public reach rather than by total is deliberate. Ranking by staff
+ * opens would put the incidents the office has been working through at the top,
+ * which is a dispatch metric, not a reach one.
+ *
+ * @param {object}   [options]
+ * @param {string}   [options.targetType] 'report' or 'zone'.
+ * @param {number}   [options.limit]      Maximum rows; clamped to 1..50.
+ * @param {string[]|null} [options.targetIds]
+ *        Optional allow-list. When given, only those records are considered.
+ *        This is how a municipal admin's reach is scoped without storing a
+ *        municipality on the view row: the caller resolves the scope from the
+ *        records themselves (the same scope every other admin surface uses),
+ *        so a transferred incident stays visible to every office that touched
+ *        it. `null` means "no scope" — island-wide.
+ *
+ *        The allow-list is applied before `$limit`, not after. Filtering a
+ *        top-N window that was computed globally would silently return fewer
+ *        rows than asked for — or none at all — for a municipality whose
+ *        incidents simply are not in the island-wide top N.
  */
-export const readTopReach = async ({ targetType, limit = 10 } = {}) => {
+export const readTopReach = async ({ targetType, limit = 10, targetIds = null } = {}) => {
     if (!VIEW_TARGET_TYPES.includes(targetType)) return [];
 
     const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
 
+    const match = { targetType };
+    if (Array.isArray(targetIds)) {
+        const scoped = targetIds
+            .filter(isObjectId)
+            .map((id) => new mongoose.Types.ObjectId(String(id)));
+        // An empty scope means "this municipality has no such records", which is
+        // an answer, not a reason to fall back to the unscoped read.
+        if (scoped.length === 0) return [];
+        match.targetId = { $in: scoped };
+    }
+
     return ViewEvent.aggregate([
-        { $match: { targetType } },
+        { $match: match },
         {
             $group: {
                 _id: '$targetId',
                 uniqueViewers: { $sum: 1 },
+                publicViewers: {
+                    $sum: { $cond: [{ $in: ['$viewerRole', PUBLIC_VIEWER_ROLES] }, 1, 0] },
+                },
                 guestViewers: {
                     $sum: { $cond: [{ $eq: ['$viewerRole', 'guest'] }, 1, 0] },
                 },
                 lastViewedAt: { $max: '$lastViewedAt' },
             },
         },
-        { $sort: { uniqueViewers: -1, lastViewedAt: -1 } },
+        { $sort: { publicViewers: -1, uniqueViewers: -1, lastViewedAt: -1 } },
         { $limit: safeLimit },
     ]);
 };
@@ -182,6 +218,6 @@ export const readTopReach = async ({ targetType, limit = 10 } = {}) => {
 export default {
     buildViewerIdentity,
     recordViewEvent,
-    readReachByTargets,
     readTopReach,
+    deleteViewEventsForTarget,
 };

@@ -10,6 +10,7 @@ import {
     HiOutlineXCircle,
 } from 'react-icons/hi';
 import IncidentDetailsContent from '../incidentDetails/IncidentDetailsContent';
+import useRecordView from '../../hooks/useRecordView';
 import { IncidentSeverityIndicator, OperationalStatusIndicator } from './IncidentQueue';
 import { getIncidentCapabilities } from './incidentReportConfig';
 
@@ -380,6 +381,14 @@ const ResponderIncidentInspector = ({
     const [entered, setEntered] = useState(false);
     const isOpen = Boolean(report);
     const reportId = String(report?._id || report?.id || '');
+
+    // Reach: this drawer mounts only when an incident is opened, so mounting is
+    // the view — the same rule the map sheet follows. Recording here keeps the
+    // operational surfaces consistent instead of counting an incident opened on
+    // the map and ignoring the same incident opened from the queue. Staff opens
+    // are separated from public reach server-side, so an administrator working
+    // through their own queue cannot inflate the community figure.
+    useRecordView({ targetType: 'report', targetId: reportId });
 
     useEffect(() => {
         actionsRef.current = actions;

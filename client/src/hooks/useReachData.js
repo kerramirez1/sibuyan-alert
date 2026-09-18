@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { adminAPI } from '../services/api';
+import { viewsAPI } from '../services/api';
 
 /**
  * Loads the reach leaderboards (unique viewers per incident and per risk zone).
@@ -12,38 +12,58 @@ import { adminAPI } from '../services/api';
  * Failures are swallowed into `reach: null`: reach is supplementary, so a bad
  * fetch degrades to "not shown" rather than breaking the analytics page.
  *
+ * Revalidates when the tab regains focus. Reach changes when somebody opens a
+ * record — usually after the dashboard has already been loaded — so a
+ * mount-once snapshot keeps showing numbers that were true when the admin first
+ * navigated there. Focus is the moment the admin is actually reading it.
+ *
+ * The revalidation is silent on purpose: it must never blink a skeleton over data
+ * that is already on screen, which is also why this hook reports no `loading`
+ * flag. There is nothing honest to do with one — the panel renders the last known
+ * figures, and a spinner would only replace real data with less information.
+ *
  * @param {object}  [options]
  * @param {boolean} [options.enabled] Only fetch for viewers allowed to see it.
  * @param {number}  [options.limit]   Max rows per leaderboard.
  */
 export const useReachData = ({ enabled = false, limit = 10 } = {}) => {
     const [reach, setReach] = useState(null);
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (!enabled) return undefined;
 
         let cancelled = false;
-        setLoading(true);
 
-        adminAPI.getReach({ limit })
+        const load = () => viewsAPI.getReach({ limit })
             .then((response) => {
-                if (cancelled) return;
-                setReach(response.data?.data || null);
+                if (!cancelled) setReach(response.data?.data || null);
             })
             .catch(() => {
                 if (!cancelled) setReach(null);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
             });
+
+        load();
+
+        const revalidate = () => {
+            if (typeof document !== 'undefined'
+                && document.visibilityState
+                && document.visibilityState !== 'visible') {
+                return;
+            }
+            load();
+        };
+
+        window.addEventListener('focus', revalidate);
+        document.addEventListener('visibilitychange', revalidate);
 
         return () => {
             cancelled = true;
+            window.removeEventListener('focus', revalidate);
+            document.removeEventListener('visibilitychange', revalidate);
         };
     }, [enabled, limit]);
 
-    return { reach, loading };
+    return { reach };
 };
 
 export default useReachData;

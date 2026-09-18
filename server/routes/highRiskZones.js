@@ -1,5 +1,6 @@
 import express from 'express';
 import HighRiskZone from '../models/HighRiskZone.js';
+import { deleteViewEventsForTarget } from '../services/viewEventService.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { sortHighRiskZonesBySeverity } from '../utils/highRiskZones.js';
@@ -359,6 +360,12 @@ router.delete(
             }
 
             await zone.deleteOne();
+
+            // Reach rows for a record that no longer exists can never be read
+            // back — both leaderboards join the aggregate to the record — so they
+            // are removed with it instead of lingering until the TTL sweep.
+            // Best-effort, like the photo cleanup above it: the TTL is the backstop.
+            await deleteViewEventsForTarget({ targetType: 'zone', targetId: zone._id });
 
             const io = req.app.get('io');
             if (io) {

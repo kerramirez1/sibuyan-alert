@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 import MapIncidentDetails from '../components/map/MapIncidentDetails';
@@ -8,12 +8,16 @@ const mocks = vi.hoisted(() => ({
     getReportById: vi.fn(),
     getPublicReportById: vi.fn(),
     getProtected: vi.fn(),
+    recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
 }));
 
 vi.mock('../services/api', () => ({
     adminAPI: { getReportById: mocks.getReportById },
     reportsAPI: { getById: mocks.getPublicReportById },
     filesAPI: { getProtected: mocks.getProtected },
+    // Mounting this sheet IS a reach view, so the mock has to expose the recorder
+    // the hook imports. Leaving it out is how a dead reach call stayed green here.
+    viewsAPI: { recordViewEvent: mocks.recordViewEvent },
 }));
 
 const sampleReport = {
@@ -65,6 +69,9 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
         mocks.getReportById.mockReset();
         mocks.getPublicReportById.mockReset();
         mocks.getProtected.mockReset();
+        // Views accumulate across tests in this file otherwise, which would make
+        // "records exactly one view" unassertable.
+        mocks.recordViewEvent.mockClear();
         mocks.getReportById.mockResolvedValue({
             data: {
                 data: {
@@ -820,6 +827,39 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             // No contact or identity leak for non-owned pending
             expect(screen.queryByText('private@example.com')).not.toBeInTheDocument();
             expect(screen.queryByText('Someone Else')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('15. Reach recording', () => {
+        test('records one view for the incident it opens', async () => {
+            renderDetails();
+
+            // Mounting this sheet IS the view. It is the surface a member of the
+            // public actually uses, so if this stops firing the panel's numbers
+            // describe only the archive page and look plausible while doing it.
+            await waitFor(() => expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1));
+            expect(mocks.recordViewEvent).toHaveBeenCalledWith({
+                targetType: 'report',
+                targetId: 'report-1',
+            });
+        });
+
+        test('does not record a second view when the report object is replaced', async () => {
+            const { rerender } = render(
+                <MemoryRouter initialEntries={['/dashboard?view=map']}>
+                    <MapIncidentDetails report={sampleReport} />
+                </MemoryRouter>,
+            );
+
+            await waitFor(() => expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1));
+
+            rerender(
+                <MemoryRouter initialEntries={['/dashboard?view=map']}>
+                    <MapIncidentDetails report={{ ...sampleReport }} />
+                </MemoryRouter>,
+            );
+
+            expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1);
         });
     });
 });

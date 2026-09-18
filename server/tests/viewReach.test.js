@@ -1,11 +1,17 @@
 import { describe, expect, test, vi } from 'vitest';
 import ViewEvent, {
+    PUBLIC_VIEWER_ROLES,
     VIEW_TARGET_TYPES,
     VIEWER_ROLES,
     VIEWER_KEY_PATTERN,
     VIEW_EVENT_RETENTION_DAYS,
 } from '../models/ViewEvent.js';
-import { buildViewerIdentity, recordViewEvent } from '../services/viewEventService.js';
+import {
+    buildViewerIdentity,
+    deleteViewEventsForTarget,
+    recordViewEvent,
+    readTopReach,
+} from '../services/viewEventService.js';
 import { csrfProtection } from '../middleware/csrf.js';
 
 /**
@@ -101,6 +107,182 @@ describe('view event schema', () => {
         // The retention window is a privacy commitment, not a tuning knob; a
         // silent change here should fail loudly.
         expect(VIEW_EVENT_RETENTION_DAYS).toBe(180);
+    });
+});
+
+/**
+ * Repeat views cannot double-count.
+ *
+ * The question this answers is the one every reach feature gets asked: "if a
+ * guest opens the same incident five times, do we count five?" The answer has to
+ * be no, and it has to come from the write, not from client-side bookkeeping — a
+ * flaky network, a refresh, a back-navigation and a second tab all bypass
+ * whatever the client thinks it remembers.
+ *
+ * The schema test above asserts the unique index exists. These assert the write
+ * that index is protecting: an upsert keyed by (record, viewer) whose per-view
+ * effect is a timestamp, never a count.
+ */
+describe('repeated views from the same guest collapse to one row', () => {
+    const anonKey = `anon:${VALID_UUID}`;
+
+    test('writes an upsert keyed by the record and the viewer, not an insert', async () => {
+        const spy = vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+
+        await recordViewEvent({ targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest' });
+        await recordViewEvent({ targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest' });
+
+        expect(spy).toHaveBeenCalledTimes(2);
+        const [filter, update, options] = spy.mock.calls[0];
+
+        // The dedupe key. Two writes from the same guest resolve to the same row.
+        expect(filter).toEqual({ targetType: 'report', targetId: VALID_ID, viewerKey: anonKey });
+        expect(options).toMatchObject({ upsert: true });
+        expect(spy.mock.calls[1][0]).toEqual(filter);
+
+        // `firstViewedAt` and the role are written once, on the first contact;
+        // the repeated open only moves `lastViewedAt`.
+        expect(update.$set).toEqual({ lastViewedAt: expect.any(Date) });
+        // Same set of fields, order-independent: the point is that every field
+        // describing the row is written once, and none of them is a counter.
+        expect(Object.keys(update.$setOnInsert).sort()).toEqual(
+            ['firstViewedAt', 'targetType', 'targetId', 'viewerKey', 'viewerRole'].sort(),
+        );
+
+        // Nothing here increments anything. If someone ever turns this into
+        // `$inc`, reach becomes an open counter and the panel's "repeat opens by
+        // the same viewer count once" footnote becomes a lie.
+        expect(Object.keys(update)).toEqual(['$setOnInsert', '$set']);
+    });
+
+    test('a lost race updates the winning row instead of failing or duplicating', async () => {
+        const conflict = Object.assign(new Error('E11000 duplicate key'), { code: 11000 });
+        const spy = vi.spyOn(ViewEvent, 'updateOne')
+            .mockRejectedValueOnce(conflict)
+            .mockResolvedValueOnce({ acknowledged: true });
+
+        // A double-tap can make both requests believe they are first. One wins the
+        // insert, the other must quietly land on the same row — otherwise a
+        // legitimate view would surface as a 500.
+        await expect(recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest',
+        })).resolves.toBe(true);
+
+        expect(spy).toHaveBeenCalledTimes(2);
+        expect(spy.mock.calls[1][0]).toEqual(spy.mock.calls[0][0]);
+        // The retry only re-stamps the existing row: no second insert attempt.
+        expect(spy.mock.calls[1][1]).toEqual({ $set: { lastViewedAt: expect.any(Date) } });
+        expect(spy.mock.calls[1][2]).toBeUndefined();
+    });
+});
+
+/**
+ * The reach aggregation.
+ *
+ * `readTopReach` is the single read path now — the per-record variant that
+ * duplicated this logic was deleted rather than left to drift — so its two
+ * load-bearing decisions are pinned here: which viewers count as the public, and
+ * that the record scope is applied inside the pipeline instead of being used to
+ * filter an already-truncated result.
+ */
+describe('reach aggregation', () => {
+    const aggregateSpy = () => vi.spyOn(ViewEvent, 'aggregate').mockResolvedValue([]);
+
+    test('treats only the anonymous public and verified reporters as public reach', () => {
+        // Staff opens are recorded and counted in uniqueViewers, but they are not
+        // community awareness, and the headline figure has to mean one thing.
+        expect(PUBLIC_VIEWER_ROLES).toEqual(['guest', 'reporter']);
+        expect(PUBLIC_VIEWER_ROLES).not.toContain('responder');
+        expect(PUBLIC_VIEWER_ROLES).not.toContain('municipal_admin');
+    });
+
+    test('ranks by public reach, then by total, then by recency', async () => {
+        const spy = aggregateSpy();
+
+        await readTopReach({ targetType: 'report', limit: 5 });
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const pipeline = spy.mock.calls[0][0];
+        expect(pipeline.at(-1)).toEqual({ $limit: 5 });
+        expect(pipeline.at(-2)).toEqual({
+            $sort: { publicViewers: -1, uniqueViewers: -1, lastViewedAt: -1 },
+        });
+    });
+
+    test('constrains the pipeline to the caller-supplied scope before limiting', async () => {
+        const spy = aggregateSpy();
+        const scoped = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'];
+
+        await readTopReach({ targetType: 'report', limit: 10, targetIds: scoped });
+
+        const pipeline = spy.mock.calls[0][0];
+        expect(pipeline[0].$match.targetType).toBe('report');
+        // Scope inside the pipeline — filtering the result afterwards would cap
+        // the rows a municipality can ever see at the island-wide top N.
+        expect(pipeline[0].$match.targetId.$in.map(String)).toEqual(scoped);
+    });
+
+    test('leaves the pipeline unscoped when the caller passes no scope', async () => {
+        const spy = aggregateSpy();
+
+        await readTopReach({ targetType: 'zone' });
+
+        expect(spy.mock.calls[0][0][0]).toEqual({ $match: { targetType: 'zone' } });
+    });
+
+    test('answers an empty scope without querying at all', async () => {
+        const spy = aggregateSpy();
+
+        // "No records in scope" is an answer, and must not silently become the
+        // unscoped read: that is how one municipality's numbers leak into another's.
+        await expect(readTopReach({ targetType: 'report', targetIds: [] })).resolves.toEqual([]);
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    test('rejects an unknown target type without touching the database', async () => {
+        const spy = aggregateSpy();
+
+        await expect(readTopReach({ targetType: 'user' })).resolves.toEqual([]);
+        expect(spy).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * Cleanup of the reach rows a deleted record leaves behind.
+ *
+ * The behaviour that matters is not the happy path — it is that a cleanup failure
+ * cannot fail the deletion it is attached to. These rows are supplementary to the
+ * record, and the TTL already guarantees they cannot outlive their usefulness by
+ * more than the retention window.
+ */
+describe('reach cleanup on record deletion', () => {
+    test('removes the rows for the deleted record and reports how many went', async () => {
+        const spy = vi.spyOn(ViewEvent, 'deleteMany').mockResolvedValue({ deletedCount: 3 });
+
+        await expect(deleteViewEventsForTarget({ targetType: 'zone', targetId: VALID_ID }))
+            .resolves.toBe(3);
+        expect(spy).toHaveBeenCalledWith({ targetType: 'zone', targetId: VALID_ID });
+    });
+
+    test('swallows a cleanup failure so the deletion still succeeds', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(ViewEvent, 'deleteMany').mockRejectedValue(new Error('view_events unavailable'));
+
+        // Resolving rather than rejecting is the contract: the caller has already
+        // deleted the record and must not be told the operation failed.
+        await expect(deleteViewEventsForTarget({ targetType: 'report', targetId: VALID_ID }))
+            .resolves.toBe(0);
+        expect(warn).toHaveBeenCalled();
+    });
+
+    test('rejects a malformed target without querying', async () => {
+        const spy = vi.spyOn(ViewEvent, 'deleteMany').mockResolvedValue({ deletedCount: 0 });
+
+        await expect(deleteViewEventsForTarget({ targetType: 'user', targetId: VALID_ID }))
+            .resolves.toBe(0);
+        await expect(deleteViewEventsForTarget({ targetType: 'report', targetId: 'nope' }))
+            .resolves.toBe(0);
+        expect(spy).not.toHaveBeenCalled();
     });
 });
 

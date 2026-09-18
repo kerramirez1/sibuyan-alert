@@ -18,6 +18,11 @@ vi.mock('../services/api', () => ({
     filesAPI: {
         getProtected: vi.fn(),
     },
+    // The inspector records a reach view when it mounts. Declaring it here keeps
+    // the mock matching the module shape the component actually imports.
+    viewsAPI: {
+        recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
+    },
     default: {
         get: vi.fn(),
         post: vi.fn(),

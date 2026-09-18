@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     dismissReport: vi.fn(),
     getMunicipalities: vi.fn(),
     markNotificationAsRead: vi.fn(),
+    recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
     setUnreadCount: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -51,6 +52,10 @@ vi.mock('../services/api', () => ({
     },
     reportsAPI: { getMunicipalities: mocks.getMunicipalities },
     notificationsAPI: { markAsRead: mocks.markNotificationAsRead },
+    // The incident drawer records a reach view on mount. Vitest throws when a
+    // mock omits a named export the code imports, so this has to be declared —
+    // which is the point: the mock has to match the shape the code imports.
+    viewsAPI: { recordViewEvent: mocks.recordViewEvent },
 }));
 
 vi.mock('react-hot-toast', () => ({ default: mocks.toast }));

@@ -4,6 +4,7 @@ import Report from '../models/Report.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import AuthSession from '../models/AuthSession.js';
+import { deleteViewEventsForTarget } from '../services/viewEventService.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushToUser, pushTemplates } from '../services/pushService.js';
 import {
@@ -902,6 +903,12 @@ export const deleteReport = async (req, res) => {
         }
 
         await report.deleteOne();
+
+        // Reach rows describe a record that no longer exists. The TTL would
+        // eventually remove them, but until then they keep occupying dedupe
+        // slots. Best-effort: the deletion is what the caller asked for, and a
+        // cleanup failure must not report the whole operation as failed.
+        await deleteViewEventsForTarget({ targetType: 'report', targetId: report._id });
 
         await deleteGridFsFilesByUrls(report.images);
 

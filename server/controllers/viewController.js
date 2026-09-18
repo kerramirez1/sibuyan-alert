@@ -3,6 +3,38 @@ import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
 import { buildViewerIdentity, recordViewEvent, readTopReach } from '../services/viewEventService.js';
 import { VIEW_TARGET_TYPES } from '../models/ViewEvent.js';
+import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+
+/**
+ * Resolves the record a view points at, once.
+ *
+ * Two things depend on the answer, which is why there is a single lookup rather
+ * than one per concern:
+ *
+ * 1. **The record must exist.** A view row whose target cannot be resolved can
+ *    never be read back — both leaderboards join the aggregate to the record —
+ *    so writing one would be an invisible row that still occupies a dedupe slot
+ *    and a TTL window. Refusing the write is the honest answer.
+ * 2. **The legacy `viewCount` bump needs the reporter**, to apply the same
+ *    owner-self-view rule `recordReportView` uses.
+ *
+ * @returns {Promise<{ reporterId: string|null, viewCount: number }|null>}
+ *          null when no such record exists.
+ */
+const resolveViewTarget = async ({ targetType, targetId }) => {
+    if (targetType === 'report') {
+        const report = await Report.findById(targetId).select('reporter viewCount');
+        if (!report) return null;
+
+        return {
+            reporterId: report.reporter ? String(report.reporter) : null,
+            viewCount: report.viewCount || 0,
+        };
+    }
+
+    const zoneExists = await HighRiskZone.exists({ _id: targetId });
+    return zoneExists ? { reporterId: null, viewCount: 0 } : null;
+};
 
 /**
  * Keeps the report's legacy `viewCount` counter alive alongside the deduped
@@ -20,27 +52,34 @@ import { VIEW_TARGET_TYPES } from '../models/ViewEvent.js';
  * page loads. A failure here is logged and swallowed: the reach row is already
  * written, and a legacy counter is not worth failing the request over.
  */
-const bumpLegacyReportViewCount = async ({ targetType, targetId, viewerKey }) => {
-    if (targetType !== 'report' || !mongoose.isValidObjectId(targetId)) return null;
+const bumpLegacyReportViewCount = async ({ targetType, targetId, viewerKey, target }) => {
+    if (targetType !== 'report') return null;
 
     try {
-        const report = await Report.findById(targetId).select('reporter viewCount');
-        if (!report) return null;
-
-        const reporterId = report.reporter ? String(report.reporter) : null;
         const viewerId = viewerKey.startsWith('user:') ? viewerKey.slice('user:'.length) : null;
         // Owner self-views do not measure reach — same rule as recordReportView.
-        if (viewerId && reporterId && viewerId === reporterId) {
-            return report.viewCount || 0;
+        if (viewerId && target.reporterId && viewerId === target.reporterId) {
+            return target.viewCount;
         }
 
-        await Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } });
-        return (report.viewCount || 0) + 1;
+        await Report.updateOne({ _id: targetId }, { $inc: { viewCount: 1 } });
+        return target.viewCount + 1;
     } catch (error) {
         console.warn(`[recordView] Failed to bump viewCount for report ${targetId}:`, error?.message);
         return null;
     }
 };
+
+/**
+ * Counts a reach row carries. Named once so the recording path and every read
+ * path cannot drift into describing the same numbers differently.
+ */
+const REACH_COUNTS = ['uniqueViewers', 'publicViewers', 'guestViewers'];
+
+const readCounts = (row = {}) => REACH_COUNTS.reduce((counts, key) => {
+    counts[key] = row?.[key] || 0;
+    return counts;
+}, {});
 
 /**
  * @desc    Record that the current viewer opened one record's details.
@@ -83,6 +122,28 @@ export const recordView = async (req, res) => {
             return res.json({ success: true, data: { counted: false } });
         }
 
+        // Shape first, existence second: a malformed id is a client bug and gets
+        // 400, while a well-formed id that resolves to nothing is a genuinely
+        // missing record and gets 404. Collapsing the two would make the response
+        // useless for telling a broken client from a deleted record.
+        if (!mongoose.isValidObjectId(targetId)) {
+            return res.status(400).json({
+                success: false,
+                code: 'INVALID_TARGET_ID',
+                message: 'A valid targetId is required',
+            });
+        }
+
+        const target = await resolveViewTarget({ targetType, targetId });
+
+        if (!target) {
+            return res.status(404).json({
+                success: false,
+                code: 'TARGET_NOT_FOUND',
+                message: 'The record this view refers to does not exist',
+            });
+        }
+
         const counted = await recordViewEvent({ targetType, targetId, ...identity });
 
         if (!counted) {
@@ -100,6 +161,7 @@ export const recordView = async (req, res) => {
             targetType,
             targetId,
             viewerKey: identity.viewerKey,
+            target,
         });
 
         return res.json({
@@ -120,7 +182,12 @@ export const recordView = async (req, res) => {
  * @route   GET /api/views/reach
  * @access  Private (admin)
  *
- * Returns unique-viewer counts per incident and per risk zone, highest first.
+ * Returns unique-viewer counts per incident and per risk zone, highest public
+ * reach first. This is the single implementation of the reach leaderboard: the
+ * same numbers used to also be assembled inside `getAdminAnalytics`, which meant
+ * two code paths described one metric and could disagree. The scoped copy was
+ * never consumed by the client and the unscoped copy was, so the displayed
+ * figure was the one without a municipality filter. That duplicate is gone.
  *
  * Aggregates only — there is deliberately no endpoint that returns which
  * viewers opened a record. A per-viewer list would turn a reach metric into a
@@ -130,9 +197,31 @@ export const recordView = async (req, res) => {
 export const getReachLeaderboard = async (req, res) => {
     try {
         const limit = Math.min(Math.max(Number(req.query?.limit) || 10, 1), 50);
+        const municipality = req.user?.assignedMunicipality;
+
+        if (!municipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        // Incidents are municipal, so their reach is scoped exactly like every
+        // other admin surface — same definition of "this office's incidents"
+        // (origin, current, or transfer path, minus copies dismissed locally).
+        // Resolving the ids up front keeps the aggregation one indexed group
+        // instead of a global top-N window that then gets narrowed, which would
+        // return fewer rows than asked for whenever a municipality's incidents
+        // are not in the island-wide top N.
+        const scopedReportIds = await Report.distinct('_id', buildMunicipalReportScope(municipality));
 
         const [reportRows, zoneRows] = await Promise.all([
-            readTopReach({ targetType: 'report', limit }),
+            readTopReach({ targetType: 'report', limit, targetIds: scopedReportIds }),
+            // Zones stay island-wide on purpose: hazard visibility is
+            // intentionally island-wide for every viewer, and municipal scope
+            // governs management permissions, never this read model. Scoping
+            // their reach to one municipality would describe a visibility rule
+            // the app does not have.
             readTopReach({ targetType: 'zone', limit }),
         ]);
 
@@ -143,33 +232,45 @@ export const getReachLeaderboard = async (req, res) => {
                 : [],
             zoneRows.length
                 ? HighRiskZone.find({ _id: { $in: zoneRows.map((row) => row._id) } })
-                    .select('name type municipalityName')
+                    .select('name type municipality')
                 : [],
         ]);
 
-        const reportById = new Map(reportRows.map((row) => [String(row._id), row]));
-        const zoneById = new Map(zoneRows.map((row) => [String(row._id), row]));
+        const reportById = new Map(reports.map((record) => [String(record._id), record]));
+        const zoneById = new Map(zones.map((record) => [String(record._id), record]));
 
-        const shape = (records, index, labelOf) => records
-            .map((record) => {
-                const row = index.get(String(record._id));
-                return {
-                    id: String(record._id),
-                    label: labelOf(record),
-                    municipalityName: record.municipalityName || '',
-                    status: record.status || '',
-                    uniqueViewers: row?.uniqueViewers || 0,
-                    guestViewers: row?.guestViewers || 0,
-                };
+        // Order comes from the aggregation (public reach first); mapping over the
+        // aggregate rows rather than re-sorting keeps that one sort authoritative.
+        // A row whose record has since been deleted is dropped: its view events
+        // are removed on delete, so this is only a narrow race, and rendering a
+        // record that no longer exists would be worse than showing one fewer row.
+        const shape = (rows, byId, toRow) => rows
+            .map((row) => {
+                const record = byId.get(String(row._id));
+                return record ? toRow(record, row) : null;
             })
-            .sort((a, b) => b.uniqueViewers - a.uniqueViewers);
+            .filter(Boolean);
 
         return res.json({
             success: true,
             data: {
-                note: 'Unique viewers who opened the details. Repeat views from the same viewer count once.',
-                reports: shape(reports, reportById, (record) => record.title || record.incidentType || 'Incident'),
-                zones: shape(zones, zoneById, (record) => record.name || record.type || 'Risk zone'),
+                reports: shape(reportRows, reportById, (record, row) => ({
+                    id: String(record._id),
+                    label: record.title || record.incidentType || 'Incident',
+                    municipalityName: record.municipalityName || '',
+                    status: record.status || '',
+                    ...readCounts(row),
+                })),
+                zones: shape(zoneRows, zoneById, (record, row) => ({
+                    id: String(record._id),
+                    label: record.name || record.type || 'Risk zone',
+                    // Report and HighRiskZone name this field differently; zones
+                    // carry `municipality`. Reading `municipalityName` off a zone
+                    // silently produced an empty label on every row.
+                    municipalityName: record.municipality || '',
+                    status: '',
+                    ...readCounts(row),
+                })),
             },
         });
     } catch (error) {

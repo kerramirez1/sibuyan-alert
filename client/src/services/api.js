@@ -153,17 +153,6 @@ export const reportsAPI = {
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: (config = {}) => api.get('/reports/municipalities', config),
     geocodeLocation: (data, config = {}) => api.post('/reports/geocode', data, config),
-    // Reach recorder, shared by incidents and risk zones.
-    //
-    // The anonymous id is attached here rather than by each caller, so no
-    // surface can forget it and silently record nothing — a view with no
-    // identity is deliberately not counted server-side, which would otherwise
-    // make the omission invisible.
-    recordViewEvent: ({ targetType, targetId }) => api.post('/views', {
-        targetType,
-        targetId,
-        anonymousId: getAnonymousViewerId(),
-    }),
     create: (formData, config = {}) => api.post('/reports', formData, {
         // A stalled upload must fail fast enough for the report to be handed to
         // the offline queue while the reporter is still on the page. Without a
@@ -188,9 +177,6 @@ export const reportsAPI = {
 // Admin API
 export const adminAPI = {
     getDashboard: (params) => api.get('/admin/dashboard', { params }),
-    // Reach leaderboards: unique viewers per incident and per risk zone.
-    // Admin-gated server-side, aggregate-only by construction.
-    getReach: (params) => api.get('/views/reach', { params }),
     getPresence: () => api.get('/admin/presence'),
     getUsers: (params) => api.get('/admin/users', { params }),
     getUserById: (id) => api.get(`/admin/users/${id}`),
@@ -205,6 +191,30 @@ export const adminAPI = {
     deleteReport: (id) => api.delete(`/admin/reports/${id}`),
     dismissReport: (id) => api.post(`/admin/reports/${id}/dismiss`),
     deleteUser: (id) => api.delete(`/admin/users/${id}`),
+};
+
+// Reach (view events) API.
+//
+// One place for both halves of the reach contract: recording a view and reading
+// the leaderboard. It exists as its own export because the two call sites that
+// record are in different features (the map detail panels and the archive page)
+// and only one of them used to find the method — the other optional-chained onto
+// a module that never had it, so the map silently recorded nothing for months.
+// A single named home makes that class of mistake visible: if this object loses
+// a method, every caller fails the same way, in the same place.
+//
+// The anonymous id is attached here rather than by each caller, so no surface can
+// forget it and silently record nothing — a view with no identity is deliberately
+// not counted server-side, which would otherwise make the omission invisible.
+export const viewsAPI = {
+    recordViewEvent: ({ targetType, targetId }) => api.post('/views', {
+        targetType,
+        targetId,
+        anonymousId: getAnonymousViewerId(),
+    }),
+    // Admin-gated server-side, aggregate-only by construction, and scoped to the
+    // requesting administrator's municipality.
+    getReach: (params) => api.get('/views/reach', { params }),
 };
 
 // High Risk Zones API

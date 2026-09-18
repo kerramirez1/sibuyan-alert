@@ -143,13 +143,16 @@ const RiskZonePhotoThumbnail = ({ photo, index, hasMultiple = false, onView }) =
     );
 };
 
-const HighRiskZoneDetails = ({
-    zone,
-    _viewerRole = 'guest',
-}) => {
+const HighRiskZoneDetails = ({ zone }) => {
     // Reach: this component mounts only when the zone's details are opened, so
     // mounting IS the view. Not an impression — a zone pin passing through the
     // viewport does not mount this.
+    //
+    // Both callers used to pass a `viewerRole` that this component destructured
+    // as `_viewerRole` and never read, so the parameter advertised a behaviour
+    // that did not exist. Removed rather than wired up: access to the reference
+    // photos is authorized server-side by the file endpoint, and a client-side
+    // role check here would be decoration over that.
     useRecordView({ targetType: 'zone', targetId: zone?._id ?? zone?.id });
 
     const [viewerIndex, setViewerIndex] = useState(null);

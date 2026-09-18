@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import api from '../services/api';
+import { viewsAPI } from '../services/api';
 
 /**
  * Records one reach view for a specific record.
@@ -21,6 +21,12 @@ import api from '../services/api';
  * @param {string}      [options.targetId]
  * @param {boolean}     [options.enabled] Skip recording when false.
  */
+
+// One warning per session, not one per panel: a wiring failure is a single fact
+// about the build, and repeating it on every mount would bury the signal it is
+// meant to be.
+let hasWarnedAboutMissingRecorder = false;
+
 export const useRecordView = ({ targetType, targetId, enabled = true } = {}) => {
     const recordedRef = useRef(null);
 
@@ -31,14 +37,30 @@ export const useRecordView = ({ targetType, targetId, enabled = true } = {}) => 
         if (recordedRef.current === key) return;
         recordedRef.current = key;
 
+        // A missing recorder is a WIRING bug, not a network failure, and it must
+        // not be swallowed the way a failed request is. This hook previously
+        // called `api.recordViewEvent?.()` on a module whose default export never
+        // had that method, so the optional chain turned every map view into
+        // nothing at all — silently, in production, for months. Reach is still
+        // allowed to degrade (it is telemetry), but the reason must be visible in
+        // development instead of looking like "nobody opened this".
+        const record = viewsAPI?.recordViewEvent;
+        if (typeof record !== 'function') {
+            if (!hasWarnedAboutMissingRecorder) {
+                hasWarnedAboutMissingRecorder = true;
+                console.warn(
+                    '[useRecordView] viewsAPI.recordViewEvent is unavailable; view recording is disabled. '
+                    + 'Reach data will be incomplete. Check the export in services/api.js.',
+                );
+            }
+            return;
+        }
+
         try {
-            // `?.` and the try/catch are not defensive padding — they are the
-            // contract. Reach is telemetry, so a missing or broken api method
-            // must degrade to "this view was not counted" rather than throwing
-            // out of an effect and taking the panel that called it down with it.
-            api.recordViewEvent?.({ targetType, targetId })?.catch?.(() => {});
+            record({ targetType, targetId })?.catch?.(() => {});
         } catch {
-            // Swallowed on purpose, same reason.
+            // Swallowed on purpose: telemetry must degrade, never break the panel
+            // that called it.
         }
     }, [enabled, targetType, targetId]);
 };

@@ -30,6 +30,11 @@ vi.mock('../services/api', () => ({
             data: new Blob(['fake image data'], { type: 'image/jpeg' }),
         }),
     },
+    // Mounting the inspector IS a reach view, so the mock has to expose the
+    // recorder the hook imports.
+    viewsAPI: {
+        recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
+    },
 }));
 
 const mockMobileViewport = () => {

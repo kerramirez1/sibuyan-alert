@@ -25,8 +25,11 @@ vi.mock('../services/api', () => ({
     reportsAPI: {
         getAll: vi.fn(),
         getMunicipalities: mocks.getMunicipalities,
-        recordViewEvent: mocks.recordViewEvent,
     },
+    // View recording lives on its own export now — one home for the reach
+    // contract, shared with the map panels, so neither surface can call a method
+    // the module does not define.
+    viewsAPI: { recordViewEvent: mocks.recordViewEvent },
 }));
 
 vi.mock('../components/ui/ImageViewer', () => ({ default: () => null }));

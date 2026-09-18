@@ -1318,10 +1318,7 @@ const MapView = ({
                     )}
 
                     {mapModal.type === 'zone' && (
-                        <HighRiskZoneDetails
-                            zone={mapModal.data}
-                            viewerRole={viewerRole}
-                        />
+                        <HighRiskZoneDetails zone={mapModal.data} />
                     )}
                 </MapOverlayPanel>
             )}

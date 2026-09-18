@@ -1,27 +1,32 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { filesAPIMock, apiMock } = vi.hoisted(() => ({
+const { filesAPIMock, viewsAPIMock } = vi.hoisted(() => ({
     filesAPIMock: {
         getProtected: vi.fn(),
     },
-    apiMock: {
+    viewsAPIMock: {
         recordViewEvent: vi.fn(() => Promise.resolve({ data: { data: { counted: true } } })),
     },
 }));
 
-// The default export is what useRecordView calls. Omitting it here is what let
-// a broken reach call pass this suite silently: the hook swallowed the missing
-// method, so the test proved nothing about whether the view was ever recorded.
+// This mock must match the module shape the component actually imports.
+//
+// An earlier revision invented a `recordViewEvent` on the DEFAULT export — which
+// the real module never had — so the suite stayed green while `useRecordView`
+// optional-chained past a method that did not exist and every view opened from
+// the map was dropped in production. `useRecordView` now imports `viewsAPI`;
+// if that name ever changes, this mock stops intercepting and the assertions
+// below fail, which is the behaviour we want from a mock.
 vi.mock('../../services/api', () => ({
-    default: apiMock,
     filesAPI: filesAPIMock,
+    viewsAPI: viewsAPIMock,
 }));
 
 // Also support relative import path from components
 vi.mock('../services/api', () => ({
-    default: apiMock,
     filesAPI: filesAPIMock,
+    viewsAPI: viewsAPIMock,
 }));
 
 import HighRiskZoneDetails from '../components/map/HighRiskZoneDetails';
@@ -83,7 +88,7 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('1. Renders complete visual hierarchy: severity badge, jurisdiction, hazard type, coverage radius, and description', async () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         expect(screen.getByText('High severity')).toBeInTheDocument();
         expect(screen.getByText('Cajidiocan · Cambajao')).toBeInTheDocument();
@@ -98,7 +103,7 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('2. Renders Field reference section with photo count and thumbnail previews', async () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         expect(screen.getByRole('heading', { level: 4, name: 'Field reference' })).toBeInTheDocument();
         expect(screen.getByText('2 photos')).toBeInTheDocument();
@@ -128,7 +133,7 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('3. Clicking a thumbnail opens the shared ImageViewer modal with all photos in the zone', async () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /View reference photo 1:/i })).toBeInTheDocument();
@@ -160,7 +165,7 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('4. Renders graceful empty state when a zone has no photos attached', () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithoutPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithoutPhotos} />);
 
         expect(screen.getByText('0 photos')).toBeInTheDocument();
         expect(screen.getByText('No reference photos attached for this hazard zone.')).toBeInTheDocument();
@@ -170,7 +175,7 @@ describe('HighRiskZoneDetails Component', () => {
     test('5. Renders graceful error placeholder if a photo fails to load', async () => {
         filesAPIMock.getProtected.mockRejectedValueOnce(new Error('Network error'));
 
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         await waitFor(() => {
             expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
@@ -178,7 +183,7 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('6. Renders Google Maps external link clearly separated as secondary action', async () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         const googleMapsLink = screen.getByRole('link', { name: /Open in Google Maps/i });
         expect(googleMapsLink).toBeInTheDocument();
@@ -207,7 +212,7 @@ describe('HighRiskZoneDetails Component', () => {
             ],
         };
 
-        render(<HighRiskZoneDetails zone={singlePhotoZone} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={singlePhotoZone} />);
 
         expect(screen.getByText('1 photo')).toBeInTheDocument();
 
@@ -228,12 +233,12 @@ describe('HighRiskZoneDetails Component', () => {
     });
 
     test('records a reach view for the zone it opens, including for guests', async () => {
-        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />);
+        render(<HighRiskZoneDetails zone={mockZoneWithPhotos} />);
 
         // Mounting this panel IS the view: a guest opening a hazard area must
         // produce exactly one reach record, keyed to the zone's real id.
-        await waitFor(() => expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1));
-        expect(apiMock.recordViewEvent).toHaveBeenCalledWith({
+        await waitFor(() => expect(viewsAPIMock.recordViewEvent).toHaveBeenCalledTimes(1));
+        expect(viewsAPIMock.recordViewEvent).toHaveBeenCalledWith({
             targetType: 'zone',
             targetId: 'zone-cajidiocan-1',
         });
@@ -241,14 +246,14 @@ describe('HighRiskZoneDetails Component', () => {
 
     test('records only once per mount even when the zone object is replaced', async () => {
         const { rerender } = render(
-            <HighRiskZoneDetails zone={mockZoneWithPhotos} viewerRole="guest" />,
+            <HighRiskZoneDetails zone={mockZoneWithPhotos} />,
         );
 
-        await waitFor(() => expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(viewsAPIMock.recordViewEvent).toHaveBeenCalledTimes(1));
 
         // A new object identity for the same zone must not fire a second write.
-        rerender(<HighRiskZoneDetails zone={{ ...mockZoneWithPhotos }} viewerRole="guest" />);
+        rerender(<HighRiskZoneDetails zone={{ ...mockZoneWithPhotos }} />);
 
-        expect(apiMock.recordViewEvent).toHaveBeenCalledTimes(1);
+        expect(viewsAPIMock.recordViewEvent).toHaveBeenCalledTimes(1);
     });
 });

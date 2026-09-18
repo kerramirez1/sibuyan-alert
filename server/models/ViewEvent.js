@@ -38,6 +38,24 @@ export const VIEWER_ROLES = Object.freeze([
 ]);
 
 /**
+ * Who counts as "the public" for reach purposes.
+ *
+ * Reach exists to answer one operational question: did the people a warning is
+ * meant for actually open it? For a road-hazard alert that audience is the
+ * anonymous public plus the verified residents who report, and nobody else.
+ *
+ * Municipal admins and responders are deliberately excluded. A responder
+ * opening an incident is the dispatch workflow doing its job, and a municipal
+ * admin opening one is the office reading its own queue — counting either as
+ * public reach would let staff activity masquerade as community awareness,
+ * which is the one number this metric is supposed to be reliable about.
+ *
+ * Staff rows are still written and still counted in `uniqueViewers`; they are
+ * just not what the headline figure means.
+ */
+export const PUBLIC_VIEWER_ROLES = Object.freeze(['guest', 'reporter']);
+
+/**
  * Retention window, measured from the LAST view of a record.
  *
  * 180 days is the shortest window that still covers a full Philippine school
