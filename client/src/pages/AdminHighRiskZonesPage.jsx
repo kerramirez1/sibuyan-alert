@@ -522,6 +522,14 @@ const AdminHighRiskZonesPage = () => {
                             focusLocation={focusLocation}
                             enable3D
                             mode="risk-zones"
+                            // This page's whole subject is the hazard layer, so an
+                            // empty map is a fact the admin needs stated: with no
+                            // zones mapped, a blank satellite view looks identical
+                            // to a map that failed to load them. The loading flag
+                            // keeps that statement from being made while the zones
+                            // are still arriving.
+                            showDataState
+                            dataLoading={loading}
                             className="h-full w-full"
                         />
                     </div>

@@ -284,6 +284,99 @@ describe('MapView opening framing', () => {
         return view;
     };
 
+    const mappedZones = [
+        {
+            _id: 'zone-a',
+            name: 'Cambijang Risk Zone',
+            type: 'landslide_prone',
+            radius: 39,
+            coordinates: { lat: 12.34, lng: 122.66 },
+        },
+        {
+            _id: 'zone-b',
+            name: 'Cambijang Risk Zone',
+            type: 'landslide_prone',
+            radius: 47,
+            coordinates: { lat: 12.35, lng: 122.67 },
+        },
+    ];
+
+    test('draws the zones on a page whose whole subject is hazard zones', async () => {
+        // The zones page says `mode="risk-zones"` and passes no filter tab. That
+        // mode used to be invisible to this gate, which filtered the page's own
+        // zones away and drew an empty map — on the one screen that exists to
+        // show them.
+        await renderReady({ highRiskZones: mappedZones, mode: 'risk-zones', showDataState: true });
+
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalledTimes(2);
+        });
+        // Two zones on the map, so the page must not claim it has nothing.
+        expect(screen.queryByText(/no high-risk zones/i)).toBeNull();
+    });
+
+    test('keeps hazard zones off a map that is about incidents', async () => {
+        // The dashboard states its subject with `filterStatus`, so zones stay out
+        // of the incident map until the tab that means "show hazards" is chosen.
+        await renderReady({
+            reports: visibleReports,
+            highRiskZones: mappedZones,
+            showDataState: true,
+        });
+
+        // Two markers and no more: the two incidents, and neither zone.
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    test('tells the zones page that its zones are missing, not that incidents are', async () => {
+        await renderReady({ highRiskZones: [], mode: 'risk-zones', showDataState: true });
+
+        await waitFor(() => {
+            expect(screen.getByText('No high-risk zones are mapped yet.')).toBeTruthy();
+        });
+        // An empty zones page must never talk about incidents: it never draws one.
+        expect(screen.queryByText(/no active incidents/i)).toBeNull();
+    });
+
+    test('does not call an empty map empty while its zones are still loading', async () => {
+        const view = await renderReady({
+            highRiskZones: [],
+            mode: 'risk-zones',
+            showDataState: true,
+            dataLoading: true,
+        });
+
+        // "Nothing is mapped" and "not here yet" are the same picture and not the
+        // same fact, so the claim waits for the request to finish.
+        expect(screen.queryByText('No high-risk zones are mapped yet.')).toBeNull();
+
+        view.rerender(
+            <MapView highRiskZones={[]} mode="risk-zones" showDataState dataLoading={false} />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('No high-risk zones are mapped yet.')).toBeTruthy();
+        });
+    });
+
+    test('names the filter when the dashboard risk-zones tab has no matches', async () => {
+        await renderReady({ highRiskZones: [], filterStatus: 'risk-zones', showDataState: true });
+
+        await waitFor(() => {
+            expect(screen.getByText('No high-risk zones match the selected filter.')).toBeTruthy();
+        });
+    });
+
+    test('keeps the incident wording on a map that draws incidents', async () => {
+        await renderReady({ reports: [], showDataState: true });
+
+        await waitFor(() => {
+            expect(screen.getByText('No active incidents are currently visible.')).toBeTruthy();
+        });
+    });
+
     test('opens on the incidents the viewer can see, not on open water', async () => {
         await renderReady({ reports: visibleReports, frameReportsOnOpen: true });
 

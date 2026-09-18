@@ -128,6 +128,15 @@ const MapView = ({
      * bearings.
      */
     frameReportsOnOpen = false,
+    /**
+     * Whether the data behind this map is still on its way.
+     *
+     * The empty state and a slow request look identical from the inside, and
+     * telling a viewer "this map has nothing" about data that is still loading is
+     * a lie the UI can simply avoid. Defaults to false, because a caller that
+     * does not know must not silence the state it asked for.
+     */
+    dataLoading = false,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -197,14 +206,35 @@ const MapView = ({
 
         return baseFiltered;
     }, [effectiveLocateRequest, filterCategory, filterMode, filterStatus, mode, reports, showPending]);
-    // Hazard zones render when the dedicated risk-zones filter is selected,
-    // or when a risk zone is explicitly targeted for location/inspection.
-    const isRiskZoneFilterActive = isRiskZoneLayerVisibleForFilter(filterStatus)
+    // Whether this map's subject is the hazard layer rather than the incident
+    // list. The dashboard says so by selecting its Risk Zones tab; the dedicated
+    // zones page says so with `mode` and has no tabs at all, which is why the
+    // mode has to count as well. Without it the zones page filtered its own zones
+    // away and drew an empty map — the one screen that exists to show them.
+    const isRiskZoneMap = mode === 'risk-zones' || isRiskZoneLayerVisibleForFilter(filterStatus);
+
+    // Hazard zones render when this map is about them, or when a risk zone is
+    // explicitly targeted for location/inspection.
+    const isRiskZoneFilterActive = isRiskZoneMap
         || effectiveLocateRequest?.type === 'risk-zone';
     const filteredRiskZones = useMemo(() => {
         if (!showHazardZones || !isRiskZoneFilterActive) return [];
         return highRiskZones;
     }, [highRiskZones, isRiskZoneFilterActive, showHazardZones]);
+
+    // The empty state has to describe the layer this map actually draws. A zones
+    // page reporting "no active incidents" is describing something it never
+    // shows, which is worse than saying nothing.
+    const mapIsEmpty = isRiskZoneMap
+        ? filteredRiskZones.length === 0
+        : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0);
+    const emptyMapMessage = isRiskZoneMap
+        ? (isRiskZoneLayerVisibleForFilter(filterStatus)
+            ? 'No high-risk zones match the selected filter.'
+            : 'No high-risk zones are mapped yet.')
+        : filterStatus
+            ? 'No incidents match the selected filter.'
+            : 'No active incidents are currently visible.';
 
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
@@ -1358,17 +1388,9 @@ const MapView = ({
                 </div>
             )}
 
-            {mapReady && showDataState && (
-                filterStatus === 'risk-zones'
-                    ? filteredRiskZones.length === 0
-                    : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0)
-            ) && (
+            {mapReady && showDataState && mapIsEmpty && !dataLoading && (
                     <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 w-max max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:text-xs dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
-                        {filterStatus === 'risk-zones'
-                            ? 'No high-risk zones match the selected filter.'
-                            : filterStatus
-                                ? 'No incidents match the selected filter.'
-                                : 'No active incidents are currently visible.'}
+                        {emptyMapMessage}
                     </div>
                 )}
 
