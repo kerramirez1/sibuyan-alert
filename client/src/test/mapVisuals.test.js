@@ -4,7 +4,10 @@ import {
     getMapFilterStatusDot,
     getMapLegendStatusKeys,
     MAP_ACTIVE_INCIDENT_CONFIG,
+    MAP_RESPONDING_INCIDENT_CONFIG,
+    MAP_RISK_ZONE_CONFIG,
     MAP_STATUS_CONFIG,
+    RESPONDING_INCIDENT_STATUS_KEY,
 } from '../config/mapVisuals';
 
 describe('map status visuals', () => {
@@ -37,6 +40,36 @@ describe('map status visuals', () => {
         expect(getMapFilterStatusDot('risk-zones')).toBeNull();
         expect(getMapFilterStatusDot(null)).toBeNull();
         expect(getMapFilterStatusDot(undefined)).toBeNull();
+    });
+
+    test('explains the responding dot on every public legend that can show one', () => {
+        // The public map draws two distinct things, so its legend owes two
+        // entries: the unified active pin, and the dot that stands for the one
+        // incident somebody is already handling. An animation with no legend
+        // entry is decoration.
+        for (const filterStatus of [null, 'all', 'active', 'incidents']) {
+            expect(getMapLegendStatusKeys({ filterStatus, filterMode: 'public' }))
+                .toContain(RESPONDING_INCIDENT_STATUS_KEY);
+        }
+        // Operational legends keep their status names and their pins.
+        expect(getMapLegendStatusKeys({ filterMode: 'response', showPending: true }))
+            .not.toContain(RESPONDING_INCIDENT_STATUS_KEY);
+    });
+
+    test('presents the responding dot in the one blue the public map already uses', () => {
+        // Same colour, different shape: a second hue would have to be explained
+        // and would compete with the hazard red that owns the map's alerts.
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).toBe(MAP_STATUS_CONFIG.verified.markerColor);
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).not.toBe(MAP_STATUS_CONFIG.responding.markerColor);
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).not.toBe(MAP_RISK_ZONE_CONFIG.markerColor);
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.label).toBe('Being responded to');
+    });
+
+    test('keeps one owner for the responding lifecycle value', () => {
+        // The dot entry is a presentation, not a second status: the state's name,
+        // colour and badge still come from MAP_STATUS_CONFIG.responding.
+        expect(MAP_STATUS_CONFIG.responding.label).toBe('Active response');
+        expect(MAP_STATUS_CONFIG.responding.dot).toBe('bg-cyan-600');
     });
 
     test('names both members of the readiness filter in the legend', () => {

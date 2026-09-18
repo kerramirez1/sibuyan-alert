@@ -69,15 +69,16 @@
   --map-control: #ffffff;
   --map-control-hover: #eef7f2;
 
-  /* Map marker beat: how often a ring leaves a pulsing marker. ONE shared value
-     drives both the high-risk zone radar and the responding incident pin, so
-     the two "look here" cues fire at the same rate and neither out-shouts the
-     other. */
+  /* Map marker beat: how often a pulse wave leaves a marker. ONE shared value
+     drives both consumers of the pulse kit — the high-risk zone radar and the
+     responding incident dot — so the two "look here" cues fire at the same rate
+     and neither can drift into out-shouting the other. */
   --marker-beat: 0.5s;
 
-  /* One full pass of a three-ring train. Derived from the beat, so three rings
-     staggered one beat apart always mean a ring leaves the marker every 0.5s.
-     Both the zone radar and the responding halo animate over this. */
+  /* A full three-wave train. Derived from the beat, so three waves staggered one
+     beat apart always mean a wave leaves the marker every 0.5s. The hazard
+     radar runs for this whole duration; the responding dot shortens it to two
+     beats, because it is a status rather than a warning. */
   --marker-wave: calc(var(--marker-beat) * 3);
 }
 
@@ -684,28 +685,15 @@
   z-index: 10 !important;
 }
 
-/* Responding halo — the beat lives HERE, behind the pin, never on the pin.
-   A map pin is a fixed reference point, and scaling a teardrop from its tip
-   reads as the pin inflating rather than as activity. A halo has no silhouette
-   to distort, so motion in it reads as energy instead.
-
-   There are three of them. A single ring can only blink; three rings a beat
-   apart give the eye a sequence — a wave leaves the pin every 0.5s while the
-   other two are still mid-flight, so the marker never reads as one on/off flash.
-
-   They are soft filled discs on purpose: no border, no white outline. The 30px
-   ring this replaces failed because a hard 3px light border plus a white
-   box-shadow turned it into a loud graphic element that out-shouted the
-   high-risk zone indicator.
-
-   36px matches the high-risk zone halo's own footprint, and it is also the
-   smallest size that works: the ring starts at scale 0.5, so anything smaller
-   than ~36px spends the first half of its travel hidden behind the 16px pin
-   head, and the wave train becomes invisible. */
+/* Responding incidents are a dot with a pulse, not a pin with a halo. Both the
+   shape and the pulse are described once, in the pulse kit further down this
+   file, next to the hazard radar they share a beat with. */
 /* Marker body. Sized from --marker-w / --marker-h, which the builder writes from
    INCIDENT_MARKER_SIZE. Everything inside the marker derives from those two
-   values, so shrinking the marker shrinks the halo and the count badge with it
-   and no number has to be kept in sync by hand. */
+   values, so shrinking the marker shrinks the count badge with it and no number
+   has to be kept in sync by hand. (The responding dot is the exception, and it
+   is an explicit one: its body is sized from the pulse kit's tokens instead,
+   because a dot is not a pin and has no tip to leave room for.) */
 .report-marker__body {
   position: relative;
   display: flex;
@@ -796,88 +784,146 @@
 }
 
 /* ==========================================================================
-   High-risk zone marker
+   Marker pulse kit
    --------------------------------------------------------------------------
-   A radar / ripple pulse: pure-red rings expanding outward from a solid, static
-   core dot. Strictly monochromatic red — no white border, ring, stroke, or halo
-   anywhere; the only shadow is a dark red tint.
+   One keyframe pair and one token set back every "this marker is alive" cue on
+   the map. There are exactly two consumers:
 
-   The dot is the fixed anchor and never moves. The rings carry all of the
-   motion, which is the classic radar reading and keeps the marker's centre
-   rock-steady on the hazard coordinate. Only `transform: scale()` and
-   `opacity` animate, so nothing repaints the map while it pans or zooms.
+     1. the high-risk zone radar     — three filled red discs, the alert
+     2. the responding incident dot  — two hollow blue rings, the status
+
+   Sharing the kit rather than the pixels is the point: the beat, the easing and
+   the reduced-motion fallback are defined once, so the two cues fire together
+   and neither can become louder than the other by drifting. What differs is how
+   many waves are in flight and whether a wave is a disc or a ring — and a
+   filled disc is the loud one, which is why only the hazard marker may use it.
+
+   In both consumers the core dot is the fixed anchor and never moves: a moving
+   centre makes the marker look like it is drifting off the coordinate it marks.
+   Only `transform: scale()` and `opacity` animate, so the effect is composited
+   on the GPU and cannot stutter the map while panning or zooming.
    ========================================================================== */
 
-/* 18px — half the original 36px.
-   The ripple's reach is the single biggest thing deciding how much of the map a
-   hazard zone paints over, and at 36px each zone covered a 4.5x-dot-wide red
-   disc. 26px still read as too wide on the map, so it is now 2.25x the dot. */
-.zone-marker__radar {
+.pulse-marker {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--pulse-size, 18px);
+  height: var(--pulse-size, 18px);
 }
 
-/* Radar ripple. Three pure-red rings expand outward from the core and fade as
-   they travel, one leaving the pin every beat, so the marker reads as live
-   rather than as a dot parked on a fixed glow.
-
-   Plain filled discs — no border, no white rim, no gradient. A hard light rim
-   is what previously made a ring read as a loud graphic element instead of a
-   wave. */
-.zone-marker__ripple {
+/* Hollow by default: no fill at all, so a wave reads as something travelling
+   outward instead of as a solid block of colour. */
+.pulse-marker__wave {
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  background-color: var(--zone-radar-color, #dc2626);
+  /* 1.5px rather than 2px: the responding dot's ring is 14px across, and at that
+     size a heavier stroke reads as a drawn circle instead of as a wave leaving
+     the dot. The filled hazard variant zeroes it out regardless. */
+  border: 1.5px solid var(--pulse-color, #2563eb);
   transform-origin: 50% 50%;
-  animation: zoneRadarRipple var(--marker-wave, 1.5s) cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  /* Two animations, one property each, because the two halves of a ripple want
+     different curves and CSS gives one timing function per animation. The ring
+     leaves quickly and glides to its stop; its opacity fades in behind the dot
+     and then dissolves smoothly at both ends. Sharing a single curve — what this
+     used to do — forces the fade to inherit the expansion's shape, which is what
+     made the old ripple appear at half opacity on its first frame and cut off
+     hard on its last one. */
+  animation:
+    pulseWaveExpand var(--pulse-wave, var(--marker-wave, 1.5s)) cubic-bezier(0.16, 1, 0.3, 1) infinite,
+    pulseWaveDissolve var(--pulse-wave, var(--marker-wave, 1.5s)) cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  /* No `will-change`: an infinite transform/opacity animation is already
+     promoted to its own compositor layer, so declaring one here would only ask
+     the browser to allocate a layer per wave on every hazard zone in view. */
   pointer-events: none;
 }
 
-/* Negative delays start each ring part-way through the train, so the ripple is
-   already running on the very first frame instead of filling in over 1.5s.
+/* Filled waves. No border and no white rim — a hard light rim is what
+   previously made a ring read as a loud graphic element instead of a wave. */
+.pulse-marker--filled .pulse-marker__wave {
+  border: 0;
+  background-color: var(--pulse-color, #dc2626);
+}
+
+/* Negative delays start each wave part-way through the train, so the ripple is
+   already running on the very first frame instead of filling in over a whole
+   cycle.
 
    These are `!important` deliberately: the reduced-motion block swaps the
    animation in with `animation: ... !important`, and an `!important` shorthand
-   resets `animation-delay` — a plain longhand would lose to it and stack all
-   three rings into a single blink. */
-.zone-marker__ripple:nth-child(2) {
+   resets `animation-delay` — a plain longhand would lose to it and stack every
+   wave into a single blink. */
+.pulse-marker__wave:nth-child(2) {
   animation-delay: calc(var(--marker-beat, 0.5s) * -1) !important;
 }
 
-.zone-marker__ripple:nth-child(3) {
+.pulse-marker__wave:nth-child(3) {
   animation-delay: calc(var(--marker-beat, 0.5s) * -2) !important;
 }
 
-/* One sweep: the ring starts just clear of the 8px core and expands to the full
-   18px footprint while fading to nothing. The easing decelerates, so it leaves
-   quickly and dissolves slowly — that tail is what reads as a wave rather than
-   as a strobe. The start scale tracks the footprint: at 18px the ring must
-   begin at 0.5 (9px) or it starts hidden inside the core dot. */
-@keyframes zoneRadarRipple {
+/* The core dot. Solid, no border, no outline, no white accent — a single tinted
+   shadow is there for definition against bright satellite imagery.
+
+   It is completely static, and that is deliberate: the dot is the marker's
+   anchor, so a moving centre makes the whole thing look like it is drifting off
+   the coordinate it is supposed to mark. The waves carry all of the motion. */
+.pulse-marker__core {
+  position: relative;
+  z-index: 2;
+  width: var(--pulse-core, 8px);
+  height: var(--pulse-core, 8px);
+  border-radius: 9999px;
+  background-color: var(--pulse-color, #dc2626);
+  box-shadow: var(--pulse-core-shadow, 0 1px 3px rgba(127, 29, 29, 0.55));
+}
+
+/* One sweep, first half: the ring expands to the marker's full footprint.
+
+   The start scale is a ratio rather than a length, so it means the same thing at
+   both sizes: at 0.62 of a 14px footprint the ring's outer edge is 8.7px, i.e.
+   just inside the 9px core dot. That is deliberate — the ring is born hidden
+   behind the dot and emerges from it. A ring that appears already clear of the
+   core pops into being, however smoothly it then travels. */
+@keyframes pulseWaveExpand {
   0% {
-    opacity: 0.5;
-    transform: scale(0.5);
+    transform: scale(var(--pulse-scale-from, 0.62));
   }
 
-  60% {
-    opacity: 0.28;
+  100% {
+    transform: scale(var(--pulse-scale-to, 1));
+  }
+}
+
+/* One sweep, second half: the ring's opacity.
+
+   Fade in, hold, dissolve — three segments instead of a straight line from
+   visible to invisible, because a wave is on screen for most of its life and
+   then leaves. With the ease-in-out curve this runs on, each segment eases at
+   both ends, so the ring arrives and departs without a visible step. */
+@keyframes pulseWaveDissolve {
+  0% {
+    opacity: 0;
+  }
+
+  16% {
+    opacity: var(--pulse-peak-opacity, 0.5);
+  }
+
+  55% {
+    opacity: calc(var(--pulse-peak-opacity, 0.5) * 0.72);
   }
 
   100% {
     opacity: 0;
-    transform: scale(1);
   }
 }
 
-/* Reduced-motion counterpart: opacity only, nothing changes size. The rings
-   hold three fixed concentric sizes, so the sequence still reads — it shimmers
-   in place rather than travelling outward. */
-@keyframes zoneRadarGlow {
+/* Reduced-motion counterpart: opacity only, nothing changes size. The waves
+   hold fixed concentric sizes, so the cue still reads — it shimmers in place
+   rather than travelling outward. */
+@keyframes pulseWaveGlow {
   0%,
   100% {
     opacity: 0.08;
@@ -888,23 +934,133 @@
   }
 }
 
-/* The core dot. 100% solid red, no border, no outline, no white accent — the
-   single shadow is dark red-tinted purely for definition against bright
-   satellite imagery.
+/* The same in-place brightness pulse, raised to a floor an outline can survive.
 
-   It is completely static, and that is deliberate: the dot is the marker's
-   anchor, so a moving centre makes the whole pin look like it is drifting off
-   the hazard coordinate it is supposed to mark. The rings carry all of the
-   motion instead. */
-.zone-marker__core {
-  position: relative;
-  z-index: 2;
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background-color: var(--zone-radar-color, #dc2626);
-  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.55);
+   A wave is either a filled disc or a hollow ring, and one opacity range cannot
+   serve both: an 8% opacity red disc over satellite imagery is a faint tint   you can still see, while an 8% opacity 1.5px blue outline is not on screen at all.
+   So the range is chosen by the wave's shape, which is the actual reason it has
+   to differ — not by which consumer asked for it. */
+@keyframes pulseWaveGlowRing {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  40% {
+    opacity: 0.9;
+  }
 }
+
+/* --------------------------------------------------------------------------
+   Consumer 1 — high-risk zone radar
+   --------------------------------------------------------------------------
+   18px footprint, half the original 36px. The ripple's reach is the single
+   biggest thing deciding how much of the map a hazard zone paints over, and at
+   36px each zone covered a 4.5x-dot-wide red disc. It is 2.25x the core dot.
+
+   Three waves, i.e. the full `--marker-wave` train, so the radar never stops
+   travelling and reads as a live sweep.
+   -------------------------------------------------------------------------- */
+.zone-marker .pulse-marker {
+  --pulse-size: 18px;
+  --pulse-core: 8px;
+  /* The hazard radar keeps the reach it always had: from just clear of its core
+     out to its full footprint. Only the easing and the fade are new, shared with
+     every other wave. The peak opacity is the kit's default, which is why it is
+     not repeated here. */
+  --pulse-scale-from: 0.5;
+}
+
+/* --------------------------------------------------------------------------
+   Consumer 2 — the responding incident dot (reporter / guest map)
+   --------------------------------------------------------------------------
+   On the public map a verified, transferred and responding incident all share
+   one blue, so colour cannot tell them apart. Shape and motion do: the two
+   waiting states stay teardrop pins, and the one incident somebody is already
+   handling becomes a dot inside a travelling ring.
+
+   The dot is why this survives `prefers-reduced-motion`, a frozen screenshot,
+   and a low-end phone: the state is carried by the marker's shape rather than
+   by the animation. The halo this replaces could not do that, and its three
+   static 36px filled discs drew more attention than the incident warranted.
+
+   Its geometry is NOT here: `RESPONDING_DOT_SIZE` in `mapMarkerVisuals.js` owns
+   the footprint and core, next to the incident pin's size that they are derived
+   from, and writes them as `--pulse-size` / `--pulse-core` on the marker. Only
+   the motion lives below, because motion is what the kit is for.
+
+   The ring is hollow on purpose, which is also what keeps it clear of the
+   hazard radar: the zone uses filled discs, this uses an outline. Two cues can
+   then share the map without either reading as the other.
+   -------------------------------------------------------------------------- */
+.report-marker--responding {
+  /* Dark blue tint rather than the hazard's dark red, again purely for
+     definition against bright satellite imagery. */
+  --pulse-core-shadow: 0 1px 3px rgba(30, 58, 138, 0.45);
+  /* Two waves in flight instead of the radar's three: the beat is unchanged, so
+     a ring still leaves every `--marker-beat`, but each ring travels for two
+     beats rather than three and the cue is correspondingly lighter. */
+  --pulse-wave: calc(var(--marker-beat, 0.5s) * 2);
+  /* Held back from the hazard by shape, size and life rather than by being
+     washed out: a hollow 1.5px outline at a 14px footprint, two waves instead of
+     three, two beats instead of three, and a 5.3px glide instead of 9px. It keeps
+     the same peak opacity as every other wave, because a cue nobody can see is
+     not a calmer cue — it is a missing one. */
+}
+
+/* A dot has no tip to point with, so the map anchors it at its centre   rather than at its bottom (see the `anchor` passed to the Marker in MapView). The
+   body is therefore a square the pulse can radiate from evenly. The fallbacks are
+   the real numbers so a marker rendered without the builder's inline properties
+   is still the right size. */
+.report-marker__body--responding {
+  align-items: center;
+  width: var(--pulse-size, 14px);
+  height: var(--pulse-size, 14px);
+}
+
+/* Pushed further out than on a pin: the pulse ring owns the marker's own
+   footprint, so the badge has to clear the ring, not just the dot. Scaled to the
+   14px footprint — at the old 22px it was clearing a ring that no longer exists. */
+.report-marker--responding .report-marker__count {
+  right: -5px;
+  top: -5px;
+}
+
+/* Hover and selection motion live on the inner body, not on the marker element:
+   MapLibre writes the element's `transform` inline to position it, and an inline
+   style beats every stylesheet rule, so a `transform` declared on the marker
+   element itself would never apply. */
+.report-marker--responding:hover .report-marker__body--responding,
+.report-marker--responding.is-selected .report-marker__body--responding,
+.report-marker--responding.map-marker--selected .report-marker__body--responding {
+  transform: scale(1.1);
+}
+
+/* No fresh-event ring on the responding dot. That red ring exists to make a
+   change visible once; this marker has already answered the change by becoming
+   a pulsing dot, and two expanding rings from the same centre — the finite red
+   one and this permanent blue one — would read as noise rather than as an
+   event. */
+.report-marker--responding.map-marker--fresh::after {
+  display: none;
+}
+
+/* There is deliberately no "markers do not animate" class here, and no JS-side
+   motion gate on this marker.
+
+   The pulse used to be gated on `performanceProfile.markerAnimations`, which is
+   false whenever the profile is `resourceConstrained` — `saveData`, or just a
+   window narrower than 768px on a 4-thread machine. That gate produced exactly
+   the outcome it was meant to prevent: the hazard radar never consulted the
+   flag, so on a constrained device the zone rings kept sweeping while the
+   responding dot sat frozen, and one map animated one cue and not the other.
+   Worse, the animation it was saving is `transform` + `opacity` only, i.e.
+   GPU-composited and cheaper than the radar it left running.
+
+   A custom property computed in JS cannot beat `prefers-reduced-motion` for a
+   pure CSS animation — it can only disagree with it. That media query, below,
+   is the single owner of the decision, and `markerAnimations` is gone from the
+   profile rather than left behind as a second answer nobody reads. */
 
 .sibuyan-map-credit {
   max-width: min(70vw, 26rem);
@@ -924,27 +1080,36 @@
   .zone-marker {
     transition: none !important;
   }
-  /* The responding halo needs no override: it is static in both motion modes. */
+  /* Fresh-event ring under reduced motion: nothing at all. It is a finite
+     draw-attention animation, which is precisely what this preference asks us
+     not to do. */
   .report-marker.map-marker--fresh::after {
     animation: none !important;
     display: none !important;
   }
-  /* Radar ripple under reduced motion: the rings stop travelling and hold three
-     fixed concentric sizes, pulsing only their brightness. Nothing changes
-     size, so the radar still reads without any expansion. */
-  .zone-marker__ripple {
-    animation: zoneRadarGlow var(--marker-wave, 1.5s) ease-in-out infinite !important;
+  /* Pulse waves under reduced motion: they stop travelling and hold fixed
+     concentric sizes, pulsing only their brightness. Nothing changes size, so
+     the hazard radar still reads without any expansion, and the responding dot
+     keeps a cue on top of the state its shape already carries. */
+  .pulse-marker__wave {
+    animation: pulseWaveGlow var(--pulse-wave, var(--marker-wave, 1.5s)) ease-in-out infinite !important;
   }
-  .zone-marker__ripple:nth-child(1) {
+  .pulse-marker__wave:nth-child(1) {
     transform: scale(1);
   }
-  .zone-marker__ripple:nth-child(2) {
+  .pulse-marker__wave:nth-child(2) {
     transform: scale(0.78);
   }
-  .zone-marker__ripple:nth-child(3) {
+  .pulse-marker__wave:nth-child(3) {
     transform: scale(0.56);
   }
-  /* The dot needs no override: it is already static in both motion modes. */
+  /* Hollow waves take the outline-visible range instead of the disc one. This
+     covers both hollow consumers — the responding dot on the map and its swatch
+     in the legend — without either of them naming itself here. */
+  .pulse-marker:not(.pulse-marker--filled) .pulse-marker__wave {
+    animation-name: pulseWaveGlowRing !important;
+  }
+  /* The core dot needs no override: it is already static in both motion modes. */
   .overlay-fade-in,
   .page-enter {
     animation: none !important;

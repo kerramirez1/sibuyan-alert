@@ -26,10 +26,43 @@ export const STATUS_PIN_PALETTES = Object.freeze({
  * the marker is a one-line change that lands everywhere at once.
  *
  * The marker body in `index.css` reads the same numbers through the
- * `--marker-w` / `--marker-h` custom properties the builder writes, so the halo
- * and the grouped-count badge scale with it instead of being hand-tuned twice.
+ * `--marker-w` / `--marker-h` custom properties the builder writes, so the
+ * grouped-count badge scales with it instead of being hand-tuned twice.
+ *
+ * `RESPONDING_DOT_SIZE` below is derived from these numbers rather than picked
+ * separately: the dot has no tip, but it still has to look like the same class
+ * of mark as the pins standing next to it.
  */
 export const INCIDENT_MARKER_SIZE = Object.freeze({ width: 12, height: 17 });
+
+/**
+ * Geometry for the responding dot, derived from the incident pin it sits among.
+ *
+ * The pin is drawn in a 24x32 viewBox at 12x17px, so its head — the circle the
+ * eye actually reads as "the marker" — is 9px across (r≈9 in the viewBox, scaled
+ * by 12/24). The dot's solid core is exactly that 9px, so a responding incident
+ * carries the same weight as its neighbours instead of standing out by size,
+ * which is the opposite of what a status marker should do.
+ *
+ * The pulse's outermost ring is 14px: 2px past the pin's 12px width and well
+ * inside its 17px height, so the whole animated mark stays in the envelope the
+ * neighbouring pins occupy. An earlier 22px footprint made the dot the widest
+ * thing on the map at almost twice the pin's width — motion is supposed to make
+ * a marker noticed, not bigger.
+ *
+ * These live next to `INCIDENT_MARKER_SIZE` because *this* is the relationship
+ * that has to hold. How the ring travels between these two diameters — easing,
+ * fade, timing — is a motion concern and stays with the pulse kit in CSS.
+ */
+export const RESPONDING_DOT_SIZE = Object.freeze({ footprint: 14, core: 9 });
+
+/**
+ * The same dot at legend scale, where the pin symbols are 8px circles rather
+ * than 12x17px map markers. Shares the core's size with those symbols for the
+ * same reason the map version shares its core with the pin head: in a legend row
+ * the solid mark is what the eye compares, and it has to match.
+ */
+export const RESPONDING_DOT_LEGEND_SIZE = Object.freeze({ footprint: 12, core: 8 });
 
 /**
  * Draggable placement pin for the report flow. Deliberately larger than an
@@ -127,7 +160,7 @@ export const getOperationalMarkerSvg = (status, color, {
  *
  * Retained for non-map surfaces that need a static zone glyph. The live map
  * marker does NOT use this: `createRiskZoneMarkerElement` renders the animated
- * pure-red radar instead (see below).
+ * pure-red radar from the shared pulse kit instead (see below).
  */
 export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, {
     width = INCIDENT_MARKER_SIZE.width,
@@ -147,42 +180,130 @@ export const getSelectedLocationMarkerSvg = ({
 );
 
 /**
+ * Waves drawn behind the responding dot.
+ *
+ * Two, not the hazard radar's three. Three exhausts the full `--marker-wave`
+ * train, so a ring is always leaving; two still means a ring leaves every
+ * `--marker-beat`, while only two waves are ever in flight. Fewer, thinner
+ * marks is the whole difference between this and the halo that was removed for
+ * being louder than the incident it described.
+ */
+const RESPONDING_PULSE_WAVES = 2;
+
+/**
+ * Writes the pulse kit's geometry as custom properties.
+ *
+ * Sizes are passed in rather than defaulted in CSS so that a caller cannot ship
+ * a dot at a size nobody measured: the builder that knows which pin the dot
+ * stands next to is the same one that decides how big the dot is.
+ */
+const pulseSizeStyle = ({ size, core }) => `--pulse-size:${size}px;--pulse-core:${core}px;`;
+
+/**
+ * Builds the shared pulse kit's markup: N waves behind one static core dot.
+ *
+ * Colour and geometry both arrive as custom properties, so the two consumers
+ * cannot drift apart on how big a wave is or what colour it is — the caller
+ * knows which blue or red it already computed, and how wide the mark next to it
+ * is. The motion tokens (travel, easing, fade) stay in `index.css`.
+ */
+const buildPulseMarkup = ({ color, waves, filled = false, size, core }) => `
+        <div class="pulse-marker${filled ? ' pulse-marker--filled' : ''}" style="--pulse-color:${color};${size ? pulseSizeStyle({ size, core }) : ''}" aria-hidden="true">
+            ${Array.from({ length: waves }, () => '<span class="pulse-marker__wave"></span>').join('')}
+            <span class="pulse-marker__core"></span>
+        </div>
+    `.trim();
+
+/**
  * Creates the HTML container element for incident report markers on the map.
+ *
+ * @param {object} [options]
+ * @param {object} [options.report]           Representative record for this spot.
+ * @param {object[]} [options.groupedReports] Every record sharing the coordinates.
+ * @param {string} [options.markerColor]      Colour the caller already resolved.
+ * @param {boolean} [options.respondingDot]   Render a responding incident as a
+ *   dot instead of a teardrop pin. The reporter/guest map passes `true`, because
+ *   there verified, transferred and responding all share one blue and shape plus
+ *   motion are the only things left to tell them apart. Operational maps pass
+ *   `false`: a dispatcher reads status by colour, and a second marker shape would
+ *   just be one more thing to learn on a triage screen.
+ * The dot's pulse is CSS-only and has no switch here. `prefers-reduced-motion`
+ * in `index.css` is the single owner of that decision (see the note above
+ * `.sibuyan-map-credit` for why a JS-side gate was removed), so this builder
+ * cannot ship one device a pulsing marker and the next a frozen one while the
+ * hazard radar beside it keeps sweeping.
  */
 export const createOperationalMarkerElement = ({
     report,
     groupedReports = [],
     markerColor,
+    respondingDot = false,
 }) => {
+    const isRespondingDot = respondingDot && report?.status === 'responding';
     const el = document.createElement('div');
-    el.className = `report-marker${report?.status === 'responding' ? ' report-marker--responding' : ''}`;
+    el.className = [
+        'report-marker',
+        isRespondingDot ? 'report-marker--responding' : '',
+    ].filter(Boolean).join(' ');
     el.style.cursor = 'pointer';
     el.style.zIndex = report?.status === 'pending' ? '2' : '1';
     el.setAttribute('role', 'button');
     el.setAttribute('tabindex', '0');
-    const markerStatusLabel = report?.status === 'pending'
-        ? 'Unverified report'
-        : groupedReports.length > 1 && groupedReports.some((item) => item?.status === 'pending')
-            ? `${groupedReports.length} incidents at this location, including unverified`
-            : null;
-    const fallbackLabel = groupedReports.length > 1
+
+    const isGroup = groupedReports.length > 1;
+    const groupHasPending = isGroup && groupedReports.some((item) => item?.status === 'pending');
+    const respondingCount = isRespondingDot
+        ? groupedReports.filter((item) => item?.status === 'responding').length
+        : 0;
+    const baseLabel = isGroup
         ? `${groupedReports.length} incidents at this location`
         : `${report?.title || report?.incidentType || 'Incident'} map marker`;
-    el.setAttribute('aria-label', markerStatusLabel ?? fallbackLabel);
-    // Non-color unverified cue: screen-reader label always carries it, and the
-    // hover tooltip only appears on pins that actually need the warning.
-    if (markerStatusLabel) {
-        el.setAttribute('title', markerStatusLabel);
+    // Facts a sighted reader gets for free and a screen reader does not: the
+    // marker's colour says unverified, and its shape says somebody is already
+    // handling it. Motion is not something a screen reader can observe either,
+    // so the state the pulse announces visually is named here as well — and
+    // anything that applies is named, so one fact can never hide the other.
+    const qualifiers = [
+        groupHasPending ? 'unverified' : null,
+        isRespondingDot ? `${respondingCount === 1 ? 'one' : respondingCount} being responded to` : null,
+    ].filter(Boolean);
+    const markerLabel = report?.status === 'pending'
+        // A lone unverified marker says so in two words rather than making the
+        // reader parse a list with one item in it.
+        ? 'Unverified report'
+        : isGroup
+            ? (qualifiers.length > 0 ? `${baseLabel}, including ${qualifiers.join(' and ')}` : baseLabel)
+            : isRespondingDot
+                ? `${baseLabel}, being responded to`
+                : baseLabel;
+    el.setAttribute('aria-label', markerLabel);
+    // Non-color cues: the screen-reader label always carries them, and the hover
+    // tooltip only appears on markers that actually have something extra to say.
+    if (markerLabel !== baseLabel) {
+        el.setAttribute('title', markerLabel);
     }
 
-    const markerSvg = getOperationalMarkerSvg(report?.status, markerColor);
-
-    // The body takes its size from these two custom properties, so the
+    // The pin body takes its size from these two custom properties, so the
     // grouped-count badge in index.css scales with the marker instead of being
-    // hand-tuned a second time.
+    // hand-tuned a second time. The dot version needs neither: its size comes
+    // from the pulse kit's own tokens.
+    const bodyStyle = isRespondingDot
+        ? ''
+        : ` style="--marker-w:${INCIDENT_MARKER_SIZE.width}px;--marker-h:${INCIDENT_MARKER_SIZE.height}px;"`;
+    const bodyClass = isRespondingDot
+        ? 'report-marker__body report-marker__body--responding'
+        : 'report-marker__body';
+
     el.innerHTML = `
-        <div class="report-marker__body" style="--marker-w:${INCIDENT_MARKER_SIZE.width}px;--marker-h:${INCIDENT_MARKER_SIZE.height}px;">
-            ${markerSvg}
+        <div class="${bodyClass}"${bodyStyle}>
+            ${isRespondingDot
+                ? buildPulseMarkup({
+                    color: markerColor,
+                    waves: RESPONDING_PULSE_WAVES,
+                    size: RESPONDING_DOT_SIZE.footprint,
+                    core: RESPONDING_DOT_SIZE.core,
+                })
+                : getOperationalMarkerSvg(report?.status, markerColor)}
             ${groupedReports.length > 1 ? `<span class="report-marker__count">${groupedReports.length}</span>` : ''}
         </div>
     `;
@@ -191,7 +312,7 @@ export const createOperationalMarkerElement = ({
 };
 
 /**
- * Radar rings drawn behind the core dot.
+ * Radar waves drawn behind the core dot.
  *
  * Three, not one: a single ring can only blink, while three staggered a beat
  * apart give the marker a continuous radar sweep — a ring leaves the pin every
@@ -204,18 +325,19 @@ const RISK_ZONE_RADAR_RINGS = 3;
 /**
  * Creates the HTML container element for high-risk hazard zones.
  *
- * Renders a radar / ripple pulse: pure-red rings expanding outward from a solid,
- * static core dot. Strictly monochromatic red — no white border, ring, stroke,
- * or halo anywhere, so the hazard pin stays unmistakable against both the
- * operational status pins (which own the blue / amber / violet / cyan / green
- * palette) and the map imagery.
+ * Renders the filled variant of the shared pulse kit (see `index.css`): three
+ * pure-red discs expanding outward from a solid, static core dot. Strictly
+ * monochromatic red — no white border, ring, stroke, or halo anywhere, so the
+ * hazard pin stays unmistakable against both the operational status pins (which
+ * own the blue / amber / violet / cyan / green palette) and the map imagery.
  *
  * The dot never moves. It is the marker's anchor, so a moving centre reads as
  * the pin drifting off the coordinate it is meant to mark; the rings carry all
  * of the motion instead. Neither the rate nor the ring count is set here —
  * `--marker-beat` in `index.css` is the single source of truth for the beat and
- * `--marker-wave` (three beats) is one full sweep. This is now the only animated
- * marker on the map: the responding incident marker is static. Only
+ * `--marker-wave` (three beats) is one full sweep. The responding incident dot
+ * reads the same beat and the same keyframes through the same kit, which is what
+ * stops the alert and the status from out-shouting each other. Only
  * `transform: scale()` and `opacity` animate, so the effect is composited on the
  * GPU and cannot stutter the map while panning or zooming.
  *
@@ -235,16 +357,16 @@ export const createRiskZoneMarkerElement = ({ zone, color } = {}) => {
 
     const coreColor = color || MAP_RISK_ZONE_CONFIG.markerColor;
 
-    // No inline animation-delay: the stagger is per-ring CSS.
-    const rings = Array.from(
+    // No inline animation-delay: the stagger is per-wave CSS in the pulse kit.
+    const waves = Array.from(
         { length: RISK_ZONE_RADAR_RINGS },
-        () => '<span class="zone-marker__ripple" aria-hidden="true"></span>',
+        () => '<span class="pulse-marker__wave"></span>',
     ).join('');
 
     el.innerHTML = `
-        <div class="zone-marker__radar" style="--zone-radar-color:${coreColor};">
-            ${rings}
-            <span class="zone-marker__core" aria-hidden="true"></span>
+        <div class="pulse-marker pulse-marker--filled" style="--pulse-color:${coreColor};">
+            ${waves}
+            <span class="pulse-marker__core"></span>
         </div>
     `;
 

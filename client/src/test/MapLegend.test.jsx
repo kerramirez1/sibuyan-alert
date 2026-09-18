@@ -13,17 +13,46 @@ describe('MapLegend', () => {
         expect(MAP_STATUS_CONFIG.rejected.markerColor).toBe('#64748B');
     });
 
-    test('shows a single unified active entry on the public map', () => {
+    test('shows a single unified active entry plus the responding dot on the public map', () => {
         render(<MapLegend />);
 
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         // Reporter/guest map collapses verified/transferred/responding into
-        // one blue pin; motion (pulse) alone marks responding.
+        // one blue marker, and then draws the responding one as a different
+        // shape, so the legend owes the reader an explanation of that shape.
         expect(screen.getByText('Active incident')).toBeInTheDocument();
+        expect(screen.getByText('Being responded to')).toBeInTheDocument();
         expect(screen.queryByText('Verified')).not.toBeInTheDocument();
         expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    });
+
+    test('draws the public responding entry as a pulsing dot, not another flat bullet', () => {
+        const { container } = render(<MapLegend />);
+
+        const entry = screen.getByText('Being responded to').closest('div');
+        // The swatch is the real pulse kit at legend scale, so the legend cannot
+        // promise an effect the map does not perform — and it inherits the
+        // reduced-motion fallback instead of needing one of its own.
+        const swatch = entry.querySelector('.pulse-marker');
+        expect(swatch).not.toBeNull();
+        expect(swatch.querySelector('.pulse-marker__core')).not.toBeNull();
+        expect(swatch.querySelectorAll('.pulse-marker__wave')).toHaveLength(1);
+        // The unified active pin keeps the plain bullet, so the two entries are
+        // not telling the reader the same thing twice.
+        const activeEntry = screen.getByText('Active incident').closest('div');
+        expect(activeEntry.querySelector('.pulse-marker')).toBeNull();
+        expect(container.querySelectorAll('.pulse-marker')).toHaveLength(1);
+    });
+
+    test('keeps the operational legend on status names, with no dot entry', () => {
+        render(<MapLegend filterMode="response" showPending />);
+
+        // Operational maps draw responding as its own coloured pin, so there the
+        // legend names the state rather than explaining a shape.
+        expect(screen.getByText('Active response')).toBeInTheDocument();
+        expect(screen.queryByText('Being responded to')).not.toBeInTheDocument();
     });
 
     test('isolates the pending filter and hides the hazard indicator', () => {

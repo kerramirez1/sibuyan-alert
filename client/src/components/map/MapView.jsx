@@ -724,12 +724,19 @@ const MapView = ({
 
         const map = mapInstanceRef.current;
 
+        // The reporter/guest map is the one that renders a responding incident
+        // as a dot rather than a pin. Operational maps keep their pins: there the
+        // per-status colour already says "active response", and on a triage
+        // screen a second shape would be one more thing to learn.
+        const isPublicMap = filterMode === 'public';
+
         const getReportMarkerColor = (report) => {
             // Public map (reporter/guest): verified, transferred, and
-            // responding share one blue "active" pin. Motion (pulse) alone
-            // marks the responding pin. Operational roles keep per-status
-            // colors for dispatch triage.
-            if (filterMode === 'public' && ['verified', 'transferred', 'responding'].includes(report.status)) {
+            // responding share one blue "active" marker, so colour cannot
+            // separate them there — shape and motion do instead (see
+            // `respondingDot` below). Operational roles keep per-status colors
+            // for dispatch triage.
+            if (isPublicMap && ['verified', 'transferred', 'responding'].includes(report.status)) {
                 return MAP_STATUS_CONFIG.verified.markerColor;
             }
             if (MAP_STATUS_CONFIG[report.status]) return MAP_STATUS_CONFIG[report.status].markerColor;
@@ -760,6 +767,7 @@ const MapView = ({
                     report.status === 'pending' &&
                     (!canVerifyReport || canVerifyReport(report));
                 const markerColor = getReportMarkerColor(report);
+                const isRespondingDot = isPublicMap && report.status === 'responding';
                 // Identity: same location + same set of reports = same marker.
                 const key = [
                     coords.lat.toFixed(6),
@@ -775,6 +783,10 @@ const MapView = ({
                     markerColor,
                     report?.title ?? report?.incidentType ?? '',
                     groupedReports.length,
+                    // The dot/pin choice changes what is rendered, so it belongs
+                    // in the identity. Motion does not: the pulse is CSS, so a
+                    // marker never has to be rebuilt to keep animating.
+                    isRespondingDot ? 'dot' : 'pin',
                     canRespondToThisReport,
                     canResolveThisReport,
                     canVerifyThisReport,
@@ -797,12 +809,17 @@ const MapView = ({
                         report,
                         groupedReports,
                         markerColor,
+                        respondingDot: isPublicMap,
                     });
 
                     const marker = new maplibregl.Marker({
                         ...OPERATIONAL_MARKER_VISIBILITY,
                         element: el,
-                        anchor: 'bottom',
+                        // A teardrop pin points at its coordinate with its tip, so
+                        // it is anchored at its bottom. A dot has no tip: anchored
+                        // the same way it would float a whole marker height above
+                        // the place it marks, so it is anchored at its centre.
+                        anchor: isRespondingDot ? 'center' : 'bottom',
                     })
                         .setLngLat([coords.lng, coords.lat])
                         .addTo(map);
@@ -855,7 +872,7 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, filterMode, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, filterMode, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
 
     // Fresh-event pulse: toggle the temporary ring on markers touched by the
     // latest socket events. Runs after the marker sync above (same deps plus

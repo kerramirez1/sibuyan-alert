@@ -16,7 +16,6 @@ describe('map performance profile', () => {
             cameraPitchEnabled: true,
             antialias: true,
             pixelRatio: 2,
-            markerAnimations: true,
             riskZonePolygonPoints: 48,
         });
     });
@@ -36,7 +35,6 @@ describe('map performance profile', () => {
             cameraPitchEnabled: true,
             antialias: false,
             pixelRatio: 1,
-            markerAnimations: false,
             maxTileCacheSize: 24,
             riskZonePolygonPoints: 20,
         });
@@ -60,14 +58,14 @@ describe('map performance profile', () => {
         });
     });
 
-    test('respects reduced motion for markers and camera transitions', () => {
+    test('respects reduced motion for camera transitions', () => {
         const profile = getMapPerformanceProfile({
             viewportWidth: 1280,
             saveData: false,
             reducedMotion: true,
         });
 
-        expect(profile.markerAnimations).toBe(false);
         expect(profile.navigationDuration).toBe(0);
+        expect(profile.fadeDuration).toBe(0);
     });
 });

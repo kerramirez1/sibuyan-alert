@@ -8,6 +8,13 @@ const readMediaPreference = (query) => (
  * Produces one stable rendering profile per map instance. The profile keeps the
  * operational map usable on lower-powered phones without changing its data,
  * permissions, markers, or navigation behavior.
+ *
+ * Everything here is handed to MapLibre or to the marker builders. Marker
+ * *animation* is deliberately not in that list: those cues are pure CSS
+ * (`transform` + `opacity`, so they are composited on the GPU), which means the
+ * only thing entitled to turn them off is `prefers-reduced-motion` itself. A
+ * `resourceConstrained` flag that also disabled them used to freeze the
+ * responding pulse on ordinary laptops while the hazard radar kept sweeping.
  */
 export const getMapPerformanceProfile = (overrides = {}) => {
     const browserWindow = typeof window !== 'undefined' ? window : undefined;
@@ -34,7 +41,6 @@ export const getMapPerformanceProfile = (overrides = {}) => {
             : Math.min(Math.max(devicePixelRatio, 1), compactViewport ? 1.5 : 2),
         maxTileCacheSize: resourceConstrained ? 24 : compactViewport ? 40 : 80,
         fadeDuration: reducedMotion || resourceConstrained ? 0 : 150,
-        markerAnimations: !reducedMotion && !resourceConstrained,
         navigationDuration: reducedMotion ? 0 : resourceConstrained ? 450 : 800,
         riskZonePolygonPoints: resourceConstrained ? 20 : compactViewport ? 28 : 48,
     };

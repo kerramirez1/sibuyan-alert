@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { HiChevronDown, HiOutlineMap } from 'react-icons/hi';
+import { RESPONDING_DOT_LEGEND_SIZE } from '../../utils/mapMarkerVisuals';
 import {
     getMapLegendStatusKeys,
     isRiskZoneLayerVisibleForFilter,
     MAP_ACTIVE_INCIDENT_CONFIG,
+    MAP_RESPONDING_INCIDENT_CONFIG,
     MAP_RISK_ZONE_CONFIG,
     MAP_STATUS_CONFIG,
+    RESPONDING_INCIDENT_STATUS_KEY,
 } from '../../config/mapVisuals';
 
 const LEGEND_RING_CLASSES = {
@@ -25,6 +28,35 @@ const LegendSymbol = ({ status, color }) => (
         style={{ backgroundColor: color }}
         aria-hidden="true"
     />
+);
+
+/**
+ * The responding dot, at legend scale.
+ *
+ * Same pulse kit as the map marker (see `index.css`), just smaller: reusing the
+ * classes rather than approximating the effect with a static dot is what keeps
+ * the legend honest, and it inherits the reduced-motion fallback for free. The
+ * wave train runs at the kit's default length here, not the marker's shortened
+ * one — a legend symbol has nowhere to travel and no reason to be urgent.
+ *
+ * Its size comes from `RESPONDING_DOT_LEGEND_SIZE` rather than from hand-tuned
+ * numbers, because the thing it has to match is the row it sits in: the pin
+ * symbols here are 8px circles, so the dot's core is 8px too. A hand-tuned 14px
+ * swatch next to them was the legend's version of the too-big marker.
+ */
+const RespondingDotSymbol = () => (
+    <span
+        className="pulse-marker shrink-0"
+        style={{
+            '--pulse-color': MAP_RESPONDING_INCIDENT_CONFIG.markerColor,
+            '--pulse-size': `${RESPONDING_DOT_LEGEND_SIZE.footprint}px`,
+            '--pulse-core': `${RESPONDING_DOT_LEGEND_SIZE.core}px`,
+        }}
+        aria-hidden="true"
+    >
+        <span className="pulse-marker__wave" />
+        <span className="pulse-marker__core" />
+    </span>
 );
 
 const GroupedMarkerSymbol = () => (
@@ -54,6 +86,14 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
                 </div>
             )}
             {statusKeys.map((status) => {
+                if (status === RESPONDING_INCIDENT_STATUS_KEY) {
+                    return (
+                        <div key={status} className={itemClass}>
+                            <RespondingDotSymbol />
+                            <span className="break-words leading-tight">{MAP_RESPONDING_INCIDENT_CONFIG.label}</span>
+                        </div>
+                    );
+                }
                 const config = MAP_STATUS_CONFIG[status]
                     || (status === 'active' ? MAP_ACTIVE_INCIDENT_CONFIG : null);
                 if (!config) return null;
