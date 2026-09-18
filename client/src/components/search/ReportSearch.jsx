@@ -3,6 +3,7 @@ import { useNavigate } from '../../router';
 import { HiOutlineSearch, HiOutlineX } from 'react-icons/hi';
 import { reportsAPI } from '../../services/api';
 import { formatMonthLabel } from '../../utils/safeDate';
+import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_CHARS = 2;
@@ -12,7 +13,9 @@ const STATUS_LABELS = Object.freeze({
     pending: 'Pending review',
     verified: 'Verified',
     transferred: 'Transferred',
-    responding: 'Responding',
+    // One lifecycle state, one name: taken from the same source the map legend
+    // and the status badges read, so a search result never disagrees with them.
+    responding: MAP_STATUS_CONFIG.responding.label,
     resolved: 'Resolved',
     rejected: 'Rejected',
 });

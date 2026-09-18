@@ -146,11 +146,13 @@ describe('ReporterDashboardPage', () => {
         );
 
         expect(await screen.findByText('Latest update')).toBeInTheDocument();
-        // Canonical vocabulary: Pending review (not Under review), Responding (not Response active)
+        // Canonical vocabulary: Pending review (not Under review), Active
+        // response (not Responding, and not Response active).
         expect(screen.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('Responding').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('Active response').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText('Under review')).not.toBeInTheDocument();
         expect(screen.queryByText('Response active')).not.toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         // Merged status line carries the guidance text
         expect(screen.getByText(/Awaiting municipal verification/i)).toBeInTheDocument();
     });
@@ -193,7 +195,7 @@ describe('ReporterDashboardPage', () => {
 
         // Status indicators (canonical names)
         expect(scope.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
-        expect(scope.getAllByText('Responding').length).toBeGreaterThanOrEqual(1);
+        expect(scope.getAllByText('Active response').length).toBeGreaterThanOrEqual(1);
         expect(scope.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
 
         // Severity indicators

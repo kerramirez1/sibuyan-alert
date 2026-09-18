@@ -51,13 +51,17 @@ describe('MapLegend', () => {
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
-        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+        expect(screen.queryByText('Active response')).not.toBeInTheDocument();
     });
 
-    test('shows only responding status for the responding filter and hides the hazard indicator', () => {
+    test('shows only the responding status for the responding filter and hides the hazard indicator', () => {
         render(<MapLegend filterStatus="responding" />);
 
-        expect(screen.getByText('Responding')).toBeInTheDocument();
+        // 'Active response' is the one name for this lifecycle state across the
+        // tab, the card, the status badge, and this legend entry. The retired
+        // 'Responding' label must not come back on one surface only.
+        expect(screen.getByText('Active response')).toBeInTheDocument();
+        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Transferred')).not.toBeInTheDocument();
@@ -71,7 +75,19 @@ describe('MapLegend', () => {
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Verified')).not.toBeInTheDocument();
-        expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+        expect(screen.queryByText('Active response')).not.toBeInTheDocument();
+    });
+
+    test('names both markers on the Ready to dispatch tab', () => {
+        // The tab is the verified + transferred pair. Its legend has to list both,
+        // because falling through to the generic branch would describe every
+        // status the map can draw — pins that are not on screen for this tab.
+        render(<MapLegend filterStatus="dispatch" />);
+
+        expect(screen.getByText('Verified')).toBeInTheDocument();
+        expect(screen.getByText('Transferred')).toBeInTheDocument();
+        expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+        expect(screen.queryByText('Active response')).not.toBeInTheDocument();
     });
 
     test('exposes the hazard layer only for the risk-zones filter', () => {

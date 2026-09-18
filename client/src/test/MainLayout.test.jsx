@@ -29,6 +29,13 @@ vi.mock('../components/ui/NotificationBell', () => ({
 
 import MainLayout from '../components/layout/MainLayout';
 
+/**
+ * The desktop sidebar. Scoped lookups matter now that the operational roles
+ * also render a mobile bottom nav: `Map` is a real destination in both, and a
+ * document-wide query would be ambiguous rather than meaningful.
+ */
+const getSidebar = () => screen.getByRole('complementary', { name: 'Primary navigation' });
+
 const renderLayout = (entry = '/accident-history') => render(
     <MemoryRouter initialEntries={[entry]}>
         <Routes>
@@ -72,13 +79,25 @@ describe('MainLayout responsive navigation', () => {
         expect(document.body.style.overflow).toBe('hidden');
     });
 
-    test('shows one clear active analytics destination on the administrative dashboard', () => {
-        renderLayout('/dashboard');
+    test('activates exactly one dashboard destination for each dashboard URL', () => {
+        const { unmount } = renderLayout('/dashboard');
 
-        expect(screen.getByRole('link', { name: 'Analytics' })).toHaveClass('bg-white/[0.08]');
+        // /dashboard is the incident map for every role, the municipal admin
+        // included. Analytics is the opt-in half now, not the default.
+        const mapPathSidebar = getSidebar();
+        expect(within(mapPathSidebar).getByRole('link', { name: 'Map' })).toHaveClass('bg-white/[0.08]');
+        expect(within(mapPathSidebar).getByRole('link', { name: 'Analytics' })).not.toHaveClass('bg-white/[0.08]');
         expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
         const activeLinks = screen.getAllByRole('link').filter((link) => link.className.split(/\s+/).includes('bg-white/[0.08]'));
         expect(activeLinks).toHaveLength(1);
+
+        unmount();
+
+        // Analytics keeps a URL of its own, reachable from the sidebar.
+        renderLayout('/dashboard?view=analytics');
+        const analyticsSidebar = getSidebar();
+        expect(within(analyticsSidebar).getByRole('link', { name: 'Analytics' })).toHaveClass('bg-white/[0.08]');
+        expect(within(analyticsSidebar).getByRole('link', { name: 'Map' })).not.toHaveClass('bg-white/[0.08]');
     });
 
     test('labels the responder operational route as Incident Reports', () => {
@@ -156,17 +175,67 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
         // All authorized admin navigation items remain present
-        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Risk Zones' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Analytics' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        const sidebar = getSidebar();
+        expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Users' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Map' })).toHaveAttribute('href', '/dashboard');
+        expect(within(sidebar).getByRole('link', { name: 'Risk Zones' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Analytics' })).toHaveAttribute('href', '/dashboard?view=analytics');
+        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
 
         // Unauthorized items remain hidden
         expect(screen.queryByRole('link', { name: 'Submit Report' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'My Reports' })).not.toBeInTheDocument();
+    });
+
+    test('gives municipal admin a thumb-reach bottom nav and keeps the drawer for the rest', () => {
+        renderLayout('/admin');
+
+        const bottomNav = screen.getByRole('navigation', { name: 'Operational quick navigation' });
+        // Four destinations, none of them a fabricated centre action: the
+        // reporter bar's FAB exists because submitting a report is that role's
+        // reason to exist, and neither operational role has a create action.
+        expect(within(bottomNav).getAllByRole('link')).toHaveLength(4);
+        expect(within(bottomNav).getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/admin/reports');
+        expect(within(bottomNav).getByRole('link', { name: 'Zones' })).toHaveAttribute('href', '/admin/zones');
+    });
+
+    test('sends a responder to the dispatch queue and the hazard layer, not the admin zones page', () => {
+        mocks.user = {
+            _id: 'responder-1',
+            name: 'MDRRMO Cajidiocan',
+            role: 'responder',
+            agency: 'LGU',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        renderLayout('/admin');
+
+        const bottomNav = screen.getByRole('navigation', { name: 'Operational quick navigation' });
+        // Same word, the right destination per role: a responder reads hazards
+        // on the map, they do not manage the admin zones page.
+        expect(within(bottomNav).getByRole('link', { name: 'Dispatch' })).toHaveAttribute('href', '/admin/reports?view=dispatch-queue');
+        expect(within(bottomNav).getByRole('link', { name: 'Hazards' })).toHaveAttribute('href', '/dashboard?panel=zones');
+        expect(within(bottomNav).queryByRole('link', { name: 'Zones' })).not.toBeInTheDocument();
+    });
+
+    test('hands the current-page mark to the hazard panel, not to the map behind it', () => {
+        mocks.user = {
+            _id: 'responder-1',
+            name: 'MDRRMO Cajidiocan',
+            role: 'responder',
+            agency: 'LGU',
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        // `?panel=zones` is the map with the hazard list already open, so two
+        // bottom-nav items address the same page. Only one may be current.
+        renderLayout('/dashboard?panel=zones');
+
+        const bottomNav = screen.getByRole('navigation', { name: 'Operational quick navigation' });
+        expect(within(bottomNav).getByRole('link', { name: 'Hazards' })).toHaveAttribute('aria-current', 'page');
+        expect(within(bottomNav).getByRole('link', { name: 'Map' })).not.toHaveAttribute('aria-current');
     });
 
     test('removes visible section headings for guest and only renders authorized guest navigation', () => {
@@ -207,12 +276,14 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).queryByText('Mapping')).not.toBeInTheDocument();
         expect(within(sidebar).queryByText('History')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'My Reports' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'My Reports' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
         // Reporter bottom nav mirrors Accident History for thumb reach
         expect(screen.getByRole('navigation', { name: 'Reporter quick navigation' })).toBeInTheDocument();
+        // The operational bar is for the operational roles only.
+        expect(screen.queryByRole('navigation', { name: 'Operational quick navigation' })).not.toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
@@ -234,10 +305,11 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByText('Mapping')).not.toBeInTheDocument();
         expect(screen.queryByText('History')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        const sidebar = getSidebar();
+        expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();

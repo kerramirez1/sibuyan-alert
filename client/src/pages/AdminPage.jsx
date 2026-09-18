@@ -17,6 +17,7 @@ import {
 } from 'react-icons/hi';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
 import { useSystemHealth } from '../hooks/useSystemHealth';
+import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
@@ -77,7 +78,10 @@ const STATUS_CONFIG = {
     pending: { label: 'Pending review', dot: 'bg-amber-500' },
     verified: { label: 'Verified', dot: 'bg-blue-600' },
     transferred: { label: 'Transferred', dot: 'bg-violet-500' },
-    responding: { label: 'Responding', dot: 'bg-cyan-600' },
+    // One lifecycle state, one name: the display name for this state is owned by
+    // MAP_STATUS_CONFIG, the same source the map rail, the legend, and the
+    // status badges read.
+    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: 'bg-cyan-600' },
     resolved: { label: 'Resolved', dot: 'bg-emerald-600' },
     rejected: { label: 'Rejected', dot: 'bg-gray-400' },
 };
@@ -570,7 +574,7 @@ const AdminPage = () => {
                     {barangayRows.length > 5 && (
                         <div className="mt-4 border-t border-gray-200 pt-3 dark:border-white/10">
                             <Link
-                                to="/dashboard"
+                                to="/dashboard?view=analytics"
                                 className="text-xs font-medium text-brand-700 hover:underline dark:text-sky-400"
                             >
                                 View all {barangayRows.length} barangays in analytics

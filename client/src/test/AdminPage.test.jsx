@@ -229,7 +229,9 @@ describe('AdminPage dashboard rendering', () => {
         expect(screen.getByText('B5')).toBeInTheDocument();
         expect(screen.queryByText('B6')).not.toBeInTheDocument();
         expect(screen.queryByText('B7')).not.toBeInTheDocument();
+        // Analytics is the opt-in dashboard view now, so the deep link has to
+        // name it — `/dashboard` alone opens the incident map.
         expect(screen.getByRole('link', { name: 'View all 7 barangays in analytics' }))
-            .toHaveAttribute('href', '/dashboard');
+            .toHaveAttribute('href', '/dashboard?view=analytics');
     });
 });

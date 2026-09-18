@@ -66,6 +66,14 @@ describe('map report visibility', () => {
         expect(getFilteredMapReports(reports, { statusFilter: 'transferred' }).map((r) => r._id)).toEqual(['transferred']);
         expect(getFilteredMapReports(reports, { statusFilter: 'resolved' }).map((r) => r._id)).toEqual(['resolved']);
         expect(getFilteredMapReports(reports, { statusFilter: 'risk-zones' }).map((r) => r._id)).toEqual([]);
+
+        // 'dispatch' is the verified + transferred pair — the one operator
+        // situation "verified and waiting for a responder". It shows neither
+        // pending (not reviewed yet) nor responding (already handled).
+        expect(getFilteredMapReports(reports, { statusFilter: 'dispatch' }).map((r) => r._id))
+            .toEqual(['verified', 'transferred']);
+        expect(getFilteredMapReports(reports, { includePending: true, statusFilter: 'dispatch' }).map((r) => r._id))
+            .toEqual(['verified', 'transferred']);
     });
 
     test('supports includeRejected option and retains resolved/rejected incidents in location grouping', () => {

@@ -3,9 +3,11 @@ import { NavLink, Link, useLocation } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../ui/NotificationBell';
 import OfflineBanner from '../ui/OfflineBanner';
+import OperationalBottomNav from './OperationalBottomNav';
 import ReportSearch from '../search/ReportSearch';
 import { useOfflineReportSync } from '../../hooks/useOfflineReportSync';
 import { resolveAssetUrl } from '../../utils/assets';
+import { DASHBOARD_ANALYTICS_VIEW, resolveDashboardView } from '../../utils/dashboardView';
 import {
     HiOutlineHome,
     HiOutlineClipboardList,
@@ -125,7 +127,18 @@ const MainLayout = ({ children }) => {
 
     const isReporter = isAuthenticated && user?.role === 'reporter';
     const canSubmit = isReporter && canSubmitReports();
-    const isMapView = location.pathname === '/dashboard' && currentView === 'map' && !currentPanel;
+    // /dashboard is the incident map for every role; analytics is opt-in.
+    // `resolveDashboardView` is the same function DashboardPage renders from, so
+    // the highlighted nav item can never disagree with the visible workspace.
+    const isAnalyticsDashboard = location.pathname === '/dashboard'
+        && resolveDashboardView({
+            role: user?.role,
+            requestedView: currentView,
+            panelView: currentPanel,
+        }) === DASHBOARD_ANALYTICS_VIEW;
+    const isMapView = location.pathname === '/dashboard' && !isAnalyticsDashboard;
+    const isOperationalNavVisible = isAuthenticated
+        && (user?.role === 'municipal_admin' || user?.role === 'responder');
 
     return (
         <>
@@ -270,14 +283,9 @@ const MainLayout = ({ children }) => {
 
                         {/* Mapping Link */}
                         <NavLink
-                            to="/dashboard?view=map"
-                            aria-current={location.pathname === '/dashboard' && currentView === 'map' && !currentPanel ? 'page' : undefined}
-                            className={() => {
-                                const isMapActive = location.pathname === '/dashboard'
-                                    && currentView === 'map'
-                                    && !currentPanel;
-                                return getNavLinkClass(isMapActive);
-                            }}
+                            to="/dashboard"
+                            aria-current={isMapView ? 'page' : undefined}
+                            className={() => getNavLinkClass(isMapView)}
                             onClick={closeDrawer}
                         >
                             <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
@@ -300,12 +308,9 @@ const MainLayout = ({ children }) => {
                         {/* Admin Analytics link */}
                         {isAuthenticated && user?.role === 'municipal_admin' && (
                             <NavLink
-                                to="/dashboard"
-                                aria-current={location.pathname === '/dashboard' && currentView !== 'map' ? 'page' : undefined}
-                                className={() => {
-                                    const isAnalyticsActive = location.pathname === '/dashboard' && currentView !== 'map';
-                                    return getNavLinkClass(isAnalyticsActive);
-                                }}
+                                to="/dashboard?view=analytics"
+                                aria-current={isAnalyticsDashboard ? 'page' : undefined}
+                                className={() => getNavLinkClass(isAnalyticsDashboard)}
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
@@ -467,7 +472,7 @@ const MainLayout = ({ children }) => {
                         enter animation on navigation. Unlike the previous
                         AnimatePresence "wait" mode there is no exit delay, so the
                         next page mounts immediately and fades in. */}
-                    <main data-map-scroll-container className={`custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
+                    <main data-map-scroll-container className={`custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
                         <div key={location.pathname} className="page-enter">
                             {children}
                         </div>
@@ -520,7 +525,7 @@ const MainLayout = ({ children }) => {
                                     )}
                                 </div>
                                 <NavLink
-                                    to="/dashboard?view=map"
+                                    to="/dashboard"
                                     aria-label="Live incident map"
                                     aria-current={isMapView ? 'page' : undefined}
                                     className={() => `flex min-h-[44px] flex-col items-center justify-center gap-px rounded-lg text-[9px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isMapView ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
@@ -540,6 +545,10 @@ const MainLayout = ({ children }) => {
                             </div>
                         </nav>
                     )}
+
+                    {/* Operational quick nav: same thumb-reach pattern for the two
+                        roles that previously had only the hamburger drawer. */}
+                    {isOperationalNavVisible && <OperationalBottomNav role={user?.role} />}
                 </div>
             </div>
 

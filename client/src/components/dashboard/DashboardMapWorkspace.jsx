@@ -12,6 +12,7 @@ import {
     HiOutlineFilter,
     HiOutlineLightningBolt,
     HiOutlineTruck,
+    HiOutlineViewList,
     HiOutlineX,
 } from 'react-icons/hi';
 import { Link } from '../../router';
@@ -31,7 +32,7 @@ import {
 import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
-import { getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapFilterStatusDot, getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
@@ -235,7 +236,22 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
     );
 };
 
-const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false }) => (
+/**
+ * The card's trailing affordance, and the only thing that tells a reader whether
+ * tapping will change the map.
+ *
+ * A chevron means "this opens the matching set and points the map at it". A list
+ * icon means "this opens the list only". Cards used to all carry the chevron
+ * while one of them silently did nothing to the map, so the pattern a reader
+ * learned from three cards was broken by the fourth.
+ */
+const MetricStripAffordance = ({ listOnly }) => (
+    listOnly
+        ? <HiOutlineViewList className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+        : <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
+);
+
+const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false, listOnly = false }) => (
     <button
         type="button"
         onClick={onClick}
@@ -243,8 +259,8 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-expanded={selected}
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
-        aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
-        title={`${value} ${label} — ${helper}`}
+        aria-label={`${listOnly ? 'View the list of' : 'View'} ${value} ${label.toLowerCase()}. ${helper}${listOnly ? ' Opens the list only; the map is unchanged.' : ''}`}
+        title={`${value} ${label} — ${helper}${listOnly ? ' (list only — the map is unchanged)' : ''}`}
         className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
             ? 'border border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-white/5'
             : 'border-2 border-brand-700 bg-brand-100/80 shadow hover:border-brand-800 hover:bg-brand-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
@@ -259,7 +275,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
             <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-gray-900 dark:text-white">
                 {value}
             </span>
-            <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 dark:text-gray-600" aria-hidden="true" />
+            <MetricStripAffordance listOnly={listOnly} />
         </span>
         {helper && (
             <span className="mt-0.5 block truncate text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
@@ -272,7 +288,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
                 {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
                 <span>{label}</span>
             </span>
-            <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
+            <MetricStripAffordance listOnly={listOnly} />
         </span>
         <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
             {value}
@@ -586,10 +602,14 @@ const DashboardMapWorkspace = ({
                 statusDot: 'bg-cyan-500',
             },
             {
-                id: 'responder-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
+                // "Resolved by you today", not "Resolved today": the admin has a
+                // card of that name meaning every closed incident, and the two sat
+                // side by side in different roles with the same label and
+                // different scopes. The count here is one responder's own work.
+                id: 'responder-resolved-today', label: 'Resolved by you today', value: resolvedTodayReports.length,
                 helper: 'Incidents you handled', icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
-                records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
+                panelTitle: 'Resolved by you today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} you resolved today`,
+                records: resolvedTodayReports, listOnly: true, emptyTitle: 'No incidents resolved by you today',
                 emptyDescription: 'You have not resolved any incidents today.',
                 statusDot: 'bg-emerald-500',
             },
@@ -612,25 +632,25 @@ const DashboardMapWorkspace = ({
                     statusDot: 'bg-amber-500',
                 },
                 {
-                    id: 'admin-dispatchable', label: 'Verified / transferred', value: dispatchableReports.length,
-                    helper: 'Available for dispatch', icon: HiOutlineCheckCircle, panelType: 'incidents',
-                    panelTitle: 'Verified / transferred incidents', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} available for dispatch`,
+                    id: 'admin-dispatchable', label: 'Ready to dispatch', value: dispatchableReports.length,
+                    helper: 'Verified or transferred', icon: HiOutlineCheckCircle, panelType: 'incidents',
+                    panelTitle: 'Ready to dispatch', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} verified or transferred and waiting for a responder`,
                     records: dispatchableReports,
-                    // Deliberately no `mapFilter`. This card counts verified +
-                    // transferred, and the rail has no single tab that matches
-                    // that pair — 'all' would WIDEN the map to every active
-                    // incident, so a card reading "1" would show four pins. The
-                    // panel still lists exactly the card's records; the map is
-                    // left on whatever the admin chose.
+                    // No `mapFilter`, so `listOnly` says so out loud: the card's
+                    // label is now also a tab, but a card may only point the map
+                    // at a tab when the two counts are the same set. See the
+                    // list-only rule below the metric arrays — this card is the
+                    // reason that rule exists.
+                    listOnly: true,
                     emptyTitle: 'No incidents available for dispatch',
                     emptyDescription: 'No verified or transferred incidents are currently available for dispatch.',
                     statusDot: 'bg-blue-500',
                 },
                 {
-                    id: 'admin-responding', label: 'Responding', value: activeResponseReports.length,
+                    id: 'admin-responding', label: 'Active response', value: activeResponseReports.length,
                     helper: 'Active field response', icon: HiOutlineTruck, panelType: 'incidents',
-                    panelTitle: 'Responding incidents', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} in active response`,
-                    records: activeResponseReports, mapFilter: 'responding', emptyTitle: 'No responding incidents',
+                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} in active response`,
+                    records: activeResponseReports, mapFilter: 'responding', emptyTitle: 'No incidents in active response',
                     emptyDescription: 'No incidents are currently in active response.',
                     statusDot: 'bg-cyan-500',
                 },
@@ -638,7 +658,10 @@ const DashboardMapWorkspace = ({
                     id: 'admin-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
                     helper: 'Closed incidents', icon: HiOutlineBadgeCheck, panelType: 'incidents',
                     panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
-                    records: resolvedTodayReports, mapFilter: 'resolved', emptyTitle: 'No incidents resolved today',
+                    // `listOnly`: the card is scoped to today, the Resolved tab is
+                    // the whole archive. Pointing the map at the card would show
+                    // every resolved pin and contradict the count.
+                    records: resolvedTodayReports, listOnly: true, emptyTitle: 'No incidents resolved today',
                     emptyDescription: 'No incidents have been resolved today.',
                     statusDot: 'bg-emerald-500',
                 },
@@ -648,6 +671,19 @@ const DashboardMapWorkspace = ({
                 ? reporterMetrics
                 : publicMetrics;
 
+    // One rule decides whether a card is map-linked: a card points the map only
+    // when its own count equals the set exactly one tab can show. Otherwise the
+    // card is `listOnly` and opens its records without touching the map — and,
+    // because a chevron reads as "this changes the map", a list-only card swaps
+    // it for a list icon and says so in its accessible name.
+    //
+    // Three cards above carry that flag. "Resolved today" is time-scoped while
+    // the Resolved tab is not, and "Ready to dispatch" is a pair of lifecycle
+    // values even though the new 'dispatch' tab shows the same pair today — the
+    // card stays list-only so the rule is uniform rather than case-by-case. A
+    // card that opened a wider pin set than its own count is how an operator
+    // learns not to trust the numbers.
+    //
     // Match the desktop row to the card count. Guests see 3 cards (the
     // transferred card was folded into active incidents) and signed-in roles
     // see 4; sizing this off metrics.length keeps a trailing empty column from
@@ -874,6 +910,45 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
+            {/* The numbers come first, and that order is the point.
+             *
+             * These cards used to sit BELOW the map, under a 500px canvas. On a
+             * laptop the first thing below the fold was the count that starts the
+             * whole triage — "Pending 3" — while the operator saw only terrain.
+             * The reporter role never felt that way because they have a separate
+             * summary page; the admin and responder only have this screen.
+             *
+             * The cards are still a summary OF the map (tapping one opens its
+             * records and, when the sets agree, points the map at them), so the
+             * section keeps its "Map summary" label and the heading below is
+             * unchanged — only the reading order moved. */}
+            <section className="space-y-2 sm:space-y-2.5" aria-label="Map summary">
+                <div className="flex items-baseline justify-between gap-2 px-1">
+                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current overview</h2>
+                    <p className="shrink-0 text-[11px] text-gray-400 sm:text-xs dark:text-gray-500">
+                        <span className="hidden sm:inline">Select any metric to view matching records</span>
+                        <span className="sm:hidden">Tap to view records</span>
+                    </p>
+                </div>
+                <div className={`mt-3 grid grid-cols-1 gap-2 sm:gap-3 ${overviewGridColumns}`}>
+                    {metrics.map((metric, index) => (
+                        <MetricStripItem
+                            key={metric.id}
+                            index={index}
+                            label={metric.label}
+                            value={metric.value}
+                            helper={metric.helper}
+                            icon={metric.icon}
+                            statusDot={metric.statusDot}
+                            onClick={() => openOverviewMetric(metric)}
+                            selected={mapSummaryPanel === `${OVERVIEW_PANEL_PREFIX}${metric.id}`}
+                            loading={metric.loading}
+                            listOnly={Boolean(metric.listOnly)}
+                        />
+                    ))}
+                </div>
+            </section>
+
             <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
                 <div className="flex flex-col gap-1.5 p-1.5 sm:gap-2 sm:p-2.5">
                     {mapExperience.filters.length > 0 && (() => {
@@ -882,9 +957,13 @@ const DashboardMapWorkspace = ({
                         const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
                         const activeFilterCount = getFilterCount(responderMapFilter);
                         const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
+                        // Config owns which statuses a tab shows, so it owns the
+                        // dot too: 'dispatch' is a pair, and reading its color
+                        // off MAP_STATUS_CONFIG directly would have fallen back
+                        // to gray — the color of "unknown state".
                         const activeStatusDotClass = responderMapFilter === 'risk-zones'
                             ? 'bg-red-500'
-                            : (MAP_STATUS_CONFIG[responderMapFilter]?.dot || (responderMapFilter === 'all' ? 'bg-emerald-500' : 'bg-gray-400'));
+                            : (getMapFilterStatusDot(responderMapFilter) || 'bg-emerald-500');
 
                         return (
                             <>
@@ -1009,7 +1088,11 @@ const DashboardMapWorkspace = ({
                                         return (
                                             <Fragment>
                                                 <span className="flex shrink-0 items-end gap-5 self-stretch border-l border-gray-200 pl-5 dark:border-white/10" role="group" aria-label="Layers and archive">
-                                                    <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 xl:inline dark:text-gray-500" aria-hidden="true">
+                                                    {/* Shown from lg, not xl: the operational
+                                                        rail is the one that needs the layer group
+                                                        separated from the status tabs, and it was
+                                                        the narrowest range that hid the label. */}
+                                                    <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 lg:inline dark:text-gray-500" aria-hidden="true">
                                                         Layers &amp; archive
                                                     </span>
                                                 <button
@@ -1190,32 +1273,6 @@ const DashboardMapWorkspace = ({
                             {isTrustPointsPanel && <TrustPointsSummary value={reporterTrustPoints} />}
                         </MapOverlayPanel>
                     )}
-                </div>
-            </section>
-
-            <section className="space-y-2 sm:space-y-2.5" aria-label="Map summary">
-                <div className="flex items-baseline justify-between gap-2 px-1">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current overview</h2>
-                    <p className="shrink-0 text-[11px] text-gray-400 sm:text-xs dark:text-gray-500">
-                        <span className="hidden sm:inline">Select any metric to view matching records</span>
-                        <span className="sm:hidden">Tap to view records</span>
-                    </p>
-                </div>
-                <div className={`mt-3 grid grid-cols-1 gap-2 sm:gap-3 ${overviewGridColumns}`}>
-                    {metrics.map((metric, index) => (
-                        <MetricStripItem
-                            key={metric.id}
-                            index={index}
-                            label={metric.label}
-                            value={metric.value}
-                            helper={metric.helper}
-                            icon={metric.icon}
-                            statusDot={metric.statusDot}
-                            onClick={() => openOverviewMetric(metric)}
-                            selected={mapSummaryPanel === `${OVERVIEW_PANEL_PREFIX}${metric.id}`}
-                            loading={metric.loading}
-                        />
-                    ))}
                 </div>
             </section>
 

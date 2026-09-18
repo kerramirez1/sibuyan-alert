@@ -97,8 +97,11 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, locatio
 
     if (awaiting === 0) {
         return {
-            helper: safeTotal === 1 ? 'Responding' : 'All responding',
-            description: `${safeTotal} active${spread}, all responding.`,
+            // The bare label follows the canonical state name; the sentences
+            // around it stay prose, because "2 responding, 1 waiting" is a
+            // sentence and "Active response" is a label.
+            helper: safeTotal === 1 ? 'Active response' : 'All in active response',
+            description: `${safeTotal} active${spread}, all in active response.`,
         };
     }
 

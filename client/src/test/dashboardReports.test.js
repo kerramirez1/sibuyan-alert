@@ -187,8 +187,8 @@ describe('active incidents summary copy', () => {
     });
 
     test('says so plainly when every active incident is responding', () => {
-        expect(buildActiveIncidentsSummary({ total: 3, responding: 3 }).helper).toBe('All responding');
-        expect(buildActiveIncidentsSummary({ total: 1, responding: 1 }).helper).toBe('Responding');
+        expect(buildActiveIncidentsSummary({ total: 3, responding: 3 }).helper).toBe('All in active response');
+        expect(buildActiveIncidentsSummary({ total: 1, responding: 1 }).helper).toBe('Active response');
     });
 
     test('handles the empty state without a stray count', () => {
@@ -203,7 +203,7 @@ describe('active incidents summary copy', () => {
         // must never invent a negative "waiting" figure.
         const summary = buildActiveIncidentsSummary({ total: 1, responding: 5 });
 
-        expect(summary.helper).toBe('Responding');
+        expect(summary.helper).toBe('Active response');
         expect(summary.helper).not.toContain('-');
     });
 

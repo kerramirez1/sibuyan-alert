@@ -19,6 +19,13 @@ import { getMapCoordinates } from '../utils/mapReports';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import DashboardViewSwitch from '../components/dashboard/DashboardViewSwitch';
+import {
+    DASHBOARD_ANALYTICS_VIEW,
+    DASHBOARD_MAP_VIEW,
+    canViewAnalytics,
+    resolveDashboardView,
+} from '../utils/dashboardView';
 import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
 import {
     getManilaCalendarDateKey,
@@ -94,8 +101,27 @@ const DashboardPage = () => {
     const reporterOverviewReportsRef = useRef(null);
     const reporterOverviewRequestRef = useRef(null);
     const reporterOverviewOwnerRef = useRef('');
-    const isMapView = searchParams.get('view') === 'map';
+    const requestedView = searchParams.get('view');
     const panelView = searchParams.get('panel');
+
+    // /dashboard is the incident map for everyone. Analytics is a
+    // municipal_admin surface, opted into with ?view=analytics (or the history
+    // deep link, which only the analytics workspace understands).
+    //
+    // The map used to be the opt-in half (?view=map) and analytics the default,
+    // so the one role with incidents to triage landed on charts while guests,
+    // reporters, and responders landed on the map. Nothing is lost by flipping
+    // it: every existing ?view=map link still resolves to the map, and analytics
+    // gained a URL of its own that reflects who may open it.
+    //
+    // The rule itself lives in utils/dashboardView so the sidebar highlights the
+    // same view this page renders.
+    const canOpenAnalytics = canViewAnalytics(user?.role);
+    const dashboardView = resolveDashboardView({
+        role: user?.role,
+        requestedView,
+        panelView,
+    });
 
     // Memoize focusLocation from searchParams
     const focusLocation = useMemo(() => {
@@ -892,79 +918,89 @@ const DashboardPage = () => {
     }, [isReportAssigned, monthFilteredReports]);
 
 
-    const showMapWorkspace = !isAdmin || isResponder || isMapView;
+    const showMapWorkspace = dashboardView === DASHBOARD_MAP_VIEW;
 
+    // The view switch is rendered outside this <Suspense> on purpose: both
+    // workspaces are lazy chunks, so a switch rendered inside one would vanish
+    // while its bundle loads — the user would tap Analytics and watch the way
+    // back disappear for as long as the chart chunk takes.
     if (showMapWorkspace) {
         return (
-            <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
-                <DashboardMapWorkspace
-                    user={user}
-                    isAuthenticated={isAuthenticated}
-                    isAdmin={isAdmin}
-                    isResponder={isResponder}
-                    isReporter={isReporter}
-                    loading={loading}
-                    error={dashboardError}
-                    reports={dashboardReports}
-                    pendingReports={responderPendingReports}
-                    respondingReports={responderRespondingReports}
-                    resolvedTodayReports={computedResolvedTodayReports}
-                    highRiskZones={highRiskZones}
-                    highRiskZonesLoading={highRiskZonesLoading}
-                    highRiskZonesError={highRiskZonesError}
-                    onRetryHighRiskZones={refreshHighRiskZones}
-                    roleStats={roleStats}
-                    reporterOverviewReports={reporterOverviewReports}
-                    reporterOverviewReportsLoading={reporterOverviewReportsLoading}
-                    reporterOverviewReportsError={reporterOverviewReportsError}
-                    onLoadReporterOverviewReports={loadReporterOverviewReports}
-                    focusLocation={focusLocation}
-                    focusedReport={focusedMapReport}
-                    focusedRiskZone={focusedRiskZone}
-                    focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
-                    responderMapFilter={responderMapFilter}
-                    setResponderMapFilter={setResponderMapFilter}
-                    canCurrentResponderResolve={canCurrentResponderResolve}
-                    handleMapRespond={handleMapRespond}
-                    handleMapResolve={handleMapResolve}
-                    handleMapVerify={handleMapVerify}
-                    handleMapReject={handleMapReject}
-                    setSearchParams={setSearchParams}
-                    mapSummaryPanel={mapSummaryPanel}
-                    setMapSummaryPanel={setMapSummaryPanel}
-                    activePanel={panelView}
-                    pulseReportIds={pulseReportIds}
-                />
-            </Suspense>
+            <>
+                {canOpenAnalytics && <DashboardViewSwitch active={DASHBOARD_MAP_VIEW} />}
+                <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+                    <DashboardMapWorkspace
+                        user={user}
+                        isAuthenticated={isAuthenticated}
+                        isAdmin={isAdmin}
+                        isResponder={isResponder}
+                        isReporter={isReporter}
+                        loading={loading}
+                        error={dashboardError}
+                        reports={dashboardReports}
+                        pendingReports={responderPendingReports}
+                        respondingReports={responderRespondingReports}
+                        resolvedTodayReports={computedResolvedTodayReports}
+                        highRiskZones={highRiskZones}
+                        highRiskZonesLoading={highRiskZonesLoading}
+                        highRiskZonesError={highRiskZonesError}
+                        onRetryHighRiskZones={refreshHighRiskZones}
+                        roleStats={roleStats}
+                        reporterOverviewReports={reporterOverviewReports}
+                        reporterOverviewReportsLoading={reporterOverviewReportsLoading}
+                        reporterOverviewReportsError={reporterOverviewReportsError}
+                        onLoadReporterOverviewReports={loadReporterOverviewReports}
+                        focusLocation={focusLocation}
+                        focusedReport={focusedMapReport}
+                        focusedRiskZone={focusedRiskZone}
+                        focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
+                        responderMapFilter={responderMapFilter}
+                        setResponderMapFilter={setResponderMapFilter}
+                        canCurrentResponderResolve={canCurrentResponderResolve}
+                        handleMapRespond={handleMapRespond}
+                        handleMapResolve={handleMapResolve}
+                        handleMapVerify={handleMapVerify}
+                        handleMapReject={handleMapReject}
+                        setSearchParams={setSearchParams}
+                        mapSummaryPanel={mapSummaryPanel}
+                        setMapSummaryPanel={setMapSummaryPanel}
+                        activePanel={panelView}
+                        pulseReportIds={pulseReportIds}
+                    />
+                </Suspense>
+            </>
         );
     }
 
 
     return (
-        <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
-            <DashboardAnalyticsWorkspace
-                user={user}
-                hasMunicipality={hasMunicipality}
-                selectedMonth={selectedMonth}
-                setSelectedMonth={setSelectedMonth}
-                reports={monthFilteredReports}
-                allReports={dashboardReports}
-                highRiskZones={highRiskZones}
-                performanceMetrics={performanceMetrics}
-                chartData={chartData}
-                statusData={statusData}
-                municipalityBarData={municipalityBarData}
-                barangayBarData={barangayBarData}
-                incidentTypeBarData={incidentTypeBarData}
-                dashboardReports={dashboardReports}
-                focusLocation={focusLocation}
-                historySectionRef={historySectionRef}
-                loading={loading}
-                error={dashboardError}
-                onOpenMap={() => setSearchParams({ view: 'map' })}
-                onOpenReports={() => navigate('/admin/reports')}
-            />
-        </Suspense>
+        <>
+            {canOpenAnalytics && <DashboardViewSwitch active={DASHBOARD_ANALYTICS_VIEW} />}
+            <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+                <DashboardAnalyticsWorkspace
+                    user={user}
+                    hasMunicipality={hasMunicipality}
+                    selectedMonth={selectedMonth}
+                    setSelectedMonth={setSelectedMonth}
+                    reports={monthFilteredReports}
+                    allReports={dashboardReports}
+                    highRiskZones={highRiskZones}
+                    performanceMetrics={performanceMetrics}
+                    chartData={chartData}
+                    statusData={statusData}
+                    municipalityBarData={municipalityBarData}
+                    barangayBarData={barangayBarData}
+                    incidentTypeBarData={incidentTypeBarData}
+                    dashboardReports={dashboardReports}
+                    focusLocation={focusLocation}
+                    historySectionRef={historySectionRef}
+                    loading={loading}
+                    error={dashboardError}
+                    onOpenMap={() => setSearchParams({ view: DASHBOARD_MAP_VIEW })}
+                    onOpenReports={() => navigate('/admin/reports')}
+                />
+            </Suspense>
+        </>
     );
 };
 

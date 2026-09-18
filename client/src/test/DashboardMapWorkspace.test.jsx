@@ -120,7 +120,7 @@ describe('DashboardMapWorkspace permissions', () => {
         );
     });
 
-    test('keeps the four-metric summary after the live map', () => {
+    test('keeps the four-metric summary before the live map', () => {
         renderWorkspace(createProps());
 
         const liveMap = screen.getByRole('region', { name: 'Live incident map' });
@@ -128,7 +128,11 @@ describe('DashboardMapWorkspace permissions', () => {
         const incidentsAction = within(summary).getByRole('button', { name: /View 0 active incidents/i });
         const riskZonesAction = within(summary).getByRole('button', { name: /View 0 risk zones/i });
 
-        expect(liveMap.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        // The numbers come first. These cards used to sit under the map, so the
+        // count that starts the whole triage was below a 500px canvas on a
+        // laptop; only the reporter role escaped that, because they have a
+        // separate summary page and the operational roles do not.
+        expect(summary.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         // Reporter has 4 metrics: single column on mobile, one row on desktop
         expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
@@ -319,20 +323,20 @@ describe('DashboardMapWorkspace permissions', () => {
                 <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-dispatchable" />
             </MemoryRouter>,
         );
-        panel = screen.getByRole('dialog', { name: 'Verified / transferred incidents' });
+        panel = screen.getByRole('dialog', { name: 'Ready to dispatch' });
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(2);
         expect(within(panel).getByText(/Fire.*Verified/i)).toBeInTheDocument();
         expect(within(panel).getByText(/Medical.*Transferred/i)).toBeInTheDocument();
-        expect(within(panel).queryByText(/Marine.*Responding/i)).not.toBeInTheDocument();
+        expect(within(panel).queryByText(/Marine.*Active response/i)).not.toBeInTheDocument();
 
         rerender(
             <MemoryRouter>
                 <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-responding" />
             </MemoryRouter>,
         );
-        panel = screen.getByRole('dialog', { name: 'Responding incidents' });
+        panel = screen.getByRole('dialog', { name: 'Active response' });
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
-        expect(within(panel).getByText(/Marine.*Responding/i)).toBeInTheDocument();
+        expect(within(panel).getByText(/Marine.*Active response/i)).toBeInTheDocument();
 
         rerender(
             <MemoryRouter>
@@ -609,7 +613,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(screen.getByText(/Vehicular/i)).toHaveTextContent(/Vehicular.*Verified/i);
         expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Coordinated/i);
-        expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Responding/i);
+        expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Active response/i);
 
         fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
         expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:reporter-active');
@@ -926,9 +930,11 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /verified/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /responding/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /transferred/i })).toBeInTheDocument();
+        // One tab for the verified + transferred pair, named after the operator
+        // situation rather than after two lifecycle values.
+        expect(within(filterBar).getByRole('button', { name: /ready to dispatch/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /active response/i })).toBeInTheDocument();
+        expect(within(filterBar).queryByRole('button', { name: /^transferred$/i })).not.toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /resolved/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /risk zones/i })).toBeInTheDocument();
 
@@ -980,7 +986,7 @@ describe('DashboardMapWorkspace permissions', () => {
         guest.unmount();
     });
 
-    test('does not widen the map filter when the dispatchable card is opened', () => {
+    test('opens the ready-to-dispatch card as list-only and leaves the map filter alone', () => {
         const setResponderMapFilter = vi.fn();
         const setMapSummaryPanel = vi.fn();
         renderWorkspace(createProps({
@@ -1001,14 +1007,19 @@ describe('DashboardMapWorkspace permissions', () => {
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
         // The card counts verified + transferred only.
-        fireEvent.click(within(summary).getByRole('button', { name: /View 2 verified \/ transferred/i }));
+        const dispatchCard = within(summary).getByRole('button', { name: /View the list of 2 ready to dispatch/i });
+        fireEvent.click(dispatchCard);
 
         // It still opens its own panel, which lists exactly those two records…
         expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:admin-dispatchable');
-        // …but it does NOT touch the map filter. The rail has no tab matching
-        // verified+transferred, so filtering here would have widened the map to
-        // all three active incidents for a card reading "2".
+        // …but it does NOT touch the map filter. Its count equals no single tab
+        // (the new 'dispatch' tab shows the same pair, which is why the label is
+        // now shared, but the card stays list-only so the rule is uniform), and
+        // the affordance says so: a list icon, not a chevron, plus the promise
+        // in the accessible name.
         expect(setResponderMapFilter).not.toHaveBeenCalled();
+        expect(dispatchCard).toHaveAccessibleName(/map is unchanged/i);
+        expect(dispatchCard.querySelector('svg')).not.toBeNull();
     });
 
     test('keeps overview metrics decoupled from active map status filters (e.g. risk-zones filter)', () => {
@@ -1095,11 +1106,11 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(screen.getByText(/Map layers/i)).toBeInTheDocument();
 
             const radioGroup = within(dialog).getByRole('radiogroup', { name: /Incident filter options/i });
-            expect(within(radioGroup).getByRole('radio', { name: /active incidents/i })).toBeInTheDocument();
-            expect(within(radioGroup).getByRole('radio', { name: /pending/i })).toBeInTheDocument();
-            expect(within(radioGroup).getByRole('radio', { name: /verified/i })).toBeInTheDocument();
-            expect(within(radioGroup).getByRole('radio', { name: /responding/i })).toBeInTheDocument();
-            expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /active incidents/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /pending/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /ready to dispatch/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /active response/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
         });
 
         test('3. Selecting a status and tapping Apply filters updates the active filter', () => {

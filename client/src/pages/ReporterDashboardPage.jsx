@@ -20,6 +20,7 @@ import {
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
+import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 
 // Canonical lifecycle vocabulary shared by the stepper, status column, and
 // status line, so one state is never named three different ways.
@@ -27,7 +28,9 @@ const STATUS_CONFIG = {
     pending: { label: 'Pending review', stepIndex: 1 },
     verified: { label: 'Verified', stepIndex: 2 },
     transferred: { label: 'Transferred', stepIndex: 2 },
-    responding: { label: 'Responding', stepIndex: 3 },
+    // One lifecycle state, one name: owned by MAP_STATUS_CONFIG so the stepper
+    // cannot name the state differently from the map, the cards, or the badges.
+    responding: { label: MAP_STATUS_CONFIG.responding.label, stepIndex: 3 },
     resolved: { label: 'Resolved', stepIndex: 4 },
     rejected: { label: 'Rejected', stepIndex: 1 },
 };
@@ -41,7 +44,7 @@ const SEVERITY_CONFIG = {
     critical: { label: 'Critical', dot: 'bg-red-500' },
 };
 
-const LIFECYCLE_STEPS = ['Submitted', 'Pending review', 'Verified', 'Responding', 'Resolved'];
+const LIFECYCLE_STEPS = ['Submitted', 'Pending review', 'Verified', MAP_STATUS_CONFIG.responding.label, 'Resolved'];
 
 const formatRelativeDate = (value) => {
     if (!value) return 'Unknown date';

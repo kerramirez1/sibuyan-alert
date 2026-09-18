@@ -204,7 +204,7 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         }, { timeout: 4000 });
     });
 
-    test('3. Municipal administrator does not land on Analytics by default, but Analytics remains accessible via sidebar', async () => {
+    test('3. Municipal administrator lands on the operations hub, with Analytics opt-in from the sidebar', async () => {
         const adminUser = {
             id: 'admin-1',
             name: 'Admin Maria Santos',
@@ -233,10 +233,12 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
         await waitFor(() => {
             // Dashboard is highlighted
             expect(screen.getByRole('link', { name: /Dashboard/i })).toHaveAttribute('aria-current', 'page');
-            // Analytics link is present in the sidebar
+            // Analytics link is present in the sidebar, and it now carries a URL
+            // of its own: `/dashboard` is the incident map for every role, so
+            // the analytics deep link has to say so explicitly.
             const analyticsLink = screen.getByRole('link', { name: /Analytics/i });
             expect(analyticsLink).toBeInTheDocument();
-            expect(analyticsLink).toHaveAttribute('href', '/dashboard');
+            expect(analyticsLink).toHaveAttribute('href', '/dashboard?view=analytics');
             expect(analyticsLink).not.toHaveAttribute('aria-current', 'page');
         }, { timeout: 4000 });
     });

@@ -24,7 +24,11 @@ export const MAP_STATUS_CONFIG = Object.freeze({
         legendShape: 'diamond',
     }),
     responding: Object.freeze({
-        label: 'Responding',
+        // One name for one lifecycle state, everywhere it appears: this is the
+        // source for the tab label, the card label, the status badge, and the
+        // legend entry, so they cannot drift apart into "Responding" and
+        // "Active response" describing the same pins.
+        label: 'Active response',
         markerColor: '#0891B2',
         badge: 'border-cyan-200 bg-cyan-50 text-cyan-700',
         dot: 'bg-cyan-600',
@@ -106,6 +110,13 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         if (filterStatus === 'pending') {
             return showPending ? ['pending'] : [];
         }
+        // The Ready to dispatch tab is the verified + transferred pair, so its
+        // legend has to name both markers. Falling through to the generic
+        // branch below would list every status the map can draw, which would
+        // describe pins that are not on screen.
+        if (filterStatus === 'dispatch') {
+            return ['verified', 'transferred'];
+        }
         // Reporter "Active incidents" tab collapses the three operational
         // states into one legend entry; motion (pulse) marks responding.
         if (filterStatus === 'active' || filterStatus === 'incidents') {
@@ -121,6 +132,34 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
     }
 
     return ACTIVE_MAP_STATUS_KEYS.filter((status) => (showPending || status !== 'pending') && status !== 'resolved');
+};
+
+/**
+ * The representative marker color for a status filter.
+ *
+ * It lives here, beside `getMapLegendStatusKeys`, because both answer the same
+ * question — which statuses does this tab show? A tab that shows a pair (the
+ * dispatch tab) is drawn with its first member's color rather than with a
+ * hardcoded gray that would read as "unknown status".
+ *
+ * Returns `null` for the two filters that are not statuses: `all` (every active
+ * incident) and `risk-zones` (hazard areas, drawn red). The caller supplies the
+ * dot for those.
+ */
+export const getMapFilterStatusDot = (filterStatus) => {
+    if (!filterStatus || filterStatus === 'all' || filterStatus === 'risk-zones') {
+        return null;
+    }
+
+    if (filterStatus === 'dispatch') {
+        return MAP_STATUS_CONFIG.verified.dot;
+    }
+
+    if (filterStatus === 'active' || filterStatus === 'incidents') {
+        return MAP_ACTIVE_INCIDENT_CONFIG.dot;
+    }
+
+    return MAP_STATUS_CONFIG[filterStatus]?.dot || null;
 };
 
 export default MAP_STATUS_CONFIG;

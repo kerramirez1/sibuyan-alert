@@ -30,7 +30,10 @@ const MAP_STATUS_FILTERS = Object.freeze([
     Object.freeze({ value: 'all', label: 'Active Incidents' }),
     Object.freeze({ value: 'pending', label: 'Pending' }),
     Object.freeze({ value: 'verified', label: 'Verified' }),
-    Object.freeze({ value: 'responding', label: 'Responding' }),
+    // The display name for this state is owned by MAP_STATUS_CONFIG so the
+    // analytics filters, the map rail, the cards, and the badges cannot drift
+    // into naming one lifecycle state two different ways.
+    Object.freeze({ value: 'responding', label: MAP_STATUS_CONFIG.responding.label }),
     Object.freeze({ value: 'transferred', label: 'Transferred' }),
     Object.freeze({ value: 'resolved', label: 'Resolved' }),
     Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),

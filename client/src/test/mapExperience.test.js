@@ -3,19 +3,29 @@ import { getMapExperience } from '../config/mapExperience';
 
 describe('shared role-aware map experience', () => {
     test.each([
-        ['guest', undefined, false, false],
+        ['guest', undefined, false],
         // Reporters see community pending pins (read-only); actions stay closed.
-        ['reporter', 'reporter', true, true],
-        ['admin', 'municipal_admin', true, false],
-        ['responder', 'responder', true, false],
-    ])('configures the %s mode without expanding permissions', (mode, role, showPendingReports, showSubmitReport) => {
+        ['reporter', 'reporter', true],
+        ['admin', 'municipal_admin', true],
+        ['responder', 'responder', true],
+    ])('configures the %s mode without expanding permissions', (mode, role, showPendingReports) => {
         const experience = getMapExperience({ role, municipality: 'Cajidiocan', agency: 'MDRRMO' });
 
         expect(experience.mode).toBe(mode);
         expect(experience.showPendingReports).toBe(showPendingReports);
-        expect(experience.showSubmitReport).toBe(showSubmitReport);
         expect(experience.canRespond).toBe(role === 'responder');
         expect(experience.canResolve).toBe(role === 'responder');
+    });
+
+    test('does not expose a submit-report flag to the map page', () => {
+        // The map has no submit control. A config flag that promised one was
+        // never read by any component, so the flag and the copy that referenced
+        // it were both removed. This asserts the dead flag stays gone: if a
+        // future change needs a submit affordance on the map, it has to add the
+        // control and the flag together.
+        for (const role of [undefined, 'reporter', 'municipal_admin', 'responder']) {
+            expect(getMapExperience({ role })).not.toHaveProperty('showSubmitReport');
+        }
     });
 
     test('uses role-aware filter lists with shared status values', () => {
@@ -24,8 +34,18 @@ describe('shared role-aware map experience', () => {
         const guest = getMapExperience({ role: 'guest' });
         const reporter = getMapExperience({ role: 'reporter' });
 
-        expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
-        expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'verified', 'responding', 'transferred', 'resolved', 'risk-zones']);
+        // Operational roles fold verified + transferred into one 'dispatch' tab.
+        // Both are separate lifecycle values that describe one situation the
+        // operator acts on — "verified and waiting for a responder" — so they get
+        // one tab with one name, and the count matches the admin's dispatch card.
+        expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'dispatch', 'responding', 'resolved', 'risk-zones']);
+        expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'dispatch', 'responding', 'resolved', 'risk-zones']);
+        expect(responder.filters.find(({ value }) => value === 'dispatch')?.label).toBe('Ready to dispatch');
+        expect(admin.filters.find(({ value }) => value === 'dispatch')?.label).toBe('Ready to dispatch');
+        // One lifecycle state, one name: the tab label comes from the same
+        // vocabulary as the card and the legend entry.
+        expect(responder.filters.find(({ value }) => value === 'responding')?.label).toBe('Active response');
+        expect(admin.filters.find(({ value }) => value === 'responding')?.label).toBe('Active response');
         // Guest mirrors the reporter's folded shape minus pending. There is no
         // separate 'active' tab because for a guest `all` and `active` resolve to
         // the same set — pending is the only difference between them, and guests

@@ -1,12 +1,33 @@
 const DEFAULT_MUNICIPALITY = 'Sibuyan Island';
 
+/**
+ * Operational tab rail (municipal admin + responder).
+ *
+ * Five status tabs, not six. `verified` and `transferred` were separate tabs
+ * whose labels are two pieces of lifecycle jargon describing one situation the
+ * operator acts on: "verified and waiting for a responder to pick it up". They
+ * are folded into a single **Ready to dispatch** tab for three reasons:
+ *
+ * 1. It is the pair the admin's dispatch card already counts
+ *    (`dispatchableReports = verified + transferred`), so the card and the tab
+ *    now describe the same set with the same words.
+ * 2. A verified incident that gets transferred to another municipality is still
+ *    waiting for a responder — the distinction is about which office owns the
+ *    paperwork, not about what the operator should do next.
+ * 3. Six status tabs plus a layer tab is a rail a dispatcher has to read; five
+ *    plus a layer is one they can scan.
+ *
+ * `responding` is labelled **Active response** to match the card vocabulary.
+ * One lifecycle state gets one name across tabs, cards, and the legend — the
+ * reporter rail already followed that rule ("Active incidents"), and the
+ * operational roles were the ones who did not.
+ */
 const OPERATIONAL_FILTERS = Object.freeze({
     operational: Object.freeze([
         Object.freeze({ value: 'all', label: 'Active Incidents' }),
         Object.freeze({ value: 'pending', label: 'Pending' }),
-        Object.freeze({ value: 'verified', label: 'Verified' }),
-        Object.freeze({ value: 'responding', label: 'Responding' }),
-        Object.freeze({ value: 'transferred', label: 'Transferred' }),
+        Object.freeze({ value: 'dispatch', label: 'Ready to dispatch' }),
+        Object.freeze({ value: 'responding', label: 'Active response' }),
         Object.freeze({ value: 'resolved', label: 'Resolved' }),
         Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
     ]),
@@ -52,7 +73,6 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'response',
             showPendingReports: true,
-            showSubmitReport: false,
             canRespond: true,
             canResolve: true,
             canVerify: false,
@@ -68,7 +88,6 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             filters: OPERATIONAL_FILTERS.operational,
             filterMode: 'review',
             showPendingReports: true,
-            showSubmitReport: false,
             canRespond: false,
             canResolve: false,
             canVerify: true,
@@ -79,12 +98,17 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         return {
             mode: 'reporter',
             eyebrow: 'Reporter map',
+            // The description used to end with "or submit a new report", but the
+            // map page never had a submit control to point at (the submit action
+            // lives in the navigation, on the dashboard, and on My Reports), and
+            // the config flag that was supposed to drive one was never read by
+            // any component. Copy must not promise an action the page does not
+            // offer, so the promise was removed rather than the button faked.
             title: 'Sibuyan Island incident map',
-            description: 'Track your reports and community incidents across Sibuyan Island, or submit a new report.',
+            description: 'Track your reports and community incidents across Sibuyan Island.',
             filters: REPORTER_FILTERS,
             filterMode: 'public',
             showPendingReports: true,
-            showSubmitReport: true,
             canRespond: false,
             canResolve: false,
             canVerify: false,
@@ -99,7 +123,6 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         filters: GUEST_FILTERS,
         filterMode: 'public',
         showPendingReports: false,
-        showSubmitReport: false,
         canRespond: false,
         canResolve: false,
         canVerify: false,

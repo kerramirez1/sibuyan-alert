@@ -341,7 +341,7 @@ describe('AdminReportsPage operational queue', () => {
                 responders: [{ user: 'responder-1' }],
             });
         });
-        expect(screen.getAllByText('Responding').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Active response').length).toBeGreaterThan(0);
 
         act(() => {
             mocks.callbacks.reportResolved({
@@ -494,7 +494,7 @@ describe('AdminReportsPage operational queue', () => {
 
         const activeRow = screen.getByText('Near Cambijang bridge').closest('li');
         const resolvedRow = screen.getByText('Cajidiocan public market').closest('li');
-        const respondingStatus = within(activeRow).getByText('Responding');
+        const respondingStatus = within(activeRow).getByText('Active response');
         const resolvedStatus = within(resolvedRow).getByText('Resolved');
         expect(respondingStatus).toHaveClass('text-gray-600');
         expect(respondingStatus).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
@@ -639,14 +639,16 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
         await screen.findByRole('list', { name: 'Responder incident list' });
         expect(screen.getByText(/Last updated/)).toBeInTheDocument();
-        ['All statuses', 'Pending', 'Verified', 'Transferred', 'Responding', 'Resolved'].forEach((label) => {
+        // One lifecycle state, one name: these filter buttons read the same
+        // canonical labels as the map rail, the cards, and the badges.
+        ['All statuses', 'Pending', 'Verified', 'Transferred', 'Active response', 'Resolved'].forEach((label) => {
             expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
         });
         expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Responding' }));
-        expect(screen.getByRole('button', { name: 'Responding' })).toHaveClass('bg-gray-100', 'text-gray-900');
-        expect(screen.getByRole('button', { name: 'Responding' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
+        fireEvent.click(screen.getByRole('button', { name: 'Active response' }));
+        expect(screen.getByRole('button', { name: 'Active response' })).toHaveClass('bg-gray-100', 'text-gray-900');
+        expect(screen.getByRole('button', { name: 'Active response' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
         await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20, status: 'responding' }));
 
         fireEvent.change(screen.getByRole('searchbox', { name: 'Search incidents' }), {
@@ -689,7 +691,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.getByRole('button', { name: 'All statuses' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
-        expect(within(incidentList).getByText('Responding')).toBeInTheDocument();
+        expect(within(incidentList).getByText('Active response')).toBeInTheDocument();
         expect(within(incidentList).getByText('Resolved')).toBeInTheDocument();
     });
 

@@ -67,6 +67,9 @@ export const getFilteredMapReports = (reports = [], {
     // map/legend level ('incidents' suppresses hazard zones).
     // 'active' is the pending-excluded subset (verified + transferred +
     // responding) so reporter tabs reconcile: All open = Pending + Active.
+    // 'dispatch' is the verified + transferred pair — one tab for the one
+    // operator situation "verified and waiting for a responder", matching the
+    // admin's dispatch card count exactly.
     if (!statusFilter || statusFilter === 'all' || statusFilter === 'incidents') {
         return categoryFilteredReports.filter((report) => (
             includePending
@@ -78,6 +81,12 @@ export const getFilteredMapReports = (reports = [], {
     if (statusFilter === 'active') {
         return categoryFilteredReports.filter((report) => (
             ['verified', 'transferred', 'responding'].includes(report.status)
+        ));
+    }
+
+    if (statusFilter === 'dispatch') {
+        return categoryFilteredReports.filter((report) => (
+            ['verified', 'transferred'].includes(report.status)
         ));
     }
 
