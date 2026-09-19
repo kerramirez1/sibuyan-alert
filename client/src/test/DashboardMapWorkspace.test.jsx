@@ -293,6 +293,59 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(reporterCards.filter((card) => !/pending review/i.test(card))).toEqual(guestCards);
     });
 
+    test('gives every signed-in role the same four overview cards, in the same order', () => {
+        const reports = [
+            { _id: 'p1', status: 'pending', coordinates: { lat: 12.4, lng: 122.6 } },
+            { _id: 'v1', status: 'verified', coordinates: { lat: 12.41, lng: 122.61 } },
+            { _id: 'x1', status: 'resolved', coordinates: { lat: 12.42, lng: 122.62 } },
+        ];
+        // Cards carry the number in their accessible name, and the number is
+        // allowed to differ per role (a reporter may not be sent every row),
+        // so compare the label and keep the supporting line separate: the label
+        // is the contract, the line is where a role is allowed to speak.
+        const cardsOf = () => within(screen.getByRole('region', { name: 'Map summary' }))
+            .getAllByRole('button')
+            .map((button) => {
+                const [name = '', helper = ''] = (button.getAttribute('aria-label') || '').split('. ');
+                return { label: name.replace(/^View \d+ /, ''), helper };
+            });
+
+        const rowsByRole = {};
+        for (const [role, flags] of [
+            ['reporter', { isReporter: true }],
+            ['responder', { isResponder: true }],
+            ['municipal_admin', { isAdmin: true }],
+        ]) {
+            const view = renderWorkspace(createProps({
+                user: { _id: `${role}-1`, role },
+                isAuthenticated: true,
+                isReporter: false,
+                isResponder: false,
+                isAdmin: false,
+                ...flags,
+                reports,
+            }));
+            rowsByRole[role] = cardsOf();
+            view.unmount();
+        }
+
+        // One row of four, whatever the account. The rail and the cards used to
+        // be chosen per role, which is how the same incident became a different
+        // product per login.
+        expect(rowsByRole.reporter.map((card) => card.label)).toEqual([
+            'pending review', 'active incidents', 'resolved', 'risk zones',
+        ]);
+        for (const role of ['responder', 'municipal_admin']) {
+            expect(rowsByRole[role].map((card) => card.label))
+                .toEqual(rowsByRole.reporter.map((card) => card.label));
+        }
+
+        // What differs is copy about the same set, never an extra tile: an
+        // administrator is told how much closed today, a reporter is not.
+        expect(rowsByRole.municipal_admin[2].helper).toMatch(/closed incidents · 0 today/i);
+        expect(rowsByRole.reporter[2].helper).toBe('Completed incidents');
+    });
+
     test('keeps municipal admin counts and contextual panel records on the same status definitions', () => {
         const now = new Date().toISOString();
         const reports = [
@@ -310,39 +363,42 @@ describe('DashboardMapWorkspace permissions', () => {
             isReporter: false,
             reports: [...reports, resolvedReport],
             resolvedTodayReports: [resolvedReport],
-            mapSummaryPanel: 'overview:admin-pending',
+            mapSummaryPanel: 'overview:pending',
         });
         const { rerender } = renderWorkspace(props);
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
-        expect(within(summary).getByRole('button', { name: /View 1 pending\. Awaiting review/i })).toHaveAttribute('aria-pressed', 'true');
-        let panel = screen.getByRole('dialog', { name: 'Pending incidents' });
+        expect(within(summary).getByRole('button', { name: /View 1 pending review\. Awaiting review/i })).toHaveAttribute('aria-pressed', 'true');
+        let panel = screen.getByRole('dialog', { name: 'Pending review' });
         expect(within(panel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
         expect(within(panel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
 
+        // The two operational queues are segments of the panel that already holds
+        // those records, not tabs of their own: same card, same count, one click
+        // deeper. Clicking one narrows the list, and the number on the chip is the
+        // same array the segment renders.
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-dispatchable" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:active" />
             </MemoryRouter>,
         );
-        panel = screen.getByRole('dialog', { name: 'Ready to dispatch' });
+        panel = screen.getByRole('dialog', { name: 'Active incidents' });
+        expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(3);
+
+        const queue = within(panel).getByRole('group', { name: 'Active incident queue' });
+        fireEvent.click(within(queue).getByRole('button', { name: /Ready to dispatch \(2\)/i }));
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(2);
         expect(within(panel).getByText(/Fire.*Verified/i)).toBeInTheDocument();
         expect(within(panel).getByText(/Medical.*Transferred/i)).toBeInTheDocument();
         expect(within(panel).queryByText(/Marine.*Active response/i)).not.toBeInTheDocument();
 
-        rerender(
-            <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-responding" />
-            </MemoryRouter>,
-        );
-        panel = screen.getByRole('dialog', { name: 'Active response' });
+        fireEvent.click(within(queue).getByRole('button', { name: /In response \(1\)/i }));
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
         expect(within(panel).getByText(/Marine.*Active response/i)).toBeInTheDocument();
 
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-resolved" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:resolved" />
             </MemoryRouter>,
         );
         panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
@@ -380,7 +436,7 @@ describe('DashboardMapWorkspace permissions', () => {
         // scoped to today (0 or 1) sitting beside a tab counting the archive (2).
         const summary = screen.getByRole('region', { name: 'Map summary' });
         expect(within(summary).getByRole('button', { name: /View 2 resolved\./i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Resolved filter \(2 records\)/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Resolved archive \(2 records\)/i })).toBeInTheDocument();
         // Today's closures survive as supporting text on the archive card — and
         // the coordinate-less one is dropped, so the line cannot outrun the
         // number beside it.
@@ -392,11 +448,12 @@ describe('DashboardMapWorkspace permissions', () => {
             user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
             isAdmin: true,
             isReporter: false,
-            mapSummaryPanel: 'overview:admin-pending',
+            mapSummaryPanel: 'overview:pending',
         }));
 
-        expect(screen.getByRole('button', { name: /View 0 pending\. Awaiting review/i })).toBeEnabled();
-        expect(screen.getByRole('dialog', { name: 'Pending incidents' })).toHaveTextContent('No incidents are currently awaiting municipal review.');
+        expect(screen.getByRole('button', { name: /View 0 pending review\. Awaiting review/i })).toBeEnabled();
+        expect(screen.getByRole('dialog', { name: 'Pending review' }))
+            .toHaveTextContent('0 reports awaiting municipal review.');
     });
 
     test('shows responder actions only for authorized operational metric records', () => {
@@ -412,8 +469,7 @@ describe('DashboardMapWorkspace permissions', () => {
             isResponder: true,
             isReporter: false,
             reports: [availableReport],
-            pendingReports: [availableReport],
-            mapSummaryPanel: 'overview:responder-awaiting',
+            mapSummaryPanel: 'overview:active',
         }));
 
         fireEvent.click(screen.getByRole('button', { name: 'View details' }));
@@ -432,7 +488,7 @@ describe('DashboardMapWorkspace permissions', () => {
             isAuthenticated: false,
             isReporter: false,
             reports,
-            mapSummaryPanel: 'overview:public-resolved',
+            mapSummaryPanel: 'overview:resolved',
         }));
 
         // The Resolved card opens a panel holding only resolved rows, so the
@@ -462,7 +518,7 @@ describe('DashboardMapWorkspace permissions', () => {
             isAuthenticated: false,
             isReporter: false,
             highRiskZones: [zone],
-            mapSummaryPanel: 'overview:public-risk-zones',
+            mapSummaryPanel: 'overview:risk-zones',
             setMapSummaryPanel,
         }));
 
@@ -572,7 +628,6 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapProps.onRespondToReport).toBe(props.handleMapRespond);
         expect(mapProps.onResolveReport).toBe(props.handleMapResolve);
         expect(mapProps.canResolveReport).toBe(props.canCurrentResponderResolve);
-        expect(mapProps.filterMode).toBe('response');
         expect(mapProps.showPending).toBe(true);
         const filterBar = screen.getByLabelText('Map status filter');
         expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
@@ -591,7 +646,6 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
-            filterMode: 'review',
             canRespond: false,
             canResolve: false,
             showPending: true,
@@ -653,7 +707,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Active response/i);
 
         fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:reporter-active');
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:active');
         // The Active incidents card filters to the pending-excluded active set,
         // unlike the aggregate 'all' view which includes pending.
         expect(setResponderMapFilter).toHaveBeenCalledWith('active');
@@ -673,7 +727,6 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.queryByRole('link', { name: /submit report/i })).not.toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
             viewerRole: 'guest',
-            filterMode: 'public',
             showPending: false,
             showDataState: true,
             canRespond: false,
@@ -831,7 +884,7 @@ describe('DashboardMapWorkspace permissions', () => {
             coordinates: { lat: 12.405, lng: 122.69 },
         };
         const props = createProps({ reports: [report], highRiskZones: [zone] });
-        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'overview:reporter-active' });
+        const { rerender } = renderWorkspace({ ...props, mapSummaryPanel: 'overview:active' });
 
         const incidentControl = screen.getByRole('button', { name: /View 1 active incidents/i });
         const riskZoneControl = screen.getByRole('button', { name: /View 1 risk zones/i });
@@ -842,7 +895,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:reporter-risk-zones" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:risk-zones" />
             </MemoryRouter>,
         );
 
@@ -899,14 +952,13 @@ describe('DashboardMapWorkspace permissions', () => {
             mapSummaryPanel: 'incidents',
         }));
 
-        expect(screen.getByRole('button', { name: /View 1 pending\. Awaiting review/i })).toHaveTextContent('1');
+        expect(screen.getByRole('button', { name: /View 1 pending review\. Awaiting review/i })).toHaveTextContent('1');
         const incidentPanel = screen.getByRole('dialog', { name: 'Active incidents' });
         expect(within(incidentPanel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
         expect(within(incidentPanel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
         expect(within(incidentPanel).queryByText(/Medical.*Responding/i)).not.toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
             filterStatus: 'pending',
-            filterMode: 'review',
         });
     });
 
@@ -966,19 +1018,23 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(filterBar).toBeInTheDocument();
 
         expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
-        // One tab for the verified + transferred pair, named after the operator
-        // situation rather than after two lifecycle values.
-        expect(within(filterBar).getByRole('button', { name: /ready to dispatch/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /active response/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /pending review/i })).toBeInTheDocument();
+        // The operational queues are no longer tabs: the rail reads exactly like
+        // the reporter's, and the dispatch/response split lives inside the panel
+        // that holds those records (see the queue-segment test).
+        expect(within(filterBar).queryByRole('button', { name: /ready to dispatch/i })).not.toBeInTheDocument();
+        expect(within(filterBar).queryByRole('button', { name: /active response/i })).not.toBeInTheDocument();
         expect(within(filterBar).queryByRole('button', { name: /^transferred$/i })).not.toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /resolved/i })).toBeInTheDocument();
-        expect(within(filterBar).getByRole('button', { name: /risk zones/i })).toBeInTheDocument();
+        // The archive and the hazard layer sit in their own labeled group, so
+        // neither can read as a fourth status.
+        expect(within(filterBar).getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /risk zones layer/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('group', { name: /layers and archive/i })).toBeInTheDocument();
 
         fireEvent.click(within(filterBar).getByRole('button', { name: /risk zones/i }));
         expect(setResponderMapFilter).toHaveBeenCalledWith('risk-zones');
 
-        fireEvent.click(within(filterBar).getByRole('button', { name: /resolved/i }));
+        fireEvent.click(within(filterBar).getByRole('button', { name: /Resolved archive/i }));
         expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
 
         expect(mapPropsSpy.mock.lastCall[0].highRiskZones).toEqual(highRiskZones);
@@ -1043,20 +1099,16 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
-        // The card counts verified + transferred only — the same pair the
-        // 'dispatch' tab shows.
-        const dispatchCard = within(summary).getByRole('button', { name: /View 2 ready to dispatch/i });
-        fireEvent.click(dispatchCard);
+        // Active incidents is the card that holds the dispatch pair, and it opens
+        // the same set its tab counts (1 verified + 1 transferred + 1 responding).
+        const activeCard = within(summary).getByRole('button', { name: /View 3 active incidents/i });
+        fireEvent.click(activeCard);
 
-        // It opens its own panel, which lists exactly those two records…
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:admin-dispatchable');
-        // …and it points the map at the tab carrying the same pair. It used to
-        // be the one card whose list and whose map disagreed, which is the only
-        // reason it wore a list icon instead of the chevron every other card
-        // wears.
-        expect(setResponderMapFilter).toHaveBeenCalledWith('dispatch');
-        expect(dispatchCard.querySelector('svg')).not.toBeNull();
-        expect(dispatchCard).toHaveAccessibleName(/View 2 ready to dispatch/i);
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:active');
+        expect(setResponderMapFilter).toHaveBeenCalledWith('active');
+        // The card is no longer the exception: every card wears the chevron,
+        // because every card opens the set it counts.
+        expect(activeCard.querySelector('svg')).not.toBeNull();
     });
 
     test('keeps overview metrics decoupled from active map status filters (e.g. risk-zones filter)', () => {
@@ -1114,7 +1166,10 @@ describe('DashboardMapWorkspace permissions', () => {
 
             const filterBtn = screen.getByRole('button', { name: /^filters$/i });
             expect(filterBtn).toBeInTheDocument();
-            expect(screen.getByText(/Active Incidents · 3/i)).toBeInTheDocument();
+            // The pill names the filter that is actually applied, using the same
+            // rail label the desktop tab carries: 'all' is 'All open' now, for
+            // admin and reporter alike.
+            expect(screen.getByText(/All open · 3/i)).toBeInTheDocument();
         });
 
         test('2. Opens bottom sheet when tapping Filters button and displays operational status rows', () => {
@@ -1135,7 +1190,7 @@ describe('DashboardMapWorkspace permissions', () => {
             const dialog = screen.getByRole('dialog', { name: /Map filters/i });
             expect(dialog).toBeInTheDocument();
             expect(screen.getByText('Control which incidents and hazard layers appear on the map.')).toBeInTheDocument();
-            expect(screen.getByText(/Showing active incidents · 3 incidents/i)).toBeInTheDocument();
+            expect(screen.getByText(/Showing all open · 3 incidents/i)).toBeInTheDocument();
 
             // Distinct operational sections
             expect(screen.getByText(/Incident scope/i)).toBeInTheDocument();
@@ -1143,11 +1198,17 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(screen.getByText(/Map layers/i)).toBeInTheDocument();
 
             const radioGroup = within(dialog).getByRole('radiogroup', { name: /Incident filter options/i });
+        expect(within(radioGroup).getByRole('radio', { name: /all open/i })).toBeInTheDocument();
         expect(within(radioGroup).getByRole('radio', { name: /active incidents/i })).toBeInTheDocument();
-        expect(within(radioGroup).getByRole('radio', { name: /pending/i })).toBeInTheDocument();
-        expect(within(radioGroup).getByRole('radio', { name: /ready to dispatch/i })).toBeInTheDocument();
-        expect(within(radioGroup).getByRole('radio', { name: /active response/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /pending review/i })).toBeInTheDocument();
         expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
+        // The archive is a layer here, exactly as it is on the desktop rail —
+        // not a third status.
+        expect(within(radioGroup).getByRole('radio', { name: /resolved archive/i })).toBeInTheDocument();
+        // The dispatch and in-response queues are segments inside the Active
+        // incidents panel, not sheet options, so they must not reappear here.
+        expect(within(radioGroup).queryByRole('radio', { name: /ready to dispatch/i })).not.toBeInTheDocument();
+        expect(within(radioGroup).queryByRole('radio', { name: /active response/i })).not.toBeInTheDocument();
         });
 
         test('3. Selecting a status and tapping Apply filters updates the active filter', () => {
@@ -1166,7 +1227,7 @@ describe('DashboardMapWorkspace permissions', () => {
             const dialog = screen.getByRole('dialog', { name: /Map filters/i });
 
             fireEvent.click(within(dialog).getByRole('radio', { name: /pending/i }));
-            expect(screen.getByText(/Showing pending · 1 incident/i)).toBeInTheDocument();
+            expect(screen.getByText(/Showing pending review · 1 incident/i)).toBeInTheDocument();
 
             fireEvent.click(within(dialog).getByRole('button', { name: /show 1 incident/i }));
 
@@ -1228,7 +1289,7 @@ describe('DashboardMapWorkspace permissions', () => {
             }));
 
             expect(screen.getByRole('button', { name: /filters, 1 filter applied/i })).toBeInTheDocument();
-            expect(screen.getByText(/Pending · 1/i)).toBeInTheDocument();
+            expect(screen.getByText(/Pending review · 1/i)).toBeInTheDocument();
 
             const quickClearBtns = screen.getAllByRole('button', { name: /clear active filter and show all/i });
             expect(quickClearBtns.length).toBeGreaterThan(0);
@@ -1286,16 +1347,57 @@ describe('DashboardMapWorkspace permissions', () => {
             // instead of Verified / Responding / Transferred — minus the pending
             // tab, which they are never sent data for.
             expect(screen.getByRole('button', { name: /Active Incidents filter/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /Resolved filter/i })).toBeInTheDocument();
+            // The archive is in the labeled layer group, the same place every
+            // signed-in rail puts it.
+            expect(screen.getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Transferred filter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Verified filter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Pending filter/i })).not.toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: /Resolved filter/i }));
+            fireEvent.click(screen.getByRole('button', { name: /Resolved archive/i }));
             expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
         });
 
-        test('2. Reporter user folds Transferred into All open (no separate tab)', () => {
+        test('2. Guest filter sheet files the archive as a layer, not a status', () => {
+            const setResponderMapFilter = vi.fn();
+            const reportsWithArchive = [
+                ...publicReports,
+                { _id: 'rep-x1', status: 'resolved', title: 'Resolved Accident 1', coordinates: { lat: 12.39, lng: 122.55 }, municipalityName: 'Cajidiocan' },
+                { _id: 'rep-x2', status: 'resolved', title: 'Resolved Accident 2', coordinates: { lat: 12.40, lng: 122.56 }, municipalityName: 'Magdiwang' },
+            ];
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+                reports: reportsWithArchive,
+                responderMapFilter: 'all',
+                setResponderMapFilter,
+            }));
+
+            fireEvent.click(screen.getByRole('button', { name: /^filters$/i }));
+            const sheet = screen.getByRole('dialog', { name: /Map filters/i });
+            const radioGroup = within(sheet).getByRole('radiogroup', { name: /Incident filter options/i });
+
+            // The sheet reads each option's own group, so it cannot disagree with
+            // the rail beside it: the archive is a layer in both places. It used
+            // to be hardcoded into the status section, which offered a guest
+            // "Incident status: Resolved archive" and a second Resolved row.
+            expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /resolved archive/i })).toBeInTheDocument();
+            // A guest has no status rows beyond the scope row, because the only
+            // status a guest is missing is the one they are never sent.
+            expect(sheet.querySelectorAll('h3')).toHaveLength(2);
+
+            fireEvent.click(within(radioGroup).getByRole('radio', { name: /resolved archive/i }));
+            expect(screen.getByText(/Showing resolved archive · 2 incidents/i)).toBeInTheDocument();
+
+            fireEvent.click(within(sheet).getByRole('button', { name: /show 2 incidents/i }));
+            expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
+        });
+
+        test('3. Reporter user folds Transferred into All open (no separate tab)', () => {
             const setResponderMapFilter = vi.fn();
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
@@ -1325,7 +1427,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(setResponderMapFilter).toHaveBeenCalledWith('pending');
         });
 
-        test('3. Passes transferred filterStatus to MapView and filters reports correctly', () => {
+        test('4. Passes the active filter through to MapView without narrowing the report set', () => {
             renderWorkspace(createProps({
                 user: null,
                 isAuthenticated: false,
@@ -1338,11 +1440,13 @@ describe('DashboardMapWorkspace permissions', () => {
 
             const mapProps = mapPropsSpy.mock.lastCall[0];
             expect(mapProps.filterStatus).toBe('transferred');
-            expect(mapProps.filterMode).toBe('public');
+            // One map for every viewer: there is no longer a per-role marker
+            // policy for the workspace to hand down.
+            expect(mapProps.filterMode).toBeUndefined();
             expect(mapProps.reports).toEqual(publicReports);
         });
 
-        test('3b. Hands MapView the role\'s own opening camera', () => {
+        test('4b. Hands MapView the role\'s own opening camera', () => {
             // Guest: the public safety map opens on the whole island.
             renderWorkspace(createProps({
                 user: null,
@@ -1359,7 +1463,7 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(mapPropsSpy.mock.lastCall[0].frameReportsOnOpen).toBe(true);
         });
 
-        test('4. Reporter desktop strip shows only status tabs plus separate layer/archive controls', () => {
+        test('5. Reporter desktop strip shows only status tabs plus separate layer/archive controls', () => {
             const setResponderMapFilter = vi.fn();
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
@@ -1455,7 +1559,7 @@ describe('DashboardMapWorkspace permissions', () => {
                 isResponder: false,
                 isAdmin: false,
                 highRiskZones: [longZone],
-                mapSummaryPanel: 'overview:public-risk-zones',
+                mapSummaryPanel: 'overview:risk-zones',
             }));
 
             const panel = screen.getByRole('dialog', { name: /Active Risk Zones/i });

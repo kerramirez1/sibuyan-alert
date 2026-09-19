@@ -84,7 +84,6 @@ export const getFilteredMapReports = (reports = [], {
     includePending = false,
     category = null,
     statusFilter = null,
-    _filterMode = 'public',
 } = {}) => {
     if (!Array.isArray(reports)) return [];
     const visibleReports = getVisibleMapReports(reports, { includePending });

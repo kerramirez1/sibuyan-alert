@@ -483,7 +483,6 @@ const DashboardAnalyticsWorkspace = ({
             return getFilteredMapReports(safeReports, {
                 includePending: true,
                 statusFilter: filterValue,
-                filterMode: 'review',
             }).length;
         } catch {
             return 0;
@@ -833,7 +832,6 @@ const DashboardAnalyticsWorkspace = ({
                         reports={mapDayReports}
                         highRiskZones={safeZones}
                         showPending
-                        filterMode="review"
                         filterStatus={mapStatusFilter}
                         viewerRole={user?.role || 'guest'}
                         showDataState

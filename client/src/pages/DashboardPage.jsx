@@ -15,7 +15,6 @@ import {
     updateDashboardReportStatus,
     upsertDashboardReport,
 } from '../utils/dashboardReports';
-import { getMapCoordinates } from '../utils/mapReports';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
@@ -332,13 +331,6 @@ const DashboardPage = () => {
         return hasResponders || !!report.respondedBy;
     }, []);
 
-    const isAwaitingResponder = useCallback((report) => {
-        if (!report) return false;
-        if (report.status === 'transferred') return true;
-        const awaitingStatuses = ['pending', 'verified'];
-        return awaitingStatuses.includes(report.status) && !isReportAssigned(report);
-    }, [isReportAssigned]);
-
     const canCurrentResponderResolve = useCallback((report) => {
         if (!isResponder || !user) return false;
         const currentUserId = (user._id || user.id)?.toString();
@@ -350,20 +342,6 @@ const DashboardPage = () => {
             return responderId?.toString() === currentUserId;
         }));
     }, [isResponder, user]);
-
-    const hasMapCoordinates = useCallback((report) => {
-        return Boolean(getMapCoordinates(report));
-    }, []);
-
-    const responderPendingReports = useMemo(
-        () => dashboardReports.filter(Boolean).filter((r) => isAwaitingResponder(r) && hasMapCoordinates(r)),
-        [dashboardReports, isAwaitingResponder, hasMapCoordinates]
-    );
-
-    const responderRespondingReports = useMemo(
-        () => dashboardReports.filter(Boolean).filter((r) => r?.status === 'responding' || (r?.status === 'pending' && isReportAssigned(r))),
-        [dashboardReports, isReportAssigned]
-    );
 
     const computedResolvedTodayReports = useMemo(() => {
         return getResolvedTodayReports(dashboardReports, {
@@ -938,8 +916,6 @@ const DashboardPage = () => {
                         loading={loading}
                         error={dashboardError}
                         reports={dashboardReports}
-                        pendingReports={responderPendingReports}
-                        respondingReports={responderRespondingReports}
                         resolvedTodayReports={computedResolvedTodayReports}
                         highRiskZones={highRiskZones}
                         highRiskZonesLoading={highRiskZonesLoading}

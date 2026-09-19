@@ -60,8 +60,13 @@ export const MAP_STATUS_CONFIG = Object.freeze({
  * shape and motion do: verified and transferred stay teardrop pins, and the one
  * incident somebody is already handling is a dot inside a travelling ring. That
  * split is visible in a screenshot and under `prefers-reduced-motion`, which a
- * colour-only difference would not be. Operational roles keep per-status colors
- * for their pins; only the responding dot is drawn the same way on every map.
+ * colour-only difference would not be. There is no per-role palette to fall back
+ * to: every rail draws one incident the same way, and the operational chrome
+ * (badges, tab swatches, list rows) still names the exact status by colour.
+ *
+ * `MAP_STATUS_CONFIG.verified.markerColor` is therefore the same blue this entry
+ * declares, and the transferred violet is no longer drawn on the canvas at all —
+ * both are kept in `MAP_STATUS_CONFIG` because the chrome still uses them.
  */
 export const ACTIVE_INCIDENT_STATUS_KEY = 'active';
 
@@ -128,12 +133,27 @@ export const ACTIVE_MAP_STATUS_KEYS = Object.freeze([
     'resolved',
 ]);
 
-export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null, filterMode = 'public' } = {}) => {
+export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = null } = {}) => {
     if (filterStatus === 'risk-zones') {
         return [];
     }
 
-    if (filterStatus && filterStatus !== 'all') {
+    // Every rail renders the same tab set now (see mapExperience), so the legend
+    // answers one question — what does this tab draw? — instead of first asking
+    // which role is looking.
+    if (!filterStatus || filterStatus === 'all') {
+        // 'All open' includes pending whenever the viewer receives pending rows,
+        // so its legend names the pending pin too. Without this the tab drew an
+        // amber pin the legend never mentioned, which reads as an unexplained
+        // mark rather than as an unverified incident.
+        return [
+            ...(showPending ? ['pending'] : []),
+            ACTIVE_INCIDENT_STATUS_KEY,
+            RESPONDING_INCIDENT_STATUS_KEY,
+        ];
+    }
+
+    if (filterStatus) {
         if (filterStatus === 'pending') {
             return showPending ? ['pending'] : [];
         }
@@ -161,20 +181,10 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         }
     }
 
-    if (filterMode === 'public') {
-        // Two entries, because the public map draws two things: the unified
-        // active pin, and the responding dot that is a different shape. Without
-        // the second one the pulse has no explanation, and an unexplained
-        // animation is noise.
-        return [ACTIVE_INCIDENT_STATUS_KEY, RESPONDING_INCIDENT_STATUS_KEY];
-    }
-
-    // Operational rails name the lifecycle state behind each marker, except the
-    // one marker that is not a lifecycle silhouette: responding is the dot here
-    // too, so the legend says so.
-    return ACTIVE_MAP_STATUS_KEYS
-        .filter((status) => (showPending || status !== 'pending') && status !== 'resolved')
-        .map((status) => (status === 'responding' ? RESPONDING_INCIDENT_STATUS_KEY : status));
+    // Two entries, because the map draws two things: the unified active pin, and
+    // the responding dot that is a different shape. Without the second one the
+    // pulse has no explanation, and an unexplained animation is noise.
+    return [ACTIVE_INCIDENT_STATUS_KEY, RESPONDING_INCIDENT_STATUS_KEY];
 };
 
 /**

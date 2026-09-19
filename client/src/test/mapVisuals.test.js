@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-    ACTIVE_MAP_STATUS_KEYS,
+    ACTIVE_INCIDENT_STATUS_KEY,
     getMapFilterStatusDot,
     getMapLegendStatusKeys,
     MAP_ACTIVE_INCIDENT_CONFIG,
@@ -43,23 +43,32 @@ describe('map status visuals', () => {
     });
 
     test('explains the responding dot on every legend that can show one', () => {
-        // The map draws two distinct things on every rail now, so every legend
-        // owes two entries: the active pin, and the dot that stands for the one
-        // incident somebody is already handling. An animation with no legend
-        // entry is decoration.
-        for (const filterStatus of [null, 'all', 'active', 'incidents']) {
-            expect(getMapLegendStatusKeys({ filterStatus, filterMode: 'public' }))
+        // One rail for every role (see mapExperience) means one answer: whichever
+        // tab is open, a legend that can show the responding marker names the dot
+        // that is actually drawn. An animation with no legend entry is
+        // decoration.
+        for (const filterStatus of [null, 'all', 'active', 'incidents', 'responding']) {
+            expect(getMapLegendStatusKeys({ filterStatus, showPending: true }))
                 .toContain(RESPONDING_INCIDENT_STATUS_KEY);
         }
-        // The operational rails draw the same dot — the marker is not a public
-        // map feature — so their legends name it too.
-        for (const filterMode of ['response', 'review']) {
-            expect(getMapLegendStatusKeys({ filterMode, showPending: true }))
-                .toContain(RESPONDING_INCIDENT_STATUS_KEY);
-        }
-        // And the responding tab, wherever it exists, is the dot.
-        expect(getMapLegendStatusKeys({ filterStatus: 'responding', filterMode: 'response' }))
+        expect(getMapLegendStatusKeys({ filterStatus: 'responding' }))
             .toEqual([RESPONDING_INCIDENT_STATUS_KEY]);
+
+        // 'All open' includes pending whenever the viewer is sent those rows, so
+        // its legend names the amber pin instead of leaving the one marker the
+        // tab draws unexplained.
+        expect(getMapLegendStatusKeys({ showPending: true }))
+            .toEqual(['pending', ACTIVE_INCIDENT_STATUS_KEY, RESPONDING_INCIDENT_STATUS_KEY]);
+        expect(getMapLegendStatusKeys({})).toEqual([
+            ACTIVE_INCIDENT_STATUS_KEY,
+            RESPONDING_INCIDENT_STATUS_KEY,
+        ]);
+
+        // The pending tab is the permission boundary: a viewer who is never sent
+        // pending rows gets an empty legend rather than an entry it cannot
+        // explain.
+        expect(getMapLegendStatusKeys({ filterStatus: 'pending', showPending: false })).toEqual([]);
+        expect(getMapLegendStatusKeys({ filterStatus: 'pending', showPending: true })).toEqual(['pending']);
     });
 
     test('presents the responding dot in the one blue the public map already uses', () => {
@@ -83,15 +92,13 @@ describe('map status visuals', () => {
             .toEqual(['verified', 'transferred']);
     });
 
-    test('keeps the operational legend scoped to active, non-resolved statuses', () => {
-        const operational = getMapLegendStatusKeys({ filterMode: 'response', showPending: true });
+    test('keeps the default legend scoped to the open set', () => {
+        // The archive tab carries the resolved pin, and rejected reports are not
+        // drawn at all, so neither belongs in the legend for the open set.
+        const legend = getMapLegendStatusKeys({ showPending: true });
 
-        // Same five statuses as before, with responding expressed as the marker
-        // that is actually drawn for it.
-        const expected = ACTIVE_MAP_STATUS_KEYS
-            .filter((status) => status !== 'resolved')
-            .map((status) => (status === 'responding' ? RESPONDING_INCIDENT_STATUS_KEY : status));
-        expect(operational).toEqual(expected);
-        expect(operational).not.toContain('resolved');
+        expect(legend).toContain(ACTIVE_INCIDENT_STATUS_KEY);
+        expect(legend).not.toContain('resolved');
+        expect(legend).not.toContain('rejected');
     });
 });

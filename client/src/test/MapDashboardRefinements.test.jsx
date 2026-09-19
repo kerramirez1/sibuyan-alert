@@ -363,7 +363,9 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(within(tablist).queryByRole('button', { name: /Verified filter/i })).not.toBeInTheDocument();
             expect(within(tablist).queryByRole('button', { name: /Pending filter/i })).not.toBeInTheDocument();
 
-            const resolvedFilterBtn = within(tablist).getByRole('button', { name: /Resolved filter/i });
+            // The archive is not a status: it sits in the labeled layer group the
+            // signed-in rail also uses, so a guest learns one rail, not two.
+            const resolvedFilterBtn = within(tablist).getByRole('button', { name: /Resolved archive/i });
             expect(resolvedFilterBtn).toBeInTheDocument();
 
             fireEvent.click(resolvedFilterBtn);
@@ -420,10 +422,10 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(activeIncidentsBtn).toHaveAttribute('aria-pressed', 'false');
 
             fireEvent.click(activeIncidentsBtn);
-            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-active');
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:active');
 
             fireEvent.click(riskZonesBtn);
-            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:public-risk-zones');
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:risk-zones');
 
             // Rerender with active panel to verify visual and accessibility selected state
             rerender(
@@ -431,7 +433,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                     <DashboardMapWorkspace
                         {...workspaceProps}
                         setMapSummaryPanel={setMapSummaryPanel}
-                        mapSummaryPanel="overview:public-active"
+                        mapSummaryPanel="overview:active"
                     />
                 </MemoryRouter>
             );

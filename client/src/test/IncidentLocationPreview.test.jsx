@@ -49,7 +49,6 @@ describe('IncidentLocationPreview', () => {
                 disableScrollZoom: false,
                 enable3D: false,
                 focusLocation: { lat: 12.4044, lng: 122.6897, zoom: 16 },
-                filterMode: 'review',
             })
         );
     });

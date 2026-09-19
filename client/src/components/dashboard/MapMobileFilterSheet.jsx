@@ -17,10 +17,25 @@ const FOCUSABLE_SELECTOR = [
 
 // Dots double as map-legend swatches: each option shares its marker color.
 const getStatusDotClass = (filterValue) => {
-    if (filterValue === 'risk-zones') return 'bg-red-500';
-    if (filterValue === 'all') return 'bg-emerald-500';
+    if (filterValue === 'all') return 'bg-brand-500';
     if (filterValue === 'active') return 'bg-blue-500';
+    if (filterValue === 'resolved') return 'bg-green-600';
     return MAP_STATUS_CONFIG[filterValue]?.dot || 'bg-gray-400';
+};
+
+// Layer options arrive with the same `group` label the desktop rail reads, so
+// the sheet cannot classify them by hand and drift from it. Each one supplies
+// the line under its name, because a layer's meaning is not obvious from a
+// count: a hazard zone and an archived incident are not the same kind of thing.
+const LAYER_PRESENTATION = {
+    'risk-zones': {
+        dot: 'bg-red-500',
+        description: 'High-risk hazards and monitored risk zones',
+    },
+    resolved: {
+        dot: 'bg-green-600',
+        description: 'Closed incidents kept for the record',
+    },
 };
 
 const MapMobileFilterSheet = ({
@@ -112,18 +127,24 @@ const MapMobileFilterSheet = ({
         onClose();
     };
 
-    // Classify filter options into 3 distinct operational sections
-    const scopeOption = filters.find((f) => f.value === 'all');
-    const layerOption = filters.find((f) => f.value === 'risk-zones');
-    const statusOptions = filters.filter((f) => f.value !== 'all' && f.value !== 'risk-zones');
+    // Classify filter options into the same 3 sections the desktop rail draws,
+    // reading each option's own `group` instead of a hardcoded list of values.
+    // The hand-written version classified the second layers option (the resolved
+    // archive) as a status, so a guest was offered "Incident status: Resolved
+    // archive" while the desktop rail filed the same control under "Layers &
+    // archive".
+    const scopeOption = filters.find((f) => f.group === 'status' && f.value === 'all');
+    const layerOptions = filters.filter((f) => f.group === 'layers');
+    const statusOptions = filters.filter((f) => f.group === 'status' && f.value !== 'all');
 
     // Compute live summary string
     const activeFilterObj = filters.find((f) => f.value === pendingFilter);
-    const activeLabel = activeFilterObj ? activeFilterObj.label : 'Active incidents';
+    const activeLabel = activeFilterObj ? activeFilterObj.label : 'All open';
     const activeCount = getFilterCount(pendingFilter);
-    const summaryText = pendingFilter === 'risk-zones'
-        ? `Showing risk zones · ${activeCount} ${activeCount === 1 ? 'mapped zone' : 'mapped zones'}`
-        : `Showing ${activeLabel.toLowerCase()} · ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
+    const countNoun = pendingFilter === 'risk-zones'
+        ? (activeCount === 1 ? 'mapped zone' : 'mapped zones')
+        : (activeCount === 1 ? 'incident' : 'incidents');
+    const summaryText = `Showing ${activeLabel.toLowerCase()} · ${activeCount} ${countNoun}`;
 
     // Compute Apply button label
     const applyLabel = pendingFilter === 'risk-zones'
@@ -207,10 +228,13 @@ const MapMobileFilterSheet = ({
                                         <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true" />
                                         <div>
                                             <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
-                                                {scopeOption?.label || 'Active Incidents'}
+                                                {scopeOption?.label || 'All open'}
                                             </span>
+                                            {/* Guests carry a shorter rail, so their
+                                                one scope row is the active set
+                                                itself and says so. */}
                                             <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
-                                                {scopeOption?.label === 'All open'
+                                                {scopeOption?.value === 'all' && statusOptions.length > 0
                                                     ? 'Pending + being handled'
                                                     : 'Verified, responding, and active emergency operations'}
                                             </span>
@@ -278,49 +302,58 @@ const MapMobileFilterSheet = ({
                     )}
 
                     {/* 3. Map Layers Section */}
-                    {layerOption && (() => {
-                        const isSelected = pendingFilter === 'risk-zones';
-                        const count = getFilterCount('risk-zones');
-                        return (
-                            <div>
-                                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
-                                    Map layers
-                                </h3>
-                                <button
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={isSelected}
-                                    aria-label="Risk zones"
-                                    onClick={() => setPendingFilter('risk-zones')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
-                                            ? 'text-brand-800 dark:text-sky-300'
-                                            : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
-                                        <div>
-                                            <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
-                                                Risk zones
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
-                                                High-risk hazards and monitored risk zones
-                                            </span>
-                                        </div>
-                                    </div>
+                    {layerOptions.length > 0 && (
+                        <div>
+                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-4 pt-4 pb-2">
+                                Map layers
+                            </h3>
+                            <div className="divide-y divide-gray-100 dark:divide-white/5">
+                                {layerOptions.map((filter) => {
+                                    const isSelected = pendingFilter === filter.value;
+                                    const count = getFilterCount(filter.value);
+                                    const presentation = LAYER_PRESENTATION[filter.value] || {};
 
-                                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                                        <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                            {count}
-                                        </span>
-                                        {isSelected && (
-                                            <HiCheck className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
-                                        )}
-                                    </div>
-                                </button>
+                                    return (
+                                        <button
+                                            key={filter.value}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={isSelected}
+                                            aria-label={filter.label}
+                                            onClick={() => setPendingFilter(filter.value)}
+                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
+                                                    ? 'text-brand-800 dark:text-sky-300'
+                                                    : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dot || 'bg-gray-400'}`} aria-hidden="true" />
+                                                <div>
+                                                    <span className={`text-sm block ${isSelected ? 'font-semibold' : 'font-normal'}`}>
+                                                        {filter.label}
+                                                    </span>
+                                                    {presentation.description && (
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 block leading-tight">
+                                                            {presentation.description}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                                                <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                                    {count}
+                                                </span>
+                                                {isSelected && (
+                                                    <HiCheck className="h-4 w-4 text-brand-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        );
-                    })()}
+                        </div>
+                    )}
                 </div>
 
                 {/* Sticky Action Bar */}

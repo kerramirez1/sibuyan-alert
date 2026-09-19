@@ -69,7 +69,7 @@ const GroupedMarkerSymbol = () => (
     </span>
 );
 
-const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, showRiskZone = true, filterMode = 'public' }) => {
+const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, showRiskZone = true }) => {
     if (!showRiskZone && statusKeys.length === 0 && !hasGroupedReports) {
         return null;
     }
@@ -88,19 +88,14 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
             )}
             {statusKeys.map((status) => {
                 if (status === RESPONDING_INCIDENT_STATUS_KEY) {
-                    // The symbol follows the marker on every rail; the name
-                    // follows the rail's vocabulary. The public map folds this
-                    // state into one active entry, so there the entry names the
-                    // shape it draws; the operational rail has a tab and a card
-                    // called "Active response", so its legend keeps that name and
-                    // lets the pulsing dot explain the shape.
-                    const respondingLabel = filterMode === 'public'
-                        ? MAP_RESPONDING_INCIDENT_CONFIG.label
-                        : MAP_STATUS_CONFIG.responding.label;
+                    // The entry names the marker: every rail folds verified,
+                    // transferred and responding into one active set and draws
+                    // this one as a dot, so "Being responded to" is what the
+                    // viewer is looking at on any map (see mapExperience).
                     return (
                         <div key={status} className={itemClass}>
                             <RespondingDotSymbol />
-                            <span className="break-words leading-tight">{respondingLabel}</span>
+                            <span className="break-words leading-tight">{MAP_RESPONDING_INCIDENT_CONFIG.label}</span>
                         </div>
                     );
                 }
@@ -127,7 +122,6 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
 const MapLegend = ({
     showPending = false,
     filterStatus = null,
-    filterMode = 'public',
     hasGroupedReports = false,
     showIncidentStatus = true,
     showRiskZone = true,
@@ -143,7 +137,7 @@ const MapLegend = ({
     // explicit hazard toggle is on.
     const isRiskZoneVisible = showRiskZone && isRiskZoneLayerVisibleForFilter(filterStatus);
     const statusKeys = showIncidentStatus
-        ? getMapLegendStatusKeys({ showPending, filterStatus, filterMode })
+        ? getMapLegendStatusKeys({ showPending, filterStatus })
         : [];
 
     useEffect(() => {
@@ -168,7 +162,7 @@ const MapLegend = ({
 
     useEffect(() => {
         setMobileOpen(false);
-    }, [filterMode, filterStatus, showPending]);
+    }, [filterStatus, showPending]);
 
     if (!isRiskZoneVisible && statusKeys.length === 0 && !hasGroupedReports) {
         return null;
@@ -194,7 +188,7 @@ const MapLegend = ({
                         className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden w-fit max-w-[calc(100%-2rem)] rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
                     >
                         <div className="flex items-center gap-2">
-                            <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} filterMode={filterMode} />
+                            <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
                             <button
                                 type="button"
                                 onClick={() => setDesktopCollapsed(true)}
@@ -229,7 +223,7 @@ const MapLegend = ({
                         aria-label="Map legend details"
                         className="absolute left-0 top-10 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
                     >
-                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} filterMode={filterMode} compact />
+                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
                     </section>
                 )}
             </div>

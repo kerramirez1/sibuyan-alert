@@ -61,7 +61,6 @@ const IncidentDetailsLocationSection = ({
                             <MapView
                                 reports={[report]}
                                 showPending
-                                filterMode={userRole === 'municipal_admin' ? 'review' : 'response'}
                                 filterStatus={report?.status || null}
                                 viewerRole={userRole}
                                 focusLocation={{ ...coordinates, zoom: 16 }}

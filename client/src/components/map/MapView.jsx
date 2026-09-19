@@ -42,7 +42,7 @@ import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
 import {
     isRiskZoneLayerVisibleForFilter,
-    MAP_RESPONDING_INCIDENT_CONFIG,
+    MAP_ACTIVE_INCIDENT_CONFIG,
     MAP_RISK_ZONE_CONFIG,
     MAP_STATUS_CONFIG,
 } from '../../config/mapVisuals';
@@ -103,7 +103,6 @@ const MapView = ({
     className = '',
     filterCategory = null,
     filterStatus = null,
-    filterMode = 'public',
     focusLocation = null,
     enable3D = true,
     gpsAccuracy = null,
@@ -197,7 +196,6 @@ const MapView = ({
             includePending: showPending,
             category: filterCategory,
             statusFilter: filterStatus,
-            filterMode,
         });
 
         const locatedEntity = effectiveLocateRequest?.type === 'incident' ? effectiveLocateRequest.entity : null;
@@ -210,7 +208,7 @@ const MapView = ({
         }
 
         return baseFiltered;
-    }, [effectiveLocateRequest, filterCategory, filterMode, filterStatus, mode, reports, showPending]);
+    }, [effectiveLocateRequest, filterCategory, filterStatus, mode, reports, showPending]);
     // Whether this map's subject is the hazard layer rather than the incident
     // list. The dashboard says so by selecting its Risk Zones tab; the dedicated
     // zones page says so with `mode` and has no tabs at all, which is why the
@@ -854,27 +852,19 @@ const MapView = ({
 
         const map = mapInstanceRef.current;
 
-        // One incident, one marker, on every rail. A responding incident is a
-        // pulsing dot rather than a teardrop pin for everybody now: it used to be
-        // public-only, so the same incident was a dot to a reporter and a cyan pin
-        // to the admin, and an operator who checked the public map met a shape
-        // their own screen had never shown them.
-        const isPublicMap = filterMode === 'public';
-
+        // One incident, one marker, on every rail: the palette is not a role
+        // feature. Verified, transferred and responding share one blue because
+        // every rail now folds those three into a single "Active incidents" tab
+        // (see mapExperience) — three hues inside one tab would be three answers
+        // to a question the tab no longer asks. The responding one is separated
+        // by shape and motion instead of colour.
         const getReportMarkerColor = (report) => {
-            // Public map (reporter/guest): verified, transferred, and
-            // responding share one blue "active" marker, so colour cannot
-            // separate them there — shape and motion do instead (see
-            // `respondingDot` below). Operational roles keep per-status colors
-            // for dispatch triage, which is why only the responding branch below
-            // is universal.
-            if (isPublicMap && ['verified', 'transferred', 'responding'].includes(report.status)) {
-                return MAP_STATUS_CONFIG.verified.markerColor;
+            // `MAP_ACTIVE_INCIDENT_CONFIG` owns "the active blue", and it is the
+            // same blue the responding dot wears, which is what makes the dot
+            // read as one of the active pins rather than as a fourth status.
+            if (['verified', 'transferred', 'responding'].includes(report.status)) {
+                return MAP_ACTIVE_INCIDENT_CONFIG.markerColor;
             }
-            // The dot wears the dot's blue wherever it is drawn — the same blue
-            // it already has on the public map. Leaving operational maps on the
-            // cyan pin colour would have kept two speaking parts for one state.
-            if (report.status === 'responding') return MAP_RESPONDING_INCIDENT_CONFIG.markerColor;
             if (MAP_STATUS_CONFIG[report.status]) return MAP_STATUS_CONFIG[report.status].markerColor;
             return INCIDENT_COLORS[report.incidentCategory] || MAP_STATUS_CONFIG.verified.markerColor;
         };
@@ -1008,7 +998,7 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, filterMode, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
 
     // Fresh-event pulse: toggle the temporary ring on markers touched by the
     // latest socket events. Runs after the marker sync above (same deps plus

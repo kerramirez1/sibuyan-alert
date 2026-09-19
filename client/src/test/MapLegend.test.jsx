@@ -46,14 +46,16 @@ describe('MapLegend', () => {
         expect(container.querySelectorAll('.pulse-marker')).toHaveLength(1);
     });
 
-    test('keeps the operational legend on the lifecycle name, drawn as the dot', () => {
-        const { container } = render(<MapLegend filterMode="response" showPending />);
+    test('draws the same legend for an operator as for a reporter', () => {
+        const { container } = render(<MapLegend showPending />);
 
-        // The marker is the dot on every rail now, so this legend shows the dot
-        // too — but the name stays the one the tab and the card use: an operator
-        // should not have to learn a second word for the state they dispatch.
-        expect(screen.getByText('Active response')).toBeInTheDocument();
-        expect(screen.queryByText('Being responded to')).not.toBeInTheDocument();
+        // One rail for every role, so one legend: the pending pin, the unified
+        // active pin, and the responding dot. Nothing here asks who is signed in —
+        // the legend describes the map, and the map is the same map.
+        expect(screen.getByText('Pending')).toBeInTheDocument();
+        expect(screen.getByText('Active incident')).toBeInTheDocument();
+        expect(screen.getByText('Being responded to')).toBeInTheDocument();
+        expect(screen.queryByText('Active response')).not.toBeInTheDocument();
         expect(container.querySelectorAll('.pulse-marker')).toHaveLength(1);
     });
 
@@ -69,7 +71,7 @@ describe('MapLegend', () => {
     });
 
     test('does not show pending status in public mode even if pending filter is given without showPending', () => {
-        render(<MapLegend filterStatus="pending" filterMode="public" />);
+        render(<MapLegend filterStatus="pending" />);
 
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
@@ -85,16 +87,17 @@ describe('MapLegend', () => {
         expect(screen.queryByText('Active response')).not.toBeInTheDocument();
     });
 
-    test('shows only the responding status for the responding filter and hides the hazard indicator', () => {
-        render(<MapLegend filterStatus="responding" filterMode="response" />);
+    test('shows only the responding marker for the responding filter and hides the hazard indicator', () => {
+        render(<MapLegend filterStatus="responding" showPending />);
 
-        // 'Active response' is the one name for this lifecycle state across the
-        // tab, the card, the status badge, and this legend entry — and the symbol
-        // beside it is the pulsing dot the map now draws for it. The retired
-        // 'Responding' label must not come back on one surface only.
-        expect(screen.getByText('Active response')).toBeInTheDocument();
+        // The entry names what is drawn: every rail folds verified, transferred
+        // and responding into one active set and draws this one as a pulsing dot,
+        // so "Being responded to" is what the viewer is looking at on any map.
+        // The retired 'Responding' label must not come back on one surface only.
+        expect(screen.getByText('Being responded to')).toBeInTheDocument();
         expect(document.querySelector('.pulse-marker')).not.toBeNull();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
+        expect(screen.queryByText('Active response')).not.toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();
         expect(screen.queryByText('Transferred')).not.toBeInTheDocument();

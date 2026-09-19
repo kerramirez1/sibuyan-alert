@@ -93,13 +93,11 @@ describe('map report visibility', () => {
 
         // Public All Active
         expect(getFilteredMapReports(reports, {
-            filterMode: 'public',
         }).map((r) => r._id)).toEqual(['verified', 'transferred', 'responding']);
 
         // Operational All Active
         expect(getFilteredMapReports(reports, {
             includePending: true,
-            filterMode: 'response',
         }).map((r) => r._id)).toEqual(['pending', 'verified', 'transferred', 'responding']);
 
         // 'incidents' selects the same active report set as 'all'; the hazard

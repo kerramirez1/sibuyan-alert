@@ -42,43 +42,49 @@ describe('shared role-aware map experience', () => {
         }
     });
 
-    test('uses role-aware filter lists with shared status values', () => {
+    test('gives every signed-in role the identical rail', () => {
         const responder = getMapExperience({ role: 'responder', municipality: 'Cajidiocan' });
         const admin = getMapExperience({ role: 'municipal_admin', municipality: 'Cajidiocan' });
-        const guest = getMapExperience({ role: 'guest' });
         const reporter = getMapExperience({ role: 'reporter' });
 
-        // Operational roles fold verified + transferred into one 'dispatch' tab.
-        // Both are separate lifecycle values that describe one situation the
-        // operator acts on — "verified and waiting for a responder" — so they get
-        // one tab with one name, and the count matches the admin's dispatch card.
-        expect(responder.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'dispatch', 'responding', 'resolved', 'risk-zones']);
-        expect(admin.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'dispatch', 'responding', 'resolved', 'risk-zones']);
-        expect(responder.filters.find(({ value }) => value === 'dispatch')?.label).toBe('Ready to dispatch');
-        expect(admin.filters.find(({ value }) => value === 'dispatch')?.label).toBe('Ready to dispatch');
-        // One lifecycle state, one name: the tab label comes from the same
-        // vocabulary as the card and the legend entry.
-        expect(responder.filters.find(({ value }) => value === 'responding')?.label).toBe('Active response');
-        expect(admin.filters.find(({ value }) => value === 'responding')?.label).toBe('Active response');
-        // Guest mirrors the reporter's folded shape minus pending. There is no
-        // separate 'active' tab because for a guest `all` and `active` resolve to
-        // the same set — pending is the only difference between them, and guests
-        // are never sent pending rows. That is why `all` keeps the "Active
-        // Incidents" label rather than the reporter's "All open".
-        expect(guest.filters.map(({ value }) => value)).toEqual(['all', 'resolved', 'risk-zones']);
-        expect(guest.filters.find(({ value }) => value === 'all')?.label).toBe('Active Incidents');
-        // The pending tab is the RBAC boundary: it is the one thing a guest must
-        // never be given, because the data behind it never reaches them.
-        expect(guest.filters.map(({ value }) => value)).not.toContain('pending');
-        // Reporter folds operational jargon (verified/transferred/responding)
-        // into a single "Active incidents" tab so counts reconcile with no
-        // hidden remainder: All open = Pending review + Active incidents.
-        expect(reporter.filters.map(({ value }) => value)).toEqual(['all', 'pending', 'active', 'resolved', 'risk-zones']);
-        expect(reporter.filters.find(({ value }) => value === 'all')?.label).toBe('All open');
+        const signedInRail = [
+            ['all', 'All open', 'status'],
+            ['pending', 'Pending review', 'status'],
+            ['active', 'Active incidents', 'status'],
+            ['risk-zones', 'Risk zones', 'layers'],
+            ['resolved', 'Resolved archive', 'layers'],
+        ];
 
-        expect(responder.filterMode).toBe('response');
-        expect(admin.filterMode).toBe('review');
-        expect(guest.filterMode).toBe('public');
-        expect(reporter.filterMode).toBe('public');
+        // One rail, three roles, byte-identical: the same tabs in the same order
+        // with the same names. The role used to pick between two lists, which is
+        // what made the same incident arrive as a different product per account.
+        for (const experience of [responder, admin, reporter]) {
+            expect(experience.filters.map(({ value, label, group }) => [value, label, group]))
+                .toEqual(signedInRail);
+        }
+
+        // And the rail is not where a capability lives: the verbs are separate
+        // fields, so a shared tab set cannot widen anybody's permissions.
+        expect(responder.canRespond).toBe(true);
+        expect(responder.canDispatch).toBe(true);
+        expect(admin.canVerify).toBe(true);
+        expect(admin.canRespond).toBe(false);
+        expect(reporter.canRespond).toBe(false);
+        expect(reporter.canVerify).toBe(false);
+        expect(reporter.canDispatch).toBe(false);
+
+        // The guest rail is the same shape minus the one tab whose data never
+        // reaches an anonymous viewer, and there is no separate 'active' tab
+        // because for a guest `all` and `active` resolve to the same set —
+        // pending is the only difference between them, and a guest is never sent
+        // pending rows. That is why `all` keeps that label here.
+        const guest = getMapExperience({ role: 'guest' });
+        expect(guest.filters.map(({ value, label, group }) => [value, label, group])).toEqual([
+            ['all', 'Active Incidents', 'status'],
+            ['risk-zones', 'Risk zones', 'layers'],
+            ['resolved', 'Resolved archive', 'layers'],
+        ]);
+        expect(guest.filters.map(({ value }) => value)).not.toContain('pending');
+        expect(guest.showPendingReports).toBe(false);
     });
 });

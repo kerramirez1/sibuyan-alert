@@ -11,7 +11,6 @@ import {
     HiOutlineClock,
     HiOutlineFilter,
     HiOutlineLightningBolt,
-    HiOutlineTruck,
     HiOutlineX,
 } from 'react-icons/hi';
 import { Link } from '../../router';
@@ -307,8 +306,6 @@ const DashboardMapWorkspace = ({
     loading,
     error,
     reports = [],
-    pendingReports = [],
-    respondingReports = [],
     resolvedTodayReports = [],
     highRiskZones = [],
     highRiskZonesLoading = false,
@@ -339,6 +336,10 @@ const DashboardMapWorkspace = ({
     const mapScrollCleanupRef = useRef(null);
     const mobileFilterTriggerRef = useRef(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    // Which operational queue the Active incidents panel is narrowed to. Only
+    // the roles that dispatch read it (see `activeQueueSegments`); for everyone
+    // else it stays 'all' and the panel shows the card's whole set.
+    const [activeQueueSegment, setActiveQueueSegment] = useState('all');
     const [selectedActiveIncidentId, setSelectedActiveIncidentId] = useState('');
     const [selectedActiveRiskZoneId, setSelectedActiveRiskZoneId] = useState('');
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
@@ -403,14 +404,14 @@ const DashboardMapWorkspace = ({
     const displayedMapReports = getFilteredMapReports(reports, {
         includePending: mapExperience.showPendingReports,
         statusFilter: mapExperience.filters.length > 0 ? responderMapFilter : null,
-        filterMode: mapExperience.filterMode,
     });
     const allMappedReports = getVisibleMapReports(reports, { includePending: true });
-    const adminPendingReports = allMappedReports.filter((report) => report.status === 'pending');
-    // Reporter community watch: others' pending pins render for reporters, so
-    // they get their own metric. Guests never receive pending rows.
+    // One pending set for every role that receives pending rows. The card, the
+    // tab and the panel all read this array, so their three numbers cannot
+    // drift — and a guest, who is never sent pending rows, gets no card, no tab
+    // and no panel entry rather than a zero.
     const isReporter = user?.role === 'reporter';
-    const reporterPendingReports = allMappedReports.filter((report) => report?.status === 'pending');
+    const pendingMappedReports = allMappedReports.filter((report) => report?.status === 'pending');
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
     // Active incidents is the umbrella set. A transferred report is still an
@@ -448,14 +449,14 @@ const DashboardMapWorkspace = ({
             ? reporterOverviewReports.filter((report) => report?.status === 'pending')
             : [];
         if (overviewPending.length > 0 || reporterOverviewReportsLoading) {
-            return countOwnedReports(overviewPending.length > 0 ? overviewPending : reporterPendingReports, currentUserId);
+            return countOwnedReports(overviewPending.length > 0 ? overviewPending : pendingMappedReports, currentUserId);
         }
-        return countOwnedReports(reporterPendingReports, currentUserId);
-    }, [isReporter, reporterOverviewReports, reporterOverviewReportsLoading, reporterPendingReports, currentUserId]);
+        return countOwnedReports(pendingMappedReports, currentUserId);
+    }, [isReporter, reporterOverviewReports, reporterOverviewReportsLoading, pendingMappedReports, currentUserId]);
     const reporterPendingSummary = useMemo(() => buildReporterPendingSummary({
-        total: reporterPendingReports.length,
+        total: pendingMappedReports.length,
         owned: reporterOwnedPendingCount,
-    }), [reporterPendingReports.length, reporterOwnedPendingCount]);
+    }), [pendingMappedReports.length, reporterOwnedPendingCount]);
     // The count folds verified + transferred + responding together, so the
     // supporting line is derived from the actual mix. A fixed phrase ("Being
     // handled now") was wrong as soon as one incident still had no responder —
@@ -501,6 +502,9 @@ const DashboardMapWorkspace = ({
     const openMapSummaryPanel = useCallback((panel) => {
         setSelectedActiveIncidentId('');
         setSelectedActiveRiskZoneId('');
+        // A queue segment belongs to the visit that chose it: reopening the panel
+        // must not silently show a narrowed list under the card's full count.
+        setActiveQueueSegment('all');
         setMapSummaryPanel(panel);
     }, [setMapSummaryPanel]);
 
@@ -510,7 +514,7 @@ const DashboardMapWorkspace = ({
 
     const publicMetrics = [
                 {
-                    id: 'public-active', label: 'Active incidents', value: publicActiveReports.length,
+                    id: 'active', label: 'Active incidents', value: publicActiveReports.length,
                     // Derived from the actual verified / transferred /
                     // responding mix, so the supporting line can never
                     // contradict the number above it. The status list that used
@@ -533,7 +537,7 @@ const DashboardMapWorkspace = ({
                     // Resolved rows were always public — guests already had a
                     // Resolved filter tab — so this exposes no new data, it only
                     // stops hiding a lifecycle stage from the overview.
-                    id: 'public-resolved', label: 'Resolved', value: resolvedMapReports.length,
+                    id: 'resolved', label: 'Resolved', value: resolvedMapReports.length,
                     helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
                     panelTitle: 'Resolved incidents', panelDescription: `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
                     records: resolvedMapReports,
@@ -543,32 +547,65 @@ const DashboardMapWorkspace = ({
                     statusDot: 'bg-emerald-500',
                 },
                 {
-                    id: 'public-risk-zones', label: 'Risk zones', value: highRiskZones.length,
-                    helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
+                    id: 'risk-zones', label: 'Risk zones', value: highRiskZones.length,
+                    helper: 'Mapped hazards — stay cautious', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
                     panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
                     loading: highRiskZonesLoading, error: highRiskZonesError,
                     statusDot: 'bg-red-500',
                 },
             ];
 
-    // Reporters share the public metrics plus an unverified community watch
-    // card. Guests keep the publishable-only set (they never receive pending).
-    // MVP: no subset-duplicate card. "Active response" is a subset of
-    // "Active incidents", so reporters get Pending / Active / Resolved / Risk
-    // (mutually exclusive) instead of Active + Active response side by side.
-    const reporterMetrics = [
+    // A supporting line is the one place a role is still allowed to differ. The
+    // value slot answers "how big is the set this card opens" and prints the same
+    // number a tab prints; the line under it carries the fact that particular
+    // role needs, because it is copy about that set rather than a second count of
+    // it. Two roles reading different numbers beside the same label is the bug
+    // this row was rebuilt to kill.
+    const pendingReviewCopy = isReporter
+        ? reporterPendingSummary
+        : {
+            helper: isResponder ? 'Awaiting response' : 'Awaiting review',
+            description: isResponder
+                ? `${pendingMappedReports.length} unverified ${pendingMappedReports.length === 1 ? 'incident' : 'incidents'} waiting for a responder.`
+                : `${pendingMappedReports.length} ${pendingMappedReports.length === 1 ? 'report' : 'reports'} awaiting municipal review.`,
+        };
+
+    const resolvedArchiveCopy = isAdmin || isResponder
+        ? {
+            helper: isResponder
+                ? `Closed incidents · ${resolvedTodayMappedCount} today by you`
+                : `Closed incidents · ${resolvedTodayMappedCount} today`,
+            description: isResponder
+                ? `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} resolved by you today`
+                : `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
+        }
+        : {
+            helper: 'Completed incidents',
+            description: `${resolvedArchivePanelDescription}.`,
+        };
+
+    // The signed-in row: four cards, one order, one set of names, for reporter,
+    // responder and municipal admin alike. The rail is the same for those roles
+    // too (see mapExperience), so each card is simply one of the rail's sets in
+    // the viewer's own words — and it opens exactly what it counts.
+    //
+    // What a role can DO with a record is not visible here on purpose: the
+    // verbs live on the panel's buttons, driven by `mapExperience.canRespond` /
+    // `canResolve` / `canVerify`, which is why a uniform row cannot widen anyone's
+    // permissions.
+    const signedInMetrics = [
         {
-            id: 'reporter-pending', label: 'Pending review', value: reporterPendingReports.length,
-            helper: reporterPendingSummary.helper, icon: HiOutlineClock, panelType: 'incidents',
-            panelTitle: 'Pending review', panelDescription: reporterPendingSummary.description,
-            records: reporterPendingReports,
+            id: 'pending', label: 'Pending review', value: pendingMappedReports.length,
+            helper: pendingReviewCopy.helper, icon: HiOutlineClock, panelType: 'incidents',
+            panelTitle: 'Pending review', panelDescription: pendingReviewCopy.description,
+            records: pendingMappedReports,
             mapFilter: 'pending',
             emptyTitle: 'No pending reports',
             emptyDescription: 'No community reports are currently awaiting verification.',
             statusDot: 'bg-amber-500',
         },
         {
-            id: 'reporter-active', label: 'Active incidents', value: publicActiveReports.length,
+            id: 'active', label: 'Active incidents', value: publicActiveReports.length,
             helper: activeIncidentsSummary.helper, icon: HiOutlineCheckCircle, panelType: 'incidents',
             panelTitle: 'Active incidents',
             // The helper is kept short so the card cannot truncate it, so the
@@ -580,9 +617,9 @@ const DashboardMapWorkspace = ({
             statusDot: 'bg-blue-500',
         },
         {
-            id: 'reporter-resolved', label: 'Resolved', value: resolvedMapReports.length,
-            helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
-            panelTitle: 'Resolved incidents', panelDescription: `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
+            id: 'resolved', label: 'Resolved', value: resolvedMapReports.length,
+            helper: resolvedArchiveCopy.helper, icon: HiOutlineBadgeCheck, panelType: 'incidents',
+            panelTitle: 'Resolved incidents', panelDescription: resolvedArchiveCopy.description,
             records: resolvedMapReports,
             mapFilter: 'resolved',
             emptyTitle: 'No resolved incidents',
@@ -590,7 +627,7 @@ const DashboardMapWorkspace = ({
             statusDot: 'bg-emerald-500',
         },
         {
-            id: 'reporter-risk-zones', label: 'Risk zones', value: highRiskZones.length,
+            id: 'risk-zones', label: 'Risk zones', value: highRiskZones.length,
             helper: 'Mapped hazards — stay cautious', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
             panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
             loading: highRiskZonesLoading, error: highRiskZonesError,
@@ -598,95 +635,10 @@ const DashboardMapWorkspace = ({
         },
     ];
 
-    const metrics = isResponder
-        ? [
-            {
-                id: 'responder-awaiting', label: 'Awaiting response', value: pendingReports.length,
-                helper: 'Unassigned or transferred', icon: HiOutlineClock, panelType: 'incidents',
-                panelTitle: 'Awaiting response', panelDescription: `${pendingReports.length} ${pendingReports.length === 1 ? 'incident' : 'incidents'} available for response`,
-                records: pendingReports, mapFilter: 'pending', emptyTitle: 'No incidents awaiting response',
-                emptyDescription: 'All available incidents are assigned or already resolved.',
-                statusDot: 'bg-amber-500',
-            },
-            {
-                id: 'responder-active', label: 'Active response', value: respondingReports.length,
-                helper: 'Assigned incidents', icon: HiOutlineTruck, panelType: 'incidents',
-                panelTitle: 'Active responses', panelDescription: `${respondingReports.length} assigned ${respondingReports.length === 1 ? 'incident' : 'incidents'}`,
-                records: respondingReports, mapFilter: 'responding', emptyTitle: 'No active responses',
-                emptyDescription: 'No incidents are currently assigned or in active response.',
-                statusDot: 'bg-cyan-500',
-            },
-            {
-                // The Resolved card now counts exactly what the Resolved tab
-                // shows — the resolved pins in this responder's scope — so the
-                // number and the map can never disagree. The responder's own
-                // daily tally is supporting text: as a card value it was a
-                // second, narrower count wearing the same word as the admin's.
-                id: 'responder-resolved', label: 'Resolved', value: resolvedMapReports.length,
-                helper: `Closed incidents · ${resolvedTodayMappedCount} today by you`, icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                panelTitle: 'Resolved incidents', panelDescription: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} resolved by you today`,
-                records: resolvedMapReports, mapFilter: 'resolved', emptyTitle: 'No resolved incidents',
-                emptyDescription: 'No resolved incidents yet.',
-                statusDot: 'bg-emerald-500',
-            },
-            {
-                id: 'responder-risk-zones', label: 'Risk zones', value: highRiskZones.length,
-                helper: 'Mapped hazards', icon: HiOutlineLightningBolt, panelType: 'risk-zones',
-                panelTitle: 'Active risk zones', records: highRiskZones, mapFilter: 'risk-zones',
-                loading: highRiskZonesLoading, error: highRiskZonesError,
-                statusDot: 'bg-red-500',
-            },
-        ]
-        : isAdmin
-            ? [
-                {
-                    id: 'admin-pending', label: 'Pending', value: adminPendingReports.length,
-                    helper: 'Awaiting review', icon: HiOutlineClock, panelType: 'incidents',
-                    panelTitle: 'Pending incidents', panelDescription: `${adminPendingReports.length} ${adminPendingReports.length === 1 ? 'report' : 'reports'} awaiting municipal review`,
-                    records: adminPendingReports, mapFilter: 'pending', emptyTitle: 'No pending incidents',
-                    emptyDescription: 'No incidents are currently awaiting municipal review.',
-                    statusDot: 'bg-amber-500',
-                },
-                {
-                    id: 'admin-dispatchable', label: 'Ready to dispatch', value: dispatchableReports.length,
-                    helper: 'Verified or transferred', icon: HiOutlineCheckCircle, panelType: 'incidents',
-                    panelTitle: 'Ready to dispatch', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} verified or transferred and waiting for a responder`,
-                    records: dispatchableReports,
-                    // The card counts verified + transferred; the 'dispatch' tab
-                    // is that same pair. Same set, so the card points the map at
-                    // the tab it counts — the pair is no longer a reason for the
-                    // card to be the one exception to the rule above.
-                    mapFilter: 'dispatch',
-                    emptyTitle: 'No incidents available for dispatch',
-                    emptyDescription: 'No verified or transferred incidents are currently available for dispatch.',
-                    statusDot: 'bg-blue-500',
-                },
-                {
-                    id: 'admin-responding', label: 'Active response', value: activeResponseReports.length,
-                    helper: 'Active field response', icon: HiOutlineTruck, panelType: 'incidents',
-                    panelTitle: 'Active response', panelDescription: `${activeResponseReports.length} ${activeResponseReports.length === 1 ? 'incident' : 'incidents'} in active response`,
-                    records: activeResponseReports, mapFilter: 'responding', emptyTitle: 'No incidents in active response',
-                    emptyDescription: 'No incidents are currently in active response.',
-                    statusDot: 'bg-cyan-500',
-                },
-                {
-                    // The archive card, not a "resolved today" card. It counts
-                    // exactly the pins the Resolved tab shows; today's closures
-                    // — the number that used to be the value, and the reason
-                    // this card read 0 beside a Resolved tab reading 2 — move to
-                    // the supporting line and the panel description.
-                    id: 'admin-resolved', label: 'Resolved', value: resolvedMapReports.length,
-                    helper: `Closed incidents · ${resolvedTodayMappedCount} today`, icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                    panelTitle: 'Resolved incidents', panelDescription: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
-                    records: resolvedMapReports, mapFilter: 'resolved', emptyTitle: 'No resolved incidents',
-                    emptyDescription: 'No resolved incidents yet.',
-                    statusDot: 'bg-emerald-500',
-                },
-            ]
-
-            : isReporter
-                ? reporterMetrics
-                : publicMetrics;
+    // Everyone signed in reads the same row. The only shorter row is a guest's,
+    // and it is shorter because the API does not send an anonymous viewer
+    // pending rows — not because a guest should be shown less of the same thing.
+    const metrics = (isReporter || isResponder || isAdmin) ? signedInMetrics : publicMetrics;
 
     // One rule decides what a card is: the number, the list it opens, and the
     // pins the map shows all come from one array, so every card can point the
@@ -716,10 +668,27 @@ const DashboardMapWorkspace = ({
     const isTrustPointsPanel = activeOverviewMetric?.panelType === 'trust-points';
     const hasSummaryPanel = Boolean(isIncidentSummaryPanel || isRiskZoneSummaryPanel || isTrustPointsPanel);
 
+    // The operational queues, as segments of the panel that already holds those
+    // records. The rail used to spend two tabs on them (Ready to dispatch, Active
+    // response), which is what made the same incident arrive as a different
+    // product per account. Each segment is one of the sets above rather than a
+    // new derivation, so a segment's number cannot disagree with the card's.
+    const activeQueueSegments = mapExperience.canDispatch
+        ? [
+            { value: 'all', label: 'All active', records: publicActiveReports },
+            { value: 'dispatch', label: 'Ready to dispatch', records: dispatchableReports },
+            { value: 'responding', label: 'In response', records: activeResponseReports },
+        ]
+        : [];
+    const activeQueuePanelOpen = Boolean(mapExperience.canDispatch)
+        && activeOverviewMetric?.id === 'active';
+    const activeQueueSegmentRecords = activeQueueSegments
+        .find((segment) => segment.value === activeQueueSegment)?.records || publicActiveReports;
+
     const panelIncidentReports = mapSummaryPanel === 'incidents'
         ? displayedMapReports
         : activeOverviewMetric?.panelType === 'incidents'
-            ? activeOverviewMetric.records
+            ? (activeQueuePanelOpen ? activeQueueSegmentRecords : activeOverviewMetric.records)
             : [];
     const selectedActiveIncident = panelIncidentReports.find(
         (report) => String(report._id || report.id) === selectedActiveIncidentId,
@@ -880,7 +849,6 @@ const DashboardMapWorkspace = ({
             return getFilteredMapReports(toSafeArray(reports), {
                 includePending: mapExperience.showPendingReports,
                 statusFilter: filterValue,
-                filterMode: mapExperience.filterMode,
             }).length;
         } catch {
             return 0;
@@ -1049,36 +1017,30 @@ const DashboardMapWorkspace = ({
                                     aria-label="Map status filter"
                                     role="group"
                                 >
-                                    {(isReporter
-                                        ? mapExperience.filters.filter((f) => ['all', 'pending', 'active'].includes(f.value))
-                                        : mapExperience.filters
-                                    ).map((filter) => {
-                                        const count = getFilterCount(filter.value);
-                                        const isSelected = responderMapFilter === filter.value;
-                                        const statusCfg = filter.value === 'risk-zones'
-                                            ? { dot: 'bg-red-500' }
-                                            : filter.value === 'active'
+                                    {/* One rail for every role, rendered from one
+                                        list. `group` decides the shape: status tabs
+                                        first, then the hazard layer and the archive
+                                        behind a divider and a label, so a layer can
+                                        never read as a fourth status. A role changes
+                                        what happens to a record, not what the rail is
+                                        called — see mapExperience. */}
+                                    {mapExperience.filters
+                                        .filter((filter) => filter.group === 'status')
+                                        .map((filter) => {
+                                            const count = getFilterCount(filter.value);
+                                            const isSelected = responderMapFilter === filter.value;
+                                            const statusCfg = filter.value === 'active'
                                                 ? { dot: 'bg-blue-500' }
                                                 : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
-                                        const isRiskZoneTab = filter.value === 'risk-zones';
-                                        const tooltip = filter.value === 'all'
-                                            ? (isReporter
-                                                ? 'All open reports (pending + being handled)'
-                                                : 'Active ongoing incidents')
-                                            : filter.value === 'active'
-                                                ? 'Verified or handled incidents (excludes pending)'
-                                            : filter.value === 'risk-zones'
-                                                ? 'Mapped hazard and risk zones'
-                                                : filter.value === 'resolved'
-                                                    ? 'Resolved incident archive'
-                                                    : `${filter.label} incidents`;
+                                            const tooltip = filter.value === 'all'
+                                                ? (mapExperience.showPendingReports
+                                                    ? 'All open reports (pending + being handled)'
+                                                    : 'Active ongoing incidents')
+                                                : 'Unverified reports awaiting review';
 
-                                        return (
-                                            <Fragment key={filter.value}>
-                                                {isRiskZoneTab && (
-                                                    <span className="h-4 w-px bg-gray-200 dark:bg-white/10 self-center -mb-2" aria-hidden="true" />
-                                                )}
+                                            return (
                                                 <button
+                                                    key={filter.value}
                                                     type="button"
                                                     onClick={() => setResponderMapFilter(filter.value)}
                                                     aria-pressed={isSelected}
@@ -1097,10 +1059,11 @@ const DashboardMapWorkspace = ({
                                                         {count}
                                                     </span>
                                                 </button>
-                                            </Fragment>
-                                        );
-                                    })}
-                                    {isReporter && (() => {
+                                            );
+                                        })}
+                                    {(() => {
+                                        const layerFilters = mapExperience.filters.filter((filter) => filter.group === 'layers');
+                                        if (layerFilters.length === 0) return null;
                                         const riskCount = getFilterCount('risk-zones');
                                         const resolvedCount = getFilterCount('resolved');
                                         const isRiskSelected = responderMapFilter === 'risk-zones';
@@ -1108,10 +1071,9 @@ const DashboardMapWorkspace = ({
                                         return (
                                             <Fragment>
                                                 <span className="flex shrink-0 items-end gap-5 self-stretch border-l border-gray-200 pl-5 dark:border-white/10" role="group" aria-label="Layers and archive">
-                                                    {/* Shown from lg, not xl: the operational
-                                                        rail is the one that needs the layer group
-                                                        separated from the status tabs, and it was
-                                                        the narrowest range that hid the label. */}
+                                                    {/* Shown from lg, not xl: this is the one group
+                                                        that needs the label, and lg was the
+                                                        narrowest range that hid it. */}
                                                     <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 lg:inline dark:text-gray-500" aria-hidden="true">
                                                         Layers &amp; archive
                                                     </span>
@@ -1127,7 +1089,7 @@ const DashboardMapWorkspace = ({
                                                         }`}
                                                 >
                                                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
-                                                    <span>Risk zones</span>
+                                                    <span>{layerFilters.find((filter) => filter.value === 'risk-zones')?.label || 'Risk zones'}</span>
                                                     <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                                         {riskCount}
                                                     </span>
@@ -1144,7 +1106,7 @@ const DashboardMapWorkspace = ({
                                                         }`}
                                                 >
                                                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-600" aria-hidden="true" />
-                                                    <span>Resolved archive</span>
+                                                    <span>{layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}</span>
                                                     <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                                         {resolvedCount}
                                                     </span>
@@ -1178,7 +1140,6 @@ const DashboardMapWorkspace = ({
                         focusLocation={effectiveFocusLocation}
                         showPending={mapExperience.showPendingReports}
                         filterStatus={mapExperience.filters.length > 0 ? responderMapFilter : null}
-                        filterMode={mapExperience.filterMode}
                         canRespond={mapExperience.canRespond}
                         onRespondToReport={mapExperience.canRespond ? handleMapRespond : null}
                         canResolve={mapExperience.canResolve}
@@ -1256,6 +1217,37 @@ const DashboardMapWorkspace = ({
                                     description={activeOverviewMetric.error}
                                     onRetry={activeOverviewMetric.requiresReporterRecords ? retryReporterOverviewReports : undefined}
                                 />
+                            )}
+                            {/* The two operational queues, one click deep instead of
+                                one tab wide: the panel narrows to a segment of the
+                                set the card counts, and the map keeps showing the
+                                tab's full set so the two numbers stay honest. */}
+                            {activeQueuePanelOpen && activeQueueSegments.length > 0 && (
+                                <div
+                                    className="flex flex-wrap gap-1.5 border-b border-gray-200 px-4 py-2 dark:border-gray-800 sm:px-5"
+                                    role="group"
+                                    aria-label="Active incident queue"
+                                >
+                                    {activeQueueSegments.map((segment) => {
+                                        const isSelected = activeQueueSegment === segment.value;
+                                        return (
+                                            <button
+                                                key={segment.value}
+                                                type="button"
+                                                onClick={() => setActiveQueueSegment(segment.value)}
+                                                aria-pressed={isSelected}
+                                                aria-label={`${segment.label} (${segment.records.length})`}
+                                                className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${isSelected
+                                                    ? 'border-brand-600 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
+                                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                <span>{segment.label}</span>
+                                                <span className="tabular-nums text-gray-400 dark:text-gray-500">{segment.records.length}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             )}
                             {isIncidentSummaryPanel && !selectedActiveIncident && !activeOverviewMetric?.loading && !activeOverviewMetric?.error && (
                                 <IncidentList
