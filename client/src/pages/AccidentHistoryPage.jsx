@@ -1055,7 +1055,12 @@ const AccidentHistoryPage = () => {
                                                 </div>
 
                                                 {/* Flat Metadata Grid */}
-                                                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 pt-1 border-t border-gray-100 dark:border-white/5">
+                                                {/* The facts grid is separated from the
+                                                    summary above it by the stack's own space and
+                                                    by the label/value type step, not by a second
+                                                    rule inside a dossier that already opens with
+                                                    one. */}
+                                                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                                                     {[
                                                         ['Incident date', formatDate(incidentDate, 'MMM d, yyyy h:mm a')],
                                                         ['Barangay', report.barangay || 'Not available'],
@@ -1076,7 +1081,7 @@ const AccidentHistoryPage = () => {
                                                 </dl>
 
                                                 {/* Flat Responsive Privacy / Operational Footer */}
-                                                <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 dark:border-white/5 text-xs text-gray-500 dark:text-gray-400">
+                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 dark:text-gray-400">
                                                     {(report.respondedBy || report.resolvedBy) ? (
                                                         <div className="flex flex-wrap items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
                                                             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />

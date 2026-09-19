@@ -44,13 +44,31 @@ const DetailItem = ({ label, value, children }) => (
     </div>
 );
 
-/* Casualty figures as a plain stat row: label over numeral, no boxes or tones. */
-const CasualtyStatCard = ({ label, count }) => (
-    <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">{count}</p>
-    </div>
-);
+/* Casualty figures as a plain stat row: label over numeral, no boxes or tones.
+
+   An unrecorded figure prints 0, at the same size and weight as a recorded one.
+   One cell reading "Not recorded" inside the numeral scale was the only cell in
+   the row that did not line up, and the reader of a summary is asking how many,
+   not whether the office typed it. The null that means "not recorded" is still
+   in the record and still written as "Not recorded" by the export
+   (formatCasualtyMetric) — this row just answers the question it was asked.
+
+   A zero steps down to the muted grey, so a row holding one real casualty and
+   two empty fields is read as one casualty: at equal weight the zeros competed
+   with the count that matters. Non-zero figures keep the plain dark numeral this
+   row has always used — the colour ramp belongs to the map's casualty band. */
+const CasualtyStatCard = ({ label, count }) => {
+    const value = typeof count === 'number' ? count : 0;
+
+    return (
+        <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+            <p className={`mt-0.5 text-xl font-bold tabular-nums ${value > 0 ? 'text-gray-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+                {value}
+            </p>
+        </div>
+    );
+};
 
 export const CasualtySummaryRow = ({ casualties = {}, totalPeopleAffected = 0, className = '' }) => {
     const normalized = normalizeCasualties(casualties);
@@ -105,7 +123,10 @@ const IncidentDetailsCoreSection = ({
     const respondingAgency = getRespondingAgencyText(report);
 
     const normalizedCasualties = normalizeCasualties(report.casualties);
-    const { injured, fatalities, missing, totalPeopleAffected } = normalizedCasualties;
+    // The numeric halves, so the one-line breakdown below cannot print a written
+    // fallback where a count belongs. `totalPeopleAffected` is already the sum of
+    // these, so an all-zero record still summarizes as "None recorded".
+    const { injuredNum, fatalitiesNum, missingNum, totalPeopleAffected } = normalizedCasualties;
 
     const renderInternalCasualties = showCasualties || showOperationalFields;
 
@@ -114,7 +135,16 @@ const IncidentDetailsCoreSection = ({
             <h3 id="incident-overview-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                 Overview
             </h3>
-            <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-2">
+            {/* Facts are separated by their own rhythm — a 10px uppercase label
+                over its value, 20px of padding per pair — rather than by rules.
+                This grid had `divide-y`, which in a two-column grid rules the
+                second cell of the *first* row (it is the second child) and none
+                of the first: a half-width line above "Severity" and none above
+                "Incident type". A separator that draws a table edge where there
+                is no table is worse than no separator, so the rules are gone
+                and the two columns are held together by the grid and the label
+                step-down instead. */}
+            <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-2">
                 <DetailItem label="Incident type">
                     <span className="capitalize">{incidentType}</span>
                 </DetailItem>
@@ -159,7 +189,7 @@ const IncidentDetailsCoreSection = ({
                     <DetailItem label="Casualties">
                         {totalPeopleAffected > 0 ? (
                             <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                {injured} injured · {fatalities} fatalities · {missing} missing
+                                {injuredNum} injured · {fatalitiesNum} fatalities · {missingNum} missing
                             </span>
                         ) : (
                             'None recorded'
@@ -173,7 +203,6 @@ const IncidentDetailsCoreSection = ({
                 <CasualtySummaryRow
                     casualties={report.casualties}
                     totalPeopleAffected={totalPeopleAffected}
-                    className="border-t border-gray-100 pt-3 dark:border-white/5"
                 />
             )}
         </section>

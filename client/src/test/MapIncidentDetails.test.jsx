@@ -491,6 +491,15 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             expect(screen.getByText('Missing')).toBeInTheDocument();
             expect(screen.getByText('4')).toBeInTheDocument();
+
+            // Colour follows the figure: the real casualties keep the severity
+            // ramp, and the empty metric drops to the muted grey so it cannot
+            // read as loudly as the fatality beside it.
+            const valueCellOf = (label) => screen.getByText(label).nextElementSibling;
+            expect(valueCellOf('Injured')).toHaveTextContent('0');
+            expect(valueCellOf('Injured').className).toContain('text-slate-500');
+            expect(valueCellOf('Fatalities').className).toContain('text-red-700');
+            expect(valueCellOf('Missing').className).toContain('text-orange-700');
         });
 
         test('pending report with all zeros preserves 0s without replacing with status string', () => {
@@ -512,7 +521,7 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(screen.queryByText('Pending verification')).not.toBeInTheDocument();
         });
 
-        test('missing or null casualty fields render "Not recorded" cleanly', () => {
+        test('missing or null casualty fields print 0 in the numeral scale', () => {
             const nullCasualtiesReport = {
                 ...sampleReport,
                 status: 'pending',
@@ -526,11 +535,19 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             renderDetails({ report: nullCasualtiesReport, viewerRole: 'guest' });
 
             expect(screen.getByText('Awaiting verification')).toBeInTheDocument();
-            const notRecordedMetrics = screen.getAllByText('Not recorded');
-            expect(notRecordedMetrics.length).toBe(3);
+            const zeroMetrics = screen.getAllByText('0');
+            expect(zeroMetrics.length).toBe(3);
+            // The same face and size a recorded count gets: the card is a row of
+            // numbers, and an unrecorded figure no longer drops to the small-type
+            // written fallback that made one cell read as a caption.
+            zeroMetrics.forEach((metric) => {
+                expect(metric.className).toContain('text-[22px]');
+                expect(metric.className).toContain('tabular-nums');
+            });
+            expect(screen.queryByText('Not recorded')).not.toBeInTheDocument();
         });
 
-        test('invalid string casualty values normalize to "Not recorded"', () => {
+        test('invalid non-numeric casualty values also print 0', () => {
             const invalidCasualtiesReport = {
                 ...sampleReport,
                 status: 'verified',
@@ -544,8 +561,12 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             renderDetails({ report: invalidCasualtiesReport, viewerRole: 'guest' });
 
             expect(screen.queryByText('Awaiting verification')).not.toBeInTheDocument();
-            const notRecordedMetrics = screen.getAllByText('Not recorded');
-            expect(notRecordedMetrics.length).toBe(3);
+            const zeroMetrics = screen.getAllByText('0');
+            expect(zeroMetrics.length).toBe(3);
+            zeroMetrics.forEach((metric) => {
+                expect(metric.className).toContain('text-[22px]');
+                expect(metric.className).toContain('tabular-nums');
+            });
         });
     });
 

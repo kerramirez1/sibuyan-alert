@@ -70,12 +70,14 @@ export const buildReporterPendingSummary = ({ total = 0, owned = 0 } = {}) => {
  * claims, which is exactly the drift the derived copy exists to prevent. The
  * parenthetical keeps it a property of the waiting set.
  *
- * Deliberately plain wording: "waiting", not "awaiting"; a comma, not a
- * separator glyph. The helper still stays short — the card wraps it to two lines
- * rather than clipping it, and a description cut off mid-word matches the data
- * no better than a wrong one does.
+ * The two strings are the same sentence at two sizes, and each has to survive a
+ * single printed line. `helper` is the KPI card's supporting line, which the card
+ * wraps to two lines rather than clipping. `description` is the one line of
+ * context the summary panel prints above its record list, so it carries the count
+ * and the mix and nothing else — no second sentence, no location spread. Both are
+ * deliberately plain: "waiting", not "awaiting"; a comma, not a separator glyph.
  */
-export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transferred = 0, locations = null } = {}) => {
+export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transferred = 0 } = {}) => {
     const safeTotal = Number.isFinite(Number(total)) ? Math.max(0, Number(total)) : 0;
     const safeResponding = Math.min(
         Number.isFinite(Number(responding)) ? Math.max(0, Number(responding)) : 0,
@@ -91,11 +93,6 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transfe
         Number.isFinite(Number(transferred)) ? Math.max(0, Number(transferred)) : 0,
         awaiting,
     );
-    // Only worth saying when the incidents are actually spread across more
-    // places than there are incidents to count.
-    const spread = Number(locations) > 0 && Number(locations) !== safeTotal
-        ? ` across ${Number(locations)} map ${Number(locations) === 1 ? 'location' : 'locations'}`
-        : '';
 
     if (safeTotal === 0) {
         return {
@@ -110,7 +107,7 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transfe
     if (safeResponding === 0 && safeTransferred === 0) {
         return {
             helper: `${safeTotal} waiting for a responder`,
-            description: `${safeTotal} active${spread}, none responding yet.`,
+            description: `${safeTotal} active: none responding yet`,
         };
     }
 
@@ -120,7 +117,7 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transfe
             // around it stay prose, because "2 responding, 1 waiting" is a
             // sentence and "Active response" is a label.
             helper: safeTotal === 1 ? 'Active response' : 'All in active response',
-            description: `${safeTotal} active${spread}, all in active response.`,
+            description: `${safeTotal} active: ${safeTotal === 1 ? 'in active response' : 'all in active response'}`,
         };
     }
 
@@ -137,7 +134,7 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transfe
 
     return {
         helper,
-        description: `${safeTotal} active${spread}: ${helper}.`,
+        description: `${safeTotal} active: ${helper}`,
     };
 };
 

@@ -20,7 +20,7 @@ const IncidentDetailsLocationSection = ({
         .join(', ');
 
     return (
-        <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`} aria-labelledby="incident-location-heading">
+        <section className={className} aria-labelledby="incident-location-heading">
             <div className="flex items-start gap-2.5">
                 <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                 <div className="min-w-0 flex-1">

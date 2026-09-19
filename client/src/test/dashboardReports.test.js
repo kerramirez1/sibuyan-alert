@@ -214,7 +214,7 @@ describe('active incidents summary copy', () => {
         const summary = buildActiveIncidentsSummary({ total: 4, responding: 1, transferred: 2 });
 
         expect(summary.helper).toBe('1 responding, 3 waiting (2 transferred)');
-        expect(summary.description).toBe('4 active: 1 responding, 3 waiting (2 transferred).');
+        expect(summary.description).toBe('4 active: 1 responding, 3 waiting (2 transferred)');
     });
 
     test('still names the transfer when nothing is responding yet', () => {
@@ -244,12 +244,17 @@ describe('active incidents summary copy', () => {
             .toBe('3 waiting for a responder');
     });
 
-    test('mentions the spread only when incidents share fewer locations than they number', () => {
-        expect(buildActiveIncidentsSummary({ total: 3, responding: 1, locations: 2 }).description)
-            .toContain('across 2 map locations');
-        // One incident at one location is not spread across anything.
-        expect(buildActiveIncidentsSummary({ total: 1, responding: 1, locations: 1 }).description)
-            .not.toContain('across');
+    test('keeps the panel description to one line of count and mix', () => {
+        // The summary panel prints this in its header, one line of context above
+        // the record list. It used to carry a second sentence — "Verified and
+        // transferred count too." — plus a location spread, which wrapped it to
+        // three lines in the panel's actual width. The records below it show
+        // where the incidents are, so the line stays the count and its mix.
+        const summary = buildActiveIncidentsSummary({ total: 4, responding: 1, transferred: 2 });
+
+        expect(summary.description).toBe('4 active: 1 responding, 3 waiting (2 transferred)');
+        expect(summary.description.split('\n')).toHaveLength(1);
+        expect(summary.description).not.toMatch(/count too|counted separately|across/);
     });
 
     test('keeps the helper inside the card’s two-line budget', () => {
@@ -270,6 +275,22 @@ describe('active incidents summary copy', () => {
 
         cases.forEach((input) => {
             expect(buildActiveIncidentsSummary(input).helper.length).toBeLessThanOrEqual(46);
+        });
+    });
+
+    test('keeps the description inside the panel header’s one-line budget', () => {
+        // The header prints this at 12px on one line. The widest string the copy
+        // can produce is the two-digit mix below at 53 characters, well inside
+        // the 56 kept here so the assertion is a ceiling and not a restatement.
+        const cases = [
+            { total: 1, responding: 0 },
+            { total: 9, responding: 9 },
+            { total: 4, responding: 1, transferred: 2 },
+            { total: 99, responding: 12, transferred: 41 },
+        ];
+
+        cases.forEach((input) => {
+            expect(buildActiveIncidentsSummary(input).description.length).toBeLessThanOrEqual(56);
         });
     });
 });

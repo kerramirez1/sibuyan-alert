@@ -10,7 +10,7 @@ const IncidentDetailsReporterSection = ({
     }
 
     return (
-        <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`} aria-labelledby="incident-reporter-heading">
+        <section className={className} aria-labelledby="incident-reporter-heading">
             <h3 id="incident-reporter-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                 Reporter information
             </h3>

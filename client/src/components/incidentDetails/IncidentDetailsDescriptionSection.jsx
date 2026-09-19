@@ -7,7 +7,7 @@ const IncidentDetailsDescriptionSection = ({
     className = '',
 }) => {
     return (
-        <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`} aria-labelledby="incident-description-heading">
+        <section className={className} aria-labelledby="incident-description-heading">
             <h3 id="incident-description-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                 {isOperational ? 'Operational description' : 'Description'}
             </h3>

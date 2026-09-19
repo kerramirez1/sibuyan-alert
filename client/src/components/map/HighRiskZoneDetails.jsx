@@ -219,8 +219,10 @@ const HighRiskZoneDetails = ({ zone }) => {
                 </div>
             </div>
 
-            {/* 3. Flat Borderless Metadata Grid */}
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 border-t border-gray-100 dark:border-white/5">
+            {/* 3. Flat Metadata Grid. Separated from the header block above by the
+                stack's own space, not by a rule: the label/value step-down already
+                marks each fact, and the rule repeated a boundary the gap drew. */}
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div className="min-w-0">
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                         Hazard type
@@ -286,7 +288,7 @@ const HighRiskZoneDetails = ({ zone }) => {
 
             {/* 5. External Location Reference (Google Maps) */}
             {coordinates && (
-                <div className="border-t border-gray-200 pt-3 dark:border-white/10">
+                <div>
                     <a
                         href={`https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}`}
                         target="_blank"

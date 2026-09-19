@@ -20,7 +20,7 @@ import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
 import HighRiskZoneDetails from '../map/HighRiskZoneDetails';
-import MapOverlayPanel from '../map/MapOverlayPanel';
+import MapOverlayPanel, { PANEL_SHEET_MEDIA_QUERY } from '../map/MapOverlayPanel';
 import MapMobileFilterSheet from './MapMobileFilterSheet';
 import Button from '../ui/Button';
 import { SkeletonRow } from '../ui/Skeleton';
@@ -28,7 +28,6 @@ import {
     getFilteredMapReports,
     getMapCoordinates,
     getVisibleMapReports,
-    groupReportsByMapLocation,
 } from '../../utils/mapReports';
 import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
@@ -42,6 +41,24 @@ import { buildActiveIncidentsSummary, buildReporterPendingSummary, countOwnedRep
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
 const MAP_SUMMARY_PANEL_ID = 'dashboard-map-summary-panel';
 const OVERVIEW_PANEL_PREFIX = 'overview:';
+
+/**
+ * Whether the summary pane is currently a sheet standing over the map.
+ *
+ * Read at click time from the panel's own media query, so the two can never
+ * disagree about the width where the pane stops sitting beside the canvas. The
+ * Locate actions below collapse the pane only where it covers the map they just
+ * moved: on a wider screen the records stay exactly as the viewer left them,
+ * because hiding the list they clicked from is a view reset the camera move
+ * never asked for. Falls back to the width comparison when `matchMedia` is
+ * unavailable.
+ */
+const isSummaryPaneSheetViewport = () => {
+    if (typeof window === 'undefined') return false;
+    if (typeof window.matchMedia === 'function') return window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
+    return window.innerWidth < 640;
+};
+
 const formatDate = (value, pattern = 'MMM d, h:mm a') => {
     if (!value) return 'Date unavailable';
     const date = new Date(value);
@@ -165,7 +182,18 @@ const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, ca
                             {locateAvailable && (
                                 <button
                                     type="button"
-                                    onClick={() => onLocate(report)}
+                                    // The camera move is the whole action. The
+                                    // handler cancels the click's default so a
+                                    // Locate that ever lands inside a link or a
+                                    // form ancestor still only flies the map —
+                                    // never submits, navigates, or rewrites the
+                                    // route — and stops it there rather than
+                                    // letting the row act on the same click.
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        onLocate(report);
+                                    }}
                                     className="ml-auto inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-sky-400 dark:hover:bg-white/5"
                                 >
                                     <span>Locate</span>
@@ -285,7 +313,13 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
                             {coordinates && (
                                 <button
                                     type="button"
-                                    onClick={() => onLocate(zone)}
+                                    // Same contract as the incident row's Locate:
+                                    // fly the map, touch nothing else.
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        onLocate(zone);
+                                    }}
                                     className="ml-auto inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-sky-400 dark:hover:bg-white/5"
                                 >
                                     <span>Locate</span>
@@ -794,7 +828,6 @@ const DashboardMapWorkspace = ({
     // responding sit inside this set too; the responder/response cards are
     // deliberately narrower views of the same population.
     const publicActiveReports = activeReports.filter((report) => ['verified', 'transferred', 'responding'].includes(report.status));
-    const publicActiveLocationCount = groupReportsByMapLocation(publicActiveReports).length;
 
     const currentUserId = user?._id ?? user?.id ?? null;
 
@@ -863,7 +896,6 @@ const DashboardMapWorkspace = ({
         total: publicActiveReports.length,
         responding: activeResponseReports.length,
         transferred: transferredActiveReports.length,
-        locations: publicActiveLocationCount,
     });
 
 
@@ -907,7 +939,7 @@ const DashboardMapWorkspace = ({
                     // actionable one.
                     helper: activeIncidentsSummary.helper,
                     icon: HiOutlineCheckCircle, panelType: 'incidents', panelTitle: 'Active incidents',
-                    panelDescription: `${activeIncidentsSummary.description} Verified and transferred count too.`,
+                    panelDescription: activeIncidentsSummary.description,
                     records: publicActiveReports,
                     // 'all' is the guest's active set — see GUEST_FILTERS. The
                     // hazard layer stays hidden for it, exactly as 'incidents'
@@ -992,9 +1024,9 @@ const DashboardMapWorkspace = ({
             id: 'active', label: 'Active incidents', value: publicActiveReports.length,
             helper: activeIncidentsSummary.helper, icon: HiOutlineCheckCircle, panelType: 'incidents',
             panelTitle: 'Active incidents',
-            // The helper is kept short so the card cannot truncate it, so the
-            // "pending is counted separately" note lives here instead.
-            panelDescription: `${activeIncidentsSummary.description} Pending is counted separately.`,
+            // The same single line as the guest's: the panel header has room for
+            // the count and its mix, and the records below it are the detail.
+            panelDescription: activeIncidentsSummary.description,
             records: publicActiveReports,
             mapFilter: 'active',
             emptyTitle: 'No active incidents', emptyDescription: 'No verified or handled incidents are currently active.',
@@ -1127,7 +1159,12 @@ const DashboardMapWorkspace = ({
         // A top-down camera keeps the incident pin visually aligned with its
         // stored coordinates. The previous pitched, maximum-zoom view made the
         // pin appear offset and removed useful street-level context.
-        closeModal?.();
+        //
+        // The pane yields the map only where it is a sheet over it. Inside that
+        // width the sheet would hide the pin the flight is bringing into view;
+        // beside the canvas the list is what the viewer clicked from, so it
+        // stays and the camera moves alone.
+        if (isSummaryPaneSheetViewport()) closeModal?.();
         setMapLocateRequest({
             type: 'incident',
             id: String(report._id || report.id),
@@ -1139,8 +1176,13 @@ const DashboardMapWorkspace = ({
     const locateZone = (zone) => {
         const coordinates = getMapCoordinates(zone);
         if (!coordinates) return;
-        setSelectedActiveRiskZoneId('');
-        closeMapSummaryPanel({ preserveNavigation: true });
+        // Same rule as an incident Locate: collapse the pane back to the list
+        // only where that pane is covering the map. Beside the canvas the list
+        // (or the zone's own details) stays as the viewer left it.
+        if (isSummaryPaneSheetViewport()) {
+            setSelectedActiveRiskZoneId('');
+            closeMapSummaryPanel({ preserveNavigation: true });
+        }
         if (mapExperience.filters.length > 0 && responderMapFilter !== 'risk-zones') {
             setResponderMapFilter('risk-zones');
         }
@@ -1701,23 +1743,32 @@ const DashboardMapWorkspace = ({
                                 // the queue is a lens on the list below it, so
                                 // switching lenses must not mean scrolling back up
                                 // through the rows already being read.
-                                <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/95 px-4 pb-2.5 pt-3 backdrop-blur-sm dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
-                                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                                <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/95 px-4 pb-2 pt-2.5 backdrop-blur-sm dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
+                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
                                         Queue
                                     </p>
                                     {/* One recessed track with three options instead
                                         of three separate bordered pills: they are a
                                         single choice, and the pills made the strip
-                                        read as three unrelated actions. The track,
-                                        the option size and the selected fill are the
-                                        same ones the Map | Analytics switch uses
-                                        (DashboardViewSwitch), so the page has one
-                                        segmented control rather than two that happen
-                                        to look similar. */}
+                                        read as three unrelated actions. The recessed
+                                        track and the brand fill are the ones the Map
+                                        | Analytics switch uses
+                                        (DashboardViewSwitch), so the page still has
+                                        one segmented-control language rather than two
+                                        that happen to look similar.
+
+                                        The options themselves are the compact size,
+                                        not the header switch's: this rail is a lens
+                                        over a dense list inside a pane, where every
+                                        pixel of chrome pushes a record out of view.
+                                        `py-1` on `text-xs` is a 24px row — the
+                                        smallest target WCAG 2.2 (2.5.8) accepts —
+                                        with `flex-1` making up the width, so the
+                                        strip is shorter without becoming unclickable. */}
                                     <div
                                         role="group"
                                         aria-label="Active incident queue"
-                                        className="flex w-full flex-wrap items-center gap-1 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 dark:bg-white/5 dark:ring-white/10"
+                                        className="flex w-full flex-wrap items-center gap-0.5 rounded-lg bg-gray-100/80 p-0.5 ring-1 ring-gray-200/80 dark:bg-white/5 dark:ring-white/10"
                                     >
                                         {activeQueueSegments.map((segment) => {
                                             const isSelected = activeQueueSegment === segment.value;
@@ -1737,7 +1788,7 @@ const DashboardMapWorkspace = ({
                                                     // ring-offset so the focus ring stays visible on the
                                                     // brand-filled option, where a brand ring on a brand
                                                     // fill would vanish.
-                                                    className={`inline-flex min-h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1 ${isSelected
+                                                    className={`inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1 ${isSelected
                                                         ? 'bg-brand-700 text-white shadow-sm dark:bg-brand-600'
                                                         : 'text-gray-600 hover:bg-white/70 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white'
                                                         }`}

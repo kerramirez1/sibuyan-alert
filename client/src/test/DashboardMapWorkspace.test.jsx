@@ -1047,10 +1047,17 @@ describe('DashboardMapWorkspace permissions', () => {
             setMapSummaryPanel,
         }));
 
+        // The panel setter also fires once on mount, pinning the arrival default;
+        // clearing it here keeps the assertions below about the click alone.
+        setMapSummaryPanel.mockClear();
         fireEvent.click(screen.getByRole('button', { name: /^locate$/i }));
 
+        // A Locate is a camera move and nothing else: the route is untouched,
+        // the page does not scroll, the map gets the request — and beside the
+        // canvas the pane the viewer clicked from stays exactly as it was, so
+        // the list is still there for the next incident.
         expect(setSearchParams).not.toHaveBeenCalled();
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+        expect(setMapSummaryPanel).not.toHaveBeenCalled();
         expect(scrollIntoView).not.toHaveBeenCalled();
         expect(mapPropsSpy.mock.lastCall[0].locateRequest).toEqual(expect.objectContaining({
             type: 'incident',
@@ -1058,6 +1065,53 @@ describe('DashboardMapWorkspace permissions', () => {
             entity: report,
             requestId: expect.stringMatching(/^\d+-1$/),
         }));
+    });
+
+    test('collapses the pane on Locate only where it is a sheet over the map', () => {
+        // Inside the sheet width the pane hides the pin the flight is bringing
+        // into view, so there it still yields. Same click, two widths, one
+        // difference — the panel's own breakpoint decides which.
+        const setMapSummaryPanel = vi.fn();
+        const setSearchParams = vi.fn();
+        const report = {
+            _id: 'verified-1',
+            status: 'verified',
+            incidentType: 'motorcycle',
+            coordinates: { lat: 12.4044, lng: 122.6897 },
+            createdAt: new Date().toISOString(),
+        };
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps({
+                reports: [report],
+                mapSummaryPanel: 'incidents',
+                setSearchParams,
+                setMapSummaryPanel,
+            }));
+
+            setMapSummaryPanel.mockClear();
+            fireEvent.click(screen.getByRole('button', { name: /^locate$/i }));
+
+            expect(setSearchParams).not.toHaveBeenCalled();
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+            expect(mapPropsSpy.mock.lastCall[0].locateRequest).toEqual(expect.objectContaining({
+                type: 'incident',
+                id: 'verified-1',
+            }));
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
     });
 
     test('creates a new focus request for repeated locate clicks', () => {
@@ -1128,7 +1182,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getByRole('button', { name: /View 1 risk zones/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
-    test('locates a risk zone using its real marker identity and closes the summary panel', () => {
+    test('locates a risk zone using its real marker identity without disturbing the pane', () => {
         const setSearchParams = vi.fn();
         const setMapSummaryPanel = vi.fn();
         const zone = {
@@ -1148,10 +1202,13 @@ describe('DashboardMapWorkspace permissions', () => {
             setSearchParams,
         }));
 
+        setMapSummaryPanel.mockClear();
         fireEvent.click(screen.getByRole('button', { name: /^locate$/i }));
 
+        // A zone Locate obeys the same rule as an incident's: beside the canvas
+        // the pane keeps its records, and only the camera moves.
         expect(setSearchParams).not.toHaveBeenCalled();
-        expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+        expect(setMapSummaryPanel).not.toHaveBeenCalled();
         expect(mapPropsSpy.mock.lastCall[0].locateRequest).toEqual(expect.objectContaining({
             type: 'risk-zone',
             id: 'zone-1',

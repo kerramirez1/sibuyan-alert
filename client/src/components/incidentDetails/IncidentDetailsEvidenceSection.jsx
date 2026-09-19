@@ -38,7 +38,7 @@ const IncidentDetailsEvidenceSection = ({
 
     if (!collapsible) {
         return (
-            <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`} aria-labelledby="incident-evidence-heading">
+            <section className={className} aria-labelledby="incident-evidence-heading">
                 <h3 id="incident-evidence-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                     Evidence photos ({totalCount})
                 </h3>
@@ -48,7 +48,7 @@ const IncidentDetailsEvidenceSection = ({
     }
 
     return (
-        <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 ${className}`}>
+        <section className={className}>
             <details className="group" open={defaultOpen || undefined}>
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden">
                     <span className="flex items-center gap-2">

@@ -223,7 +223,7 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
         expect(screen.getByText('4')).toBeInTheDocument();
     });
 
-    test('9. Missing or null casualty fields render "Not recorded" consistently without crashing', () => {
+    test('9. Missing or null casualty fields default to 0 in the numeral scale', () => {
         const emptyCasualtiesReport = {
             ...baseReport,
             status: 'pending',
@@ -241,11 +241,19 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
             />
         );
 
-        const notRecordedCards = screen.getAllByText('Not recorded');
-        expect(notRecordedCards.length).toBe(3); // Injured, Fatalities, Missing
+        const zeroCards = screen.getAllByText('0');
+        expect(zeroCards.length).toBe(3); // Injured, Fatalities, Missing
+        // Same numeral scale as a recorded count, muted so three empty metrics
+        // cannot out-shout a real casualty beside them.
+        zeroCards.forEach((card) => {
+            expect(card.className).toContain('text-xl');
+            expect(card.className).toContain('tabular-nums');
+            expect(card.className).toContain('text-slate-500');
+        });
+        expect(screen.queryByText('Not recorded')).not.toBeInTheDocument();
     });
 
-    test('10. Invalid non-numeric strings or negative numbers normalize to "Not recorded"', () => {
+    test('10. Invalid non-numeric strings or negative numbers also default to 0', () => {
         const invalidCasualtiesReport = {
             ...baseReport,
             casualties: {
@@ -262,8 +270,9 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
             />
         );
 
-        const notRecordedCards = screen.getAllByText('Not recorded');
-        expect(notRecordedCards.length).toBe(3);
+        const zeroCards = screen.getAllByText('0');
+        expect(zeroCards.length).toBe(3);
+        expect(screen.queryByText('Not recorded')).not.toBeInTheDocument();
     });
 
     test('11. Verified report renders normalized numbers cleanly', () => {
@@ -289,6 +298,14 @@ describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Fl
         expect(screen.getAllByText('1').length).toBe(2);
         // Fatalities and missing are 0
         expect(screen.getAllByText('0').length).toBe(2);
+
+        // The real casualty keeps the plain dark numeral this row always used;
+        // the two empty metrics step down to the muted grey.
+        const valueCellOf = (label) => screen.getByText(label).nextElementSibling;
+        expect(valueCellOf('Injured')).toHaveTextContent('1');
+        expect(valueCellOf('Injured').className).toContain('text-gray-900');
+        expect(valueCellOf('Fatalities').className).toContain('text-slate-500');
+        expect(valueCellOf('Missing').className).toContain('text-slate-500');
     });
 
     test('12. Responder cannot see admin-only Verify/Reject actions in inspector drawer, while Municipal Admin retains them', () => {

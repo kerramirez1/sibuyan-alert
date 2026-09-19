@@ -6,6 +6,18 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 
+/**
+ * The width below which this panel stops sitting beside the map and becomes a
+ * sheet over it.
+ *
+ * Exported because a caller that moves the camera (see the dashboard's Locate
+ * action) has to know whether this pane is standing in front of the map it just
+ * moved: collapsing the pane is right where it covers the canvas and a view
+ * reset everywhere else. One query, read by both, so the panel and its callers
+ * cannot disagree about where the sheet starts.
+ */
+export const PANEL_SHEET_MEDIA_QUERY = '(max-width: 639px)';
+
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'button:not([disabled])',
@@ -52,7 +64,7 @@ const MapOverlayPanel = ({
     const [isMobileExpanded, setIsMobileExpanded] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(() => {
         if (typeof window === 'undefined') return false;
-        return window.matchMedia ? window.matchMedia('(max-width: 639px)').matches : false;
+        return window.matchMedia ? window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches : false;
     });
 
     // Docked: a contextual panel with a box to live in, so it is not an overlay
@@ -87,7 +99,7 @@ const MapOverlayPanel = ({
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-        const mediaQuery = window.matchMedia('(max-width: 639px)');
+        const mediaQuery = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
         const handler = (e) => setIsMobileViewport(e.matches);
         setIsMobileViewport(mediaQuery.matches);
         if (mediaQuery.addEventListener) {
@@ -118,7 +130,7 @@ const MapOverlayPanel = ({
         // mobile browser to scroll/zoom, which reads as an expand lag.
         const isSmallScreen = typeof window !== 'undefined'
             && typeof window.matchMedia === 'function'
-            && window.matchMedia('(max-width: 639px)').matches;
+            && window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
         if (!isSmallScreen) closeButtonRef.current?.focus({ preventScroll: true });
 
         const handleKeyDown = (event) => {
@@ -180,7 +192,7 @@ const MapOverlayPanel = ({
         // sheet never yanks focus mid-gesture on mobile.
         const isSmallScreen = typeof window !== 'undefined'
             && typeof window.matchMedia === 'function'
-            && window.matchMedia('(max-width: 639px)').matches;
+            && window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
         if (!isSmallScreen && !isDocked) closeButtonRef.current?.focus({ preventScroll: true });
     }, [isContextual, isDocked, title]);
 

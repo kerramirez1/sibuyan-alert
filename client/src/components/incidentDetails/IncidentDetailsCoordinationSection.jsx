@@ -52,7 +52,7 @@ const IncidentDetailsCoordinationSection = ({
     }
 
     return (
-        <section className={`border-t border-gray-100 py-3.5 dark:border-white/5 space-y-3 ${className}`} aria-labelledby="incident-coordination-heading">
+        <section className={`space-y-3 ${className}`} aria-labelledby="incident-coordination-heading">
             <h3 id="incident-coordination-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                 Response coordination
             </h3>

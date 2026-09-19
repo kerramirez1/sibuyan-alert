@@ -97,8 +97,18 @@ const IncidentDetailsContent = ({
         );
     }
 
+    // The dossier's sections are separated by space, not by rules.
+    //
+    // Each one used to open with its own `border-t`, directly above a 14px pad,
+    // inside a stack that already spaced them apart — a hairline for every
+    // boundary while the gap said the same thing twice, and headings set in
+    // 11px tracked caps said it a third time. What is left is one line per
+    // group that is a group: the status and error cards, the highlighted update,
+    // the records inside response coordination, and the header's own boundary.
+    // A rule still marks a real edge; it no longer draws one between two
+    // paragraphs.
     return (
-        <div className={`space-y-4 ${className}`}>
+        <div className={`space-y-5 ${className}`}>
             {loading && (
                 <div className="rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200" role="status">
                     Loading protected incident details&hellip;
@@ -125,10 +135,7 @@ const IncidentDetailsContent = ({
             )}
 
             {isOriginatingTransferredViewer && (
-                <section
-                    className="border-t border-gray-100 pt-3 dark:border-white/5"
-                    aria-labelledby="transferred-jurisdiction-heading"
-                >
+                <section aria-labelledby="transferred-jurisdiction-heading">
                     <div className="flex items-center gap-1.5">
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getMapStatusDot('transferred')}`} aria-hidden="true" />
                         <h3 id="transferred-jurisdiction-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -142,10 +149,7 @@ const IncidentDetailsContent = ({
             )}
 
             {report.status === 'pending' && (
-                <section
-                    className="border-t border-gray-100 pt-3 dark:border-white/5"
-                    aria-labelledby="pending-verification-heading"
-                >
+                <section aria-labelledby="pending-verification-heading">
                     <div className="flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
                         <h3 id="pending-verification-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -175,7 +179,11 @@ const IncidentDetailsContent = ({
                         )}
                     </div>
                     <p className="mt-1.5 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">{highlightedUpdate.message}</p>
-                    <p className="mt-2 border-t border-current/15 pt-2 text-[11px] font-medium opacity-75">
+                    {/* The caveat is set apart by size and opacity rather than by
+                        a rule inside the card: a line above a footnote that is
+                        already smaller, dimmer and spaced reads as a second
+                        border in a strip that has one. */}
+                    <p className="mt-2 text-[11px] font-medium opacity-75">
                         Reporter-provided information. Confirm it against the incident record before acting.
                     </p>
                 </section>

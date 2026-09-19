@@ -23,12 +23,20 @@ import { Skeleton } from '../ui/Skeleton';
  *   1. state is a chip — status and severity, side by side under the title,
  *      because they are the two facts a reader triages on and both already have
  *      a colour that means them elsewhere in the app;
- *   2. facts are label-over-value, ruled between rows rather than between cells,
- *      so every hairline spans the pane and a long value gets the width it needs
- *      (see OverviewRow);
+ *   2. facts are label-over-value, spaced between rows rather than ruled between
+ *      cells, so every value keeps the width it needs and a long one still owns
+ *      its own line (see OverviewRow);
  *   3. everything below the facts steps down in size and weight rather than being
  *      boxed — this sheet is already inside a panel, and a card per section made
  *      it read as a stack of cards instead of as one record.
+ *
+ * Groups are separated by space, not by a line per boundary. Each section here
+ * used to open with its own rule over an 8-12px pad, in a stack that already
+ * spaced them apart: the border and the gap said the same thing, and the section
+ * heading said it again. The overview's rows were ruled the same way, one
+ * hairline per fact, until the pane read as a table laid over a brief. What is
+ * left is the structure that is not spacing: the casualty band's own edge, the
+ * safety callout, and the sticky action bar's boundary.
  *
  * Status and severity both come from the shared lookups the record rows, queue
  * tabs and map legend read, so one incident cannot be described in two colours
@@ -47,42 +55,56 @@ const DetailItem = ({ label, value, children, mono = false }) => (
 );
 
 /* A logical row of the overview: two short facts share a line, a long one owns
-   the whole row. The rule between rows therefore spans the pane, where per-cell
-   borders stopped half-way across and read as a table that had lost a column. */
+   the whole row.
+
+   Rows are separated by their own padding rather than by a rule between them.
+   A hairline per fact made a ruled table of what is really a list of labelled
+   values — every row already opens with the same 10px uppercase label, so the
+   reader gets the boundary from the type, and the pane gets it from the gap. */
 const OverviewRow = ({ children, wide = false }) => (
-    <div className={`grid gap-x-4 py-2 ${wide ? 'grid-cols-1' : 'grid-cols-2'}`}>{children}</div>
+    <div className={`grid gap-x-4 py-2.5 ${wide ? 'grid-cols-1' : 'grid-cols-2'}`}>{children}</div>
 );
 
-/* Casualty figures: label over numeral. A figure that was never recorded prints
-   in words and takes the small type a word needs — the numeral scale is for
-   counts, and "Not recorded" set in it burst the row it was meant to line up in.
-   It is 11px rather than the 13px this sheet's other values use because this
-   column is only ~78px wide at the pane's real width and the words broke across
-   two lines at 13px: a fallback that does not fit its own column reads as broken
-   data rather than as missing data. Colour follows the figure: a zero is not an
-   alert, so only a non-zero count is tinted, on the warm ramp this app already
-   uses for severity. */
+/* Casualty figures: label over numeral. Every cell is a numeral — a figure that
+   was never recorded prints 0, in the same face and at the same size as a
+   recorded one, so the three counts read as one row of numbers. The written
+   fallback it replaces ("Not recorded") had to be set two steps down to fit this
+   ~78px column, which is exactly what made one cell look like a caption beside
+   two figures. A figure nobody entered is not a different kind of figure to the
+   reader of a summary.
+
+   What is *not* changed is the record: `casualties.*` still stores null for "not
+   recorded" and the CSV export still writes that word (see formatCasualtyMetric
+   and the casualties note on the Report model). The card answers "how many" with
+   a number; the data keeps the difference.
+
+   Colour follows the figure: a non-zero count takes the warm ramp this app
+   already uses for severity, and a zero steps down to the muted grey instead of
+   holding the same weight as a real casualty. A row of three counts where the
+   zeros read as loudly as the fatalities is a row that has to be read twice.
+
+   The grey is slate-500 rather than slate-400: this band is tinted by the
+   record's worst figure (red-50, amber-50 or grey-50), and slate-400 measures
+   about 2.3:1 on that tint, under the 3:1 large-text floor. slate-500 keeps the
+   figure quiet at ~4.3:1, which is the point of muting it — quieter, not faint. */
 const CASUALTY_NUMERAL_TONES = {
     injured: 'text-amber-700 dark:text-amber-300',
     fatalities: 'text-red-700 dark:text-red-300',
     missing: 'text-orange-700 dark:text-orange-300',
 };
+const ZERO_NUMERAL_TONE = 'text-slate-500 dark:text-slate-400';
 
 const CasualtyStat = ({ label, count, toneKey }) => {
-    const isNumeric = typeof count === 'number';
-    const isCounted = isNumeric && count > 0;
+    // null / undefined / blank / unparseable all land here as 0.
+    const value = typeof count === 'number' ? count : 0;
 
     return (
         <div className="min-w-0">
             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 {label}
             </dt>
-            <dd
-                className={isNumeric
-                    ? `mt-1 font-display text-[22px] font-bold leading-none tabular-nums ${isCounted ? CASUALTY_NUMERAL_TONES[toneKey] : 'text-gray-900 dark:text-white'}`
-                    : 'mt-1 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400'}
-            >
-                {count}
+            <dd className={`mt-1 font-display text-[22px] font-bold leading-none tabular-nums ${value > 0 ? CASUALTY_NUMERAL_TONES[toneKey] : ZERO_NUMERAL_TONE}`}>
+                {value}
             </dd>
         </div>
     );
@@ -108,7 +130,7 @@ const MapIncidentDetailsSkeleton = () => (
             <Skeleton variant="text" className="h-3.5 w-1/3 rounded" />
         </div>
         {/* Overview dl grid */}
-        <div className="space-y-3 border-t border-gray-100 pt-3 dark:border-white/5">
+        <div className="space-y-3">
             <Skeleton variant="text" className="h-3.5 w-24" />
             <div className="grid grid-cols-2 gap-3 pt-2">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -119,7 +141,7 @@ const MapIncidentDetailsSkeleton = () => (
                 ))}
             </div>
             {/* Casualty summary 3-column */}
-            <div className="pt-2 border-t border-gray-100 dark:border-white/5 space-y-2">
+            <div className="space-y-2">
                 <Skeleton variant="text" className="h-2.5 w-28" />
                 <div className="grid grid-cols-3 gap-3">
                     {[0, 1, 2].map((i) => (
@@ -289,7 +311,7 @@ const MapIncidentDetails = ({
 
     return (
         <div className="flex flex-col">
-            <div className="space-y-3.5 px-4 py-3.5 sm:px-5 sm:py-4">
+            <div className="space-y-4 px-4 py-3.5 sm:px-5 sm:py-4">
                 {/* 1. Incident Brief */}
                 <div>
                     {typeof onBack === 'function' && (
@@ -378,7 +400,7 @@ const MapIncidentDetails = ({
                 )}
 
                 {/* 2. Overview: the record's facts, then its human cost. */}
-                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-overview-heading">
+                <section aria-labelledby="map-incident-overview-heading">
                     <h4 id="map-incident-overview-heading" className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                         Overview
                     </h4>
@@ -388,7 +410,7 @@ const MapIncidentDetails = ({
                         list) takes the whole row instead. That is what keeps every
                         value on one line: what used to wrap was never the layout,
                         it was "Sep 18, 2026, 7:15" breaking before "AM". */}
-                    <dl className="divide-y divide-gray-100 dark:divide-white/5">
+                    <dl>
                         <OverviewRow>
                             <DetailItem label="Incident type">
                                 <span className="capitalize">{incidentTypeLabel}</span>
@@ -472,7 +494,7 @@ const MapIncidentDetails = ({
 
                 {/* 4. Clamped Description */}
                 {details.description && (
-                    <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-description-heading">
+                    <section aria-labelledby="map-incident-description-heading">
                         <h4 id="map-incident-description-heading" className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             {isOperational ? 'Operational description' : 'Description'}
                         </h4>
@@ -495,7 +517,7 @@ const MapIncidentDetails = ({
                 )}
 
                 {/* 5. Evidence Photos */}
-                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
+                <section aria-labelledby="map-incident-evidence-heading">
                     <h4 id="map-incident-evidence-heading" className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <span>
                             {totalEvidenceCount > 0
@@ -534,10 +556,12 @@ const MapIncidentDetails = ({
                 </section>
 
                 {/* 6. Static Privacy & Security Notice */}
-                {/* System information, set as system information: a rule, a lock,
-                    and the sentence. Every wording branch below is unchanged —
-                    this is the pane explaining what it is allowed to show. */}
-                <div className="flex items-start gap-2.5 border-t border-gray-100 pt-3 dark:border-white/10">
+                {/* System information, set as system information: a lock and the
+                    sentence. It used to open with a rule, which made the
+                    quietest thing in the pane the one with a border over it.
+                    Every wording branch below is unchanged — this is the pane
+                    explaining what it is allowed to show. */}
+                <div className="flex items-start gap-2.5">
                     <HiOutlineLockClosed className="mt-px h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                     <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{privacyNotice}</p>
                 </div>
