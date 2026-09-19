@@ -206,6 +206,12 @@ export const adminAPI = {
 // The anonymous id is attached here rather than by each caller, so no surface can
 // forget it and silently record nothing — a view with no identity is deliberately
 // not counted server-side, which would otherwise make the omission invisible.
+//
+// It is sent even when the viewer is signed in, and that is load-bearing: the
+// server uses it to collapse the guest row this browser already wrote before
+// signing in. Without it, one person who browsed the public map and then logged
+// in would count twice for every record they had already opened, since guests and
+// reporters are both public reach.
 export const viewsAPI = {
     recordViewEvent: ({ targetType, targetId }) => api.post('/views', {
         targetType,

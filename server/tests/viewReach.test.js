@@ -8,10 +8,15 @@ import ViewEvent, {
 } from '../models/ViewEvent.js';
 import {
     buildViewerIdentity,
+    collapseGuestViewForTarget,
     deleteViewEventsForTarget,
+    deleteViewerAliasesForUser,
+    linkViewerAlias,
     recordViewEvent,
     readTopReach,
+    resolveViewerAlias,
 } from '../services/viewEventService.js';
+import ViewerAlias from '../models/ViewerAlias.js';
 import { csrfProtection } from '../middleware/csrf.js';
 
 /**
@@ -27,6 +32,14 @@ import { csrfProtection } from '../middleware/csrf.js';
 
 const VALID_ID = '507f1f77bcf86cd799439011';
 const VALID_UUID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+// Every test here spies on a model method. Restoring between tests is what keeps
+// one test's rejected `deleteOne` from becoming the next test's failure — the
+// recording path now touches two collections, so the surface to leak through has
+// grown.
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 describe('viewer identity', () => {
     test('keys signed-in viewers by account so one person counts once per account', () => {
@@ -173,6 +186,267 @@ describe('repeated views from the same guest collapse to one row', () => {
         // The retry only re-stamps the existing row: no second insert attempt.
         expect(spy.mock.calls[1][1]).toEqual({ $set: { lastViewedAt: expect.any(Date) } });
         expect(spy.mock.calls[1][2]).toBeUndefined();
+    });
+});
+
+/**
+ * One person, one row — across the sign-in boundary.
+ *
+ * Recording is idempotent per viewer key, which covers refreshes and repeat
+ * opens. It does NOT cover the identity switch: a visitor who browses the public
+ * map as a guest and then logs in holds two keys for the same record
+ * (`anon:<uuid>`, then `user:<id>`), and both `guest` and `reporter` count as
+ * public reach. Left alone, that counted one person twice — on every record they
+ * had already opened before signing in, in the flow the app encourages.
+ *
+ * The client sends its anonymous id with every view, so the browser that owns
+ * the guest row is known exactly. These tests pin that the account write removes
+ * it, that a guest write never does, and that the removal can never fail a
+ * recorded view.
+ */
+/**
+ * The other direction of the same boundary: signed in → signed out.
+ *
+ * Collapsing the guest row fixes the case where somebody browses first and signs
+ * in second. It does nothing for the reverse, because a signed-out request has no
+ * account to collapse toward — the sign-out simply wrote a fresh `anon:` row for a
+ * person whose `user:` row was already counted, and both roles are public reach.
+ *
+ * What closes it is remembering the browser. A signed-in view stores an alias for
+ * the anonymous id it arrived with; a later signed-out view from that browser
+ * resolves to the account and updates the row that already exists, so crossing the
+ * boundary in either direction leaves one person counted once.
+ */
+describe('a signed-out view from a linked browser resolves to the account', () => {
+    const anonKey = `anon:${VALID_UUID}`;
+    const userKey = `user:${VALID_ID}`;
+    const aliasLookup = (alias) => vi.spyOn(ViewerAlias, 'findOne')
+        .mockReturnValue({ lean: async () => alias });
+
+    test('records the view against the account instead of minting a new viewer', async () => {
+        aliasLookup({ user: VALID_ID, viewerRole: 'reporter' });
+        const upsert = vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+        // Both sides of the account path still run, and both must stay harmless
+        // here: the browser's guest row for this record (if an earlier write made
+        // one while aliases were unreachable) is removed, and the link is refreshed.
+        const collapse = vi.spyOn(ViewEvent, 'deleteOne').mockResolvedValue({ deletedCount: 1 });
+        vi.spyOn(ViewerAlias, 'updateOne').mockResolvedValue({ acknowledged: true });
+
+        await expect(recordViewEvent({
+            targetType: 'report',
+            targetId: VALID_ID,
+            viewerKey: anonKey,
+            viewerRole: 'guest',
+            anonymousId: VALID_UUID,
+        })).resolves.toBe(true);
+
+        // The existing account row, updated. A second row for the same person is
+        // exactly what this exists to prevent.
+        expect(upsert.mock.calls[0][0]).toEqual({
+            targetType: 'report',
+            targetId: VALID_ID,
+            viewerKey: userKey,
+        });
+        expect(upsert.mock.calls[0][1].$setOnInsert.viewerRole).toBe('reporter');
+        // The row written is the account's, and the guest row for the same record
+        // does not survive beside it.
+        expect(collapse).toHaveBeenCalledWith({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey,
+        });
+    });
+
+    test('leaves a browser with no alias counting as the guest it is', async () => {
+        aliasLookup(null);
+        const upsert = vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+
+        await recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest',
+            anonymousId: VALID_UUID,
+        });
+
+        expect(upsert.mock.calls[0][0]).toEqual({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey,
+        });
+    });
+
+    test('a failed alias lookup falls back to the guest key instead of dropping the view', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(ViewerAlias, 'findOne').mockReturnValue({
+            lean: async () => { throw new Error('viewer_aliases unavailable'); },
+        });
+        const upsert = vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+
+        // Resolving the alias is an optimisation for correctness of the COUNT, not
+        // a precondition for recording. A view that arrives while the lookup is
+        // down must still be written, or the outage erases real reach.
+        await expect(recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest',
+            anonymousId: VALID_UUID,
+        })).resolves.toBe(true);
+
+        expect(upsert.mock.calls[0][0].viewerKey).toBe(anonKey);
+        expect(warn).toHaveBeenCalled();
+    });
+
+    test('a signed-in view remembers the browser, so the next signed-out one resolves', async () => {
+        const aliasWrite = vi.spyOn(ViewerAlias, 'updateOne').mockResolvedValue({ acknowledged: true });
+        vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+        vi.spyOn(ViewEvent, 'deleteOne').mockResolvedValue({ deletedCount: 0 });
+
+        await recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: userKey, viewerRole: 'reporter',
+            anonymousId: VALID_UUID,
+        });
+
+        expect(aliasWrite).toHaveBeenCalledWith(
+            { viewerKey: anonKey },
+            {
+                $set: {
+                    user: VALID_ID,
+                    viewerRole: 'reporter',
+                    // Anchored on each link, so a browser still in use keeps its
+                    // link for another retention window.
+                    linkedAt: expect.any(Date),
+                },
+            },
+            { upsert: true },
+        );
+    });
+
+    test('refuses to link a malformed browser id, a bad account, or an unknown role', async () => {
+        const aliasWrite = vi.spyOn(ViewerAlias, 'updateOne').mockResolvedValue({ acknowledged: true });
+
+        await expect(linkViewerAlias({ anonymousId: 'not-a-uuid', accountId: VALID_ID, viewerRole: 'reporter' }))
+            .resolves.toBe(false);
+        await expect(linkViewerAlias({ anonymousId: VALID_UUID, accountId: 'nope', viewerRole: 'reporter' }))
+            .resolves.toBe(false);
+        await expect(linkViewerAlias({ anonymousId: VALID_UUID, accountId: VALID_ID, viewerRole: 'stranger' }))
+            .resolves.toBe(false);
+
+        expect(aliasWrite).not.toHaveBeenCalled();
+    });
+
+    test('resolves nothing without a usable browser id, and never for a malformed one', async () => {
+        const lookup = vi.spyOn(ViewerAlias, 'findOne')
+            .mockReturnValue({ lean: async () => null });
+
+        await expect(resolveViewerAlias({})).resolves.toBeNull();
+        await expect(resolveViewerAlias({ anonymousId: 'forged' })).resolves.toBeNull();
+
+        // Malformed input is rejected before the query, so it can never become a
+        // lookup key.
+        expect(lookup).not.toHaveBeenCalled();
+    });
+
+    test('cleans up the aliases pointing at a deleted account', async () => {
+        const cleanup = vi.spyOn(ViewerAlias, 'deleteMany').mockResolvedValue({ deletedCount: 2 });
+
+        await expect(deleteViewerAliasesForUser({ userId: VALID_ID })).resolves.toBe(2);
+        expect(cleanup).toHaveBeenCalledWith({ user: VALID_ID });
+
+        await expect(deleteViewerAliasesForUser({ userId: 'nope' })).resolves.toBe(0);
+        expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('viewer alias schema', () => {
+    test('allows one alias per browser, so a signed-out view cannot resolve ambiguously', () => {
+        const unique = ViewerAlias.schema.indexes().find(([, options]) => options?.unique === true);
+
+        expect(unique).toBeDefined();
+        expect(unique[0]).toEqual({ viewerKey: 1 });
+    });
+
+    test('expires the link on the same window as the rows it de-duplicates', () => {
+        const ttl = ViewerAlias.schema.indexes()
+            .find(([, options]) => options?.expireAfterSeconds !== undefined);
+
+        expect(ttl).toBeDefined();
+        expect(ttl[0]).toEqual({ linkedAt: 1 });
+        expect(ttl[1].expireAfterSeconds).toBe(VIEW_EVENT_RETENTION_DAYS * 24 * 60 * 60);
+    });
+});
+
+describe('a signed-in view collapses the browser guest row for the same record', () => {
+    const anonKey = `anon:${VALID_UUID}`;
+    const userKey = `user:${VALID_ID}`;
+
+    test('removes the guest row for exactly the record the account just opened', async () => {
+        vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+        vi.spyOn(ViewerAlias, 'updateOne').mockResolvedValue({ acknowledged: true });
+        const deleteSpy = vi.spyOn(ViewEvent, 'deleteOne').mockResolvedValue({ deletedCount: 1 });
+
+        await expect(recordViewEvent({
+            targetType: 'report',
+            targetId: VALID_ID,
+            viewerKey: userKey,
+            viewerRole: 'reporter',
+            anonymousId: VALID_UUID,
+        })).resolves.toBe(true);
+
+        expect(deleteSpy).toHaveBeenCalledTimes(1);
+        expect(deleteSpy).toHaveBeenCalledWith({
+            targetType: 'report',
+            targetId: VALID_ID,
+            viewerKey: anonKey,
+        });
+    });
+
+    test('never queries for a guest write or without a usable anonymous id', async () => {
+        vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+        const deleteSpy = vi.spyOn(ViewEvent, 'deleteOne').mockResolvedValue({ deletedCount: 0 });
+        const aliasLookup = vi.spyOn(ViewerAlias, 'findOne')
+            .mockReturnValue({ lean: async () => null });
+
+        // A guest write has no account to attribute the row to — and collapsing on
+        // a guest key would delete the row that was just written.
+        await recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: anonKey, viewerRole: 'guest',
+            anonymousId: VALID_UUID,
+        });
+        // Signed in, but nothing identifies the browser's earlier row.
+        await recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: userKey, viewerRole: 'reporter',
+        });
+        // A forged or malformed id must never become a delete filter.
+        await recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: userKey, viewerRole: 'reporter',
+            anonymousId: 'not-a-uuid',
+        });
+
+        expect(deleteSpy).not.toHaveBeenCalled();
+        // The one lookup that did happen is the first call — a guest write — and it
+        // resolved to nothing, so that browser keeps an anonymous row.
+        expect(aliasLookup).toHaveBeenCalledTimes(1);
+    });
+
+    test('a failed collapse still reports the view as recorded', async () => {
+        vi.spyOn(ViewEvent, 'updateOne').mockResolvedValue({ acknowledged: true });
+        vi.spyOn(ViewerAlias, 'updateOne').mockResolvedValue({ acknowledged: true });
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(ViewEvent, 'deleteOne').mockRejectedValue(new Error('view_events unavailable'));
+
+        // The upsert already landed, so the caller must not be told the operation
+        // failed: the cost of this failure is the old double-count, not a lost view.
+        await expect(recordViewEvent({
+            targetType: 'report', targetId: VALID_ID, viewerKey: userKey, viewerRole: 'reporter',
+            anonymousId: VALID_UUID,
+        })).resolves.toBe(true);
+
+        expect(warn).toHaveBeenCalled();
+    });
+
+    test('rejects a malformed target without querying', async () => {
+        const deleteSpy = vi.spyOn(ViewEvent, 'deleteOne').mockResolvedValue({ deletedCount: 0 });
+
+        await expect(collapseGuestViewForTarget({
+            targetType: 'user', targetId: VALID_ID, anonymousId: VALID_UUID,
+        })).resolves.toBe(0);
+        await expect(collapseGuestViewForTarget({
+            targetType: 'report', targetId: 'nope', anonymousId: VALID_UUID,
+        })).resolves.toBe(0);
+
+        expect(deleteSpy).not.toHaveBeenCalled();
     });
 });
 

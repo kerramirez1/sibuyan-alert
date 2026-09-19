@@ -21,6 +21,11 @@
  * private browsing and cleared storage both mint a fresh id, and a determined
  * user could forge one. This solves accidental double-counting — refresh, back
  * navigation, revisiting — not manipulation.
+ *
+ * Signing in supersedes it rather than adding to it. The id keeps being sent on
+ * every recorded view, and the server deletes this browser's guest row for the
+ * record the account just opened, so somebody who browsed as a guest and then
+ * logged in is one viewer and not two.
  */
 
 const STORAGE_KEY = 'sibuyan.viewerKey';
@@ -89,6 +94,11 @@ export const getAnonymousViewerId = () => {
 /**
  * Forgets this browser's anonymous id. Exposed for tests and for a future
  * "reset my anonymous data" control.
+ *
+ * Do NOT call this on sign-out. The id is what lets the server recognise that this
+ * browser is the account that just signed out, so clearing it would mint a new
+ * guest id and count that person a second time for every record they had already
+ * opened — re-opening the exact double count the alias exists to close.
  */
 export const clearAnonymousViewerId = () => {
     if (typeof window === 'undefined' || !window.localStorage) return;

@@ -4,7 +4,7 @@ import Report from '../models/Report.js';
 import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import AuthSession from '../models/AuthSession.js';
-import { deleteViewEventsForTarget } from '../services/viewEventService.js';
+import { deleteViewEventsForTarget, deleteViewerAliasesForUser } from '../services/viewEventService.js';
 import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
 import { sendPushToUser, pushTemplates } from '../services/pushService.js';
 import {
@@ -1065,8 +1065,11 @@ export const deleteUser = async (req, res) => {
         // 2. Delete non-production reports from this account
         await Report.deleteMany({ reporter: user._id });
 
-        // 3. Delete the user
+        // 3. Delete the user's sessions, then the browser aliases that would
+        //    otherwise keep attributing signed-out views to an account that no
+        //    longer exists.
         await AuthSession.deleteMany({ user: user._id });
+        await deleteViewerAliasesForUser({ userId: user._id });
         req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true)?.catch?.(() => {});
         await user.deleteOne();
 

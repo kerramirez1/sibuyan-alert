@@ -99,6 +99,11 @@ const readCounts = (row = {}) => REACH_COUNTS.reduce((counts, key) => {
  * client that never sends an id inflate reach on every call — the exact failure
  * the dedupe exists to prevent. The 200 shape matches `recordReportView`, which
  * already answers that way for owner self-views.
+ *
+ * One person, one row: an authenticated view also removes the guest row this
+ * browser wrote before it signed in, because both `guest` and `reporter` count as
+ * public reach. Without that, browsing the public map and then logging in double
+ * counted the same person on every record they had already opened.
  */
 export const recordView = async (req, res) => {
     try {
@@ -144,7 +149,16 @@ export const recordView = async (req, res) => {
             });
         }
 
-        const counted = await recordViewEvent({ targetType, targetId, ...identity });
+        // The anonymous id rides along even on an authenticated request. It does
+        // not change the identity above, but it lets the write collapse the guest
+        // row this same browser created before signing in — without it, one person
+        // would count twice for one record (see collapseGuestViewForTarget).
+        const counted = await recordViewEvent({
+            targetType,
+            targetId,
+            ...identity,
+            anonymousId: req.body?.anonymousId,
+        });
 
         if (!counted) {
             return res.status(400).json({
