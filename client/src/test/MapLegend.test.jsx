@@ -46,13 +46,15 @@ describe('MapLegend', () => {
         expect(container.querySelectorAll('.pulse-marker')).toHaveLength(1);
     });
 
-    test('keeps the operational legend on status names, with no dot entry', () => {
-        render(<MapLegend filterMode="response" showPending />);
+    test('keeps the operational legend on the lifecycle name, drawn as the dot', () => {
+        const { container } = render(<MapLegend filterMode="response" showPending />);
 
-        // Operational maps draw responding as its own coloured pin, so there the
-        // legend names the state rather than explaining a shape.
+        // The marker is the dot on every rail now, so this legend shows the dot
+        // too — but the name stays the one the tab and the card use: an operator
+        // should not have to learn a second word for the state they dispatch.
         expect(screen.getByText('Active response')).toBeInTheDocument();
         expect(screen.queryByText('Being responded to')).not.toBeInTheDocument();
+        expect(container.querySelectorAll('.pulse-marker')).toHaveLength(1);
     });
 
     test('isolates the pending filter and hides the hazard indicator', () => {
@@ -84,12 +86,14 @@ describe('MapLegend', () => {
     });
 
     test('shows only the responding status for the responding filter and hides the hazard indicator', () => {
-        render(<MapLegend filterStatus="responding" />);
+        render(<MapLegend filterStatus="responding" filterMode="response" />);
 
         // 'Active response' is the one name for this lifecycle state across the
-        // tab, the card, the status badge, and this legend entry. The retired
+        // tab, the card, the status badge, and this legend entry — and the symbol
+        // beside it is the pulsing dot the map now draws for it. The retired
         // 'Responding' label must not come back on one surface only.
         expect(screen.getByText('Active response')).toBeInTheDocument();
+        expect(document.querySelector('.pulse-marker')).not.toBeNull();
         expect(screen.queryByText('Responding')).not.toBeInTheDocument();
         expect(screen.queryByText('High-risk zone')).not.toBeInTheDocument();
         expect(screen.queryByText('Pending')).not.toBeInTheDocument();

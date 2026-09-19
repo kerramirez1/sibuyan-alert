@@ -26,9 +26,10 @@ export const MAP_STATUS_CONFIG = Object.freeze({
         // legend entry, so they cannot drift apart into "Responding" and
         // "Active response" describing the same pins.
         //
-        // Note this is the *operational* name. On the public map the same state
-        // is drawn as a dot with a pulse and named "Being responded to" — see
-        // MAP_RESPONDING_INCIDENT_CONFIG below.
+        // Note this is the *operational* name, and the cyan below is the colour
+        // this state keeps in the UI chrome (tab swatch, badges, list rows). The
+        // marker it draws on the canvas is the pulsing blue dot named "Being
+        // responded to" on every rail — see MAP_RESPONDING_INCIDENT_CONFIG below.
         label: 'Active response',
         markerColor: '#0891B2',
         badge: 'border-cyan-200 bg-cyan-50 text-cyan-700',
@@ -60,7 +61,7 @@ export const MAP_STATUS_CONFIG = Object.freeze({
  * incident somebody is already handling is a dot inside a travelling ring. That
  * split is visible in a screenshot and under `prefers-reduced-motion`, which a
  * colour-only difference would not be. Operational roles keep per-status colors
- * and keep their pins.
+ * for their pins; only the responding dot is drawn the same way on every map.
  */
 export const ACTIVE_INCIDENT_STATUS_KEY = 'active';
 
@@ -71,14 +72,19 @@ export const MAP_ACTIVE_INCIDENT_CONFIG = Object.freeze({
 });
 
 /**
- * The responding dot as the *public* map draws it: same blue as the pin it
- * replaces, different shape, plus a pulse.
+ * How the responding marker is drawn, on every map: same blue as the active pin,
+ * different shape, plus a pulse.
  *
  * A separate entry from `MAP_STATUS_CONFIG.responding` on purpose, because it is
- * a separate presentation of the same state — the operational legend names the
- * state ("Active response", cyan pin) and this one names what the marker does
+ * a separate presentation of the same state — the operational chrome names the
+ * state ("Active response", cyan swatch) and this one names what the marker does
  * ("Being responded to", blue dot). Both names point at one lifecycle value, and
  * `MAP_STATUS_CONFIG.responding` remains the single owner of that value.
+ *
+ * It applies to responder and admin maps too, which is the point: one incident
+ * should not be a dot to a reporter and a pin to the operator dispatching it.
+ * The pulse is reused rather than re-created, so the legend swatch and the
+ * marker cannot drift (see `RespondingDotSymbol` in MapLegend).
  */
 export const RESPONDING_INCIDENT_STATUS_KEY = 'responding-dot';
 
@@ -144,6 +150,12 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         if (filterStatus === 'active' || filterStatus === 'incidents') {
             return [ACTIVE_INCIDENT_STATUS_KEY, RESPONDING_INCIDENT_STATUS_KEY];
         }
+        // The responding tab shows the dot on every rail, so it is named as the
+        // dot. Falling through to the status lookup would label the pulse
+        // "Active response" with a cyan pin the canvas no longer draws.
+        if (filterStatus === 'responding') {
+            return [RESPONDING_INCIDENT_STATUS_KEY];
+        }
         if (MAP_STATUS_CONFIG[filterStatus]) {
             return [filterStatus];
         }
@@ -157,7 +169,12 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         return [ACTIVE_INCIDENT_STATUS_KEY, RESPONDING_INCIDENT_STATUS_KEY];
     }
 
-    return ACTIVE_MAP_STATUS_KEYS.filter((status) => (showPending || status !== 'pending') && status !== 'resolved');
+    // Operational rails name the lifecycle state behind each marker, except the
+    // one marker that is not a lifecycle silhouette: responding is the dot here
+    // too, so the legend says so.
+    return ACTIVE_MAP_STATUS_KEYS
+        .filter((status) => (showPending || status !== 'pending') && status !== 'resolved')
+        .map((status) => (status === 'responding' ? RESPONDING_INCIDENT_STATUS_KEY : status));
 };
 
 /**

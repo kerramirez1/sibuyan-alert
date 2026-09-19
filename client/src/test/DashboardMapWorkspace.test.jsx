@@ -301,12 +301,14 @@ describe('DashboardMapWorkspace permissions', () => {
             { _id: 'transferred-1', status: 'transferred', incidentType: 'medical', coordinates: { lat: 12.42, lng: 122.62 }, createdAt: now },
             { _id: 'responding-1', status: 'responding', incidentType: 'marine', coordinates: { lat: 12.43, lng: 122.63 }, createdAt: now },
         ];
-        const resolvedReport = { _id: 'resolved-1', status: 'resolved', incidentType: 'other', resolvedAt: now, createdAt: now };
+        // The resolved row is a real map row now: the Resolved card counts the
+        // pins the Resolved tab shows, not every closed report in the system.
+        const resolvedReport = { _id: 'resolved-1', status: 'resolved', incidentType: 'other', resolvedAt: now, coordinates: { lat: 12.44, lng: 122.64 }, createdAt: now };
         const props = createProps({
             user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
             isAdmin: true,
             isReporter: false,
-            reports,
+            reports: [...reports, resolvedReport],
             resolvedTodayReports: [resolvedReport],
             mapSummaryPanel: 'overview:admin-pending',
         });
@@ -340,15 +342,50 @@ describe('DashboardMapWorkspace permissions', () => {
 
         rerender(
             <MemoryRouter>
-                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-resolved-today" />
+                <DashboardMapWorkspace {...props} mapSummaryPanel="overview:admin-resolved" />
             </MemoryRouter>,
         );
-        panel = screen.getByRole('dialog', { name: 'Resolved today' });
+        panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
         expect(within(panel).getByText(/Other.*Resolved/i)).toBeInTheDocument();
-        expect(within(panel).queryByRole('button', { name: 'Locate' })).not.toBeInTheDocument();
+        // The card now points the map at the Resolved tab, so its rows can be
+        // located. It used to be list-only because the two numbers disagreed.
+        expect(within(panel).getByRole('button', { name: 'Locate' })).toBeInTheDocument();
+        // Today's closures are still reported, as supporting text beside the
+        // archive count rather than as the value.
+        expect(within(summary).getByRole('button', { name: /View 1 resolved\. Closed incidents · 1 today/i })).toBeInTheDocument();
     });
 
 
+
+    test('prints the same number on the Resolved card as the Resolved tab counts', () => {
+        const now = new Date().toISOString();
+        const reports = [
+            { _id: 'resolved-today', status: 'resolved', incidentType: 'fire', resolvedAt: now, coordinates: { lat: 12.4, lng: 122.6 }, createdAt: now },
+            { _id: 'resolved-archive', status: 'resolved', incidentType: 'medical', resolvedAt: '2026-01-02T04:00:00.000Z', coordinates: { lat: 12.41, lng: 122.61 }, createdAt: now },
+            { _id: 'resolved-offmap', status: 'resolved', incidentType: 'other', resolvedAt: now, createdAt: now },
+        ];
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            reports,
+            // The page owns the "today" scope; the card only clips it to rows
+            // that are on the map.
+            resolvedTodayReports: [reports[0], reports[2]],
+        }));
+
+        // The card and the tab are one set: both resolved pins, today's and the
+        // archived one. The third row has no coordinates, so it is not on the map
+        // and is counted nowhere — the old failure was the mirror of that, a card
+        // scoped to today (0 or 1) sitting beside a tab counting the archive (2).
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        expect(within(summary).getByRole('button', { name: /View 2 resolved\./i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Resolved filter \(2 records\)/i })).toBeInTheDocument();
+        // Today's closures survive as supporting text on the archive card — and
+        // the coordinate-less one is dropped, so the line cannot outrun the
+        // number beside it.
+        expect(within(summary).getByRole('button', { name: /1 today/i })).toBeInTheDocument();
+    });
 
     test('opens zero-count metrics with a metric-specific empty state', () => {
         renderWorkspace(createProps({
@@ -986,7 +1023,7 @@ describe('DashboardMapWorkspace permissions', () => {
         guest.unmount();
     });
 
-    test('opens the ready-to-dispatch card as list-only and leaves the map filter alone', () => {
+    test('opens the ready-to-dispatch card on the map as well as in its panel', () => {
         const setResponderMapFilter = vi.fn();
         const setMapSummaryPanel = vi.fn();
         renderWorkspace(createProps({
@@ -1006,20 +1043,20 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
 
         const summary = screen.getByRole('region', { name: 'Map summary' });
-        // The card counts verified + transferred only.
-        const dispatchCard = within(summary).getByRole('button', { name: /View the list of 2 ready to dispatch/i });
+        // The card counts verified + transferred only — the same pair the
+        // 'dispatch' tab shows.
+        const dispatchCard = within(summary).getByRole('button', { name: /View 2 ready to dispatch/i });
         fireEvent.click(dispatchCard);
 
-        // It still opens its own panel, which lists exactly those two records…
+        // It opens its own panel, which lists exactly those two records…
         expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:admin-dispatchable');
-        // …but it does NOT touch the map filter. Its count equals no single tab
-        // (the new 'dispatch' tab shows the same pair, which is why the label is
-        // now shared, but the card stays list-only so the rule is uniform), and
-        // the affordance says so: a list icon, not a chevron, plus the promise
-        // in the accessible name.
-        expect(setResponderMapFilter).not.toHaveBeenCalled();
-        expect(dispatchCard).toHaveAccessibleName(/map is unchanged/i);
+        // …and it points the map at the tab carrying the same pair. It used to
+        // be the one card whose list and whose map disagreed, which is the only
+        // reason it wore a list icon instead of the chevron every other card
+        // wears.
+        expect(setResponderMapFilter).toHaveBeenCalledWith('dispatch');
         expect(dispatchCard.querySelector('svg')).not.toBeNull();
+        expect(dispatchCard).toHaveAccessibleName(/View 2 ready to dispatch/i);
     });
 
     test('keeps overview metrics decoupled from active map status filters (e.g. risk-zones filter)', () => {

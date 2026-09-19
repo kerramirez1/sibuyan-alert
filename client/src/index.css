@@ -76,9 +76,9 @@
   --marker-beat: 0.5s;
 
   /* A full three-wave train. Derived from the beat, so three waves staggered one
-     beat apart always mean a wave leaves the marker every 0.5s. The hazard
-     radar runs for this whole duration; the responding dot shortens it to two
-     beats, because it is a status rather than a warning. */
+     beat apart always mean a wave leaves the marker every 0.5s. Both consumers
+     run for this whole duration: the hazard radar and the responding dot are the
+     same sweep, separated by disc-versus-ring and by reach, not by tempo. */
   --marker-wave: calc(var(--marker-beat) * 3);
 }
 
@@ -790,13 +790,15 @@
    the map. There are exactly two consumers:
 
      1. the high-risk zone radar     — three filled red discs, the alert
-     2. the responding incident dot  — two hollow blue rings, the status
+     2. the responding incident dot  — three hollow blue rings, the status
 
    Sharing the kit rather than the pixels is the point: the beat, the easing and
    the reduced-motion fallback are defined once, so the two cues fire together
-   and neither can become louder than the other by drifting. What differs is how
-   many waves are in flight and whether a wave is a disc or a ring — and a
-   filled disc is the loud one, which is why only the hazard marker may use it.
+   and neither can become louder than the other by drifting. Both are full
+   three-wave radar sweeps now — the wave count lives with each consumer, and
+   each runs the whole train, so a ring is always leaving — which leaves disc
+   versus ring as the one difference between them. A filled disc is the loud one,
+   which is why only the hazard marker may use it.
 
    In both consumers the core dot is the fixed anchor and never moves: a moving
    centre makes the marker look like it is drifting off the coordinate it marks.
@@ -972,40 +974,47 @@
 }
 
 /* --------------------------------------------------------------------------
-   Consumer 2 — the responding incident dot (reporter / guest map)
+   Consumer 2 — the responding incident dot (every map)
    --------------------------------------------------------------------------
    On the public map a verified, transferred and responding incident all share
-   one blue, so colour cannot tell them apart. Shape and motion do: the two
+   one blue, so colour cannot tell them apart there; shape and motion do. The two
    waiting states stay teardrop pins, and the one incident somebody is already
-   handling becomes a dot inside a travelling ring.
+   handling becomes a dot inside travelling rings. The operational rails draw the
+   same dot, so one incident is never two shapes depending on who is signed in
+   (see MapView).
 
    The dot is why this survives `prefers-reduced-motion`, a frozen screenshot,
    and a low-end phone: the state is carried by the marker's shape rather than
    by the animation. The halo this replaces could not do that, and its three
    static 36px filled discs drew more attention than the incident warranted.
 
-   Its geometry is NOT here: `RESPONDING_DOT_SIZE` in `mapMarkerVisuals.js` owns
-   the footprint and core, next to the incident pin's size that they are derived
-   from, and writes them as `--pulse-size` / `--pulse-core` on the marker. Only
-   the motion lives below, because motion is what the kit is for.
+   Its geometry and its wave count are NOT here: `RESPONDING_DOT_SIZE` and
+   `RESPONDING_PULSE_WAVES` in `mapMarkerVisuals.js` own the footprint, the core
+   and how many rings are in the air, next to the incident pin's size that they
+   are derived from, and write the geometry out as `--pulse-size` / `--pulse-core`
+   on the marker. Only the motion lives below, because motion is what the kit is
+   for.
 
-   The ring is hollow on purpose, which is also what keeps it clear of the
-   hazard radar: the zone uses filled discs, this uses an outline. Two cues can
-   then share the map without either reading as the other.
+   The ring is hollow on purpose, which is what keeps this sweep clear of the
+   hazard radar: both run the same three-wave train at the shared beat, and the
+   only thing separating the alert from the status is that the zone's waves are
+   filled discs and these are outlines.
    -------------------------------------------------------------------------- */
 .report-marker--responding {
   /* Dark blue tint rather than the hazard's dark red, again purely for
      definition against bright satellite imagery. */
   --pulse-core-shadow: 0 1px 3px rgba(30, 58, 138, 0.45);
-  /* Two waves in flight instead of the radar's three: the beat is unchanged, so
-     a ring still leaves every `--marker-beat`, but each ring travels for two
-     beats rather than three and the cue is correspondingly lighter. */
-  --pulse-wave: calc(var(--marker-beat, 0.5s) * 2);
-  /* Held back from the hazard by shape, size and life rather than by being
-     washed out: a hollow 1.5px outline at a 14px footprint, two waves instead of
-     three, two beats instead of three, and a 5.3px glide instead of 9px. It keeps
-     the same peak opacity as every other wave, because a cue nobody can see is
-     not a calmer cue — it is a missing one. */
+  /* No `--pulse-wave` override any more: the dot runs the kit's full
+     `--marker-wave` train, exactly as the hazard radar does. Each ring used to
+     travel for two beats instead of three, which is what made this a two-ring
+     ripple rather than a sweep — and with three waves staggered a beat apart, the
+     full train is also what keeps a ring leaving the dot on every beat.
+
+     Held back from the hazard by shape and reach rather than by being washed
+     out: a hollow 1.5px outline instead of a filled disc, a 14px footprint
+     instead of 18px, and a 5.3px glide instead of 9px. It keeps the same peak
+     opacity as every other wave, because a cue nobody can see is not a calmer
+     cue — it is a missing one. */
 }
 
 /* A dot has no tip to point with, so the map anchors it at its centre   rather than at its bottom (see the `anchor` passed to the Marker in MapView). The
@@ -1102,6 +1111,18 @@
   }
   .pulse-marker__wave:nth-child(3) {
     transform: scale(0.56);
+  }
+  /* The responding dot keeps two of its three rings here, and this is the one
+     place the dot and the radar legitimately disagree on how many are visible.
+     The ladder above is built for the zone's 18px footprint and 8px core: at
+     0.56 of the dot's 14px footprint a ring lands at 7.8px, i.e. behind the
+     dot's own 9px core, so it would pulse where nothing could see it. There is
+     no room to inset it either — the core leaves 2.5px of radius, and two rings
+     inside that is a smear rather than a ladder. A frozen sweep has no travel to
+     sell, so the dot shows the two rings that fit and drops the third instead of
+     shipping an invisible element. */
+  .report-marker--responding .pulse-marker__wave:nth-child(3) {
+    display: none;
   }
   /* Hollow waves take the outline-visible range instead of the disc one. This
      covers both hollow consumers — the responding dot on the map and its swatch

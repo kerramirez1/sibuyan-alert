@@ -35,9 +35,10 @@ const LegendSymbol = ({ status, color }) => (
  *
  * Same pulse kit as the map marker (see `index.css`), just smaller: reusing the
  * classes rather than approximating the effect with a static dot is what keeps
- * the legend honest, and it inherits the reduced-motion fallback for free. The
- * wave train runs at the kit's default length here, not the marker's shortened
- * one — a legend symbol has nowhere to travel and no reason to be urgent.
+ * the legend honest, and it inherits the reduced-motion fallback for free. It
+ * carries one ring while the marker runs three: three rings inside a 12px swatch
+ * is a blur, and a legend symbol has nowhere to travel and no reason to be
+ * urgent.
  *
  * Its size comes from `RESPONDING_DOT_LEGEND_SIZE` rather than from hand-tuned
  * numbers, because the thing it has to match is the row it sits in: the pin
@@ -68,7 +69,7 @@ const GroupedMarkerSymbol = () => (
     </span>
 );
 
-const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, showRiskZone = true }) => {
+const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, showRiskZone = true, filterMode = 'public' }) => {
     if (!showRiskZone && statusKeys.length === 0 && !hasGroupedReports) {
         return null;
     }
@@ -87,10 +88,19 @@ const LegendItems = ({ statusKeys, hasGroupedReports = false, compact = false, s
             )}
             {statusKeys.map((status) => {
                 if (status === RESPONDING_INCIDENT_STATUS_KEY) {
+                    // The symbol follows the marker on every rail; the name
+                    // follows the rail's vocabulary. The public map folds this
+                    // state into one active entry, so there the entry names the
+                    // shape it draws; the operational rail has a tab and a card
+                    // called "Active response", so its legend keeps that name and
+                    // lets the pulsing dot explain the shape.
+                    const respondingLabel = filterMode === 'public'
+                        ? MAP_RESPONDING_INCIDENT_CONFIG.label
+                        : MAP_STATUS_CONFIG.responding.label;
                     return (
                         <div key={status} className={itemClass}>
                             <RespondingDotSymbol />
-                            <span className="break-words leading-tight">{MAP_RESPONDING_INCIDENT_CONFIG.label}</span>
+                            <span className="break-words leading-tight">{respondingLabel}</span>
                         </div>
                     );
                 }
@@ -184,7 +194,7 @@ const MapLegend = ({
                         className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden w-fit max-w-[calc(100%-2rem)] rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 sm:block"
                     >
                         <div className="flex items-center gap-2">
-                            <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} />
+                            <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} filterMode={filterMode} />
                             <button
                                 type="button"
                                 onClick={() => setDesktopCollapsed(true)}
@@ -219,7 +229,7 @@ const MapLegend = ({
                         aria-label="Map legend details"
                         className="absolute left-0 top-10 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/90 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95 z-30"
                     >
-                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} compact />
+                        <LegendItems statusKeys={statusKeys} hasGroupedReports={hasGroupedReports} showRiskZone={isRiskZoneVisible} filterMode={filterMode} compact />
                     </section>
                 )}
             </div>

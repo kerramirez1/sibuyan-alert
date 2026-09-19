@@ -42,18 +42,24 @@ describe('map status visuals', () => {
         expect(getMapFilterStatusDot(undefined)).toBeNull();
     });
 
-    test('explains the responding dot on every public legend that can show one', () => {
-        // The public map draws two distinct things, so its legend owes two
-        // entries: the unified active pin, and the dot that stands for the one
+    test('explains the responding dot on every legend that can show one', () => {
+        // The map draws two distinct things on every rail now, so every legend
+        // owes two entries: the active pin, and the dot that stands for the one
         // incident somebody is already handling. An animation with no legend
         // entry is decoration.
         for (const filterStatus of [null, 'all', 'active', 'incidents']) {
             expect(getMapLegendStatusKeys({ filterStatus, filterMode: 'public' }))
                 .toContain(RESPONDING_INCIDENT_STATUS_KEY);
         }
-        // Operational legends keep their status names and their pins.
-        expect(getMapLegendStatusKeys({ filterMode: 'response', showPending: true }))
-            .not.toContain(RESPONDING_INCIDENT_STATUS_KEY);
+        // The operational rails draw the same dot — the marker is not a public
+        // map feature — so their legends name it too.
+        for (const filterMode of ['response', 'review']) {
+            expect(getMapLegendStatusKeys({ filterMode, showPending: true }))
+                .toContain(RESPONDING_INCIDENT_STATUS_KEY);
+        }
+        // And the responding tab, wherever it exists, is the dot.
+        expect(getMapLegendStatusKeys({ filterStatus: 'responding', filterMode: 'response' }))
+            .toEqual([RESPONDING_INCIDENT_STATUS_KEY]);
     });
 
     test('presents the responding dot in the one blue the public map already uses', () => {
@@ -80,7 +86,12 @@ describe('map status visuals', () => {
     test('keeps the operational legend scoped to active, non-resolved statuses', () => {
         const operational = getMapLegendStatusKeys({ filterMode: 'response', showPending: true });
 
-        expect(operational).toEqual(ACTIVE_MAP_STATUS_KEYS.filter((status) => status !== 'resolved'));
+        // Same five statuses as before, with responding expressed as the marker
+        // that is actually drawn for it.
+        const expected = ACTIVE_MAP_STATUS_KEYS
+            .filter((status) => status !== 'resolved')
+            .map((status) => (status === 'responding' ? RESPONDING_INCIDENT_STATUS_KEY : status));
+        expect(operational).toEqual(expected);
         expect(operational).not.toContain('resolved');
     });
 });

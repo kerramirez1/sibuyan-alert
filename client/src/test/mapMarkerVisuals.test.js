@@ -108,23 +108,28 @@ describe('mapMarkerVisuals', () => {
         // ...and the pulse is the shared kit, not a private ring.
         expect(el.innerHTML).toContain('pulse-marker"');
         expect(el.innerHTML).toContain('--pulse-color:#2563EB');
-        expect((el.innerHTML.match(/pulse-marker__wave/g) || [])).toHaveLength(2);
+        // A full three-wave train, like the hazard radar's: one ring leaves on
+        // every beat and the sweep never gaps. Fewer rings is what this used to
+        // ship, and it is the one thing the radar treatment changes about the
+        // markup — the ring stays hollow, so the cue is still the quiet one.
+        expect((el.innerHTML.match(/pulse-marker__wave/g) || [])).toHaveLength(3);
         expect((el.innerHTML.match(/pulse-marker__core/g) || [])).toHaveLength(1);
+        expect(el.innerHTML).not.toContain('pulse-marker--filled');
         // A pulse is invisible to a screen reader, so the state is in the name.
         expect(el.getAttribute('aria-label'))
             .toBe('Motorcycle collision map marker, being responded to');
         expect(el.getAttribute('title')).toBe(el.getAttribute('aria-label'));
     });
 
-    test('keeps the operational maps on their own pins', () => {
+    test('still builds a plain pin when the caller asks for one', () => {
         const report = { id: 'rep-ops', status: 'responding', title: 'Boat capsizing' };
 
         const el = createOperationalMarkerElement({
             report,
             groupedReports: [report],
             markerColor: MAP_STATUS_CONFIG.responding.markerColor,
-            // What an operational map passes: responding is a colour there, and a
-            // second marker shape would just be one more thing to learn.
+            // No map passes `false` for responding any more; the option is kept
+            // because the builder still owns both shapes (see the dot test above).
             respondingDot: false,
         });
 

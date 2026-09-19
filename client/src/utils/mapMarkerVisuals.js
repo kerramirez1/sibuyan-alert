@@ -182,13 +182,18 @@ export const getSelectedLocationMarkerSvg = ({
 /**
  * Waves drawn behind the responding dot.
  *
- * Two, not the hazard radar's three. Three exhausts the full `--marker-wave`
- * train, so a ring is always leaving; two still means a ring leaves every
- * `--marker-beat`, while only two waves are ever in flight. Fewer, thinner
- * marks is the whole difference between this and the halo that was removed for
- * being louder than the incident it described.
+ * Three, i.e. the full `--marker-wave` train — a radar sweep, the same one the
+ * hazard zone runs, so a ring is always leaving the dot and the two cues share
+ * one rhythm instead of two. It used to be two: a shorter train read as a
+ * quieter ripple, but "quieter" is not what this marker is for, and a train that
+ * does not cover its own wave length leaves a visible gap between rings.
+ *
+ * What keeps the sweep from shouting over the hazard is the ring, not the
+ * count: the zone's waves are filled discs and these are 1.5px outlines, at a
+ * 14px footprint against the zone's 18px (see `RESPONDING_DOT_SIZE` and the
+ * `report-marker--responding` block in `index.css`).
  */
-const RESPONDING_PULSE_WAVES = 2;
+const RESPONDING_PULSE_WAVES = 3;
 
 /**
  * Writes the pulse kit's geometry as custom properties.
@@ -222,11 +227,11 @@ const buildPulseMarkup = ({ color, waves, filled = false, size, core }) => `
  * @param {object[]} [options.groupedReports] Every record sharing the coordinates.
  * @param {string} [options.markerColor]      Colour the caller already resolved.
  * @param {boolean} [options.respondingDot]   Render a responding incident as a
- *   dot instead of a teardrop pin. The reporter/guest map passes `true`, because
- *   there verified, transferred and responding all share one blue and shape plus
- *   motion are the only things left to tell them apart. Operational maps pass
- *   `false`: a dispatcher reads status by colour, and a second marker shape would
- *   just be one more thing to learn on a triage screen.
+ *   dot instead of a teardrop pin. Every map passes `true` for this state now
+ *   (see MapView): a responding incident is a dot to the reporter and to the
+ *   dispatcher alike, so the same incident cannot be two different shapes
+ *   depending on who is signed in. `false` remains the default for any caller
+ *   that wants plain status pins.
  * The dot's pulse is CSS-only and has no switch here. `prefers-reduced-motion`
  * in `index.css` is the single owner of that decision (see the note above
  * `.sibuyan-map-credit` for why a JS-side gate was removed), so this builder

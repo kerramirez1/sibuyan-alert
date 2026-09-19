@@ -12,7 +12,6 @@ import {
     HiOutlineFilter,
     HiOutlineLightningBolt,
     HiOutlineTruck,
-    HiOutlineViewList,
     HiOutlineX,
 } from 'react-icons/hi';
 import { Link } from '../../router';
@@ -240,18 +239,17 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
  * The card's trailing affordance, and the only thing that tells a reader whether
  * tapping will change the map.
  *
- * A chevron means "this opens the matching set and points the map at it". A list
- * icon means "this opens the list only". Cards used to all carry the chevron
- * while one of them silently did nothing to the map, so the pattern a reader
- * learned from three cards was broken by the fourth.
+ * A chevron means "this opens the matching set and points the map at it", and
+ * now every card does that, so the affordance is unconditional. It used to have
+ * a list-icon twin for the two cards that opened a list without touching the
+ * map; a second icon is only worth its ink while a card exists that needs it,
+ * and the moment one card wore the wrong one the pattern stopped being readable.
  */
-const MetricStripAffordance = ({ listOnly }) => (
-    listOnly
-        ? <HiOutlineViewList className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-        : <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
+const MetricStripAffordance = () => (
+    <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
 );
 
-const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false, listOnly = false }) => (
+const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false }) => (
     <button
         type="button"
         onClick={onClick}
@@ -259,8 +257,8 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-expanded={selected}
         aria-controls={MAP_SUMMARY_PANEL_ID}
         aria-busy={loading || undefined}
-        aria-label={`${listOnly ? 'View the list of' : 'View'} ${value} ${label.toLowerCase()}. ${helper}${listOnly ? ' Opens the list only; the map is unchanged.' : ''}`}
-        title={`${value} ${label} — ${helper}${listOnly ? ' (list only — the map is unchanged)' : ''}`}
+        aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
+        title={`${value} ${label} — ${helper}`}
         className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
             ? 'border border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-white/5'
             : 'border-2 border-brand-700 bg-brand-100/80 shadow hover:border-brand-800 hover:bg-brand-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
@@ -275,7 +273,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
             <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-gray-900 dark:text-white">
                 {value}
             </span>
-            <MetricStripAffordance listOnly={listOnly} />
+            <MetricStripAffordance />
         </span>
         {helper && (
             <span className="mt-0.5 block truncate text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
@@ -288,7 +286,7 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
                 {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
                 <span>{label}</span>
             </span>
-            <MetricStripAffordance listOnly={listOnly} />
+            <MetricStripAffordance />
         </span>
         <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
             {value}
@@ -466,6 +464,23 @@ const DashboardMapWorkspace = ({
     // Declared here, above both metric arrays, because a `const` referenced
     // before its declaration throws rather than reading as undefined.
     const resolvedMapReports = allMappedReports.filter((report) => report?.status === 'resolved');
+    // The Resolved card and the map's Resolved tab are the same set — every
+    // resolved pin this viewer is allowed to see — so the card may point the map
+    // at it. Today's closures ride along as supporting text instead of as the
+    // card's value: as a value, a time-scoped 0 sat beside a Resolved tab
+    // reading 2, two numbers for one word on one screen.
+    //
+    // The count is clipped to that same array, so if a resolved report has no
+    // coordinates (and therefore cannot be a pin) it cannot inflate the
+    // supporting line past the number printed next to it either.
+    const resolvedTodayMappedIds = new Set(
+        toSafeArray(resolvedTodayReports).map((report) => getEntityKey(report)),
+    );
+    const resolvedTodayMappedCount = resolvedMapReports.filter((report) => {
+        const id = getEntityKey(report);
+        return Boolean(id) && resolvedTodayMappedIds.has(id);
+    }).length;
+    const resolvedArchivePanelDescription = `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} in the resolved archive`;
     const activeIncidentsSummary = buildActiveIncidentsSummary({
         total: publicActiveReports.length,
         responding: activeResponseReports.length,
@@ -602,15 +617,16 @@ const DashboardMapWorkspace = ({
                 statusDot: 'bg-cyan-500',
             },
             {
-                // "Resolved by you today", not "Resolved today": the admin has a
-                // card of that name meaning every closed incident, and the two sat
-                // side by side in different roles with the same label and
-                // different scopes. The count here is one responder's own work.
-                id: 'responder-resolved-today', label: 'Resolved by you today', value: resolvedTodayReports.length,
-                helper: 'Incidents you handled', icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                panelTitle: 'Resolved by you today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} you resolved today`,
-                records: resolvedTodayReports, listOnly: true, emptyTitle: 'No incidents resolved by you today',
-                emptyDescription: 'You have not resolved any incidents today.',
+                // The Resolved card now counts exactly what the Resolved tab
+                // shows — the resolved pins in this responder's scope — so the
+                // number and the map can never disagree. The responder's own
+                // daily tally is supporting text: as a card value it was a
+                // second, narrower count wearing the same word as the admin's.
+                id: 'responder-resolved', label: 'Resolved', value: resolvedMapReports.length,
+                helper: `Closed incidents · ${resolvedTodayMappedCount} today by you`, icon: HiOutlineBadgeCheck, panelType: 'incidents',
+                panelTitle: 'Resolved incidents', panelDescription: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} resolved by you today`,
+                records: resolvedMapReports, mapFilter: 'resolved', emptyTitle: 'No resolved incidents',
+                emptyDescription: 'No resolved incidents yet.',
                 statusDot: 'bg-emerald-500',
             },
             {
@@ -636,12 +652,11 @@ const DashboardMapWorkspace = ({
                     helper: 'Verified or transferred', icon: HiOutlineCheckCircle, panelType: 'incidents',
                     panelTitle: 'Ready to dispatch', panelDescription: `${dispatchableReports.length} ${dispatchableReports.length === 1 ? 'incident' : 'incidents'} verified or transferred and waiting for a responder`,
                     records: dispatchableReports,
-                    // No `mapFilter`, so `listOnly` says so out loud: the card's
-                    // label is now also a tab, but a card may only point the map
-                    // at a tab when the two counts are the same set. See the
-                    // list-only rule below the metric arrays — this card is the
-                    // reason that rule exists.
-                    listOnly: true,
+                    // The card counts verified + transferred; the 'dispatch' tab
+                    // is that same pair. Same set, so the card points the map at
+                    // the tab it counts — the pair is no longer a reason for the
+                    // card to be the one exception to the rule above.
+                    mapFilter: 'dispatch',
                     emptyTitle: 'No incidents available for dispatch',
                     emptyDescription: 'No verified or transferred incidents are currently available for dispatch.',
                     statusDot: 'bg-blue-500',
@@ -655,14 +670,16 @@ const DashboardMapWorkspace = ({
                     statusDot: 'bg-cyan-500',
                 },
                 {
-                    id: 'admin-resolved-today', label: 'Resolved today', value: resolvedTodayReports.length,
-                    helper: 'Closed incidents', icon: HiOutlineBadgeCheck, panelType: 'incidents',
-                    panelTitle: 'Resolved today', panelDescription: `${resolvedTodayReports.length} ${resolvedTodayReports.length === 1 ? 'incident' : 'incidents'} resolved today`,
-                    // `listOnly`: the card is scoped to today, the Resolved tab is
-                    // the whole archive. Pointing the map at the card would show
-                    // every resolved pin and contradict the count.
-                    records: resolvedTodayReports, listOnly: true, emptyTitle: 'No incidents resolved today',
-                    emptyDescription: 'No incidents have been resolved today.',
+                    // The archive card, not a "resolved today" card. It counts
+                    // exactly the pins the Resolved tab shows; today's closures
+                    // — the number that used to be the value, and the reason
+                    // this card read 0 beside a Resolved tab reading 2 — move to
+                    // the supporting line and the panel description.
+                    id: 'admin-resolved', label: 'Resolved', value: resolvedMapReports.length,
+                    helper: `Closed incidents · ${resolvedTodayMappedCount} today`, icon: HiOutlineBadgeCheck, panelType: 'incidents',
+                    panelTitle: 'Resolved incidents', panelDescription: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
+                    records: resolvedMapReports, mapFilter: 'resolved', emptyTitle: 'No resolved incidents',
+                    emptyDescription: 'No resolved incidents yet.',
                     statusDot: 'bg-emerald-500',
                 },
             ]
@@ -671,18 +688,15 @@ const DashboardMapWorkspace = ({
                 ? reporterMetrics
                 : publicMetrics;
 
-    // One rule decides whether a card is map-linked: a card points the map only
-    // when its own count equals the set exactly one tab can show. Otherwise the
-    // card is `listOnly` and opens its records without touching the map — and,
-    // because a chevron reads as "this changes the map", a list-only card swaps
-    // it for a list icon and says so in its accessible name.
-    //
-    // Three cards above carry that flag. "Resolved today" is time-scoped while
-    // the Resolved tab is not, and "Ready to dispatch" is a pair of lifecycle
-    // values even though the new 'dispatch' tab shows the same pair today — the
-    // card stays list-only so the rule is uniform rather than case-by-case. A
-    // card that opened a wider pin set than its own count is how an operator
-    // learns not to trust the numbers.
+    // One rule decides what a card is: the number, the list it opens, and the
+    // pins the map shows all come from one array, so every card can point the
+    // map at the tab it counts. The two cards that could not used to explain
+    // themselves in their accessible name instead of in their number —
+    // "Resolved today" was time-scoped while the Resolved tab is the archive,
+    // so the same screen could read 0 resolved beside a Resolved tab reading 2.
+    // A time-scoped or otherwise narrower count now belongs in the supporting
+    // line and the panel description, never in the value slot: the value slot is
+    // read as "the size of the set this card opens".
     //
     // Match the desktop row to the card count. Guests see 3 cards (the
     // transferred card was folded into active incidents) and signed-in roles
@@ -855,6 +869,13 @@ const DashboardMapWorkspace = ({
         if (filterValue === 'risk-zones') {
             return safeCount(highRiskZones);
         }
+        // The Resolved tab prints the same array the Resolved cards count and
+        // open, instead of a second derivation of "resolved" that happens to
+        // agree with the first today. One array, one number, whichever surface
+        // is asking.
+        if (filterValue === 'resolved') {
+            return resolvedMapReports.length;
+        }
         try {
             return getFilteredMapReports(toSafeArray(reports), {
                 includePending: mapExperience.showPendingReports,
@@ -943,7 +964,6 @@ const DashboardMapWorkspace = ({
                             onClick={() => openOverviewMetric(metric)}
                             selected={mapSummaryPanel === `${OVERVIEW_PANEL_PREFIX}${metric.id}`}
                             loading={metric.loading}
-                            listOnly={Boolean(metric.listOnly)}
                         />
                     ))}
                 </div>

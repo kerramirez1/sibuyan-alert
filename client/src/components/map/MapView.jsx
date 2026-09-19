@@ -40,7 +40,12 @@ import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSuppo
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
-import { isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import {
+    isRiskZoneLayerVisibleForFilter,
+    MAP_RESPONDING_INCIDENT_CONFIG,
+    MAP_RISK_ZONE_CONFIG,
+    MAP_STATUS_CONFIG,
+} from '../../config/mapVisuals';
 import {
     createOperationalMarkerElement,
     createRiskZoneMarkerElement,
@@ -849,10 +854,11 @@ const MapView = ({
 
         const map = mapInstanceRef.current;
 
-        // The reporter/guest map is the one that renders a responding incident
-        // as a dot rather than a pin. Operational maps keep their pins: there the
-        // per-status colour already says "active response", and on a triage
-        // screen a second shape would be one more thing to learn.
+        // One incident, one marker, on every rail. A responding incident is a
+        // pulsing dot rather than a teardrop pin for everybody now: it used to be
+        // public-only, so the same incident was a dot to a reporter and a cyan pin
+        // to the admin, and an operator who checked the public map met a shape
+        // their own screen had never shown them.
         const isPublicMap = filterMode === 'public';
 
         const getReportMarkerColor = (report) => {
@@ -860,10 +866,15 @@ const MapView = ({
             // responding share one blue "active" marker, so colour cannot
             // separate them there — shape and motion do instead (see
             // `respondingDot` below). Operational roles keep per-status colors
-            // for dispatch triage.
+            // for dispatch triage, which is why only the responding branch below
+            // is universal.
             if (isPublicMap && ['verified', 'transferred', 'responding'].includes(report.status)) {
                 return MAP_STATUS_CONFIG.verified.markerColor;
             }
+            // The dot wears the dot's blue wherever it is drawn — the same blue
+            // it already has on the public map. Leaving operational maps on the
+            // cyan pin colour would have kept two speaking parts for one state.
+            if (report.status === 'responding') return MAP_RESPONDING_INCIDENT_CONFIG.markerColor;
             if (MAP_STATUS_CONFIG[report.status]) return MAP_STATUS_CONFIG[report.status].markerColor;
             return INCIDENT_COLORS[report.incidentCategory] || MAP_STATUS_CONFIG.verified.markerColor;
         };
@@ -892,7 +903,7 @@ const MapView = ({
                     report.status === 'pending' &&
                     (!canVerifyReport || canVerifyReport(report));
                 const markerColor = getReportMarkerColor(report);
-                const isRespondingDot = isPublicMap && report.status === 'responding';
+                const isRespondingDot = report.status === 'responding';
                 // Identity: same location + same set of reports = same marker.
                 const key = [
                     coords.lat.toFixed(6),
@@ -934,7 +945,7 @@ const MapView = ({
                         report,
                         groupedReports,
                         markerColor,
-                        respondingDot: isPublicMap,
+                        respondingDot: isRespondingDot,
                     });
 
                     const marker = new maplibregl.Marker({
