@@ -312,8 +312,10 @@ const MapIncidentDetails = ({
     return (
         <div className="flex flex-col">
             <div className="space-y-4 px-4 py-3.5 sm:px-5 sm:py-4">
-                {/* 1. Incident Brief */}
-                <div>
+                {/* 1. Incident Brief. `min-w-0` so the title inside can be clipped
+                    by its own box rather than widening this one: a flex parent
+                    sizes to its content, and the title is the longest string here. */}
+                <div className="min-w-0">
                     {typeof onBack === 'function' && (
                         <div className="pb-2">
                             <button
@@ -345,10 +347,19 @@ const MapIncidentDetails = ({
                         )}
                     </div>
 
-                    {/* The title is the incident's name, at the size a name is
-                        read at — one step up from the body type below it, and
-                        still breakable for a long one. */}
-                    <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug text-gray-950 break-words sm:text-lg dark:text-white">
+                    {/* The title is the incident's name, on exactly one line at
+                        every width. It used to be breakable, so "Road Accident at
+                        Near Cambijang" took two lines on a phone and pushed the
+                        status chips and the first facts down the pane — the name
+                        is the pane's heading, not a paragraph. One line, clipped
+                        with an ellipsis, at a size that stays readable in a
+                        half-width sheet; the full name is on the tooltip, and
+                        screen readers still get the whole string because
+                        `truncate` clips the box, not the text. */}
+                    <h3
+                        title={details.title}
+                        className="mt-1.5 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-display text-sm font-semibold leading-snug text-gray-950 sm:text-base dark:text-white"
+                    >
                         {details.title}
                     </h3>
 

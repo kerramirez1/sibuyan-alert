@@ -468,7 +468,18 @@ const ResponderIncidentInspector = ({
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-gray-950 sm:px-5">
                 <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">Incident details</p>
-                    <h2 id="responder-incident-details-title" className="mt-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-gray-900 dark:text-white">
+                    {/* One line at every width, clipped with an ellipsis rather
+                        than wrapped. This heading is the drawer's accessible name
+                        and it sits above the scroll body, so a second line came
+                        out of the record every time it appeared — and it is the
+                        same incident named in the map's brief, which is held to
+                        one line too. The full text is on the tooltip; clipping
+                        the box does not shorten the name a screen reader reads. */}
+                    <h2
+                        id="responder-incident-details-title"
+                        title={locationTitle}
+                        className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold leading-snug text-gray-900 sm:text-base dark:text-white"
+                    >
                         {locationTitle}
                     </h2>
                     <div className="mt-2 flex flex-wrap items-center gap-2">

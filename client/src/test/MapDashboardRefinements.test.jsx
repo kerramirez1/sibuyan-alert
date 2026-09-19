@@ -504,17 +504,33 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                     expect(helperP.className).not.toContain('truncate');
                 }
 
-                // The metric strip cards print their helper on a span instead.
-                // The active-incidents line carries the responding / waiting /
-                // transferred mix and can need a second line, so it wraps: a
-                // single-line clip would drop the count it exists to show.
-                const helperSpans = Array.from(btn.querySelectorAll('span.text-\\[11px\\]'))
-                    .filter((span) => !span.className.includes('uppercase'));
-                expect(helperSpans.length).toBeGreaterThanOrEqual(2);
-                helperSpans.forEach((helperSpan) => {
-                    expect(helperSpan.className).not.toContain('truncate');
-                    expect(helperSpan.className).toContain('line-clamp-2');
-                });
+                // The metric strip cards print their helper on one span, whose
+                // behaviour is sized to the card rather than fixed: one line at
+                // 9px on a half-width phone card, and a wrapping 11px line from sm
+                // where the card is wide enough for the sentence either way.
+                //
+                // 9px is a measurement, not a taste: in the self-hosted Inter the
+                // longest supporting line in the app (the 40-character
+                // active-incidents mix) is 143.3px at that size with
+                // `tracking-tighter`, against the 151px a half-width card's
+                // padding leaves it.
+                const helper = btn.querySelector('span.text-\\[9px\\]');
+                expect(helper).toBeTruthy();
+                expect(helper).toHaveClass('whitespace-nowrap', 'overflow-hidden', 'tracking-tighter');
+                expect(helper.className.split(/\s+/)).not.toContain('line-clamp-2');
+                expect(helper.className).not.toContain('truncate');
+                expect(helper.className).not.toContain('text-ellipsis');
+                // From sm it takes the rest of the value row and may wrap: the
+                // clamp is what lets a longer line break instead of clipping.
+                expect(helper.className.split(/\s+/)).toContain('sm:flex-1');
+                expect(helper.className.split(/\s+/)).toContain('sm:line-clamp-2');
+                // Wrapping is back below 375px, where the arithmetic runs out — a
+                // 320px phone gets a second line rather than a clipped word — and
+                // from sm, where the card is wide and an 11px line fits either way.
+                expect(helper.className.split(/\s+/)).toContain('max-[374px]:line-clamp-2');
+                expect(helper.className.split(/\s+/)).toContain('max-[374px]:whitespace-normal');
+                expect(helper.className.split(/\s+/)).toContain('sm:tracking-normal');
+                expect(helper.className.split(/\s+/)).toContain('sm:whitespace-normal');
             });
         });
 

@@ -59,6 +59,42 @@ const isSummaryPaneSheetViewport = () => {
     return window.innerWidth < 640;
 };
 
+/**
+ * The phone map's frame: a 4:3 canvas whose height comes from its own width.
+ *
+ * It used to be a fraction of the viewport (52svh held between 320px and 440px),
+ * which on a tall phone produced a portrait canvas — ~443px of height over ~325px
+ * of width, a map stretched the wrong way round for reading terrain and how an
+ * incident set spreads across it. A ratio cannot do that: the map is 4:3 at
+ * every phone width, so it stays wide and balanced, and its height follows the
+ * layout instead of the viewport's shape. At a 393x852 viewport that is ~259px;
+ * at the ~322px content width this was measured against, ~241px.
+ *
+ * It also decouples the map from the viewport's height on purpose: the map is
+ * drawn from its width alone, so the same phone shows the same map whatever
+ * chrome the browser adds or removes above it.
+ *
+ * From sm the frame is the flat 460px it has always been, and at lg it takes the
+ * column's remaining height — `aspect-auto` at both, because a ratio cannot
+ * coexist with a height the layout sets (see the frame below).
+ */
+const PHONE_MAP_FRAME_CLASSES = 'aspect-[4/3] w-full';
+
+/**
+ * The records pane's box on a phone, while something is open in it.
+ *
+ * Deliberately no longer the map's frame. The two boxes are one at sm and up,
+ * where the pane stands in the column beside the map: there a pane taller than
+ * the map would paint past the canvas it describes, which is the whole reason
+ * they were tied together. On a phone the box stands BELOW the map (see the
+ * mobile order on the row below), so that constraint does not apply — and the
+ * pane keeps the height a records list needs instead of inheriting a canvas
+ * ratio: 52svh held between 320px and 440px, which is where the list, its queue
+ * rail and its header all fit. Unchanged from the frame it used to share, so
+ * nothing about opening a card behaves differently than it did.
+ */
+const PHONE_PANE_BOX_CLASSES = 'h-[52svh] min-h-[320px] max-h-[440px]';
+
 const formatDate = (value, pattern = 'MMM d, h:mm a') => {
     if (!value) return 'Date unavailable';
     const date = new Date(value);
@@ -354,7 +390,9 @@ const MetricStripAffordance = ({ selected = false }) => (
     />
 );
 
-const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false }) => (
+const MetricStripItem = ({
+    label, value, helper, onClick, selected, statusDot, loading = false, className = '',
+}) => (
     <button
         type="button"
         onClick={onClick}
@@ -368,21 +406,33 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         // one card up by a pixel reads as the whole column twitching rather than
         // as that card lifting out of a row.
         //
-        // One padding per arrangement, and the lg value is the one that is easy
-        // to get wrong. Below lg the card is a row in a band above the map, so
-        // `py-2.5` keeps the numbers on one screen; from sm it is a card with
-        // room to breathe, which is what the band's height can afford.
+        // One padding per arrangement, and the two ends are the ones that are
+        // easy to get wrong. On a phone the card is one of four in a two-by-two
+        // band above the map — the whole KPI area, and the map's loss — so
+        // `px-2 py-2` is the tightest step that still reads as a card, and the
+        // horizontal 8px is a measurement rather than a taste: at 375px a
+        // half-width card is 167px wide, so this is the 151px the supporting
+        // line has to fit a sentence into. From sm it is a card with room to
+        // breathe, which is what the band's flat height can afford.
         //
         // From lg the padding goes back down, because the card has changed
         // sides: it is now one of four standing in the map's own column, and
-        // that column is exactly as tall as the map beside it. Four padded cards
-        // plus the column's heading overflow it — which does not merely look
-        // cramped, because the pane a card opens is laid over precisely this box
-        // (`absolute inset-0`, see the dock below) and anything that hangs
-        // past the column is clipped rather than scrolled. `lg:py-2` is what
-        // lets the stack close inside the 420px floor the row guarantees, so the
-        // pane has the whole of the space it covers.
-        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white/95 px-3.5 py-2.5 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-4 lg:py-2 dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
+        // that column is exactly as tall as the map beside it. `lg:py-2` is what
+        // lets the stack close inside the 420px floor the row guarantees, and
+        // `lg:justify-center` is what makes the tiles read as four equal panels
+        // instead of four captions pinned to the top of their boxes — the grid
+        // gives each one an equal share of the column (see the cards grid), and
+        // the tile centres its own two rows in that share.
+        //
+        // `className` is the caller's, and it exists for one job: the overview
+        // grid hands a card the whole row on a phone when the band has an odd
+        // number of them (see the cards grid below), so the grid never ends in a
+        // half-width hole.
+        // `bg-white`, not the `bg-white/95` this used to carry: the map card
+        // beside it is solid, and two halves of one row reading as two slightly
+        // different surfaces is exactly the kind of difference a reader notices
+        // without being able to name it.
+        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white px-2 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-4 lg:justify-center lg:py-2 ${className} dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
             ? 'ring-2 ring-brand-600 dark:ring-brand-400'
             : ''
             }`}
@@ -397,68 +447,113 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
             aria-hidden="true"
             className={`pointer-events-none absolute inset-0 rounded-xl bg-brand-50 transition-opacity duration-150 dark:bg-white/[0.06] ${selected ? 'opacity-100' : 'opacity-0'}`}
         />
-        {/* Below lg: one compact row per metric, so the whole row of numbers
-            still sits above the map on a phone. The supporting line indents to
-            the label, clearing the status dot. */}
-        <span className="relative flex w-full items-center gap-2 lg:hidden">
+        {/* Below lg: the dot and label on one line, with the value row under it.
+            The band has one shape at every width — label row, then the number
+            with its context — and only the value row changes shape with the card
+            it is in (stacked on a phone, side by side from sm).
+
+            The label is a step down to 10px here, and it is the width the
+            two-up card pays for that: at 11px "Active incidents" ran past a
+            half-width card's line and was clipped mid-word, and a KPI that
+            names itself wrongly is worse than one set in a smaller label. */}
+        <span className="relative flex w-full items-center gap-1.5 lg:hidden">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-            <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <span className="min-w-0 flex-1 truncate text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500 sm:text-[11px] dark:text-gray-400">
                 {label}
-            </span>
-            <span className="shrink-0 font-display text-xl font-bold leading-none tracking-tight text-gray-950 tabular-nums dark:text-white">
-                {value}
             </span>
             <MetricStripAffordance selected={selected} />
         </span>
-        {helper && (
-            // Two lines rather than one: the active-incidents line can carry
-            // three facts (responding, waiting, transferred) and a clipped count
-            // is worse than a taller card — the number is the whole point of the
-            // card. Short lines still occupy one.
-            //
-            // No `block` next to `line-clamp-*`: the clamp IS a display utility
-            // (-webkit-box) and Tailwind emits `.line-clamp-*` before `.block`,
-            // so a display class here would silently switch the clamp off and the
-            // card would clip at its own edge instead of wrapping.
-            <span className="relative mt-1 line-clamp-2 pl-4 text-[11px] font-normal text-gray-500 lg:hidden dark:text-gray-400">
-                {helper}
-            </span>
-        )}
-        {/* From lg: label, number, supporting line — one reading order, with the
-            number carrying the weight. This is the branch the workspace's right
-            column shows, which is why it turns on at lg rather than sm: from
-            that width the cards stand in the summary column beside the map, and
-            the number belongs under its label there, not beside it. */}
+        {/* From lg: the same row, with the name allowed to wrap instead of being
+            clipped. The summary column is ~300px wide, and "Active incidents" is
+            the longest name in it — a clipped name is worse than a taller card,
+            so the desktop label is never truncated. */}
         <span className="relative hidden w-full items-center gap-2 lg:flex">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-            {/* Wraps onto a second line rather than truncating or overflowing:
-                the label names the set the card opens, so a clipped name is
-                worse than a taller card. */}
             <span className={`min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-[0.09em] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
                 {label}
             </span>
             <MetricStripAffordance selected={selected} />
         </span>
-        {/* 22px, not `text-2xl`: at 24px the number was sized for a card that
-            stood alone, while this one shares a column of four with a two-line
-            helper under each. A step above the mobile row's 20px and a step
-            above the 11px label is enough for the number to stay the card's
-            headline, and it is the largest size at which four of them still
-            close inside the column. */}
-        <span className="relative mt-1 hidden font-display text-[22px] font-bold leading-none tracking-tight text-gray-950 tabular-nums lg:block dark:text-white">
-            {value}
-        </span>
+        {/* The value row. This is the card's headline, and it is one row on every
+            width where the card has room for one: the number leads and its
+            supporting line sits beside it, baseline-aligned, instead of the two
+            of them stacking into a column of three lines with the right half of
+            the card empty. On a phone the same two pieces stack (there is no
+            room beside a 20px number in a 167px card), so this is a column below
+            sm and a row from sm up.
+
+            `mt-auto` below lg only: two cards sharing a row are stretched to
+            the taller one, and pushing this row to the card's foot is what keeps
+            their supporting lines level. At lg the cards share the column's
+            height evenly (see the grid) and the whole tile is centred instead, so
+            an auto margin there would fight that. */}
+        <span className="relative flex w-full min-w-0 flex-col items-start gap-1 pt-2 max-lg:mt-auto sm:flex-row sm:items-baseline sm:gap-2.5">
+            <span className="relative shrink-0 font-display text-xl font-bold leading-none tracking-tight text-gray-950 tabular-nums sm:text-[28px] dark:text-white">
+                {value}
+            </span>
         {helper && (
-            // Same reason as the mobile line above: this is the only place the
-            // active-incidents mix is printed, so it wraps instead of truncating.
-            // The responsive clamp replaces `sm:block`, which would have cancelled
-            // it (see above). `title` still carries the full line for a hover read.
-            <span className="relative mt-1 hidden text-[11px] font-medium leading-snug text-gray-500 lg:line-clamp-2 dark:text-gray-400" title={helper}>
+            // On a phone this is ONE line, and the type is measured to make that
+            // true rather than hoped for. The longest supporting line in the app
+            // is the active-incidents mix — "1 responding, 2 waiting
+            // (1 transferred)", 40 characters — and in the Inter this app
+            // self-hosts it measures 196.6px at the 11px it used to be set at,
+            // against the 143.5px a half-width card offered then. At 9px with
+            // `tracking-tighter` it measures 143.3px, and the card's 8px padding
+            // offers 151.5px: it fits with 8px to spare.
+            //
+            // One line is deliberate at this size. `whitespace-nowrap` plus
+            // `overflow-hidden` is the whole constraint — no `line-clamp`, no
+            // ellipsis: the descriptions are fixed strings and they fit. A second
+            // line would also undo the band's balance, because the shorter of the
+            // two cards in a row would float its sentence in the middle of the
+            // card instead of sitting level with its neighbour's.
+            //
+            // 9px is the app's smallest type — the size of the bottom-nav labels
+            // — and this is the one place that size carries a sentence. That is
+            // the trade this band makes for keeping every word of the four
+            // supporting lines visible with no wrap, no ellipsis and no shorter
+            // wording.
+            //
+            // Below 375px the arithmetic runs out: on a 320px phone the same
+            // sentence has ~124px to fit in, which no readable size satisfies.
+            // There the clamp comes back, so a narrow device gets a second line
+            // instead of a silently clipped word. `max-[374px]` is the app's own
+            // arbitrary-variant idiom (see `min-[501px]` in the layout) and it
+            // leaves the 375px target on one line with 8px spare.
+            //
+            // From sm the clamp comes back, because the sentence is no longer
+            // boxed into a half-width card: it sits beside the number with the
+            // rest of the row to itself, and a longer line degrades into a wrap
+            // rather than a clip.
+            //
+            // From sm it takes the rest of the row (`flex-1` + `min-w-0`), which
+            // is why it wraps there rather than being held to one line: at that
+            // width the card is full-width, and the clamp is what lets a longer
+            // line degrade into a second line instead of a clip. `title` carries
+            // the full string for a hover read either way.
+            <span
+                title={helper}
+                className="relative min-w-0 overflow-hidden whitespace-nowrap text-[9px] font-normal tracking-tighter text-gray-500 max-[374px]:line-clamp-2 max-[374px]:whitespace-normal sm:flex-1 sm:line-clamp-2 sm:text-[11px] sm:leading-snug sm:tracking-normal sm:whitespace-normal dark:text-gray-400"
+            >
                 {helper}
             </span>
         )}
+        </span>
     </button>
 );
+
+/**
+ * The two counts the KPI band exists for: what is waiting to be reviewed and
+ * what is currently being worked. They lead the band — the first row when there
+ * are four cards to fill two rows — and they are also the card that takes the
+ * whole row when a role has an odd number of them (a guest sees three), so the
+ * grid never ends in a hole.
+ *
+ * It is the band's arrangement, not the card's: at sm and wider the grid is a
+ * single column again and every card is the same width, which is the shape the
+ * workspace's right-hand column needs.
+ */
+const PRIMARY_METRIC_IDS = new Set(['pending', 'active']);
 
 /**
  * Rail tones: the colour of a rail tab is the colour of its own status dot —
@@ -1083,10 +1178,12 @@ const DashboardMapWorkspace = ({
     const summaryPanelAccent = summaryPanelTone.bar;
     // The records pane takes the summary box over at every width — whichever
     // reader opened it. The box is the map's own height and stands where the
-    // cards do, so the records open in the space they were being read in — above
-    // the map below lg, beside it from lg — and never in a sheet at the bottom of
-    // the screen, below a map they are describing. A pin's details are one of
-    // those readers: clicking a marker opens them here, not over the map.
+    // cards do, so the records open in the space they were being read in — below
+    // the map on a phone and from sm to lg, beside it from lg — and never in a
+    // sheet at the bottom of the screen. A pin's details are one of those
+    // readers: clicking a marker opens them here, not over the map, which below
+    // sm means the pane stands under the canvas it describes (see the reveal
+    // effect below).
     const isSummaryPaneOpen = Boolean(hasSummaryPanel || isMapInspectorOpen);
 
     // Opening the records returns the box to the top.
@@ -1100,6 +1197,21 @@ const DashboardMapWorkspace = ({
     useLayoutEffect(() => {
         if (!isSummaryPaneOpen || !summaryBoxRef.current) return;
         summaryBoxRef.current.scrollTop = 0;
+    }, [isSummaryPaneOpen]);
+
+    // Bringing the reader to the pane on a phone.
+    //
+    // The mobile order puts the box BELOW the map, and the pane renders into the
+    // box — so the one reader who opens a pane from the map itself (a tapped pin)
+    // would get details painted off-screen, under a canvas they did not scroll
+    // past. They are already looking at the box; this is for them. It is a no-op
+    // from sm up, where the box is the column beside the map, and a no-op for a
+    // pane a card opened, because then the box is already the thing under the
+    // reader's finger — the scroll helper skips an element that is already
+    // sitting where it should.
+    useEffect(() => {
+        if (!isSummaryPaneOpen || !isSummaryPaneSheetViewport()) return undefined;
+        return scheduleElementScroll(summaryBoxRef.current, { delay: 180, behavior: 'reveal' });
     }, [isSummaryPaneOpen]);
 
     // The operational queues, as segments of the panel that already holds those
@@ -1164,7 +1276,15 @@ const DashboardMapWorkspace = ({
         // width the sheet would hide the pin the flight is bringing into view;
         // beside the canvas the list is what the viewer clicked from, so it
         // stays and the camera moves alone.
-        if (isSummaryPaneSheetViewport()) closeModal?.();
+        if (isSummaryPaneSheetViewport()) {
+            closeModal?.();
+            // Below sm the map is the pane's neighbour ABOVE it, so the flight
+            // this starts would otherwise happen off-screen: a reader paging
+            // through records would tap Locate and see nothing move. The camera
+            // move is still the only thing Locate does — this is the reader being
+            // brought to it, not the view being reset.
+            scheduleElementScroll(mapSectionRef.current, { delay: 180, behavior: 'reveal' });
+        }
         setMapLocateRequest({
             type: 'incident',
             id: String(report._id || report.id),
@@ -1382,32 +1502,36 @@ const DashboardMapWorkspace = ({
                 </section>
             )}
 
-            {/* The numbers come first, and that order is the point.
+            {/* Where the numbers sit, per width.
              *
-             * These cards used to sit BELOW the map, under a 500px canvas. On a
-             * laptop the first thing below the fold was the count that starts the
-             * whole triage — "Pending 3" — while the operator saw only terrain.
-             * The reporter role never felt that way because they have a separate
-             * summary page; the admin and responder only have this screen.
+             * On a laptop the cards come first and that order is the point: they
+             * used to sit BELOW a 500px canvas, so the first thing below the fold
+             * was the count that starts the whole triage — "Pending 3" — while
+             * the operator saw only terrain. The reporter role never felt that
+             * way because they have a separate summary page; the admin and
+             * responder only have this screen.
              *
-             * The cards are still a summary OF the map (tapping one opens its
-             * records and, when the sets agree, points the map at them), so the
-             * section keeps its "Map summary" label and the heading below is
-             * unchanged.
+             * On a phone it is the opposite, and deliberately so. The page is an
+             * incident map: the map leads it, filters and all, and the four
+             * counts follow as the summary of what is on it. A 375x667 screen
+             * cannot show a band of KPIs and a usable canvas at once, and the
+             * canvas is the one an operator works from — so the map takes the
+             * first screenful and the numbers sit directly under it, one short
+             * scroll away and still on the same page.
              *
-             * Moving them above the map fixed the fold but spent the page's
-             * height on a band of cards: the map was still a fixed 500px canvas
-             * that a laptop had to be scrolled to see whole. From lg the two
-             * stop sharing the page vertically and share it horizontally
-             * instead — the workspace becomes the app sidebar, the map, and this
-             * summary, the map takes the viewport's remaining height, and the
-             * page has nothing left to scroll. Below lg the two stack exactly as
-             * they did, because a phone has no third column to give — and the
-             * card box carries the map frame's own height there too, so a card's
-             * records open into a box the size of the map whether they stand
-             * above it or beside it. The summary stays FIRST in the source so
-             * that stacking order — and the reading order for a screen reader —
-             * is unchanged. */}
+             * The cards are a summary OF the map at every width (tapping one
+             * opens its records and, when the sets agree, points the map at
+             * them), so the section keeps its "Map summary" label and the heading
+             * below is unchanged. From sm to lg they are above the map, as they
+             * have been; from lg the two stop sharing the page vertically and
+             * share it horizontally instead — the workspace becomes the app
+             * sidebar, the map, and this summary, the map takes the viewport's
+             * remaining height, and the page has nothing left to scroll.
+             *
+             * The summary stays FIRST in the source at every width, including
+             * the phone's, so the reading order for a screen reader (and the box
+             * a pane opens into, and the tests that read the cards before the
+             * map) is unchanged — only the phone's drawing order moves. */}
             {/* The row's own floor is the map's floor: the map never renders
                 shorter than the canvas it replaces, and a viewport too short to
                 honour that scrolls the page rather than clipping the terrain.
@@ -1443,15 +1567,32 @@ const DashboardMapWorkspace = ({
                 width it needs at the small end, and at 1280px the column lands
                 at ~307px, which is still 637px of rail for the filter row that
                 has to fit in one line there. */}
-            <div className="space-y-3 sm:space-y-5 lg:grid lg:min-h-[420px] lg:flex-1 lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)] lg:items-stretch lg:gap-4 lg:space-y-0">
-            {/* The summary box carries the map frame's OWN height utilities —
-                46svh held between 280px and 380px on a phone, a flat 460px from
-                sm, and the column's share of the viewport from lg — instead of
-                hugging its content. Two boxes built from one set of utilities
-                are the same height at every breakpoint, which is what keeps the
-                pane a card opens (laid over exactly this box, see the dock
-                below) from ever standing taller than the map it describes, or
-                past its lower edge. */}
+            {/* One row, three arrangements — and the phone's is the map first.
+
+                A column flex rather than the `space-y` stack it used to be, for
+                one reason: `order`. On a phone this page IS the map, so the map
+                leads it and the KPI band follows as the summary it is; from sm
+                the two are ordered as they always were (the numbers, then the
+                canvas), and from lg the grid places them explicitly and order
+                stops mattering. Only the drawing order changes — the summary
+                stays FIRST in the DOM, so the tab order, the pane's box and the
+                tests that read the cards before the map are untouched. */}
+            <div className="flex flex-col gap-3 sm:gap-5 lg:grid lg:min-h-[420px] lg:flex-1 lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)] lg:items-stretch lg:gap-4">
+            {/* The summary box is the box a card's records open into. On a phone
+                it hugs the two-by-two band instead of reserving a height: two
+                rows of cards are the honest height, and the page is ~110px
+                shorter for it — which, with the map at the top, is the
+                difference between reaching the KPIs and scrolling past an empty
+                box to do it.
+
+                It still carries the map frame's own height from sm: a flat
+                460px, and the column's share of the viewport from lg. While a
+                card is open it takes the records pane's own phone height back
+                (PHONE_PANE_BOX_CLASSES) — the pane renders into exactly this
+                box, and a records list needs the room a KPI band does not, and
+                on a phone more than the map's 4:3 frame now gives. The pane was
+                always laid over this box; what changed is that the box no
+                longer reserves any height while nothing is open. */}
             {/* The summary column, which is also where a card's records open.
                 The pane takes the cards' own box — same column, same height,
                 laid over the space they keep — so it neither overshoots the box
@@ -1460,8 +1601,10 @@ const DashboardMapWorkspace = ({
                 the pane is open so their counts keep their place in the DOM (and
                 in the tests); the pane is simply what covers them, at every
                 width. */}
-            <div className="lg:col-start-2 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col" data-testid="map-summary-column">
-            <section ref={summaryBoxRef} className={`custom-scrollbar relative h-[46svh] min-h-[280px] max-h-[380px] w-full sm:h-[460px] sm:max-h-none lg:h-auto lg:min-h-0 lg:flex-1 ${isSummaryPaneOpen ? 'overflow-hidden' : 'overflow-y-auto'}`} aria-label="Map summary">
+            <div className="order-2 sm:order-1 lg:col-start-2 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col" data-testid="map-summary-column">
+            <section ref={summaryBoxRef} className={`custom-scrollbar relative w-full sm:h-[460px] sm:max-h-none lg:h-auto lg:min-h-0 lg:flex-1 ${isSummaryPaneOpen
+                ? `${PHONE_PANE_BOX_CLASSES} overflow-hidden`
+                : 'h-auto overflow-y-auto'}`} aria-label="Map summary">
                 {/* The cards keep their box while the pane is open: `invisible`
                     holds the space without painting it, which is what lets the
                     pane cover exactly the box the cards were standing in — the
@@ -1469,12 +1612,16 @@ const DashboardMapWorkspace = ({
                     or four. Unmounting them instead would let the box collapse
                     and the pane shrink to its own content, which is the one
                     thing this pane must not do. */}
-                <div className={isSummaryPaneOpen ? 'invisible' : undefined}>
+                <div className={`lg:flex lg:h-full lg:min-h-0 lg:flex-col ${isSummaryPaneOpen ? 'invisible' : ''}`}>
                 {/* One row, and a hint short enough to stay on it: the old line
                     was longer than the heading beside it, so at 340px it wrapped
                     and the section opened with two lines of 11px grey above the
-                    numbers. The mobile wording is unchanged. */}
-                <div className="flex items-baseline justify-between gap-3 px-1">
+                    numbers. The mobile wording is unchanged.
+
+                    From lg it is a fixed first row of the column: the cards grid
+                    below takes the rest and divides it between the tiles, so the
+                    heading must not be the thing that stretches. */}
+                <div className="flex items-baseline justify-between gap-3 px-1 lg:shrink-0">
                     <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300">Current overview</h2>
                     {/* gray-500, not gray-400: the hint is instructional text at
                         11px, and gray-400 on this background sits near 2.6:1 —
@@ -1486,11 +1633,32 @@ const DashboardMapWorkspace = ({
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
                 </div>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:gap-3 lg:gap-2" data-testid="map-summary-cards">
+                {/* The KPI band: a two-by-two grid on a phone — pending review and
+                    active incidents on the first row, resolved and risk zones on
+                    the second — where the four cards used to take four rows and
+                    ~110px more of the page than the map could spare.
+
+                    Row order is the priority. The two counts an operator acts on
+                    lead, and the two that report on the record behind them follow.
+                    The cards themselves stay equal — one width, one padding, one
+                    number size — because a band read at a glance cannot afford a
+                    tile that looks more urgent than its neighbour: what tells the
+                    reader which KPI matters is where it sits.
+
+                    A guest has three cards (no pending set reaches an anonymous
+                    viewer), so the odd one — always a primary — takes the full row
+                    rather than leaving a hole beside it. */}
+                {/* `auto-rows-fr` from lg: however many tiles there are (four for
+                    a signed-in role, three for a guest), the column's remaining
+                    height is divided equally between them, which is what keeps
+                    the band's rhythm even rather than leaving the last of them a
+                    different size. */}
+                <div className="mt-1.5 grid grid-cols-2 gap-2 sm:mt-2 sm:grid-cols-1 sm:gap-3 lg:min-h-0 lg:flex-1 lg:auto-rows-fr lg:gap-2" data-testid="map-summary-cards">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}
                             index={index}
+                            className={metrics.length % 2 === 1 && PRIMARY_METRIC_IDS.has(metric.id) ? 'col-span-2 sm:col-span-1' : ''}
                             label={metric.label}
                             value={metric.value}
                             helper={metric.helper}
@@ -1529,7 +1697,7 @@ const DashboardMapWorkspace = ({
                 one radius, one shadow. A border here and a ring there read as
                 two different component families on a screen where they are two
                 halves of the same row. */}
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-2 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="order-1 scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-2 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
                 {/* Mobile and tablet controls only: the desktop rail is the
                     full-width bar above, so from lg the card holds nothing but
                     the canvas — which is the cleanest thing a map card can hold,
@@ -1613,7 +1781,7 @@ const DashboardMapWorkspace = ({
                     })()}
                 </div>
 
-                <div className="relative h-[46svh] min-h-[280px] max-h-[380px] w-full overflow-hidden rounded-lg sm:h-[460px] sm:max-h-none lg:h-auto lg:flex-1">
+                <div className={`relative ${PHONE_MAP_FRAME_CLASSES} overflow-hidden rounded-lg sm:aspect-auto sm:h-[460px] lg:h-auto lg:flex-1`}>
                     {loading && safeCount(reports) === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 
 const { mapPropsSpy } = vi.hoisted(() => ({ mapPropsSpy: vi.fn() }));
@@ -128,11 +128,17 @@ describe('DashboardMapWorkspace permissions', () => {
     test('uses a compact responsive mobile map frame for every dashboard role', () => {
         renderWorkspace(createProps());
 
-        expect(screen.getByTestId('map-view').parentElement).toHaveClass(
-            'h-[46svh]',
-            'w-full',
-            'min-h-[280px]',
-        );
+        // 4:3, sized from the frame's own width rather than from the viewport's
+        // height: on a tall phone a 52svh canvas was ~443px tall over ~325px of
+        // width — a portrait map, stretched the wrong way round for reading
+        // terrain. At a 393px viewport this lands at ~259px, and at the ~322px
+        // content width the design was measured against, ~241px.
+        const frame = screen.getByTestId('map-view').parentElement;
+        expect(frame).toHaveClass('aspect-[4/3]', 'w-full');
+        expect(frame.className).not.toContain('h-[52svh]');
+        // The ratio is switched off where the layout sets the height instead: a
+        // flat 460px from sm, the column's share from lg.
+        expect(frame).toHaveClass('sm:aspect-auto', 'sm:h-[460px]', 'lg:h-auto', 'lg:flex-1');
     });
 
     test('keeps the four-metric summary before the live map', () => {
@@ -148,10 +154,35 @@ describe('DashboardMapWorkspace permissions', () => {
         // laptop; only the reporter role escaped that, because they have a
         // separate summary page and the operational roles do not.
         expect(summary.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        // Reporter has 4 metrics. They stack in one column at every width: from
-        // lg that column is the workspace's own right-hand column, so the cards
-        // count down beside the map instead of across the top of it.
-        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1');
+        // Drawn the other way round on a phone, though: the map leads the mobile
+        // page and the numbers follow as the summary of it, which is one `order`
+        // each on the row's two children (the source order above is untouched, so
+        // the reading order a screen reader gets — and the box a pane opens into
+        // — is the one this workspace has always had).
+        const row = summary.parentElement.parentElement;
+        expect(row).toBe(liveMap.parentElement);
+        expect(liveMap).toHaveClass('order-1', 'sm:order-2');
+        expect(summary.parentElement).toHaveClass('order-2', 'sm:order-1');
+        expect(row).toHaveClass('flex', 'flex-col', 'gap-3', 'sm:gap-5');
+        // Reporter has 4 metrics, and on a phone they fill a two-by-two grid:
+        // pending review and active incidents on the first row, resolved and
+        // risk zones on the second. The row order is the priority, so it is the
+        // DOM order these assertions read.
+        const cardsGrid = incidentsAction.parentElement;
+        expect(cardsGrid).toHaveClass('grid', 'grid-cols-2', 'sm:grid-cols-1');
+        expect(Array.from(cardsGrid.children).map((card) => card.getAttribute('aria-label'))).toEqual([
+            expect.stringMatching(/^View \d+ pending review/i),
+            expect.stringMatching(/^View \d+ active incidents/i),
+            expect.stringMatching(/^View \d+ resolved/i),
+            expect.stringMatching(/^View \d+ risk zones/i),
+        ]);
+        // Four cards fill both rows, so none of them needs the full width — and
+        // a tile wider than its neighbours is exactly the imbalance the equal
+        // grid avoids.
+        Array.from(cardsGrid.children).forEach((card) => expect(card).not.toHaveClass('col-span-2'));
+        // From sm they stack in one column at every width: from lg that column
+        // is the workspace's own right-hand column, so the cards count down
+        // beside the map instead of across the top of it.
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
     });
 
@@ -214,35 +245,37 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(liveMap.firstElementChild).toHaveClass('lg:hidden');
     });
 
-    test('gives the summary box the map frame\'s own height, so the records pane cannot paint below the map', () => {
+    test('gives the records pane a box of its own on a phone, and the map\'s height from sm', () => {
         renderWorkspace(createProps({ mapSummaryPanel: 'incidents' }));
 
         const liveMap = screen.getByRole('region', { name: 'Live incident map' });
         const summary = screen.getByRole('region', { name: 'Map summary' });
         const mapFrame = screen.getByTestId('map-view').parentElement;
 
-        // One frame, two boxes. The card box is built from the map frame's own
-        // height utilities — 46svh held between 280px and 380px on a phone, a
-        // flat 460px from sm, the column's share of the viewport from lg — so
-        // the two are the same height at every breakpoint by construction
-        // rather than only while the cards happen to fill the map's box.
-        const frameHeights = [
-            'h-[46svh]', 'min-h-[280px]', 'max-h-[380px]',
-            'sm:h-[460px]', 'sm:max-h-none',
-            'lg:h-auto', 'lg:flex-1',
-        ];
-        expect(mapFrame).toHaveClass(...frameHeights);
-        expect(summary).toHaveClass(...frameHeights);
+        // From sm the two boxes are one: the pane stands in the column beside the
+        // map, so a pane taller than the map would paint past the canvas it
+        // describes — that pairing is what the shared 460px is for.
+        expect(mapFrame).toHaveClass('sm:h-[460px]', 'lg:h-auto', 'lg:flex-1');
+        expect(summary).toHaveClass('sm:h-[460px]', 'lg:h-auto', 'lg:flex-1');
+
+        // On a phone they are deliberately different boxes. The map is its 4:3
+        // self; the pane keeps a records height (52svh held between 320px and
+        // 440px) because it renders into exactly this box, and the box stands
+        // BELOW the map there — so the reason the two were tied together, a pane
+        // painting past the canvas beside it, no longer applies.
+        expect(mapFrame).toHaveClass('aspect-[4/3]');
+        expect(summary).toHaveClass('h-[52svh]', 'min-h-[320px]', 'max-h-[440px]');
+        expect(summary.className).not.toContain('aspect-');
         // Plus the one utility the map column does not need: at lg the box may
         // shrink inside the column, so cards taller than the map scroll inside
         // the box instead of pushing its bottom past the map's.
         expect(summary).toHaveClass('lg:min-h-0');
 
         // The pane's slot IS that box: `inset-0` inside it, and the box clips
-        // while the pane is open, so the pane's edges cannot pass the box's. The
-        // box's bottom edge is the map's too — at lg they are one stretched grid
-        // row, and below lg both carry the same frame height — which is the
-        // whole reason the records can never be read below the map.
+        // while the pane is open, so the pane's edges cannot pass the box's. From
+        // sm its bottom edge is the map's too — they are one stretched grid row.
+        // On a phone the box stands under the canvas by design (that is the
+        // mobile order), and its height is the list's room.
         const dock = screen.getByTestId('map-summary-dock');
         expect(summary).toContainElement(dock);
         expect(dock).toHaveClass('absolute', 'inset-0', 'flex', 'min-h-0', 'flex-col');
@@ -264,6 +297,37 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(panel.className).not.toContain('fixed');
         expect(panel).not.toHaveAttribute('aria-modal');
         expect(liveMap).not.toContainElement(panel);
+    });
+
+    test('hugs its compact cards on a phone, so the map is reached without scrolling the band', () => {
+        const { rerender } = renderWorkspace(createProps());
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+
+        // Closed, the band is exactly as tall as its own compact cards: no
+        // reserved box height, no box of empty white under the map. This is the
+        // state the workspace opens in, and the ~110px it saves is the
+        // difference between the KPIs being one short scroll away and a band of
+        // empty card sitting between the map and them.
+        expect(summary).toHaveClass('h-auto', 'overflow-y-auto');
+        expect(summary.className).not.toContain('h-[52svh]');
+        // From sm it still takes the flat height and, from lg, the column's share
+        // — where the band stands beside the map, not in front of it.
+        expect(summary).toHaveClass('sm:h-[460px]', 'sm:max-h-none', 'lg:h-auto', 'lg:min-h-0', 'lg:flex-1');
+
+        rerender(
+            <MemoryRouter>
+                <DashboardMapWorkspace {...createProps({ mapSummaryPanel: 'incidents' })} />
+            </MemoryRouter>,
+        );
+
+        // Open, the box takes the records pane's own height: the pane has no
+        // height of its own, so the box's height IS the list's room. That is a
+        // height of its own rather than the map's frame — the map is a 4:3
+        // canvas and a records list does not want a canvas ratio — which is why
+        // the two are asserted separately here.
+        const openSummary = screen.getByRole('region', { name: 'Map summary' });
+        expect(openSummary).toHaveClass('h-[52svh]', 'min-h-[320px]', 'max-h-[440px]', 'overflow-hidden');
+        expect(screen.getByTestId('map-view').parentElement).toHaveClass('aspect-[4/3]');
     });
 
     test('opens a pin\'s details in the summary box, not over the map', () => {
@@ -341,10 +405,14 @@ describe('DashboardMapWorkspace permissions', () => {
         // Guest sees 3 cards: active incidents, active response, risk zones.
         // Transferred is folded into active incidents, not shown separately.
         expect(cards).toHaveLength(3);
-        // One column at every width: from lg these three count down the
-        // workspace's right-hand column rather than across the top of the map.
-        expect(cardsGrid).toHaveClass('grid', 'grid-cols-1');
+        // Two columns on a phone, one from sm. Guest has an odd number of
+        // cards, so the primary one takes the full row instead of leaving a
+        // hole beside it, and the two secondary figures share the row under it.
+        expect(cardsGrid).toHaveClass('grid', 'grid-cols-2', 'sm:grid-cols-1');
         expect(cardsGrid.className).not.toContain('lg:grid-cols-3');
+        expect(cards[0]).toHaveClass('col-span-2', 'sm:col-span-1');
+        expect(cards[1]).not.toHaveClass('col-span-2');
+        expect(cards[2]).not.toHaveClass('col-span-2');
         cards.forEach((card) => {
             // The card's outline is a ring, not a border: the base stylesheet
             // forces every button's border-color transparent, so a bordered card
@@ -1067,11 +1135,14 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
     });
 
-    test('collapses the pane on Locate only where it is a sheet over the map', () => {
+    test('collapses the pane on Locate only where it is a sheet over the map', async () => {
         // Inside the sheet width the pane hides the pin the flight is bringing
         // into view, so there it still yields. Same click, two widths, one
         // difference — the panel's own breakpoint decides which.
         const setMapSummaryPanel = vi.fn();
+        const scrollIntoView = vi.fn();
+        const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+        HTMLElement.prototype.scrollIntoView = scrollIntoView;
         const setSearchParams = vi.fn();
         const report = {
             _id: 'verified-1',
@@ -1109,8 +1180,55 @@ describe('DashboardMapWorkspace permissions', () => {
                 type: 'incident',
                 id: 'verified-1',
             }));
+            // And it takes the reader with it: at this width the map is above the
+            // pane, so the flight would happen off-screen for anyone reading the
+            // records. The camera move is still all Locate does — this is the
+            // reader being brought to it.
+            await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                block: 'start',
+            }));
         } finally {
             window.matchMedia = originalMatchMedia;
+            HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+        }
+    });
+
+    test('brings a phone to the pane, because there the box stands under the canvas', async () => {
+        // The mobile order draws the map first and the summary box second, and a
+        // pane renders into that box — so a pin's details would otherwise open
+        // below a canvas the reader has no reason to scroll past. From sm up the
+        // box is the column beside the map, and this is deliberately nothing.
+        const originalMatchMedia = window.matchMedia;
+        const scrollIntoView = vi.fn();
+        const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+        HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+        try {
+            renderWorkspace(createProps());
+            expect(scrollIntoView).not.toHaveBeenCalled();
+
+            act(() => mapPropsSpy.mock.lastCall[0].onEntityInspectorChange(true));
+
+            const dock = screen.getByTestId('map-summary-dock');
+            expect(dock).not.toHaveClass('hidden');
+            await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                block: 'start',
+            }));
+        } finally {
+            window.matchMedia = originalMatchMedia;
+            HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
         }
     });
 
@@ -1844,21 +1962,44 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(3);
 
             metricButtons.forEach((btn) => {
-                // Compact mobile row that grows into a comfortably padded desktop
-                // card, on the same padding rhythm for every card in the row —
-                // and gives that padding back at lg, where the card is one of
-                // four in the map's own column: the stack has to close inside the
+                // Compact phone row that grows into a comfortably padded card
+                // from sm — one padding rhythm for every card in the band — and
+                // gives that padding back at lg, where the card is one of four
+                // in the map's own column: the stack has to close inside the
                 // height the map beside it sets, because the pane a card opens is
                 // laid over exactly this box.
-                expect(btn).toHaveClass('py-2.5', 'sm:py-4', 'lg:py-2');
-                // Two number slots, one per arrangement — 20px in the mobile row,
-                // 22px in the lg column. Both stay the card's headline; the lg
-                // size is a step up from the mobile one and a step down from the
-                // 24px a card standing alone used.
+                //
+                // `py-2`, not the `py-2.5` the four equal rows used: on a phone
+                // the band is a priority list whose height is the map's loss,
+                // and 8px top and bottom still leaves a 56px target.
+                //
+                // `px-2` is what the phone's one-line supporting text is
+                // measured against: at 375px it leaves 151px inside a half-width
+                // card, which is 8px more than the longest line in the app (40
+                // characters, 143.3px in the self-hosted Inter) needs in order to
+                // fit without wrapping at all.
+                expect(btn).toHaveClass('px-2', 'py-2', 'sm:px-4', 'sm:py-4', 'lg:justify-center', 'lg:py-2');
+                // One number slot, sized per width — 20px in a half-width phone
+                // card, 28px once the card is wide enough for its supporting line
+                // to sit beside it. It stays the card's headline at both, which is
+                // why it is one element with two sizes rather than two elements.
                 const numbers = Array.from(btn.querySelectorAll('.tabular-nums'));
-                expect(numbers).toHaveLength(2);
-                expect(numbers[0]).toHaveClass('text-xl');
-                expect(numbers[1]).toHaveClass('text-[22px]');
+                expect(numbers).toHaveLength(1);
+                expect(numbers[0]).toHaveClass('text-xl', 'sm:text-[28px]');
+                // The number and its supporting line are one row, and the row is
+                // what stacks on a phone (there is no room beside a number in a
+                // 167px card) and goes side by side from sm. The number is not a
+                // cell of the label row either, which is what stops a half-width
+                // card squeezing "Active incidents" against the chevron.
+                const valueRow = numbers[0].parentElement;
+                expect(valueRow.parentElement).toBe(btn);
+                expect(valueRow).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-baseline');
+                // The number leads the row and the description follows it — which
+                // is the recomposition: the two used to be separate lines, leaving
+                // the right half of every card empty.
+                expect(valueRow.firstElementChild).toBe(numbers[0]);
+                expect(valueRow.children).toHaveLength(2);
+                expect(valueRow.children[1].textContent).toBeTruthy();
             });
         });
 

@@ -274,14 +274,29 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
     });
 
     test('9. Handles long incident titles and missing descriptions gracefully', () => {
+        const longTitle = 'Very Long Incident Title Involving Multiple Vehicles Along Provincial Road In Cajidiocan Romblon Island';
         const longReport = {
             ...sampleReport,
-            title: 'Very Long Incident Title Involving Multiple Vehicles Along Provincial Road In Cajidiocan Romblon Island',
+            title: longTitle,
             description: '',
         };
         renderDetails({ report: longReport, viewerRole: 'guest' });
 
-        expect(screen.getByText('Very Long Incident Title Involving Multiple Vehicles Along Provincial Road In Cajidiocan Romblon Island')).toBeInTheDocument();
+        // Held to one line at every width: clipped by its own box with an
+        // ellipsis instead of wrapping, so the chips and the first facts stay
+        // where they are on a phone. The heading carries the whole string as its
+        // accessible name and as its tooltip — the clip is presentation.
+        const titleHeading = screen.getByRole('heading', { name: longTitle });
+        expect(titleHeading.className).toContain('max-w-full');
+        expect(titleHeading.className).toContain('whitespace-nowrap');
+        expect(titleHeading.className).toContain('overflow-hidden');
+        expect(titleHeading.className).toContain('text-ellipsis');
+        expect(titleHeading.className).toContain('text-sm');
+        expect(titleHeading.className).toContain('sm:text-base');
+        expect(titleHeading.className).not.toContain('break-words');
+        expect(titleHeading).toHaveAttribute('title', longTitle);
+        expect(titleHeading.parentElement.className).toContain('min-w-0');
+
         expect(screen.getByText(/No (incident )?description provided/i)).toBeInTheDocument();
     });
 
