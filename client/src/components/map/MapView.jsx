@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -76,6 +76,23 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacityWhenCovered: 1,
 });
 
+/**
+ * The tone of the details pane a pin opens, read from the record it is showing:
+ * a report carries its own lifecycle colour, a hazard area the zone red, and a
+ * group of reports sharing one pin the active-incident blue. All three lookups
+ * are the same ones the rail, the cards, the badges and the legend read, so a
+ * pin and the pane it opens cannot name one state in two colours.
+ */
+const getInspectorTone = (modal) => {
+    if (!modal) return { bar: '', dot: '' };
+    // Classes, not hex: the accent rule is a 2px `bg-*` strip and the dot beside
+    // the title is the same colour, so one value serves both.
+    if (modal.type === 'zone') return { bar: 'bg-red-500', dot: 'bg-red-500' };
+    if (modal.type === 'reportGroup') return { bar: MAP_ACTIVE_INCIDENT_CONFIG.dot, dot: MAP_ACTIVE_INCIDENT_CONFIG.dot };
+    const status = MAP_STATUS_CONFIG[modal.data?.status];
+    return status ? { bar: status.dot, dot: status.dot } : { bar: '', dot: '' };
+};
+
 const MAP_TOOL_BUTTON_CLASS = 'relative flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-2 before:content-[\'\']';
 
 const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
@@ -95,7 +112,25 @@ const MapView = ({
     highRiskZones = [],
     locateRequest = null,
     externalContextPanelOpen = false,
-    onEntityInspectorOpen = null,
+    /**
+     * Called with `true` as soon as this map puts details on screen for a clicked
+     * pin, and `false` when that pane closes.
+     *
+     * A pane is not drawn over the canvas any more when the page has a column for
+     * it (see `dockTarget`), so the caller has to know when to reserve that
+     * column — this is that signal. It is read off the pane's own state rather
+     * than off the click, so every way the pane closes (Escape, the close button,
+     * a refresh that drops the record) frees the column again.
+     */
+    onEntityInspectorChange = null,
+    /**
+     * Where this map's own details pane stands, when the page has a column for
+     * it: the same slot a summary card's records open into, so a pin's details
+     * land in the column beside the map rather than covering the canvas they were
+     * clicked on. A page with no such column passes nothing, and the pane stays
+     * the overlay it has always been.
+     */
+    dockTarget = null,
     showPending = false,
     showRiskZones = true,
     onLocationSelect = null,
@@ -186,7 +221,7 @@ const MapView = ({
     // genuinely "somebody has taken the wheel".
     const viewerMovedCameraRef = useRef(false);
     const onLocationSelectRef = useRef(onLocationSelect);
-    const onEntityInspectorOpenRef = useRef(onEntityInspectorOpen);
+    const onEntityInspectorChangeRef = useRef(onEntityInspectorChange);
     const performanceProfile = useMemo(() => getMapPerformanceProfile(), []);
     const effectiveLocateRequest = useMemo(() => {
         if (locateRequest?.entity) return locateRequest;
@@ -200,6 +235,7 @@ const MapView = ({
             requestId: focusLocation.requestId,
         };
     }, [focusLocation, locateRequest]);
+    const inspectorTone = useMemo(() => getInspectorTone(mapModal), [mapModal]);
     const effective3D = enable3D && performanceProfile.cameraPitchEnabled;
     const filteredReports = useMemo(() => {
         if (mode === 'incident-preview') {
@@ -258,8 +294,16 @@ const MapView = ({
     }, [onLocationSelect]);
 
     useEffect(() => {
-        onEntityInspectorOpenRef.current = onEntityInspectorOpen;
-    }, [onEntityInspectorOpen]);
+        onEntityInspectorChangeRef.current = onEntityInspectorChange;
+    }, [onEntityInspectorChange]);
+
+    // Laid out rather than painted: the caller reserves the pane's box in
+    // response, and a passive effect would leave that box closed — and the pane
+    // invisible, since it is portalled into a box that is out of the way while
+    // nothing is open — for the frame between the pin click and the report.
+    useLayoutEffect(() => {
+        onEntityInspectorChangeRef.current?.(Boolean(mapModal));
+    }, [mapModal]);
 
     useEffect(() => {
         selectedLocationRef.current = selectedLocation;
@@ -402,7 +446,11 @@ const MapView = ({
         setMapModal(null);
     }, [selectOperationalMarker]);
 
-    useEffect(() => {
+    // Laid out rather than painted, because the two panes share one box: a
+    // caller that opens its own records takes that box from this map, and this
+    // map's pane has to be gone in the same commit rather than one frame later,
+    // where the reader would see the two of them stacked in it.
+    useLayoutEffect(() => {
         if (externalContextPanelOpen) closeMapSelection();
     }, [closeMapSelection, externalContextPanelOpen]);
 
@@ -1011,10 +1059,11 @@ const MapView = ({
                         .setLngLat([coords.lng, coords.lat])
                         .addTo(map);
 
-                    // Open fixed modal instead of inline map popup
+                    // Opens this map's details pane for the pin — in the
+                    // caller's column when one was handed over, otherwise over
+                    // the map — and flies the camera to it.
                     const openMarker = (e) => {
                         e.stopPropagation();
-                        onEntityInspectorOpenRef.current?.();
                         selectOperationalMarker(el);
                         markerFocusCleanupRef.current?.();
                         markerFocusCleanupRef.current = focusExistingMapEntity(map, {
@@ -1119,10 +1168,10 @@ const MapView = ({
                     .setLngLat([coordinates.lng, coordinates.lat])
                     .addTo(map);
 
-                // Open fixed modal instead of inline map popup
+                // Same pane, same column, one pin at a time — see the incident
+                // marker above.
                 const openMarker = (e) => {
                     e.stopPropagation();
-                    onEntityInspectorOpenRef.current?.();
                     selectOperationalMarker(el);
                     markerFocusCleanupRef.current?.();
                     markerFocusCleanupRef.current = focusExistingMapEntity(map, {
@@ -1468,6 +1517,12 @@ const MapView = ({
                     size={mapModal.type === 'zone' ? 'md' : 'lg'}
                     presentation="contextual"
                     contentKey={`${mapModal.type}:${mapModal.data?._id || mapModal.data?.id || 'list'}`}
+                    // The caller's column when it has one: a pin's details belong
+                    // beside the map, not over the part of it the reader just
+                    // pointed at.
+                    dockTarget={dockTarget}
+                    accentClassName={inspectorTone.bar}
+                    accentDotClassName={inspectorTone.dot}
                 >
 
                     {mapModal.type === 'report' && (

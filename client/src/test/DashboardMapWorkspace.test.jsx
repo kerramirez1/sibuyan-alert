@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 
 const { mapPropsSpy } = vi.hoisted(() => ({ mapPropsSpy: vi.fn() }));
@@ -55,6 +55,20 @@ const renderWorkspace = (props) => render(
         <DashboardMapWorkspace {...props} />
     </MemoryRouter>
 );
+
+/**
+ * The record row that names this incident type, if the pane is showing one.
+ *
+ * Rows carry their status in a chip now, so a row's type and its status are two
+ * elements rather than one line of text. A `/Vehicular.*Pending/` text query
+ * would then be asserting the row's internal markup, which is not what these
+ * tests are about — they are about which records a pane puts in front of the
+ * reader. This finds the row by the fact it leads with, and the assertions below
+ * read the status off it.
+ */
+const findReportRow = (scope, incidentType) => within(scope)
+    .getAllByRole('article')
+    .find((row) => row.textContent.toLowerCase().includes(incidentType.toLowerCase()));
 
 describe('DashboardMapWorkspace permissions', () => {
     beforeEach(() => mapPropsSpy.mockClear());
@@ -134,9 +148,184 @@ describe('DashboardMapWorkspace permissions', () => {
         // laptop; only the reporter role escaped that, because they have a
         // separate summary page and the operational roles do not.
         expect(summary.compareDocumentPosition(liveMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        // Reporter has 4 metrics: single column on mobile, one row on desktop
-        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-4');
+        // Reporter has 4 metrics. They stack in one column at every width: from
+        // lg that column is the workspace's own right-hand column, so the cards
+        // count down beside the map instead of across the top of it.
+        expect(incidentsAction.parentElement).toHaveClass('grid', 'grid-cols-1');
         expect(riskZonesAction).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
+    });
+
+    test('lays the workspace out as sidebar · map · summary from lg', () => {
+        renderWorkspace(createProps());
+
+        const liveMap = screen.getByRole('region', { name: 'Live incident map' });
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        const column = summary.parentElement;
+        const row = column.parentElement;
+
+        // One grid holds both, filled to the height the viewport leaves under
+        // the app header, with a floor the map can never be cut below. Its
+        // parent is height-bound, so the page has nothing left to scroll at lg.
+        expect(row).toBe(liveMap.parentElement);
+        expect(row).toHaveClass('lg:grid', 'lg:flex-1', 'lg:min-h-[420px]', 'lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)]');
+
+        // The map paints in the first column and the summary in the second,
+        // even though the summary stays first in the DOM so that the stacked
+        // order below lg (and the screen-reader order) is unchanged.
+        expect(liveMap).toHaveClass('lg:col-start-1', 'lg:row-start-1');
+        expect(column).toHaveClass('lg:col-start-2', 'lg:row-start-1', 'lg:flex', 'lg:flex-col');
+
+        // The card box is the box a card's records open into: it is the
+        // positioning context, and the slot inside it is out of the way while
+        // nothing is open. So the pane can be laid over exactly that box.
+        // Closed, the box scrolls its own cards rather than growing past the map
+        // it is the same height as.
+        expect(summary).toHaveClass('relative', 'overflow-y-auto');
+        const dock = screen.getByTestId('map-summary-dock');
+        expect(summary).toContainElement(dock);
+        expect(column).toContainElement(dock);
+        expect(dock).toHaveClass('hidden');
+        expect(summary).not.toHaveClass('hidden');
+
+        // The canvas stretches to the column height instead of pinning itself
+        // to the 500px frame that used to push the cards past the fold.
+        const mapFrame = screen.getByTestId('map-view').parentElement;
+        expect(mapFrame).toHaveClass('lg:h-auto', 'lg:flex-1');
+        expect(mapFrame.className).not.toContain('lg:h-[500px]');
+
+        // And the card row the height used to be spent on is gone.
+        expect(liveMap.className).not.toContain('lg:h-[500px]');
+
+        // The filter rail is a sibling of the row, not a band inside the map
+        // card: across the workspace's whole width one line holds every control
+        // even with three-digit counts (667px measured, 720px available at the
+        // narrowest desktop width), where the map column has only ~400px at a
+        // 1024px viewport and the rail wrapped there.
+        const rail = screen.getByLabelText('Map status filter');
+        expect(rail).toHaveClass('w-full', 'lg:flex');
+        expect(rail.closest('[aria-label="Live incident map"]')).toBeNull();
+        expect(rail.parentElement).toBe(row.parentElement);
+        expect(rail.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        // Which leaves the map card holding the canvas and nothing else at lg:
+        // the mobile filter bar is the card's only header band, and it is hidden
+        // from lg up, so the card itself carries the inset instead.
+        expect(liveMap).toHaveClass('lg:p-2');
+        expect(liveMap.firstElementChild).toHaveClass('lg:hidden');
+    });
+
+    test('gives the summary box the map frame\'s own height, so the records pane cannot paint below the map', () => {
+        renderWorkspace(createProps({ mapSummaryPanel: 'incidents' }));
+
+        const liveMap = screen.getByRole('region', { name: 'Live incident map' });
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        const mapFrame = screen.getByTestId('map-view').parentElement;
+
+        // One frame, two boxes. The card box is built from the map frame's own
+        // height utilities — 46svh held between 280px and 380px on a phone, a
+        // flat 460px from sm, the column's share of the viewport from lg — so
+        // the two are the same height at every breakpoint by construction
+        // rather than only while the cards happen to fill the map's box.
+        const frameHeights = [
+            'h-[46svh]', 'min-h-[280px]', 'max-h-[380px]',
+            'sm:h-[460px]', 'sm:max-h-none',
+            'lg:h-auto', 'lg:flex-1',
+        ];
+        expect(mapFrame).toHaveClass(...frameHeights);
+        expect(summary).toHaveClass(...frameHeights);
+        // Plus the one utility the map column does not need: at lg the box may
+        // shrink inside the column, so cards taller than the map scroll inside
+        // the box instead of pushing its bottom past the map's.
+        expect(summary).toHaveClass('lg:min-h-0');
+
+        // The pane's slot IS that box: `inset-0` inside it, and the box clips
+        // while the pane is open, so the pane's edges cannot pass the box's. The
+        // box's bottom edge is the map's too — at lg they are one stretched grid
+        // row, and below lg both carry the same frame height — which is the
+        // whole reason the records can never be read below the map.
+        const dock = screen.getByTestId('map-summary-dock');
+        expect(summary).toContainElement(dock);
+        expect(dock).toHaveClass('absolute', 'inset-0', 'flex', 'min-h-0', 'flex-col');
+        expect(dock).not.toHaveClass('flex-1');
+        expect(summary).toHaveClass('relative', 'overflow-hidden');
+        // And the slot carries no margin of its own: the box used to spread its
+        // children with `space-y`, whose `> * ~ *` selector outranks a plain
+        // `mt-0`, so the slot sat 8px (10px from sm) down and that much short —
+        // a strip of the box left showing above the pane, measured in the
+        // browser. The box has one in-flow child and does not need the stack.
+        expect(summary.className).not.toContain('space-y');
+        expect(dock.className).not.toContain('mt-');
+
+        const panel = screen.getByRole('dialog', { name: 'Active incidents' });
+        expect(panel.parentElement).toBe(dock);
+        expect(panel).toHaveClass('flex-1', 'min-h-0', 'w-full');
+        // Docked, not a sheet: nothing about the pane is anchored to the viewport
+        // bottom, which is what used to put the records under the map on a phone.
+        expect(panel.className).not.toContain('fixed');
+        expect(panel).not.toHaveAttribute('aria-modal');
+        expect(liveMap).not.toContainElement(panel);
+    });
+
+    test('opens a pin\'s details in the summary box, not over the map', () => {
+        renderWorkspace(createProps());
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        const dock = screen.getByTestId('map-summary-dock');
+        // The map is handed the same slot a card's records open into, and told
+        // when it takes it — which is what lets a pin's details land in the
+        // summary column instead of on top of the canvas it was clicked on.
+        expect(mapProps.dockTarget).toBe(dock);
+        expect(typeof mapProps.onEntityInspectorChange).toBe('function');
+        expect(dock).toHaveClass('hidden');
+
+        act(() => mapProps.onEntityInspectorChange(true));
+
+        const openDock = screen.getByTestId('map-summary-dock');
+        expect(openDock).not.toHaveClass('hidden');
+        expect(openDock).toHaveClass('absolute', 'inset-0', 'flex', 'flex-col');
+        // The box is in use: the cards keep their space without painting it, and
+        // the box clips rather than scrolls, so the pane covers it to the pixel.
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        expect(summary.querySelector(':scope > div')).toHaveClass('invisible');
+        expect(summary).toHaveClass('relative', 'overflow-hidden');
+
+        act(() => mapProps.onEntityInspectorChange(false));
+        expect(screen.getByTestId('map-summary-dock')).toHaveClass('hidden');
+        expect(screen.getByRole('region', { name: 'Map summary' }).querySelector(':scope > div')).not.toHaveClass('invisible');
+    });
+
+    test('stands its own records down when the map opens a pin\'s details', () => {
+        const setMapSummaryPanel = vi.fn();
+        renderWorkspace(createProps({ mapSummaryPanel: 'overview:pending', setMapSummaryPanel }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        act(() => mapProps.onEntityInspectorChange(true));
+
+        // One box, one reader: a pin's details take the summary box from the
+        // workspace's own pane rather than sharing it with it.
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+    });
+
+    test('opens the records with the box scrolled back to its top', () => {
+        const { rerender } = renderWorkspace(createProps());
+
+        // The box scrolls its own cards while nothing is open, and the pane is
+        // positioned against that same box — so a reader who scrolled the cards
+        // before tapping one would otherwise open the pane already shifted up,
+        // with the box's last 60px showing underneath it.
+        const box = screen.getByRole('region', { name: 'Map summary' });
+        box.scrollTop = 60;
+        expect(box.scrollTop).toBe(60);
+
+        rerender(
+            <MemoryRouter>
+                <DashboardMapWorkspace {...createProps({ mapSummaryPanel: 'incidents' })} />
+            </MemoryRouter>,
+        );
+
+        const panel = screen.getByRole('dialog', { name: 'Active incidents' });
+        expect(panel.parentElement).toBe(screen.getByTestId('map-summary-dock'));
+        expect(screen.getByRole('region', { name: 'Map summary' }).scrollTop).toBe(0);
     });
 
     test('uses clean overview cards with consistent spacing', () => {
@@ -146,13 +335,16 @@ describe('DashboardMapWorkspace permissions', () => {
             isReporter: false,
         }));
 
-        const summary = screen.getByRole('region', { name: 'Map summary' });
-        const cards = Array.from(summary.lastElementChild.children);
+        const cardsGrid = screen.getByTestId('map-summary-cards');
+        const cards = Array.from(cardsGrid.children);
 
         // Guest sees 3 cards: active incidents, active response, risk zones.
         // Transferred is folded into active incidents, not shown separately.
         expect(cards).toHaveLength(3);
-        expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3');
+        // One column at every width: from lg these three count down the
+        // workspace's right-hand column rather than across the top of the map.
+        expect(cardsGrid).toHaveClass('grid', 'grid-cols-1');
+        expect(cardsGrid.className).not.toContain('lg:grid-cols-3');
         cards.forEach((card) => {
             // The card's outline is a ring, not a border: the base stylesheet
             // forces every button's border-color transparent, so a bordered card
@@ -239,10 +431,12 @@ describe('DashboardMapWorkspace permissions', () => {
         const activeCard = within(summary).getByRole('button', { name: /View 4 active incidents/i });
         expect(activeCard).toBeInTheDocument();
         // The count folds verified + transferred + responding, so all four rows
-        // are inside it — and the supporting line now reports the responding
-        // mix rather than a status list.
+        // are inside it — and the supporting line reports the responding mix
+        // rather than a status list, with the two transfers named inside the
+        // waiting 3 rather than added beside it (1 + 3 is still the card's 4).
         expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('1 responding'));
         expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('3 waiting'));
+        expect(activeCard).toHaveAttribute('aria-label', expect.stringContaining('(2 transferred)'));
 
         // The guest overview now mirrors the reporter's: Active incidents,
         // Resolved, Risk zones. "Active response" was a subset-duplicate of
@@ -374,8 +568,8 @@ describe('DashboardMapWorkspace permissions', () => {
         const summary = screen.getByRole('region', { name: 'Map summary' });
         expect(within(summary).getByRole('button', { name: /View 1 pending review\. Awaiting review/i })).toHaveAttribute('aria-pressed', 'true');
         let panel = screen.getByRole('dialog', { name: 'Pending review' });
-        expect(within(panel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
-        expect(within(panel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
+        expect(findReportRow(panel, 'Vehicular')).toHaveTextContent('Pending');
+        expect(findReportRow(panel, 'Fire')).toBeUndefined();
 
         // The two operational queues are segments of the panel that already holds
         // those records, not tabs of their own: same card, same count, one click
@@ -392,13 +586,13 @@ describe('DashboardMapWorkspace permissions', () => {
         const queue = within(panel).getByRole('group', { name: 'Active incident queue' });
         fireEvent.click(within(queue).getByRole('button', { name: /Ready to dispatch \(2\)/i }));
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(2);
-        expect(within(panel).getByText(/Fire.*Verified/i)).toBeInTheDocument();
-        expect(within(panel).getByText(/Medical.*Transferred/i)).toBeInTheDocument();
-        expect(within(panel).queryByText(/Marine.*Active response/i)).not.toBeInTheDocument();
+        expect(findReportRow(panel, 'Fire')).toHaveTextContent('Verified');
+        expect(findReportRow(panel, 'Medical')).toHaveTextContent('Transferred');
+        expect(findReportRow(panel, 'Marine')).toBeUndefined();
 
         fireEvent.click(within(queue).getByRole('button', { name: /In response \(1\)/i }));
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
-        expect(within(panel).getByText(/Marine.*Active response/i)).toBeInTheDocument();
+        expect(findReportRow(panel, 'Marine')).toHaveTextContent('Active response');
 
         rerender(
             <MemoryRouter>
@@ -406,7 +600,7 @@ describe('DashboardMapWorkspace permissions', () => {
             </MemoryRouter>,
         );
         panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
-        expect(within(panel).getByText(/Other.*Resolved/i)).toBeInTheDocument();
+        expect(findReportRow(panel, 'Other')).toHaveTextContent('Resolved');
         // The card now points the map at the Resolved tab, so its rows can be
         // located. It used to be list-only because the two numbers disagreed.
         expect(within(panel).getByRole('button', { name: 'Locate' })).toBeInTheDocument();
@@ -499,8 +693,8 @@ describe('DashboardMapWorkspace permissions', () => {
         // card's number and its list can never disagree.
         const panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
         expect(within(panel).getAllByRole('button', { name: 'View details' })).toHaveLength(1);
-        expect(within(panel).getByText(/Marine.*Resolved/i)).toBeInTheDocument();
-        expect(within(panel).queryByText(/Medical.*Transferred/i)).not.toBeInTheDocument();
+        expect(findReportRow(panel, 'Marine')).toHaveTextContent('Resolved');
+        expect(findReportRow(panel, 'Medical')).toBeUndefined();
     });
 
     test('opens risk-zone overview metrics in the same contextual map panel and supports View details and Locate', () => {
@@ -527,7 +721,26 @@ describe('DashboardMapWorkspace permissions', () => {
         }));
 
         const panel = screen.getByRole('dialog', { name: 'Active risk zones' });
-        expect(panel.closest('[aria-label="Live incident map"]')).toBeInTheDocument();
+        const summary = screen.getByRole('region', { name: 'Map summary' });
+        const dock = screen.getByTestId('map-summary-dock');
+        // The records open in the box the cards were standing in — the same
+        // column, the same height, laid over the space they keep — and not as a
+        // card across the map. Non-modal, so the map they describe stays
+        // navigable while they are open: no scrim, no scroll lock, no focus
+        // trap.
+        expect(panel.parentElement).toBe(dock);
+        expect(panel).toHaveClass('pane-enter', 'flex-1', 'w-full');
+        expect(panel).not.toHaveAttribute('aria-modal');
+        expect(screen.getByRole('region', { name: 'Live incident map' })).not.toContainElement(panel);
+        expect(document.body.style.overflow).toBe('');
+        // Sized to the cards, never past them and never inside them: the slot is
+        // `inset-0` in the card stack, and the cards keep their height — held
+        // with `invisible`, not removed — while the pane covers them.
+        expect(summary).toContainElement(dock);
+        expect(dock).toHaveClass('absolute', 'inset-0', 'flex', 'flex-col', 'min-h-0');
+        expect(dock).not.toHaveClass('flex-1');
+        expect(summary.querySelector(':scope > div')).toHaveClass('invisible');
+        expect(summary).toHaveClass('relative', 'overflow-hidden');
         expect(within(panel).getByText('Cambijang Risk Zone')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /View 1 risk zones\. Mapped hazards/i })).toHaveAttribute('aria-pressed', 'true');
 
@@ -706,9 +919,9 @@ describe('DashboardMapWorkspace permissions', () => {
         ];
         renderWorkspace(createProps({ reports, mapSummaryPanel: 'incidents', setMapSummaryPanel, setResponderMapFilter }));
 
-        expect(screen.getByText(/Vehicular/i)).toHaveTextContent(/Vehicular.*Verified/i);
-        expect(screen.getByText(/Motorcycle/i)).toHaveTextContent(/Motorcycle.*Coordinated/i);
-        expect(screen.getByText(/Pedestrian/i)).toHaveTextContent(/Pedestrian.*Active response/i);
+        expect(findReportRow(document.body, 'Vehicular')).toHaveTextContent('Verified');
+        expect(findReportRow(document.body, 'Motorcycle')).toHaveTextContent('Coordinated');
+        expect(findReportRow(document.body, 'Pedestrian')).toHaveTextContent('Active response');
 
         fireEvent.click(screen.getByRole('button', { name: /View 3 active incidents/i }));
         expect(setMapSummaryPanel).toHaveBeenCalledWith('overview:active');
@@ -766,12 +979,17 @@ describe('DashboardMapWorkspace permissions', () => {
 
         const listPanel = screen.getByRole('dialog', { name: 'Active incidents' });
         expect(screen.getByText('1 currently visible')).toBeInTheDocument();
-        expect(listPanel).toHaveClass('pointer-events-auto', 'sm:w-[min(24rem,42%)]');
-        expect(listPanel.closest('[aria-label="Live incident map"]')).toBeInTheDocument();
+        expect(listPanel).toHaveClass('pane-enter', 'flex-1');
+        expect(listPanel.parentElement).toBe(screen.getByTestId('map-summary-dock'));
+        // The page behind it is untouched: opening a metric's records does not
+        // take the map or the rest of the dashboard away from the reader.
         expect(document.body.style.overflow).toBe('');
+        expect(listPanel.className).not.toContain('sm:w-[min(24rem,42%)]');
         fireEvent.click(screen.getByRole('button', { name: 'View details' }));
 
-        expect(screen.getByRole('dialog', { name: 'Incident details' })).toHaveClass('sm:w-[min(24rem,42%)]');
+        // The details view is the same docked pane with a new subject, so it
+        // keeps the pane's presentation rather than swapping to a drawer.
+        expect(screen.getByRole('dialog', { name: 'Incident details' })).toHaveClass('pane-enter', 'flex-1');
         expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
         expect(screen.getByText(report.description)).toBeInTheDocument();
         expect(screen.getByText(/Personal identities, evidence, and internal coordination details are protected/i)).toBeInTheDocument();
@@ -784,7 +1002,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(setMapSummaryPanel).toHaveBeenCalledWith('');
     });
 
-    test('reports the responding mix on the active incidents card', () => {
+    test('reports the responding mix — transfers included — on the active incidents card', () => {
         const reports = [
             { _id: 'verified-1', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
             { _id: 'verified-2', status: 'verified', coordinates: { lat: 12.4, lng: 122.6 } },
@@ -799,12 +1017,13 @@ describe('DashboardMapWorkspace permissions', () => {
             reports,
         }));
 
-        // 4 active with 1 responding, so 3 are still waiting for a responder.
-        // The map-location spread moved to the panel description — the card line
-        // has room for one fact, and the mix is the actionable one. The spread
-        // itself is covered by the dashboardReports unit tests.
+        // 4 active with 1 responding, so 3 are still waiting for a responder —
+        // and one of those 3 has been handed to another municipality. The
+        // transfer rides in a parenthetical because it is part of the waiting 3
+        // rather than a fifth incident, so the line still adds up to the number
+        // printed above it.
         expect(screen.getByRole('button', {
-            name: /View 4 active incidents\. 1 responding, 3 waiting/i,
+            name: /View 4 active incidents\. 1 responding, 3 waiting \(1 transferred\)/i,
         })).toBeInTheDocument();
     });
 
@@ -958,9 +1177,9 @@ describe('DashboardMapWorkspace permissions', () => {
 
         expect(screen.getByRole('button', { name: /View 1 pending review\. Awaiting review/i })).toHaveTextContent('1');
         const incidentPanel = screen.getByRole('dialog', { name: 'Active incidents' });
-        expect(within(incidentPanel).getByText(/Vehicular.*Pending/i)).toBeInTheDocument();
-        expect(within(incidentPanel).queryByText(/Fire.*Verified/i)).not.toBeInTheDocument();
-        expect(within(incidentPanel).queryByText(/Medical.*Responding/i)).not.toBeInTheDocument();
+        expect(findReportRow(incidentPanel, 'Vehicular')).toHaveTextContent('Pending');
+        expect(findReportRow(incidentPanel, 'Fire')).toBeUndefined();
+        expect(findReportRow(incidentPanel, 'Medical')).toBeUndefined();
         expect(mapPropsSpy.mock.lastCall[0]).toMatchObject({
             filterStatus: 'pending',
         });
@@ -1509,7 +1728,7 @@ describe('DashboardMapWorkspace permissions', () => {
     });
 
     describe('Mobile-First Responsive Layout and Typography', () => {
-        test('1. Renders responsive header with break-words', () => {
+        test('1. Names the page with its own heading, above the workspace kicker', () => {
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
                 isAuthenticated: true,
@@ -1518,9 +1737,32 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
             }));
 
+            // The workspace's subject is the document's h1 — a screen reader
+            // announces it and headings navigation finds it — and it prints,
+            // because a map screen whose subject exists only in the URL reads as
+            // a fragment of some larger page. It steps down to 22px from lg,
+            // where the workspace is the viewport's height minus this header and
+            // every line here is a line the map does not get.
             const heading = screen.getByRole('heading', { level: 1 });
-            expect(heading).toHaveClass('break-words');
             expect(heading).toHaveTextContent('Sibuyan Island incident map');
+            expect(heading).not.toHaveClass('sr-only');
+            expect(heading.className).toContain('font-display');
+            expect(heading.className).toContain('text-[26px]');
+            expect(heading.className).toContain('sm:text-[32px]');
+            expect(heading.className).toContain('lg:text-[22px]');
+
+            // The kicker above it names the viewer's own workspace, so the two
+            // lines are one hierarchy rather than one line printed twice.
+            const header = heading.closest('header');
+            const eyebrow = within(header).getByText('Reporter map');
+            expect(eyebrow.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+            // What the header also prints: the viewer's own workspace, and —
+            // below lg, where the sidebar is behind a drawer — a sentence that
+            // names the same place in words.
+            expect(within(header).getByText('Reporter map')).toBeInTheDocument();
+            expect(within(header).getByText(/Track your reports and community incidents across Sibuyan Island/i)).toBeInTheDocument();
+            expect(within(header).getByText(/Track your reports and community incidents/i)).toHaveClass('lg:hidden');
         });
 
         test('2. Overview metrics items render with tabular numbers, distinct labels, and wrap gracefully', () => {
@@ -1545,10 +1787,21 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(3);
 
             metricButtons.forEach((btn) => {
-                // Slim mobile row (py-2) with stacked desktop card (sm:py-3.5)
-                expect(btn).toHaveClass('py-2', 'sm:py-3.5');
-                const num = btn.querySelector('.tabular-nums');
-                expect(num).toBeInTheDocument();
+                // Compact mobile row that grows into a comfortably padded desktop
+                // card, on the same padding rhythm for every card in the row —
+                // and gives that padding back at lg, where the card is one of
+                // four in the map's own column: the stack has to close inside the
+                // height the map beside it sets, because the pane a card opens is
+                // laid over exactly this box.
+                expect(btn).toHaveClass('py-2.5', 'sm:py-4', 'lg:py-2');
+                // Two number slots, one per arrangement — 20px in the mobile row,
+                // 22px in the lg column. Both stay the card's headline; the lg
+                // size is a step up from the mobile one and a step down from the
+                // 24px a card standing alone used.
+                const numbers = Array.from(btn.querySelectorAll('.tabular-nums'));
+                expect(numbers).toHaveLength(2);
+                expect(numbers[0]).toHaveClass('text-xl');
+                expect(numbers[1]).toHaveClass('text-[22px]');
             });
         });
 

@@ -63,18 +63,34 @@ export const buildReporterPendingSummary = ({ total = 0, owned = 0 } = {}) => {
  * `responding` is the subset already being handled; every other report in the
  * total is verified or transferred, i.e. still waiting for a responder.
  *
+ * `transferred` is quoted in parentheses rather than as a fourth comma-separated
+ * count, because it is not a fourth category: a transferred report is one of the
+ * waiting ones and is already inside the number printed above the line. Stated
+ * flatly alongside the others the line reads as more incidents than the card
+ * claims, which is exactly the drift the derived copy exists to prevent. The
+ * parenthetical keeps it a property of the waiting set.
+ *
  * Deliberately plain wording: "waiting", not "awaiting"; a comma, not a
- * separator glyph. The helper also stays short, because the KPI card truncates
- * its supporting line and a description cut off mid-word matches the data no
- * better than a wrong one does.
+ * separator glyph. The helper still stays short — the card wraps it to two lines
+ * rather than clipping it, and a description cut off mid-word matches the data
+ * no better than a wrong one does.
  */
-export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, locations = null } = {}) => {
+export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, transferred = 0, locations = null } = {}) => {
     const safeTotal = Number.isFinite(Number(total)) ? Math.max(0, Number(total)) : 0;
     const safeResponding = Math.min(
         Number.isFinite(Number(responding)) ? Math.max(0, Number(responding)) : 0,
         safeTotal,
     );
     const awaiting = safeTotal - safeResponding;
+    // Clamped against the waiting set as well as zero: a report handed to another
+    // municipality cannot also be the one a unit is already responding to, so the
+    // parenthetical can never claim more transfers than there are unhandled
+    // incidents beside it when socket updates briefly deliver the lists out of
+    // step.
+    const safeTransferred = Math.min(
+        Number.isFinite(Number(transferred)) ? Math.max(0, Number(transferred)) : 0,
+        awaiting,
+    );
     // Only worth saying when the incidents are actually spread across more
     // places than there are incidents to count.
     const spread = Number(locations) > 0 && Number(locations) !== safeTotal
@@ -88,14 +104,17 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, locatio
         };
     }
 
-    if (safeResponding === 0) {
+    // Both phrases below describe the whole waiting set in one breath, so they
+    // are only allowed to speak for it while nothing has been transferred on —
+    // with a transfer in play the split is the fact worth printing.
+    if (safeResponding === 0 && safeTransferred === 0) {
         return {
             helper: `${safeTotal} waiting for a responder`,
             description: `${safeTotal} active${spread}, none responding yet.`,
         };
     }
 
-    if (awaiting === 0) {
+    if (awaiting === 0 && safeTransferred === 0) {
         return {
             // The bare label follows the canonical state name; the sentences
             // around it stay prose, because "2 responding, 1 waiting" is a
@@ -105,9 +124,20 @@ export const buildActiveIncidentsSummary = ({ total = 0, responding = 0, locatio
         };
     }
 
+    // A transfer is named as part of the waiting set rather than as its own
+    // category, so the line reads "1 responding, 2 waiting (1 transferred)" —
+    // four active incidents, one being handled, two still unhandled, and one of
+    // those two handed on.
+    const waitingCopy = safeResponding > 0
+        ? `${safeResponding} responding, ${awaiting} waiting`
+        : `${awaiting} waiting`;
+    const helper = safeTransferred > 0
+        ? `${waitingCopy} (${safeTransferred} transferred)`
+        : waitingCopy;
+
     return {
-        helper: `${safeResponding} responding, ${awaiting} waiting`,
-        description: `${safeTotal} active${spread}: ${safeResponding} responding, ${awaiting} waiting.`,
+        helper,
+        description: `${safeTotal} active${spread}: ${helper}.`,
     };
 };
 

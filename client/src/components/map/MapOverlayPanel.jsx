@@ -25,6 +25,20 @@ const MapOverlayPanel = ({
     presentation = 'modal',
     closeLabel = 'Close incident panel',
     contentKey,
+    // A 2px tone rule on the panel's leading edge. Callers that own a status
+    // colour pass it so the panel carries the colour of the thing that opened
+    // it; a caller that does not gets no rule.
+    accentClassName = '',
+    // The same tone as a dot beside the title. The rule sits at the far end of a
+    // pane whose first screenful can be a long list, so once the reader has
+    // scrolled past it the dot is what still says which set — which status, which
+    // card — this pane is showing. Optional for the same reason the rule is: a
+    // caller with no tone to carry prints neither.
+    accentDotClassName = '',
+    // Where a contextual panel belongs once the page has a column for it. See
+    // `isDocked` below; passing no target leaves this component exactly as it
+    // shipped.
+    dockTarget = null,
 }) => {
     const titleId = useId();
     const descriptionId = useId();
@@ -40,6 +54,26 @@ const MapOverlayPanel = ({
         if (typeof window === 'undefined') return false;
         return window.matchMedia ? window.matchMedia('(max-width: 639px)').matches : false;
     });
+
+    // Docked: a contextual panel with a box to live in, so it is not an overlay
+    // at all — it is portalled into that box and fills it, the same space the
+    // cards that opened it were standing in. Nothing moves: the box keeps its
+    // width and its height, so the records neither overshoot the space they were
+    // given nor shrink inside it, and the map beside them keeps its own column
+    // untouched.
+    //
+    // A slot is offered at every width — below lg it is the card box, which is
+    // the map's own height — so the pane docks at every width too. The bottom
+    // sheet is now only for a contextual panel with no box to stand in, such as
+    // the map's own inspector: it has no card box to fill, so it stays an
+    // overlay over the map that opened it.
+    //
+    // Docked is also deliberately NOT modal. No backdrop, no scroll lock, no
+    // focus trap: a reader who opens a metric's records can keep panning and
+    // zooming the map those records are about, and nothing else on the page
+    // stops responding. Escape is handled on the panel itself, so it only
+    // closes while the reader is in it rather than from anywhere on the page.
+    const isDocked = isContextual && Boolean(dockTarget);
 
     const touchStartY = useRef(null);
     const touchStartTime = useRef(0);
@@ -77,6 +111,9 @@ const MapOverlayPanel = ({
 
     useEffect(() => {
         previousFocusRef.current = document.activeElement;
+        // A docked panel neither takes focus nor traps it: the card that opened
+        // it keeps the reader's place, and the map beside it stays usable.
+        if (isDocked) return undefined;
         // Skip autofocus on small screens: focusing the close button forces the
         // mobile browser to scroll/zoom, which reads as an expand lag.
         const isSmallScreen = typeof window !== 'undefined'
@@ -119,10 +156,12 @@ const MapOverlayPanel = ({
             window.removeEventListener('keydown', handleKeyDown);
             previousFocusRef.current?.focus?.({ preventScroll: true });
         };
-    }, [isContextual, isMobileViewport]);
+    }, [isContextual, isDocked, isMobileViewport]);
 
-    // Handle body scroll lock
+    // Handle body scroll lock. A docked panel holds no lock: the page beside it
+    // is the page the reader is still working on.
     useEffect(() => {
+        if (isDocked) return undefined;
         if (!isContextual || isExpandedMobileSheet) {
             const previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
@@ -131,7 +170,7 @@ const MapOverlayPanel = ({
             };
         }
         return undefined;
-    }, [isContextual, isExpandedMobileSheet]);
+    }, [isContextual, isDocked, isExpandedMobileSheet]);
 
     useEffect(() => {
         if (isContextual && !panelRef.current?.contains(document.activeElement)) {
@@ -142,8 +181,8 @@ const MapOverlayPanel = ({
         const isSmallScreen = typeof window !== 'undefined'
             && typeof window.matchMedia === 'function'
             && window.matchMedia('(max-width: 639px)').matches;
-        if (!isSmallScreen) closeButtonRef.current?.focus({ preventScroll: true });
-    }, [isContextual, title]);
+        if (!isSmallScreen && !isDocked) closeButtonRef.current?.focus({ preventScroll: true });
+    }, [isContextual, isDocked, title]);
 
     useLayoutEffect(() => {
         if (scrollRegionRef.current) scrollRegionRef.current.scrollTop = 0;
@@ -195,10 +234,21 @@ const MapOverlayPanel = ({
             ref={panelRef}
             tabIndex={-1}
             role="dialog"
-            aria-modal={isContextual ? (isExpandedMobileSheet ? 'true' : undefined) : 'true'}
+            aria-modal={isContextual
+                ? (isExpandedMobileSheet ? 'true' : undefined)
+                : 'true'}
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
-            className={isContextual
+            onKeyDown={isDocked
+                ? (event) => {
+                    if (event.key !== 'Escape') return;
+                    event.stopPropagation();
+                    onCloseRef.current?.();
+                }
+                : undefined}
+            className={isDocked
+                ? 'pane-enter relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl bg-white ring-1 ring-gray-200/80 dark:bg-[#0c1813]/90 dark:ring-white/10'
+                : isContextual
                 ? `pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden bg-white shadow-xl max-sm:backdrop-blur-none sm:bg-white/95 sm:backdrop-blur-md dark:bg-[#0c1813] sm:dark:bg-[#0c1813]/95 dark:border-white/10
                    max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[80] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-0.5rem)] max-sm:rounded-t-2xl max-sm:border-t max-sm:border-gray-200/90 max-sm:shadow-2xl
                    max-sm:transition-[height] max-sm:duration-200 max-sm:ease-out motion-reduce:max-sm:transition-none max-sm:will-change-[height] max-sm:[contain:layout_style]
@@ -206,8 +256,18 @@ const MapOverlayPanel = ({
                     ${isMobileExpanded ? 'max-sm:h-[88dvh]' : 'max-sm:h-[38dvh]'}`
                 : `relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:h-auto sm:max-h-[calc(100dvh-2rem)] dark:border-white/10 dark:bg-[#0c1813]/95 ${widthClass}`}
         >
+            {/* The selected card's own tone, carried onto the panel's leading
+                edge: the card that opened these records and the records
+                themselves are one thing, and on a screen where the panel is a
+                dialog at the far right the colour is what still says so. */}
+            {accentClassName && (
+                <span
+                    aria-hidden="true"
+                    className={`h-[2px] w-full shrink-0 ${accentClassName}`}
+                />
+            )}
             {/* Mobile Drag Handle */}
-            {isContextual && (
+            {isContextual && !isDocked && (
                 <div
                     className="flex cursor-grab touch-none flex-col items-center justify-center pt-2.5 pb-1 sm:hidden active:cursor-grabbing"
                     onTouchStart={handleTouchStart}
@@ -220,21 +280,42 @@ const MapOverlayPanel = ({
             )}
 
             <header
-                className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/50 px-4 py-2.5 sm:py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5 max-sm:cursor-pointer select-none"
+                className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/60 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03] sm:px-5 max-sm:cursor-pointer select-none"
                 onClick={(e) => {
-                    if (isContextual && isMobileViewport && !e.defaultPrevented) {
+                    if (isContextual && !isDocked && isMobileViewport && !e.defaultPrevented) {
                         handleToggleExpand();
                     }
                 }}
-                onTouchStart={isContextual ? handleTouchStart : undefined}
-                onTouchEnd={isContextual ? handleTouchEnd : undefined}
+                onTouchStart={isContextual && !isDocked ? handleTouchStart : undefined}
+                onTouchEnd={isContextual && !isDocked ? handleTouchEnd : undefined}
             >
+                {/* Heading and description set the panel's hierarchy: the title is
+                    the subject, the description is one sentence of context. The
+                    description is sentence case on purpose — it carries full
+                    sentences ("3 active: 1 responding, 2 waiting…"), and setting
+                    them in the uppercase tracking that suits a two-word label
+                    turned the panel's context into a wall of capitalised text
+                    that read as a second heading. */}
                 <div className="min-w-0 py-0.5 flex-1">
-                    <h2 id={titleId} className="font-display text-sm font-bold uppercase tracking-wider text-gray-950 sm:text-base dark:text-white break-words leading-snug">
-                        {title}
-                    </h2>
+                    <div className="flex min-w-0 items-center gap-2">
+                        {accentDotClassName && (
+                            <span
+                                aria-hidden="true"
+                                className={`h-2 w-2 shrink-0 rounded-full ${accentDotClassName}`}
+                            />
+                        )}
+                        <h2 id={titleId} className="min-w-0 font-display text-[15px] font-semibold leading-snug tracking-tight text-gray-950 sm:text-base dark:text-white break-words">
+                            {title}
+                        </h2>
+                    </div>
                     {description && (
-                        <p id={descriptionId} className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 break-words leading-tight">
+                        // 12px at gray-600 rather than 11px at gray-500: this line
+                        // carries whole sentences ("3 active: 1 responding, 2
+                        // waiting (1 transferred). Pending is counted separately.")
+                        // and is read as the pane's context, so it is set for
+                        // reading — one step below the title in size, one step
+                        // above the supporting text inside the pane below it.
+                        <p id={descriptionId} className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-500 break-words">
                             {description}
                         </p>
                     )}
@@ -247,7 +328,7 @@ const MapOverlayPanel = ({
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
                     {/* Expand/Collapse Toggle on Mobile */}
-                    {isContextual && (
+                    {isContextual && !isDocked && (
                         <button
                             type="button"
                             onClick={handleToggleExpand}
@@ -275,15 +356,27 @@ const MapOverlayPanel = ({
                 </div>
             </header>
 
+            {/* `scrollbar-gutter: stable` so the pane's content does not shift
+                sideways the moment a long list starts to scroll: the reader is
+                reading a column of rows, and a 6px jump mid-list reads as the
+                rows moving rather than as a scrollbar arriving. */}
             <div
                 ref={scrollRegionRef}
                 data-testid="map-overlay-scroll-region"
-                className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
             >
                 {children}
             </div>
         </section>
     );
+
+    // Docked comes first, and that ordering is the whole feature: a docked
+    // panel IS contextual, so testing `isContextual` first would send it down
+    // the overlay path below and back across the map. The overlay wrapper is
+    // only ever for a contextual panel with no column to live in.
+    if (isDocked) {
+        return createPortal(panel, dockTarget);
+    }
 
     if (isContextual) {
         if (isMobileViewport) {

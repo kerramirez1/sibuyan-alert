@@ -81,6 +81,16 @@ describe('DashboardAnalyticsWorkspace', () => {
         render(<DashboardAnalyticsWorkspace {...baseProps} onOpenMap={onOpenMap} onOpenReports={onOpenReports} />);
 
         expect(screen.getByRole('heading', { name: 'Incident overview' })).toBeInTheDocument();
+
+        // The view's subject is its h1, and it prints nothing — the same call the
+        // map workspace makes for its own title. What the header shows is the
+        // eyebrow that names the EOC and the line that says what the view is
+        // reporting for the month.
+        const pageHeading = screen.getByRole('heading', { level: 1, name: 'Municipal Situation Overview' });
+        expect(pageHeading).toHaveClass('sr-only');
+        expect(pageHeading.className).not.toContain('sm:text-[32px]');
+        expect(screen.getByText(/incident status and response readiness for/i)).toBeInTheDocument();
+
         expect(screen.queryByRole('button', { name: 'Cajidiocan' })).not.toBeInTheDocument();
         expect(screen.getByRole('toolbar', { name: 'Analytics controls' })).toHaveClass(
             'grid-cols-1',

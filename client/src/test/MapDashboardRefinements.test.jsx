@@ -464,7 +464,10 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 </MemoryRouter>
             );
 
-            const updatedActiveBtn = within(screen.getByRole('region', { name: 'Map summary' })).getByRole('button', { name: /Active incidents/i });
+            // Scoped to the card stack: the pane now opens inside the summary
+            // column — in the box those cards were standing in — so the region
+            // also holds whatever the open pane says about active incidents.
+            const updatedActiveBtn = within(screen.getByTestId('map-summary-cards')).getByRole('button', { name: /Active incidents/i });
             expect(updatedActiveBtn).toHaveAttribute('aria-pressed', 'true');
             expect(updatedActiveBtn).toHaveAttribute('aria-expanded', 'true');
         });
@@ -500,6 +503,18 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                     expect(helperP.className).toContain('break-words');
                     expect(helperP.className).not.toContain('truncate');
                 }
+
+                // The metric strip cards print their helper on a span instead.
+                // The active-incidents line carries the responding / waiting /
+                // transferred mix and can need a second line, so it wraps: a
+                // single-line clip would drop the count it exists to show.
+                const helperSpans = Array.from(btn.querySelectorAll('span.text-\\[11px\\]'))
+                    .filter((span) => !span.className.includes('uppercase'));
+                expect(helperSpans.length).toBeGreaterThanOrEqual(2);
+                helperSpans.forEach((helperSpan) => {
+                    expect(helperSpan.className).not.toContain('truncate');
+                    expect(helperSpan.className).toContain('line-clamp-2');
+                });
             });
         });
 

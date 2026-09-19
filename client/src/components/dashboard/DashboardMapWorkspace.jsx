@@ -1,16 +1,19 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
     HiChevronRight,
     HiOutlineBadgeCheck,
+    HiOutlineCollection,
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
     HiOutlineCheckCircle,
     HiOutlineClock,
+    HiOutlineExclamationCircle,
     HiOutlineFilter,
     HiOutlineLightningBolt,
+    HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
 import { Link } from '../../router';
@@ -30,7 +33,7 @@ import {
 import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
-import { getMapRiskTypeConfig, MAP_ACTIVE_INCIDENT_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapRiskTypeConfig, getMapSeverityConfig, MAP_ACTIVE_INCIDENT_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
@@ -47,13 +50,21 @@ const formatDate = (value, pattern = 'MMM d, h:mm a') => {
 
 const formatIncidentType = (report) => getReportIncidentTypeLabel(report);
 
-const EmptyState = ({ title, description }) => (
+/**
+ * Nothing to list.
+ *
+ * The icon tile is neutral on purpose, even when the set that opened this pane
+ * has a tone of its own: "no active incidents" is not a state, it is the
+ * absence of one, and painting it amber or red would say something is wrong
+ * where nothing is. The copy still names which set is empty.
+ */
+const EmptyState = ({ title, description, icon: Icon = HiOutlineCheckCircle }) => (
     <div className="px-4 py-10 text-center sm:px-5">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
-            <HiOutlineCheckCircle className="h-5 w-5" />
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-400 ring-1 ring-gray-200/70 dark:bg-white/5 dark:text-gray-500 dark:ring-white/10">
+            <Icon className="h-5 w-5" aria-hidden="true" />
         </div>
-        <h3 className="mt-2.5 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white">{title}</h3>
-        <p className="mx-auto mt-1 max-w-xs text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{description}</p>
+        <h3 className="mt-3 text-[13px] font-semibold text-gray-950 sm:text-sm dark:text-white">{title}</h3>
+        <p className="mx-auto mt-1 max-w-[34ch] text-xs leading-relaxed text-gray-600 dark:text-gray-500">{description}</p>
     </div>
 );
 
@@ -74,38 +85,79 @@ const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, ca
                 const coordinates = getMapCoordinates(report);
                 const locateAvailable = Boolean(coordinates && onLocate && (!canLocate || canLocate(report)));
                 const location = report?.address || report?.title || report?.barangay || report?.municipalityName || 'Location unavailable';
+                // Only a record that carries a severity gets one printed — see the
+                // supporting line below.
+                const severity = report?.severity ? getMapSeverityConfig(report.severity) : null;
                 const ownerId = report?.reporter && typeof report.reporter === 'object'
                     ? report.reporter._id ?? report.reporter.id
                     : report?.reporter ?? report?.reporterId ?? report?.ownerId ?? null;
                 const isOwned = showOwnershipBadge && Boolean(currentUserId && ownerId && String(ownerId) === String(currentUserId))
                     || (showOwnershipBadge && report?.isOwnedByCurrentUser === true);
                 return (
-                    <article key={getEntityKey(report, `report-${index}`)} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <article key={getEntityKey(report, `report-${index}`)} className="group px-4 py-3.5 transition-colors hover:bg-gray-50 sm:px-5 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">
+                            {/* The place names the row; everything under it is
+                                supporting detail, stepped down by size, weight and
+                                colour rather than by a third container. */}
+                            <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-semibold leading-snug tracking-tight text-gray-950 break-words sm:text-sm dark:text-white">
                                 <span className="min-w-0 break-words">{location}</span>
                                 {isOwned && (
-                                    <span className="inline-flex shrink-0 items-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800 dark:bg-brand-500/15 dark:text-sky-300">
+                                    <span className="inline-flex shrink-0 items-center rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800 dark:bg-brand-500/15 dark:text-sky-300">
                                         Yours
                                     </span>
                                 )}
                             </h3>
-                            <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300 break-words leading-normal">
-                                {formatIncidentType(report)} <span aria-hidden="true">·</span> {statusLabel}
+                            {/* What it is, then what state it is in. The state is a
+                                chip rather than the bare dot-and-word it replaced,
+                                because it is the one fact a reader triages on and
+                                the chip is the same treatment the hazard rows in
+                                this pane already give their class. Its dot and
+                                colours come from `MAP_STATUS_CONFIG`, the lookup
+                                the queue tabs, the legend and the details chips
+                                read, so one incident cannot be described in two
+                                colours on one screen. */}
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{formatIncidentType(report)}</span>
+                                <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${status.badge}`}>
+                                    <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} />
+                                    {statusLabel}
+                                </span>
                                 {showOwnershipBadge && isTransferred && (
-                                    <span className="font-normal text-gray-500 dark:text-gray-400"> · still being handled</span>
+                                    <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">still being handled</span>
                                 )}
-                            </p>
-                            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 break-words leading-normal">
-                                {getPhysicalMunicipality(report) || 'Municipality unavailable'} <span aria-hidden="true">·</span> {formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}
+                            </div>
+                            {/* Where, how bad, when — one line of support, and every
+                                part of it atomic: a date broken after "7:15" reads
+                                as a missing value rather than as a wrapped one, so
+                                the time is `nowrap` and the line wraps between
+                                facts instead. Severity prints only when the record
+                                carries one; inventing "Moderate" for a report that
+                                never recorded a severity would be a fact this row
+                                made up. */}
+                            <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-normal text-gray-500 dark:text-gray-400">
+                                <span className="min-w-0 break-words">{getPhysicalMunicipality(report) || 'Municipality unavailable'}</span>
+                                {severity && (
+                                    <>
+                                        <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                                        <span className="inline-flex shrink-0 items-center gap-1.5">
+                                            <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} />
+                                            <span>{severity.label}</span>
+                                        </span>
+                                    </>
+                                )}
+                                <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
+                                <span className="whitespace-nowrap tabular-nums">{formatDate(report.incidentTime || report.createdAt || report.resolvedAt)}</span>
                             </p>
                         </div>
-                        <div className="mt-2.5 flex min-h-8 items-center justify-between gap-3 border-t border-gray-100/80 pt-2 dark:border-white/5">
+                        {/* No rule above the actions: the row divider already
+                            separates rows, and a second line inside every row made
+                            the list read as a stack of boxes. */}
+                        <div className="mt-2 flex items-center justify-between gap-3">
                             {onInspect && (
                                 <button
                                     type="button"
                                     onClick={() => onInspect(report)}
-                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                                    className="-ml-2 inline-flex min-h-9 cursor-pointer items-center rounded-md px-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
                                 >
                                     View details
                                 </button>
@@ -114,7 +166,7 @@ const IncidentList = ({ reports = [], emptyTitle, emptyDescription, onLocate, ca
                                 <button
                                     type="button"
                                     onClick={() => onLocate(report)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400 dark:hover:bg-white/5 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-sky-400 dark:hover:bg-white/5"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -137,16 +189,26 @@ const PanelLoadingState = ({ label = 'Loading panel content' }) => (
     </div>
 );
 
+/**
+ * The pane could not load what it was opened to show. Unlike an empty set, this
+ * one IS a state worth a tone: the tile takes the error red, so the pane reads
+ * as broken rather than as quiet, and the retry sits beside the explanation it
+ * belongs to.
+ */
 const PanelErrorState = ({ title, description, onRetry }) => (
     <div className="px-4 py-8 text-center sm:px-5" role="alert">
-        <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400 leading-relaxed break-words">{description}</p>
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">
+            <HiOutlineExclamationCircle className="h-5 w-5" aria-hidden="true" />
+        </div>
+        <h3 className="mt-3 text-[13px] font-semibold text-gray-900 sm:text-sm dark:text-white">{title}</h3>
+        <p className="mx-auto mt-1 max-w-[34ch] text-xs leading-relaxed text-gray-600 dark:text-gray-500 break-words">{description}</p>
         {onRetry && (
             <button
                 type="button"
                 onClick={onRetry}
-                className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
+                className="mt-3.5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:bg-white/5 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/10 cursor-pointer"
             >
+                <HiOutlineRefresh className="h-3.5 w-3.5" aria-hidden="true" />
                 Retry
             </button>
         )}
@@ -170,20 +232,15 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
     }
 
     if (error) {
+        // The same state the incident lists show, because it is the same
+        // situation: the pane cannot list what it was opened for. Two bespoke
+        // error blocks is how one pane ends up with two ways of saying it.
         return (
-            <div className="px-4 py-8 text-center sm:px-5" role="alert">
-                <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Risk zones unavailable</h3>
-                <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{error}</p>
-                {onRetry && (
-                    <button
-                        type="button"
-                        onClick={onRetry}
-                        className="mt-3.5 inline-flex min-h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
-                    >
-                        Retry
-                    </button>
-                )}
-            </div>
+            <PanelErrorState
+                title="Risk zones unavailable"
+                description={error}
+                onRetry={onRetry}
+            />
         );
     }
 
@@ -197,21 +254,30 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
                 const config = getMapRiskTypeConfig(zone?.type);
                 const coordinates = getMapCoordinates(zone);
                 return (
-                    <article key={getEntityKey(zone, `zone-${index}`)} className="group px-4 py-3 sm:px-5 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <article key={getEntityKey(zone, `zone-${index}`)} className="group px-4 py-3.5 transition-colors hover:bg-gray-50 sm:px-5 dark:hover:bg-white/[0.02]">
                         <div className="min-w-0">
-                            <h3 className="text-xs sm:text-sm font-semibold text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
-                            <p className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 break-words leading-normal">{config.label}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words">{zone.address || zone.description || 'No description provided.'}</p>
-                            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 break-words leading-normal">
+                            {/* Same row hierarchy as an incident above it: the name
+                                leads, the hazard class is a badge rather than a
+                                coloured line of text, and the supporting detail sits
+                                a step down. One list, one reading order, whether the
+                                row is a report or a zone. */}
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <h3 className="text-[13px] sm:text-sm font-semibold tracking-tight text-gray-950 dark:text-white break-words leading-snug">{zone.name || 'Unnamed zone'}</h3>
+                                <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${config.badge}`}>
+                                    {config.label}
+                                </span>
+                            </div>
+                            <p className="mt-1.5 text-xs leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300 break-words">{zone.address || zone.description || 'No description provided.'}</p>
+                            <p className="mt-1.5 text-[11px] leading-normal text-gray-500 break-words dark:text-gray-400">
                                 {zone.municipality || zone.municipalityName || 'Sibuyan Island'}{zone.barangay ? ` · ${zone.barangay}` : ''} <span aria-hidden="true">·</span> {Number.isFinite(Number(zone.radius)) && Number(zone.radius) > 0 ? `${Number(zone.radius)} m radius` : 'Radius unavailable'}
                             </p>
                         </div>
-                        <div className="mt-2.5 flex min-h-8 items-center justify-between gap-3 border-t border-gray-100/80 pt-2 dark:border-white/5">
+                        <div className="mt-2 flex items-center justify-between gap-3">
                             {onInspect && (
                                 <button
                                     type="button"
                                     onClick={() => onInspect(zone)}
-                                    className="inline-flex min-h-8 items-center rounded-md px-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                                    className="-ml-2 inline-flex min-h-9 cursor-pointer items-center rounded-md px-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
                                 >
                                     View details
                                 </button>
@@ -220,7 +286,7 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
                                 <button
                                     type="button"
                                     onClick={() => onLocate(zone)}
-                                    className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400 dark:hover:bg-white/5 cursor-pointer"
+                                    className="ml-auto inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:min-h-8 dark:text-sky-400 dark:hover:bg-white/5"
                                 >
                                     <span>Locate</span>
                                     <HiOutlineArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -264,7 +330,25 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
         title={`${value} ${label} — ${helper}`}
-        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white/95 px-3 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:-translate-y-px hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
+        // No hover translate: at lg these cards stack in a column, where nudging
+        // one card up by a pixel reads as the whole column twitching rather than
+        // as that card lifting out of a row.
+        //
+        // One padding per arrangement, and the lg value is the one that is easy
+        // to get wrong. Below lg the card is a row in a band above the map, so
+        // `py-2.5` keeps the numbers on one screen; from sm it is a card with
+        // room to breathe, which is what the band's height can afford.
+        //
+        // From lg the padding goes back down, because the card has changed
+        // sides: it is now one of four standing in the map's own column, and
+        // that column is exactly as tall as the map beside it. Four padded cards
+        // plus the column's heading overflow it — which does not merely look
+        // cramped, because the pane a card opens is laid over precisely this box
+        // (`absolute inset-0`, see the dock below) and anything that hangs
+        // past the column is clipped rather than scrolled. `lg:py-2` is what
+        // lets the stack close inside the 420px floor the row guarantees, so the
+        // pane has the whole of the space it covers.
+        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white/95 px-3.5 py-2.5 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-4 lg:py-2 dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
             ? 'ring-2 ring-brand-600 dark:ring-brand-400'
             : ''
             }`}
@@ -279,41 +363,63 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
             aria-hidden="true"
             className={`pointer-events-none absolute inset-0 rounded-xl bg-brand-50 transition-opacity duration-150 dark:bg-white/[0.06] ${selected ? 'opacity-100' : 'opacity-0'}`}
         />
-        {/* Mobile: one compact row per metric, so the whole row of numbers
+        {/* Below lg: one compact row per metric, so the whole row of numbers
             still sits above the map on a phone. The supporting line indents to
             the label, clearing the status dot. */}
-        <span className="relative flex w-full items-center gap-2 sm:hidden">
+        <span className="relative flex w-full items-center gap-2 lg:hidden">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
             <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {label}
             </span>
-            <span className="shrink-0 text-xl font-bold leading-none tabular-nums tracking-tight text-gray-900 dark:text-white">
+            <span className="shrink-0 font-display text-xl font-bold leading-none tracking-tight text-gray-950 tabular-nums dark:text-white">
                 {value}
             </span>
             <MetricStripAffordance selected={selected} />
         </span>
         {helper && (
-            <span className="relative mt-1 block truncate pl-4 text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
+            // Two lines rather than one: the active-incidents line can carry
+            // three facts (responding, waiting, transferred) and a clipped count
+            // is worse than a taller card — the number is the whole point of the
+            // card. Short lines still occupy one.
+            //
+            // No `block` next to `line-clamp-*`: the clamp IS a display utility
+            // (-webkit-box) and Tailwind emits `.line-clamp-*` before `.block`,
+            // so a display class here would silently switch the clamp off and the
+            // card would clip at its own edge instead of wrapping.
+            <span className="relative mt-1 line-clamp-2 pl-4 text-[11px] font-normal text-gray-500 lg:hidden dark:text-gray-400">
                 {helper}
             </span>
         )}
-        {/* Desktop: label, number, supporting line — one reading order, with the
-            number carrying the weight. */}
-        <span className="relative hidden w-full items-center gap-2 sm:flex">
+        {/* From lg: label, number, supporting line — one reading order, with the
+            number carrying the weight. This is the branch the workspace's right
+            column shows, which is why it turns on at lg rather than sm: from
+            that width the cards stand in the summary column beside the map, and
+            the number belongs under its label there, not beside it. */}
+        <span className="relative hidden w-full items-center gap-2 lg:flex">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
             {/* Wraps onto a second line rather than truncating or overflowing:
                 the label names the set the card opens, so a clipped name is
                 worse than a taller card. */}
-            <span className={`min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-[0.08em] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-[0.09em] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
                 {label}
             </span>
             <MetricStripAffordance selected={selected} />
         </span>
-        <span className="relative mt-1.5 hidden text-2xl font-bold leading-none tabular-nums tracking-tight text-gray-900 sm:block dark:text-white">
+        {/* 22px, not `text-2xl`: at 24px the number was sized for a card that
+            stood alone, while this one shares a column of four with a two-line
+            helper under each. A step above the mobile row's 20px and a step
+            above the 11px label is enough for the number to stay the card's
+            headline, and it is the largest size at which four of them still
+            close inside the column. */}
+        <span className="relative mt-1 hidden font-display text-[22px] font-bold leading-none tracking-tight text-gray-950 tabular-nums lg:block dark:text-white">
             {value}
         </span>
         {helper && (
-            <span className="relative mt-1.5 hidden truncate text-[11px] font-medium text-gray-500 sm:block dark:text-gray-400" title={helper}>
+            // Same reason as the mobile line above: this is the only place the
+            // active-incidents mix is printed, so it wraps instead of truncating.
+            // The responsive clamp replaces `sm:block`, which would have cancelled
+            // it (see above). `title` still carries the full line for a hover read.
+            <span className="relative mt-1 hidden text-[11px] font-medium leading-snug text-gray-500 lg:line-clamp-2 dark:text-gray-400" title={helper}>
                 {helper}
             </span>
         )}
@@ -347,7 +453,6 @@ const RAIL_TONES = {
         dot: MAP_STATUS_CONFIG.responding.dot, selectedSurface: 'bg-cyan-50/80 dark:bg-cyan-500/10', selectedText: 'text-cyan-900 dark:text-cyan-200', bar: MAP_STATUS_CONFIG.responding.dot,
     },
 };
-
 // Every value a filter can take, not just the five the rail ships today: these
 // same lookups draw the mobile summary line, which renders whatever filter a
 // deep link arrived with. An unmapped value would silently fall back to the
@@ -388,14 +493,21 @@ const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, title, 
             aria-pressed={selected}
             title={title}
             aria-label={ariaLabel}
-            className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-lg px-2.5 pb-2.5 pt-2 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${selected
+            // 12px and tight padding because this rail shares a row with a
+            // divider, a group cue and four more controls: at 13px with a 20px
+            // gap it needed ~890px and wrapped to a second row inside the map
+            // column, which cost the canvas more height than the tabs are worth.
+            // Measured, the five controls now need ~615px, so a 1280px viewport
+            // (~640px of rail) holds them in one row. The `before:-inset-1`
+            // overlay keeps the tap target comfortable anyway.
+            className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-t-lg px-1.5 pb-2 pt-1.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${selected
                 ? `${styles.selectedSurface} font-semibold ${styles.selectedText}`
-                : `font-normal text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
+                : `font-normal text-gray-500 hover:bg-white/80 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                 }`}
         >
             <span className={`h-2 w-2 shrink-0 rounded-full ${styles.dot}`} aria-hidden="true" />
             <span>{label}</span>
-            <span className={`text-[11px] font-medium tabular-nums ${selected ? '' : 'text-gray-400 dark:text-gray-500'}`}>
+            <span className={`text-[10px] font-medium tabular-nums ${selected ? '' : 'text-gray-400 dark:text-gray-500'}`}>
                 {count}
             </span>
             <span
@@ -403,6 +515,100 @@ const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, title, 
                 className={`pointer-events-none absolute inset-x-2 -bottom-px h-[2px] rounded-full ${selected ? styles.bar : 'bg-transparent'}`}
             />
         </button>
+    );
+};
+
+/**
+ * The map's filter rail: the status tabs that scope the view, and the hazard
+ * layer plus the archive behind a divider on the same line.
+ *
+ * It sits on its own line ABOVE the map and summary row rather than inside the
+ * map card, and that placement is the whole point of this component existing.
+ * Measured in the app's own font, the five controls need 615px with one-digit
+ * counts, 645px with two and 667px with three — and the narrowest desktop
+ * workspace, a 1024px viewport, is 720px wide. Full width they therefore fit on
+ * one line at every desktop width, counts included, with ~50px to spare. Inside
+ * the map card the rail had only the map column: ~400px at 1024px, ~640px at
+ * 1280px, so on a laptop it wrapped onto a second row that cost the canvas ~80px
+ * of height and read as a second, unrelated toolbar. The tabs also now describe
+ * what they do — they scope the whole view, the canvas and the record lists
+ * beside it — instead of looking like options of the map only.
+ *
+ * `group` still decides the shape: status tabs first, then the hazard layer and
+ * the archive behind a divider and a glyph, so a layer can never read as a
+ * fourth status. A role changes what happens to a record, not what the rail is
+ * called — see mapExperience.
+ */
+const MapFilterRail = ({
+    filters = [],
+    showPendingReports = false,
+    selectedFilter,
+    onSelectFilter,
+    getCount,
+}) => {
+    const statusFilters = toSafeArray(filters).filter((filter) => filter.group === 'status');
+    const layerFilters = toSafeArray(filters).filter((filter) => filter.group === 'layers');
+    const countOf = (value) => (typeof getCount === 'function' ? getCount(value) : 0);
+
+    return (
+        <>
+            {statusFilters.map((filter) => {
+                const count = countOf(filter.value);
+                const isSelected = selectedFilter === filter.value;
+                const tooltip = filter.value === 'all'
+                    ? (showPendingReports
+                        ? 'All open reports (pending + being handled)'
+                        : 'Active ongoing incidents')
+                    : 'Unverified reports awaiting review';
+
+                return (
+                    <MapRailTab
+                        key={filter.value}
+                        label={filter.label}
+                        count={count}
+                        tone={getRailTone(filter.value)}
+                        selected={isSelected}
+                        onClick={() => onSelectFilter(filter.value)}
+                        title={tooltip}
+                        ariaLabel={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                    />
+                );
+            })}
+            {layerFilters.length > 0 && (
+                <span
+                    className="flex shrink-0 items-end gap-x-1 self-stretch border-l border-gray-200 pl-2 dark:border-white/10"
+                    role="group"
+                    aria-label="Layers and archive"
+                >
+                    {/* A layers glyph, not the words "Layers & archive": the
+                        stacked-sheets icon is the map convention for this group
+                        and costs ~16px where the label needed ~110px. Nothing is
+                        lost to a screen reader — the group keeps its full
+                        accessible name, and each control keeps its own title. */}
+                    <span className="hidden pb-2 text-gray-400 lg:inline dark:text-gray-500" aria-hidden="true">
+                        <HiOutlineCollection className="h-3.5 w-3.5" />
+                    </span>
+                    <MapRailTab
+                        label={layerFilters.find((filter) => filter.value === 'risk-zones')?.label || 'Risk zones'}
+                        count={countOf('risk-zones')}
+                        tone={getRailTone('risk-zones')}
+                        selected={selectedFilter === 'risk-zones'}
+                        onClick={() => onSelectFilter(selectedFilter === 'risk-zones' ? 'all' : 'risk-zones')}
+                        title="Toggle the mapped hazard layer"
+                        ariaLabel={`Risk zones layer (${countOf('risk-zones')} ${countOf('risk-zones') === 1 ? 'zone' : 'zones'})${selectedFilter === 'risk-zones' ? ', shown' : ''}`}
+                    />
+                    <MapRailTab
+                        label={layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}
+                        count={countOf('resolved')}
+                        tone={getRailTone('resolved')}
+                        selected={selectedFilter === 'resolved'}
+                        onClick={() => onSelectFilter('resolved')}
+                        title="View the resolved incident archive"
+                        ariaLabel={`Resolved archive (${countOf('resolved')} ${countOf('resolved') === 1 ? 'record' : 'records'})${selectedFilter === 'resolved' ? ', selected' : ''}`}
+                    />
+                </span>
+            )}
+        </>
     );
 };
 
@@ -444,7 +650,26 @@ const DashboardMapWorkspace = ({
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const mobileFilterTriggerRef = useRef(null);
+    // The summary box's panel slot, which is where the records a card opens are
+    // rendered — at every width, since the pane covers the box the cards keep
+    // rather than the map. A layout effect rather than a plain ref read so the
+    // node is known in the commit that first paints the box: the panel is
+    // portalled into it, and reading it one frame late would show the panel in
+    // the map's corner first.
+    const summaryDockRef = useRef(null);
+    // The box itself, which is what the pane is measured against and which
+    // scrolls its cards while nothing is open.
+    const summaryBoxRef = useRef(null);
+    const [summaryDockNode, setSummaryDockNode] = useState(null);
+    useLayoutEffect(() => {
+        setSummaryDockNode(summaryDockRef.current);
+    }, []);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    // Whether the MAP's own details pane is open, in the same box this
+    // workspace's summary pane uses. Held as a boolean rather than as the selected
+    // record because the map is the one that owns that record; all this box needs
+    // to know is whose it is.
+    const [isMapInspectorOpen, setIsMapInspectorOpen] = useState(false);
     // Which operational queue the Active incidents panel is narrowed to. Only
     // the roles that dispatch read it (see `activeQueueSegments`); for everyone
     // else it stays 'all' and the panel shows the card's whole set.
@@ -491,13 +716,6 @@ const DashboardMapWorkspace = ({
         mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current, { delay: 180 });
         return () => mapScrollCleanupRef.current?.();
     }, [externalFocusId]);
-
-    useEffect(() => {
-        if (!mapSummaryPanel) return undefined;
-        mapScrollCleanupRef.current?.();
-        mapScrollCleanupRef.current = scheduleElementScroll(mapSectionRef.current, { delay: 100, behavior: 'reveal' });
-        return () => mapScrollCleanupRef.current?.();
-    }, [mapSummaryPanel]);
 
     useEffect(() => {
         if (focusedReportId || focusedRiskZoneId) setMapLocateRequest(null);
@@ -566,6 +784,10 @@ const DashboardMapWorkspace = ({
     const pendingMappedReports = allMappedReports.filter((report) => report?.status === 'pending');
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
+    // A transfer is a property of the active set, not a sixth card: the count is
+    // read from the same array the Active incidents number is read from, so the
+    // supporting line can never quote more transfers than that number holds.
+    const transferredActiveReports = dispatchableReports.filter((report) => report.status === 'transferred');
     // Active incidents is the umbrella set. A transferred report is still an
     // open incident — it has simply been handed to another area — so it is
     // counted here rather than surfaced as a category of its own. Verified and
@@ -640,6 +862,7 @@ const DashboardMapWorkspace = ({
     const activeIncidentsSummary = buildActiveIncidentsSummary({
         total: publicActiveReports.length,
         responding: activeResponseReports.length,
+        transferred: transferredActiveReports.length,
         locations: publicActiveLocationCount,
     });
 
@@ -663,8 +886,14 @@ const DashboardMapWorkspace = ({
         setMapSummaryPanel(panel);
     }, [setMapSummaryPanel]);
 
-    const handleMapInspectorOpen = useCallback(() => {
-        closeMapSummaryPanel();
+    // The summary box has two readers: this workspace's own pane, and the details
+    // pane the map opens when a pin is clicked. Whichever opens second takes the
+    // box, so opening the map's gives this one up — the two can never be rendered
+    // into one box, and a pin's details can never end up over the canvas it was
+    // clicked on.
+    const handleMapInspectorChange = useCallback((isOpen) => {
+        setIsMapInspectorOpen(isOpen);
+        if (isOpen) closeMapSummaryPanel();
     }, [closeMapSummaryPanel]);
 
     const publicMetrics = [
@@ -804,17 +1033,6 @@ const DashboardMapWorkspace = ({
     // A time-scoped or otherwise narrower count now belongs in the supporting
     // line and the panel description, never in the value slot: the value slot is
     // read as "the size of the set this card opens".
-    //
-    // Match the desktop row to the card count. Guests see 3 cards (the
-    // transferred card was folded into active incidents) and signed-in roles
-    // see 4; sizing this off metrics.length keeps a trailing empty column from
-    // appearing whenever the set changes.
-    const overviewGridColumns = metrics.length >= 5
-        ? 'lg:grid-cols-5'
-        : metrics.length === 4
-            ? 'lg:grid-cols-4'
-            : 'lg:grid-cols-3';
-
     const activeOverviewMetric = metrics.find(
         (metric) => `${OVERVIEW_PANEL_PREFIX}${metric.id}` === mapSummaryPanel,
     ) || null;
@@ -822,17 +1040,52 @@ const DashboardMapWorkspace = ({
     const isRiskZoneSummaryPanel = mapSummaryPanel === 'zones' || activeOverviewMetric?.panelType === 'risk-zones';
     const isTrustPointsPanel = activeOverviewMetric?.panelType === 'trust-points';
     const hasSummaryPanel = Boolean(isIncidentSummaryPanel || isRiskZoneSummaryPanel || isTrustPointsPanel);
+    // The summary panel's top rule repeats the tone of whatever it is showing:
+    // the card that opened it when a card did, otherwise the rail filter that
+    // owns it. It is what still states which of the four numbers the reader is
+    // looking at once the cards themselves have given the column up.
+    // Resolved once, so the rule on the pane's leading edge and the dot beside
+    // its title are the same tone by construction and cannot disagree about
+    // which set is open.
+    const summaryPanelTone = RAIL_TONES[getRailTone(activeOverviewMetric?.id || responderMapFilter)];
+    const summaryPanelAccent = summaryPanelTone.bar;
+    // The records pane takes the summary box over at every width — whichever
+    // reader opened it. The box is the map's own height and stands where the
+    // cards do, so the records open in the space they were being read in — above
+    // the map below lg, beside it from lg — and never in a sheet at the bottom of
+    // the screen, below a map they are describing. A pin's details are one of
+    // those readers: clicking a marker opens them here, not over the map.
+    const isSummaryPaneOpen = Boolean(hasSummaryPanel || isMapInspectorOpen);
+
+    // Opening the records returns the box to the top.
+    //
+    // The box scrolls its own cards, and the pane is positioned against that
+    // same box: a leftover scroll offset moves the pane UP with the cards that
+    // scrolled, which leaves a strip of the box showing under the pane — the one
+    // place the records must not stop short, since the box is exactly as tall as
+    // the map. Reset in a layout effect, so it is true again before the commit
+    // that shows the pane rather than one frame after it.
+    useLayoutEffect(() => {
+        if (!isSummaryPaneOpen || !summaryBoxRef.current) return;
+        summaryBoxRef.current.scrollTop = 0;
+    }, [isSummaryPaneOpen]);
 
     // The operational queues, as segments of the panel that already holds those
     // records. The rail used to spend two tabs on them (Ready to dispatch, Active
     // response), which is what made the same incident arrive as a different
     // product per account. Each segment is one of the sets above rather than a
     // new derivation, so a segment's number cannot disagree with the card's.
+    // `label` is the queue's full name — the accessible name and the tooltip —
+    // and `shortLabel` is what the option prints inside the summary column. They
+    // are not the same word on purpose: the column is ~290px wide, where "Ready
+    // to dispatch" ellipsized to "Ready …" and told the reader nothing about what
+    // they were choosing. The short names are the queue names this app already
+    // uses elsewhere ("Active response"), so no new vocabulary is introduced.
     const activeQueueSegments = mapExperience.canDispatch
         ? [
-            { value: 'all', label: 'All active', records: publicActiveReports },
-            { value: 'dispatch', label: 'Ready to dispatch', records: dispatchableReports },
-            { value: 'responding', label: 'In response', records: activeResponseReports },
+            { value: 'all', label: 'All active', shortLabel: 'All', records: publicActiveReports },
+            { value: 'dispatch', label: 'Ready to dispatch', shortLabel: 'Dispatch', records: dispatchableReports },
+            { value: 'responding', label: 'In response', shortLabel: 'Response', records: activeResponseReports },
         ]
         : [];
     const activeQueuePanelOpen = Boolean(mapExperience.canDispatch)
@@ -1011,19 +1264,48 @@ const DashboardMapWorkspace = ({
     };
 
     return (
-        <div className="mx-auto w-full max-w-[1500px] space-y-3 sm:space-y-5">
+        <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-3 sm:gap-5 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[480px] lg:gap-3">
+            {/* 7.25rem is the app header (4rem) plus this page's own top and
+                bottom padding (1.25rem + 2rem), so the workspace ends where the
+                viewport does and the page has nothing left to scroll. The floor
+                is 480px, not the 560px it first shipped with: at a 1280x720
+                laptop the available height is ~525px, so a 560px floor did not
+                protect the map — it put the bottom of the page, KPI cards
+                included, back below the fold. */}
             {/* Title block left, view switch right. The switch used to sit in a
                 row of its own above this header, which cost a band of empty
                 space on the one page that has both views. */}
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            {/* Kicker, title, and — below lg — the sentence that explains them.
+                From lg the description gives way: the workspace's height is the
+                viewport's minus this header, so every line spent here is a line
+                the map does not get, and the description restates what the
+                kicker and title already name. */}
+            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-6 lg:items-center lg:gap-4">
                 <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-sky-400">
+                    {/* The workspace's own name, and under it the page's subject.
+                        *
+                        * The eyebrow is about the viewer — "Reporter map",
+                        * "Municipal oversight" — and the h1 is about what they are
+                        * looking at, which is why the two are one hierarchy rather
+                        * than one line printed twice. The h1 also stays the
+                        * document's heading: a screen reader announces it on
+                        * arrival and a headings list is built from it, so a
+                        * workspace whose subject lived only in the URL read as a
+                        * fragment of some larger screen.
+                        *
+                        * From lg the title steps down to 22px rather than being
+                        * dropped: this workspace's height is the viewport's minus
+                        * this header, so the title is sized for a header that is
+                        * also the top of a full-height map — one line, still the
+                        * largest type in the column, ~28px of height. What gives
+                        * way at lg is the description, which only restates it. */}
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700 dark:text-sky-400">
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 sm:text-[32px] dark:text-white break-words">
+                    <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 break-words sm:text-[32px] lg:mt-0.5 lg:text-[22px] dark:text-white">
                         {mapExperience.title}
                     </h1>
-                    <p className="hidden sm:block mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300 break-words">
+                    <p className="mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300 break-words lg:hidden">
                         {mapExperience.description}
                     </p>
                 </div>
@@ -1069,16 +1351,100 @@ const DashboardMapWorkspace = ({
              * The cards are still a summary OF the map (tapping one opens its
              * records and, when the sets agree, points the map at them), so the
              * section keeps its "Map summary" label and the heading below is
-             * unchanged — only the reading order moved. */}
-            <section className="space-y-2 sm:space-y-2.5" aria-label="Map summary">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Current overview</h2>
-                    <p className="shrink-0 text-[11px] font-medium text-gray-400 dark:text-gray-500">
-                        <span className="hidden sm:inline">Select any metric to view matching records</span>
+             * unchanged.
+             *
+             * Moving them above the map fixed the fold but spent the page's
+             * height on a band of cards: the map was still a fixed 500px canvas
+             * that a laptop had to be scrolled to see whole. From lg the two
+             * stop sharing the page vertically and share it horizontally
+             * instead — the workspace becomes the app sidebar, the map, and this
+             * summary, the map takes the viewport's remaining height, and the
+             * page has nothing left to scroll. Below lg the two stack exactly as
+             * they did, because a phone has no third column to give — and the
+             * card box carries the map frame's own height there too, so a card's
+             * records open into a box the size of the map whether they stand
+             * above it or beside it. The summary stays FIRST in the source so
+             * that stacking order — and the reading order for a screen reader —
+             * is unchanged. */}
+            {/* The row's own floor is the map's floor: the map never renders
+                shorter than the canvas it replaces, and a viewport too short to
+                honour that scrolls the page rather than clipping the terrain.
+                Without it the canvas would simply be cut off, because the
+                section that holds it is `overflow-hidden` at a height the row
+                is allowed to shrink. */}
+            {/* The filter rail on its own full-width line, above both columns.
+                It is `hidden lg:flex` because below lg the Filters button and
+                its sheet own this job — see the mobile bar inside the map card,
+                which is now the card's only header band. The bottom border is
+                what the selected tab's indicator sits on. */}
+            {mapExperience.filters.length > 0 && (
+                <div
+                    className="hidden w-full min-w-0 flex-wrap items-end gap-x-1 border-b border-gray-200 lg:flex dark:border-white/10"
+                    aria-label="Map status filter"
+                    role="group"
+                >
+                    <MapFilterRail
+                        filters={mapExperience.filters}
+                        showPendingReports={mapExperience.showPendingReports}
+                        selectedFilter={responderMapFilter}
+                        onSelectFilter={setResponderMapFilter}
+                        getCount={getFilterCount}
+                    />
+                </div>
+            )}
+
+            {/* The summary column is `clamp`ed, not fixed. A hard 340px column
+                left the map ~360px at a 1024px viewport — a phone-sized canvas
+                beside a full-size column — while a hard 280px left the section's
+                own heading and hint too little room to sit on one line. Between
+                288px and 332px it tracks the viewport instead: the map keeps the
+                width it needs at the small end, and at 1280px the column lands
+                at ~307px, which is still 637px of rail for the filter row that
+                has to fit in one line there. */}
+            <div className="space-y-3 sm:space-y-5 lg:grid lg:min-h-[420px] lg:flex-1 lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)] lg:items-stretch lg:gap-4 lg:space-y-0">
+            {/* The summary box carries the map frame's OWN height utilities —
+                46svh held between 280px and 380px on a phone, a flat 460px from
+                sm, and the column's share of the viewport from lg — instead of
+                hugging its content. Two boxes built from one set of utilities
+                are the same height at every breakpoint, which is what keeps the
+                pane a card opens (laid over exactly this box, see the dock
+                below) from ever standing taller than the map it describes, or
+                past its lower edge. */}
+            {/* The summary column, which is also where a card's records open.
+                The pane takes the cards' own box — same column, same height,
+                laid over the space they keep — so it neither overshoots the box
+                the overview was standing in nor shrinks inside it, and the map
+                never has to give up a pixel for it. The cards stay mounted while
+                the pane is open so their counts keep their place in the DOM (and
+                in the tests); the pane is simply what covers them, at every
+                width. */}
+            <div className="lg:col-start-2 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col" data-testid="map-summary-column">
+            <section ref={summaryBoxRef} className={`custom-scrollbar relative h-[46svh] min-h-[280px] max-h-[380px] w-full sm:h-[460px] sm:max-h-none lg:h-auto lg:min-h-0 lg:flex-1 ${isSummaryPaneOpen ? 'overflow-hidden' : 'overflow-y-auto'}`} aria-label="Map summary">
+                {/* The cards keep their box while the pane is open: `invisible`
+                    holds the space without painting it, which is what lets the
+                    pane cover exactly the box the cards were standing in — the
+                    same height to the pixel, whether the box carries three cards
+                    or four. Unmounting them instead would let the box collapse
+                    and the pane shrink to its own content, which is the one
+                    thing this pane must not do. */}
+                <div className={isSummaryPaneOpen ? 'invisible' : undefined}>
+                {/* One row, and a hint short enough to stay on it: the old line
+                    was longer than the heading beside it, so at 340px it wrapped
+                    and the section opened with two lines of 11px grey above the
+                    numbers. The mobile wording is unchanged. */}
+                <div className="flex items-baseline justify-between gap-3 px-1">
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300">Current overview</h2>
+                    {/* gray-500, not gray-400: the hint is instructional text at
+                        11px, and gray-400 on this background sits near 2.6:1 —
+                        below the 4.5:1 a reader with low vision needs. gray-500
+                        passes, and the heading stays a step above it in weight
+                        and tracking rather than in a lighter grey. */}
+                    <p className="min-w-0 truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                        <span className="hidden sm:inline">Select to see records</span>
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
                 </div>
-                <div className={`mt-3 grid grid-cols-1 gap-2 sm:gap-3 ${overviewGridColumns}`}>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:gap-3 lg:gap-2" data-testid="map-summary-cards">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}
@@ -1094,10 +1460,40 @@ const DashboardMapWorkspace = ({
                         />
                     ))}
                 </div>
-            </section>
+                </div>
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
-                <div className="flex flex-col gap-2 p-2 sm:gap-2.5 sm:p-2.5">
+                {/* The pane's slot: exactly the box the cards were occupying —
+                    `inset-0` inside their own relative box — and the only part
+                    of it a panel is ever given, at every width. Out of the way
+                    while nothing is open.
+
+                    The slot is a direct inset with no margin and no stack of
+                    siblings above it: `space-y` on the box would have given it a
+                    margin, and a margin on an `inset-0` element both shifts it
+                    down and shortens it — 8px of the box's own surface left
+                    showing above the pane, which is exactly the strip this pane
+                    exists not to leave. */}
+                <div
+                    ref={summaryDockRef}
+                    data-testid="map-summary-dock"
+                    className={isSummaryPaneOpen
+                        ? 'absolute inset-0 flex min-h-0 flex-col'
+                        : 'hidden'}
+                />
+            </section>
+            </div>
+
+            {/* Same surface language as the summary cards beside it: one ring,
+                one radius, one shadow. A border here and a ring there read as
+                two different component families on a screen where they are two
+                halves of the same row. */}
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-2 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
+                {/* Mobile and tablet controls only: the desktop rail is the
+                    full-width bar above, so from lg the card holds nothing but
+                    the canvas — which is the cleanest thing a map card can hold,
+                    and worth ~46px of canvas height on a laptop. The sheet is
+                    rendered here because this is where its trigger lives. */}
+                <div className="flex flex-col gap-2 p-2 sm:gap-2.5 sm:p-2.5 lg:hidden">
                     {mapExperience.filters.length > 0 && (() => {
                         const isFiltered = responderMapFilter && responderMapFilter !== 'all';
                         const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
@@ -1170,88 +1566,12 @@ const DashboardMapWorkspace = ({
                                     triggerRef={mobileFilterTriggerRef}
                                 />
 
-                                {/* 2. Desktop Status-Filter Tabs (hidden lg:flex) */}
-                                <div
-                                    className="hidden lg:flex min-w-0 flex-1 flex-wrap items-end gap-5 w-full border-b border-gray-200 dark:border-white/10"
-                                    aria-label="Map status filter"
-                                    role="group"
-                                >
-                                    {/* One rail for every role, rendered from one
-                                        list. `group` decides the shape: status tabs
-                                        first, then the hazard layer and the archive
-                                        behind a divider and a label, so a layer can
-                                        never read as a fourth status. A role changes
-                                        what happens to a record, not what the rail is
-                                        called — see mapExperience. */}
-                                    {mapExperience.filters
-                                        .filter((filter) => filter.group === 'status')
-                                        .map((filter) => {
-                                            const count = getFilterCount(filter.value);
-                                            const isSelected = responderMapFilter === filter.value;
-                                            const tooltip = filter.value === 'all'
-                                                ? (mapExperience.showPendingReports
-                                                    ? 'All open reports (pending + being handled)'
-                                                    : 'Active ongoing incidents')
-                                                : 'Unverified reports awaiting review';
-
-                                            return (
-                                                <MapRailTab
-                                                    key={filter.value}
-                                                    label={filter.label}
-                                                    count={count}
-                                                    tone={getRailTone(filter.value)}
-                                                    selected={isSelected}
-                                                    onClick={() => setResponderMapFilter(filter.value)}
-                                                    title={tooltip}
-                                                    ariaLabel={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                />
-                                            );
-                                        })}
-                                    {(() => {
-                                        const layerFilters = mapExperience.filters.filter((filter) => filter.group === 'layers');
-                                        if (layerFilters.length === 0) return null;
-                                        const riskCount = getFilterCount('risk-zones');
-                                        const resolvedCount = getFilterCount('resolved');
-                                        const isRiskSelected = responderMapFilter === 'risk-zones';
-                                        const isResolvedSelected = responderMapFilter === 'resolved';
-                                        return (
-                                            <Fragment>
-                                                <span className="flex shrink-0 items-end gap-5 self-stretch border-l border-gray-200 pl-5 dark:border-white/10" role="group" aria-label="Layers and archive">
-                                                    {/* Shown from lg, not xl: this is the one group
-                                                        that needs the label, and lg was the
-                                                        narrowest range that hid it. */}
-                                                    <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 lg:inline dark:text-gray-500" aria-hidden="true">
-                                                        Layers &amp; archive
-                                                    </span>
-                                                <MapRailTab
-                                                    label={layerFilters.find((filter) => filter.value === 'risk-zones')?.label || 'Risk zones'}
-                                                    count={riskCount}
-                                                    tone={getRailTone('risk-zones')}
-                                                    selected={isRiskSelected}
-                                                    onClick={() => setResponderMapFilter(isRiskSelected ? 'all' : 'risk-zones')}
-                                                    title="Toggle the mapped hazard layer"
-                                                    ariaLabel={`Risk zones layer (${riskCount} ${riskCount === 1 ? 'zone' : 'zones'})${isRiskSelected ? ', shown' : ''}`}
-                                                />
-                                                <MapRailTab
-                                                    label={layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}
-                                                    count={resolvedCount}
-                                                    tone={getRailTone('resolved')}
-                                                    selected={isResolvedSelected}
-                                                    onClick={() => setResponderMapFilter('resolved')}
-                                                    title="View the resolved incident archive"
-                                                    ariaLabel={`Resolved archive (${resolvedCount} ${resolvedCount === 1 ? 'record' : 'records'})${isResolvedSelected ? ', selected' : ''}`}
-                                                />
-                                                </span>
-                                            </Fragment>
-                                        );
-                                    })()}
-                                </div>
                             </>
                         );
                     })()}
                 </div>
 
-                <div className="relative h-[46svh] min-h-[280px] max-h-[380px] w-full overflow-hidden rounded-lg sm:h-[460px] sm:max-h-none lg:h-[500px]">
+                <div className="relative h-[46svh] min-h-[280px] max-h-[380px] w-full overflow-hidden rounded-lg sm:h-[460px] sm:max-h-none lg:h-auto lg:flex-1">
                     {loading && safeCount(reports) === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
@@ -1265,7 +1585,10 @@ const DashboardMapWorkspace = ({
                         highRiskZones={highRiskZones}
                         locateRequest={mapLocateRequest || deepLinkedLocateRequest}
                         externalContextPanelOpen={Boolean(mapSummaryPanel)}
-                        onEntityInspectorOpen={handleMapInspectorOpen}
+                        onEntityInspectorChange={handleMapInspectorChange}
+                        // The summary box, so a pin's details stand in the column
+                        // beside the map instead of covering it.
+                        dockTarget={summaryDockNode}
                         className="h-full w-full"
                         focusLocation={focusLocation}
                         homeFocus={municipalityHomeFocus}
@@ -1294,7 +1617,14 @@ const DashboardMapWorkspace = ({
                         frameReportsOnOpen={mapExperience.framesReportsOnOpen}
                         pulseReportIds={pulseReportIds}
                     />
-                    {hasSummaryPanel && (
+                    {/* One panel, one host at every width: portalled into the
+                        slot in the summary box the cards just gave up, which is
+                        the map's own height — so the records are never a sheet
+                        at the bottom of the screen, below a map they describe,
+                        nor a card laid across the map itself. Held back for the
+                        one frame before the slot exists, which keeps an overlay
+                        from flashing in the map's corner on the way in. */}
+                    {hasSummaryPanel && summaryDockNode && (
                         <MapOverlayPanel
                             id={MAP_SUMMARY_PANEL_ID}
                             title={panelTitle}
@@ -1302,17 +1632,24 @@ const DashboardMapWorkspace = ({
                             onClose={closeMapSummaryPanel}
                             closeLabel={panelCloseLabel}
                             presentation="contextual"
+                            dockTarget={summaryDockNode}
+                            accentClassName={summaryPanelAccent}
+                            accentDotClassName={summaryPanelTone.dot}
                             contentKey={`${mapSummaryPanel}:${selectedActiveIncidentId || selectedActiveRiskZoneId || 'list'}`}
                         >
                             {isIncidentSummaryPanel && selectedActiveIncident && (
                                 <>
-                                    <div className="border-b border-gray-200 px-4 py-2 dark:border-gray-800 sm:px-5">
+                                    {/* A back control, not a back band: the pane's
+                                        own header already separates itself from
+                                        the body, so a second full-width ruled bar
+                                        here only cut the pane into strips. */}
+                                    <div className="px-4 pt-3 sm:px-5">
                                         <button
                                             type="button"
                                             onClick={() => setSelectedActiveIncidentId('')}
-                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-gray-700 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:text-gray-200 dark:hover:text-sky-400 cursor-pointer"
+                                            className="-ml-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
                                         >
-                                            <HiOutlineArrowLeft className="h-4 w-4" aria-hidden="true" />
+                                            <HiOutlineArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                                             Back to {activeOverviewMetric?.label || 'active incidents'}
                                         </button>
                                     </div>
@@ -1354,31 +1691,65 @@ const DashboardMapWorkspace = ({
                                 one tab wide: the panel narrows to a segment of the
                                 set the card counts, and the map keeps showing the
                                 tab's full set so the two numbers stay honest. */}
-                            {activeQueuePanelOpen && activeQueueSegments.length > 0 && (
-                                <div
-                                    className="flex flex-wrap gap-1.5 border-b border-gray-200 px-4 py-2 dark:border-gray-800 sm:px-5"
-                                    role="group"
-                                    aria-label="Active incident queue"
-                                >
-                                    {activeQueueSegments.map((segment) => {
-                                        const isSelected = activeQueueSegment === segment.value;
-                                        return (
-                                            <button
-                                                key={segment.value}
-                                                type="button"
-                                                onClick={() => setActiveQueueSegment(segment.value)}
-                                                aria-pressed={isSelected}
-                                                aria-label={`${segment.label} (${segment.records.length})`}
-                                                className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${isSelected
-                                                    ? 'border-brand-600 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
-                                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-300 dark:hover:bg-white/5'
-                                                    }`}
-                                            >
-                                                <span>{segment.label}</span>
-                                                <span className="tabular-nums text-gray-400 dark:text-gray-500">{segment.records.length}</span>
-                                            </button>
-                                        );
-                                    })}
+                            {/* Only while the list is what the pane is showing. A
+                                single incident's details are not a queue, and
+                                leaving this rail mounted under them put a control
+                                for choosing a set at the very bottom of the page a
+                                reader had just narrowed to one record. */}
+                            {activeQueuePanelOpen && !selectedActiveIncident && activeQueueSegments.length > 0 && (
+                                // Pinned to the top of the pane's own scroll region:
+                                // the queue is a lens on the list below it, so
+                                // switching lenses must not mean scrolling back up
+                                // through the rows already being read.
+                                <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/95 px-4 pb-2.5 pt-3 backdrop-blur-sm dark:border-white/10 dark:bg-[#0c1813]/95 sm:px-5">
+                                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                                        Queue
+                                    </p>
+                                    {/* One recessed track with three options instead
+                                        of three separate bordered pills: they are a
+                                        single choice, and the pills made the strip
+                                        read as three unrelated actions. The track,
+                                        the option size and the selected fill are the
+                                        same ones the Map | Analytics switch uses
+                                        (DashboardViewSwitch), so the page has one
+                                        segmented control rather than two that happen
+                                        to look similar. */}
+                                    <div
+                                        role="group"
+                                        aria-label="Active incident queue"
+                                        className="flex w-full flex-wrap items-center gap-1 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 dark:bg-white/5 dark:ring-white/10"
+                                    >
+                                        {activeQueueSegments.map((segment) => {
+                                            const isSelected = activeQueueSegment === segment.value;
+                                            return (
+                                                <button
+                                                    key={segment.value}
+                                                    type="button"
+                                                    onClick={() => setActiveQueueSegment(segment.value)}
+                                                    aria-pressed={isSelected}
+                                                    // The full queue name is the
+                                                    // accessible name and the tooltip;
+                                                    // the printed word is the short one,
+                                                    // and neither is ellipsized — see
+                                                    // `activeQueueSegments`.
+                                                    aria-label={`${segment.label} (${segment.records.length})`}
+                                                    title={segment.label}
+                                                    // ring-offset so the focus ring stays visible on the
+                                                    // brand-filled option, where a brand ring on a brand
+                                                    // fill would vanish.
+                                                    className={`inline-flex min-h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-1 ${isSelected
+                                                        ? 'bg-brand-700 text-white shadow-sm dark:bg-brand-600'
+                                                        : 'text-gray-600 hover:bg-white/70 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white'
+                                                        }`}
+                                                >
+                                                    <span>{segment.shortLabel || segment.label}</span>
+                                                    <span className={`shrink-0 tabular-nums ${isSelected ? 'text-white/80' : 'text-gray-400 dark:text-gray-500'}`}>
+                                                        {segment.records.length}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                             {isIncidentSummaryPanel && !selectedActiveIncident && !activeOverviewMetric?.loading && !activeOverviewMetric?.error && (
@@ -1426,9 +1797,10 @@ const DashboardMapWorkspace = ({
                     )}
                 </div>
             </section>
+            </div>
 
             {!isAuthenticated && (
-                <section className="border-t border-gray-200 py-3.5 sm:py-4 dark:border-white/10 sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Public safety and reporter registration">
+                <section className="border-t border-gray-200 py-3.5 sm:py-4 lg:shrink-0 dark:border-white/10 sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Public safety and reporter registration">
                     <div className="min-w-0 flex-1">
                         <h2 className="text-[13px] sm:text-sm font-semibold text-gray-900 dark:text-white break-words">
                             Sibuyan Island Emergency Network

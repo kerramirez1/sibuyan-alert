@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import {
     HiOutlineChevronUp,
     HiOutlineExclamationCircle,
+    HiOutlineLockClosed,
+    HiOutlinePhotograph,
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
 import useRecordView from '../../hooks/useRecordView';
@@ -9,40 +11,91 @@ import { formatIncidentLabel, getIncidentDetailViewModel, getTransferLine, norma
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getMapCoordinates } from '../../utils/mapReports';
 import { formatIncidentTime, formatIncidentRelativeTime } from '../../utils/dateTimeUtils';
+import { getMapSeverityConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import Button from '../ui/Button';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import ImageViewer from '../ui/ImageViewer';
 import { Skeleton } from '../ui/Skeleton';
 
-/* Severity keeps the sole hue encoding on this sheet; status stays achromatic. */
-const SEVERITY_DOT = {
-    minor: 'bg-emerald-500',
-    moderate: 'bg-amber-500',
-    severe: 'bg-orange-500',
-    critical: 'bg-red-500',
-};
+/*
+ * This sheet's visual grammar, in three pieces:
+ *
+ *   1. state is a chip — status and severity, side by side under the title,
+ *      because they are the two facts a reader triages on and both already have
+ *      a colour that means them elsewhere in the app;
+ *   2. facts are label-over-value, ruled between rows rather than between cells,
+ *      so every hairline spans the pane and a long value gets the width it needs
+ *      (see OverviewRow);
+ *   3. everything below the facts steps down in size and weight rather than being
+ *      boxed — this sheet is already inside a panel, and a card per section made
+ *      it read as a stack of cards instead of as one record.
+ *
+ * Status and severity both come from the shared lookups the record rows, queue
+ * tabs and map legend read, so one incident cannot be described in two colours
+ * on one screen.
+ */
 
-/* Compact metadata item matching Admin/Responder Overview DetailItem */
-const DetailItem = ({ label, value, children }) => (
-    <div className="py-2">
+/* One fact: its label, then the value under it. The label steps down in size and
+   weight (not in colour alone), so a column of them still reads as labels. */
+const DetailItem = ({ label, value, children, mono = false }) => (
+    <div className="min-w-0">
         <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</dt>
-        <dd className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-gray-100">
+        <dd className={`mt-0.5 text-[13px] font-semibold text-gray-900 dark:text-gray-100 ${mono ? 'font-mono tabular-nums whitespace-nowrap' : ''}`}>
             {children || value || 'Not specified'}
         </dd>
     </div>
 );
 
-/* Casualty figures as a plain stat row: label over numeral, hairline-separated. */
-const CasualtyStat = ({ label, count }) => (
-    <div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {label}
-        </span>
-        <p className="mt-0.5 text-xl font-bold tabular-nums text-gray-900 dark:text-white">
-            {count}
-        </p>
-    </div>
+/* A logical row of the overview: two short facts share a line, a long one owns
+   the whole row. The rule between rows therefore spans the pane, where per-cell
+   borders stopped half-way across and read as a table that had lost a column. */
+const OverviewRow = ({ children, wide = false }) => (
+    <div className={`grid gap-x-4 py-2 ${wide ? 'grid-cols-1' : 'grid-cols-2'}`}>{children}</div>
 );
+
+/* Casualty figures: label over numeral. A figure that was never recorded prints
+   in words and takes the small type a word needs — the numeral scale is for
+   counts, and "Not recorded" set in it burst the row it was meant to line up in.
+   It is 11px rather than the 13px this sheet's other values use because this
+   column is only ~78px wide at the pane's real width and the words broke across
+   two lines at 13px: a fallback that does not fit its own column reads as broken
+   data rather than as missing data. Colour follows the figure: a zero is not an
+   alert, so only a non-zero count is tinted, on the warm ramp this app already
+   uses for severity. */
+const CASUALTY_NUMERAL_TONES = {
+    injured: 'text-amber-700 dark:text-amber-300',
+    fatalities: 'text-red-700 dark:text-red-300',
+    missing: 'text-orange-700 dark:text-orange-300',
+};
+
+const CasualtyStat = ({ label, count, toneKey }) => {
+    const isNumeric = typeof count === 'number';
+    const isCounted = isNumeric && count > 0;
+
+    return (
+        <div className="min-w-0">
+            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {label}
+            </dt>
+            <dd
+                className={isNumeric
+                    ? `mt-1 font-display text-[22px] font-bold leading-none tabular-nums ${isCounted ? CASUALTY_NUMERAL_TONES[toneKey] : 'text-gray-900 dark:text-white'}`
+                    : 'mt-1 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400'}
+            >
+                {count}
+            </dd>
+        </div>
+    );
+};
+
+/* The band the casualty figures sit in: a wash that reports the record's worst
+   figure, so "is anyone hurt" is answerable without reading three numbers. All
+   zeros stay neutral — an empty row is not an emergency. */
+const getCasualtyBandTone = ({ fatalitiesNum = 0, injuredNum = 0, missingNum = 0 } = {}) => {
+    if (fatalitiesNum > 0) return 'border-red-100 bg-red-50/60 dark:border-red-500/20 dark:bg-red-500/[0.07]';
+    if (injuredNum > 0 || missingNum > 0) return 'border-amber-100 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/[0.07]';
+    return 'border-gray-100 bg-gray-50/70 dark:border-white/10 dark:bg-white/[0.03]';
+};
 
 const MapIncidentDetailsSkeleton = () => (
     <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5" role="status" aria-busy="true" aria-label="Loading incident brief">
@@ -151,7 +204,7 @@ const MapIncidentDetails = ({
     const hasActions = Boolean(canRespond || canResolve || canVerify || canReject);
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
-    const { injured, fatalities, missing, isAllZeroOrUnrecorded } = normalizedCasualties;
+    const { injured, fatalities, missing, injuredNum, fatalitiesNum, missingNum, isAllZeroOrUnrecorded } = normalizedCasualties;
 
     const evidenceDescriptor = displayedReport?.evidence;
     const effectiveViewerAccess = visibility.viewerAccess;
@@ -219,9 +272,24 @@ const MapIncidentDetails = ({
         ? { label: `Transferred ${transferMatch[1].toLowerCase()}`, value: transferMatch[2] }
         : null;
 
+    // State, from the shared lookups: an unrecognised status falls back to
+    // `verified` and an unrecorded severity to `moderate`, which is how the rest
+    // of the app presents both.
+    const statusConfig = MAP_STATUS_CONFIG[details.status] || MAP_STATUS_CONFIG.verified;
+    const severityConfig = getMapSeverityConfig(details.severity);
+    // Whether the record actually carries a description, as opposed to the view
+    // model's placeholder sentence for a missing one. Derived here rather than in
+    // the shared view model so the placeholder keeps its one owner (and its
+    // tests) while this sheet can still present an absence as an absence.
+    const hasReportedDescription = Boolean(displayedReport?.description?.trim());
+    // Whether there is anything for the gallery to show. Counted from both the
+    // declared count and the items the viewer may see, so a redacted preview and
+    // an operational original are both "there is evidence".
+    const hasEvidenceToShow = totalEvidenceCount > 0 || rawEvidenceItems.length > 0;
+
     return (
         <div className="flex flex-col">
-            <div className="space-y-2.5 px-4 py-3 sm:px-5 sm:py-3.5">
+            <div className="space-y-3.5 px-4 py-3.5 sm:px-5 sm:py-4">
                 {/* 1. Incident Brief */}
                 <div>
                     {typeof onBack === 'function' && (
@@ -236,36 +304,52 @@ const MapIncidentDetails = ({
                             </button>
                         </div>
                     )}
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Incident brief
                         </span>
                         {details.id && (
-                            <span className="text-[10px] font-mono font-medium text-gray-400 dark:text-gray-500">
+                            // The reference is what a reader quotes back to the
+                            // office, so it is a chip in tabular mono rather than
+                            // the faintest text in the header. The last six
+                            // characters are the readable form; the full id is on
+                            // the tooltip for anyone who needs it.
+                            <span
+                                className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-gray-600 dark:bg-white/[0.06] dark:text-gray-300"
+                                title={`Reference number ${String(details.id).toUpperCase()}`}
+                            >
                                 Ref: #{String(details.id).slice(-6).toUpperCase()}
                             </span>
                         )}
                     </div>
 
-                    <h3 className="mt-1 font-display text-base font-bold text-gray-950 sm:text-lg dark:text-white leading-snug break-words">
+                    {/* The title is the incident's name, at the size a name is
+                        read at — one step up from the body type below it, and
+                        still breakable for a long one. */}
+                    <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug text-gray-950 break-words sm:text-lg dark:text-white">
                         {details.title}
                     </h3>
 
-                    {/* Status plain text; severity keeps the sole hue encoding */}
-                    <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
-                        <span className="capitalize">{details.status}</span>
-                        <span aria-hidden="true"> · </span>
-                        <span className="inline-flex items-center gap-1">
-                            <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_DOT[details.severity] || SEVERITY_DOT.moderate}`} aria-hidden="true" />
+                    {/* State, as two chips: the lifecycle stage and the gravity,
+                        each on the colour that already means it in this app (see
+                        the note at the top of this file). The words are the same
+                        ones this sheet printed before — the chip changes how they
+                        are carried, not what they say. */}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusConfig.badge}`}>
+                            <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot}`} />
+                            <span className="capitalize">{details.status}</span>
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${severityConfig.badge}`}>
+                            <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityConfig.dot}`} />
                             <span>{severityLabel}</span>
                         </span>
                         {details.status === 'pending' && (
-                            <>
-                                <span aria-hidden="true"> · </span>
-                                <span>Awaiting verification</span>
-                            </>
+                            <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                Awaiting verification
+                            </span>
                         )}
-                    </p>
+                    </div>
                 </div>
 
                 {/* Mobile Peek Affordance */}
@@ -293,52 +377,73 @@ const MapIncidentDetails = ({
                     </div>
                 )}
 
-                {/* 2. Overview — unified section with 2-column metadata grid + casualty summary */}
-                <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-overview-heading">
-                    <h4 id="map-incident-overview-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white mb-1">
+                {/* 2. Overview: the record's facts, then its human cost. */}
+                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-overview-heading">
+                    <h4 id="map-incident-overview-heading" className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
                         Overview
                     </h4>
 
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-0 divide-y divide-gray-100 dark:divide-white/5">
-                        <DetailItem label="Incident type">
-                            <span className="capitalize">{incidentTypeLabel}</span>
-                        </DetailItem>
-                        <DetailItem label="Severity">
-                            <span className="capitalize">{details.severity || 'Moderate'}</span>
-                        </DetailItem>
-                        <DetailItem label="Incident time" value={formatIncidentTime(details.incidentTime)} />
-                        <DetailItem label="Submitted time" value={formatIncidentTime(displayedReport?.createdAt)} />
-                        <DetailItem label="Barangay" value={details.barangay || 'Not specified'} />
-                        <DetailItem label="Municipality" value={details.municipality || 'Sibuyan Island'} />
+                    {/* Short facts share a row; a fact whose value is too long for
+                        half this pane (a timestamp, a coordinate pair, an agency
+                        list) takes the whole row instead. That is what keeps every
+                        value on one line: what used to wrap was never the layout,
+                        it was "Sep 18, 2026, 7:15" breaking before "AM". */}
+                    <dl className="divide-y divide-gray-100 dark:divide-white/5">
+                        <OverviewRow>
+                            <DetailItem label="Incident type">
+                                <span className="capitalize">{incidentTypeLabel}</span>
+                            </DetailItem>
+                            <DetailItem label="Severity">
+                                <span className="capitalize">{details.severity || 'Moderate'}</span>
+                            </DetailItem>
+                        </OverviewRow>
+                        <OverviewRow wide>
+                            <DetailItem label="Incident time" value={formatIncidentTime(details.incidentTime)} />
+                        </OverviewRow>
+                        <OverviewRow wide>
+                            <DetailItem label="Submitted time" value={formatIncidentTime(displayedReport?.createdAt)} />
+                        </OverviewRow>
+                        <OverviewRow>
+                            <DetailItem label="Barangay" value={details.barangay || 'Not specified'} />
+                            <DetailItem label="Municipality" value={details.municipality || 'Sibuyan Island'} />
+                        </OverviewRow>
                         {transferDetail && (
-                            <DetailItem label={transferDetail.label} value={transferDetail.value} />
+                            <OverviewRow wide>
+                                <DetailItem label={transferDetail.label} value={transferDetail.value} />
+                            </OverviewRow>
                         )}
                         {respondingAgencyText && (
-                            <DetailItem label="Responding agency">
-                                {respondingAgencyText}
-                            </DetailItem>
+                            <OverviewRow wide>
+                                <DetailItem label="Responding agency">
+                                    {respondingAgencyText}
+                                </DetailItem>
+                            </OverviewRow>
                         )}
                         {exactCoordinatesText && (
-                            <DetailItem label="Exact coordinates">
-                                <span className="font-mono tabular-nums">{exactCoordinatesText}</span>
-                            </DetailItem>
+                            <OverviewRow wide>
+                                <DetailItem label="Exact coordinates" mono>
+                                    {exactCoordinatesText}
+                                </DetailItem>
+                            </OverviewRow>
                         )}
                     </dl>
 
-                    {/* Casualty summary — child of Overview */}
-                    <div className="border-t border-gray-100 pt-2 dark:border-white/5">
-                        <h5 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    {/* Casualty summary — the one band in the pane, because it is
+                        the one group of facts that belongs together: three figures
+                        answering a single question about the people involved. */}
+                    <div className={`mt-2.5 rounded-lg border p-2.5 ${getCasualtyBandTone({ fatalitiesNum, injuredNum, missingNum })}`}>
+                        <h5 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Casualty summary
                         </h5>
 
-                        <div className="grid grid-cols-3 gap-3">
-                            <CasualtyStat label="Injured" count={injured} />
-                            <CasualtyStat label="Fatalities" count={fatalities} />
-                            <CasualtyStat label="Missing" count={missing} />
-                        </div>
+                        <dl className="mt-2 grid grid-cols-3 gap-2">
+                            <CasualtyStat label="Injured" count={injured} toneKey="injured" />
+                            <CasualtyStat label="Fatalities" count={fatalities} toneKey="fatalities" />
+                            <CasualtyStat label="Missing" count={missing} toneKey="missing" />
+                        </dl>
 
                         {isAllZeroOrUnrecorded && typeof injured !== 'number' && typeof fatalities !== 'number' && typeof missing !== 'number' && (
-                            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 italic">
+                            <p className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
                                 No casualty information recorded.
                             </p>
                         )}
@@ -368,10 +473,13 @@ const MapIncidentDetails = ({
                 {/* 4. Clamped Description */}
                 {details.description && (
                     <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-description-heading">
-                        <h4 id="map-incident-description-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+                        <h4 id="map-incident-description-heading" className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             {isOperational ? 'Operational description' : 'Description'}
                         </h4>
-                        <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-800 dark:text-gray-200 ${!isDescriptionExpanded && isDescriptionLong ? 'line-clamp-3' : ''}`}>
+                        {/* A placeholder sentence is set as the absence it is: same
+                            words, one step down in contrast, so an empty field
+                            cannot be mistaken for reported content. */}
+                        <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed ${hasReportedDescription ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500'} ${!isDescriptionExpanded && isDescriptionLong ? 'line-clamp-3' : ''}`}>
                             {details.description}
                         </p>
                         {isDescriptionLong && (
@@ -387,8 +495,8 @@ const MapIncidentDetails = ({
                 )}
 
                 {/* 5. Evidence Photos */}
-                <section className="border-t border-gray-100 pt-2 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
-                    <h4 id="map-incident-evidence-heading" className="text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
+                <section className="border-t border-gray-100 pt-2.5 dark:border-white/10" aria-labelledby="map-incident-evidence-heading">
+                    <h4 id="map-incident-evidence-heading" className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <span>
                             {totalEvidenceCount > 0
                                 ? ownsReport && isOriginalAllowed
@@ -400,21 +508,37 @@ const MapIncidentDetails = ({
                         </span>
                     </h4>
 
-                    <div>
-                        <ProtectedEvidenceGallery
-                            images={isOriginalAllowed ? (displayedReport?.images || []) : []}
-                            evidence={evidenceDescriptor}
-                            accessLevel={effectiveViewerAccess}
-                            isOwner={ownsReport && isOriginalAllowed}
-                            isOperational={isOperational}
-                            variant="stacked"
-                            onViewImage={onViewImage || ((item) => setViewerItem(item))}
-                        />
-                    </div>
+                    {hasEvidenceToShow ? (
+                        <div>
+                            <ProtectedEvidenceGallery
+                                images={isOriginalAllowed ? (displayedReport?.images || []) : []}
+                                evidence={evidenceDescriptor}
+                                accessLevel={effectiveViewerAccess}
+                                isOwner={ownsReport && isOriginalAllowed}
+                                isOperational={isOperational}
+                                variant="stacked"
+                                onViewImage={onViewImage || ((item) => setViewerItem(item))}
+                            />
+                        </div>
+                    ) : (
+                        // A line, not a tile: a bordered box holding the words "No
+                        // evidence attached." is a container for nothing, inside a
+                        // pane that is already a container. The words are the ones
+                        // the gallery itself prints, so nothing about the state
+                        // changes — only that it no longer draws a card around it.
+                        <p className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <HiOutlinePhotograph className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                            No evidence attached.
+                        </p>
+                    )}
                 </section>
 
                 {/* 6. Static Privacy & Security Notice */}
-                <div className="border-t border-gray-100 pt-2.5 dark:border-white/10">
+                {/* System information, set as system information: a rule, a lock,
+                    and the sentence. Every wording branch below is unchanged —
+                    this is the pane explaining what it is allowed to show. */}
+                <div className="flex items-start gap-2.5 border-t border-gray-100 pt-3 dark:border-white/10">
+                    <HiOutlineLockClosed className="mt-px h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                     <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{privacyNotice}</p>
                 </div>
             </div>

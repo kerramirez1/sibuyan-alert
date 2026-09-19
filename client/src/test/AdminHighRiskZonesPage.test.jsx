@@ -135,7 +135,14 @@ describe('AdminHighRiskZonesPage', () => {
         render(<AdminHighRiskZonesPage />);
 
         expect(screen.getByText('High-risk zones')).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 1, name: 'High-risk zone management' })).toBeInTheDocument();
+        // The page's subject is its h1 and it prints nothing: a screen reader
+        // announces it and headings navigation finds it, while the band at the
+        // top spends its lines on the eyebrow and the municipality the line
+        // below names instead.
+        const pageHeading = screen.getByRole('heading', { level: 1, name: 'High-risk zone management' });
+        expect(pageHeading).toHaveClass('sr-only');
+        expect(pageHeading.className).not.toContain('text-2xl');
+        expect(pageHeading.className).not.toContain('sm:text-3xl');
         expect(screen.getByText(/View mapped hazards and manage zones for Cajidiocan\./i)).toBeInTheDocument();
         expect(screen.getByText(/Sibuyan Island · Alert System Active/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Add zone/i })).toBeInTheDocument();

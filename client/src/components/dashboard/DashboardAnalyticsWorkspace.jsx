@@ -567,9 +567,15 @@ const DashboardAnalyticsWorkspace = ({
                         <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-sky-400">
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </span>
-                        <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 sm:text-[32px] dark:text-white">
-                            Municipal Situation Overview
-                        </h1>
+                        {/* This view's subject, printed as nothing — the call the
+                            map workspace makes for its own h1, for the same
+                            reason. A screen reader still announces "Municipal
+                            Situation Overview" on arrival and headings
+                            navigation still finds it; what it stops doing is
+                            spending the top of the page on a 32px line that the
+                            eyebrow above ("<Municipality> EOC") and the sentence
+                            below both already say. */}
+                        <h1 className="sr-only">Municipal Situation Overview</h1>
                         <p className="mt-1.5 max-w-[68ch] text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`

@@ -419,9 +419,13 @@ const AdminHighRiskZonesPage = () => {
                     <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                         High-risk zones
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        High-risk zone management
-                    </h1>
+                    {/* Printed as nothing, the same call the map workspace makes
+                        for its title: the eyebrow above names the surface and
+                        the line below names the municipality, so a 30px headline
+                        between them only repeated both. It stays as the
+                        document's h1 — the heading a screen reader announces and
+                        a headings list is built from. */}
+                    <h1 className="sr-only">High-risk zone management</h1>
                     <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         View mapped hazards and manage zones for {user?.assignedMunicipality || 'all municipalities'}.
                     </p>

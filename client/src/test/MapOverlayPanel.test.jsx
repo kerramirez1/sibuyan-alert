@@ -123,6 +123,95 @@ describe('MapOverlayPanel', () => {
         expect(wheelEvent.defaultPrevented).toBe(false);
     });
 
+    describe('docked presentation', () => {
+        const renderDocked = (props = {}) => {
+            const dock = document.createElement('div');
+            dock.setAttribute('data-testid', 'dock');
+            document.body.appendChild(dock);
+
+            const view = render(
+                <MapOverlayPanel
+                    id="map-context-panel"
+                    title="Pending review"
+                    description="1 report awaiting municipal review."
+                    closeLabel="Close pending review panel"
+                    presentation="contextual"
+                    dockTarget={dock}
+                    accentClassName="bg-amber-500"
+                    onClose={vi.fn()}
+                    {...props}
+                >
+                    <p>Records</p>
+                </MapOverlayPanel>,
+            );
+
+            return { ...view, dock };
+        };
+
+        test('fills the column it was given, and is not modal', () => {
+            const { dock } = renderDocked();
+
+            const dialog = screen.getByRole('dialog', { name: 'Pending review' });
+            // The pane stands in the slot it was handed and fills it: one box,
+            // no overshoot past the column and no shrinking inside it.
+            expect(dock).toContainElement(dialog);
+            expect(dialog).toHaveClass('pane-enter', 'flex-1', 'w-full', 'min-h-0', 'rounded-xl');
+            expect(dialog.parentElement).toBe(dock);
+            expect(dialog.className).not.toContain('fixed');
+
+            // Not modal: no scrim, no scroll lock, and the page beside it — the
+            // map above all — keeps every event it was listening for.
+            expect(dialog).not.toHaveAttribute('aria-modal');
+            expect(document.body.style.overflow).toBe('');
+
+            // No sheet affordances: there is nothing to drag or expand here.
+            expect(screen.queryByRole('button', { name: /Expand incident details/i })).not.toBeInTheDocument();
+
+            // The tone of the card that opened it, on the pane's leading edge.
+            expect(dialog.querySelector('span[aria-hidden="true"]')).toHaveClass('bg-amber-500', 'h-[2px]');
+
+            expect(screen.getByTestId('map-overlay-scroll-region')).toHaveClass('overflow-y-auto');
+        });
+
+        test('docks at a phone viewport too, instead of becoming the bottom sheet', () => {
+            const restoreMatchMedia = mockMobileViewport();
+            const { dock } = renderDocked();
+
+            const dialog = screen.getByRole('dialog', { name: 'Pending review' });
+            // A box was handed over, so the pane stands in it at every width: no
+            // sheet pinned to the bottom of the viewport — which is what would put
+            // the records below the map they describe — and nothing to drag.
+            expect(dock).toContainElement(dialog);
+            expect(dialog.className).not.toContain('max-sm:h-[38dvh]');
+            expect(dialog.className).not.toContain('max-sm:fixed');
+            expect(screen.queryByRole('button', { name: /Expand incident details/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Close pending review panel' })).toBeInTheDocument();
+
+            restoreMatchMedia();
+        });
+
+        test('omits the accent rule when the caller has no tone to carry', () => {
+            renderDocked({ accentClassName: '' });
+
+            const dialog = screen.getByRole('dialog', { name: 'Pending review' });
+            expect(dialog.querySelector('span[aria-hidden="true"]')).toBeNull();
+        });
+
+        test('closes on Escape from inside it, and never from the page at large', () => {
+            const onClose = vi.fn();
+            renderDocked({ onClose });
+
+            const dialog = screen.getByRole('dialog', { name: 'Pending review' });
+            // Escape pressed while the reader is elsewhere — the map, a card — is
+            // not this pane's to take, because the pane never had their focus.
+            fireEvent.keyDown(window, { key: 'Escape' });
+            expect(onClose).not.toHaveBeenCalled();
+
+            fireEvent.keyDown(dialog, { key: 'Escape' });
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+    });
+
     test('resets the shared panel body scroll when its content changes', () => {
         const { rerender } = render(
             <div className="relative">

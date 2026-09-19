@@ -207,6 +207,43 @@ describe('active incidents summary copy', () => {
         expect(summary.helper).not.toContain('-');
     });
 
+    test('names transferred incidents as part of the waiting set, not as a fourth count', () => {
+        // 4 active: 1 in response, 3 still unhandled, and 2 of those handed on.
+        // The parenthetical is a property of the waiting three, so the line can
+        // never be read as six incidents beside a card that says four.
+        const summary = buildActiveIncidentsSummary({ total: 4, responding: 1, transferred: 2 });
+
+        expect(summary.helper).toBe('1 responding, 3 waiting (2 transferred)');
+        expect(summary.description).toBe('4 active: 1 responding, 3 waiting (2 transferred).');
+    });
+
+    test('still names the transfer when nothing is responding yet', () => {
+        // "2 waiting for a responder" would swallow the one fact the admin needs,
+        // so the transfer replaces that phrase rather than hiding behind it.
+        const summary = buildActiveIncidentsSummary({ total: 2, responding: 0, transferred: 2 });
+
+        expect(summary.helper).toBe('2 waiting (2 transferred)');
+        expect(summary.helper).not.toMatch(/waiting for a responder/);
+    });
+
+    test('drops the parenthetical when nothing has been transferred', () => {
+        expect(buildActiveIncidentsSummary({ total: 2, responding: 1, transferred: 0 }).helper)
+            .toBe('1 responding, 1 waiting');
+    });
+
+    test('clamps a transferred count that exceeds what is still waiting', () => {
+        // Socket updates can deliver the lists out of step. An incident a unit is
+        // already handling cannot also be one of the handed-on ones, so the two
+        // cases that would contradict the card resolve to its existing copy or to
+        // the waiting total.
+        expect(buildActiveIncidentsSummary({ total: 1, responding: 1, transferred: 5 }).helper)
+            .toBe('Active response');
+        expect(buildActiveIncidentsSummary({ total: 3, responding: 0, transferred: 9 }).helper)
+            .toBe('3 waiting (3 transferred)');
+        expect(buildActiveIncidentsSummary({ total: 3, responding: 0, transferred: -4 }).helper)
+            .toBe('3 waiting for a responder');
+    });
+
     test('mentions the spread only when incidents share fewer locations than they number', () => {
         expect(buildActiveIncidentsSummary({ total: 3, responding: 1, locations: 2 }).description)
             .toContain('across 2 map locations');
@@ -215,19 +252,24 @@ describe('active incidents summary copy', () => {
             .not.toContain('across');
     });
 
-    test('keeps the helper short enough that the card cannot truncate it', () => {
-        // The KPI card clips its supporting line, and a description cut off
-        // mid-word matches the data no better than a wrong one does.
+    test('keeps the helper inside the card’s two-line budget', () => {
+        // The KPI card wraps this line to two lines instead of clipping it, so a
+        // supporting line cut off mid-word — which matches the data no better
+        // than a wrong one — can no longer happen. The ceiling is the widest line
+        // the copy can produce: all three counts at two digits, which is 42
+        // characters. The extra few keep the assertion from being a tautology.
         const cases = [
             { total: 0, responding: 0 },
             { total: 1, responding: 0 },
             { total: 2, responding: 1 },
             { total: 12, responding: 7 },
             { total: 9, responding: 9 },
+            { total: 4, responding: 1, transferred: 2 },
+            { total: 99, responding: 12, transferred: 41 },
         ];
 
         cases.forEach((input) => {
-            expect(buildActiveIncidentsSummary(input).helper.length).toBeLessThanOrEqual(30);
+            expect(buildActiveIncidentsSummary(input).helper.length).toBeLessThanOrEqual(46);
         });
     });
 });

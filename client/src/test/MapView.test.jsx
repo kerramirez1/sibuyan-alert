@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mockMapInstances = [];
@@ -573,5 +573,48 @@ describe('MapView opening framing', () => {
         }));
         // Not the island: this map does not open there, so Reset must not either.
         expect(mockFlyTo).not.toHaveBeenCalledWith(expect.objectContaining({ center: [122.5571, 12.4176] }));
+    });
+
+    test('stands a pin\'s details in the box it was handed, not over the map', async () => {
+        const dock = document.createElement('div');
+        dock.setAttribute('data-testid', 'pin-dock');
+        document.body.appendChild(dock);
+        const onEntityInspectorChange = vi.fn();
+        const pinnedReport = {
+            _id: 'pin-report',
+            status: 'verified',
+            coordinates: { lat: 12.40, lng: 122.60 },
+            incidentCategory: 'accident',
+        };
+
+        await renderReady({
+            reports: [pinnedReport],
+            dockTarget: dock,
+            onEntityInspectorChange,
+        });
+
+        await waitFor(() => expect(maplibregl.Marker).toHaveBeenCalled());
+        // The pin the map drew, clicked the way a reader clicks it.
+        fireEvent.click(maplibregl.Marker.mock.calls.at(-1)[0].element);
+
+        const dialog = await screen.findByRole('dialog', { name: 'Incident details' });
+        // In the box it was given — the caller's summary column — and not in the
+        // map container, which is what "over the map" means. No sheet and no
+        // percentage width either: both were the overlay this pane used to be.
+        expect(dock).toContainElement(dialog);
+        expect(dialog).toHaveClass('pane-enter', 'flex-1');
+        expect(dialog.className).not.toContain('fixed');
+        expect(dialog.className).not.toContain('sm:w-[min(24rem,42%)]');
+        // The tone of the record it is showing, on the pane's own leading edge.
+        expect(dialog.firstElementChild).toHaveClass('bg-blue-500', 'h-[2px]');
+        // And the caller is told the box is in use, so it can stand its own pane
+        // down instead of sharing it.
+        expect(onEntityInspectorChange).toHaveBeenLastCalledWith(true);
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Close incident details' }));
+
+        expect(onEntityInspectorChange).toHaveBeenLastCalledWith(false);
+        expect(dock).toBeEmptyDOMElement();
+        dock.remove();
     });
 });

@@ -99,6 +99,30 @@ export const MAP_RESPONDING_INCIDENT_CONFIG = Object.freeze({
     dot: 'bg-blue-500',
 });
 
+/**
+ * Severity, as the one table every surface reads.
+ *
+ * Severity is the incident's own gravity and is unrelated to its lifecycle
+ * status, so it keeps a separate (warmer) ramp instead of borrowing the status
+ * colours: a verified incident and a pending one can be equally severe, and a
+ * reader who sees amber here should think "how bad", never "what stage".
+ *
+ * `label` and `dot` are what the details view and the record rows need; `badge`
+ * is there so a severity chip can be drawn without a second lookup. The default
+ * is `moderate`, matching the rest of the app: a report that never recorded a
+ * severity is presented as moderate rather than as unknown-and-therefore-alarming.
+ */
+export const MAP_SEVERITY_CONFIG = Object.freeze({
+    minor: Object.freeze({ label: 'Minor', dot: 'bg-emerald-500', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700' }),
+    moderate: Object.freeze({ label: 'Moderate', dot: 'bg-amber-500', badge: 'border-amber-200 bg-amber-50 text-amber-700' }),
+    severe: Object.freeze({ label: 'Severe', dot: 'bg-orange-500', badge: 'border-orange-200 bg-orange-50 text-orange-700' }),
+    critical: Object.freeze({ label: 'Critical', dot: 'bg-red-500', badge: 'border-red-200 bg-red-50 text-red-700' }),
+});
+
+export const getMapSeverityConfig = (severity) => (
+    MAP_SEVERITY_CONFIG[String(severity || '').trim().toLowerCase()] || MAP_SEVERITY_CONFIG.moderate
+);
+
 export const MAP_RISK_ZONE_CONFIG = Object.freeze({
     label: 'High-risk zone',
     markerColor: '#DC2626',
