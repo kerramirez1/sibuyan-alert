@@ -104,6 +104,20 @@ const MapView = ({
     filterCategory = null,
     filterStatus = null,
     focusLocation = null,
+    /**
+     * Where this map rests when the incidents cannot frame it — the viewer's own
+     * municipality, resolved by the caller's RBAC scope (their assignment), or
+     * null for a viewer without one.
+     *
+     * Deliberately separate from `focusLocation`, and not a second copy of it:
+     * `focusLocation` is a place a link asked the map to fly to, while this is
+     * where the map opens and where Reset returns to. Merging the two made the
+     * opening camera depend on whether the reports happened to be cached — a
+     * cold load framed the incidents that arrived late, a warm one flew past
+     * them to the municipality centre and stayed there — so the same viewer saw
+     * two different "defaults" for one screen.
+     */
+    homeFocus = null,
     enable3D = true,
     gpsAccuracy = null,
     userLocation = null, // New prop for Blue Dot
@@ -294,22 +308,69 @@ const MapView = ({
         return fitToReportBounds(bounds, { animate });
     }, [filteredReports, fitToReportBounds]);
 
-    // The opening camera. The island view set at construction is the fallback;
-    // when the caller asks for report framing and the viewer's reports are on the
-    // map, the map opens on them instead.
+    /**
+     * The camera this map calls home, decided in ONE place so the opening view
+     * and the Reset map view control can never disagree about it: the incidents
+     * this viewer is allowed to see, else the assignment's own camera, else the
+     * island the style was built around.
+     *
+     * The middle step is the RBAC one. A signed-in viewer with a municipality
+     * opens on that municipality rather than on open water, and a viewer without
+     * an assignment (a guest) keeps the island-wide view that the public map has
+     * always shown — which is why the caller, not this component, resolves the
+     * home camera.
+     */
+    const applyHomeCamera = useCallback(({ animate = false } = {}) => {
+        if (frameReportsOnOpen && frameVisibleReports({ animate })) return 'incidents';
+
+        const map = mapInstanceRef.current;
+        const lat = Number(homeFocus?.lat);
+        const lng = Number(homeFocus?.lng);
+        if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+        focusExistingMapEntity(map, {
+            type: 'point',
+            coordinates: { lat, lng },
+        }, {
+            // A caller that hands over a home camera without a zoom gets the
+            // overview cap, not `pointZoom`: home is a place to hold at arm's
+            // length, and street level would hide the municipality it names.
+            zoom: Number.isFinite(Number(homeFocus?.zoom))
+                ? Number(homeFocus.zoom)
+                : MAP_CONTENT_FIT_CONFIG.maxZoom,
+            duration: animate ? performanceProfile.navigationDuration : 0,
+        });
+        return 'home';
+    }, [frameReportsOnOpen, frameVisibleReports, homeFocus, performanceProfile.navigationDuration]);
+
+    // The opening camera, decided once. The island view set at construction is
+    // the last fallback; when the caller asks for report framing and the viewer's
+    // reports are on the map, the map opens on them instead.
     useEffect(() => {
-        if (framedOnOpenRef.current || !frameReportsOnOpen || !mapReady) return;
+        if (framedOnOpenRef.current || !mapReady) return;
         // Somebody who has already moved the map has chosen a camera, even if
         // that happened before the incidents finished loading.
         if (viewerMovedCameraRef.current) {
             framedOnOpenRef.current = true;
             return;
         }
-        // Nothing on the map to frame: the island-wide default stands, which is
-        // what an empty map should show.
-        if (!frameVisibleReports()) return;
+        // An explicit request — a deep link to one incident, one hazard zone, or
+        // one coordinate — owns the camera. The opening view must not fly
+        // somewhere else underneath it.
+        if (effectiveLocateRequest || focusLocation) {
+            framedOnOpenRef.current = true;
+            return;
+        }
+        // The data is still on its way, so there is nothing to frame yet and the
+        // decision can wait. Deciding now is what made the opening view depend on
+        // the cache: a warm load framed the incidents immediately and was then
+        // overridden by the home camera, while a cold load went the other way
+        // round. Waiting for the request to settle makes both paths land on the
+        // same camera, which is the only way "open here" stays a single answer.
+        if (dataLoading) return;
+        applyHomeCamera();
         framedOnOpenRef.current = true;
-    }, [frameReportsOnOpen, frameVisibleReports, mapReady]);
+    }, [applyHomeCamera, dataLoading, effectiveLocateRequest, focusLocation, mapReady]);
 
     // Whether the viewer has taken the wheel. MapLibre fires these same gestures
     // for its own camera moves, so only the ones carrying an originating DOM
@@ -1276,11 +1337,11 @@ const MapView = ({
             const map = mapInstanceRef.current;
             if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return;
             // Reset means "back to the view this map opens with", so it reads the
-            // same flag: the incidents for a map that opens on them, the island
-            // for one that does not. A fixed island camera here would undo an
-            // operator's default view, and framing here regardless would undo a
-            // guest's.
-            if (frameReportsOnOpen && frameVisibleReports({ animate: true })) return;
+            // same decision: the incidents for a map that opens on them, the
+            // viewer's own municipality for one that opens there, the island for
+            // everyone else. A fixed island camera here would undo an operator's
+            // default view, and framing here regardless would undo a guest's.
+            if (applyHomeCamera({ animate: true })) return;
             map.flyTo({
                 center: SIBUYAN_CENTER,
                 zoom: performanceProfile.compactViewport ? 10 : 11,

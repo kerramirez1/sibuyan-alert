@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -509,6 +509,49 @@ const DashboardMapWorkspace = ({
         municipality: user?.assignedMunicipality,
     });
 
+    // A visit to the map starts at the map's own default, not at the last
+    // visit's leftovers.
+    //
+    // This component is mounted exactly while the map view is open, so mounting
+    // IS arriving — from another page, from the analytics half of this same
+    // route, or from a reload — and every arrival should look like the first
+    // one. Two pieces of the view live in the page above (the selected rail tab
+    // and the summary panel) and they used to survive a return, so a viewer who
+    // left the map on "Risk zones" came back to "Risk zones", while a viewer who
+    // had just signed in opened on "All open".
+    //
+    // The default is the role's own home tab (mapExperience.defaultFilter), so
+    // this is a reset to what this account opens on rather than a hard-coded
+    // tab that could widen or narrow what a role sees.
+    //
+    // The URL still outranks it: ?panel=zones is a request to arrive on the
+    // hazard list, and this is the arrival that honours it. A layout effect
+    // because the reset belongs to the same commit as the arrival — as a passive
+    // effect it landed after the first paint and showed the previous visit's tab
+    // for one frame.
+    //
+    // Captured once, in this first render, which is why the effect's dependencies
+    // are only the two setters: afterwards a tab is the viewer's choice and a
+    // ?panel change is read where the URL is (see the page's panel effect), so
+    // letting it re-run would fight both.
+    const arrivalRef = useRef(null);
+    if (arrivalRef.current === null) {
+        const requestedPanel = activePanel === 'incidents' || activePanel === 'zones' ? activePanel : '';
+        arrivalRef.current = {
+            filter: mapExperience.defaultFilter,
+            panel: requestedPanel,
+            // Only what actually differs is asked for, so an arrival that already
+            // opens on the default leaves the page's state untouched.
+            resetFilter: responderMapFilter !== mapExperience.defaultFilter,
+            resetPanel: mapSummaryPanel !== requestedPanel,
+        };
+    }
+    useLayoutEffect(() => {
+        const arrival = arrivalRef.current;
+        if (arrival.resetFilter) setResponderMapFilter(arrival.filter);
+        if (arrival.resetPanel) setMapSummaryPanel(arrival.panel);
+    }, [setMapSummaryPanel, setResponderMapFilter]);
+
     const activeReports = getVisibleMapReports(reports);
     const displayedMapReports = getFilteredMapReports(reports, {
         includePending: mapExperience.showPendingReports,
@@ -533,22 +576,25 @@ const DashboardMapWorkspace = ({
 
     const currentUserId = user?._id ?? user?.id ?? null;
 
-    // Home viewport: open on the viewer's own municipality instead of the
-    // whole-island camera.
+    // Home viewport: where the map rests when the incidents cannot frame it.
     //
     // This applies to EVERY role with an assignment, not just reporters. A
     // municipal admin's page is literally titled "<Municipality> incident map"
-    // and promises activity "in <Municipality>", so opening on the whole island
-    // hid the very incidents they came to triage. Guests have no assignment, so
-    // getMunicipalityMapFocus returns null for them and they keep the
-    // island-wide view unchanged.
+    // and promises activity "in <Municipality>", so a map that showed nothing of
+    // theirs hid the very incidents they came to triage. Guests have no
+    // assignment, so getMunicipalityMapFocus returns null for them and they keep
+    // the island-wide view unchanged.
+    //
+    // Handed to the map separately from `focusLocation`: this one is a resting
+    // camera the map decides when to use, while `focusLocation` is a place a link
+    // asked the map to fly to. Conflating them is what let the municipality centre
+    // outrank the incidents on a warm cache and lose to them on a cold one.
     const municipalityHomeFocus = useMemo(() => {
-        if (focusLocation || focusedReport || focusedRiskZone) return null;
+        if (focusedReport || focusedRiskZone) return null;
         const home = getMunicipalityMapFocus(user?.assignedMunicipality);
         if (!home) return null;
         return { ...home, requestId: `municipality-home:${user.assignedMunicipality}` };
-    }, [focusLocation, focusedReport, focusedRiskZone, user?.assignedMunicipality]);
-    const effectiveFocusLocation = focusLocation ?? municipalityHomeFocus;
+    }, [focusedReport, focusedRiskZone, user?.assignedMunicipality]);
 
     // Reporter ownership: prefer the loaded My Reports overview (source of
     // truth for "yours"), fall back to ownership flags on map rows.
@@ -1221,8 +1267,10 @@ const DashboardMapWorkspace = ({
                         externalContextPanelOpen={Boolean(mapSummaryPanel)}
                         onEntityInspectorOpen={handleMapInspectorOpen}
                         className="h-full w-full"
-                        focusLocation={effectiveFocusLocation}
+                        focusLocation={focusLocation}
+                        homeFocus={municipalityHomeFocus}
                         showPending={mapExperience.showPendingReports}
+                        dataLoading={loading}
                         filterStatus={mapExperience.filters.length > 0 ? responderMapFilter : null}
                         canRespond={mapExperience.canRespond}
                         onRespondToReport={mapExperience.canRespond ? handleMapRespond : null}

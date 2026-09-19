@@ -474,4 +474,104 @@ describe('MapView opening framing', () => {
             center: [122.5571, 12.4176],
         }));
     });
+
+    // The viewer's assignment, resolved by the caller's RBAC scope (dashboard:
+    // MUNICIPALITY_MAP_FOCUS). It is the map's resting camera, not a link target.
+    const HOME_FOCUS = { lat: 12.4044, lng: 122.6897, zoom: 12 };
+    const REPORT_BOUNDS = [[122.50, 12.30], [122.70, 12.55]];
+
+    test('rests on the viewer\'s own camera when there is nothing to frame', async () => {
+        await renderReady({ reports: [], frameReportsOnOpen: true, homeFocus: HOME_FOCUS });
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [HOME_FOCUS.lng, HOME_FOCUS.lat],
+            zoom: HOME_FOCUS.zoom,
+            duration: 0,
+        }));
+    });
+
+    test('leaves a viewer with no assignment and nothing to frame on the island', async () => {
+        // A guest: no municipality to rest on and no incident framing. The centre
+        // set at construction is the only camera left, and nothing may move it.
+        await renderReady({ reports: [], frameReportsOnOpen: false, homeFocus: null });
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    test('opens on the same camera whether the reports were cached or arrived late', async () => {
+        // Cold: the map is up before its data is, so there is nothing to frame and
+        // no answer yet. It waits on the island instead of taking the home camera
+        // and being pulled off it a moment later.
+        const cold = await renderReady({
+            reports: [],
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            dataLoading: true,
+        });
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(mockFlyTo).not.toHaveBeenCalled();
+
+        cold.rerender(
+            <MapView reports={visibleReports} frameReportsOnOpen homeFocus={HOME_FOCUS} dataLoading={false} />
+        );
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(1);
+        });
+        expect(mockFitBounds.mock.calls[0][0]).toEqual(REPORT_BOUNDS);
+        // Same camera a viewer with a warm cache opens on — the incidents — which
+        // is what makes "the default" one view instead of two.
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    test('opens on the incidents, not the municipality, when the reports were cached', async () => {
+        await renderReady({
+            reports: visibleReports,
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            dataLoading: false,
+        });
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(1);
+        });
+        expect(mockFitBounds.mock.calls[0][0]).toEqual(REPORT_BOUNDS);
+        // The home camera used to win this race on a warm cache and lose it on a
+        // cold one; it must not compete with the incidents at all.
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    test('leaves the camera to an explicit deep link', async () => {
+        await renderReady({
+            reports: visibleReports,
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            locateRequest: {
+                type: 'incident',
+                id: 'framing-south',
+                entity: visibleReports[0],
+                requestId: 'deep-link-1',
+            },
+        });
+
+        // A link asked for one incident. Framing the whole set underneath it would
+        // move the camera the viewer was sent to.
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('sends Reset to the viewer\'s own camera when there is nothing to frame', async () => {
+        await renderReady({ reports: [], frameReportsOnOpen: true, homeFocus: HOME_FOCUS });
+        mockFlyTo.mockClear();
+
+        fireEvent.click(screen.getByRole('button', { name: /reset map view/i }));
+
+        expect(mockFitBounds).not.toHaveBeenCalled();
+        expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [HOME_FOCUS.lng, HOME_FOCUS.lat],
+        }));
+        // Not the island: this map does not open there, so Reset must not either.
+        expect(mockFlyTo).not.toHaveBeenCalledWith(expect.objectContaining({ center: [122.5571, 12.4176] }));
+    });
 });

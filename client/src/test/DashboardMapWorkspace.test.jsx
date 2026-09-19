@@ -12,6 +12,7 @@ vi.mock('../components/map/MapView', () => ({
 }));
 
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
+import { MUNICIPALITY_MAP_FOCUS } from '../utils/sibuyanLocations';
 
 const createProps = (overrides = {}) => ({
     user: { _id: 'user-1', role: 'reporter', name: 'Reporter' },
@@ -1043,7 +1044,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(mapPropsSpy.mock.lastCall[0].highRiskZones).toEqual(highRiskZones);
     });
 
-    test('opens the map on the viewer municipality for every assigned role, not just reporters', () => {
+    test('rests the map on the viewer municipality for every assigned role, not just reporters', () => {
         const assignedRoles = [
             ['municipal admin', { _id: 'a1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' }, { isAdmin: true }],
             ['responder', { _id: 'r1', role: 'responder', assignedMunicipality: 'Magdiwang' }, { isResponder: true }],
@@ -1061,12 +1062,19 @@ describe('DashboardMapWorkspace permissions', () => {
             }));
 
             // The page is titled "<Municipality> incident map" for all of them,
-            // so all of them must open on that municipality. Only reporters used
-            // to, which left an admin staring at the whole island with their own
-            // incidents off-screen.
-            expect(mapPropsSpy.mock.lastCall[0].focusLocation, label).toMatchObject({
+            // so all of them rest on that municipality when the incidents cannot
+            // frame them. Only reporters used to, which left an admin staring at
+            // the whole island with their own incidents off-screen.
+            //
+            // It rides as `homeFocus` — the camera the map falls back to — and
+            // not as `focusLocation`, which means "a link asked for this place".
+            // As a link target it fired a fly-to that outranked the incidents on
+            // a warm cache and lost to them on a cold one, so the same view had
+            // two different "defaults".
+            expect(mapPropsSpy.mock.lastCall[0].homeFocus, label).toMatchObject({
                 requestId: `municipality-home:${user.assignedMunicipality}`,
             });
+            expect(mapPropsSpy.mock.lastCall[0].focusLocation, label).toBeNull();
             unmount();
         });
 
@@ -1078,7 +1086,7 @@ describe('DashboardMapWorkspace permissions', () => {
             isResponder: false,
             isAdmin: false,
         }));
-        expect(mapPropsSpy.mock.lastCall[0].focusLocation).toBeFalsy();
+        expect(mapPropsSpy.mock.lastCall[0].homeFocus).toBeFalsy();
         guest.unmount();
     });
 
@@ -1579,6 +1587,112 @@ describe('DashboardMapWorkspace permissions', () => {
             // Distinct actions: clicking View details opens zone details
             fireEvent.click(viewDetailsBtn);
             expect(within(panel).getByRole('button', { name: /Back to (active )?risk zones/i })).toBeInTheDocument();
+        });
+    });
+
+    // This component is mounted exactly while the map view is open, so a mount is
+    // an arrival: another page, the analytics half of /dashboard, or a reload.
+    // Each must open the way a fresh sign-in does, not where the last visit left
+    // off.
+    describe('Arrival defaults', () => {
+        test('1. Opens on the role\'s home tab, not on the tab the last visit chose', () => {
+            const setResponderMapFilter = vi.fn();
+            const setMapSummaryPanel = vi.fn();
+
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isReporter: false,
+                isAdmin: true,
+                isResponder: false,
+                // Left behind by a previous visit to this map.
+                responderMapFilter: 'risk-zones',
+                mapSummaryPanel: 'overview:pending',
+                setResponderMapFilter,
+                setMapSummaryPanel,
+            }));
+
+            expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+        });
+
+        test('2. Never leaves an overview panel open for a viewer who did not open it', () => {
+            const setMapSummaryPanel = vi.fn();
+
+            renderWorkspace(createProps({
+                mapSummaryPanel: 'overview:resolved',
+                activePanel: null,
+                setMapSummaryPanel,
+            }));
+
+            // Nothing in the URL asked for a panel, so the arrival has none.
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+            expect(setMapSummaryPanel).not.toHaveBeenCalledWith('overview:resolved');
+        });
+
+        test('3. Honours the panel a deep link asked for', () => {
+            const setMapSummaryPanel = vi.fn();
+
+            renderWorkspace(createProps({ activePanel: 'zones', setMapSummaryPanel }));
+
+            expect(setMapSummaryPanel).toHaveBeenCalledWith('zones');
+            expect(setMapSummaryPanel).not.toHaveBeenCalledWith('');
+        });
+
+        test('4. Opens a guest on the public rail\'s home tab', () => {
+            const setResponderMapFilter = vi.fn();
+
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+                responderMapFilter: 'resolved',
+                setResponderMapFilter,
+            }));
+
+            // 'all' is the guest's active-incident set — never the signed-in
+            // pending tab, which the API never fills for an anonymous viewer.
+            expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+        });
+
+        test('5. Hands the map its assignment as a resting camera and not as a link target', () => {
+            renderWorkspace(createProps({
+                user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isReporter: false,
+                isAdmin: true,
+                isResponder: false,
+                focusLocation: null,
+            }));
+
+            const mapProps = mapPropsSpy.mock.lastCall[0];
+            expect(mapProps.homeFocus).toEqual({
+                ...MUNICIPALITY_MAP_FOCUS.Cajidiocan,
+                requestId: 'municipality-home:Cajidiocan',
+            });
+            // And it is NOT the query-driven focus: nothing may fly to the
+            // municipality as though a link had asked for it.
+            expect(mapProps.focusLocation).toBeNull();
+        });
+
+        test('6. Leaves a viewer with no assignment without a home camera', () => {
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isAdmin: false,
+                isReporter: false,
+                isResponder: false,
+            }));
+
+            expect(mapPropsSpy.mock.lastCall[0].homeFocus).toBeNull();
+        });
+
+        test('7. Tells the map when its data is still on its way', () => {
+            renderWorkspace(createProps({ loading: true, reports: [] }));
+
+            // The opening camera waits for this flag; without it the map would
+            // decide on a half-loaded set and move again when the rest arrived.
+            expect(mapPropsSpy.mock.lastCall[0].dataLoading).toBe(true);
         });
     });
 });

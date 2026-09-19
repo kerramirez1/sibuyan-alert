@@ -1,6 +1,22 @@
 const DEFAULT_MUNICIPALITY = 'Sibuyan Island';
 
 /**
+ * The tab the map opens on, for every role.
+ *
+ * It is the rail's first status tab, not a scope the map narrows itself to: for
+ * a signed-in viewer it means the whole open set (pending + being handled), and
+ * for a guest it IS the active-incident set, because pending is the only
+ * difference between the two and a guest is never sent pending rows.
+ *
+ * Declared here, and read through `mapExperience.defaultFilter` by the
+ * workspace, so "what this account opens on" stays one answer. When the opening
+ * tab was re-stated where the view state lived, a return to the map could open
+ * on whatever the previous visit had selected — a screen no fresh sign-in ever
+ * shows.
+ */
+export const MAP_DEFAULT_FILTER = 'all';
+
+/**
  * The one rail every signed-in viewer reads.
  *
  * It used to be two: a reporter rail of five tabs and an operational rail of six,
@@ -25,7 +41,7 @@ const DEFAULT_MUNICIPALITY = 'Sibuyan Island';
  * behind a divider and a label, so a layer can never read as a fourth status.
  */
 const SIGNED_IN_FILTERS = Object.freeze([
-    Object.freeze({ value: 'all', label: 'All open', group: 'status' }),
+    Object.freeze({ value: MAP_DEFAULT_FILTER, label: 'All open', group: 'status' }),
     Object.freeze({ value: 'pending', label: 'Pending review', group: 'status' }),
     Object.freeze({ value: 'active', label: 'Active incidents', group: 'status' }),
     Object.freeze({ value: 'risk-zones', label: 'Risk zones', group: 'layers' }),
@@ -46,7 +62,7 @@ const SIGNED_IN_FILTERS = Object.freeze([
  * signed-in rail's "All open".
  */
 const GUEST_FILTERS = Object.freeze([
-    Object.freeze({ value: 'all', label: 'Active Incidents', group: 'status' }),
+    Object.freeze({ value: MAP_DEFAULT_FILTER, label: 'Active Incidents', group: 'status' }),
     // The layer group is labeled exactly as it is for signed-in viewers, so the
     // rail reads the same whether or not there is an account behind it.
     Object.freeze({ value: 'risk-zones', label: 'Risk zones', group: 'layers' }),
@@ -81,6 +97,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             title: `${assignedMunicipality} incident map`,
             description: `Monitor incidents, active responses, and mapped hazards in ${assignedMunicipality}.`,
             filters: SIGNED_IN_FILTERS,
+            defaultFilter: MAP_DEFAULT_FILTER,
             showPendingReports: true,
             framesReportsOnOpen,
             canRespond: true,
@@ -97,6 +114,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             title: `${assignedMunicipality} incident map`,
             description: `Review incident activity, field responses, and mapped hazards in ${assignedMunicipality}.`,
             filters: SIGNED_IN_FILTERS,
+            defaultFilter: MAP_DEFAULT_FILTER,
             showPendingReports: true,
             framesReportsOnOpen,
             canRespond: false,
@@ -119,6 +137,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
             title: 'Sibuyan Island incident map',
             description: 'Track your reports and community incidents across Sibuyan Island.',
             filters: SIGNED_IN_FILTERS,
+            defaultFilter: MAP_DEFAULT_FILTER,
             showPendingReports: true,
             framesReportsOnOpen,
             canRespond: false,
@@ -134,6 +153,7 @@ export const getMapExperience = ({ role, agency, municipality } = {}) => {
         title: 'Sibuyan Island incident map',
         description: 'Explore verified incidents, active responses, and mapped hazards across Sibuyan Island.',
         filters: GUEST_FILTERS,
+        defaultFilter: MAP_DEFAULT_FILTER,
         showPendingReports: false,
         framesReportsOnOpen,
         canRespond: false,

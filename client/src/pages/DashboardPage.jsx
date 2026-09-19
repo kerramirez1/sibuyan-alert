@@ -19,6 +19,7 @@ import { getPhysicalMunicipality } from '../utils/incidentDetails';
 import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import DashboardViewSwitch from '../components/dashboard/DashboardViewSwitch';
+import { MAP_DEFAULT_FILTER } from '../config/mapExperience';
 import {
     DASHBOARD_MAP_VIEW,
     canViewAnalytics,
@@ -90,8 +91,11 @@ const DashboardPage = () => {
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const { subscribe, reconnectVersion } = useSocket();
+    // The map's view state. Which tab the map opens on is the role's own answer
+    // (mapExperience.defaultFilter); this is only this page's copy of it, and the
+    // map workspace resets both on every arrival it owns (see its layout effect).
     const [mapSummaryPanel, setMapSummaryPanel] = useState('');
-    const [responderMapFilter, setResponderMapFilter] = useState('all');
+    const [responderMapFilter, setResponderMapFilter] = useState(MAP_DEFAULT_FILTER);
     const [operationsDateKey, setOperationsDateKey] = useState(getManilaCalendarDateKey);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -536,9 +540,11 @@ const DashboardPage = () => {
         }
     }, [isReporter, loadDashboardReports, loadReporterOverviewReports, reconnectVersion]);
 
+    // A role change without a remount (a sign-out on this page) must not leave
+    // one account's selected tab behind for the next one.
     useEffect(() => {
         if (!isResponder) {
-            setResponderMapFilter('all');
+            setResponderMapFilter(MAP_DEFAULT_FILTER);
         }
     }, [isResponder]);
 

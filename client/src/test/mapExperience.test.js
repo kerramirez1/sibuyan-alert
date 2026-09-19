@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { getMapExperience } from '../config/mapExperience';
+import { MAP_DEFAULT_FILTER, getMapExperience } from '../config/mapExperience';
 
 describe('shared role-aware map experience', () => {
     test.each([
@@ -86,5 +86,26 @@ describe('shared role-aware map experience', () => {
         ]);
         expect(guest.filters.map(({ value }) => value)).not.toContain('pending');
         expect(guest.showPendingReports).toBe(false);
+    });
+
+    test('opens every role on a tab that role\'s own rail can show', () => {
+        // The map resets to `defaultFilter` on every arrival, so it has to name a
+        // tab the viewer can actually see. A guest has no pending tab, and opening
+        // them on one would be a tab the API never fills for them.
+        for (const role of [undefined, 'guest', 'reporter', 'municipal_admin', 'responder']) {
+            const experience = getMapExperience({ role, municipality: 'Cajidiocan' });
+            expect(experience.filters.map(({ value }) => value)).toContain(experience.defaultFilter);
+        }
+    });
+
+    test('opens every role on the same home tab', () => {
+        // One value, so the opening tab cannot drift per role: the rail's first
+        // status tab — the whole open set for a signed-in viewer, the active set
+        // for a guest, for whom pending is the only difference.
+        for (const role of [undefined, 'guest', 'reporter', 'municipal_admin', 'responder']) {
+            const experience = getMapExperience({ role });
+            expect(experience.defaultFilter).toBe(MAP_DEFAULT_FILTER);
+            expect(experience.filters[0].value).toBe(MAP_DEFAULT_FILTER);
+        }
     });
 });
