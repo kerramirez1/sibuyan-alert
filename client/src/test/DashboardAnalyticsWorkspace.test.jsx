@@ -185,6 +185,45 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('pending');
     });
 
+    test('opens the monthly map on the operations map default camera', () => {
+        mocks.mapProps.mockClear();
+        render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+        // The two props the operations workspace hands its own MapView. Without
+        // them this card alone fell back to the island view, so an admin who
+        // switched from Map to Analytics watched their incidents leave the frame.
+        const mapProps = mocks.mapProps.mock.calls.at(-1)[0];
+        expect(mapProps.frameReportsOnOpen).toBe(true);
+        expect(mapProps.homeFocus).toEqual({ lat: 12.4044, lng: 122.6897, zoom: 12 });
+    });
+
+    test('leaves the camera to a deep link and to viewers without an assignment', () => {
+        mocks.mapProps.mockClear();
+        render(
+            <DashboardAnalyticsWorkspace
+                {...baseProps}
+                focusLocation={{ lat: 12.46, lng: 122.56, requestId: 'deep-link' }}
+            />
+        );
+
+        // A link to one record owns the camera, so home steps aside for it.
+        expect(mocks.mapProps.mock.calls.at(-1)[0].homeFocus).toBeNull();
+
+        mocks.mapProps.mockClear();
+        render(
+            <DashboardAnalyticsWorkspace
+                {...baseProps}
+                hasMunicipality={false}
+                user={null}
+            />
+        );
+
+        // No assignment to rest on, so the island view stays the fallback.
+        const guestProps = mocks.mapProps.mock.calls.at(-1)[0];
+        expect(guestProps.frameReportsOnOpen).toBe(false);
+        expect(guestProps.homeFocus).toBeNull();
+    });
+
     test('shows municipality comparisons only when no municipal scope is provided', () => {
         render(
             <DashboardAnalyticsWorkspace

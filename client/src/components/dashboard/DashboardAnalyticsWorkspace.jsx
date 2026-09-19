@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import toast from '../../utils/appToast';
 import { toSafeArray, safeCount } from '../../utils/safeCollection';
@@ -18,14 +18,18 @@ import {
 import {
     HiChevronLeft,
     HiChevronRight,
+    HiOutlineDownload,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
+import Button from '../ui/Button';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { countReportsInMonth, filterReportsByDayKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import MapFilterRail from './MapFilterRail';
 import { getFilteredMapReports } from '../../utils/mapReports';
+import { getMapExperience } from '../../config/mapExperience';
+import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
 
 const MAP_STATUS_FILTERS = Object.freeze([
     // The operations rail's own three status tabs, in its wording, because they
@@ -63,7 +67,30 @@ const SEVERITY_SERIES = Object.freeze([
     Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#9CA3AF' }),
 ]);
 
-const PANEL_CLASS = 'rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90';
+/**
+ * One surface for every card on this page, and the same one the operations map
+ * card beside it draws: a single hairline ring plus a real elevation, so the two
+ * halves of the dashboard read as one component family. The panels used to pair
+ * a border with `shadow-2xs` while the map carried a ring and `shadow-sm`, which
+ * is two card styles on one screen.
+ */
+const PANEL_SURFACE = 'rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:rounded-2xl dark:bg-[#0c1813]/90 dark:ring-white/10';
+const PANEL_CLASS = `${PANEL_SURFACE} p-3.5 sm:p-4`;
+
+/**
+ * Card chrome, in one place: one title scale, one description scale, one divider
+ * tone, one meta treatment. Four panels had drifted into four variants of the
+ * same header — `pb-2` here, `items-center` there, a `text-[11px]` meta on one
+ * and nothing on the next — which read as four components rather than one card
+ * with four contents.
+ */
+const PANEL_HEADER_CLASS = 'flex items-start justify-between gap-3 border-b border-gray-100 pb-2.5 dark:border-white/5';
+const PANEL_TITLE_CLASS = 'font-display text-sm font-bold text-gray-950 dark:text-white';
+const PANEL_DESCRIPTION_CLASS = 'mt-0.5 text-xs text-gray-500 dark:text-gray-400';
+const PANEL_META_CLASS = 'shrink-0 text-[11px] font-semibold tabular-nums text-gray-500 dark:text-gray-400';
+
+/** The band label above a section — the micro-heading the map column uses. */
+const SECTION_LABEL_CLASS = 'text-[11px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300';
 
 const formatActivityTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -102,8 +129,8 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 const EmptyChart = ({ message = 'No data for the selected period', detail }) => (
-    <div className="flex min-h-24 flex-col items-center justify-center rounded-lg bg-gray-50/80 px-4 py-5 text-center dark:bg-white/[0.02]">
-        <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{message}</p>
+    <div className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center dark:border-white/10">
+        <p className="text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">{message}</p>
         {detail && <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{detail}</p>}
     </div>
 );
@@ -131,6 +158,24 @@ const dominantSeverityFill = (day) => {
     const top = [...SEVERITY_STACK_ORDER].reverse().find((key) => (Number(day?.[key]) || 0) > 0);
     return SEVERITY_SERIES.find(({ key }) => key === top)?.fill || '#9CA3AF';
 };
+
+/**
+ * One KPI in the overview band. Equal weight by construction — one label tone,
+ * one number size, one helper tone — because a band read at a glance cannot
+ * afford a tile that looks more urgent than its neighbour; where a tile sits is
+ * what orders them. `accent` is the single exception, and only for a state the
+ * reader has to act on.
+ */
+const MetricTile = ({ label, value, helper, accent = null }) => (
+    <div className="flex min-w-0 flex-col px-3 py-3.5 sm:px-4 sm:py-4">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="mt-1.5 text-2xl font-bold leading-none tabular-nums tracking-tight text-gray-900 sm:text-[28px] dark:text-white">
+            {value}
+        </p>
+        <p className="mt-1.5 text-xs leading-snug text-gray-500 dark:text-gray-400">{helper}</p>
+        {accent ? <p className="mt-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">{accent}</p> : null}
+    </div>
+);
 
 const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthCount = 0, selectedDay, onSelectDay }) => {
     const safeChartData = toSafeArray(chartData);
@@ -165,12 +210,12 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
 
     return (
         <div className={`${PANEL_CLASS} lg:col-span-2`}>
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-white/5">
+            <div className={PANEL_HEADER_CLASS}>
                 <div>
-                    <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Incident trend</h2>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
+                    <h2 className={PANEL_TITLE_CLASS}>Incident trend</h2>
+                    <p className={PANEL_DESCRIPTION_CLASS}>Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
                     <p data-testid="trend-insight">
                         <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
                         {insight.peak && (
@@ -291,7 +336,7 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                    <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
                         Select a bar to filter the map.
                     </p>
                 </div>
@@ -305,21 +350,24 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
     const safeTotal = Number.isFinite(Number(totalReports)) ? Number(totalReports) : 0;
     return (
     <div className={PANEL_CLASS}>
-        <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
+        <div className={PANEL_HEADER_CLASS}>
             <div>
-                <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">Report lifecycle</h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Status distribution for the selected month</p>
+                <h2 className={PANEL_TITLE_CLASS}>Report lifecycle</h2>
+                <p className={PANEL_DESCRIPTION_CLASS}>Status distribution for the selected month</p>
             </div>
             {safeTotal > 0 && (
-                <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                <span className={PANEL_META_CLASS}>
                     {safeTotal} total
                 </span>
             )}
         </div>
         {safeStatus.length ? (
-            <div className="mt-3 space-y-3" aria-label="Report lifecycle distribution">
-                {/* Visual Segmented Proportional Distribution Track */}
-                <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5 gap-0.5" aria-hidden="true">
+            <div className="mt-3.5 space-y-3" aria-label="Report lifecycle distribution">
+                {/* Visual Segmented Proportional Distribution Track — one bar, no
+                    gaps between segments: the seams this used to draw (`gap-0.5`)
+                    cut the bar into tiles and made a continuous share look like
+                    separate quantities. */}
+                <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5" aria-hidden="true">
                     {safeStatus.map((item) => {
                         const pct = safeTotal ? (Number(item?.value || 0) / safeTotal) * 100 : 0;
                         if (pct <= 0) return null;
@@ -339,12 +387,12 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
                     {safeStatus.map((item) => {
                         const percentage = safeTotal ? Math.round((Number(item?.value || 0) / safeTotal) * 100) : 0;
                         return (
-                            <div key={String(item?.name || Math.random())} className="flex items-center justify-between py-2 text-xs">
-                                <div className="flex items-center gap-2 min-w-0">
+                            <div key={String(item?.name || Math.random())} className="flex items-center justify-between gap-2 py-2.5 text-xs">
+                                <div className="flex min-w-0 items-center gap-2">
                                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">{item.name}</span>
+                                    <span className="truncate font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
                                 </div>
-                                <span className="font-bold text-gray-700 dark:text-gray-300 tabular-nums shrink-0">
+                                <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-white">
                                     {item.value} · {percentage}%
                                 </span>
                             </div>
@@ -365,20 +413,20 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
 
     return (
         <div className={PANEL_CLASS}>
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-white/5">
+            <div className={PANEL_HEADER_CLASS}>
                 <div>
-                    <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">{title}</h2>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+                    <h2 className={PANEL_TITLE_CLASS}>{title}</h2>
+                    <p className={PANEL_DESCRIPTION_CLASS}>{description}</p>
                 </div>
                 {safeData.length > 0 && (
-                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                    <span className={PANEL_META_CLASS}>
                         {safeData.length} {isMunicipality ? 'municipalities' : 'recorded'}
                     </span>
                 )}
             </div>
 
             {safeData.length ? (
-                <div className="mt-3 space-y-1.5" role="list" aria-label={`${title}: ${description}`}>
+                <div className="mt-3.5 space-y-1" role="list" aria-label={`${title}: ${description}`}>
                     {safeData.map((item, index) => {
                         const count = Number(item?.count) || 0;
                         const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -387,12 +435,12 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                         return (
                             <div
                                 key={String(item?.name ?? `row-${index}`)}
-                                className="group relative rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                                className="group relative rounded-lg px-2 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                                 role="listitem"
                             >
-                                <div className="flex items-center justify-between gap-2 text-xs relative z-10">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <span className={`font-mono text-[11px] font-semibold shrink-0 ${
+                                <div className="relative z-10 flex items-center justify-between gap-2 text-xs">
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                        <span className={`shrink-0 text-[11px] font-semibold tabular-nums ${
                                             isTop ? 'text-brand-700 dark:text-sky-400' : 'text-gray-400 dark:text-gray-500'
                                         }`}>
                                             {String(index + 1).padStart(2, '0')}
@@ -401,11 +449,11 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                                             {item.name}
                                         </span>
                                     </div>
-                                    <span className="shrink-0 font-bold tabular-nums text-gray-700 dark:text-gray-300">
-                                        {count} <span className="text-[10px] font-normal text-gray-400">({percentage}%)</span>
+                                    <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                                        {count} <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">({percentage}%)</span>
                                     </span>
                                 </div>
-                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
                                     <div
                                         className={`h-full rounded-full transition-all duration-300 ${
                                             isTop ? 'bg-brand-600 dark:bg-brand-500' : 'bg-gray-400 dark:bg-gray-600'
@@ -465,6 +513,28 @@ const DashboardAnalyticsWorkspace = ({
     // degrades to "not shown" instead of looking like a report failure.
     const isAdminViewer = user?.role === 'municipal_admin' || user?.role === 'admin';
     const { reach } = useReachData({ enabled: Boolean(isAdminViewer) });
+
+    // The analytics map opens on the same camera as the operations map, because
+    // it is the same map shown from a different page. Both were given the same
+    // MapView, but only the operations workspace handed it a home camera, so
+    // this card alone fell back to the island view — a municipal admin who
+    // switched from Map to Analytics watched their own incidents leave the frame
+    // for open water. `mapExperience` is read here for the same reason the
+    // operations workspace reads it: the home camera is a role decision.
+    const mapExperience = getMapExperience({
+        role: user?.role,
+        agency: user?.agency,
+        municipality: user?.assignedMunicipality,
+    });
+
+    // Where this map rests when the month's incidents cannot frame it: the
+    // viewer's own municipality, or null (island view) for a viewer without an
+    // assignment. A deep link to one record owns the camera, so home steps
+    // aside for it — the same rule the operations map follows.
+    const municipalityHomeFocus = useMemo(() => {
+        if (focusLocation) return null;
+        return getMunicipalityMapFocus(user?.assignedMunicipality);
+    }, [focusLocation, user?.assignedMunicipality]);
 
     // Day drill-downs belong to one month view; a new month starts unfiltered.
     useEffect(() => {
@@ -559,16 +629,27 @@ const DashboardAnalyticsWorkspace = ({
 
     if (loading) {
         return (
-            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3 sm:space-y-4" role="status" aria-busy="true" aria-label="Loading analytics">
+            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4" role="status" aria-busy="true" aria-label="Loading analytics">
                 <span className="sr-only">Loading analytics</span>
-                <SkeletonCard className="h-16" />
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                {/* Mirrors the real page's rhythm — header, overview band, the two
+                    insight panels, the map — so the skeleton is the layout it is
+                    standing in for rather than a stack of unrelated boxes. */}
+                <div className="flex flex-col gap-2">
+                    <SkeletonCard className="h-14" />
+                    <SkeletonCard className="h-9" />
+                </div>
+                <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
                     {[0, 1, 2, 3].map((item) => (
-                        <SkeletonCard key={item} className="h-24 p-3 sm:p-4 flex flex-col justify-between">
-                            <Skeleton variant="text" className="h-3 w-16" />
-                            <Skeleton variant="text" className="h-6 w-10 mt-1" />
-                        </SkeletonCard>
+                        <div key={item} className="flex flex-col px-3 py-3.5 sm:px-4 sm:py-4">
+                            <Skeleton variant="text" className="h-2.5 w-20" />
+                            <Skeleton variant="text" className="mt-2 h-7 w-12" />
+                            <Skeleton variant="text" className="mt-2 h-2.5 w-24" />
+                        </div>
                     ))}
+                </div>
+                <div className="grid gap-3 lg:grid-cols-3">
+                    <SkeletonCard className="h-64 lg:col-span-2" />
+                    <SkeletonCard className="h-64" />
                 </div>
                 <SkeletonCard className="h-64" />
             </div>
@@ -578,10 +659,10 @@ const DashboardAnalyticsWorkspace = ({
     return (
         <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4">
             {/* Header & Controls */}
-            <header className="flex flex-col gap-2">
+            <header className="flex flex-col gap-2.5">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                     <div className="min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-sky-400">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700 dark:text-sky-400">
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </span>
                         {/* This view's subject, printed as nothing — the call the
@@ -593,7 +674,7 @@ const DashboardAnalyticsWorkspace = ({
                             eyebrow above ("<Municipality> EOC") and the sentence
                             below both already say. */}
                         <h1 className="sr-only">Municipal Situation Overview</h1>
-                        <p className="mt-1.5 max-w-[68ch] text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        <p className="mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`
                                 : `Island-wide incident briefing and municipal comparisons for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`}
@@ -603,7 +684,7 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-h-9 w-full items-center justify-between rounded-lg border border-gray-200/90 bg-gray-100/80 p-0.5 dark:border-white/10 dark:bg-white/5 lg:w-52">
+                    <div className="flex min-h-9 w-full items-center justify-between gap-0.5 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 dark:bg-white/5 dark:ring-white/10 lg:w-52">
                         <button
                             type="button"
                             onClick={() => setSelectedMonth((current) => {
@@ -614,7 +695,7 @@ const DashboardAnalyticsWorkspace = ({
                                     return new Date();
                                 }
                             })}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Previous month"
                         >
                             <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -622,7 +703,7 @@ const DashboardAnalyticsWorkspace = ({
                         <button
                             type="button"
                             onClick={() => setSelectedMonth(new Date())}
-                            className="min-w-0 flex-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-800 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            className="min-w-0 flex-1 rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             aria-label="Return to current month"
                         >
                             {formatMonthLabel(effectiveMonth, 'MMM yyyy', '')}
@@ -645,27 +726,31 @@ const DashboardAnalyticsWorkspace = ({
                                     return false;
                                 }
                             })()}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm text-gray-600 hover:bg-white hover:text-gray-950 hover:shadow-2xs dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
                             aria-label="Next month"
                         >
                             <HiChevronRight className="h-4 w-4" aria-hidden="true" />
                         </button>
                     </div>
-                    <button
+                    {/* Export is the toolbar's only action. It used to sit beside a
+                        `Map` button that called the same `onOpenMap` the map card's
+                        own "Open full map" already calls — two controls, one
+                        destination, on a page whose card announces it. The card's
+                        action stays because it sits on the map being opened; the
+                        toolbar copy was the duplicate. Uses the app's own Button
+                        so hover, focus and disabled behaviour come from one place
+                        instead of this file's copy of them. */}
+                    <Button
                         type="button"
-                        onClick={onOpenMap}
-                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/90 dark:text-gray-200 dark:hover:bg-white/5 lg:w-auto lg:min-w-24"
-                    >
-                        Map
-                    </button>
-                    <button
-                        type="button"
+                        variant="primary"
+                        size="sm"
+                        icon={HiOutlineDownload}
                         onClick={exportDashboard}
-                        className="inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:w-auto lg:min-w-24"
+                        className="w-full lg:w-auto lg:min-w-24"
                         aria-label="Export dashboard data as Excel"
                     >
                         Export
-                    </button>
+                    </Button>
                 </div>
             </header>
 
@@ -674,79 +759,51 @@ const DashboardAnalyticsWorkspace = ({
             {/* Situation Summary */}
             <section aria-label="Analytics summary">
                 <div className="flex items-baseline justify-between gap-2">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <h2 className={SECTION_LABEL_CLASS}>
                         Incident overview
                     </h2>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                         Operational status
                     </span>
                 </div>
 
-                {/* 4-Column Operational Status Grid */}
-                <div className="mt-1 grid grid-cols-2 lg:grid-cols-4">
-                    {/* 1. Pending Review */}
-                    <div className="px-1 py-4 sm:px-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Pending review
-                        </p>
-                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {safeMetrics.pendingCount ?? 0}
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {(safeMetrics.pendingCount ?? 0) > 0 ? 'Awaiting review' : 'No pending reports'}
-                        </p>
-                        {(safeMetrics.pendingCount ?? 0) > 0 && (
-                            <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-                                Action needed
-                            </p>
-                        )}
-                    </div>
-
-                    {/* 2. Dispatch Ready */}
-                    <div className="border-l border-gray-200 px-1 py-4 pl-4 sm:px-4 dark:border-white/10">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Dispatch ready
-                        </p>
-                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {safeMetrics.dispatchReadyCount ?? 0}
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {(safeMetrics.dispatchReadyCount ?? 0) > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
-                        </p>
-                    </div>
-
-                    {/* 3. Responding */}
-                    <div className="border-gray-200 px-1 py-4 max-lg:border-t max-lg:border-gray-200 sm:px-4 max-lg:dark:border-white/10 lg:border-l lg:pl-4 dark:border-white/10">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Responding
-                        </p>
-                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {safeMetrics.respondingCount ?? 0}
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {(safeMetrics.respondingCount ?? 0) > 0 ? 'Field response active' : 'No active field response'}
-                        </p>
-                    </div>
-
-                    {/* 4. Resolved */}
-                    <div className="border-l border-gray-200 px-1 py-4 pl-4 sm:px-4 max-lg:border-t max-lg:border-gray-200 max-lg:dark:border-white/10 dark:border-white/10">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Resolved
-                        </p>
-                        <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                            {safeMetrics.resolvedCount ?? 0}
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                            {safeMetrics.resolutionRate ?? 0}% resolution rate
-                        </p>
-                    </div>
+                {/* The overview band: one hairline grid, four equal tiles, the same
+                    divided-band idiom the operations workspace draws its summary
+                    with. It used to be four cells separated by their own
+                    hand-placed borders — `border-l` on three of them and a
+                    `border-t` on the second row at narrow widths — which left the
+                    first cell flush against the panel edge and the rules a pixel
+                    off from the row above. A divided grid draws every rule once
+                    and stretches the tiles to one height. */}
+                <div className="mt-1.5 grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
+                    <MetricTile
+                        label="Pending review"
+                        value={safeMetrics.pendingCount ?? 0}
+                        helper={(safeMetrics.pendingCount ?? 0) > 0 ? 'Awaiting review' : 'No pending reports'}
+                        accent={(safeMetrics.pendingCount ?? 0) > 0 ? 'Action needed' : null}
+                    />
+                    <MetricTile
+                        label="Dispatch ready"
+                        value={safeMetrics.dispatchReadyCount ?? 0}
+                        helper={(safeMetrics.dispatchReadyCount ?? 0) > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
+                    />
+                    <MetricTile
+                        label="Responding"
+                        value={safeMetrics.respondingCount ?? 0}
+                        helper={(safeMetrics.respondingCount ?? 0) > 0 ? 'Field response active' : 'No active field response'}
+                    />
+                    <MetricTile
+                        label="Resolved"
+                        value={safeMetrics.resolvedCount ?? 0}
+                        helper={`${safeMetrics.resolutionRate ?? 0}% resolution rate`}
+                    />
                 </div>
 
                 {/* Integrated Baseline Operational Facts Footer Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-t border-gray-200 py-2 text-xs text-gray-600 dark:border-white/10 dark:text-gray-400">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-gray-200 py-2.5 text-xs text-gray-600 dark:border-white/10 dark:text-gray-400">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                             <span className="inline-flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">New reports</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">New reports</span>
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{safeCount(safeReports)}</span>
                             </span>
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
@@ -755,7 +812,7 @@ const DashboardAnalyticsWorkspace = ({
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
                                     {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
                                 </span>
-                                <span className="text-[11px] text-gray-400">
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                     {safeMetrics.responseSampleCount
                                         ? `(${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'})`
                                         : 'No responded incidents'}
@@ -763,11 +820,11 @@ const DashboardAnalyticsWorkspace = ({
                             </span>
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
                             <span className="inline-flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Active risk zones</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active risk zones</span>
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
                             </span>
                         </div>
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
                             {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
                         </span>
                     </div>
@@ -783,12 +840,12 @@ const DashboardAnalyticsWorkspace = ({
             {/* Same surface language as the operations map card: one ring, one
                 radius, one shadow — a bordered card beside a ringed one read as
                 two component families on two pages that show the same map. */}
-            <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Analytics map">
+            <section className={`${PANEL_SURFACE} overflow-hidden`} aria-label="Analytics map">
                 <div className="flex flex-col gap-2 p-2 sm:p-2.5">
                     <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
                         <div className="flex min-w-0 items-baseline gap-2">
-                            <h2 className="shrink-0 text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">Monthly incident map</h2>
-                            <p className="hidden truncate text-[11px] text-gray-500 sm:block dark:text-gray-400">
+                            <h2 className={`shrink-0 ${PANEL_TITLE_CLASS}`}>Monthly incident map</h2>
+                            <p className="hidden truncate text-xs text-gray-500 sm:block dark:text-gray-400">
                                 Geographic incident distribution for {formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}
                             </p>
                         </div>
@@ -867,6 +924,8 @@ const DashboardAnalyticsWorkspace = ({
                         enable3D
                         className="h-full w-full"
                         focusLocation={focusLocation}
+                        homeFocus={municipalityHomeFocus}
+                        frameReportsOnOpen={mapExperience.framesReportsOnOpen}
                     />
                 </div>
             </section>
@@ -931,19 +990,19 @@ const DashboardAnalyticsWorkspace = ({
             <section ref={historySectionRef} aria-label="Recent activity">
                 <div className="flex items-baseline justify-between gap-2">
                     <div>
-                        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Recent activity</h2>
+                        <h2 className={SECTION_LABEL_CLASS}>Recent activity</h2>
                         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
                     </div>
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex shrink-0 items-center text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
+                        className="inline-flex shrink-0 items-center text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:text-sm dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
                     >
                         View incident queue
                     </button>
                 </div>
                 {recentReports.length ? (
-                    <ul className="mt-2 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
+                    <ul className="mt-2.5 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
                         {recentReports.map((reportItem) => {
                             const status = (reportItem.status || 'pending').toLowerCase();
                             const statusConfig = MAP_STATUS_CONFIG[status] || MAP_STATUS_CONFIG.pending;
@@ -951,7 +1010,7 @@ const DashboardAnalyticsWorkspace = ({
                                 <li key={reportItem._id}>
                                 <article
                                     onClick={onOpenReports}
-                                    className="flex items-center gap-3 py-3 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03] cursor-pointer"
+                                    className="flex cursor-pointer items-center gap-3 py-3 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03]"
                                 >
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -965,11 +1024,18 @@ const DashboardAnalyticsWorkspace = ({
                                             {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
                                         </p>
                                     </div>
+                                    {/* Dot + label, the same status idiom the incident
+                                        queue and the reporter workspace use: the colour
+                                        carries the state at a glance and the word keeps
+                                        it readable without colour. Deliberately not a
+                                        pill — this is a row's own state, not a badge
+                                        competing with the record for attention. */}
                                     <span
-                                        className="shrink-0 text-xs text-gray-500 dark:text-gray-400"
+                                        className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300"
                                         title={`Status: ${statusConfig.label || status}`}
                                         aria-label={`Status: ${statusConfig.label || status}`}
                                     >
+                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
                                         {statusConfig.label || status}
                                     </span>
                                 </article>
@@ -983,6 +1049,10 @@ const DashboardAnalyticsWorkspace = ({
     );
 };
 
-const EmptyState = () => <div className="px-4 py-8 text-center text-xs text-gray-500 dark:text-gray-400">No recent activity available.</div>;
+const EmptyState = () => (
+    <div className="mt-2.5 rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+        No recent activity available.
+    </div>
+);
 
 export default DashboardAnalyticsWorkspace;

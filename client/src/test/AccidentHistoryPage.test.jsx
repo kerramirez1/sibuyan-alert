@@ -161,6 +161,12 @@ describe('AccidentHistoryPage features and filters', () => {
         await waitFor(() => expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1));
         expect(mocks.recordViewEvent).toHaveBeenCalledWith({ targetType: 'report', targetId: 'today-report' });
 
+        // The expand is still recorded, but the archive no longer prints a
+        // per-record count: reach is read on the Analytics dashboard's reach
+        // panels. The operational facts around where it used to sit stay.
+        expect(screen.queryByText('Views')).not.toBeInTheDocument();
+        expect(screen.getByText('Reported by')).toBeInTheDocument();
+
         // Collapse and re-expand must not inflate the count.
         fireEvent.click(screen.getByRole('button', { name: /Collapse details/i }));
         fireEvent.click((await screen.findAllByRole('button', { name: /Expand details/i }))[0]);

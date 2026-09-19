@@ -323,9 +323,12 @@ const AccidentHistoryPage = () => {
     // Fire-and-forget: the dossier renders from list data either way.
     // Once per report per page session — re-expands don't inflate the count.
     //
-    // Migrated to the shared reach endpoint, which records the deduped
-    // unique-viewer row AND keeps the legacy `viewCount` counter alive, so the
-    // "Views" column below keeps updating exactly as before.
+    // This call no longer has a reader on this page. The archive used to print a
+    // per-report "Views" figure and patch it from the response, but reach is an
+    // operational metric and it is read on the Analytics dashboard's reach
+    // panels; a count on a public record said nothing the archive's own filters
+    // and summary strip did not. What stays is the recording itself — dropping
+    // it would quietly starve the panel that does display the number.
     const toggleExpandedDossier = useCallback((report) => {
         if (!report?._id) return;
         const id = String(report._id);
@@ -333,16 +336,7 @@ const AccidentHistoryPage = () => {
         setExpandedId(isCollapsing ? null : report._id);
         if (!isCollapsing && !recordedViewsRef.current.has(id)) {
             recordedViewsRef.current.add(id);
-            viewsAPI.recordViewEvent({ targetType: 'report', targetId: id })
-                .then((response) => {
-                    const viewCount = response.data?.data?.viewCount;
-                    if (Number.isFinite(viewCount)) {
-                        setReports((currentReports) => (Array.isArray(currentReports) ? currentReports : []).map((item) => (
-                            item?._id === report?._id ? { ...item, viewCount } : item
-                        )));
-                    }
-                })
-                .catch(() => {});
+            viewsAPI.recordViewEvent({ targetType: 'report', targetId: id })?.catch?.(() => {});
         }
     }, [expandedId]);    const [isMobile, setIsMobile] = useState(() => (
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
@@ -1070,7 +1064,6 @@ const AccidentHistoryPage = () => {
                                                         ...(canViewFullDetails ? [
                                                             ['Coordinates', getCoordinates(report)],
                                                             ['Reported by', report.reporter?.name || 'Anonymous'],
-                                                            ['Views', String(report.viewCount || 0)],
                                                         ] : []),
                                                     ].map(([label, value]) => (
                                                         <div key={label} className="min-w-0">
