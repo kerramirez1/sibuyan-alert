@@ -84,6 +84,16 @@ export const getFilteredMapReports = (reports = [], {
     includePending = false,
     category = null,
     statusFilter = null,
+    /**
+     * Whether `all` means the whole record or only its open part.
+     *
+     * False everywhere a viewer is working a live queue: there `all` is the set
+     * still being handled, and a closed incident is not one of them. A view that
+     * reports on a period instead — the analytics month — passes true, because
+     * that period's incidents include the ones already closed inside it; leaving
+     * them out made `all` a smaller set than the sum of its own tabs.
+     */
+    includeResolved = false,
 } = {}) => {
     if (!Array.isArray(reports)) return [];
     const visibleReports = getVisibleMapReports(reports, { includePending });
@@ -104,12 +114,17 @@ export const getFilteredMapReports = (reports = [], {
     // 'dispatch' is the verified + transferred pair — one tab for the one
     // operator situation "verified and waiting for a responder", matching the
     // admin's dispatch card count exactly.
+    //
+    // `includeResolved` adds the closed records back to `all`, and only there:
+    // it is the period-scoped caller's reading of "all", and a period's tabs
+    // reconcile — All open = Pending + Active + Resolved. Rejected stays out
+    // either way, because a rejected report was never an incident.
     if (!statusFilter || statusFilter === 'all' || statusFilter === 'incidents') {
-        return categoryFilteredReports.filter((report) => (
-            includePending
-                ? ['pending', 'verified', 'transferred', 'responding'].includes(report.status)
-                : ['verified', 'transferred', 'responding'].includes(report.status)
-        ));
+        const openStatuses = includePending
+            ? ['pending', 'verified', 'transferred', 'responding']
+            : ['verified', 'transferred', 'responding'];
+        const statuses = includeResolved ? [...openStatuses, 'resolved'] : openStatuses;
+        return categoryFilteredReports.filter((report) => statuses.includes(report.status));
     }
 
     if (statusFilter === 'active') {

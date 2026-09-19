@@ -24,19 +24,35 @@ import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { countReportsInMonth, filterReportsByDayKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import MapFilterRail from './MapFilterRail';
 import { getFilteredMapReports } from '../../utils/mapReports';
 
 const MAP_STATUS_FILTERS = Object.freeze([
-    Object.freeze({ value: 'all', label: 'Active Incidents' }),
-    Object.freeze({ value: 'pending', label: 'Pending' }),
-    Object.freeze({ value: 'verified', label: 'Verified' }),
-    // The display name for this state is owned by MAP_STATUS_CONFIG so the
-    // analytics filters, the map rail, the cards, and the badges cannot drift
-    // into naming one lifecycle state two different ways.
-    Object.freeze({ value: 'responding', label: MAP_STATUS_CONFIG.responding.label }),
-    Object.freeze({ value: 'transferred', label: 'Transferred' }),
-    Object.freeze({ value: 'resolved', label: 'Resolved' }),
-    Object.freeze({ value: 'risk-zones', label: 'Risk Zones' }),
+    // The operations rail's own three status tabs, in its wording, because they
+    // are the same three sets: this view listed Verified, Active response and
+    // Transferred as tabs of their own, which split one operational condition
+    // into three — all three answers to "is somebody already handling this?" —
+    // and named `all` (pending + all handled) "Active Incidents", the phrase the
+    // rail reserves for the pending-excluded subset. One rail, one vocabulary:
+    // see SIGNED_IN_FILTERS in config/mapExperience, which this mirrors.
+    //
+    // `all` is this month's whole record, closed incidents included (see
+    // `includeResolved` in getFilteredMapReports): a period's incidents are not
+    // only the ones still open, and leaving the closed ones out made this tab a
+    // smaller set than the sum of the tabs beside it.
+    Object.freeze({ value: 'all', label: 'All open', group: 'status', title: "This month's reports — pending, being handled, and closed" }),
+    Object.freeze({ value: 'pending', label: 'Pending review', group: 'status', title: 'Unverified reports awaiting review' }),
+    Object.freeze({ value: 'active', label: 'Active incidents', group: 'status', title: 'Verified, transferred, and responding incidents' }),
+    // Resolved is a status here, not the operations rail's archive layer: this
+    // view is one month, and that month's closed incidents are part of it — they
+    // sit inside All open, and this tab is how a viewer isolates them. The rail's
+    // Resolved archive is a different set (every closed record, whatever month),
+    // which is why the label differs.
+    Object.freeze({ value: 'resolved', label: MAP_STATUS_CONFIG.resolved.label, group: 'status', title: "This month's closed incidents" }),
+    // Deliberately no hazard layer. Risk zones are not part of a month's incident
+    // distribution, and the tab that showed them made one rail read as the legend
+    // for two unlike things — a hazard area and a record. Their count still opens
+    // the summary's "Active risk zones" line below.
 ]);
 
 const SEVERITY_SERIES = Object.freeze([
@@ -476,14 +492,15 @@ const DashboardAnalyticsWorkspace = ({
     const mapDayReports = selectedDay ? filterReportsByDayKey(safeReports, selectedDay) : safeReports;
     const selectedDayLabel = safeChartData.find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
 
+    // Every tab counts its own set on the month's reports, `all` included — and
+    // `all` counts the closed ones too, so the four counts reconcile: All open =
+    // Pending review + Active incidents + Resolved.
     const getMapFilterCount = (filterValue) => {
-        if (filterValue === 'risk-zones') {
-            return activeRiskZoneCount;
-        }
         try {
             return getFilteredMapReports(safeReports, {
                 includePending: true,
                 statusFilter: filterValue,
+                includeResolved: true,
             }).length;
         } catch {
             return 0;
@@ -763,7 +780,10 @@ const DashboardAnalyticsWorkspace = ({
             </section>
 
             {/* Incident Map Section */}
-            <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Analytics map">
+            {/* Same surface language as the operations map card: one ring, one
+                radius, one shadow — a bordered card beside a ringed one read as
+                two component families on two pages that show the same map. */}
+            <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Analytics map">
                 <div className="flex flex-col gap-2 p-2 sm:p-2.5">
                     <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
                         <div className="flex min-w-0 items-baseline gap-2">
@@ -781,41 +801,31 @@ const DashboardAnalyticsWorkspace = ({
                         </button>
                     </div>
 
-                    {/* Status Filter Tabs (also the live legend) */}
+                    {/* Status Filter Tabs (also the live legend) — the map's own
+                        rail, rendering the map's own status tabs, so this row
+                        and the operations rail are one control: same sets, same
+                        names, same tone table, same dot, same 2px indicator.
+
+                        The row used to render itself, and its selected state
+                        was a `border-b-2`: the base stylesheet zeroes every
+                        button's border-color, so the legend had no visible
+                        selected tab while the map's rail had one — two pages,
+                        one status, two different answers as to whether it was
+                        on. `showPendingReports` is true here for the same reason
+                        it is true there: only an authenticated viewer reaches
+                        this page, so the open set includes pending. */}
                     <div
-                        className="flex min-w-0 flex-1 flex-wrap items-end gap-x-5 gap-y-1 w-full border-b border-gray-200 px-1 dark:border-white/10"
+                        className="flex w-full min-w-0 flex-wrap items-end gap-x-1 gap-y-0.5 border-b border-gray-200 dark:border-white/10"
                         aria-label="Map status filter"
                         role="group"
                     >
-                        {MAP_STATUS_FILTERS.map((filter) => {
-                            const count = getMapFilterCount(filter.value);
-                            const isSelected = mapStatusFilter === filter.value;
-                            const statusCfg = filter.value === 'risk-zones'
-                                ? { dot: 'bg-red-500' }
-                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
-
-                            return (
-                                <button
-                                    key={filter.value}
-                                    type="button"
-                                    onClick={() => setMapStatusFilter(filter.value)}
-                                    aria-pressed={isSelected}
-                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${isSelected
-                                        ? 'border-brand-600 font-semibold text-brand-800 dark:border-brand-500 dark:text-sky-300'
-                                        : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
-                                    }`}
-                                >
-                                    {statusCfg?.dot && (
-                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                    )}
-                                    <span>{filter.label}</span>
-                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                        {count}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        <MapFilterRail
+                            filters={MAP_STATUS_FILTERS}
+                            showPendingReports
+                            selectedFilter={mapStatusFilter}
+                            onSelectFilter={setMapStatusFilter}
+                            getCount={getMapFilterCount}
+                        />
                     </div>
                     {/* Selected-day drill-down (from trend bars or peak link) */}
                     {selectedDay && (
@@ -835,12 +845,23 @@ const DashboardAnalyticsWorkspace = ({
                     )}
                 </div>
 
-                <div className="aspect-square w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
+                {/* The operations map's phone frame: a 4:3 canvas, so a narrow
+                    viewport gets a map as wide as it is tall rather than the
+                    square this used to be — the ratio the mobile incident map
+                    was measured into, so the same map is the same shape on both
+                    pages. From sm the flat heights take over, as before. */}
+                <div className="aspect-[4/3] w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
+                    {/* No `highRiskZones`: the hazard layer has no tab here, and
+                        the canvas only draws zones for a filter that asks for
+                        them — so passing them would load and measure a layer
+                        that can never be seen. `allIncludesResolved` is what
+                        makes the canvas agree with the All open tab above it:
+                        both count the month's closed incidents as well. */}
                     <MapView
                         reports={mapDayReports}
-                        highRiskZones={safeZones}
                         showPending
                         filterStatus={mapStatusFilter}
+                        allIncludesResolved
                         viewerRole={user?.role || 'guest'}
                         showDataState
                         enable3D

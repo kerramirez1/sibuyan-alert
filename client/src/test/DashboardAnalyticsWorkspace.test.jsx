@@ -112,8 +112,10 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(onOpenMap).toHaveBeenCalledTimes(1);
         expect(onOpenReports).toHaveBeenCalledTimes(1);
 
+        // The phone frame is the operations map's 4:3 ratio, not the square this
+        // card used to draw: the same map is the same shape on both pages.
         expect(screen.getByTestId('analytics-map').parentElement).toHaveClass(
-            'aspect-square',
+            'aspect-[4/3]',
             'w-full',
             'sm:aspect-auto',
             'sm:h-[360px]',
@@ -126,6 +128,62 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(activityBadge).toBeInTheDocument();
         expect(activityBadge).not.toHaveClass('border-gray-200/90', 'bg-gray-50/80', 'rounded-md');
     }, 12000);
+
+    test('draws the analytics map filter as the shared operations rail', () => {
+        mocks.mapProps.mockClear();
+        // One report per status, each with coordinates so it is genuinely on the
+        // map: the counts below are then the sets the tabs claim to be.
+        const scoped = [
+            { ...report, _id: 'scope-pending', status: 'pending', coordinates: { lat: 12.45, lng: 122.55 } },
+            { ...report, _id: 'scope-verified', status: 'verified', coordinates: { lat: 12.46, lng: 122.56 } },
+            { ...report, _id: 'scope-responding', status: 'responding', coordinates: { lat: 12.47, lng: 122.57 } },
+            { ...report, _id: 'scope-resolved', status: 'resolved', coordinates: { lat: 12.48, lng: 122.58 } },
+        ];
+        render(<DashboardAnalyticsWorkspace {...baseProps} reports={scoped} allReports={scoped} />);
+
+        const rail = screen.getByRole('group', { name: 'Map status filter' });
+
+        // The operations rail's own tabs, in its wording. `all` is the month's
+        // whole record — closed incidents included — and the three handled states
+        // are ONE tab: this view used to split them into Verified / Active
+        // response / Transferred and call the open set "Active Incidents", the
+        // rail's name for the pending-excluded subset.
+        expect(within(rail).getByRole('button', { name: /All open filter \(4 records\), selected/ })).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /Pending review filter \(1 record\)/ })).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /Active incidents filter \(2 records\)/ })).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /^Resolved filter \(1 record\)/ })).toBeInTheDocument();
+
+        // They reconcile: All open = Pending review + Active incidents + Resolved,
+        // which is what including the closed incidents in `all` buys.
+        for (const split of [/Verified filter/i, /Active response filter/i, /Transferred filter/i]) {
+            expect(within(rail).queryByRole('button', { name: split })).not.toBeInTheDocument();
+        }
+
+        // And no hazard layer: zones are not part of a month's incident
+        // distribution, so nothing sits behind a divider any more.
+        expect(within(rail).queryByRole('button', { name: /Risk zones/i })).not.toBeInTheDocument();
+        expect(within(rail).queryByRole('group', { name: 'Layers and archive' })).not.toBeInTheDocument();
+
+        // Selected state is the rail's tinted surface plus its 2px bar — not the
+        // `border-b-2` this row used to carry, which the base stylesheet zeroes
+        // out on a button and so rendered no selected tab at all.
+        const selected = within(rail).getByRole('button', { name: /All open filter/ });
+        expect(selected).toHaveAttribute('aria-pressed', 'true');
+        expect(selected).toHaveClass('bg-gray-100/80', 'font-semibold');
+        expect(selected).not.toHaveClass('border-b-2');
+        expect(selected.querySelector('[class*="h-[2px]"]')).toHaveClass('bg-gray-500');
+
+        // The canvas has to agree with the tab above it: `allIncludesResolved` is
+        // what makes the map draw the same set the All open count names, and with
+        // no hazard tab the zones are not handed over at all.
+        const mapProps = mocks.mapProps.mock.calls.at(-1)[0];
+        expect(mapProps.allIncludesResolved).toBe(true);
+        expect(mapProps.highRiskZones).toBeUndefined();
+        expect(mapProps.filterStatus).toBe('all');
+
+        fireEvent.click(within(rail).getByRole('button', { name: /Pending review filter/ }));
+        expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('pending');
+    });
 
     test('shows municipality comparisons only when no municipal scope is provided', () => {
         render(

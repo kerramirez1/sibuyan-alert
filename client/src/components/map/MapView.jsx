@@ -138,6 +138,14 @@ const MapView = ({
     className = '',
     filterCategory = null,
     filterStatus = null,
+    /**
+     * Whether this map's `all` tab is the whole record or only its open part —
+     * see `getFilteredMapReports`. False for every live queue, where `all` is the
+     * work still in hand; true only for the period-scoped caller, whose `all`
+     * covers the closed incidents inside that period too. Without this the map
+     * drew a subset while the tab beside it counted the whole set.
+     */
+    allIncludesResolved = false,
     focusLocation = null,
     /**
      * Where this map rests when the incidents cannot frame it — the viewer's own
@@ -246,6 +254,7 @@ const MapView = ({
             includePending: showPending,
             category: filterCategory,
             statusFilter: filterStatus,
+            includeResolved: allIncludesResolved,
         });
 
         const locatedEntity = effectiveLocateRequest?.type === 'incident' ? effectiveLocateRequest.entity : null;
@@ -258,7 +267,7 @@ const MapView = ({
         }
 
         return baseFiltered;
-    }, [effectiveLocateRequest, filterCategory, filterStatus, mode, reports, showPending]);
+    }, [allIncludesResolved, effectiveLocateRequest, filterCategory, filterStatus, mode, reports, showPending]);
     // Whether this map's subject is the hazard layer rather than the incident
     // list. The dashboard says so by selecting its Risk Zones tab; the dedicated
     // zones page says so with `mode` and has no tabs at all, which is why the
