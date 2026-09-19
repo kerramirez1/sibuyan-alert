@@ -412,9 +412,20 @@ const AdminHighRiskZonesPage = () => {
     );
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1440px] space-y-3 sm:space-y-4">
+        /* The workspace fits the window at lg, the same call the map dashboard
+           makes: nothing on this page should scroll as a whole, because both of
+           its halves — the map and the zone list — scroll inside themselves.
+           7.25rem is the app header (4rem) plus this page's own top and bottom
+           padding (1.25rem + 2rem), so the stage ends exactly at the viewport and
+           the page has nothing left over. The 480px floor is deliberate: below
+           that the map stops being usable, so a short viewport scrolls the page
+           instead of crushing the canvas. The height is NOT a guess at the header
+           band above (the old `calc(100vh-190px)` was). The header is `shrink-0`
+           and the stage takes the remainder, so the two cannot disagree when the
+           header wraps to two lines. */
+        <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-3 sm:gap-4 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[480px]">
             {/* Page Header */}
-            <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
+            <header className="flex shrink-0 flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
                         High-risk zones
@@ -465,7 +476,7 @@ const AdminHighRiskZonesPage = () => {
             </header>
 
             {/* Mobile / Tablet View Switcher */}
-            <div className="flex items-center gap-6 border-b border-gray-200 lg:hidden dark:border-white/10" role="tablist" aria-label="Mobile workspace view">
+            <div className="flex shrink-0 items-center gap-6 border-b border-gray-200 lg:hidden dark:border-white/10" role="tablist" aria-label="Mobile workspace view">
                 <button
                     type="button"
                     role="tab"
@@ -494,12 +505,18 @@ const AdminHighRiskZonesPage = () => {
                 </button>
             </div>
 
-            {/* Main Workspace: Full-Height Synchronized Stage */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch lg:h-[calc(100vh-190px)] lg:min-h-[580px]">
+            {/* Main Workspace: Full-Height Synchronized Stage.
+
+                `lg:flex-1 lg:min-h-0` rather than a height of its own: the stage
+                is whatever is left of the window after the header, so the map and
+                the list always end together at the fold instead of at a number
+                that only matches one header height. `min-h-0` is what lets the
+                two columns shrink, and is why their lists scroll internally. */}
+            <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
                 {/* Map Workspace */}
                 <section
                     ref={mapSectionRef}
-                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-7 h-full ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
+                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-7 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}

@@ -1478,11 +1478,20 @@
 }
 
 /* Shared MapLibre navigation controls stay compact so they never cover
-   the island. The ::before-free hit area is preserved by MapLibre's own
-   padding — visual size only. */
+   the island, on desktop and mobile alike. The sizes are marked important
+   because maplibre-gl.css is imported by the lazy MapView chunk and is
+   therefore injected after this stylesheet at runtime, so its 29px default
+   would otherwise win. The hit area stays the button itself — visual size
+   only. */
 .maplibregl-ctrl-group button {
-  width: 28px;
-  height: 28px;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+/* MapLibre paints each glyph at its SVG's natural 29px inside the button,
+   so the icons need scaling too or they stay large in the smaller box. */
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  background-size: 24px 24px;
 }
 
 .maplibregl-ctrl-group button:focus-visible {
@@ -1490,23 +1499,40 @@
   outline-offset: 2px;
 }
 
+/* Touch screens get an extra-small control so it never covers the island on
+   a phone; tapping is supplemented by pinch/double-tap zoom, which is how the
+   control is operated there anyway. */
 @media (max-width: 640px) {
   .maplibregl-ctrl-group button {
-    width: 26px;
-    height: 26px;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    background-size: 18px 18px;
   }
 }
 
 /* Compact zoom controls in embedded incident location preview */
 .incident-location-preview .maplibregl-ctrl-group button {
-  width: 26px;
-  height: 26px;
+  width: 22px !important;
+  height: 22px !important;
 }
 
+.incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  background-size: 22px 22px;
+}
+
+/* Without this, the preview rule above (higher specificity) would keep the
+   control at its desktop size on phones — larger than the plain map's. */
 @media (max-width: 640px) {
   .incident-location-preview .maplibregl-ctrl-group button {
-    width: 26px;
-    height: 26px;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    background-size: 18px 18px;
   }
 }
 
