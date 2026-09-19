@@ -233,12 +233,14 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
                     title="Transfer history"
                     summary={`${transfers.length} transfer record${transfers.length === 1 ? '' : 's'}`}
                 >
+                    {/* The transferred status wears the active blue, so a transfer record carries
+                        the same hue as the status badge that names it. */}
                     <ol className="space-y-2">
                         {transfers.map((transfer, index) => (
-                            <li key={transfer.id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                                <p className="text-sm font-semibold text-violet-950">{transfer.fromMunicipalityName || 'Previous municipality'} to {transfer.toMunicipalityName || 'Target municipality'}</p>
-                                <p className="mt-1 text-xs text-violet-700">Transferred {formatDate(transfer.transferredAt)} · {transfer.acknowledgedAt ? 'Acknowledged' : 'Awaiting acknowledgement'}</p>
-                                {transfer.reason && <p className="mt-2 text-sm text-violet-900">{transfer.reason}</p>}
+                            <li key={transfer.id || `${transfer.transferredAt}-${index}`} className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                                <p className="text-sm font-semibold text-blue-950">{transfer.fromMunicipalityName || 'Previous municipality'} to {transfer.toMunicipalityName || 'Target municipality'}</p>
+                                <p className="mt-1 text-xs text-blue-700">Transferred {formatDate(transfer.transferredAt)} · {transfer.acknowledgedAt ? 'Acknowledged' : 'Awaiting acknowledgement'}</p>
+                                {transfer.reason && <p className="mt-2 text-sm text-blue-900">{transfer.reason}</p>}
                             </li>
                         ))}
                     </ol>

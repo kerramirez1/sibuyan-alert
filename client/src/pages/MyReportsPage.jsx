@@ -29,19 +29,23 @@ import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGall
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
-import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import { getMapStatusDot, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 
 // Canonical lifecycle vocabulary shared with the dashboard, so one
 // state is never named two different ways across pages.
 const STATUS_CONFIG = {
-    pending: { label: 'Pending review', dot: 'bg-amber-500' },
-    verified: { label: 'Verified', dot: 'bg-blue-600' },
-    transferred: { label: 'Transferred', dot: 'bg-violet-500' },
+    // Colours come from MAP_STATUS_CONFIG (via getMapStatusDot), so this page and
+    // the admin dashboard it mirrors print one dot for one status. These shades
+    // used to be repeated here by hand — cyan-500 against the admin dashboard's
+    // cyan-600 — which is exactly the drift the shared lookup removes.
+    pending: { label: 'Pending review', dot: getMapStatusDot('pending') },
+    verified: { label: 'Verified', dot: getMapStatusDot('verified') },
+    transferred: { label: 'Transferred', dot: getMapStatusDot('transferred') },
     // One lifecycle state, one name: the display name is owned by
     // MAP_STATUS_CONFIG, the same source the map legend and the badges read.
-    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: 'bg-cyan-500' },
-    resolved: { label: 'Resolved', dot: 'bg-green-600' },
-    rejected: { label: 'Rejected', dot: 'bg-gray-400' },
+    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: getMapStatusDot('responding') },
+    resolved: { label: 'Resolved', dot: getMapStatusDot('resolved') },
+    rejected: { label: 'Rejected', dot: getMapStatusDot('rejected') },
 };
 
 const SEVERITY_CONFIG = {

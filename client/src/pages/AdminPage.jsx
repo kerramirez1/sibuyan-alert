@@ -17,7 +17,7 @@ import {
 } from 'react-icons/hi';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
 import { useSystemHealth } from '../hooks/useSystemHealth';
-import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import { getMapStatusDot, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
 const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
@@ -75,15 +75,19 @@ const AdminKpiCard = ({ stat, loading }) => (
 );
 
 const STATUS_CONFIG = {
-    pending: { label: 'Pending review', dot: 'bg-amber-500' },
-    verified: { label: 'Verified', dot: 'bg-blue-600' },
-    transferred: { label: 'Transferred', dot: 'bg-violet-500' },
+    // Colours come from MAP_STATUS_CONFIG (via getMapStatusDot) so a status dot
+    // here can never carry a hue the map rail and the legend have stopped using.
+    // These were hand-written shades — violet, cyan-600, emerald — which is how
+    // this page drifted from the map it describes.
+    pending: { label: 'Pending review', dot: getMapStatusDot('pending') },
+    verified: { label: 'Verified', dot: getMapStatusDot('verified') },
+    transferred: { label: 'Transferred', dot: getMapStatusDot('transferred') },
     // One lifecycle state, one name: the display name for this state is owned by
     // MAP_STATUS_CONFIG, the same source the map rail, the legend, and the
     // status badges read.
-    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: 'bg-cyan-600' },
-    resolved: { label: 'Resolved', dot: 'bg-emerald-600' },
-    rejected: { label: 'Rejected', dot: 'bg-gray-400' },
+    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: getMapStatusDot('responding') },
+    resolved: { label: 'Resolved', dot: getMapStatusDot('resolved') },
+    rejected: { label: 'Rejected', dot: getMapStatusDot('rejected') },
 };
 
 const ROLE_CONFIG = {

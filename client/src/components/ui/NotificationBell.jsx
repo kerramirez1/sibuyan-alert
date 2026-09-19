@@ -7,10 +7,10 @@ import { notificationsAPI } from '../../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
     buildNotificationTarget,
-    getReportUpdateMeta,
     shouldDeferNotificationRead,
 } from '../../utils/notificationNavigation';
 import { cleanNotificationTitle, cleanNotificationMessage } from '../../utils/notificationFormatting';
+import { getNotificationEventMarker } from '../../utils/notificationEvents';
 import {
     HiOutlineBell,
     HiOutlineCheck,
@@ -19,66 +19,6 @@ import {
     HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
-
-const getEventMarker = (notification) => {
-    switch (notification?.type) {
-        case 'report_verified':
-        case 'reporter_verified':
-            return {
-                dot: 'bg-blue-600',
-                badge: 'text-blue-700 dark:text-blue-400',
-                label: 'Report verified',
-            };
-        case 'report_resolved':
-            return {
-                dot: 'bg-green-600',
-                badge: 'text-green-700 dark:text-green-400',
-                label: 'Incident resolved',
-            };
-        case 'report_responding':
-            return {
-                dot: 'bg-cyan-500',
-                badge: 'text-cyan-700 dark:text-cyan-400',
-                label: 'Response active',
-            };
-        case 'reporter_rejected':
-        case 'report_rejected':
-            return {
-                dot: 'bg-red-500',
-                badge: 'text-red-700 dark:text-red-400',
-                label: 'Report rejected',
-            };
-        case 'report_update': {
-            const updateMeta = getReportUpdateMeta(notification);
-            if (updateMeta.priority === 'urgent') {
-                return { dot: 'bg-red-500', badge: 'text-red-700 dark:text-red-400', label: 'Urgent help' };
-            }
-            if (updateMeta.priority === 'review') {
-                return { dot: 'bg-amber-500', badge: 'text-amber-700 dark:text-amber-400', label: 'Review needed' };
-            }
-            return { dot: 'bg-brand-600', badge: 'text-brand-700 dark:text-sky-400', label: 'Situation update' };
-        }
-        case 'new_report':
-            return {
-                dot: 'bg-amber-500',
-                badge: 'text-amber-700 dark:text-amber-400',
-                label: 'New report',
-            };
-        case 'report_transferred':
-        case 'report_transfer_acknowledged':
-            return {
-                dot: 'bg-purple-500',
-                badge: 'text-purple-700 dark:text-purple-400',
-                label: 'Transferred',
-            };
-        default:
-            return {
-                dot: 'bg-gray-400',
-                badge: 'text-gray-600 dark:text-gray-400',
-                label: 'Notification',
-            };
-    }
-};
 
 const getRelativeTime = (dateValue) => {
     if (!dateValue) return 'Just now';
@@ -438,7 +378,7 @@ const NotificationBell = () => {
                     </div>
                 ) : (
                     filteredNotifications.map((notification, index) => {
-                        const marker = getEventMarker(notification);
+                        const marker = getNotificationEventMarker(notification);
                         const address = notification?.data?.address;
                         const title = cleanNotificationTitle(notification?.title);
                         const message = notification?.data?.updatePreview || cleanNotificationMessage(notification?.message);

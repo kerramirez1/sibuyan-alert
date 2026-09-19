@@ -449,9 +449,6 @@ const RAIL_TONES = {
     emerald: {
         dot: MAP_STATUS_CONFIG.resolved.dot, selectedSurface: 'bg-green-50/80 dark:bg-green-500/10', selectedText: 'text-green-900 dark:text-green-200', bar: MAP_STATUS_CONFIG.resolved.dot,
     },
-    cyan: {
-        dot: MAP_STATUS_CONFIG.responding.dot, selectedSurface: 'bg-cyan-50/80 dark:bg-cyan-500/10', selectedText: 'text-cyan-900 dark:text-cyan-200', bar: MAP_STATUS_CONFIG.responding.dot,
-    },
 };
 // Every value a filter can take, not just the five the rail ships today: these
 // same lookups draw the mobile summary line, which renders whatever filter a
@@ -464,7 +461,10 @@ const RAIL_TONE_BY_FILTER = {
     verified: 'blue',
     active: 'blue',
     dispatch: 'blue',
-    responding: 'cyan',
+    // Responding is one of the handled states and wears the same blue (see
+    // ACTIVE_INCIDENT_BLUE), so it shares the blue rail tone: a cyan-tinted tab
+    // over a blue dot was the rail contradicting its own swatch.
+    responding: 'blue',
     'risk-zones': 'red',
     resolved: 'emerald',
 };

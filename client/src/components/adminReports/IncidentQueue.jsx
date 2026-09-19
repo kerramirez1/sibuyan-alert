@@ -19,6 +19,7 @@ import {
 } from './incidentReportConfig';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import { getTransferOrigin } from '../../utils/incidentDetails';
+import { getMapStatusDot } from '../../config/mapVisuals';
 import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
 const formatRelativeTime = (value) => {
@@ -395,7 +396,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
 
             {transferLine && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden="true" />
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getMapStatusDot('transferred')}`} aria-hidden="true" />
                     <span>{transferLine}</span>
                 </p>
             )}

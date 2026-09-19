@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
+import { getMapStatusDot } from '../../config/mapVisuals';
 
 
 const UPDATE_LABELS = {
@@ -11,13 +12,15 @@ const UPDATE_LABELS = {
 };
 
 // Lifecycle-colored markers; red stays reserved for urgent help requests,
-// the only timeline event that is itself an alert.
+// the only timeline event that is itself an alert. The lifecycle tones are read
+// from MAP_STATUS_CONFIG, so a dot in the dossier cannot disagree with the status
+// badge beside it (it used to: cyan-500 here against cyan-600 in the queue).
 const DOT_CLASSES = {
     submitted: 'bg-gray-400',
-    verified: 'bg-blue-600',
-    transferred: 'bg-violet-500',
-    responding: 'bg-cyan-500',
-    resolved: 'bg-green-600',
+    verified: getMapStatusDot('verified'),
+    transferred: getMapStatusDot('transferred'),
+    responding: getMapStatusDot('responding'),
+    resolved: getMapStatusDot('resolved'),
 };
 
 const getDotClass = (item) => {

@@ -3,6 +3,7 @@ import {
     HiOutlineSearch,
     HiOutlineX,
 } from 'react-icons/hi';
+import { getMapStatusDot } from '../../config/mapVisuals';
 import {
     ADMIN_ROLES,
     getRoleStatuses,
@@ -300,19 +301,19 @@ const IncidentQueueControls = ({
                                 <>
                                     <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
                                     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                                        <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('pending')}`} aria-hidden="true" />
                                         <span>{toCount(stats.pending)} pending review</span>
                                     </span>
                                 </>
                             )}
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
                             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" aria-hidden="true" />
+                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('responding')}`} aria-hidden="true" />
                                 <span>{toCount(stats.responding)} responding</span>
                             </span>
                             <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
                             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('resolved')}`} aria-hidden="true" />
                                 <span>{toCount(stats.resolved)} resolved</span>
                             </span>
                         </div>

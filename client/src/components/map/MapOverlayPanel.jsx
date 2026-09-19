@@ -280,7 +280,7 @@ const MapOverlayPanel = ({
             )}
 
             <header
-                className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200/80 bg-gray-50/60 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03] sm:px-5 max-sm:cursor-pointer select-none"
+                className="flex shrink-0 flex-col border-b border-gray-200/80 bg-gray-50/60 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03] sm:px-5 max-sm:cursor-pointer select-none"
                 onClick={(e) => {
                     if (isContextual && !isDocked && isMobileViewport && !e.defaultPrevented) {
                         handleToggleExpand();
@@ -296,8 +296,9 @@ const MapOverlayPanel = ({
                     them in the uppercase tracking that suits a two-word label
                     turned the panel's context into a wall of capitalised text
                     that read as a second heading. */}
-                <div className="min-w-0 py-0.5 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
+                {/* Row 1: the subject on the left, the controls on the right. */}
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 py-0.5">
                         {accentDotClassName && (
                             <span
                                 aria-hidden="true"
@@ -308,52 +309,60 @@ const MapOverlayPanel = ({
                             {title}
                         </h2>
                     </div>
-                    {description && (
-                        // 12px at gray-600 rather than 11px at gray-500: this line
-                        // carries whole sentences ("3 active: 1 responding, 2
-                        // waiting (1 transferred). Pending is counted separately.")
-                        // and is read as the pane's context, so it is set for
-                        // reading — one step below the title in size, one step
-                        // above the supporting text inside the pane below it.
-                        <p id={descriptionId} className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-500 break-words">
-                            {description}
-                        </p>
-                    )}
-                </div>
 
-                <div
-                    className="flex shrink-0 items-center gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                >
-                    {/* Expand/Collapse Toggle on Mobile */}
-                    {isContextual && !isDocked && (
-                        <button
-                            type="button"
-                            onClick={handleToggleExpand}
-                            className="flex h-10 w-10 sm:hidden shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
-                            aria-label={isMobileExpanded ? 'Collapse incident details' : 'Expand incident details'}
-                            aria-expanded={isMobileExpanded}
-                        >
-                            {isMobileExpanded ? (
-                                <HiOutlineChevronDown className="h-5 w-5" aria-hidden="true" />
-                            ) : (
-                                <HiOutlineChevronUp className="h-5 w-5" aria-hidden="true" />
-                            )}
-                        </button>
-                    )}
-
-                    <button
-                        ref={closeButtonRef}
-                        type="button"
-                        onClick={() => onCloseRef.current?.()}
-                        className="flex h-10 w-10 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
-                        aria-label={closeLabel}
+                    <div
+                        className="flex shrink-0 items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
                     >
-                        <HiOutlineX className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
-                    </button>
+                        {/* Expand/Collapse Toggle on Mobile */}
+                        {isContextual && !isDocked && (
+                            <button
+                                type="button"
+                                onClick={handleToggleExpand}
+                                className="flex h-10 w-10 sm:hidden shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-gray-400 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                                aria-label={isMobileExpanded ? 'Collapse incident details' : 'Expand incident details'}
+                                aria-expanded={isMobileExpanded}
+                            >
+                                {isMobileExpanded ? (
+                                    <HiOutlineChevronDown className="h-5 w-5" aria-hidden="true" />
+                                ) : (
+                                    <HiOutlineChevronUp className="h-5 w-5" aria-hidden="true" />
+                                )}
+                            </button>
+                        )}
+
+                        <button
+                            ref={closeButtonRef}
+                            type="button"
+                            onClick={() => onCloseRef.current?.()}
+                            className="flex h-10 w-10 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:hover:border-white/10 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer"
+                            aria-label={closeLabel}
+                        >
+                            <HiOutlineX className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+                        </button>
+                    </div>
                 </div>
+
+                {/* Row 2, and it is a row of the header itself, not a cell of
+                    row 1: the close button is a cell of row 1 and of nothing
+                    else, so its box no longer takes ~50px off every line of a
+                    sentence that has nothing to do with it. Full width of the
+                    header's own content box (the padding above and beside this
+                    row is the header's), so the description wraps where the
+                    sentence does, and the header grows by the lines it took. */}
+                {description && (
+                    // 12px at gray-600 rather than 11px at gray-500: this line
+                    // carries whole sentences ("3 active: 1 responding, 2
+                    // waiting (1 transferred). Pending is counted separately.")
+                    // and is read as the pane's context, so it is set for
+                    // reading — one step below the title in size, one step
+                    // above the supporting text inside the pane below it.
+                    <p id={descriptionId} className="mt-1 w-full text-xs leading-relaxed text-gray-600 dark:text-gray-500 break-words">
+                        {description}
+                    </p>
+                )}
             </header>
 
             {/* `scrollbar-gutter: stable` so the pane's content does not shift

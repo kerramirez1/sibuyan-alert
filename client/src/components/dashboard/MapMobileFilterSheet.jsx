@@ -4,7 +4,7 @@ import {
     HiCheck,
     HiOutlineX,
 } from 'react-icons/hi';
-import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { MAP_ACTIVE_INCIDENT_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 
 const FOCUSABLE_SELECTOR = [
     'a[href]',
@@ -26,9 +26,11 @@ const FILTER_ROW_STATE_CLASS = (isSelected) => (isSelected
 // 'all' is a scope rather than a status, so it keeps the neutral dot the rail
 // gives it instead of borrowing the brand colour.
 const getStatusDotClass = (filterValue) => {
+    // 'all' is a scope rather than a status, so it keeps the neutral dot the rail
+    // gives it. Everything else — including the folded 'active' set — reads the
+    // shared palette instead of restating a blue that could drift from it.
     if (filterValue === 'all') return 'bg-gray-400';
-    if (filterValue === 'active') return 'bg-blue-500';
-    if (filterValue === 'resolved') return 'bg-green-600';
+    if (filterValue === 'active') return MAP_ACTIVE_INCIDENT_CONFIG.dot;
     return MAP_STATUS_CONFIG[filterValue]?.dot || 'bg-gray-400';
 };
 
@@ -42,7 +44,7 @@ const LAYER_PRESENTATION = {
         description: 'High-risk hazards and monitored risk zones',
     },
     resolved: {
-        dot: 'bg-green-600',
+        dot: MAP_STATUS_CONFIG.resolved.dot,
         description: 'Closed incidents kept for the record',
     },
 };

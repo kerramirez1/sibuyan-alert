@@ -1,3 +1,23 @@
+/**
+ * The one blue every "being handled" state wears.
+ *
+ * Verified, transferred and responding are one operational condition — an
+ * incident the municipality is already acting on — so they are one colour.
+ * Nothing splits them by hue any more: the canvas has drawn all three as a
+ * single active blue for a while (see `MapView`), and the chrome — badges, tab
+ * swatches, list rows, legend, notifications — used to keep a second
+ * cyan/violet palette for the same three states, so one incident read as a blue
+ * pin with a violet legend swatch. Every consumer now reads this value instead.
+ *
+ * Colour therefore cannot separate the three, so the label does: each entry
+ * below still owns its own name ("Verified", "Transferred", "Active response"),
+ * and the responding marker is additionally a dot inside a travelling ring
+ * rather than a teardrop pin (see `MAP_RESPONDING_INCIDENT_CONFIG`). Those cues
+ * survive a screenshot and `prefers-reduced-motion`, which a colour-only
+ * difference would not.
+ */
+const ACTIVE_INCIDENT_BLUE = '#2563EB';
+
 export const MAP_STATUS_CONFIG = Object.freeze({
     pending: Object.freeze({
         label: 'Pending',
@@ -5,36 +25,46 @@ export const MAP_STATUS_CONFIG = Object.freeze({
         badge: 'border-amber-200 bg-amber-50 text-amber-700',
         dot: 'bg-amber-500',
         iconTone: 'bg-amber-50 text-amber-700',
+        ring: 'ring-amber-200 dark:ring-amber-900',
+        textTone: 'text-amber-700 dark:text-amber-400',
     }),
     verified: Object.freeze({
         label: 'Verified',
-        markerColor: '#2563EB',
+        markerColor: ACTIVE_INCIDENT_BLUE,
         badge: 'border-blue-200 bg-blue-50 text-blue-700',
         dot: 'bg-blue-500',
         iconTone: 'bg-blue-50 text-blue-700',
+        ring: 'ring-blue-200 dark:ring-blue-900',
+        textTone: 'text-blue-700 dark:text-blue-400',
     }),
     transferred: Object.freeze({
         label: 'Transferred',
-        markerColor: '#7C3AED',
-        badge: 'border-violet-200 bg-violet-50 text-violet-700',
-        dot: 'bg-violet-500',
-        iconTone: 'bg-violet-50 text-violet-700',
+        // One of the three "being handled" states, so it wears the active blue
+        // rather than a second violet hue (see ACTIVE_INCIDENT_BLUE).
+        markerColor: ACTIVE_INCIDENT_BLUE,
+        badge: 'border-blue-200 bg-blue-50 text-blue-700',
+        dot: 'bg-blue-500',
+        iconTone: 'bg-blue-50 text-blue-700',
+        ring: 'ring-blue-200 dark:ring-blue-900',
+        textTone: 'text-blue-700 dark:text-blue-400',
     }),
     responding: Object.freeze({
         // One name for one lifecycle state, everywhere it appears: this is the
-        // source for the tab label, the card label, the status badge, and the
-        // legend entry, so they cannot drift apart into "Responding" and
-        // "Active response" describing the same pins.
+        // source for the tab label, the card label, the status badge, the
+        // notification marker, and the legend entry, so they cannot drift apart
+        // into "Responding" and "Response active" describing the same pins.
         //
-        // Note this is the *operational* name, and the cyan below is the colour
-        // this state keeps in the UI chrome (tab swatch, badges, list rows). The
-        // marker it draws on the canvas is the pulsing blue dot named "Being
-        // responded to" on every rail — see MAP_RESPONDING_INCIDENT_CONFIG below.
+        // The chrome and the canvas share this blue; what separates the
+        // responding pin from its neighbours is shape and motion — a dot inside
+        // a travelling ring instead of a teardrop (see
+        // `MAP_RESPONDING_INCIDENT_CONFIG`).
         label: 'Active response',
-        markerColor: '#0891B2',
-        badge: 'border-cyan-200 bg-cyan-50 text-cyan-700',
-        dot: 'bg-cyan-600',
-        iconTone: 'bg-cyan-50 text-cyan-700',
+        markerColor: ACTIVE_INCIDENT_BLUE,
+        badge: 'border-blue-200 bg-blue-50 text-blue-700',
+        dot: 'bg-blue-500',
+        iconTone: 'bg-blue-50 text-blue-700',
+        ring: 'ring-blue-200 dark:ring-blue-900',
+        textTone: 'text-blue-700 dark:text-blue-400',
     }),
     resolved: Object.freeze({
         label: 'Resolved',
@@ -42,6 +72,8 @@ export const MAP_STATUS_CONFIG = Object.freeze({
         badge: 'border-green-200 bg-green-50 text-green-700',
         dot: 'bg-green-600',
         iconTone: 'bg-green-50 text-green-700',
+        ring: 'ring-green-200 dark:ring-green-900',
+        textTone: 'text-green-700 dark:text-green-400',
     }),
     rejected: Object.freeze({
         label: 'Rejected',
@@ -49,31 +81,46 @@ export const MAP_STATUS_CONFIG = Object.freeze({
         badge: 'border-slate-200 bg-slate-50 text-slate-700',
         dot: 'bg-slate-500',
         iconTone: 'bg-slate-50 text-slate-700',
+        ring: 'ring-gray-300 dark:ring-gray-700',
+        textTone: 'text-slate-700 dark:text-slate-400',
         legendShape: 'circle',
     }),
 });
 
 /**
- * Unified public active-incident presentation (reporter/guest map).
- * Verified, transferred, and responding all share one blue so reporters read a
- * single "being handled" state. Colour therefore cannot separate the three, so
- * shape and motion do: verified and transferred stay teardrop pins, and the one
- * incident somebody is already handling is a dot inside a travelling ring. That
- * split is visible in a screenshot and under `prefers-reduced-motion`, which a
- * colour-only difference would not be. There is no per-role palette to fall back
- * to: every rail draws one incident the same way, and the operational chrome
- * (badges, tab swatches, list rows) still names the exact status by colour.
+ * The dot a status row prints, for the surfaces that show a status as a plain
+ * bullet rather than as a badge (dashboard cards, timelines, notification
+ * rows). One lookup, so a status cannot be amber on the dashboard and orange in
+ * the timeline.
+ */
+export const getMapStatusDot = (status) => MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400';
+
+/**
+ * The text tone a status label wears (notification rows and other text-only
+ * surfaces). Derived from the same entry as the dot so the two cannot disagree.
+ */
+export const getMapStatusTextTone = (status) => MAP_STATUS_CONFIG[status]?.textTone || 'text-gray-600 dark:text-gray-400';
+
+/**
+ * Unified active-incident presentation (every rail).
  *
- * `MAP_STATUS_CONFIG.verified.markerColor` is therefore the same blue this entry
- * declares, and the transferred violet is no longer drawn on the canvas at all —
- * both are kept in `MAP_STATUS_CONFIG` because the chrome still uses them.
+ * Verified, transferred and responding share one blue so the map reads a single
+ * "being handled" state. Colour therefore cannot separate the three, so shape and
+ * motion do: verified and transferred stay teardrop pins, and the one incident
+ * somebody is already handling is a dot inside a travelling ring. That split is
+ * visible in a screenshot and under `prefers-reduced-motion`, which a
+ * colour-only difference would not be.
+ *
+ * `MAP_STATUS_CONFIG.verified.markerColor` is the same blue this entry declares,
+ * by construction.
  */
 export const ACTIVE_INCIDENT_STATUS_KEY = 'active';
 
 export const MAP_ACTIVE_INCIDENT_CONFIG = Object.freeze({
     label: 'Active incident',
-    markerColor: '#2563EB',
+    markerColor: ACTIVE_INCIDENT_BLUE,
     dot: 'bg-blue-500',
+    ring: 'ring-blue-200 dark:ring-blue-900',
 });
 
 /**
@@ -82,8 +129,8 @@ export const MAP_ACTIVE_INCIDENT_CONFIG = Object.freeze({
  *
  * A separate entry from `MAP_STATUS_CONFIG.responding` on purpose, because it is
  * a separate presentation of the same state — the operational chrome names the
- * state ("Active response", cyan swatch) and this one names what the marker does
- * ("Being responded to", blue dot). Both names point at one lifecycle value, and
+ * state ("Active response") and this one names what the marker does ("Being
+ * responded to"). Both names point at one lifecycle value, and
  * `MAP_STATUS_CONFIG.responding` remains the single owner of that value.
  *
  * It applies to responder and admin maps too, which is the point: one incident
@@ -95,8 +142,9 @@ export const RESPONDING_INCIDENT_STATUS_KEY = 'responding-dot';
 
 export const MAP_RESPONDING_INCIDENT_CONFIG = Object.freeze({
     label: 'Being responded to',
-    markerColor: MAP_STATUS_CONFIG.verified.markerColor,
+    markerColor: ACTIVE_INCIDENT_BLUE,
     dot: 'bg-blue-500',
+    ring: 'ring-blue-200 dark:ring-blue-900',
 });
 
 /**
@@ -126,6 +174,7 @@ export const getMapSeverityConfig = (severity) => (
 export const MAP_RISK_ZONE_CONFIG = Object.freeze({
     label: 'High-risk zone',
     markerColor: '#DC2626',
+    ring: 'ring-red-200 dark:ring-red-900',
 });
 
 export const MAP_RISK_TYPE_CONFIG = Object.freeze({
@@ -196,7 +245,7 @@ export const getMapLegendStatusKeys = ({ showPending = false, filterStatus = nul
         }
         // The responding tab shows the dot on every rail, so it is named as the
         // dot. Falling through to the status lookup would label the pulse
-        // "Active response" with a cyan pin the canvas no longer draws.
+        // "Active response" with a pin the canvas no longer draws.
         if (filterStatus === 'responding') {
             return [RESPONDING_INCIDENT_STATUS_KEY];
         }

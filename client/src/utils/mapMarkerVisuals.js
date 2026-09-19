@@ -1,16 +1,47 @@
 import { MAP_STATUS_CONFIG, MAP_RISK_ZONE_CONFIG } from '../config/mapVisuals';
 
 /**
- * Status color palettes — matte base with a slightly darker lower tone for depth.
+ * Darkens (negative percent) or lightens a #rrggbb hex toward black/white.
+ * Used to derive the pin gradient's lower tone from an explicit override
+ * color so unified pins never mix hues (e.g. blue top + purple bottom).
  */
+export const shadeHexColor = (hex, percent = -14) => {
+    if (typeof hex !== 'string') return hex;
+    const match = hex.trim().match(/^#([0-9a-f]{6})$/i);
+    if (!match) return hex;
+    const amount = Math.max(-100, Math.min(100, Number(percent) || 0)) / 100;
+    const num = parseInt(match[1], 16);
+    const target = amount < 0 ? 0 : 255;
+    const blend = (channel) => Math.round(channel + (target - channel) * Math.abs(amount));
+    const r = blend((num >> 16) & 255);
+    const g = blend((num >> 8) & 255);
+    const b = blend(num & 255);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+};
+
+/**
+ * Status color palettes — matte base with a slightly darker lower tone for depth.
+ *
+ * Both tones are derived from `MAP_STATUS_CONFIG.markerColor`, the single owner
+ * of a status colour, so a pin can never keep a hue the chrome has stopped
+ * using. This table used to hold its own transferred-violet and responding-cyan,
+ * which is how the canvas and the legend drifted apart; the lower tone is now
+ * computed from the same base rather than stored, so it follows a hue change
+ * automatically.
+ */
+const statusPinPalette = (status) => Object.freeze({
+    base: MAP_STATUS_CONFIG[status].markerColor,
+    dark: shadeHexColor(MAP_STATUS_CONFIG[status].markerColor),
+});
+
 export const STATUS_PIN_PALETTES = Object.freeze({
-    pending: Object.freeze({ base: '#F59E0B', dark: '#D97706' }),
-    verified: Object.freeze({ base: '#2563EB', dark: '#1D4ED8' }),
-    transferred: Object.freeze({ base: '#7C3AED', dark: '#6D28D9' }),
-    responding: Object.freeze({ base: '#0891B2', dark: '#0E7490' }),
-    resolved: Object.freeze({ base: '#16A34A', dark: '#15803D' }),
-    rejected: Object.freeze({ base: '#64748B', dark: '#475569' }),
-    risk: Object.freeze({ base: '#DC2626', dark: '#B91C1C' }),
+    pending: statusPinPalette('pending'),
+    verified: statusPinPalette('verified'),
+    transferred: statusPinPalette('transferred'),
+    responding: statusPinPalette('responding'),
+    resolved: statusPinPalette('resolved'),
+    rejected: statusPinPalette('rejected'),
+    risk: Object.freeze({ base: MAP_RISK_ZONE_CONFIG.markerColor, dark: '#B91C1C' }),
     selected: Object.freeze({ base: '#EF4444', dark: '#DC2626' }),
     default: Object.freeze({ base: '#6B7280', dark: '#4B5563' }),
 });
@@ -71,25 +102,6 @@ export const RESPONDING_DOT_LEGEND_SIZE = Object.freeze({ footprint: 12, core: 8
  * change is not meant to resize it.
  */
 export const SELECTED_MARKER_SIZE = Object.freeze({ width: 30, height: 34 });
-
-/**
- * Darkens (negative percent) or lightens a #rrggbb hex toward black/white.
- * Used to derive the pin gradient's lower tone from an explicit override
- * color so unified pins never mix hues (e.g. blue top + purple bottom).
- */
-export const shadeHexColor = (hex, percent = -14) => {
-    if (typeof hex !== 'string') return hex;
-    const match = hex.trim().match(/^#([0-9a-f]{6})$/i);
-    if (!match) return hex;
-    const amount = Math.max(-100, Math.min(100, Number(percent) || 0)) / 100;
-    const num = parseInt(match[1], 16);
-    const target = amount < 0 ? 0 : 255;
-    const blend = (channel) => Math.round(channel + (target - channel) * Math.abs(amount));
-    const r = blend((num >> 16) & 255);
-    const g = blend((num >> 8) & 255);
-    const b = blend(num & 255);
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
-};
 
 /**
  * Center glyph for the teardrop pin head — white dot for incidents,

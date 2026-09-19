@@ -4,12 +4,20 @@ import MapLegend from '../components/map/MapLegend';
 import { isRiskZoneLayerVisibleForFilter, MAP_RISK_ZONE_CONFIG, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 
 describe('MapLegend', () => {
-    test('keeps danger and lifecycle colors semantically distinct', () => {
-        const lifecycleColors = Object.values(MAP_STATUS_CONFIG).map(({ markerColor }) => markerColor);
+    test('keeps the handled states on one blue and danger on its own red', () => {
+        // Verified, transferred and responding are one operational condition, so
+        // they share one blue — the chrome reads the same value the canvas draws.
+        // What must stay unique is "being handled" (blue) against "hazard"
+        // (red): no lifecycle status may borrow the hazard red, and amber/green
+        // still separate pending from resolved.
+        expect(MAP_STATUS_CONFIG.verified.markerColor).toBe('#2563EB');
+        expect(MAP_STATUS_CONFIG.transferred.markerColor).toBe(MAP_STATUS_CONFIG.verified.markerColor);
+        expect(MAP_STATUS_CONFIG.responding.markerColor).toBe(MAP_STATUS_CONFIG.verified.markerColor);
 
-        expect(new Set(lifecycleColors).size).toBe(lifecycleColors.length);
+        const lifecycleColors = Object.values(MAP_STATUS_CONFIG).map(({ markerColor }) => markerColor);
         expect(lifecycleColors).not.toContain(MAP_RISK_ZONE_CONFIG.markerColor);
-        expect(MAP_STATUS_CONFIG.responding.markerColor).toBe('#0891B2');
+        expect(MAP_STATUS_CONFIG.pending.markerColor).not.toBe(MAP_STATUS_CONFIG.verified.markerColor);
+        expect(MAP_STATUS_CONFIG.resolved.markerColor).not.toBe(MAP_STATUS_CONFIG.verified.markerColor);
         expect(MAP_STATUS_CONFIG.rejected.markerColor).toBe('#64748B');
     });
 

@@ -71,20 +71,40 @@ describe('map status visuals', () => {
         expect(getMapLegendStatusKeys({ filterStatus: 'pending', showPending: true })).toEqual(['pending']);
     });
 
-    test('presents the responding dot in the one blue the public map already uses', () => {
-        // Same colour, different shape: a second hue would have to be explained
-        // and would compete with the hazard red that owns the map's alerts.
+    test('presents the responding dot in the one blue every handled state uses', () => {
+        // Same colour, different shape: the responding marker is a dot inside a
+        // travelling ring, while verified and transferred stay teardrop pins. The
+        // second hue that used to live here would have had to be explained and
+        // would have competed with the hazard red that owns the map's alerts.
         expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).toBe(MAP_STATUS_CONFIG.verified.markerColor);
-        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).not.toBe(MAP_STATUS_CONFIG.responding.markerColor);
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).toBe(MAP_STATUS_CONFIG.responding.markerColor);
+        expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).toBe(MAP_STATUS_CONFIG.transferred.markerColor);
         expect(MAP_RESPONDING_INCIDENT_CONFIG.markerColor).not.toBe(MAP_RISK_ZONE_CONFIG.markerColor);
         expect(MAP_RESPONDING_INCIDENT_CONFIG.label).toBe('Being responded to');
+    });
+
+    test('keeps verified, transferred and responding on the one active blue', () => {
+        // One operational condition, one colour: the chrome reads the same blue
+        // the canvas draws, so a status can no longer be blue on the map and
+        // violet or cyan in the legend, the badges or the notifications. Labels
+        // (and the responding dot's shape) are what separate the three now.
+        for (const status of ['verified', 'transferred', 'responding']) {
+            expect(MAP_STATUS_CONFIG[status].markerColor).toBe(MAP_ACTIVE_INCIDENT_CONFIG.markerColor);
+            expect(MAP_STATUS_CONFIG[status].dot).toBe(MAP_ACTIVE_INCIDENT_CONFIG.dot);
+            expect(MAP_STATUS_CONFIG[status].badge).toBe(MAP_STATUS_CONFIG.verified.badge);
+        }
+        // Colour no longer separates them, so the labels must: three states,
+        // three names, never two spellings of one.
+        const handledLabels = ['verified', 'transferred', 'responding']
+            .map((status) => MAP_STATUS_CONFIG[status].label);
+        expect(new Set(handledLabels).size).toBe(3);
     });
 
     test('keeps one owner for the responding lifecycle value', () => {
         // The dot entry is a presentation, not a second status: the state's name,
         // colour and badge still come from MAP_STATUS_CONFIG.responding.
         expect(MAP_STATUS_CONFIG.responding.label).toBe('Active response');
-        expect(MAP_STATUS_CONFIG.responding.dot).toBe('bg-cyan-600');
+        expect(MAP_STATUS_CONFIG.responding.dot).toBe(MAP_STATUS_CONFIG.verified.dot);
     });
 
     test('names both members of the readiness filter in the legend', () => {

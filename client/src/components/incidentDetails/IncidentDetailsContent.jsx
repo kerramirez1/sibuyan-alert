@@ -4,6 +4,7 @@ import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibilit
 import { getTransferLine } from '../../utils/incidentDetails';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import { normalizeMunicipalityKey } from '../../utils/safeCollection';
+import { getMapStatusDot } from '../../config/mapVisuals';
 import IncidentDetailsLocationSection from './IncidentDetailsLocationSection';
 import IncidentDetailsCoreSection from './IncidentDetailsCoreSection';
 import IncidentDetailsDescriptionSection from './IncidentDetailsDescriptionSection';
@@ -129,7 +130,7 @@ const IncidentDetailsContent = ({
                     aria-labelledby="transferred-jurisdiction-heading"
                 >
                     <div className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden="true" />
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getMapStatusDot('transferred')}`} aria-hidden="true" />
                         <h3 id="transferred-jurisdiction-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Jurisdiction Transferred
                         </h3>

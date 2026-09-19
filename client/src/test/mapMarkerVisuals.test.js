@@ -274,11 +274,13 @@ describe('mapMarkerVisuals', () => {
     });
 
     test('explicit override colors never leak another status hue into the gradient', () => {
-        // Unified public pin: transferred status painted verified-blue must be
-        // blue top-to-bottom, not blue over the transferred purple dark tone.
-        const svg = getOperationalMarkerSvg('transferred', '#2563EB');
+        // A pin painted an explicit blue must be blue top-to-bottom, not blue over
+        // the amber lower tone of the status it nominally carries. (The handled
+        // states now share one blue, so a same-hue status could no longer show
+        // this leak.)
+        const svg = getOperationalMarkerSvg('pending', '#2563EB');
         expect(svg).toContain('#2563EB');
-        expect(svg).not.toContain(STATUS_PIN_PALETTES.transferred.dark);
+        expect(svg).not.toContain(STATUS_PIN_PALETTES.pending.dark);
     });
 
     test('createOperationalMarkerElement attaches grouped count badge for multi-incident locations', () => {

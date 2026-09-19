@@ -245,6 +245,44 @@ describe('MapOverlayPanel', () => {
         expect(scrollRegion.scrollTop).toBe(0);
     });
 
+    test('gives the description its own full-width row beneath the title and its controls', () => {
+        render(
+            <MapOverlayPanel
+                title="Active incidents"
+                description="3 active: 1 responding, 2 waiting (1 transferred). Pending is counted separately."
+                onClose={vi.fn()}
+            >
+                <p>Records</p>
+            </MapOverlayPanel>,
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'Active incidents' });
+        const header = dialog.querySelector('header');
+        const description = screen.getByText(/^3 active:/);
+
+        // The header stacks: the subject and its controls take the first row, the
+        // description takes the second. As a cell of the title's column the
+        // description was held one control's width short of the pane's own
+        // padding — a third of a line of text given up on every row of the
+        // sentence, which on this card was the difference between two lines and
+        // three. It is a row of the header itself instead, at the full width of
+        // that header's content box, with the padding on the header rather than
+        // on the line.
+        expect(dialog).toHaveAccessibleDescription(/^3 active:/);
+        expect(header).toHaveClass('flex-col', 'px-4', 'py-3', 'sm:px-5');
+        expect(header.children).toHaveLength(2);
+        expect(header.children[1]).toBe(description);
+        expect(description).toHaveClass('w-full', 'mt-1');
+
+        const [titleRow] = header.children;
+        expect(titleRow).toHaveClass('items-start', 'justify-between');
+        expect(titleRow.querySelector('h2')).toHaveTextContent('Active incidents');
+        expect(titleRow.querySelector('h2').parentElement).toHaveClass('min-w-0', 'flex-1');
+        // The controls stay in that first row, so the description passing under
+        // them never means passing under the close button.
+        expect(screen.getByRole('button', { name: 'Close incident panel' }).closest('header > div')).toBe(titleRow);
+    });
+
     test('supports mobile expand and collapse toggling in contextual presentation', () => {
         render(
             <div className="relative">

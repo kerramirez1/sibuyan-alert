@@ -11,20 +11,23 @@ import {
     RESPONDING_INCIDENT_STATUS_KEY,
 } from '../../config/mapVisuals';
 
-const LEGEND_RING_CLASSES = {
-    risk: 'ring-red-200 dark:ring-red-900',
-    active: 'ring-blue-200 dark:ring-blue-900',
-    pending: 'ring-amber-200 dark:ring-amber-900',
-    verified: 'ring-blue-200 dark:ring-blue-900',
-    transferred: 'ring-violet-200 dark:ring-violet-900',
-    responding: 'ring-cyan-200 dark:ring-cyan-900',
-    resolved: 'ring-green-200 dark:ring-green-900',
-    rejected: 'ring-gray-300 dark:ring-gray-700',
+/**
+ * The ring around a legend swatch, read from the entry that owns the swatch
+ * colour, so a hue change lands in both places at once. This table used to be
+ * hand-written beside the palette, which is how the legend kept a violet ring
+ * around a transferred pin that the canvas drew blue.
+ */
+const LEGEND_RING_BY_KEY = {
+    risk: MAP_RISK_ZONE_CONFIG.ring,
+    active: MAP_ACTIVE_INCIDENT_CONFIG.ring,
+    ...Object.fromEntries(
+        Object.entries(MAP_STATUS_CONFIG).map(([status, config]) => [status, config.ring]),
+    ),
 };
 
 const LegendSymbol = ({ status, color }) => (
     <span
-        className={`inline-block h-2 w-2 shrink-0 rounded-full border border-white/90 shadow-2xs ring-1 ${LEGEND_RING_CLASSES[status] || ''}`}
+        className={`inline-block h-2 w-2 shrink-0 rounded-full border border-white/90 shadow-2xs ring-1 ${LEGEND_RING_BY_KEY[status] || ''}`}
         style={{ backgroundColor: color }}
         aria-hidden="true"
     />
