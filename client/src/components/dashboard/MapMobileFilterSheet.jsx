@@ -15,9 +15,18 @@ const FOCUSABLE_SELECTOR = [
     '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+// One row shape and one selected state for every option in the sheet, so the
+// three sections cannot drift into three different treatments of "chosen".
+const FILTER_ROW_CLASS = 'flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500';
+const FILTER_ROW_STATE_CLASS = (isSelected) => (isSelected
+    ? 'bg-brand-50/80 text-brand-900 dark:bg-white/5 dark:text-sky-300'
+    : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5');
+
 // Dots double as map-legend swatches: each option shares its marker color.
+// 'all' is a scope rather than a status, so it keeps the neutral dot the rail
+// gives it instead of borrowing the brand colour.
 const getStatusDotClass = (filterValue) => {
-    if (filterValue === 'all') return 'bg-brand-500';
+    if (filterValue === 'all') return 'bg-gray-400';
     if (filterValue === 'active') return 'bg-blue-500';
     if (filterValue === 'resolved') return 'bg-green-600';
     return MAP_STATUS_CONFIG[filterValue]?.dot || 'bg-gray-400';
@@ -219,10 +228,7 @@ const MapMobileFilterSheet = ({
                                     aria-checked={isSelected}
                                     aria-label={scopeOption?.label || 'Active Incidents'}
                                     onClick={() => setPendingFilter('all')}
-                                    className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
-                                            ? 'text-brand-800 dark:text-sky-300'
-                                            : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                        }`}
+                                    className={`${FILTER_ROW_CLASS} ${FILTER_ROW_STATE_CLASS(isSelected)}`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true" />
@@ -274,10 +280,7 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
-                                                    ? 'text-brand-800 dark:text-sky-300'
-                                                    : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                                }`}
+                                            className={`${FILTER_ROW_CLASS} ${FILTER_ROW_STATE_CLASS(isSelected)}`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
@@ -321,10 +324,7 @@ const MapMobileFilterSheet = ({
                                             aria-checked={isSelected}
                                             aria-label={filter.label}
                                             onClick={() => setPendingFilter(filter.value)}
-                                            className={`flex min-h-[48px] w-full cursor-pointer items-center justify-between px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isSelected
-                                                    ? 'text-brand-800 dark:text-sky-300'
-                                                    : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/5'
-                                                }`}
+                                            className={`${FILTER_ROW_CLASS} ${FILTER_ROW_STATE_CLASS(isSelected)}`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dot || 'bg-gray-400'}`} aria-hidden="true" />

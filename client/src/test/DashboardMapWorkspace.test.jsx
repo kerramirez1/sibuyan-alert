@@ -153,7 +153,10 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(cards).toHaveLength(3);
         expect(summary.lastElementChild).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-3');
         cards.forEach((card) => {
-            expect(card).toHaveClass('rounded-xl', 'border-2');
+            // The card's outline is a ring, not a border: the base stylesheet
+            // forces every button's border-color transparent, so a bordered card
+            // rendered with no edge at all.
+            expect(card).toHaveClass('rounded-xl', 'ring-1');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });

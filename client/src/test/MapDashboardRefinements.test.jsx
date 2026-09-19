@@ -372,6 +372,32 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(workspaceProps.setResponderMapFilter).toHaveBeenCalledWith('resolved');
         });
 
+        test('draws the selected rail tab with its own indicator instead of a border', () => {
+            render(
+                <MemoryRouter>
+                    <DashboardMapWorkspace {...workspaceProps} />
+                </MemoryRouter>
+            );
+
+            const tablist = screen.getByRole('group', { name: 'Map status filter' });
+            const selectedTab = within(tablist).getByRole('button', { name: /Active Incidents filter/i });
+            const unselectedTab = within(tablist).getByRole('button', { name: /Resolved archive/i });
+
+            expect(selectedTab).toHaveAttribute('aria-pressed', 'true');
+            expect(unselectedTab).toHaveAttribute('aria-pressed', 'false');
+
+            // The indicator is a painted bar inside the tab. It cannot be a
+            // `border-b-2` underline: the base stylesheet forces every button's
+            // border-color transparent, which is how the selected tab used to
+            // render identically to the two beside it.
+            const indicatorOf = (tab) => tab.lastElementChild;
+            expect(indicatorOf(selectedTab)).toHaveClass('h-[2px]');
+            expect(indicatorOf(selectedTab).className).not.toContain('bg-transparent');
+            expect(indicatorOf(unselectedTab)).toHaveClass('bg-transparent');
+            expect(selectedTab.className).not.toContain('border-b-2');
+            expect(unselectedTab.className).not.toContain('border-b-2');
+        });
+
         test('renders 3 slim overview items with aligned values, chevrons, and accessible button semantics', () => {
             render(
                 <MemoryRouter>
@@ -454,13 +480,19 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             const buttons = within(summaryRegion).getAllByRole('button');
 
             buttons.forEach((btn) => {
-                // Desktop card label keeps the one-line no-clip contract; the
-                // mobile slim row intentionally truncates instead.
-                const labelSpan = btn.querySelector('span.uppercase.whitespace-nowrap');
-                expect(labelSpan).toBeInTheDocument();
-                // Labels stay on a single responsive line: never wrapped, never clipped
-                expect(labelSpan.className).toContain('whitespace-nowrap');
-                expect(labelSpan.className).not.toContain('truncate');
+                // Two label spans per card: the mobile slim row clips on
+                // purpose, the desktop card label is the one that must never
+                // clip.
+                const labelSpans = Array.from(btn.querySelectorAll('span.uppercase'));
+                expect(labelSpans.length).toBeGreaterThanOrEqual(2);
+                expect(labelSpans.some((span) => span.className.includes('truncate'))).toBe(true);
+                const labelSpan = labelSpans.find((span) => !span.className.includes('truncate'));
+                expect(labelSpan).toBeTruthy();
+                // The desktop label wraps to a second line rather than being
+                // clipped, and is not forced onto one line either — a nowrap
+                // label overflowed its box and sat under the chevron.
+                expect(labelSpan.className).toContain('leading-snug');
+                expect(labelSpan.className).not.toContain('whitespace-nowrap');
 
                 // Helper text must also wrap cleanly without single-line clipping
                 const helperP = btn.querySelector('p.text-gray-500, p.text-gray-400');

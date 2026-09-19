@@ -431,6 +431,7 @@ const DashboardAnalyticsWorkspace = ({
     error,
     onOpenMap,
     onOpenReports,
+    viewSwitch = null,
 }) => {
     const safeReports = toSafeArray(reports);
     const safeAllReports = toSafeArray(allReports);
@@ -561,20 +562,21 @@ const DashboardAnalyticsWorkspace = ({
         <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4">
             {/* Header & Controls */}
             <header className="flex flex-col gap-2">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                     <div className="min-w-0">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
+                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-sky-400">
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </span>
-                        <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                        <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 sm:text-[32px] dark:text-white">
                             Municipal Situation Overview
                         </h1>
-                        <p className="mt-0.5 max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        <p className="mt-1.5 max-w-[68ch] text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`
                                 : `Island-wide incident briefing and municipal comparisons for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`}
                         </p>
                     </div>
+                    {viewSwitch && <div className="shrink-0 sm:pt-0.5">{viewSwitch}</div>}
                 </div>
 
                 <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">

@@ -30,7 +30,7 @@ import {
 import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
-import { getMapFilterStatusDot, getMapRiskTypeConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import { getMapRiskTypeConfig, MAP_ACTIVE_INCIDENT_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
@@ -244,8 +244,14 @@ const RiskZoneList = ({ zones = [], onInspect, onLocate, loading = false, error 
  * map; a second icon is only worth its ink while a card exists that needs it,
  * and the moment one card wore the wrong one the pattern stopped being readable.
  */
-const MetricStripAffordance = () => (
-    <HiChevronRight className="h-4 w-4 shrink-0 text-brand-500 transition-all group-hover:translate-x-0.5 group-hover:text-brand-700 dark:text-gray-600" aria-hidden="true" />
+const MetricStripAffordance = ({ selected = false }) => (
+    <HiChevronRight
+        className={`h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 ${selected
+            ? 'text-brand-700 dark:text-sky-300'
+            : 'text-gray-400 group-hover:text-brand-700 dark:text-gray-500 dark:group-hover:text-sky-300'
+            }`}
+        aria-hidden="true"
+    />
 );
 
 const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, loading = false }) => (
@@ -258,45 +264,147 @@ const MetricStripItem = ({ label, value, helper, onClick, selected, statusDot, l
         aria-busy={loading || undefined}
         aria-label={`View ${value} ${label.toLowerCase()}. ${helper}`}
         title={`${value} ${label} — ${helper}`}
-        className={`group min-w-0 cursor-pointer rounded-xl px-3 py-2 text-left shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 ${selected
-            ? 'border border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-white/5'
-            : 'border-2 border-brand-700 bg-brand-100/80 shadow hover:border-brand-800 hover:bg-brand-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
+        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white/95 px-3 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:-translate-y-px hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3.5 dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
+            ? 'ring-2 ring-brand-600 dark:ring-brand-400'
+            : ''
             }`}
     >
-        {/* Mobile: single-line row (label left, value + chevron right) */}
-        <span className="flex w-full items-center gap-2 sm:hidden">
-            {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+        {/* The selected fill is its own layer instead of a second `bg-*` utility
+            on the button. Two reasons: the base stylesheet forces every
+            button's border-color transparent, so a border can never carry this
+            state, and two competing background utilities on one element resolve
+            by stylesheet order rather than by class order. A ring is a
+            box-shadow and survives; this tint sits behind the text. */}
+        <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-0 rounded-xl bg-brand-50 transition-opacity duration-150 dark:bg-white/[0.06] ${selected ? 'opacity-100' : 'opacity-0'}`}
+        />
+        {/* Mobile: one compact row per metric, so the whole row of numbers
+            still sits above the map on a phone. The supporting line indents to
+            the label, clearing the status dot. */}
+        <span className="relative flex w-full items-center gap-2 sm:hidden">
+            {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
             <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {label}
             </span>
-            <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-gray-900 dark:text-white">
+            <span className="shrink-0 text-xl font-bold leading-none tabular-nums tracking-tight text-gray-900 dark:text-white">
                 {value}
             </span>
-            <MetricStripAffordance />
+            <MetricStripAffordance selected={selected} />
         </span>
         {helper && (
-            <span className="mt-0.5 block truncate text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
+            <span className="relative mt-1 block truncate pl-4 text-[11px] font-normal text-gray-500 sm:hidden dark:text-gray-400">
                 {helper}
             </span>
         )}
-        {/* Desktop: stacked card (unchanged) */}
-        <span className="hidden w-full items-center gap-1.5 sm:flex">
-            <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase whitespace-nowrap tracking-wide sm:text-[11px] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
-                {statusDot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-                <span>{label}</span>
+        {/* Desktop: label, number, supporting line — one reading order, with the
+            number carrying the weight. */}
+        <span className="relative hidden w-full items-center gap-2 sm:flex">
+            {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
+            {/* Wraps onto a second line rather than truncating or overflowing:
+                the label names the set the card opens, so a clipped name is
+                worse than a taller card. */}
+            <span className={`min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-[0.08em] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                {label}
             </span>
-            <MetricStripAffordance />
+            <MetricStripAffordance selected={selected} />
         </span>
-        <span className="mt-0.5 hidden text-xl font-bold tabular-nums tracking-tight text-gray-900 sm:block sm:text-2xl dark:text-white">
+        <span className="relative mt-1.5 hidden text-2xl font-bold leading-none tabular-nums tracking-tight text-gray-900 sm:block dark:text-white">
             {value}
         </span>
         {helper && (
-            <span className="mt-0.5 hidden truncate text-[11px] font-normal text-gray-500 sm:block dark:text-gray-400" title={helper}>
+            <span className="relative mt-1.5 hidden truncate text-[11px] font-medium text-gray-500 sm:block dark:text-gray-400" title={helper}>
                 {helper}
             </span>
         )}
     </button>
 );
+
+/**
+ * Rail tones: the colour of a rail tab is the colour of its own status dot —
+ * the same dot the overview card prints and the legend swatches — so a tab, a
+ * card, and a legend entry for one status cannot drift apart. `all` is a scope
+ * rather than a status, so it keeps the neutral tone instead of borrowing the
+ * brand colour and implying it filters something.
+ */
+const RAIL_TONES = {
+    neutral: {
+        dot: 'bg-gray-400', selectedSurface: 'bg-gray-100/80 dark:bg-white/10', selectedText: 'text-gray-900 dark:text-white', bar: 'bg-gray-500',
+    },
+    amber: {
+        dot: MAP_STATUS_CONFIG.pending.dot, selectedSurface: 'bg-amber-50/80 dark:bg-amber-500/10', selectedText: 'text-amber-900 dark:text-amber-200', bar: MAP_STATUS_CONFIG.pending.dot,
+    },
+    blue: {
+        dot: MAP_ACTIVE_INCIDENT_CONFIG.dot, selectedSurface: 'bg-blue-50/80 dark:bg-blue-500/10', selectedText: 'text-blue-900 dark:text-blue-200', bar: MAP_ACTIVE_INCIDENT_CONFIG.dot,
+    },
+    red: {
+        dot: 'bg-red-500', selectedSurface: 'bg-red-50/80 dark:bg-red-500/10', selectedText: 'text-red-900 dark:text-red-200', bar: 'bg-red-500',
+    },
+    emerald: {
+        dot: MAP_STATUS_CONFIG.resolved.dot, selectedSurface: 'bg-green-50/80 dark:bg-green-500/10', selectedText: 'text-green-900 dark:text-green-200', bar: MAP_STATUS_CONFIG.resolved.dot,
+    },
+    cyan: {
+        dot: MAP_STATUS_CONFIG.responding.dot, selectedSurface: 'bg-cyan-50/80 dark:bg-cyan-500/10', selectedText: 'text-cyan-900 dark:text-cyan-200', bar: MAP_STATUS_CONFIG.responding.dot,
+    },
+};
+
+// Every value a filter can take, not just the five the rail ships today: these
+// same lookups draw the mobile summary line, which renders whatever filter a
+// deep link arrived with. An unmapped value would silently fall back to the
+// neutral tone — the colour of "no status", which is the drift this table is
+// here to prevent.
+const RAIL_TONE_BY_FILTER = {
+    all: 'neutral',
+    pending: 'amber',
+    verified: 'blue',
+    active: 'blue',
+    dispatch: 'blue',
+    responding: 'cyan',
+    'risk-zones': 'red',
+    resolved: 'emerald',
+};
+
+const getRailTone = (filterValue) => RAIL_TONE_BY_FILTER[filterValue] || 'neutral';
+
+// One dot per filter, shared by the desktop rail, the mobile summary line and
+// the mobile sheet. Three surfaces, one lookup.
+const getRailDotClass = (filterValue) => RAIL_TONES[getRailTone(filterValue)].dot;
+
+/**
+ * One control in the map rail.
+ *
+ * The selected state is a tinted surface plus a 2px bar, not a `border-b-2`
+ * underline: the base stylesheet forces every button's border-color
+ * transparent, so an underline tab rendered with no line at all and the tab
+ * that was supposed to read as selected looked exactly like the two beside it.
+ */
+const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, title, ariaLabel }) => {
+    const styles = RAIL_TONES[tone] || RAIL_TONES.neutral;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={selected}
+            title={title}
+            aria-label={ariaLabel}
+            className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-lg px-2.5 pb-2.5 pt-2 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${selected
+                ? `${styles.selectedSurface} font-semibold ${styles.selectedText}`
+                : `font-normal text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
+                }`}
+        >
+            <span className={`h-2 w-2 shrink-0 rounded-full ${styles.dot}`} aria-hidden="true" />
+            <span>{label}</span>
+            <span className={`text-[11px] font-medium tabular-nums ${selected ? '' : 'text-gray-400 dark:text-gray-500'}`}>
+                {count}
+            </span>
+            <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-x-2 -bottom-px h-[2px] rounded-full ${selected ? styles.bar : 'bg-transparent'}`}
+            />
+        </button>
+    );
+};
 
 const DashboardMapWorkspace = ({
     user,
@@ -330,6 +438,7 @@ const DashboardMapWorkspace = ({
     setMapSummaryPanel,
     activePanel,
     pulseReportIds = [],
+    viewSwitch = null,
 }) => {
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
@@ -857,18 +966,22 @@ const DashboardMapWorkspace = ({
 
     return (
         <div className="mx-auto w-full max-w-[1500px] space-y-3 sm:space-y-5">
-            <header>
+            {/* Title block left, view switch right. The switch used to sit in a
+                row of its own above this header, which cost a band of empty
+                space on the one page that has both views. */}
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-sky-400">
                         {mapExperience.eyebrow}
                     </p>
-                    <h1 className="mt-0.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-950 dark:text-white break-words">
+                    <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 sm:text-[32px] dark:text-white break-words">
                         {mapExperience.title}
                     </h1>
-                    <p className="hidden sm:block mt-0.5 max-w-2xl text-sm text-gray-600 dark:text-gray-300 break-words">
+                    <p className="hidden sm:block mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300 break-words">
                         {mapExperience.description}
                     </p>
                 </div>
+                {viewSwitch && <div className="shrink-0 sm:pt-0.5">{viewSwitch}</div>}
             </header>
 
             {error && (
@@ -912,9 +1025,9 @@ const DashboardMapWorkspace = ({
              * section keeps its "Map summary" label and the heading below is
              * unchanged — only the reading order moved. */}
             <section className="space-y-2 sm:space-y-2.5" aria-label="Map summary">
-                <div className="flex items-baseline justify-between gap-2 px-1">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Current overview</h2>
-                    <p className="shrink-0 text-[11px] text-gray-400 sm:text-xs dark:text-gray-500">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Current overview</h2>
+                    <p className="shrink-0 text-[11px] font-medium text-gray-400 dark:text-gray-500">
                         <span className="hidden sm:inline">Select any metric to view matching records</span>
                         <span className="sm:hidden">Tap to view records</span>
                     </p>
@@ -937,21 +1050,21 @@ const DashboardMapWorkspace = ({
                 </div>
             </section>
 
-            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
-                <div className="flex flex-col gap-1.5 p-1.5 sm:gap-2 sm:p-2.5">
+            <section ref={mapSectionRef} className="scroll-mt-20 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Live incident map">
+                <div className="flex flex-col gap-2 p-2 sm:gap-2.5 sm:p-2.5">
                     {mapExperience.filters.length > 0 && (() => {
                         const isFiltered = responderMapFilter && responderMapFilter !== 'all';
                         const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
                         const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
                         const activeFilterCount = getFilterCount(responderMapFilter);
                         const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
-                        // Config owns which statuses a tab shows, so it owns the
-                        // dot too: 'dispatch' is a pair, and reading its color
-                        // off MAP_STATUS_CONFIG directly would have fallen back
-                        // to gray — the color of "unknown state".
-                        const activeStatusDotClass = responderMapFilter === 'risk-zones'
-                            ? 'bg-red-500'
-                            : (getMapFilterStatusDot(responderMapFilter) || 'bg-emerald-500');
+                        // Config owns which statuses a tab shows, so it owns the dot
+                        // too: 'dispatch' is a pair, and reading its colour off
+                        // MAP_STATUS_CONFIG directly would have fallen back to gray
+                        // — the colour of "unknown state". This is the same lookup
+                        // the rail and the sheet read, so the summary dot cannot
+                        // name a different colour than the tab it reports on.
+                        const activeStatusDotClass = getRailDotClass(responderMapFilter);
 
                         return (
                             <>
@@ -965,15 +1078,15 @@ const DashboardMapWorkspace = ({
                                         aria-expanded={isMobileFilterOpen}
                                         aria-haspopup="dialog"
                                         aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
-                                        className={`inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer ${isFiltered
-                                            ? 'border-brand-700 bg-brand-700 text-white dark:border-brand-500 dark:bg-brand-600 dark:text-white'
-                                            : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5'
+                                        className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold shadow-sm ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${isFiltered
+                                            ? 'bg-brand-700 text-white ring-brand-700 dark:bg-brand-600 dark:ring-brand-500'
+                                            : 'bg-white/95 text-gray-800 ring-gray-200/80 hover:bg-white hover:ring-gray-300 dark:bg-white/5 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/10'
                                             }`}
                                     >
                                         <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-100 dark:text-white' : 'text-brand-700 dark:text-sky-400'}`} aria-hidden="true" />
                                         <span>Filters</span>
                                         {isFiltered && (
-                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white text-brand-800 px-1 text-[10px] font-bold tabular-nums dark:bg-white dark:text-brand-800">
+                                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold tabular-nums text-brand-800">
                                                 1
                                             </span>
                                         )}
@@ -981,8 +1094,8 @@ const DashboardMapWorkspace = ({
 
                                     {/* Active Filter Summary (plain text) and Clear Action */}
                                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                                        <p className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[11px] text-gray-600 sm:text-xs dark:text-gray-400">
-                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
+                                        <p className="flex min-w-0 flex-1 items-center gap-2 truncate text-[11px] font-medium text-gray-600 sm:text-xs dark:text-gray-400">
+                                            <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
                                             <span className="truncate">{activeFilterSummary}</span>
                                         </p>
 
@@ -991,7 +1104,7 @@ const DashboardMapWorkspace = ({
                                                 type="button"
                                                 onClick={() => setResponderMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
-                                                className="flex min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200 cursor-pointer"
+                                                className="flex min-h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200"
                                                 title="Clear filter"
                                             >
                                                 <HiOutlineX className="h-4 w-4" aria-hidden="true" />
@@ -1029,9 +1142,6 @@ const DashboardMapWorkspace = ({
                                         .map((filter) => {
                                             const count = getFilterCount(filter.value);
                                             const isSelected = responderMapFilter === filter.value;
-                                            const statusCfg = filter.value === 'active'
-                                                ? { dot: 'bg-blue-500' }
-                                                : MAP_STATUS_CONFIG[filter.value] || { dot: 'bg-gray-400' };
                                             const tooltip = filter.value === 'all'
                                                 ? (mapExperience.showPendingReports
                                                     ? 'All open reports (pending + being handled)'
@@ -1039,26 +1149,16 @@ const DashboardMapWorkspace = ({
                                                 : 'Unverified reports awaiting review';
 
                                             return (
-                                                <button
+                                                <MapRailTab
                                                     key={filter.value}
-                                                    type="button"
+                                                    label={filter.label}
+                                                    count={count}
+                                                    tone={getRailTone(filter.value)}
+                                                    selected={isSelected}
                                                     onClick={() => setResponderMapFilter(filter.value)}
-                                                    aria-pressed={isSelected}
                                                     title={tooltip}
-                                                    aria-label={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
-                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isSelected
-                                                        ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
-                                                        : `border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
-                                                        }`}
-                                                >
-                                                    {statusCfg?.dot && (
-                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusCfg.dot}`} aria-hidden="true" />
-                                                    )}
-                                                    <span>{filter.label}</span>
-                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                                        {count}
-                                                    </span>
-                                                </button>
+                                                    ariaLabel={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                                                />
                                             );
                                         })}
                                     {(() => {
@@ -1077,40 +1177,24 @@ const DashboardMapWorkspace = ({
                                                     <span className="hidden pb-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 lg:inline dark:text-gray-500" aria-hidden="true">
                                                         Layers &amp; archive
                                                     </span>
-                                                <button
-                                                    type="button"
+                                                <MapRailTab
+                                                    label={layerFilters.find((filter) => filter.value === 'risk-zones')?.label || 'Risk zones'}
+                                                    count={riskCount}
+                                                    tone={getRailTone('risk-zones')}
+                                                    selected={isRiskSelected}
                                                     onClick={() => setResponderMapFilter(isRiskSelected ? 'all' : 'risk-zones')}
-                                                    aria-pressed={isRiskSelected}
                                                     title="Toggle the mapped hazard layer"
-                                                    aria-label={`Risk zones layer (${riskCount} ${riskCount === 1 ? 'zone' : 'zones'})${isRiskSelected ? ', shown' : ''}`}
-                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isRiskSelected
-                                                        ? 'border-red-500 bg-red-50/70 font-semibold text-red-700 dark:border-red-500 dark:bg-white/5 dark:text-red-300'
-                                                        : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                                        }`}
-                                                >
-                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
-                                                    <span>{layerFilters.find((filter) => filter.value === 'risk-zones')?.label || 'Risk zones'}</span>
-                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                                        {riskCount}
-                                                    </span>
-                                                </button>
-                                                <button
-                                                    type="button"
+                                                    ariaLabel={`Risk zones layer (${riskCount} ${riskCount === 1 ? 'zone' : 'zones'})${isRiskSelected ? ', shown' : ''}`}
+                                                />
+                                                <MapRailTab
+                                                    label={layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}
+                                                    count={resolvedCount}
+                                                    tone={getRailTone('resolved')}
+                                                    selected={isResolvedSelected}
                                                     onClick={() => setResponderMapFilter('resolved')}
-                                                    aria-pressed={isResolvedSelected}
                                                     title="View the resolved incident archive"
-                                                    aria-label={`Resolved archive (${resolvedCount} ${resolvedCount === 1 ? 'record' : 'records'})${isResolvedSelected ? ', selected' : ''}`}
-                                                    className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 pt-1.5 px-2 rounded-t-md text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${isResolvedSelected
-                                                        ? 'border-brand-600 bg-brand-50/70 font-semibold text-brand-800 dark:border-brand-500 dark:bg-white/5 dark:text-sky-300'
-                                                        : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                                        }`}
-                                                >
-                                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-600" aria-hidden="true" />
-                                                    <span>{layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}</span>
-                                                    <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                                                        {resolvedCount}
-                                                    </span>
-                                                </button>
+                                                    ariaLabel={`Resolved archive (${resolvedCount} ${resolvedCount === 1 ? 'record' : 'records'})${isResolvedSelected ? ', selected' : ''}`}
+                                                />
                                                 </span>
                                             </Fragment>
                                         );

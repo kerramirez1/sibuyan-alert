@@ -20,7 +20,6 @@ import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigati
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import DashboardViewSwitch from '../components/dashboard/DashboardViewSwitch';
 import {
-    DASHBOARD_ANALYTICS_VIEW,
     DASHBOARD_MAP_VIEW,
     canViewAnalytics,
     resolveDashboardView,
@@ -898,85 +897,91 @@ const DashboardPage = () => {
 
     const showMapWorkspace = dashboardView === DASHBOARD_MAP_VIEW;
 
-    // The view switch is rendered outside this <Suspense> on purpose: both
-    // workspaces are lazy chunks, so a switch rendered inside one would vanish
-    // while its bundle loads — the user would tap Analytics and watch the way
-    // back disappear for as long as the chart chunk takes.
+    // The switch is one node owned by this page and handed to whichever
+    // workspace is rendering, which places it in the page header row. It used to
+    // be rendered here in a row of its own above the workspace: a 40px control
+    // alone in that band left a dead gap between the app bar and the page title
+    // on the one page that has both views.
+    //
+    // The cost is that the header row, and with it the switch, is not mounted
+    // while a lazy chunk is loading — the fallback below is the whole screen.
+    // That only happens on a cold load of that workspace: once the chunk has
+    // loaded, Suspense resolves without ever showing the fallback.
+    const viewSwitch = canOpenAnalytics
+        ? <DashboardViewSwitch active={dashboardView} />
+        : null;
+
     if (showMapWorkspace) {
         return (
-            <>
-                {canOpenAnalytics && <DashboardViewSwitch active={DASHBOARD_MAP_VIEW} />}
-                <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
-                    <DashboardMapWorkspace
-                        user={user}
-                        isAuthenticated={isAuthenticated}
-                        isAdmin={isAdmin}
-                        isResponder={isResponder}
-                        isReporter={isReporter}
-                        loading={loading}
-                        error={dashboardError}
-                        reports={dashboardReports}
-                        resolvedTodayReports={computedResolvedTodayReports}
-                        highRiskZones={highRiskZones}
-                        highRiskZonesLoading={highRiskZonesLoading}
-                        highRiskZonesError={highRiskZonesError}
-                        onRetryHighRiskZones={refreshHighRiskZones}
-                        roleStats={roleStats}
-                        reporterOverviewReports={reporterOverviewReports}
-                        reporterOverviewReportsLoading={reporterOverviewReportsLoading}
-                        reporterOverviewReportsError={reporterOverviewReportsError}
-                        onLoadReporterOverviewReports={loadReporterOverviewReports}
-                        focusLocation={focusLocation}
-                        focusedReport={focusedMapReport}
-                        focusedRiskZone={focusedRiskZone}
-                        focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
-                        responderMapFilter={responderMapFilter}
-                        setResponderMapFilter={setResponderMapFilter}
-                        canCurrentResponderResolve={canCurrentResponderResolve}
-                        handleMapRespond={handleMapRespond}
-                        handleMapResolve={handleMapResolve}
-                        handleMapVerify={handleMapVerify}
-                        handleMapReject={handleMapReject}
-                        setSearchParams={setSearchParams}
-                        mapSummaryPanel={mapSummaryPanel}
-                        setMapSummaryPanel={setMapSummaryPanel}
-                        activePanel={panelView}
-                        pulseReportIds={pulseReportIds}
-                    />
-                </Suspense>
-            </>
+            <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+                <DashboardMapWorkspace
+                    user={user}
+                    isAuthenticated={isAuthenticated}
+                    isAdmin={isAdmin}
+                    isResponder={isResponder}
+                    isReporter={isReporter}
+                    loading={loading}
+                    error={dashboardError}
+                    reports={dashboardReports}
+                    resolvedTodayReports={computedResolvedTodayReports}
+                    highRiskZones={highRiskZones}
+                    highRiskZonesLoading={highRiskZonesLoading}
+                    highRiskZonesError={highRiskZonesError}
+                    onRetryHighRiskZones={refreshHighRiskZones}
+                    roleStats={roleStats}
+                    reporterOverviewReports={reporterOverviewReports}
+                    reporterOverviewReportsLoading={reporterOverviewReportsLoading}
+                    reporterOverviewReportsError={reporterOverviewReportsError}
+                    onLoadReporterOverviewReports={loadReporterOverviewReports}
+                    focusLocation={focusLocation}
+                    focusedReport={focusedMapReport}
+                    focusedRiskZone={focusedRiskZone}
+                    focusedReportMissing={Boolean(focusedMapReportId && !focusedMapReport && focusedReportMissing)}
+                    responderMapFilter={responderMapFilter}
+                    setResponderMapFilter={setResponderMapFilter}
+                    canCurrentResponderResolve={canCurrentResponderResolve}
+                    handleMapRespond={handleMapRespond}
+                    handleMapResolve={handleMapResolve}
+                    handleMapVerify={handleMapVerify}
+                    handleMapReject={handleMapReject}
+                    setSearchParams={setSearchParams}
+                    mapSummaryPanel={mapSummaryPanel}
+                    setMapSummaryPanel={setMapSummaryPanel}
+                    activePanel={panelView}
+                    pulseReportIds={pulseReportIds}
+                    viewSwitch={viewSwitch}
+                />
+            </Suspense>
         );
     }
 
 
     return (
-        <>
-            {canOpenAnalytics && <DashboardViewSwitch active={DASHBOARD_ANALYTICS_VIEW} />}
-            <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
-                <DashboardAnalyticsWorkspace
-                    user={user}
-                    hasMunicipality={hasMunicipality}
-                    selectedMonth={selectedMonth}
-                    setSelectedMonth={setSelectedMonth}
-                    reports={monthFilteredReports}
-                    allReports={dashboardReports}
-                    highRiskZones={highRiskZones}
-                    performanceMetrics={performanceMetrics}
-                    chartData={chartData}
-                    statusData={statusData}
-                    municipalityBarData={municipalityBarData}
-                    barangayBarData={barangayBarData}
-                    incidentTypeBarData={incidentTypeBarData}
-                    dashboardReports={dashboardReports}
-                    focusLocation={focusLocation}
-                    historySectionRef={historySectionRef}
-                    loading={loading}
-                    error={dashboardError}
-                    onOpenMap={() => setSearchParams({ view: DASHBOARD_MAP_VIEW })}
-                    onOpenReports={() => navigate('/admin/reports')}
-                />
-            </Suspense>
-        </>
+        <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="spinner" /></div>}>
+            <DashboardAnalyticsWorkspace
+                user={user}
+                hasMunicipality={hasMunicipality}
+                selectedMonth={selectedMonth}
+                setSelectedMonth={setSelectedMonth}
+                reports={monthFilteredReports}
+                allReports={dashboardReports}
+                highRiskZones={highRiskZones}
+                performanceMetrics={performanceMetrics}
+                chartData={chartData}
+                statusData={statusData}
+                municipalityBarData={municipalityBarData}
+                barangayBarData={barangayBarData}
+                incidentTypeBarData={incidentTypeBarData}
+                dashboardReports={dashboardReports}
+                focusLocation={focusLocation}
+                historySectionRef={historySectionRef}
+                loading={loading}
+                error={dashboardError}
+                onOpenMap={() => setSearchParams({ view: DASHBOARD_MAP_VIEW })}
+                onOpenReports={() => navigate('/admin/reports')}
+                viewSwitch={viewSwitch}
+            />
+        </Suspense>
     );
 };
 
