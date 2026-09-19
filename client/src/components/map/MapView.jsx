@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -1611,4 +1611,16 @@ const MapView = ({
     );
 };
 
-export default MapView;
+/**
+ * Memoized because this component is expensive to render and its output is a
+ * pure function of its props — every map mutation already lives in an effect
+ * keyed on a prop. Without the memo, any unrelated state change in the parent
+ * (an upload progress tick, a keystroke in the report form) re-rendered the
+ * whole map: ~30 effects re-evaluated and marker layers rebuilt for a canvas
+ * that had not changed.
+ *
+ * Callers must pass stable values for the props they own; a `reports` array
+ * that is mutated in place rather than replaced would defeat this and, worse,
+ * hide the change. The app replaces state immutably throughout.
+ */
+export default memo(MapView);

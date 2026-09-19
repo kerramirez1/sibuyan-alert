@@ -13,6 +13,12 @@
  * enough that the reporter is usually still on the page when it gives up — with
  * no timeout at all a faded radio can leave the request pending for minutes,
  * and the report dies with the app.
+ *
+ * What this now has to cover is the upload and a short server round trip:
+ * image analysis is queued after the 201 (`scheduleEvidenceMetadataProcessing`
+ * on the server), so it no longer adds minutes to the request. Before that
+ * change the server's own work alone measured ~90s for five photos, which meant
+ * this timeout fired on a submission the server went on to complete.
  */
 export const REPORT_SUBMIT_TIMEOUT_MS = 60000;
 

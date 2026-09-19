@@ -216,4 +216,29 @@ describe('Face Redaction and Evidence Derivative Services with Real Fixtures', {
 
         detectFacesSpy.mockRestore();
     });
+
+    test('13. skipCache analyses without reading or writing the derivative cache', async () => {
+        // Small, unique bytes: this test is about cache behaviour, and a plain
+        // image keeps the scan cheap. Content this distinctive cannot collide
+        // with another test's fixture in the module-level cache.
+        const source = await sharp({
+            create: { width: 120, height: 96, channels: 3, background: { r: 12, g: 34, b: 56 } },
+        }).jpeg({ quality: 80 }).toBuffer();
+
+        const firstUncached = await generateRedactedEvidenceDerivative(source, { skipCache: true });
+        const secondUncached = await generateRedactedEvidenceDerivative(source, { skipCache: true });
+
+        // Identical input twice: a cacheHit on the second pass would mean the
+        // first one wrote an entry, which is exactly what must not happen for
+        // the submit-time analysis.
+        expect(firstUncached.metadata.cacheHit).toBe(false);
+        expect(secondUncached.metadata.cacheHit).toBe(false);
+
+        // The option is scoped to that call: a normal analysis still caches.
+        const cachedFirst = await generateRedactedEvidenceDerivative(source);
+        const cachedSecond = await generateRedactedEvidenceDerivative(source);
+
+        expect(cachedFirst.metadata.cacheHit).toBe(false);
+        expect(cachedSecond.metadata.cacheHit).toBe(true);
+    });
 });

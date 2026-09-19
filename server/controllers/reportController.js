@@ -13,6 +13,7 @@ import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
+import { evidenceProcessingQueue } from '../services/evidenceProcessingQueue.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
 import { toOptionalCount } from '../utils/casualtyCounts.js';
 import {
@@ -75,19 +76,122 @@ const findRecentDuplicateCandidates = async ({ coordinates, municipalityId, inci
     });
 };
 
-const persistEvidenceMetadata = async (reportId, evidenceIndex, derivativeMetadata) => {
-    const metadata = {
-        index: evidenceIndex,
-        detectionStatus: derivativeMetadata.detectionStatus,
-        redactionType: derivativeMetadata.redactionType,
-        facesDetected: derivativeMetadata.facesDetected,
-        redactedRegions: derivativeMetadata.redactedRegions,
-        redactionVersion: derivativeMetadata.redactionVersion,
-        detectorVersion: derivativeMetadata.detectorVersion,
-        sourceHash: derivativeMetadata.sourceHash,
-        derivativeHash: derivativeMetadata.derivativeHash,
+/**
+ * Shapes one stored evidence entry.
+ *
+ * Every writer — the submit-time analysis and the evidence preview endpoint —
+ * persists through this, so the two cannot drift into disagreeing about the
+ * field set they store for the same index.
+ */
+const buildEvidenceMetadataEntry = (evidenceIndex, derivativeMetadata) => ({
+    index: evidenceIndex,
+    detectionStatus: derivativeMetadata.detectionStatus,
+    redactionType: derivativeMetadata.redactionType,
+    facesDetected: derivativeMetadata.facesDetected,
+    redactedRegions: derivativeMetadata.redactedRegions,
+    redactionVersion: derivativeMetadata.redactionVersion,
+    detectorVersion: derivativeMetadata.detectorVersion,
+    sourceHash: derivativeMetadata.sourceHash,
+    derivativeHash: derivativeMetadata.derivativeHash,
+});
+
+/**
+ * Recorded when the analysis itself failed.
+ *
+ * The version is deliberately behind `DERIVATIVE_VERSION` on purpose:
+ * `publicReport` only treats an entry as current when its version matches, so
+ * an analysis that never completed reads as "processing" instead of claiming a
+ * redaction that did not run.
+ */
+const buildFailedEvidenceMetadataEntry = (evidenceIndex) => ({
+    index: evidenceIndex,
+    detectionStatus: 'detector_failed',
+    redactionType: 'fallback_blur',
+    facesDetected: 0,
+    redactedRegions: 0,
+    redactionVersion: '3.2',
+    detectorVersion: 'picojs-facefinder-2.3',
+});
+
+/**
+ * Analysis options for the submit-time evidence job.
+ *
+ * `fastMode` is the same single-pass <=800px gate the registration selfie uses.
+ * It is the right trade here because the stored entry is only a coarse label on
+ * the public projection (`publicReport`) and the image actually served is a
+ * whole-frame soft blur — while the full sweep measured ~10s for a plain photo
+ * and ~18-24s for a phone photo carrying EXIF rotation.
+ *
+ * `skipCache` keeps this job out of the derivative cache: its option set is not
+ * the one the preview endpoint later asks for, so caching here would occupy a
+ * slot nothing reads and evict entries that do get read.
+ */
+const EVIDENCE_ANALYSIS_OPTIONS = { fastMode: true, skipCache: true };
+
+/**
+ * Queues evidence analysis for uploaded photos and persists each result.
+ *
+ * Runs off the request path by design. Failures stay isolated per photo: one
+ * photo that cannot be analysed gets a fallback entry while the rest complete,
+ * and a failure never reaches the HTTP response.
+ *
+ * @returns {number} how many photos were queued
+ */
+const scheduleEvidenceMetadataProcessing = (reportId, files, { startIndex = 0 } = {}) => {
+    if (!reportId || !Array.isArray(files) || files.length === 0) return 0;
+
+    files.forEach((file, offset) => {
+        const evidenceIndex = startIndex + offset;
+
+        evidenceProcessingQueue.enqueue(async () => {
+            let entry;
+
+            try {
+                const derivative = await generateRedactedEvidenceDerivative(
+                    file.buffer,
+                    EVIDENCE_ANALYSIS_OPTIONS,
+                );
+                entry = buildEvidenceMetadataEntry(evidenceIndex, derivative.metadata);
+            } catch (error) {
+                console.warn(`Evidence analysis failed for index ${evidenceIndex}:`, error?.message || error);
+                entry = buildFailedEvidenceMetadataEntry(evidenceIndex);
+            }
+
+            await persistEvidenceMetadata(reportId, evidenceIndex, entry);
+        });
+    });
+
+    return files.length;
+};
+
+/**
+ * Defers `task` until the response has been flushed.
+ *
+ * The detector blocks the event loop for the length of a scan, so starting the
+ * analysis any earlier can hold the 201 on the socket — the exact latency this
+ * deferral exists to remove. `finish` means the bytes are written; `close`
+ * covers a client that vanished, where the work is still worth doing because
+ * the report itself is already persisted.
+ */
+const runAfterResponse = (res, task) => {
+    let started = false;
+    const run = () => {
+        if (started) return;
+        started = true;
+        task();
     };
 
+    if (typeof res?.once !== 'function') {
+        // No wire to wait for (internal reuse, tests): run at the call site.
+        run();
+        return;
+    }
+
+    res.once('finish', run);
+    res.once('close', run);
+};
+
+const persistEvidenceMetadata = async (reportId, evidenceIndex, metadata) => {
     // Replace every entry for this exact index in one atomic update. This
     // prevents duplicate metadata rows when two preview requests race while
     // also replacing stale detector/redaction versions.
@@ -271,7 +375,6 @@ export const createReport = async (req, res) => {
 
         const reportId = new mongoose.Types.ObjectId();
 
-        let evidenceMetadata = [];
         if (req.files?.length) {
             const storedImages = await uploadFilesToGridFS(req.files, {
                 category: 'report_evidence',
@@ -281,41 +384,9 @@ export const createReport = async (req, res) => {
                 municipalityName: locationResult.municipalityName,
             });
             uploadedImageUrls = storedImages.map(({ url }) => url);
-
-            // Precompute evidence derivative metadata resiliently using Promise.allSettled.
-            // Face detection failures or processing delays must never block or fail report creation.
-            try {
-                const derivativeResults = await Promise.allSettled(
-                    req.files.map(async (file, idx) => {
-                        const derivative = await generateRedactedEvidenceDerivative(file.buffer);
-                        return {
-                            index: idx,
-                            detectionStatus: derivative.metadata.detectionStatus,
-                            redactionType: derivative.metadata.redactionType,
-                            facesDetected: derivative.metadata.facesDetected,
-                            redactedRegions: derivative.metadata.redactedRegions,
-                            redactionVersion: derivative.metadata.redactionVersion,
-                            detectorVersion: derivative.metadata.detectorVersion,
-                            sourceHash: derivative.metadata.sourceHash,
-                            derivativeHash: derivative.metadata.derivativeHash,
-                        };
-                    })
-                );
-                evidenceMetadata = derivativeResults.map((settled, idx) => {
-                    if (settled.status === 'fulfilled') return settled.value;
-                    return {
-                        index: idx,
-                        detectionStatus: 'detector_failed',
-                        redactionType: 'fallback_blur',
-                        facesDetected: 0,
-                        redactedRegions: 0,
-                        redactionVersion: '3.2',
-                        detectorVersion: 'picojs-facefinder-2.3',
-                    };
-                });
-            } catch (err) {
-                console.warn('Could not precompute evidence metadata:', err.message);
-            }
+            // Only the uploads happen here. Evidence analysis is queued after
+            // this response is on the wire — see
+            // `scheduleEvidenceMetadataProcessing`.
         }
 
         // Create the report with processed location data
@@ -341,7 +412,6 @@ export const createReport = async (req, res) => {
             severity: severity || 'moderate',
             casualties,
             images: uploadedImageUrls,
-            evidenceMetadata,
             status: 'pending',
             // Store location processing metadata
             locationSource: locationResult.source,
@@ -496,6 +566,10 @@ export const createReport = async (req, res) => {
         };
 
         dispatchNotifications();
+
+        // Registered before the response is sent so the hook cannot be missed;
+        // the task itself runs only once the 201 has been flushed.
+        runAfterResponse(res, () => scheduleEvidenceMetadataProcessing(reportId, req.files));
 
         res.status(201).json({
             success: true,
@@ -1120,7 +1194,11 @@ export const getReportEvidencePreview = async (req, res) => {
             }));
         }
 
-        await persistEvidenceMetadata(report._id, evidenceIndex, derivative.metadata);
+        await persistEvidenceMetadata(
+            report._id,
+            evidenceIndex,
+            buildEvidenceMetadataEntry(evidenceIndex, derivative.metadata),
+        );
 
         const ifNoneMatch = String(req.headers['if-none-match'] || '')
             .split(',')
@@ -1723,49 +1801,17 @@ export const attachReportEvidence = async (req, res) => {
         });
         uploadedImageUrls = storedImages.map(({ url }) => url);
 
-        // Resilient precomputation of evidence derivative metadata using Promise.allSettled
-        let newEvidenceMetadata = [];
-        try {
-            const derivativeResults = await Promise.allSettled(
-                req.files.map(async (file, idx) => {
-                    const derivative = await generateRedactedEvidenceDerivative(file.buffer);
-                    return {
-                        index: existingCount + idx,
-                        detectionStatus: derivative.metadata.detectionStatus,
-                        redactionType: derivative.metadata.redactionType,
-                        facesDetected: derivative.metadata.facesDetected,
-                        redactedRegions: derivative.metadata.redactedRegions,
-                        redactionVersion: derivative.metadata.redactionVersion,
-                        detectorVersion: derivative.metadata.detectorVersion,
-                        sourceHash: derivative.metadata.sourceHash,
-                        derivativeHash: derivative.metadata.derivativeHash,
-                    };
-                })
-            );
-
-            newEvidenceMetadata = derivativeResults.map((settled, idx) => {
-                if (settled.status === 'fulfilled') return settled.value;
-                return {
-                    index: existingCount + idx,
-                    detectionStatus: 'detector_failed',
-                    redactionType: 'fallback_blur',
-                    facesDetected: 0,
-                    redactedRegions: 0,
-                    redactionVersion: '3.2',
-                    detectorVersion: 'picojs-facefinder-2.3',
-                };
-            });
-        } catch (derivativeErr) {
-            console.warn('Evidence derivative precomputation warning:', derivativeErr?.message);
-        }
-
         report.images = [...(report.images || []), ...uploadedImageUrls];
-        if (newEvidenceMetadata.length > 0) {
-            report.evidenceMetadata = [...(report.evidenceMetadata || []), ...newEvidenceMetadata];
-        }
 
         await report.save();
         isSaved = true;
+
+        // Deferred for the same reason as report creation: attaching a photo
+        // should not wait on image processing. Photos already on the report keep
+        // their own indices, so the new entries start where they left off.
+        runAfterResponse(res, () => scheduleEvidenceMetadataProcessing(report._id, req.files, {
+            startIndex: existingCount,
+        }));
 
         try {
             await report.populate('reporter', 'name email avatar');

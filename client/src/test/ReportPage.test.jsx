@@ -243,6 +243,25 @@ describe('ReportPage workflow', () => {
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
     });
 
+    test('hands the map a stable location handler so the memoized map is not rebuilt', async () => {
+        // The live map is memoized, which only holds if the props ReportPage
+        // owns keep their identity. A handler recreated on every render would
+        // re-render the map on every keystroke and every upload progress tick.
+        renderPage();
+
+        await waitFor(() => expect(mapPropsSpy).toHaveBeenCalled());
+        const firstHandler = mapPropsSpy.mock.calls.at(-1)[0].onLocationSelect;
+        mapPropsSpy.mockClear();
+
+        // An unrelated state change mid-form.
+        fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Skid marks across both lanes' } });
+
+        await waitFor(() => expect(mapPropsSpy).toHaveBeenCalled());
+        const secondHandler = mapPropsSpy.mock.calls.at(-1)[0].onLocationSelect;
+
+        expect(secondHandler).toBe(firstHandler);
+    });
+
     test('omits blank casualty fields from the payload instead of sending zeros', async () => {
         // A reporter who does not know the casualty count leaves the fields
         // blank. Sending 0 would misrepresent "not recorded" as "none".

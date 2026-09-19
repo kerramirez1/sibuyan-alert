@@ -6,6 +6,7 @@ vi.mock('../models/Report.js', () => ({
         create: vi.fn(),
         findOne: vi.fn(),
         find: vi.fn(),
+        updateOne: vi.fn(),
     },
 }));
 
@@ -63,6 +64,7 @@ const { attachReportEvidence } = await import('../controllers/reportController.j
 const { requireEvidenceContributor } = await import('../middleware/roleCheck.js');
 const { default: Report } = await import('../models/Report.js');
 const { uploadFilesToGridFS, deleteGridFsFilesByUrls } = await import('../services/gridFsService.js');
+const { evidenceProcessingQueue } = await import('../services/evidenceProcessingQueue.js');
 
 const createResponse = () => {
     const response = {};
@@ -328,13 +330,18 @@ describe('attachReportEvidence controller (POST /api/reports/:id/evidence)', () 
         expect(uploadFilesToGridFS).toHaveBeenCalled();
         expect(fakeReport.save).toHaveBeenCalled();
         expect(fakeReport.images).toHaveLength(2);
-        expect(fakeReport.evidenceMetadata).toHaveLength(1);
-        expect(fakeReport.evidenceMetadata[0].index).toBe(1);
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
             message: 'Evidence photos attached successfully.',
         }));
+
+        // Analysis results no longer ride on the response: they are written
+        // afterwards, against the photo's own index.
+        await evidenceProcessingQueue.drain();
+        expect(Report.updateOne).toHaveBeenCalledTimes(1);
+        const [, pipeline] = Report.updateOne.mock.calls[0];
+        expect(pipeline[0].$set.evidenceMetadata.$concatArrays[1][0]).toMatchObject({ index: 1 });
     });
 
     test('cleans up GridFS files if saving the report fails', async () => {

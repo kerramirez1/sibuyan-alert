@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from '../router';
 import { reportsAPI } from '../services/api';
 import toast from '../utils/appToast';
@@ -7,6 +7,7 @@ import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
 import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
+import { createThrottledProgressEmitter } from '../utils/progressThrottle';
 import {
     clearQueuedReportSending,
     createClientReportId,
@@ -178,7 +179,9 @@ const ReportPage = () => {
     const reverseGeocodeRequestRef = useRef(0);
     const reverseGeocodeAbortRef = useRef(null);
 
-    const resolveLocationLabels = async (location, successPrefix = 'Pinned in') => {
+    // Stable identity on purpose: this handler is a `MapView` prop, and the map
+    // is memoized so typing or an upload progress update does not rebuild it.
+    const resolveLocationLabels = useCallback(async (location, successPrefix = 'Pinned in') => {
         reverseGeocodeAbortRef.current?.abort();
         const requestId = reverseGeocodeRequestRef.current + 1;
         reverseGeocodeRequestRef.current = requestId;
@@ -228,14 +231,14 @@ const ReportPage = () => {
                 reverseGeocodeAbortRef.current = null;
             }
         }
-    };
+    }, []);
 
     const watchIdRef = useRef(null);
     const locationTimeoutRef = useRef(null);
     const locationRequestRef = useRef(0);
     const locationDetectionActiveRef = useRef(false);
 
-    const stopLocationDetection = ({ dismissToast = false } = {}) => {
+    const stopLocationDetection = useCallback(({ dismissToast = false } = {}) => {
         locationRequestRef.current += 1;
         locationDetectionActiveRef.current = false;
 
@@ -251,9 +254,9 @@ const ReportPage = () => {
         if (dismissToast) {
             toast.dismiss(LOCATION_TOAST_ID);
         }
-    };
+    }, []);
 
-    const handleLocationSelect = async (location, source = 'map_pin') => {
+    const handleLocationSelect = useCallback(async (location, source = 'map_pin') => {
         if (!isValidLocation(location)) {
             toast.error('Choose a valid point inside Sibuyan Island.');
             return;
@@ -267,9 +270,9 @@ const ReportPage = () => {
         setGpsAccuracy(null);
         setLocationCapture(buildLocationCapture(source));
         await resolveLocationLabels(location);
-    };
+    }, [stopLocationDetection, resolveLocationLabels]);
 
-    const detectLocation = () => {
+    const detectLocation = useCallback(() => {
         const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
         if (!geolocation) {
             toast.error('Geolocation is not supported by your browser');
@@ -392,7 +395,7 @@ const ReportPage = () => {
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    };
+    }, [stopLocationDetection, resolveLocationLabels]);
 
     const confirmLocation = () => {
         stopLocationDetection({ dismissToast: true });
@@ -647,6 +650,10 @@ const ReportPage = () => {
         setLoading(true);
         setDeviceSaved(false);
         setUploadProgress({ percent: 0, loaded: 0, total: 0 });
+        // One emitter per attempt. It collapses the XHR progress stream to a
+        // few updates per second, so the progress bar cannot re-render this page
+        // (and its map) hundreds of times during a single upload.
+        const progressEmitter = createThrottledProgressEmitter({ onEmit: setUploadProgress });
         let removeOfflineAbort = null;
 
         try {
@@ -696,7 +703,7 @@ const ReportPage = () => {
                         const loaded = progressEvent.loaded || 0;
                         const total = progressEvent.total || 0;
                         const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
-                        setUploadProgress({ percent, loaded, total });
+                        progressEmitter.push({ percent, loaded, total });
                     },
                 });
             } catch (error) {
@@ -752,6 +759,9 @@ const ReportPage = () => {
             } catch {
                 // Listener cleanup is best-effort.
             }
+            // Dropped, not flushed: a late emit would restore the progress bar
+            // after the attempt has already ended.
+            progressEmitter.cancel();
             setLoading(false);
             setDeviceSaved(false);
             setUploadProgress(null);

@@ -1,6 +1,19 @@
 import mongoose from 'mongoose';
+import { mapWithConcurrency } from '../utils/concurrency.js';
 
 export const GRID_FS_BUCKET_NAME = 'media';
+
+/**
+ * How many uploads run at once for a single request.
+ *
+ * Sequential uploads made a five-photo report pay five round trips in series
+ * before the server could even start analysing the evidence. Unbounded
+ * parallelism is not the fix either: every in-flight upload holds its whole
+ * image buffer and an open write stream, and this runs on one dyno sharing one
+ * connection pool with every other request. Three keeps the report moving
+ * without letting it monopolise the process.
+ */
+export const GRID_FS_UPLOAD_CONCURRENCY = 3;
 
 const ensureDatabaseConnection = () => {
     if (!mongoose.connection.db) {
@@ -77,13 +90,19 @@ export const uploadFileToGridFS = (file, metadata = {}) => {
 };
 
 export const uploadFilesToGridFS = async (files = [], metadata = {}) => {
+    // Only uploads that actually completed are recorded, so the cleanup below
+    // can never miss a file that reached GridFS. `mapWithConcurrency` waits for
+    // in-flight uploads before it re-throws, which is what makes that true.
     const uploaded = [];
 
     try {
-        for (const file of files) {
-            uploaded.push(await uploadFileToGridFS(file, metadata));
-        }
-        return uploaded;
+        // Index-aligned with `files`: `Report.images` and the per-index evidence
+        // metadata are both positional, so completion order must not leak out.
+        return await mapWithConcurrency(files, GRID_FS_UPLOAD_CONCURRENCY, async (file) => {
+            const stored = await uploadFileToGridFS(file, metadata);
+            uploaded.push(stored);
+            return stored;
+        });
     } catch (error) {
         await Promise.allSettled(uploaded.map(({ id }) => deleteGridFsFile(id)));
         throw error;

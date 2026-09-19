@@ -133,6 +133,7 @@ const generatePublicSoftBlurResult = async (originalBuffer, options, sourceHash,
         maxPreviewWidth = 1200,
         maxPreviewHeight = 900,
         quality = 85,
+        skipCache = false,
     } = options;
 
     const derivativeBuffer = await createPublicSoftBlurDerivative(
@@ -155,7 +156,7 @@ const generatePublicSoftBlurResult = async (originalBuffer, options, sourceHash,
             fallbackApplied: false,
         },
     }, sourceHash);
-    setCache(cacheKey, result);
+    if (!skipCache) setCache(cacheKey, result);
     return result;
 };
 
@@ -230,6 +231,11 @@ const measureRegionDifference = async (originalBuffer, derivativeBuffer, region)
  * 
  * @param {Buffer} originalBuffer - Original image bytes from GridFS
  * @param {Object} options - Derivative options (preview width, quality, etc.)
+ * @param {boolean} [options.skipCache=false] - Analyse without reading or
+ *   writing the in-memory derivative cache. Set by the submit-time analysis,
+ *   which wants metadata only: its derivative is generated under a different
+ *   option set than the one the preview endpoint later requests, so caching it
+ *   would occupy a slot nothing ever reads and evict entries that do get read.
  * @returns {Promise<{ buffer: Buffer, contentType: string, metadata: Object }>}
  */
 export const generateRedactedEvidenceDerivative = async (originalBuffer, options = {}) => {
@@ -237,7 +243,8 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
         maxPreviewWidth = 1200,
         maxPreviewHeight = 900,
         quality = 85,
-            expandPadding = 0.18,
+        expandPadding = 0.18,
+        skipCache = false,
     } = options;
 
     if (!originalBuffer || !Buffer.isBuffer(originalBuffer) || originalBuffer.length === 0) {
@@ -261,7 +268,13 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
     const sourceHash = hashBuffer(originalBuffer);
 
     const cacheKey = getCacheKey(originalBuffer, options);
-    if (derivativeCache.has(cacheKey)) {
+    // `remember` is the single write path for every branch below, so an
+    // uncached analysis cannot leave a stray entry behind.
+    const remember = (result) => {
+        if (!skipCache) setCache(cacheKey, result);
+        return result;
+    };
+    if (!skipCache && derivativeCache.has(cacheKey)) {
         const cached = derivativeCache.get(cacheKey);
         return {
             ...cached,
@@ -322,7 +335,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
                 fallbackApplied: true,
             },
         }, sourceHash);
-        setCache(cacheKey, result);
+        remember(result);
         return result;
     }
 
@@ -361,7 +374,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
                     confidenceSummary: detectionResult.confidenceSummary,
                 },
             }, sourceHash);
-            setCache(cacheKey, result);
+            remember(result);
             return result;
         } catch {
             const svgFallback = generateBlurredEvidenceSvg(originalBuffer);
@@ -379,7 +392,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
                     fallbackApplied: true,
                 },
             }, sourceHash);
-            setCache(cacheKey, result);
+            remember(result);
             return result;
         }
     }
@@ -401,7 +414,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
                 fallbackApplied: true,
             },
         }, sourceHash);
-        setCache(cacheKey, result);
+        remember(result);
         return result;
     }
 
@@ -521,7 +534,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
             },
         }, sourceHash);
 
-        setCache(cacheKey, result);
+        remember(result);
         return result;
     } catch (err) {
         console.error('Evidence derivative generation failed, applying full-image privacy fallback:', err.message);
@@ -559,7 +572,7 @@ export const generateRedactedEvidenceDerivative = async (originalBuffer, options
             contentType: fallbackContentType,
             metadata: fallbackMetadata,
         }, sourceHash);
-        setCache(cacheKey, result);
+        remember(result);
         return result;
     }
 };
