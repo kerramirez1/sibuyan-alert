@@ -209,13 +209,26 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
     };
 
     return (
-        <div className={`${PANEL_CLASS} lg:col-span-2`}>
-            <div className={PANEL_HEADER_CLASS}>
-                <div>
+        <div className={`${PANEL_CLASS} xl:col-span-2`}>
+            {/* The meta column stacks under the title below sm. It carries a full
+                insight sentence plus the severity legend and was `shrink-0`
+                beside the title, so on a phone it kept its width and pushed the
+                panel wider than the viewport — and the page's `overflow-x-hidden`
+                then cut the peak link off rather than letting anything scroll.
+                One row from sm, where the two can share the width. */}
+            <div className="flex flex-col gap-2 border-b border-gray-100 pb-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3 dark:border-white/5">
+                <div className="min-w-0 sm:shrink-0">
                     <h2 className={PANEL_TITLE_CLASS}>Incident trend</h2>
                     <p className={PANEL_DESCRIPTION_CLASS}>Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+                {/* The title keeps its width and the meta absorbs the squeeze —
+                    the reverse of what this did. A `shrink-0` item is held at
+                    its max-content width, so the insight sentence ("47 reports ·
+                    Peak Sep 12 (6) · 30 quiet days of 30 · 12 fewer than Aug"
+                    is ~480px) sat at its full width and starved the title beside
+                    it, which wrapped to a strip one character wide. The sentence
+                    is the part that should wrap; the panel's name is not. */}
+                <div className="flex min-w-0 flex-col items-start gap-1 text-[11px] tabular-nums text-gray-500 sm:items-end dark:text-gray-400">
                     <p data-testid="trend-insight">
                         <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
                         {insight.peak && (
@@ -241,7 +254,7 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                         )}
                     </p>
                     {presentSeverities.length > 0 && (
-                        <p className="flex items-center gap-2.5" aria-label="Severity legend">
+                        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1" aria-label="Severity legend">
                             {presentSeverities.map(({ key, label, fill }) => (
                                 <span key={key} className="inline-flex items-center gap-1">
                                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: fill }} aria-hidden="true" />
@@ -351,7 +364,7 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
     return (
     <div className={PANEL_CLASS}>
         <div className={PANEL_HEADER_CLASS}>
-            <div>
+            <div className="min-w-0">
                 <h2 className={PANEL_TITLE_CLASS}>Report lifecycle</h2>
                 <p className={PANEL_DESCRIPTION_CLASS}>Status distribution for the selected month</p>
             </div>
@@ -414,7 +427,7 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
     return (
         <div className={PANEL_CLASS}>
             <div className={PANEL_HEADER_CLASS}>
-                <div>
+                <div className="min-w-0">
                     <h2 className={PANEL_TITLE_CLASS}>{title}</h2>
                     <p className={PANEL_DESCRIPTION_CLASS}>{description}</p>
                 </div>
@@ -638,7 +651,7 @@ const DashboardAnalyticsWorkspace = ({
                     <SkeletonCard className="h-14" />
                     <SkeletonCard className="h-9" />
                 </div>
-                <div className="grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
+                <div className="grid grid-cols-2 divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 md:grid-cols-4 md:rounded-2xl [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
                     {[0, 1, 2, 3].map((item) => (
                         <div key={item} className="flex flex-col px-3 py-3.5 sm:px-4 sm:py-4">
                             <Skeleton variant="text" className="h-2.5 w-20" />
@@ -647,8 +660,8 @@ const DashboardAnalyticsWorkspace = ({
                         </div>
                     ))}
                 </div>
-                <div className="grid gap-3 lg:grid-cols-3">
-                    <SkeletonCard className="h-64 lg:col-span-2" />
+                <div className="grid gap-3 xl:grid-cols-3">
+                    <SkeletonCard className="h-64 xl:col-span-2" />
                     <SkeletonCard className="h-64" />
                 </div>
                 <SkeletonCard className="h-64" />
@@ -683,8 +696,16 @@ const DashboardAnalyticsWorkspace = ({
                     {viewSwitch && <div className="shrink-0 sm:pt-0.5">{viewSwitch}</div>}
                 </div>
 
-                <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center" role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-h-9 w-full items-center justify-between gap-0.5 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 dark:bg-white/5 dark:ring-white/10 lg:w-52">
+                {/* One column on a phone, one left-aligned row from sm — the
+                    same row the toolbar already had from lg. It used to be a
+                    two-column grid at sm, which made both controls half the
+                    content width: a month stepper ~350px wide with its chevrons
+                    at the far edges, and an Export button that, at ~350px of
+                    solid brand fill, out-weighed every number on the page. They
+                    are a scope control and a secondary action, so they take their
+                    own width and line up where lg already put them. */}
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" role="toolbar" aria-label="Analytics controls">
+                    <div className="flex min-h-9 w-full items-center justify-between gap-0.5 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 sm:w-52 dark:bg-white/5 dark:ring-white/10">
                         <button
                             type="button"
                             onClick={() => setSelectedMonth((current) => {
@@ -746,7 +767,7 @@ const DashboardAnalyticsWorkspace = ({
                         size="sm"
                         icon={HiOutlineDownload}
                         onClick={exportDashboard}
-                        className="w-full lg:w-auto lg:min-w-24"
+                        className="w-full sm:w-auto sm:min-w-24"
                         aria-label="Export dashboard data as Excel"
                     >
                         Export
@@ -774,8 +795,29 @@ const DashboardAnalyticsWorkspace = ({
                     `border-t` on the second row at narrow widths — which left the
                     first cell flush against the panel edge and the rules a pixel
                     off from the row above. A divided grid draws every rule once
-                    and stretches the tiles to one height. */}
-                <div className="mt-1.5 grid grid-cols-2 divide-y divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 sm:grid-cols-4 sm:divide-x sm:divide-y-0 sm:rounded-2xl">
+                    and stretches the tiles to one height.
+
+                    The rules are `nth-child` widths rather than `divide-x`/
+                    `divide-y`, because those two helpers do not know a grid's
+                    shape: `divide-y` puts a `border-top` on every child but the
+                    first, so in the two-column phone layout it drew a rule above
+                    the tile BESIDE the first one — a stray line across the top of
+                    the band's second cell. The widths below are the two shapes
+                    this band actually takes: 2×2 below md, 1×4 from md. `nth-child(3)`
+                    is the tile whose left rule only exists in the four-across
+                    layout, and `nth-child(n+3)` are the two bottom tiles whose top
+                    rule only exists in the 2×2 one — so that row rule is scoped to
+                    `max-md` rather than added and then zeroed at md, which leaves
+                    nothing for source order to get wrong.
+
+                    And it is md, not sm, that fits four across: a 640px viewport
+                    is 592px of content, which is 148px per tile — narrower than
+                    the phone's own two-column tiles, so the desktop layout used to
+                    arrive at its most cramped. Four across waits until 768px
+                    (720px of content, 180px per tile) and turns the band's
+                    narrowest state into its phone state, which is the one that was
+                    designed for it. */}
+                <div data-testid="overview-band" className="mt-1.5 grid grid-cols-2 divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 md:grid-cols-4 md:rounded-2xl [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
                     <MetricTile
                         label="Pending review"
                         value={safeMetrics.pendingCount ?? 0}
@@ -799,39 +841,73 @@ const DashboardAnalyticsWorkspace = ({
                     />
                 </div>
 
-                {/* Integrated Baseline Operational Facts Footer Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-gray-200 py-2.5 text-xs text-gray-600 dark:border-white/10 dark:text-gray-400">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                {/* Integrated Baseline Operational Facts Footer Bar.
+
+                    The three facts and their middots used to be one wrapping flex
+                    row. A middot was therefore a flex item of its own, and a flex
+                    item can begin a line — so on a phone the row wrapped as a
+                    sentence fragment ending in "18m" followed by a line starting
+                    with "· ACTIVE RISK ZONES". Below sm the facts are a 2×2 grid of
+                    label-over-value cells instead (the same shape the band above
+                    it takes), the middots are dropped because a grid separates by
+                    position and not by glyph, and the scope label closes the block
+                    on its own right-aligned line, which is also where the block
+                    already wrapped at sm widths with three facts and a sample
+                    clause to fit.
+
+                    From sm it is the one-line row this was, with one change: each
+                    middot now trails the fact it follows, inside that fact's own
+                    box, instead of standing between them. A separator that is its
+                    own flex item can be pushed to the next line on its own, and one
+                    did — the row needs ~600px of inline content, so at 640px it
+                    wrapped, and that is the same defect as on the phone. Bound to
+                    the end of the previous fact it can only ever close a line. */}
+                <div className="flex flex-col gap-2 border-t border-gray-200 py-3 text-xs text-gray-600 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:py-2.5 dark:border-white/10 dark:text-gray-400">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">New reports</span>
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{safeCount(safeReports)}</span>
+                                <span aria-hidden="true" className="hidden pl-1.5 text-gray-300 sm:inline dark:text-gray-600">·</span>
                             </span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
-                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                                    {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
+                            {/* Label and value stay on one line in the phone grid;
+                                only the sample clause drops to the second line,
+                                which is the tier it belongs to. */}
+                            <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
+                                    <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                                        {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
+                                    </span>
                                 </span>
                                 <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                     {safeMetrics.responseSampleCount
                                         ? `(${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'})`
                                         : 'No responded incidents'}
                                 </span>
+                                <span aria-hidden="true" className="hidden pl-1.5 text-gray-300 sm:inline dark:text-gray-600">·</span>
                             </span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">·</span>
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active risk zones</span>
                                 <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
                             </span>
                         </div>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        <span className="text-right text-[11px] text-gray-500 dark:text-gray-400 sm:text-left">
                             {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
                         </span>
                     </div>
             </section>
 
             {/* Monthly Insights Section: Incident Trend & Lifecycle */}
-            <section className="grid gap-3 lg:grid-cols-3" aria-label="Monthly insights">
+            {/* Two columns from xl, not lg. The app's sidebar is 240px from lg
+                and the main column keeps 32px of padding, so the width a 1024px
+                viewport leaves for content is 720px — the same 720px a 768px
+                tablet has, where this section has always stacked. Three columns
+                of 226px split that into a 453px trend chart (31 day-bars in
+                ~436px) beside a lifecycle card narrower than its own rows. From
+                xl the content column is 976px and the same three columns are
+                314px each, with the trend at 640px — so the split starts where it
+                fits rather than where the viewport name changes. */}
+            <section className="grid gap-3 xl:grid-cols-3" aria-label="Monthly insights">
                 <TrendPanel chartData={safeChartData} selectedMonth={effectiveMonth} reportCount={safeCount(safeReports)} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
                 <LifecyclePanel statusData={toSafeArray(statusData)} totalReports={safeCount(safeReports)} />
             </section>
@@ -931,7 +1007,14 @@ const DashboardAnalyticsWorkspace = ({
             </section>
 
             {/* Operational Breakdown Section: Ranked Barangay & Category Lists */}
-            <section className="grid gap-3 lg:grid-cols-2" aria-label="Operational breakdown">
+            {/* Two up from md, which is where 720px of content starts: a 768px
+                tablet (no sidebar, 24px of padding) and a 1024px laptop (240px
+                sidebar, 32px of padding) both leave exactly 720px, so the
+                two-column split belongs at the width the two columns fit rather
+                than at the width the sidebar turns on. At lg this section used to
+                go two-up at 348px a card while the very same content sat
+                one-up at 720px one breakpoint earlier. */}
+            <section className="grid gap-3 md:grid-cols-2" aria-label="Operational breakdown">
                 {hasMunicipality ? (
                     <>
                         <RankedBreakdownPanel
@@ -970,7 +1053,7 @@ const DashboardAnalyticsWorkspace = ({
                 Admin-only, and rendered only once data exists so a viewer
                 without permission never sees an empty shell. */}
             {isAdminViewer && reach ? (
-                <section className="grid gap-3 lg:grid-cols-2" aria-label="Reach">
+                <section className="grid gap-3 md:grid-cols-2" aria-label="Reach">
                     <ReachPanel
                         title="Incident reach"
                         description="Distinct viewers who opened each incident"

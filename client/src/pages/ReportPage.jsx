@@ -793,15 +793,14 @@ const ReportPage = () => {
 
     return (
         <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
-            {/* Single page title block */}
+            {/* Single page title block. The supporting copy is left uncapped so it
+                occupies the header's full width instead of stopping early. */}
             <header className="pb-2">
                 <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
                     Submit incident report
                 </h1>
-                <p className="mt-1 max-w-2xl text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Pin the incident location and provide the details authorities need to verify and dispatch response units.
-                    Required fields are marked with an asterisk (*).
-                    Submitting auto-saves on this device if the signal drops and sends when the connection returns.
+                <p className="mt-1 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                    Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required.
                 </p>
             </header>
 

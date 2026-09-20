@@ -17,6 +17,17 @@ vi.mock('recharts', () => ({
 
 const mocks = vi.hoisted(() => ({ mapProps: vi.fn() }));
 
+// Reach is an admin-only fetch of its own; stubbed so the section is on screen
+// and its layout is testable without a network round trip.
+vi.mock('../hooks/useReachData', () => ({
+    default: () => ({
+        reach: {
+            reports: [{ id: 'reach-1', label: 'E. Aguinaldo Street', publicViewers: 3, uniqueViewers: 4 }],
+            zones: [{ id: 'reach-zone-1', label: 'Coastal cliff', publicViewers: 1, uniqueViewers: 2 }],
+        },
+    }),
+}));
+
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
         mocks.mapProps(props);
@@ -92,11 +103,14 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(screen.getByText(/incident status and response readiness for/i)).toBeInTheDocument();
 
         expect(screen.queryByRole('button', { name: 'Cajidiocan' })).not.toBeInTheDocument();
+        // One column on a phone, one left-aligned row from sm. It was a
+        // two-column grid at sm, which stretched both controls to half the
+        // content width — a ~350px month stepper and a ~350px Export button.
         expect(screen.getByRole('toolbar', { name: 'Analytics controls' })).toHaveClass(
-            'grid-cols-1',
-            'sm:grid-cols-2',
-            'lg:flex',
-            'lg:flex-wrap'
+            'flex-col',
+            'sm:flex-row',
+            'sm:flex-wrap',
+            'sm:items-center'
         );
         expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
         expect(within(screen.getByTestId('trend-insight')).getByText(/1 report/)).toBeInTheDocument();
@@ -266,6 +280,76 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(formatXAxisDay('2026-08-19')).toBe('19');
         expect(formatXAxisDay(null)).toBe('');
         expect(formatXAxisDay(undefined)).toBe('');
+    });
+
+    describe('responsive layout', () => {
+        const severityTrend = [
+            { date: 'Sep 5', fullDate: 'Sep 5, 2026', dayKey: '2026-09-05', total: 2, minor: 1, moderate: 1, severe: 0, critical: 0 },
+            { date: 'Sep 6', fullDate: 'Sep 6, 2026', dayKey: '2026-09-06', total: 0, minor: 0, moderate: 0, severe: 0, critical: 0 },
+        ];
+
+        test('rules the overview band for the phone layout and for four across from md', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            const band = screen.getByTestId('overview-band');
+
+            // Four across is an md layout: a 640px viewport leaves 592px of
+            // content, which is 148px per tile — narrower than the phone's own
+            // two-column tiles, so sm was the band's most cramped state.
+            expect(band).toHaveClass('grid-cols-2', 'md:grid-cols-4');
+
+            // `divide-y` is the trap this band fell into: it rules the top of
+            // every child but the first, so in the two-column layout it drew a
+            // line above the tile BESIDE the first one. The hairlines are
+            // per-child widths now — even children carry the vertical rule, the
+            // two bottom tiles the horizontal one — and no `divide-x`/`divide-y`
+            // is left to disagree with the grid's shape.
+            expect(band.className).not.toMatch(/divide-[xy](\s|$)/);
+            expect(band).toHaveClass(
+                '[&>*:nth-child(even)]:border-l',
+                'md:[&>*:nth-child(3)]:border-l',
+                'max-md:[&>*:nth-child(n+3)]:border-t',
+            );
+        });
+
+        test('stacks the trend header before its meta row can overrun the panel', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} chartData={severityTrend} />);
+
+            const meta = screen.getByTestId('trend-insight').parentElement;
+            const header = meta.parentElement;
+
+            // The meta column holds an insight sentence and the legend and used
+            // to be `shrink-0` beside the title at every width, so on a phone it
+            // kept its size and pushed the panel past the viewport, where the
+            // page's own `overflow-x-hidden` clipped the peak link.
+            expect(header).toHaveClass('flex-col', 'sm:flex-row', 'sm:justify-between');
+            expect(meta).toHaveClass('items-start', 'sm:items-end', 'min-w-0');
+            // And it is the title, not the sentence, that keeps its width: a
+            // `shrink-0` meta is held at its max-content width, which starved
+            // the panel's own heading instead of wrapping the insight line.
+            expect(meta).not.toHaveClass('sm:shrink-0');
+            expect(screen.getByRole('heading', { name: 'Incident trend' }).parentElement).toHaveClass('sm:shrink-0');
+            expect(screen.getByLabelText('Severity legend')).toHaveClass('flex-wrap', 'gap-x-2.5');
+        });
+
+        test('splits the insight and breakdown sections where their columns actually fit', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} chartData={severityTrend} />);
+
+            // A 768px tablet and a 1024px laptop both leave 720px of content —
+            // the sidebar spends exactly what the wider padding gives back — so
+            // the 2×2 and the 3-column splits are keyed to the width they need:
+            // two cards from md, the trend's two-of-three from xl.
+            const insights = screen.getByLabelText('Monthly insights');
+            expect(insights).toHaveClass('xl:grid-cols-3');
+            expect(insights.className).not.toMatch(/\blg:grid-cols-3\b/);
+            expect(screen.getByRole('heading', { name: 'Incident trend' }).closest('div[class*="xl:col-span-2"]')).not.toBeNull();
+
+            for (const label of ['Operational breakdown', 'Reach']) {
+                const section = screen.getByLabelText(label);
+                expect(section).toHaveClass('md:grid-cols-2');
+                expect(section.className).not.toMatch(/\blg:grid-cols-2\b/);
+            }
+        });
     });
 
     describe('trend insight and day drill-down', () => {

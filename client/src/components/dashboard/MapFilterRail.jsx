@@ -123,9 +123,18 @@ export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, 
             <span className={`text-[10px] font-medium tabular-nums ${selected ? '' : 'text-gray-400 dark:text-gray-500'}`}>
                 {count}
             </span>
+            {/* The 2px bar is the selected cue ON the rail's baseline, so it only
+                means anything while the tabs share one row with that baseline.
+                Below sm they do not — analytics renders this rail inside the map
+                card at every width, where four tabs need ~480px and a phone has
+                330, so the row wraps and the bar would hang in the middle of the
+                panel under a first-row tab. Phones get the tinted surface and the
+                bold label instead; the bar returns at sm, where the tabs fit on
+                one line again. (The operations workspace hides the whole rail
+                below lg, so this is the analytics rail's own case.) */}
             <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute inset-x-2 -bottom-px h-[2px] rounded-full ${selected ? styles.bar : 'bg-transparent'}`}
+                className={`pointer-events-none absolute inset-x-2 -bottom-px hidden h-[2px] rounded-full sm:block ${selected ? styles.bar : 'bg-transparent'}`}
             />
         </button>
     );
