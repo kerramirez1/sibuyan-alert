@@ -245,6 +245,21 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(liveMap.firstElementChild).toHaveClass('lg:hidden');
     });
 
+    test('renders status filter row with view switch directly below top navigation and prevents wrapping', () => {
+        const viewSwitch = <div data-testid="test-view-switch">View Switch</div>;
+        renderWorkspace(createProps({ viewSwitch }));
+
+        const rail = screen.getByLabelText('Map status filter');
+        expect(rail).toHaveClass('w-full', 'lg:flex');
+        expect(within(rail).getByTestId('test-view-switch')).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /all open/i })).toBeInTheDocument();
+
+        // The filter rail container uses single-line overflow without multi-line wrapping
+        const tabsContainer = within(rail).getByRole('button', { name: /all open/i }).parentElement;
+        expect(tabsContainer).toHaveClass('overflow-x-auto', 'no-scrollbar');
+        expect(tabsContainer.className).not.toContain('flex-wrap');
+    });
+
     test('gives the records pane a box of its own on a phone, and the map\'s height from sm', () => {
         renderWorkspace(createProps({ mapSummaryPanel: 'incidents' }));
 
@@ -926,7 +941,8 @@ describe('DashboardMapWorkspace permissions', () => {
             isReporter: false,
         }));
 
-        expect(screen.getByText('Municipal oversight')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Cajidiocan incident map');
+        expect(screen.queryByText('Municipal oversight')).not.toBeInTheDocument();
         const filterBar = screen.getByLabelText('Map status filter');
         expect(within(filterBar).getByRole('button', { name: /active incidents/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /pending/i })).toBeInTheDocument();
@@ -956,6 +972,139 @@ describe('DashboardMapWorkspace permissions', () => {
             requestId: 'risk-zone:zone-1',
         });
         expect(mapPropsSpy.mock.lastCall[0].focusedRiskZone).toBeUndefined();
+    });
+
+    test('a scope change drops the record the URL was still focused on', () => {
+        const onClearFocusedEntity = vi.fn();
+        const focusedRiskZone = {
+            _id: 'zone-1',
+            name: 'Cambijang Risk Zone',
+            coordinates: { lat: 12.4, lng: 122.6 },
+        };
+        const props = createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            highRiskZones: [focusedRiskZone],
+            focusedRiskZone,
+            onClearFocusedEntity,
+        });
+        const { rerender } = renderWorkspace(props);
+
+        // Arrival: the zone a search result named IS the map's subject. Opening
+        // it must not clear anything — the focus is the deep link.
+        expect(mapPropsSpy.mock.lastCall[0].locateRequest).toMatchObject({
+            type: 'risk-zone',
+            id: 'zone-1',
+        });
+        expect(onClearFocusedEntity).not.toHaveBeenCalled();
+
+        fireEvent.click(
+            within(screen.getByLabelText('Map status filter')).getByRole('button', { name: /active incidents/i }),
+        );
+
+        // The viewer has said what the map shows instead, so the page is told to
+        // take the zone out of the URL. It cannot be done down here: the focus is
+        // read from the URL, not held as state.
+        expect(onClearFocusedEntity).toHaveBeenCalledTimes(1);
+
+        // Which is what actually ends it: the page clears the param, hands the
+        // result back down, and with no focused zone the map has no reason to
+        // draw the hazard layer under a tab that does not own it.
+        rerender(
+            <MemoryRouter>
+                <DashboardMapWorkspace {...props} focusedRiskZone={null} />
+            </MemoryRouter>,
+        );
+        expect(mapPropsSpy.mock.lastCall[0].locateRequest).toBeNull();
+    });
+
+    test('keeps a deep-linked focus when the arrival resets the tab', () => {
+        const onClearFocusedEntity = vi.fn();
+        const setResponderMapFilter = vi.fn();
+        const focusedRiskZone = {
+            _id: 'zone-1',
+            name: 'Cambijang Risk Zone',
+            coordinates: { lat: 12.4, lng: 122.6 },
+        };
+
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            highRiskZones: [focusedRiskZone],
+            focusedRiskZone,
+            onClearFocusedEntity,
+            setResponderMapFilter,
+            // Anything other than this role's home tab, so the arrival's own
+            // reset runs.
+            responderMapFilter: 'resolved',
+        }));
+
+        expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+        // The reset exists so a deep link opens on a known tab. It is not a scope
+        // change the viewer made, so it must not throw away the record the link
+        // arrived with.
+        expect(onClearFocusedEntity).not.toHaveBeenCalled();
+        expect(mapPropsSpy.mock.lastCall[0].locateRequest).toMatchObject({ id: 'zone-1' });
+    });
+
+    test('closes a hazard pane when the tab stops drawing hazards', () => {
+        const setMapSummaryPanel = vi.fn();
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            highRiskZones: [{
+                _id: 'zone-1', name: 'Risk Zone 1', type: 'landslide_prone',
+                coordinates: { lat: 12.4, lng: 122.6 }, radius: 100,
+            }],
+            mapSummaryPanel: 'overview:risk-zones',
+            setMapSummaryPanel,
+        }));
+        setMapSummaryPanel.mockClear();
+
+        const filterBar = screen.getByLabelText('Map status filter');
+
+        // The hazards tab keeps it: the pane and the canvas are on one subject.
+        fireEvent.click(within(filterBar).getByRole('button', { name: /risk zones/i }));
+        expect(setMapSummaryPanel).not.toHaveBeenCalled();
+
+        // Leaving for an incident tab closes it. Left open it would list zones
+        // beside a map drawing incidents, with a zone's details inside it
+        // describing a marker that is no longer on the canvas.
+        fireEvent.click(within(filterBar).getByRole('button', { name: /pending review/i }));
+        expect(setMapSummaryPanel).toHaveBeenCalledWith('');
+    });
+
+    test('lets a URL-opened pane own the focus cleanup, so one click is one history entry', () => {
+        const setSearchParams = vi.fn();
+        const onClearFocusedEntity = vi.fn();
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAdmin: true,
+            isReporter: false,
+            highRiskZones: [{
+                _id: 'zone-1', name: 'Risk Zone 1', type: 'landslide_prone',
+                coordinates: { lat: 12.4, lng: 122.6 }, radius: 100,
+            }],
+            // Arrived on the hazard list: the pane is here because the URL asked
+            // for it, not because a card opened it.
+            activePanel: 'zones',
+            mapSummaryPanel: 'zones',
+            setSearchParams,
+            onClearFocusedEntity,
+        }));
+        setSearchParams.mockClear();
+
+        fireEvent.click(
+            within(screen.getByLabelText('Map status filter')).getByRole('button', { name: /pending review/i }),
+        );
+
+        // Closing that pane rewrites the query to `?view=map`, which drops the
+        // focus keys with it — so the page must not be asked to navigate again.
+        expect(setSearchParams).toHaveBeenCalledWith({ view: 'map' });
+        expect(onClearFocusedEntity).not.toHaveBeenCalled();
     });
 
     test('converts a cross-page incident ID selection into the same focus request', () => {
@@ -1006,7 +1155,8 @@ describe('DashboardMapWorkspace permissions', () => {
             roleStats: null,
         }));
 
-        expect(screen.getByText('Public safety map')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sibuyan Island incident map');
+        expect(screen.queryByText('Public safety map')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Awaiting response' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Needs review' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /submit report/i })).not.toBeInTheDocument();
@@ -1903,7 +2053,7 @@ describe('DashboardMapWorkspace permissions', () => {
     });
 
     describe('Mobile-First Responsive Layout and Typography', () => {
-        test('1. Names the page with its own heading, above the workspace kicker', () => {
+        test('1. Names the page with an accessible heading for assistive tech while maximizing map area', () => {
             renderWorkspace(createProps({
                 user: { _id: 'reporter-1', role: 'reporter' },
                 isAuthenticated: true,
@@ -1912,32 +2062,13 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
             }));
 
-            // The workspace's subject is the document's h1 — a screen reader
-            // announces it and headings navigation finds it — and it prints,
-            // because a map screen whose subject exists only in the URL reads as
-            // a fragment of some larger page. It steps down to 22px from lg,
-            // where the workspace is the viewport's height minus this header and
-            // every line here is a line the map does not get.
+            // The page title is preserved for screen readers as an sr-only h1,
+            // reclaiming vertical space so the operational map interface dominates the view.
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toHaveTextContent('Sibuyan Island incident map');
-            expect(heading).not.toHaveClass('sr-only');
-            expect(heading.className).toContain('font-display');
-            expect(heading.className).toContain('text-[26px]');
-            expect(heading.className).toContain('sm:text-[32px]');
-            expect(heading.className).toContain('lg:text-[22px]');
-
-            // The kicker above it names the viewer's own workspace, so the two
-            // lines are one hierarchy rather than one line printed twice.
-            const header = heading.closest('header');
-            const eyebrow = within(header).getByText('Reporter map');
-            expect(eyebrow.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-            // What the header also prints: the viewer's own workspace, and —
-            // below lg, where the sidebar is behind a drawer — a sentence that
-            // names the same place in words.
-            expect(within(header).getByText('Reporter map')).toBeInTheDocument();
-            expect(within(header).getByText(/Track your reports and community incidents across Sibuyan Island/i)).toBeInTheDocument();
-            expect(within(header).getByText(/Track your reports and community incidents/i)).toHaveClass('lg:hidden');
+            expect(heading).toHaveClass('sr-only');
+            expect(screen.queryByText('Reporter map')).not.toBeInTheDocument();
+            expect(screen.queryByText(/Track your reports and community incidents across Sibuyan Island/i)).not.toBeInTheDocument();
         });
 
         test('2. Overview metrics items render with tabular numbers, distinct labels, and wrap gracefully', () => {

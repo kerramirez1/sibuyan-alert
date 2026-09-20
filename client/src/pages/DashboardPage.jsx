@@ -25,6 +25,7 @@ import {
     canViewAnalytics,
     resolveDashboardView,
 } from '../utils/dashboardView';
+import { withoutFocusedEntity } from '../utils/dashboardFocus';
 import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
 import {
     getManilaCalendarDateKey,
@@ -327,6 +328,27 @@ const DashboardPage = () => {
         () => findRiskZoneById(highRiskZones, focusedRiskZoneId),
         [highRiskZones, focusedRiskZoneId],
     );
+
+    /**
+     * Drop the record this URL is focused on.
+     *
+     * A search result lands on `?view=map&report=<id>` or `?riskZone=<id>`, and
+     * the URL is where that focus lives — the two values above are read from it,
+     * and the map treats the named record as what it was asked to show: it flies
+     * the camera there, draws its pin outside the active filter, and opens its
+     * details. Correct on arrival, wrong the moment the viewer says what the map
+     * should show instead, which is why the map workspace calls this on every
+     * scope change (see `selectMapFilter`).
+     *
+     * The rule about WHICH keys go, and why a no-op returns null, lives in
+     * `utils/dashboardFocus` — the page's only job here is to hand the router a
+     * new query.
+     */
+    const clearFocusedEntity = useCallback(() => {
+        const nextParams = withoutFocusedEntity(searchParams);
+        if (!nextParams) return;
+        setSearchParams(nextParams);
+    }, [searchParams, setSearchParams]);
 
     const isReportAssigned = useCallback((report) => {
         if (!report) return false;
@@ -955,6 +977,7 @@ const DashboardPage = () => {
                     setMapSummaryPanel={setMapSummaryPanel}
                     activePanel={panelView}
                     pulseReportIds={pulseReportIds}
+                    onClearFocusedEntity={clearFocusedEntity}
                     viewSwitch={viewSwitch}
                 />
             </Suspense>

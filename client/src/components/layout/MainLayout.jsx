@@ -471,8 +471,12 @@ const MainLayout = ({ children }) => {
                     {/* Page Content Scrollable Area. The keyed div re-runs the CSS
                         enter animation on navigation. Unlike the previous
                         AnimatePresence "wait" mode there is no exit delay, so the
-                        next page mounts immediately and fades in. */}
-                    <main data-map-scroll-container className={`custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
+                        next page mounts immediately and fades in.
+                        Map workspace gets compact padding so the GIS canvas can
+                        stretch to the viewport instead of stopping early. */}
+                    <main data-map-scroll-container className={isMapView
+                        ? `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-1 sm:px-3 sm:pt-2 lg:px-2 lg:pt-0 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-2' : 'pb-2'}`
+                        : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
                         <div key={location.pathname} className="page-enter">
                             {children}
                         </div>

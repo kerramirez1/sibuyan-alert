@@ -330,6 +330,70 @@ describe('MapView opening framing', () => {
         });
     });
 
+    test('shows only the zone a target asked for, not the whole hazard layer', async () => {
+        // A search result or a "Locate" hands this map ONE zone while the tab is
+        // about incidents. Drawing a target used to turn the layer on, so
+        // selecting a single hazard area drew every hazard area on the island —
+        // under a tab whose label said something else entirely.
+        await renderReady({
+            reports: visibleReports,
+            highRiskZones: mappedZones,
+            locateRequest: {
+                type: 'risk-zone',
+                id: 'zone-b',
+                entity: mappedZones[1],
+                requestId: 'zone-target-1',
+            },
+            showDataState: true,
+        });
+
+        // Two incidents and exactly one zone: the one that was asked for.
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalledTimes(3);
+        });
+    });
+
+    test('closes a hazard zone\u2019s details when the layer stops being drawn', async () => {
+        const onEntityInspectorChange = vi.fn();
+        const view = await renderReady({
+            highRiskZones: mappedZones,
+            filterStatus: 'risk-zones',
+            onEntityInspectorChange,
+            showDataState: true,
+        });
+
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalledTimes(2);
+        });
+
+        // Open one zone's details the way a reader does: click its own marker.
+        const zoneElement = maplibregl.Marker.mock.calls
+            .map(([options]) => options?.element)
+            .find((element) => element?.className === 'zone-marker');
+        expect(zoneElement).toBeTruthy();
+        fireEvent.click(zoneElement);
+
+        await waitFor(() => {
+            expect(onEntityInspectorChange).toHaveBeenCalledWith(true);
+        });
+
+        // Now the viewer leaves for a tab that does not draw hazards. The marker
+        // that opened this pane is gone with the layer, so the pane must go too —
+        // it would otherwise describe a marker that is no longer on the canvas.
+        view.rerender(
+            <MapView
+                highRiskZones={mappedZones}
+                filterStatus="pending"
+                onEntityInspectorChange={onEntityInspectorChange}
+                showDataState
+            />,
+        );
+
+        await waitFor(() => {
+            expect(onEntityInspectorChange).toHaveBeenLastCalledWith(false);
+        });
+    });
+
     test('tells the zones page that its zones are missing, not that incidents are', async () => {
         await renderReady({ highRiskZones: [], mode: 'risk-zones', showDataState: true });
 

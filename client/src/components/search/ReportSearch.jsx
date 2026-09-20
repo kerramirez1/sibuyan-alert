@@ -154,10 +154,25 @@ const ReportSearch = ({ id, placeholder = 'Search accidents, places…', classNa
 
     useEffect(() => () => abortRef.current?.abort?.(), []);
 
+    /**
+     * Leaves for a result, and takes the search with it.
+     *
+     * The box's rows belong to the query that produced them, and the box is a
+     * navigation control rather than a filter: once a result is chosen, holding
+     * the query left the map focused on one record with the previous search still
+     * sitting in the app header — focusing it reopened the results of a search
+     * the viewer had already acted on, and the row they had just followed was
+     * highlighted in it as if it were still a pending choice. The search can be
+     * retyped, and the clear button that existed for this is one click either way.
+     */
     const goToResult = (result) => {
         const target = buildResultTarget(result);
         if (!target) return;
         setOpen(false);
+        setQuery('');
+        setResults([]);
+        setZones([]);
+        setActiveIndex(-1);
         navigate(target);
     };
 

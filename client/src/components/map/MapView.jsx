@@ -277,12 +277,25 @@ const MapView = ({
 
     // Hazard zones render when this map is about them, or when a risk zone is
     // explicitly targeted for location/inspection.
-    const isRiskZoneFilterActive = isRiskZoneMap
-        || effectiveLocateRequest?.type === 'risk-zone';
+    //
+    // The two cases are not the same set, and drawing them as one was a bug with
+    // a long reach. A tab that owns the hazard layer draws EVERY zone — that is
+    // what choosing it means. A targeted zone is one record a link (or a Locate)
+    // asked to see, and it is reached from a tab that is about incidents; handing
+    // the layer a target used to turn all of it on at once, so selecting one
+    // hazard area from the search box drew every hazard area on the island under
+    // a tab whose label said "All open", and a zone nobody had looked at any
+    // more kept that layer alive after the viewer moved to a tab that does not
+    // draw it (the workspace now drops the target on a scope change; this is the
+    // half that decides what a surviving target may draw).
+    const targetedRiskZone = effectiveLocateRequest?.type === 'risk-zone'
+        ? effectiveLocateRequest.entity || null
+        : null;
     const filteredRiskZones = useMemo(() => {
-        if (!showHazardZones || !isRiskZoneFilterActive) return [];
-        return highRiskZones;
-    }, [highRiskZones, isRiskZoneFilterActive, showHazardZones]);
+        if (!showHazardZones) return [];
+        if (isRiskZoneMap) return highRiskZones;
+        return targetedRiskZone ? [targetedRiskZone] : [];
+    }, [highRiskZones, isRiskZoneMap, showHazardZones, targetedRiskZone]);
 
     // The empty state has to describe the layer this map actually draws. A zones
     // page reporting "no active incidents" is describing something it never
@@ -462,6 +475,19 @@ const MapView = ({
     useLayoutEffect(() => {
         if (externalContextPanelOpen) closeMapSelection();
     }, [closeMapSelection, externalContextPanelOpen]);
+
+    // The hazard layer's own version of the same rule: a zone's details belong to
+    // the layer being drawn. When the layer stops being drawn — the viewer left
+    // the hazards tab, the workspace dropped a stale target, the zones failed to
+    // load — the marker that opened this pane is gone from the canvas, and a pane
+    // describing a marker that is no longer there is a pane about nothing. The
+    // report path below cannot cover this case: it stands down for a selection
+    // that is not a report, and a zone has no dataset entry to check.
+    useEffect(() => {
+        if (mapModal?.type !== 'zone') return;
+        if (filteredRiskZones.length > 0) return;
+        closeMapSelection();
+    }, [closeMapSelection, filteredRiskZones, mapModal]);
 
     // A live map refresh can remove or replace the report that opened the
     // inspector. Close only after a non-empty dataset is available so a

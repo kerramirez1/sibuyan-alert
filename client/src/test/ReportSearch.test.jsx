@@ -204,5 +204,11 @@ describe('ReportSearch (MVP)', () => {
         expect(option.textContent).toContain('High risk');
         fireEvent.click(option.querySelector('button'));
         expect(mocks.navigate).toHaveBeenCalledWith('/dashboard?view=map&riskZone=zone-1');
+
+        // And the box leaves the search behind. It is a navigation control, not a
+        // filter: keeping the query meant the map opened on one record while the
+        // app header still held a search the viewer had already acted on, with
+        // focus on the box reopening that result set over the map.
+        expect(screen.getByRole('combobox', { name: 'Search incident reports' })).toHaveValue('');
     });
 });

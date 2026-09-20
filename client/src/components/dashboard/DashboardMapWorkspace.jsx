@@ -32,7 +32,12 @@ import {
 import { scheduleElementScroll } from '../../utils/mapNavigation';
 import { toSafeArray, safeCount, normalizeMunicipalityKey, getEntityKey } from '../../utils/safeCollection';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
-import { getMapRiskTypeConfig, getMapSeverityConfig, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
+import {
+    getMapRiskTypeConfig,
+    getMapSeverityConfig,
+    isRiskZoneLayerVisibleForFilter,
+    MAP_STATUS_CONFIG,
+} from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
@@ -432,7 +437,7 @@ const MetricStripItem = ({
         // beside it is solid, and two halves of one row reading as two slightly
         // different surfaces is exactly the kind of difference a reader notices
         // without being able to name it.
-        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white px-2 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-4 lg:justify-center lg:py-2 ${className} dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
+        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white px-2 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3 lg:justify-center lg:py-2 ${className} dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
             ? 'ring-2 ring-brand-600 dark:ring-brand-400'
             : ''
             }`}
@@ -583,6 +588,10 @@ const DashboardMapWorkspace = ({
     handleMapVerify,
     handleMapReject,
     setSearchParams,
+    // Clears the focused record from the page's URL. Owned by the page, because
+    // the URL is where a focus lives (`?report=` / `?riskZone=`) — see
+    // `clearFocusedEntity` there and `utils/dashboardFocus`.
+    onClearFocusedEntity,
     mapSummaryPanel,
     setMapSummaryPanel,
     activePanel,
@@ -709,6 +718,10 @@ const DashboardMapWorkspace = ({
     }
     useLayoutEffect(() => {
         const arrival = arrivalRef.current;
+        // Deliberately NOT `selectMapFilter`: an arrival's own reset must keep the
+        // focus, because on a deep link the focus IS the arrival — `?riskZone=`
+        // is what this reset exists to be able to show. Only a scope change the
+        // viewer makes afterwards drops it.
         if (arrival.resetFilter) setResponderMapFilter(arrival.filter);
         if (arrival.resetPanel) setMapSummaryPanel(arrival.panel);
     }, [setMapSummaryPanel, setResponderMapFilter]);
@@ -826,6 +839,28 @@ const DashboardMapWorkspace = ({
         setActiveQueueSegment('all');
         setMapSummaryPanel(panel);
     }, [setMapSummaryPanel]);
+
+    /**
+     * Forget the record the map was pointed at.
+     *
+     * Two pieces of state say "look at this one": the page's URL focus
+     * (`?riskZone=` / `?report=`, read by the page and handed to the map as
+     * `focusedRiskZone` / `focusedReport`) and this workspace's own one-shot
+     * locate request (a "Locate" click on a row). Both outlive the click that
+     * made them — the URL keeps advertising the record, and the request stays in
+     * state after the camera has already arrived.
+     *
+     * That lingering request is not just bookkeeping. The map draws the hazard
+     * layer when its tab asks for it OR when a risk zone is targeted (see
+     * `isRiskZoneFilterActive` in MapView), so a target nobody is looking at any
+     * more kept every zone on the canvas under a tab that does not draw them.
+     * Dropping both here is what makes "render only what the active tab shows"
+     * true for a record that arrived from outside the tab's own set.
+     */
+    const clearFocusedEntity = useCallback(() => {
+        setMapLocateRequest(null);
+        onClearFocusedEntity?.();
+    }, [onClearFocusedEntity]);
 
     // The summary box has two readers: this workspace's own pane, and the details
     // pane the map opens when a pin is clicked. Whichever opens second takes the
@@ -1068,6 +1103,10 @@ const DashboardMapWorkspace = ({
     const canLocatePanelReport = () => true;
 
     const openOverviewMetric = (metric) => {
+        // A card click is a scope change like a tab click — it opens its own set
+        // and points the map at it — so the record the URL was focused on stops
+        // being what this view is showing.
+        clearFocusedEntity();
         if (metric.mapFilter && mapExperience.filters.length > 0) {
             setResponderMapFilter(metric.mapFilter);
         }
@@ -1117,6 +1156,11 @@ const DashboardMapWorkspace = ({
             setSelectedActiveRiskZoneId('');
             closeMapSummaryPanel({ preserveNavigation: true });
         }
+        // This locate IS the new subject, so whatever the URL was focused on is
+        // dropped — and the tab follows the record, because a zone is drawn only
+        // on the hazards tab. The request below is set after the clear, so it is
+        // the one that survives.
+        clearFocusedEntity();
         if (mapExperience.filters.length > 0 && responderMapFilter !== 'risk-zones') {
             setResponderMapFilter('risk-zones');
         }
@@ -1130,6 +1174,10 @@ const DashboardMapWorkspace = ({
 
     const locateActiveIncident = (report) => {
         setSelectedActiveIncidentId('');
+        // Same contract as a located zone: this record is what the camera is now
+        // about, so the URL's focus gives way to it (the request below replaces
+        // the one `clearFocusedEntity` dropped).
+        clearFocusedEntity();
         if (mapExperience.filters.length > 0 && !displayedMapReportIds.has(getEntityKey(report))) {
             setResponderMapFilter('all');
         }
@@ -1239,54 +1287,93 @@ const DashboardMapWorkspace = ({
         }
     };
 
+    /**
+     * The one way this workspace changes the map's scope.
+     *
+     * Every control that says "show me this set instead" goes through here — the
+     * rail, its phone sheet, the sheet's clear button and the overview cards —
+     * because a tab click is not only a new filter. Three things have to happen
+     * with it, and when they lived at the click sites, each site remembered a
+     * different subset:
+     *
+     *  1. The map's own filter, so the canvas draws the tab's set.
+     *  2. The previous scope's focus is dropped (see `clearFocusedEntity`): the
+     *     record a link or a "Locate" pointed at is not part of the set the
+     *     viewer just chose, and while it survived the map kept drawing a hazard
+     *     layer the new tab does not own. This is also what makes the URL stop
+     *     advertising it, because the focus lives there.
+     *  3. The pane's own selection is dropped, exactly as opening a card drops it,
+     *     AND a pane about hazard areas is closed: it would otherwise list zones
+     *     beside a map that is drawing incidents, with a zone's details inside it
+     *     describing a marker that is no longer on the canvas. Any tab that
+     *     draws the layer keeps the pane, because then the pane is back on
+     *     subject.
+     *
+     * Closing that pane can rewrite the query itself (it owns the URL reset when
+     * it was opened BY the URL — see `closeMapSummaryPanel`), and one click must
+     * not push two history entries, so the page's focus cleanup is skipped when
+     * the pane close already did it.
+     */
+    const selectMapFilter = useCallback((nextFilter) => {
+        setResponderMapFilter(nextFilter);
+        setMapLocateRequest(null);
+        setSelectedActiveIncidentId('');
+        setSelectedActiveRiskZoneId('');
+
+        const closesPane = isRiskZoneSummaryPanel
+            && !isRiskZoneLayerVisibleForFilter(nextFilter);
+        if (closesPane) closeMapSummaryPanel();
+
+        const paneOwnsUrl = closesPane
+            && !mapSummaryPanel.startsWith(OVERVIEW_PANEL_PREFIX)
+            && ['incidents', 'zones'].includes(activePanel);
+        if (!paneOwnsUrl) onClearFocusedEntity?.();
+    }, [
+        activePanel,
+        closeMapSummaryPanel,
+        isRiskZoneSummaryPanel,
+        mapSummaryPanel,
+        onClearFocusedEntity,
+        setResponderMapFilter,
+    ]);
+
     return (
-        <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-3 sm:gap-5 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[480px] lg:gap-3">
-            {/* 7.25rem is the app header (4rem) plus this page's own top and
-                bottom padding (1.25rem + 2rem), so the workspace ends where the
-                viewport does and the page has nothing left to scroll. The floor
-                is 480px, not the 560px it first shipped with: at a 1280x720
-                laptop the available height is ~525px, so a 560px floor did not
-                protect the map — it put the bottom of the page, KPI cards
-                included, back below the fold. */}
-            {/* Title block left, view switch right. The switch used to sit in a
-                row of its own above this header, which cost a band of empty
-                space on the one page that has both views. */}
-            {/* Kicker, title, and — below lg — the sentence that explains them.
-                From lg the description gives way: the workspace's height is the
-                viewport's minus this header, so every line spent here is a line
-                the map does not get, and the description restates what the
-                kicker and title already name. */}
-            <header className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-6 lg:items-center lg:gap-4">
-                <div className="min-w-0">
-                    {/* The workspace's own name, and under it the page's subject.
-                        *
-                        * The eyebrow is about the viewer — "Reporter map",
-                        * "Municipal oversight" — and the h1 is about what they are
-                        * looking at, which is why the two are one hierarchy rather
-                        * than one line printed twice. The h1 also stays the
-                        * document's heading: a screen reader announces it on
-                        * arrival and a headings list is built from it, so a
-                        * workspace whose subject lived only in the URL read as a
-                        * fragment of some larger screen.
-                        *
-                        * From lg the title steps down to 22px rather than being
-                        * dropped: this workspace's height is the viewport's minus
-                        * this header, so the title is sized for a header that is
-                        * also the top of a full-height map — one line, still the
-                        * largest type in the column, ~28px of height. What gives
-                        * way at lg is the description, which only restates it. */}
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700 dark:text-sky-400">
-                        {mapExperience.eyebrow}
-                    </p>
-                    <h1 className="mt-1 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-gray-950 break-words sm:text-[32px] lg:mt-0.5 lg:text-[22px] dark:text-white">
-                        {mapExperience.title}
-                    </h1>
-                    <p className="mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300 break-words lg:hidden">
-                        {mapExperience.description}
-                    </p>
+        <div className="mx-auto flex w-full max-w-none flex-col gap-1 sm:gap-2 lg:h-[calc(100dvh-4.5rem)] lg:min-h-[500px] lg:gap-1.5">
+            {/* 4.5rem is the app header (4rem) plus the map workspace's own compact
+                top and bottom padding (0rem + 0.5rem, see MainLayout isMapView),
+                so the workspace ends where the viewport does and the page has
+                nothing left to scroll. The floor is 500px: below that the canvas
+                clips terrain, so a short viewport scrolls the page rather than
+                crushing the map. */}
+            {/* The document's accessible title for assistive technology */}
+            <h1 className="sr-only">{mapExperience.title}</h1>
+
+            {/* Status filter toolbar and view switch directly below the top navigation,
+                reclaiming vertical space so the operational map dominates the view. */}
+            {(mapExperience.filters.length > 0 || viewSwitch) && (
+                <div
+                    className={`${viewSwitch ? 'flex' : 'hidden'} lg:flex w-full min-w-0 items-end justify-between gap-x-3 lg:border-b border-gray-200 dark:border-white/10`}
+                    aria-label="Map status filter"
+                    role="group"
+                >
+                    {mapExperience.filters.length > 0 && (
+                        <div className="hidden min-w-0 flex-1 items-end gap-x-1 overflow-x-auto no-scrollbar lg:flex">
+                            <MapFilterRail
+                                filters={mapExperience.filters}
+                                showPendingReports={mapExperience.showPendingReports}
+                                selectedFilter={responderMapFilter}
+                                onSelectFilter={selectMapFilter}
+                                getCount={getFilterCount}
+                            />
+                        </div>
+                    )}
+                    {viewSwitch && (
+                        <div className="shrink-0 pb-1 max-lg:w-full max-lg:flex max-lg:justify-end max-lg:pb-1 max-lg:pt-2">
+                            {viewSwitch}
+                        </div>
+                    )}
                 </div>
-                {viewSwitch && <div className="shrink-0 sm:pt-0.5">{viewSwitch}</div>}
-            </header>
+            )}
 
             {error && (
                 <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
@@ -1352,26 +1439,6 @@ const DashboardMapWorkspace = ({
                 Without it the canvas would simply be cut off, because the
                 section that holds it is `overflow-hidden` at a height the row
                 is allowed to shrink. */}
-            {/* The filter rail on its own full-width line, above both columns.
-                It is `hidden lg:flex` because below lg the Filters button and
-                its sheet own this job — see the mobile bar inside the map card,
-                which is now the card's only header band. The bottom border is
-                what the selected tab's indicator sits on. */}
-            {mapExperience.filters.length > 0 && (
-                <div
-                    className="hidden w-full min-w-0 flex-wrap items-end gap-x-1 border-b border-gray-200 lg:flex dark:border-white/10"
-                    aria-label="Map status filter"
-                    role="group"
-                >
-                    <MapFilterRail
-                        filters={mapExperience.filters}
-                        showPendingReports={mapExperience.showPendingReports}
-                        selectedFilter={responderMapFilter}
-                        onSelectFilter={setResponderMapFilter}
-                        getCount={getFilterCount}
-                    />
-                </div>
-            )}
 
             {/* The summary column is `clamp`ed, not fixed. A hard 340px column
                 left the map ~360px at a 1024px viewport — a phone-sized canvas
@@ -1391,7 +1458,7 @@ const DashboardMapWorkspace = ({
                 stops mattering. Only the drawing order changes — the summary
                 stays FIRST in the DOM, so the tab order, the pane's box and the
                 tests that read the cards before the map are untouched. */}
-            <div className="flex flex-col gap-3 sm:gap-5 lg:grid lg:min-h-[420px] lg:flex-1 lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)] lg:items-stretch lg:gap-4">
+            <div className="flex flex-col gap-2 sm:gap-2 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)] lg:items-stretch lg:gap-2">
             {/* The summary box is the box a card's records open into. On a phone
                 it hugs the two-by-two band instead of reserving a height: two
                 rows of cards are the honest height, and the page is ~110px
@@ -1511,13 +1578,13 @@ const DashboardMapWorkspace = ({
                 one radius, one shadow. A border here and a ring there read as
                 two different component families on a screen where they are two
                 halves of the same row. */}
-            <section ref={mapSectionRef} className="order-1 scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-2 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="order-1 scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-1 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
                 {/* Mobile and tablet controls only: the desktop rail is the
                     full-width bar above, so from lg the card holds nothing but
                     the canvas — which is the cleanest thing a map card can hold,
                     and worth ~46px of canvas height on a laptop. The sheet is
                     rendered here because this is where its trigger lives. */}
-                <div className="flex flex-col gap-2 p-2 sm:gap-2.5 sm:p-2.5 lg:hidden">
+                <div className="flex flex-col gap-1.5 px-1.5 pb-1.5 pt-1 sm:gap-2 sm:p-2 lg:hidden">
                     {mapExperience.filters.length > 0 && (() => {
                         const isFiltered = responderMapFilter && responderMapFilter !== 'all';
                         const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
@@ -1568,7 +1635,7 @@ const DashboardMapWorkspace = ({
                                         {isFiltered && (
                                             <button
                                                 type="button"
-                                                onClick={() => setResponderMapFilter('all')}
+                                                onClick={() => selectMapFilter('all')}
                                                 aria-label="Clear active filter and show all"
                                                 className="flex min-h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200"
                                                 title="Clear filter"
@@ -1585,7 +1652,7 @@ const DashboardMapWorkspace = ({
                                     onClose={() => setIsMobileFilterOpen(false)}
                                     filters={mapExperience.filters}
                                     selectedFilter={responderMapFilter}
-                                    onSelectFilter={setResponderMapFilter}
+                                    onSelectFilter={selectMapFilter}
                                     getFilterCount={getFilterCount}
                                     triggerRef={mobileFilterTriggerRef}
                                 />
@@ -1595,7 +1662,7 @@ const DashboardMapWorkspace = ({
                     })()}
                 </div>
 
-                <div className={`relative ${PHONE_MAP_FRAME_CLASSES} overflow-hidden rounded-lg sm:aspect-auto sm:h-[460px] lg:h-auto lg:flex-1`}>
+                <div className={`relative ${PHONE_MAP_FRAME_CLASSES} overflow-hidden rounded-lg sm:aspect-auto sm:h-[460px] lg:h-auto lg:min-h-0 lg:flex-1`}>
                     {loading && safeCount(reports) === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
