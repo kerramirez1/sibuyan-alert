@@ -416,6 +416,28 @@ const DashboardPage = () => {
         }
     }, [dashboardCacheKey, isResponder, navigate, user]);
 
+    // Acknowledging a transfer is the receiving municipality's first act on an
+    // incident handed to it: it is the moment the record stops reading as
+    // "waiting on us". Same shape as `handleMapRespond` — call, refetch, hand the
+    // message back — because the map's footer reports the result the same way for
+    // every panel action.
+    const handleMapAcknowledgeTransfer = useCallback(async (report) => {
+        if (!isAdmin || !report?._id) {
+            return { ok: false, message: 'Administrator action only' };
+        }
+
+        try {
+            const response = await adminAPI.acknowledgeTransfer(report._id);
+            const refreshedReports = await fetchAllReportPages(adminAPI.getReports);
+            setReports(refreshedReports);
+            setCachedData(dashboardCacheKey, refreshedReports);
+
+            return { ok: true, message: response.data?.message || 'Transfer acknowledged' };
+        } catch (error) {
+            return { ok: false, message: error.response?.data?.message || 'Failed to acknowledge transfer' };
+        }
+    }, [dashboardCacheKey, isAdmin]);
+
     const handleMapResolve = useCallback(async (report) => {
         if (!isResponder || !report?._id) {
             return { ok: false, message: 'Responder action only' };
@@ -969,6 +991,7 @@ const DashboardPage = () => {
                     setResponderMapFilter={setResponderMapFilter}
                     canCurrentResponderResolve={canCurrentResponderResolve}
                     handleMapRespond={handleMapRespond}
+                    handleMapAcknowledgeTransfer={handleMapAcknowledgeTransfer}
                     handleMapResolve={handleMapResolve}
                     handleMapVerify={handleMapVerify}
                     handleMapReject={handleMapReject}

@@ -157,7 +157,9 @@ function App() {
                 <Route path="/admin" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin', 'responder']}><AdminPage /></ProtectedRoute></MainLayout>} />
                 <Route path="/admin/reports" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin', 'responder']}><AdminReportsPage /></ProtectedRoute></MainLayout>} />
                 <Route path="/admin/users" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin']}><AdminUsersPage /></ProtectedRoute></MainLayout>} />
-                <Route path="/admin/zones" element={<MainLayout><ProtectedRoute allowedRoles={['municipal_admin']}><AdminHighRiskZonesPage /></ProtectedRoute></MainLayout>} />
+                {/* `fitWindow`: the zones workspace is map + list, and both halves scroll
+                    inside themselves, so it must fit the window rather than scroll. */}
+                <Route path="/admin/zones" element={<MainLayout fitWindow><ProtectedRoute allowedRoles={['municipal_admin']}><AdminHighRiskZonesPage /></ProtectedRoute></MainLayout>} />
 
                 {/* 404 */}
                 <Route element={<NotFoundPage />} />

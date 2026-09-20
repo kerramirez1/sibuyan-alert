@@ -33,6 +33,14 @@ export const IncidentStatusBadge = ({ status }) => (
     <OperationalStatusIndicator status={status} />
 );
 
+/**
+ * Whether the receiving office has taken a transfer up.
+ *
+ * Laid out inline rather than as a block of its own: provenance and
+ * acknowledgement are two halves of one fact about one transfer, so they belong
+ * on one line. Stacked, every transferred row in the queue spent a second line
+ * saying something its reader already had to read together anyway.
+ */
 const TransferAcknowledgmentState = ({ report, neutral = false }) => {
     const transfer = getLatestTransfer(report);
     if (!transfer) return null;
@@ -41,8 +49,8 @@ const TransferAcknowledgmentState = ({ report, neutral = false }) => {
     const Icon = acknowledged ? HiOutlineCheckCircle : HiOutlineClock;
 
     return (
-        <span className={`mt-2 flex max-w-full items-start gap-1.5 text-xs font-medium leading-4 ${neutral ? 'text-gray-500 dark:text-gray-400' : acknowledged ? 'text-emerald-700' : 'text-amber-700'}`}>
-            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${neutral ? 'text-gray-500 dark:text-gray-400' : acknowledged ? 'text-emerald-700' : 'text-amber-700'}`}>
+            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>{acknowledged ? 'Transfer acknowledged' : 'Awaiting acknowledgment'}</span>
         </span>
     );
@@ -346,6 +354,9 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
     // Acknowledged transfers keep their downstream status (e.g. responding),
     // so provenance needs its own line — the status badge alone can't show it.
     // Origin viewers read "to", everyone else reads "from".
+    // Read once: the row needs to know both whether there is a transfer, and what
+    // the line about it says.
+    const latestTransfer = getLatestTransfer(safeReport);
     const transferOrigin = getTransferOrigin(safeReport);
     const viewerMunicipality = user?.assignedMunicipality?.trim().toLocaleLowerCase() || '';
     const transferLine = transferOrigin
@@ -392,13 +403,25 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 <span>{assignment === 'Unassigned' ? <span className="font-medium text-amber-700 dark:text-amber-400">Unassigned · needs unit</span> : <>Assigned to <span className="font-medium text-gray-700 dark:text-gray-200">{assignment}</span></>}</span>
             </div>
 
-            <TransferAcknowledgmentState report={safeReport} neutral />
-
-            {transferLine && (
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getMapStatusDot('transferred')}`} aria-hidden="true" />
-                    <span>{transferLine}</span>
-                </p>
+            {/* Provenance and acknowledgement, on one line. `flex-wrap` is what
+                keeps that true down to a phone: the pair drops to a second line
+                only when the row genuinely cannot hold it. */}
+            {(latestTransfer || transferLine) && (
+                <div
+                    data-transfer-summary="true"
+                    className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5"
+                >
+                    {latestTransfer && <TransferAcknowledgmentState report={safeReport} neutral />}
+                    {latestTransfer && transferLine && (
+                        <span className="text-gray-300 dark:text-gray-700" aria-hidden="true">&middot;</span>
+                    )}
+                    {transferLine && (
+                        <span className="flex min-w-0 items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getMapStatusDot('transferred')}`} aria-hidden="true" />
+                            <span>{transferLine}</span>
+                        </span>
+                    )}
+                </div>
             )}
 
             {safeReport.hasUnreadReporterUpdate && updateMeta && (

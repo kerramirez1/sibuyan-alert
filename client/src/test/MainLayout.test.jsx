@@ -336,4 +336,31 @@ describe('MainLayout responsive navigation', () => {
         expect(document.body.classList.contains('mobile-sidebar-open')).toBe(false);
         expect(rootContainer?.className).not.toContain('z-[95]');
     });
+
+    test('a fit-to-window page is handed a definite height to size itself against', () => {
+        const { unmount } = render(
+            <MemoryRouter initialEntries={['/admin/zones']}>
+                <Routes>
+                    <Route element={<MainLayout fitWindow><div>Fitted page</div></MainLayout>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        // The zones workspace is map + list and both halves scroll inside
+        // themselves, so the page must fill the window instead of scrolling. A
+        // percentage height only resolves against a parent with a height of its
+        // own, which is what this wrapper provides — the page can then never be
+        // taller than the space it was given.
+        expect(screen.getByText('Fitted page').parentElement).toHaveClass('page-enter', 'lg:h-full');
+        // ...and the scroller behind it steps out of the way at lg, so an
+        // overshoot is clipped rather than turning the workspace into a scroller.
+        expect(screen.getByRole('main')).toHaveClass('lg:overflow-y-hidden');
+        unmount();
+
+        // Every other page keeps the wrapper's natural height: block flow and
+        // normal page scrolling are unchanged where they are what we want.
+        renderLayout();
+        expect(screen.getByText('Page content').parentElement).not.toHaveClass('lg:h-full');
+        expect(screen.getByRole('main')).not.toHaveClass('lg:overflow-y-hidden');
+    });
 });

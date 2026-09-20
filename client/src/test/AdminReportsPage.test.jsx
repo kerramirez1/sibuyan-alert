@@ -889,6 +889,42 @@ describe('AdminReportsPage operational queue', () => {
         );
     });
 
+    test('reads the transfer and its acknowledgement as a single line', async () => {
+        const transferredReport = createReport({
+            _id: 'report-1',
+            address: 'Poblacion coastal road',
+            status: 'transferred',
+            transferHistory: [{
+                _id: 'transfer-1',
+                fromMunicipalityName: 'Magdiwang',
+                toMunicipalityName: 'Cajidiocan',
+                transferredAt: '2026-07-17T08:08:00.000Z',
+                acknowledgedAt: null,
+            }],
+        });
+        mocks.user = {
+            _id: 'admin-1',
+            name: 'Cajidiocan Municipal Admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([transferredReport]));
+
+        renderPage();
+        await screen.findAllByText('Poblacion coastal road');
+
+        // Both halves of the same fact — where it came from, and whether this
+        // office has taken it up — sit in one row. Rendering either outside this
+        // box (or inside a column) puts them back on two lines, which is what the
+        // queue used to spend on every transferred incident.
+        const summary = document.querySelector('[data-transfer-summary="true"]');
+        expect(summary).not.toBeNull();
+        expect(summary).toHaveTextContent('Awaiting acknowledgment');
+        expect(summary).toHaveTextContent('Transferred from Magdiwang');
+        expect(summary.className).toContain('flex-wrap');
+        expect(summary.className).not.toContain('flex-col');
+    });
+
     test('does not expose acknowledgment to an administrator outside the target municipality', async () => {
         mocks.user = {
             _id: 'source-admin',

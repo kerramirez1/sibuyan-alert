@@ -173,6 +173,18 @@ const MapView = ({
     canVerifyReport = null,
     onVerifyToReport = null,
     onRejectToReport = null,
+    /**
+     * Acknowledge a transfer into the viewer's own municipality.
+     *
+     * Same split as `canVerify` / `canVerifyReport`: the base flag is the role,
+     * the predicate decides the record. Acknowledging is admin-only, scoped to
+     * the receiving municipality and available exactly once, so the predicate
+     * carries all three — the caller passes `getIncidentCapabilities`, which the
+     * incident queue already uses, rather than a second rule that could drift.
+     */
+    canAcknowledgeTransfer = false,
+    canAcknowledgeTransferReport = null,
+    onAcknowledgeTransferToReport = null,
     viewerRole = 'guest',
     viewer = null,
     showDataState = false,
@@ -1036,6 +1048,8 @@ const MapView = ({
                 const canVerifyThisReport = canVerify &&
                     report.status === 'pending' &&
                     (!canVerifyReport || canVerifyReport(report));
+                const canAcknowledgeThisReport = canAcknowledgeTransfer
+                    && (!canAcknowledgeTransferReport || canAcknowledgeTransferReport(report));
                 const markerColor = getReportMarkerColor(report);
                 const isRespondingDot = report.status === 'responding';
                 // Identity: same location + same set of reports = same marker.
@@ -1060,6 +1074,10 @@ const MapView = ({
                     canRespondToThisReport,
                     canResolveThisReport,
                     canVerifyThisReport,
+                    // Acknowledging does not move the status, so an acknowledged
+                    // transfer would otherwise keep the pin it was built with and
+                    // go on offering the button it has already used.
+                    canAcknowledgeThisReport,
                 ].join('::');
 
                 const existing = existingMarkers.get(key);
@@ -1113,7 +1131,7 @@ const MapView = ({
                             setMapModal({ type: 'reportGroup', data: groupedReports });
                             return;
                         }
-                        setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport, canVerify: canVerifyThisReport, canReject: canVerifyThisReport });
+                        setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport, canVerify: canVerifyThisReport, canReject: canVerifyThisReport, canAcknowledgeTransfer: canAcknowledgeThisReport });
                     };
                     el.addEventListener('click', openMarker);
                     el.addEventListener('keydown', (event) => {
@@ -1143,7 +1161,7 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, canAcknowledgeTransfer, canAcknowledgeTransferReport, selectOperationalMarker]);
 
     // Fresh-event pulse: toggle the temporary ring on markers touched by the
     // latest socket events. Runs after the marker sync above (same deps plus
@@ -1154,7 +1172,7 @@ const MapView = ({
             const shouldPulse = (entry.ids || []).some((id) => pulsing.has(String(id)));
             entry.element?.classList?.toggle('map-marker--fresh', shouldPulse);
         });
-    }, [pulseReportIds, filteredReports, mapReady, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, selectOperationalMarker]);
+    }, [pulseReportIds, filteredReports, mapReady, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, canAcknowledgeTransfer, canAcknowledgeTransferReport, selectOperationalMarker]);
 
     // Risk zones use focused HTML pins so the imagery remains unobstructed.
     // Markers are diffed by zone identity: unchanged zones keep their live DOM
@@ -1494,6 +1512,23 @@ const MapView = ({
         setActionLoading(false);
     };
 
+    // Closes like its siblings, and for a reason beyond symmetry: this panel holds
+    // a snapshot of the report, so leaving it open after acknowledging would show
+    // the button again for an act that is already done. The refreshed list behind
+    // it is what a reader should be looking at.
+    const handleAcknowledgeTransferFromModal = async (report) => {
+        if (!onAcknowledgeTransferToReport) return;
+        setActionLoading(true);
+        const result = await onAcknowledgeTransferToReport(report);
+        if (result?.ok) {
+            toast.success(result.message || 'Transfer acknowledged');
+            closeMapSelection();
+        } else {
+            toast.error(result?.message || 'Failed to acknowledge transfer');
+        }
+        setActionLoading(false);
+    };
+
     return (
         <div className={`relative min-h-0 rounded-lg ${className}`}>
             <div
@@ -1569,11 +1604,13 @@ const MapView = ({
                             canResolve={mapModal.canResolve}
                             canVerify={mapModal.canVerify}
                             canReject={mapModal.canReject}
+                            canAcknowledgeTransfer={mapModal.canAcknowledgeTransfer}
                             actionLoading={actionLoading}
                             onRespond={handleRespondFromModal}
                             onResolve={handleResolveFromModal}
                             onVerify={handleVerifyFromModal}
                             onReject={handleRejectFromModal}
+                            onAcknowledgeTransfer={handleAcknowledgeTransferFromModal}
                         />
                     )}
 
@@ -1590,6 +1627,7 @@ const MapView = ({
                                         canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
                                         canVerify: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),
                                         canReject: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),
+                                        canAcknowledgeTransfer: canAcknowledgeTransfer && (!canAcknowledgeTransferReport || canAcknowledgeTransferReport(report)),
                                     })}
                                     className="flex w-full items-start justify-between gap-4 py-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                 >

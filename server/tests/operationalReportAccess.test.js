@@ -131,7 +131,7 @@ describe('operational report DTOs', () => {
         expect(summary.transferHistory).toBeUndefined();
     });
 
-    test('exposes a names-only transfer trail on summaries for queue provenance', () => {
+    test('exposes a names-only transfer trail, and the acknowledgement state, on summaries', () => {
         const transferred = {
             ...verifiedReport,
             municipalityName: 'Magdiwang',
@@ -142,10 +142,27 @@ describe('operational report DTOs', () => {
         };
         const summary = toOperationalReportSummary(transferred);
         expect(summary.transferHistory).toBeUndefined();
+        // Names, and whether the receiving office has taken the leg up — the one
+        // field that gates "Acknowledge transfer" on every list-fed surface. The
+        // reason and the transferring administrator stay in the full detail view.
         expect(summary.transferTrail).toEqual([
-            { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang' },
+            { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', acknowledgedAt: null },
         ]);
         expect(summary.physicalMunicipalityName).toBe('Cajidiocan');
+
+        // Then it flips, which is what lets the queue and the map stop offering an
+        // action that has already been taken.
+        const acknowledgedOn = new Date('2026-07-18T09:00:00.000Z');
+        const acknowledged = toOperationalReportSummary({
+            ...transferred,
+            transferHistory: [
+                { ...transferred.transferHistory[0], acknowledgedAt: acknowledgedOn, acknowledgedBy: 'admin-2' },
+            ],
+        });
+        expect(acknowledged.transferTrail).toEqual([
+            { fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', acknowledgedAt: acknowledgedOn },
+        ]);
+        expect(acknowledged.transferTrail[0].acknowledgedBy).toBeUndefined();
     });
 
     test('returns allowlisted full details and conditionally exposes contact and admin-only reasons', () => {

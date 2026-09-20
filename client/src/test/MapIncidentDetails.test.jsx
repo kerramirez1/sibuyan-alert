@@ -677,6 +677,45 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
             expect(onReject).toHaveBeenCalledTimes(1);
         });
 
+        test('a transferred incident offers Acknowledge transfer, and calls through', () => {
+            const onAcknowledgeTransfer = vi.fn();
+            const transferredReport = {
+                ...sampleReport,
+                status: 'transferred',
+                municipalityName: 'Magdiwang',
+                transferHistory: [{
+                    _id: 'transfer-1',
+                    fromMunicipalityName: 'Cajidiocan',
+                    toMunicipalityName: 'Magdiwang',
+                    acknowledgedAt: null,
+                }],
+            };
+
+            renderDetails({
+                report: transferredReport,
+                viewerRole: 'municipal_admin',
+                canAcknowledgeTransfer: true,
+                onAcknowledgeTransfer,
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /Acknowledge transfer/i }));
+
+            expect(onAcknowledgeTransfer).toHaveBeenCalledTimes(1);
+            expect(onAcknowledgeTransfer).toHaveBeenCalledWith(expect.objectContaining({ _id: 'report-1' }));
+        });
+
+        test('without the capability there is no acknowledge button, and no action footer', () => {
+            renderDetails({
+                report: { ...sampleReport, status: 'transferred' },
+                viewerRole: 'municipal_admin',
+            });
+
+            // The pane still renders in full — only the verb is withheld, which is
+            // the caller's decision to make (it holds the municipality scope).
+            expect(screen.getByText('Accident at J. Rizal Street')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Acknowledge transfer/i })).not.toBeInTheDocument();
+        });
+
         test('no review actions without admin verify capability', () => {
             renderDetails({
                 report: { ...sampleReport, status: 'pending' },

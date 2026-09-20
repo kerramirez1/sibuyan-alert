@@ -169,6 +169,40 @@ describe('AdminHighRiskZonesPage', () => {
         expect(screen.getByText('View only')).toBeInTheDocument();
     });
 
+    test('spends two header lines, so the workspace keeps the rest of the viewport', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        // The stage below the header is `flex-1`: whatever the header claims in
+        // height it takes from the map and the zone list. The live status is
+        // therefore grouped with the title on one row instead of owning a third
+        // line. Re-stacking it costs ~20px of map on every screen, which is the
+        // regression this pins down.
+        const title = screen.getByText('High-risk zones');
+        const status = screen.getByText(/Sibuyan Island · Alert System Active/i);
+        const titleRow = title.parentElement;
+        expect(titleRow.contains(status)).toBe(true);
+
+        // The description still owns the line under them — it is a sibling of
+        // their row, not a third member of it.
+        const description = screen.getByText(/View mapped hazards and manage zones for Cajidiocan\./i);
+        expect(titleRow.contains(description)).toBe(false);
+        expect(description.parentElement.contains(title)).toBe(true);
+    });
+
+    test('fills the shell it is given instead of re-deriving the app chrome', () => {
+        const { container } = render(<AdminHighRiskZonesPage />);
+
+        // This page must not scroll as a whole, so its height is pinned to the
+        // box MainLayout hands it. It previously reconstructed that box by hand
+        // as `calc(100dvh - 7.25rem)` with a 480px floor: true only while the
+        // header height, main's padding and the window all stayed large enough,
+        // and on a shorter window the floor won and the page scrolled — the one
+        // behaviour this workspace must never have. `h-full` cannot overshoot.
+        const page = container.firstElementChild;
+        expect(page).toHaveClass('lg:h-full');
+        expect(page.className).not.toMatch(/100dvh|min-h-\[/);
+    });
+
     test('opens zone creation form with reference photos section and allows cancelling', () => {
         render(<AdminHighRiskZonesPage />);
 

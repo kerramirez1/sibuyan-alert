@@ -166,11 +166,13 @@ const MapIncidentDetails = ({
     canResolve = false,
     canVerify = false,
     canReject = false,
+    canAcknowledgeTransfer = false,
     actionLoading = false,
     onRespond,
     onResolve,
     onVerify,
     onReject,
+    onAcknowledgeTransfer,
     onToggleExpand,
     onClose: _onClose,
     onBack,
@@ -223,7 +225,10 @@ const MapIncidentDetails = ({
     });
 
     const isOperational = explicitIsOperational || operational.isOperationalViewer || visibility.isOperational;
-    const hasActions = Boolean(canRespond || canResolve || canVerify || canReject);
+    // Acknowledge counts as an action on its own: for the receiving municipality's
+    // administrator it is the only button a transferred incident offers, so
+    // leaving it out of this test would hide the footer that carries it.
+    const hasActions = Boolean(canRespond || canResolve || canVerify || canReject || canAcknowledgeTransfer);
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
     const { injured, fatalities, missing, injuredNum, fatalitiesNum, missingNum, isAllZeroOrUnrecorded } = normalizedCasualties;
@@ -602,6 +607,20 @@ const MapIncidentDetails = ({
                                 className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
                             >
                                 Reject report
+                            </Button>
+                        )}
+
+                        {/* Sits with the other admin verbs, after Reject, which is
+                            the order the incident queue uses for the same button:
+                            one action, one place in a reader's scan. */}
+                        {canAcknowledgeTransfer && (
+                            <Button
+                                onClick={() => onAcknowledgeTransfer?.(displayedReport)}
+                                loading={actionLoading}
+                                loadingLabel="Please wait..."
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Acknowledge transfer
                             </Button>
                         )}
 

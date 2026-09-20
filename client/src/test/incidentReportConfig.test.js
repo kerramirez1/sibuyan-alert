@@ -27,6 +27,44 @@ describe('incidentReportConfig capabilities and jurisdiction', () => {
         municipalityName: 'Cajidiocan',
     };
 
+    // The shape the reports list actually sends (see `toOperationalReportSummary`):
+    // a names-only trail, and no `transferHistory` at all. Every surface fed by a
+    // list — the queue rows and the map's incident pane — holds this one, so the
+    // capabilities have to work from it, not only from the full detail shape.
+    const transferredSummary = {
+        _id: 'report-3',
+        status: 'transferred',
+        municipalityName: 'Magdiwang',
+        physicalMunicipalityName: 'Cajidiocan',
+        transferTrail: [
+            {
+                fromMunicipalityName: 'Cajidiocan',
+                toMunicipalityName: 'Magdiwang',
+                acknowledgedAt: null,
+            },
+        ],
+    };
+
+    test('acknowledges from the summary shape the queue and map receive', () => {
+        const magdiwangAdmin = { role: 'municipal_admin', assignedMunicipality: 'Magdiwang' };
+        expect(getIncidentCapabilities(magdiwangAdmin, transferredSummary).canAcknowledgeTransfer).toBe(true);
+
+        // Answered: the same summary must stop offering the action, or the button
+        // becomes a way to get a 400 from the server.
+        const acknowledged = {
+            ...transferredSummary,
+            transferTrail: [{ ...transferredSummary.transferTrail[0], acknowledgedAt: '2026-08-16T13:00:00.000Z' }],
+        };
+        expect(getIncidentCapabilities(magdiwangAdmin, acknowledged).canAcknowledgeTransfer).toBe(false);
+
+        // The originating office reads the transfer but never acknowledges it —
+        // it dismisses its read-only copy instead.
+        const cajidiocanAdmin = { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
+        const originCaps = getIncidentCapabilities(cajidiocanAdmin, transferredSummary);
+        expect(originCaps.canAcknowledgeTransfer).toBe(false);
+        expect(originCaps.canDismiss).toBe(true);
+    });
+
     test('restricts municipal admin actions to reports in their assigned municipality', () => {
         const cajidiocanAdmin = { role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
         const magdiwangAdmin = { role: 'municipal_admin', assignedMunicipality: 'Magdiwang' };

@@ -412,37 +412,53 @@ const AdminHighRiskZonesPage = () => {
     );
 
     return (
-        /* The workspace fits the window at lg, the same call the map dashboard
-           makes: nothing on this page should scroll as a whole, because both of
-           its halves — the map and the zone list — scroll inside themselves.
-           7.25rem is the app header (4rem) plus this page's own top and bottom
-           padding (1.25rem + 2rem), so the stage ends exactly at the viewport and
-           the page has nothing left over. The 480px floor is deliberate: below
-           that the map stops being usable, so a short viewport scrolls the page
-           instead of crushing the canvas. The height is NOT a guess at the header
-           band above (the old `calc(100vh-190px)` was). The header is `shrink-0`
-           and the stage takes the remainder, so the two cannot disagree when the
-           header wraps to two lines. */
-        <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-3 sm:gap-4 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[480px]">
+        /* The workspace fits the window at lg: nothing on this page scrolls as a
+           whole, because both halves — the map and the zone list — scroll inside
+           themselves.
+
+           `lg:h-full` is that whole guarantee, and it is deliberately not a
+           number. The route mounts MainLayout with `fitWindow`, so the element
+           wrapping this one has a height of its own, and 100% of it is exactly
+           main's content box — no arithmetic about the app header, main's own
+           padding, or `dvh` in the expression at all. The previous
+           `calc(100dvh - 7.25rem)` plus a 480px floor wrote those three numbers
+           out by hand: it fitted only while all three happened to stay true, and
+           on any window shorter than 596px the floor won and the whole page
+           scrolled — the exact thing this must not do. Derived, the page cannot
+           be taller than the space it was given, at any window size.
+
+           No min-height is needed here either: the header is `shrink-0`, the
+           stage takes the remainder, and `min-h-0` down the chain lets the canvas
+           give ground instead of pushing the page taller. */
+        <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-2.5 sm:gap-3 lg:h-full">
             {/* Page Header */}
-            <header className="flex shrink-0 flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
+            <header className="flex shrink-0 flex-col gap-3 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
-                        High-risk zones
-                    </p>
-                    {/* Printed as nothing, the same call the map workspace makes
-                        for its title: the eyebrow above names the surface and
-                        the line below names the municipality, so a 30px headline
-                        between them only repeated both. It stays as the
-                        document's h1 — the heading a screen reader announces and
-                        a headings list is built from. */}
-                    <h1 className="sr-only">High-risk zone management</h1>
+                    {/* This band is a toolbar, not a hero. The stage below is
+                        `flex-1`, so every line the header spends is a line the map
+                        and the zone list lose — which is why the live system
+                        status shares the title's row instead of claiming a third
+                        line of its own. It keeps its dot and its wording; it only
+                        wraps onto its own line when a narrow viewport leaves it no
+                        room. */}
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
+                            High-risk zones
+                        </p>
+                        {/* Printed as nothing, the same call the map workspace makes
+                            for its title: the eyebrow above names the surface and
+                            the line below names the municipality, so a 30px headline
+                            between them only repeated both. It stays as the
+                            document's h1 — the heading a screen reader announces and
+                            a headings list is built from. */}
+                        <h1 className="sr-only">High-risk zone management</h1>
+                        <p className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
+                            <span>Sibuyan Island · Alert System Active</span>
+                        </p>
+                    </div>
                     <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
                         View mapped hazards and manage zones for {user?.assignedMunicipality || 'all municipalities'}.
-                    </p>
-                    <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
-                        <span>Sibuyan Island · Alert System Active</span>
                     </p>
                 </div>
 

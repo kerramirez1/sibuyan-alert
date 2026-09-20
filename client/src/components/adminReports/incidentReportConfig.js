@@ -68,9 +68,24 @@ export const hasResponderAssigned = (report) => (
     Boolean(report?.respondedBy) || (Array.isArray(report?.responders) && report.responders.length > 0)
 );
 
+/**
+ * The newest transfer leg, from whichever shape the caller holds.
+ *
+ * Full details carry `transferHistory` (actors, reasons, timestamps); list
+ * summaries carry a names-only `transferTrail` — the same split `getTransferOrigin`
+ * and `hasTransferTrail` already handle. Reading only the first, as this did, made
+ * every summary look untransferred: the queue row and the map's incident pane
+ * could both name the transferring municipality and still refuse to acknowledge
+ * it, because the capability never found a transfer to acknowledge.
+ */
 export const getLatestTransfer = (report) => {
-    const history = Array.isArray(report?.transferHistory) ? report.transferHistory : [];
-    return history.length > 0 ? history[history.length - 1] : null;
+    if (Array.isArray(report?.transferHistory) && report.transferHistory.length > 0) {
+        return report.transferHistory[report.transferHistory.length - 1];
+    }
+    if (Array.isArray(report?.transferTrail) && report.transferTrail.length > 0) {
+        return report.transferTrail[report.transferTrail.length - 1];
+    }
+    return null;
 };
 
 export const isAssignedResponder = (user, report) => {

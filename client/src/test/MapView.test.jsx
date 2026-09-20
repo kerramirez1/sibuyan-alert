@@ -681,4 +681,34 @@ describe('MapView opening framing', () => {
         expect(dock).toBeEmptyDOMElement();
         dock.remove();
     });
+
+    test('a pin\'s own panel offers Acknowledge transfer when its caller grants it', async () => {
+        const onAcknowledgeTransferToReport = vi.fn(async () => ({ ok: true, message: 'Transfer acknowledged' }));
+        const transferredReport = {
+            _id: 'pin-transfer',
+            status: 'transferred',
+            municipalityName: 'Magdiwang',
+            coordinates: { lat: 12.40, lng: 122.60 },
+            incidentCategory: 'accident',
+            transferHistory: [{ fromMunicipalityName: 'Cajidiocan', toMunicipalityName: 'Magdiwang', acknowledgedAt: null }],
+        };
+
+        await renderReady({
+            reports: [transferredReport],
+            canAcknowledgeTransfer: true,
+            canAcknowledgeTransferReport: (report) => report?.status === 'transferred',
+            onAcknowledgeTransferToReport,
+        });
+
+        await waitFor(() => expect(maplibregl.Marker).toHaveBeenCalled());
+        // Which surface opened the incident must not decide what its reader may do
+        // about it: the pin's panel carries the same verb as the workspace's.
+        fireEvent.click(maplibregl.Marker.mock.calls.at(-1)[0].element);
+
+        const dialog = await screen.findByRole('dialog', { name: 'Incident details' });
+        fireEvent.click(within(dialog).getByRole('button', { name: /Acknowledge transfer/i }));
+
+        await waitFor(() => expect(onAcknowledgeTransferToReport).toHaveBeenCalledTimes(1));
+        expect(onAcknowledgeTransferToReport.mock.calls[0][0]).toMatchObject({ _id: 'pin-transfer' });
+    });
 });

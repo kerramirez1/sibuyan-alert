@@ -42,6 +42,7 @@ const createProps = (overrides = {}) => ({
     setResponderMapFilter: vi.fn(),
     canCurrentResponderResolve: vi.fn(() => true),
     handleMapRespond: vi.fn(),
+    handleMapAcknowledgeTransfer: vi.fn(),
     handleMapResolve: vi.fn(),
     setSearchParams: vi.fn(),
     mapSummaryPanel: '',
@@ -72,6 +73,68 @@ const findReportRow = (scope, incidentType) => within(scope)
 
 describe('DashboardMapWorkspace permissions', () => {
     beforeEach(() => mapPropsSpy.mockClear());
+
+    test('offers the transfer acknowledgement to the receiving municipality only', () => {
+        const handleMapAcknowledgeTransfer = vi.fn();
+        renderWorkspace(createProps({
+            user: {
+                _id: 'admin-1',
+                role: 'municipal_admin',
+                name: 'Magdiwang Municipal Admin',
+                assignedMunicipality: 'Magdiwang',
+            },
+            isAdmin: true,
+            isReporter: false,
+            handleMapAcknowledgeTransfer,
+        }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.canAcknowledgeTransfer).toBe(true);
+        expect(mapProps.onAcknowledgeTransferToReport).toBe(handleMapAcknowledgeTransfer);
+
+        // The summary shape the map actually receives — a names-only trail and no
+        // `transferHistory`. Feeding this fixture the full detail shape is how the
+        // button stayed hidden on a real transferred incident while every test here
+        // stayed green.
+        const awaiting = {
+            _id: 'transferred-1',
+            status: 'transferred',
+            municipalityName: 'Magdiwang',
+            physicalMunicipalityName: 'Cajidiocan',
+            transferTrail: [{ toMunicipalityName: 'Magdiwang', acknowledgedAt: null }],
+        };
+        expect(mapProps.canAcknowledgeTransferReport(awaiting)).toBe(true);
+        // Acknowledging is the receiving municipality's act and a one-shot one, so
+        // a transfer already answered, and one addressed to somebody else, are both
+        // outside this administrator's reach.
+        expect(mapProps.canAcknowledgeTransferReport({
+            ...awaiting,
+            transferTrail: [{ toMunicipalityName: 'Magdiwang', acknowledgedAt: new Date() }],
+        })).toBe(false);
+        expect(mapProps.canAcknowledgeTransferReport({
+            ...awaiting,
+            municipalityName: 'Cajidiocan',
+            transferTrail: [{ toMunicipalityName: 'Cajidiocan', acknowledgedAt: null }],
+        })).toBe(false);
+    });
+
+    test('withholds the transfer acknowledgement from responders', () => {
+        renderWorkspace(createProps({
+            user: { _id: 'resp-1', role: 'responder', agency: 'MDRRMO', assignedMunicipality: 'Magdiwang' },
+            isAdmin: false,
+            isResponder: true,
+            isReporter: false,
+        }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.canAcknowledgeTransfer).toBe(false);
+        expect(mapProps.canAcknowledgeTransferReport({
+            _id: 'transferred-1',
+            status: 'transferred',
+            municipalityName: 'Magdiwang',
+            transferTrail: [{ toMunicipalityName: 'Magdiwang', acknowledgedAt: null }],
+        })).toBe(false);
+    });
 
     test('shows an unavailable notice for deep-linked reports that cannot resolve', () => {
         renderWorkspace(createProps({ focusedReport: null, focusedReportMissing: true }));

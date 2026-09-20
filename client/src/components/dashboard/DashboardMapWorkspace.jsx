@@ -39,6 +39,7 @@ import {
     MAP_STATUS_CONFIG,
 } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
+import { getIncidentCapabilities } from '../adminReports/incidentReportConfig';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
 import { buildActiveIncidentsSummary, buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
@@ -584,6 +585,7 @@ const DashboardMapWorkspace = ({
     setResponderMapFilter,
     canCurrentResponderResolve,
     handleMapRespond,
+    handleMapAcknowledgeTransfer,
     handleMapResolve,
     handleMapVerify,
     handleMapReject,
@@ -1259,6 +1261,19 @@ const DashboardMapWorkspace = ({
         && isReportInResponderMunicipality(selectedActiveIncident)
         && selectedActiveIncident.status === 'pending',
     );
+    // Acknowledge is admin-only, municipality-scoped and one-shot — the decision
+    // already lives in `getIncidentCapabilities`, where the incident queue makes
+    // it. Asking that same helper here is what keeps the map's button and the
+    // queue's button from ever disagreeing (and it mirrors the server's check).
+    const canAcknowledgeTransferReport = useCallback(
+        (report) => getIncidentCapabilities(user, report).canAcknowledgeTransfer,
+        [user],
+    );
+    const selectedIncidentCanAcknowledgeTransfer = Boolean(
+        selectedActiveIncident
+        && handleMapAcknowledgeTransfer
+        && canAcknowledgeTransferReport(selectedActiveIncident),
+    );
     const selectedIncidentCanReject = Boolean(
         selectedActiveIncident
         && mapExperience.canVerify
@@ -1695,6 +1710,12 @@ const DashboardMapWorkspace = ({
                         canVerifyReport={isReportInResponderMunicipality}
                         onVerifyToReport={mapExperience.canVerify ? handleMapVerify : null}
                         onRejectToReport={mapExperience.canVerify ? handleMapReject : null}
+                        // A pin's own panel offers the same verb, because which
+                        // surface opened an incident must not decide what its
+                        // reader is allowed to do about it.
+                        canAcknowledgeTransfer={isAdmin}
+                        canAcknowledgeTransferReport={canAcknowledgeTransferReport}
+                        onAcknowledgeTransferToReport={isAdmin ? handleMapAcknowledgeTransfer : null}
                         viewerRole={user?.role || 'guest'}
                         viewer={user}
                         showDataState
@@ -1752,6 +1773,7 @@ const DashboardMapWorkspace = ({
                                         canResolve={selectedIncidentCanResolve}
                                         canVerify={selectedIncidentCanVerify}
                                         canReject={selectedIncidentCanReject}
+                                        canAcknowledgeTransfer={selectedIncidentCanAcknowledgeTransfer}
                                         actionLoading={panelActionLoading}
                                         onRespond={selectedIncidentCanRespond
                                             ? (report) => runPanelIncidentAction(handleMapRespond, report, 'Now responding to incident')
@@ -1764,6 +1786,9 @@ const DashboardMapWorkspace = ({
                                             : undefined}
                                         onReject={selectedIncidentCanReject
                                             ? (report) => runPanelIncidentAction(handleMapReject, report, 'Opening rejection review')
+                                            : undefined}
+                                        onAcknowledgeTransfer={selectedIncidentCanAcknowledgeTransfer
+                                            ? (report) => runPanelIncidentAction(handleMapAcknowledgeTransfer, report, 'Transfer acknowledged')
                                             : undefined}
                                     />
                                 </>

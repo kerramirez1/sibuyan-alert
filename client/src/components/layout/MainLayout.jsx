@@ -42,7 +42,18 @@ const getAccountContext = (user) => {
     return user?.assignedMunicipality ? `${role} · ${user.assignedMunicipality}` : role;
 };
 
-const MainLayout = ({ children }) => {
+/*
+ * `fitWindow` gives a page a box it can measure itself against.
+ *
+ * A page that must fill the viewport without scrolling has to be told how much
+ * room it has, and a percentage height only resolves against a parent that has
+ * a height of its own. Without this, such a page can only guess — the zones
+ * workspace used to reconstruct main's content box as `calc(100dvh - 7.25rem)`,
+ * which silently stopped being true the moment the window was short enough for
+ * its floor to win, and the page scrolled as a whole. With the flag the wrapper
+ * is exactly main's content box, so the page fills it and nothing is left over.
+ */
+const MainLayout = ({ children, fitWindow = false }) => {
     const { user, logout, canSubmitReports, isAuthenticated } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
@@ -473,11 +484,24 @@ const MainLayout = ({ children }) => {
                         AnimatePresence "wait" mode there is no exit delay, so the
                         next page mounts immediately and fades in.
                         Map workspace gets compact padding so the GIS canvas can
-                        stretch to the viewport instead of stopping early. */}
+                        stretch to the viewport instead of stopping early.
+
+                        `fitWindow` pages fill this box exactly (see the wrapper
+                        below), so at lg main itself stops scrolling: a page that
+                        is sized to fit can only ever overshoot by a rounding, and
+                        clipping that is strictly better than a scrollbar on a
+                        workspace whose halves already scroll inside themselves.
+                        Below lg the flag changes nothing — these pages keep a
+                        natural height and scroll like every other page, which is
+                        what a phone needs. */}
                     <main data-map-scroll-container className={isMapView
                         ? `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-1 sm:px-3 sm:pt-2 lg:px-2 lg:pt-0 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-2' : 'pb-2'}`
-                        : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
-                        <div key={location.pathname} className="page-enter">
+                        : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${fitWindow ? 'lg:overflow-y-hidden ' : ''}${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
+                        {/* `lg:h-full` and not plain `h-full`: a definite height
+                            is only needed where the page sizes itself against it,
+                            and at smaller sizes a forced 100% would put the page's
+                            overflowing content under main's bottom padding. */}
+                        <div key={location.pathname} className={fitWindow ? 'page-enter lg:h-full' : 'page-enter'}>
                             {children}
                         </div>
                     </main>

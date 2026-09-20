@@ -150,13 +150,20 @@ export const toOperationalReportSummary = (report) => {
         evidenceCount: evidence.evidenceCount,
         updateCount: Array.isArray(source.reportUpdates) ? source.reportUpdates.length : 0,
         transferCount: Array.isArray(source.transferHistory) ? source.transferHistory.length : 0,
-        // Names-only transfer trail (no reasons, actors, or timestamps) so
-        // queue rows can show provenance and gate origin-only actions.
+        // Names-only transfer trail (no reasons, actors, or transfer timestamps)
+        // so queue rows can show provenance and gate origin-only actions. The one
+        // exception is the acknowledgement itself: this projection is the only
+        // shape the queue and the map receive, and without that field they could
+        // describe a transfer perfectly while being unable to say whether the
+        // receiving office had taken it up — which is also what gates the
+        // "Acknowledge transfer" action. Actor identity and the reason stay in
+        // `toOperationalReport`, where the detail view can justify showing them.
         transferTrail: (source.transferHistory || []).map((entry) => {
             const value = toPlainObject(entry);
             return {
                 fromMunicipalityName: value.fromMunicipalityName || '',
                 toMunicipalityName: value.toMunicipalityName || '',
+                acknowledgedAt: value.acknowledgedAt || null,
             };
         }),
         detailAccess: 'operational',
