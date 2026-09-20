@@ -39,7 +39,7 @@ const MUNICIPALITIES = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
 
 const AdminHighRiskZonesPage = () => {
     const { user } = useAuth();
-    const { zones, loading, refresh: refreshZones } = useGlobalHighRiskZones();
+    const { zones, loading, refresh: refreshZones, removeZone } = useGlobalHighRiskZones();
     const [showForm, setShowForm] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [focusLocation, setFocusLocation] = useState(null);
@@ -344,6 +344,14 @@ const AdminHighRiskZonesPage = () => {
         try {
             await highRiskZonesAPI.delete(zone?._id);
             toast.success('Zone deleted');
+            // Drop it locally the moment the server confirms, then reconcile with
+            // a refetch. The `highRiskZoneDeleted` socket event normally does this
+            // on its own, but the admin who just clicked Delete should not have to
+            // depend on it. The refetch alone was also not enough: this list used
+            // to be served with `max-age=120`, so the refetch was answered from
+            // the browser's HTTP cache and put the deleted zone straight back onto
+            // the map and the list, however many times it was deleted.
+            removeZone(zone?._id);
             refreshZones();
         } catch (error) {
             console.error('Delete zone error:', error);

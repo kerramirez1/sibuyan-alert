@@ -29,10 +29,24 @@ export const canViewReporterContact = (role, isOwner = false, isAssignedResponde
     isAdminRole(role) || isOwner || isAssignedResponder
 );
 
-export const canViewEvidence = (role, isOwner = false, hasEvidence = false) => {
-    if (!hasEvidence) return false;
-    return isOperationalRole(role) || isOwner;
-};
+/**
+ * Whether the evidence section belongs on the page at all.
+ *
+ * Operators and the report's own owner always get it — including when it holds
+ * nothing. That empty state is the point: "no photos were attached" is a fact an
+ * operator deciding what to dispatch has to be able to read, and a section that
+ * is simply absent cannot state it. Absent reads identically to "the gallery did
+ * not load", which is exactly the question nobody could answer before.
+ *
+ * It used to take a `hasEvidence` flag and return false without it, which hid the
+ * section from operators too. Public viewers are unaffected either way: they are
+ * not entitled to the evidence view, so the restricted notice is what they get
+ * (see `showRestrictedNotice`) rather than an empty state describing something
+ * they cannot see.
+ */
+export const canViewEvidence = (role, isOwner = false) => (
+    isOperationalRole(role) || isOwner
+);
 
 export const canViewOperationalDetails = (role) => (
     isOperationalRole(role)
@@ -79,7 +93,7 @@ export const getIncidentVisibilityRules = ({
         showCoordinates: canViewExactCoordinates(viewerRole, isOwnerComputed),
         showReporterInfo: canViewReporterIdentity(viewerRole, isOwnerComputed),
         showReporterContact: canViewReporterContact(viewerRole, isOwnerComputed, Boolean(report.isAssignedResponder)),
-        showEvidence: canViewEvidence(viewerRole, isOwnerComputed, hasEvidence),
+        showEvidence: canViewEvidence(viewerRole, isOwnerComputed),
         showOperationalDetails: canViewOperationalDetails(viewerRole),
         showResponseCoordination: canViewResponseCoordination(viewerRole, isOwnerComputed),
         showTransferHistory: canViewTransferHistory(viewerRole),

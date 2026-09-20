@@ -36,12 +36,14 @@ const mockZones = [
 
 const {
     mockRefresh,
+    mockRemoveZone,
     mockUseGlobalHighRiskZones,
     mockToast,
     mockMapViewProps,
     mockHighRiskZonesAPI,
 } = vi.hoisted(() => ({
     mockRefresh: vi.fn(),
+    mockRemoveZone: vi.fn(),
     mockUseGlobalHighRiskZones: vi.fn(),
     mockToast: {
         error: vi.fn(),
@@ -128,6 +130,7 @@ describe('AdminHighRiskZonesPage', () => {
             zones: mockZones,
             loading: false,
             refresh: mockRefresh,
+            removeZone: mockRemoveZone,
         });
     });
 
@@ -317,5 +320,40 @@ describe('AdminHighRiskZonesPage', () => {
             expect(mockRefresh).toHaveBeenCalled();
             expect(mockToast.success).toHaveBeenCalledWith('High-risk zone created');
         });
+    });
+
+    test('removes a deleted zone locally instead of waiting on the refetch', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete Cambajao River Overflow' }));
+
+        await waitFor(() => {
+            expect(mockHighRiskZonesAPI.delete).toHaveBeenCalledWith('zone-1');
+        });
+
+        // Dropping it locally is what makes the row and its map marker leave the
+        // moment the server confirms. Relying on the refetch alone is what kept
+        // resurrecting it: the list was served with `max-age=120`, so the refetch
+        // was answered from the browser's HTTP cache with the deleted zone still
+        // in it, however many times the admin pressed Delete.
+        expect(mockRemoveZone).toHaveBeenCalledWith('zone-1');
+        expect(mockRefresh).toHaveBeenCalled();
+        expect(mockToast.success).toHaveBeenCalledWith('Zone deleted');
+
+        confirmSpy.mockRestore();
+    });
+
+    test('keeps a zone it is not allowed to delete', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        render(<AdminHighRiskZonesPage />);
+
+        // The second fixture belongs to Magdiwang; this admin manages Cajidiocan.
+        // The row offers no Delete at all, so the guard is the UI itself.
+        expect(screen.queryByRole('button', { name: 'Delete Magdiwang Highway Curve' })).not.toBeInTheDocument();
+        expect(mockHighRiskZonesAPI.delete).not.toHaveBeenCalled();
+        expect(mockRemoveZone).not.toHaveBeenCalled();
+
+        confirmSpy.mockRestore();
     });
 });

@@ -22,13 +22,31 @@ import { sendConditionalJson, buildWeakEtag } from '../utils/httpCache.js';
 const router = express.Router();
 
 // Cache key prefix for the island-wide zone list. Every zone mutation below
-// invalidates this prefix so the map never shows a stale hazard.
+// invalidates this prefix so the map never shows a stale hazard. That covers
+// this process; the response headers below are what cover the browser, which is
+// a cache this server cannot invalidate.
 const ZONE_CACHE_KEY = 'zones:island-wide';
 
 // Hard ceiling on the public zone list. Hazard zones are a curated set (an
 // admin places each one by hand), so this is far above any realistic count —
 // it exists so the endpoint can never return an unbounded collection.
 const MAX_ZONE_RESULTS = 500;
+
+/**
+ * The newest edit in the list, as a number, for the ETag.
+ *
+ * The validator has to notice every create, edit and delete. It used to
+ * fingerprint `zones[0]` and `zones[zones.length - 1]` — the ends of a list
+ * sorted by *severity*, not by time — so editing a zone that happened to sort in
+ * the middle left the validator untouched and the next conditional GET answered
+ * `304 Not Modified` about a list that had just changed. Paired with the count,
+ * this stamp covers all three: a create moves the newest stamp, an edit moves
+ * its own document's `updatedAt`, a delete changes the count.
+ */
+const getNewestZoneUpdate = (zones) => zones.reduce((newest, zone) => {
+    const stamp = new Date(zone?.updatedAt ?? 0).getTime();
+    return Number.isFinite(stamp) && stamp > newest ? stamp : newest;
+}, 0);
 
 const parseCoordinates = (body) => {
     let coordinates = body?.coordinates;
@@ -76,8 +94,20 @@ router.get('/', async (req, res) => {
         });
 
         sendConditionalJson(req, res, { success: true, data: zones }, {
-            etag: buildWeakEtag('zones', zones.length, zones[0]?.updatedAt ?? '', zones[zones.length - 1]?.updatedAt ?? ''),
-            maxAgeSeconds: Math.floor(CACHE_TTLS.hazardZones / 1000),
+            etag: buildWeakEtag('zones', zones.length, getNewestZoneUpdate(zones)),
+            // Revalidate on every read — do not hand the browser a freshness
+            // window. `max-age=120` here meant that for two minutes a GET never
+            // reached this route at all, and a browser's own HTTP cache is not
+            // something a delete can reach into: right after an administrator
+            // removed a hazard, the refetch the page fired was answered from that
+            // cache and the zone came straight back onto the map and the list, no
+            // matter how many times they deleted it.
+            //
+            // The ETag is what keeps this cheap: an unchanged list is a ~200 byte
+            // 304 with no body. It just cannot skip the server, which is the only
+            // place that knows the collection changed. The public reports feed on
+            // the same helper already reasons this way (`maxAgeSeconds: 0`).
+            maxAgeSeconds: 0,
         });
     } catch (error) {
         console.error('Get high-risk zones error:', error);

@@ -64,9 +64,24 @@ describe('incidentDetailsVisibility utility', () => {
             expect(canViewEvidence('guest', false, true)).toBe(false);
             expect(canViewEvidence('reporter', false, true)).toBe(false);
             expect(canViewEvidence('reporter', true, true)).toBe(true);
-            expect(canViewEvidence('reporter', true, false)).toBe(false); // No evidence
             expect(canViewEvidence('responder', false, true)).toBe(true);
             expect(canViewEvidence('municipal_admin', false, true)).toBe(true);
+        });
+
+        test('evidence section is granted to entitled viewers even with nothing attached', () => {
+            // The section is the only place the evidence count is printed, so
+            // withholding it when the count is zero left an operator unable to tell
+            // "no photos were attached" from "the gallery did not load". Who may see
+            // evidence at all is a role question; whether there is any is not.
+            expect(canViewEvidence('municipal_admin', false)).toBe(true);
+            expect(canViewEvidence('responder', false)).toBe(true);
+            expect(canViewEvidence('reporter', true)).toBe(true);
+
+            // Public viewers are not entitled to the evidence view at all: they get
+            // the restricted notice instead of an empty state describing a record
+            // they cannot see.
+            expect(canViewEvidence('guest', false)).toBe(false);
+            expect(canViewEvidence('reporter', false)).toBe(false);
         });
 
         test('transfer history and operational details permission', () => {
@@ -113,6 +128,17 @@ describe('incidentDetailsVisibility utility', () => {
             expect(rules.showReporterContact).toBe(true);
             expect(rules.showEvidence).toBe(true);
             expect(rules.showOperationalDetails).toBe(false);
+            expect(rules.showRestrictedNotice).toBe(false);
+        });
+
+        test('municipal admin descriptor for a report with no evidence attached', () => {
+            const rules = getIncidentVisibilityRules({
+                viewerRole: 'municipal_admin',
+                report: { evidenceCount: 0 },
+            });
+            // Exactly what the inspector needs to be able to print the absence.
+            expect(rules.showEvidence).toBe(true);
+            expect(rules.viewerAccess).toBe('none');
             expect(rules.showRestrictedNotice).toBe(false);
         });
 

@@ -85,6 +85,24 @@ const useGlobalHighRiskZones = () => {
         if (reconnectVersion > 0) refresh({ silent: true });
     }, [reconnectVersion, refresh]);
 
+    /**
+     * Drops a zone from the live list and from the snapshot cache.
+     *
+     * Shared by the `highRiskZoneDeleted` socket event and by a caller that has
+     * just deleted a zone itself, so a delete removes the zone the same way
+     * whichever route it arrives by — one implementation, and the map and the
+     * list (both derived from `zones`) stay in step automatically.
+     */
+    const removeZone = useCallback((zoneId) => {
+        if (!zoneId) return;
+        setZones((previous) => {
+            const safePrevious = Array.isArray(previous) ? previous.filter(Boolean) : [];
+            const next = safePrevious.filter((zone) => zone?._id !== zoneId);
+            setCachedData(HIGH_RISK_ZONES_CACHE_KEY, next);
+            return next;
+        });
+    }, []);
+
     useEffect(() => {
         const syncCache = (next) => setCachedData(HIGH_RISK_ZONES_CACHE_KEY, next);
         const unsubscribeCreated = subscribe('highRiskZoneCreated', (zone) => {
@@ -102,14 +120,7 @@ const useGlobalHighRiskZones = () => {
             });
         });
         const unsubscribeDeleted = subscribe('highRiskZoneDeleted', (data) => {
-            const zoneId = data?.id ?? data?._id;
-            if (!zoneId) return;
-            setZones((previous) => {
-                const safePrevious = Array.isArray(previous) ? previous.filter(Boolean) : [];
-                const next = safePrevious.filter((zone) => zone?._id !== zoneId);
-                syncCache(next);
-                return next;
-            });
+            removeZone(data?.id ?? data?._id);
         });
 
         return () => {
@@ -117,9 +128,9 @@ const useGlobalHighRiskZones = () => {
             unsubscribeUpdated();
             unsubscribeDeleted();
         };
-    }, [subscribe]);
+    }, [subscribe, removeZone]);
 
-    return { zones, loading, error, refresh };
+    return { zones, loading, error, refresh, removeZone };
 };
 
 export default useGlobalHighRiskZones;

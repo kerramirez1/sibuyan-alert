@@ -22,8 +22,8 @@ vi.mock('../context/SocketContext', () => ({
     useSocket: () => ({ subscribe: subscribeMock, reconnectVersion: socketState.reconnectVersion }),
 }));
 
-import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
-import { clearQueryCache } from '../utils/queryCache';
+import useGlobalHighRiskZones, { HIGH_RISK_ZONES_CACHE_KEY } from '../hooks/useGlobalHighRiskZones';
+import { clearQueryCache, getStaleData } from '../utils/queryCache';
 
 describe('useGlobalHighRiskZones', () => {
     beforeEach(() => {
@@ -80,6 +80,26 @@ describe('useGlobalHighRiskZones', () => {
             listeners.get('highRiskZoneDeleted')({ id: 'zone-cajidiocan' });
         });
         expect(result.current.zones.some((zone) => zone._id === 'zone-cajidiocan')).toBe(false);
+    });
+
+    test('drops a deleted zone from the live list and from the snapshot cache', async () => {
+        const { result } = renderHook(() => useGlobalHighRiskZones());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.removeZone('zone-cajidiocan');
+        });
+
+        expect(result.current.zones.map((zone) => zone._id)).toEqual(['zone-magdiwang']);
+        // The snapshot is what a remount renders before the network answers, and
+        // what a failed refetch leaves on screen — a stale copy there would put
+        // the deleted hazard back on the map on the next visit.
+        expect(getStaleData(HIGH_RISK_ZONES_CACHE_KEY).map((zone) => zone._id)).toEqual(['zone-magdiwang']);
+
+        act(() => {
+            result.current.removeZone(undefined);
+        });
+        expect(result.current.zones.map((zone) => zone._id)).toEqual(['zone-magdiwang']);
     });
 
     test('resynchronizes zones after a socket reconnect without a loading flicker', async () => {

@@ -18,8 +18,30 @@ const IncidentDetailsEvidenceSection = ({
     const declaredCount = Number(evidenceCount ?? evidence?.evidenceCount ?? evidence?.count) || 0;
     const totalCount = Math.max(rawImagesCount, evidenceItemsCount, declaredCount);
 
+    // Nothing attached is stated, not implied by an absent section.
+    //
+    // This used to return null, so a reader could not tell an incident with no
+    // photos from a gallery that failed to load — and the section was the only
+    // place the record's evidence count was ever printed. The wording, icon and
+    // tone are the ones the map's incident pane already uses for the same state,
+    // so the two surfaces answer the question the same way. It is deliberately
+    // not a `<details>`: there is nothing to expand, and a chevron over an empty
+    // body promises content that is not there.
     if (totalCount === 0) {
-        return null;
+        return (
+            <section className={className} aria-labelledby="incident-evidence-heading">
+                <h3
+                    id="incident-evidence-heading"
+                    className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white"
+                >
+                    Evidence photos (0)
+                </h3>
+                <p className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <HiOutlinePhotograph className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                    No evidence attached.
+                </p>
+            </section>
+        );
     }
 
     const content = (

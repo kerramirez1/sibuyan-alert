@@ -269,7 +269,7 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         expect(screen.queryByText('No evidence attached.')).not.toBeInTheDocument();
     });
 
-    test('6. Empty evidence report renders clean empty state without heading', () => {
+    test('6. Empty evidence report tells the operator that nothing is attached', () => {
         const noEvidenceReport = {
             ...summaryReportWithEvidence,
             evidenceCount: 0,
@@ -290,8 +290,18 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
             />
         );
 
-        // Section returns null when totalCount is 0
-        expect(screen.queryByText(/Evidence photos/i)).not.toBeInTheDocument();
+        // Reversed deliberately. This asserted that an empty evidence report drew
+        // no heading at all, which left an administrator inspecting a record unable
+        // to tell "no photos were attached" from "the gallery did not load" — and
+        // the section is the only place the evidence count is ever printed. The
+        // zero is stated now; the public view is unchanged (it is not entitled to
+        // the evidence section at all, and gets the restricted notice instead).
+        expect(screen.getByText('Evidence photos (0)')).toBeInTheDocument();
+        expect(screen.getByText('No evidence attached.')).toBeInTheDocument();
+
+        // And it is not a disclosure control: there is no body to expand, so no
+        // chevron promises one.
+        expect(screen.getByText('Evidence photos (0)').closest('details')).toBeNull();
     });
 
     test('7. Summary item transitions to full detail response seamlessly', async () => {

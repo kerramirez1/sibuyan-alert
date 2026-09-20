@@ -51,6 +51,23 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByText(/Personal identities, evidence, and internal coordination details are protected/i)).toBeInTheDocument();
     });
 
+    test('states that no evidence is attached for an operator, instead of dropping the section', () => {
+        render(
+            <IncidentDetailsContent
+                report={{ ...sampleReport, images: [], evidenceCount: 0 }}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        // The section used to be withheld from everyone when the count was zero,
+        // which left the inspector unable to answer "were any photos attached?" for
+        // a record it was inviting an operator to act on. Stated, not dropped.
+        expect(screen.getByText('Evidence photos (0)')).toBeInTheDocument();
+        expect(screen.getByText('No evidence attached.')).toBeInTheDocument();
+        expect(screen.queryByTestId('mock-evidence-gallery')).not.toBeInTheDocument();
+    });
+
     test('renders full operational details for municipal admin including coordinates, evidence, and reporter', () => {
         render(
             <IncidentDetailsContent
