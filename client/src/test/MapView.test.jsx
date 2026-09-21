@@ -24,6 +24,7 @@ const mockGetSource = vi.fn((id) => {
     }
     return { setData: vi.fn() };
 });
+const mockSetFilter = vi.fn();
 const mockSetMaxZoom = vi.fn();
 const mockEaseTo = vi.fn();
 const mockFitBounds = vi.fn();
@@ -43,6 +44,7 @@ vi.mock('maplibre-gl', () => ({
             this.setLayoutProperty = mockSetLayoutProperty;
             this.getLayer = mockGetLayer;
             this.getMaxZoom = vi.fn(() => 16);
+            this.setFilter = mockSetFilter;
             this.setMaxZoom = mockSetMaxZoom;
             this.getZoom = vi.fn(() => 11);
             this.easeTo = mockEaseTo;
@@ -271,8 +273,12 @@ describe('MapView opening framing', () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createRangeResponse(bytes)));
     });
 
-    const renderReady = async (props) => {
-        const view = render(<MapView {...props} />);
+    const renderReady = async (props, existingView) => {
+        // Re-rendering an already mounted map is how the tests below change a
+        // prop the way the app does (a toggle), rather than remounting — a
+        // remount would hide the very thing being asserted.
+        const view = existingView ?? render(<MapView {...props} />);
+        if (existingView) existingView.rerender(<MapView {...props} />);
         await waitFor(() => {
             expect(maplibregl.Map).toHaveBeenCalledTimes(1);
         });
@@ -300,6 +306,92 @@ describe('MapView opening framing', () => {
             coordinates: { lat: 12.35, lng: 122.67 },
         },
     ];
+
+    const landslideLayer = {
+        datasetId: 'landslide',
+        hazardType: 'landslide',
+        label: 'Landslide',
+        shortLabel: 'Landslide',
+        classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
+        features: [
+            { type: 'Feature', properties: { haz: 3 }, geometry: { type: 'MultiPolygon', coordinates: [] } },
+            { type: 'Feature', properties: { haz: 2 }, geometry: { type: 'MultiPolygon', coordinates: [] } },
+        ],
+    };
+
+    test('draws only the hazard classes switched on, on the layers already there', async () => {
+        const view = await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+            hazardClassVisibility: { landslide: [2] },
+        });
+
+        // One class on: the layer is filtered to it, so the other class's
+        // polygons are not drawn rather than drawn invisibly.
+        await waitFor(() => {
+            expect(mockSetFilter).toHaveBeenCalledWith(
+                'hazard-landslide-fill',
+                ['in', ['get', 'haz'], ['literal', [2]]]
+            );
+        });
+        expect(mockSetFilter).toHaveBeenCalledWith(
+            'hazard-landslide-outline',
+            ['in', ['get', 'haz'], ['literal', [2]]]
+        );
+
+        // Both on re-filters those same layers. Nothing is rebuilt: no second
+        // map, no second source — the geometry and colours are untouched.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+            hazardClassVisibility: { landslide: [2, 3] },
+        }, view);
+
+        await waitFor(() => {
+            expect(mockSetFilter).toHaveBeenLastCalledWith(
+                'hazard-landslide-outline',
+                ['in', ['get', 'haz'], ['literal', [2, 3]]]
+            );
+        });
+        expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        expect(mockAddSource).not.toHaveBeenCalledWith('hazard-landslide', expect.anything());
+
+        // Nothing on is an empty selection, which must hide the layer rather
+        // than fall back to drawing all of it.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+            hazardClassVisibility: { landslide: [] },
+        }, view);
+
+        await waitFor(() => {
+            expect(mockSetFilter).toHaveBeenLastCalledWith(
+                'hazard-landslide-outline',
+                ['in', ['get', 'haz'], ['literal', []]]
+            );
+        });
+        expect(mockSetFilter).toHaveBeenCalledWith(
+            'hazard-landslide-fill',
+            ['in', ['get', 'haz'], ['literal', []]]
+        );
+    });
+
+    test('draws a hazard layer whole when its caller has no per-class control', async () => {
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+        });
+
+        // `null` is "no control", which is the previous behaviour kept intact for
+        // any map that is handed hazard layers and no switches of its own.
+        await waitFor(() => {
+            expect(mockSetFilter).toHaveBeenCalledWith('hazard-landslide-fill', null);
+        });
+    });
 
     test('draws the zones on a page whose whole subject is hazard zones', async () => {
         // The zones page says `mode="risk-zones"` and passes no filter tab. That

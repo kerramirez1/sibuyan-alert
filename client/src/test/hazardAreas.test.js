@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
+    HAZARD_FILL_OPACITY,
+    HAZARD_MIN_ZOOM,
+    HAZARD_OUTLINE_OPACITY,
     buildHazardColorExpression,
     describeHazards,
     getHazardColor,
@@ -26,6 +29,59 @@ describe('hazard layer ids', () => {
         expect(hazardSourceId('landslide')).toBe('hazard-landslide');
         expect(hazardFillLayerId('landslide')).toBe('hazard-landslide-fill');
         expect(hazardOutlineLayerId('landslide')).toBe('hazard-landslide-outline');
+    });
+});
+
+/**
+ * The opacity ramps are MapLibre camera expressions. Reading the stops back out
+ * is what lets the fade be asserted as behaviour — "decreases with zoom, over the
+ * zooms this layer can be seen at" — rather than as three magic numbers.
+ */
+const opacityStops = (expression) => {
+    expect(expression.slice(0, 3)).toEqual(['interpolate', ['linear'], ['zoom']]);
+
+    const stops = [];
+    for (let index = 3; index < expression.length; index += 2) {
+        stops.push({ zoom: expression[index], opacity: expression[index + 1] });
+    }
+    return stops;
+};
+
+describe('hazard layer zoom fade', () => {
+    test('spans exactly the zooms the layer is drawn at', () => {
+        for (const expression of [HAZARD_FILL_OPACITY, HAZARD_OUTLINE_OPACITY]) {
+            const stops = opacityStops(expression);
+            expect(stops[0].zoom).toBe(HAZARD_MIN_ZOOM);
+            // The operational camera ceiling; the layer is never seen past it.
+            expect(stops.at(-1).zoom).toBe(16);
+        }
+    });
+
+    test('falls monotonically with zoom and never fades away', () => {
+        for (const expression of [HAZARD_FILL_OPACITY, HAZARD_OUTLINE_OPACITY]) {
+            const stops = opacityStops(expression);
+            for (let index = 1; index < stops.length; index += 1) {
+                expect(stops[index].opacity).toBeLessThan(stops[index - 1].opacity);
+            }
+            expect(stops.at(-1).opacity).toBeGreaterThan(0);
+        }
+    });
+
+    test('stays clearly visible at the island overview', () => {
+        expect(opacityStops(HAZARD_FILL_OPACITY)[0].opacity).toBeGreaterThanOrEqual(0.45);
+        expect(opacityStops(HAZARD_OUTLINE_OPACITY)[0].opacity).toBeGreaterThanOrEqual(0.7);
+    });
+
+    test('gives the basemap back at the closest zoom', () => {
+        expect(opacityStops(HAZARD_FILL_OPACITY).at(-1).opacity).toBeLessThanOrEqual(0.15);
+        expect(opacityStops(HAZARD_OUTLINE_OPACITY).at(-1).opacity).toBeLessThanOrEqual(0.2);
+    });
+
+    test('is interpolated, so the change is gradual rather than a step', () => {
+        for (const expression of [HAZARD_FILL_OPACITY, HAZARD_OUTLINE_OPACITY]) {
+            expect(expression[1]).toEqual(['linear']);
+            expect(opacityStops(expression).length).toBeGreaterThanOrEqual(3);
+        }
     });
 });
 

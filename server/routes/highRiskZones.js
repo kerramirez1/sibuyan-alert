@@ -39,6 +39,27 @@ const ZONE_CACHE_KEY = 'zones:island-wide';
 const MAX_ZONE_RESULTS = 500;
 
 /**
+ * Zone types and severities the API still accepts for a new or changed value.
+ *
+ * The admin form no longer offers flood-prone zones or the low and critical
+ * severities, but a form is not an API boundary: a cached client bundle, a
+ * script or a stale tab would still be able to write them. Narrowing the list
+ * here keeps the two in step.
+ *
+ * The model enum deliberately keeps the whole vocabulary. Zones saved before the
+ * options were withdrawn still hold these values, and tightening the schema
+ * would make every one of them fail validation the next time an administrator
+ * edited something unrelated — turning a form change into silent data damage.
+ * So a retired value may stay on a zone, but it may not be chosen.
+ */
+const SELECTABLE_ZONE_TYPES = Object.freeze(['landslide_prone', 'accident_prone', 'other']);
+const SELECTABLE_ZONE_SEVERITIES = Object.freeze(['medium', 'high']);
+
+const retiredValueMessage = (field, allowed) => (
+    `${field} must be one of: ${allowed.join(', ')}`
+);
+
+/**
  * The newest edit in the list, as a number, for the ETag.
  *
  * The validator has to notice every create, edit and delete. It used to
@@ -304,6 +325,25 @@ router.post(
                 });
             }
 
+            // Checked before the jurisdiction lookup and the photo upload, so a
+            // rejected zone never leaves GridFS files behind to roll back. Only
+            // the *retired* vocabulary is policed here — a missing or unknown
+            // type stays the schema's business, which owns "required" and the
+            // stored enum, so this list cannot silently become a second
+            // definition of what a zone is.
+            if (type && !SELECTABLE_ZONE_TYPES.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: retiredValueMessage('Zone type', SELECTABLE_ZONE_TYPES),
+                });
+            }
+            if (severity && !SELECTABLE_ZONE_SEVERITIES.includes(severity)) {
+                return res.status(400).json({
+                    success: false,
+                    message: retiredValueMessage('Severity', SELECTABLE_ZONE_SEVERITIES),
+                });
+            }
+
             const jurisdiction = await resolveRiskZoneJurisdiction(
                 coordinates,
                 admin.assignedMunicipality
@@ -421,6 +461,24 @@ router.put(
 
             const { name, description, type, radius, severity, isActive } = req.body;
             const coordinates = parseCoordinates(req.body);
+
+            // Rejected only when the value actually *changes*. A zone that still
+            // carries a withdrawn type or severity — saved before the form
+            // stopped offering it — must stay editable, or renaming it would be
+            // impossible without also reclassifying it. Submitting the value it
+            // already has is not a choice, it is the absence of one.
+            if (type && type !== zone.type && !SELECTABLE_ZONE_TYPES.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: retiredValueMessage('Zone type', SELECTABLE_ZONE_TYPES),
+                });
+            }
+            if (severity && severity !== zone.severity && !SELECTABLE_ZONE_SEVERITIES.includes(severity)) {
+                return res.status(400).json({
+                    success: false,
+                    message: retiredValueMessage('Severity', SELECTABLE_ZONE_SEVERITIES),
+                });
+            }
 
             if (name) zone.name = name;
             if (description !== undefined) zone.description = description;

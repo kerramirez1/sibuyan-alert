@@ -23,6 +23,16 @@ import {
     HiOutlineSearch,
 } from 'react-icons/hi';
 
+/**
+ * Every zone type this client can *render*, which is no longer the same list as
+ * the one it can *offer*.
+ *
+ * Flood-prone zones are withdrawn from the form, but the entry stays: this table
+ * is also how an existing zone is labelled and coloured in the list, in the type
+ * filter and on the map. A zone saved as `flood_prone` before the option was
+ * retired must keep reading "Flood Prone" — data the workspace cannot name is
+ * data an administrator cannot manage, reclassify or trust.
+ */
 const ZONE_TYPES = [
     { value: 'landslide_prone', label: 'Landslide Prone', color: 'bg-amber-500' },
     { value: 'accident_prone', label: 'Accident Prone', color: 'bg-red-500' },
@@ -30,12 +40,39 @@ const ZONE_TYPES = [
     { value: 'other', label: 'Other Hazard', color: 'bg-gray-500' },
 ];
 
+/** Same split as `ZONE_TYPES`: `low` and `critical` are displayable, not selectable. */
 const SEVERITY_LEVELS = [
     { value: 'low', label: 'Low', color: 'bg-emerald-500' },
     { value: 'medium', label: 'Medium', color: 'bg-amber-500' },
     { value: 'high', label: 'High', color: 'bg-orange-500' },
     { value: 'critical', label: 'Critical', color: 'bg-red-600' },
 ];
+
+const RETIRED_ZONE_TYPES = new Set(['flood_prone']);
+const RETIRED_SEVERITIES = new Set(['low', 'critical']);
+
+/** What the create/edit form offers, derived from the tables above so the two cannot drift. */
+const SELECTABLE_ZONE_TYPES = ZONE_TYPES.filter((type) => !RETIRED_ZONE_TYPES.has(type.value));
+const SELECTABLE_SEVERITY_LEVELS = SEVERITY_LEVELS.filter((level) => !RETIRED_SEVERITIES.has(level.value));
+
+/**
+ * Labels of the withdrawn values a zone still carries, if any.
+ *
+ * Editing loads the stored type and severity verbatim rather than coercing them,
+ * because coercing would quietly re-classify someone else's zone the moment an
+ * administrator opened it to fix a typo. The withdrawn value is therefore kept
+ * as loaded, named here, and refused at submit until it is deliberately replaced.
+ */
+const findRetiredSelections = ({ type, severity }) => {
+    const retired = [];
+    if (RETIRED_ZONE_TYPES.has(type)) {
+        retired.push(ZONE_TYPES.find((entry) => entry.value === type)?.label || type);
+    }
+    if (RETIRED_SEVERITIES.has(severity)) {
+        retired.push(SEVERITY_LEVELS.find((entry) => entry.value === severity)?.label || severity);
+    }
+    return retired;
+};
 
 const MUNICIPALITIES = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
 
@@ -59,6 +96,16 @@ const AdminHighRiskZonesPage = () => {
     // design: the workspace works exactly as before when these are still loading
     // or absent.
     const { layers: hazardLayers } = useHazardAreas();
+    /**
+     * Which hazard classes the operator has switched on, per dataset.
+     *
+     * Starts empty, and empty means the map opens clean: susceptibility polygons
+     * are context for placing a zone, not the subject of the page, and a map that
+     * opens under a red overlay makes an operator turn it off before they can see
+     * the road they are placing a pin on. The layers themselves are untouched —
+     * this only decides which classes of them are drawn.
+     */
+    const [visibleHazardClasses, setVisibleHazardClasses] = useState({});
     const [showForm, setShowForm] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
     /**
@@ -97,6 +144,28 @@ const AdminHighRiskZonesPage = () => {
     const canManageZone = (zone) => (
         !user?.assignedMunicipality || zone?.municipality === user?.assignedMunicipality
     );
+
+    // Empty for every zone the form can produce today; non-empty only while a
+    // legacy zone is open for editing with its withdrawn values intact.
+    const retiredSelections = useMemo(() => findRetiredSelections(formData), [formData]);
+
+    /**
+     * Switches one hazard class on or off.
+     *
+     * The classes an operator turns on are exactly the ones handed to the map
+     * below, so the control and the canvas cannot disagree — there is no second
+     * copy of this state inside the map to drift out of step.
+     */
+    const toggleHazardClass = (datasetId, classValue) => {
+        if (!datasetId) return;
+        setVisibleHazardClasses((previous) => {
+            const current = Array.isArray(previous[datasetId]) ? previous[datasetId] : [];
+            const next = current.includes(classValue)
+                ? current.filter((value) => value !== classValue)
+                : [...current, classValue];
+            return { ...previous, [datasetId]: next };
+        });
+    };
 
     const handleLocationSelect = async (location) => {
         const lat = Number(location?.lat);
@@ -303,6 +372,18 @@ const AdminHighRiskZonesPage = () => {
 
         if (!selectedLocation && !editingZone) {
             toast.error('Please select a location on the map');
+            return;
+        }
+
+        // The pickers no longer contain these values, so `formData` can only
+        // still hold one when it came from a stored zone. Refusing here is what
+        // keeps them out of new writes without rewriting the stored record.
+        const retired = findRetiredSelections(formData);
+        if (retired.length > 0) {
+            toast.error(
+                `${retired.join(' and ')} ${retired.length > 1 ? 'are' : 'is'} no longer offered. `
+                + 'Choose a current zone type and severity to save your changes.'
+            );
             return;
         }
 
@@ -601,34 +682,63 @@ const AdminHighRiskZonesPage = () => {
                         </h2>
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                            {/* Legend for the hazard overlays. Built from the
-                                layers actually on the map rather than a fixed
-                                list — a key to something that is not drawn is
-                                worse than none, because it makes an absent layer
-                                look present. The swatch shows each layer's
-                                most-severe class colour, which is the one worth
-                                recognising. Carries the required ODC-ODbL
-                                attribution for screen readers. */}
+                            {/* Layer control, and the legend with it.
+
+                                One chip per class of each loaded layer, in the
+                                layer's own class colour, checked when that class
+                                is drawn. The swatch stays coloured while a class
+                                is off, which is the point: the map opens with
+                                nothing drawn, so the control has to be the thing
+                                that says what *could* be drawn and what each
+                                colour means. A separate legend would be a second
+                                copy of the same facts, free to disagree with the
+                                switches sitting beside it.
+
+                                Carries the required ODC-ODbL attribution for
+                                screen readers. */}
                             {hazardLayers.length > 0 && (
-                                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                    {hazardLayers.map((layer) => {
-                                        const highestClass = layer.classes?.[layer.classes.length - 1]?.value;
-                                        return (
-                                            <span key={layer.datasetId} className="inline-flex items-center gap-1">
-                                                <span
-                                                    className="h-2 w-2 rounded-[2px]"
-                                                    style={{ backgroundColor: getHazardColor(layer.hazardType, highestClass) }}
-                                                    aria-hidden="true"
-                                                />
-                                                {layer.shortLabel || layer.label}
-                                            </span>
-                                        );
-                                    })}
+                                <div
+                                    className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                                    role="group"
+                                    aria-label="Landslide susceptibility layers"
+                                >
+                                    {hazardLayers.flatMap((layer) => (
+                                        (Array.isArray(layer.classes) ? layer.classes : []).map((hazardClass) => {
+                                            const isOn = Array.isArray(visibleHazardClasses[layer.datasetId])
+                                                && visibleHazardClasses[layer.datasetId].includes(hazardClass.value);
+                                            return (
+                                                <button
+                                                    key={`${layer.datasetId}:${hazardClass.value}`}
+                                                    type="button"
+                                                    role="switch"
+                                                    aria-checked={isOn}
+                                                    onClick={() => toggleHazardClass(layer.datasetId, hazardClass.value)}
+                                                    className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] cursor-pointer ${
+                                                        isOn
+                                                            ? 'border-gray-300 bg-gray-50 font-medium text-gray-900 dark:border-white/20 dark:bg-white/10 dark:text-white'
+                                                            : 'border-gray-200 font-normal text-gray-500 hover:text-gray-900 dark:border-white/10 dark:text-gray-400 dark:hover:text-white'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                                        style={{ backgroundColor: getHazardColor(layer.hazardType, hazardClass.value) }}
+                                                        aria-hidden="true"
+                                                    />
+                                                    <span className="whitespace-nowrap">
+                                                        {`${hazardClass.label} ${layer.label} Susceptibility`}
+                                                    </span>
+                                                    {isOn && (
+                                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-gray-600 dark:text-gray-200" aria-hidden="true" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })
+                                    ))}
                                     <span className="sr-only">
                                         Hazard source: {hazardLayers[0]?.attribution || 'DOST Project NOAH'}.
                                         Licence {hazardLayers[0]?.licence || 'ODC-ODbL'}.
                                     </span>
-                                </span>
+                                </div>
                             )}
                             {showForm && (
                                 <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -664,6 +774,7 @@ const AdminHighRiskZonesPage = () => {
                             // and no coordinate until after the click committed.
                             showCursorCoordinates={Boolean(showForm)}
                             hazardLayers={hazardLayers}
+                            hazardClassVisibility={visibleHazardClasses}
                             className="h-full w-full"
                         />
                     </div>
@@ -714,7 +825,7 @@ const AdminHighRiskZonesPage = () => {
                                                 type="text"
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                placeholder="e.g. Flood Prone Area near River"
+                                                placeholder="e.g. Blind curve on the Cajidiocan road"
                                                 required
                                                 className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
                                             />
@@ -805,8 +916,36 @@ const AdminHighRiskZonesPage = () => {
                                         <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                             Zone type
                                         </label>
-                                        <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Zone type">
-                                            {ZONE_TYPES.map((type) => {
+                                        {/* Three options, one row, and every label on exactly one
+                                            line — whole, never wrapped and never trimmed to an
+                                            ellipsis. Both of those were tried and both are wrong:
+                                            a wrapped label makes the row two lines tall and reads
+                                            as two different options, and a trimmed one hides the
+                                            only word that separates them ("Landslide" from
+                                            "Accident").
+
+                                            What fits is therefore decided by the label's font
+                                            size, and the font size has to follow the *column*,
+                                            not the viewport: this form is a five-of-twelve rail
+                                            on a wide desktop, so a viewport breakpoint sizes the
+                                            text for a screen it is not being drawn on. Hence the
+                                            container query below — the row is its own container,
+                                            and each label is clamped between a 13 px ceiling
+                                            (never larger than the rest of the form) and an
+                                            8.3 px floor, with the middle term — 3.15 % of the
+                                            row — sized from measurements rather than taste:
+                                            "Landslide Prone" is about 7.3 px wide per px of
+                                            font size, and a column leaves (row − 8)/3 − 20 px
+                                            for text after the dot, the gap and the padding.
+                                            That leaves every option several px of clearance
+                                            from 280 px panels up, and reaches the full 13 px
+                                            once the row passes ~415 px (the desktop rail). */}
+                                        <div
+                                            className="grid grid-cols-3 gap-1 [container-type:inline-size]"
+                                            role="radiogroup"
+                                            aria-label="Zone type"
+                                        >
+                                            {SELECTABLE_ZONE_TYPES.map((type) => {
                                                 const isSelected = formData.type === type.value;
                                                 return (
                                                     <button
@@ -815,14 +954,14 @@ const AdminHighRiskZonesPage = () => {
                                                         role="radio"
                                                         aria-checked={isSelected}
                                                         onClick={() => setFormData({ ...formData, type: type.value })}
-                                                        className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] ${
+                                                        className={`flex min-w-0 items-center gap-1 rounded-md px-1 py-2 text-left sm:px-1.5 ${
                                                             isSelected
                                                                 ? 'font-semibold text-gray-900 underline decoration-emerald-600 decoration-2 underline-offset-4 dark:text-white dark:decoration-emerald-500'
                                                                 : 'font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                                         }`}
                                                     >
                                                         <span className={`h-2 w-2 shrink-0 rounded-full ${type.color}`} aria-hidden="true" />
-                                                        <span className="truncate">{type.label}</span>
+                                                        <span className="min-w-0 whitespace-nowrap [font-size:clamp(8.3px,3.15cqw,13px)]">{type.label}</span>
                                                     </button>
                                                 );
                                             })}
@@ -835,7 +974,7 @@ const AdminHighRiskZonesPage = () => {
                                             Severity level
                                         </label>
                                         <div className="flex gap-5 border-b border-gray-200 dark:border-white/10" role="radiogroup" aria-label="Severity level">
-                                            {SEVERITY_LEVELS.map((level) => {
+                                            {SELECTABLE_SEVERITY_LEVELS.map((level) => {
                                                 const isSelected = formData.severity === level.value;
                                                 return (
                                                     <button
@@ -859,6 +998,21 @@ const AdminHighRiskZonesPage = () => {
                                             })}
                                         </div>
                                     </div>
+
+                                    {/* Shown only while a zone stored with a withdrawn value
+                                        is open: it names what cannot be saved any more, so the
+                                        blocked submit is explained where the fix is, not only in
+                                        a toast the administrator has already missed. */}
+                                    {retiredSelections.length > 0 && (
+                                        <div
+                                            role="status"
+                                            className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-medium leading-snug text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
+                                        >
+                                            <span className="font-semibold">{retiredSelections.join(' and ')}</span>
+                                            {' '}are no longer offered. Choose a current zone type and severity
+                                            before saving.
+                                        </div>
+                                    )}
 
                                     {/* Radius & Municipality */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

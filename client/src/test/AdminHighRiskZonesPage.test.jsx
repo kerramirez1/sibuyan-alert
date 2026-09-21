@@ -393,6 +393,127 @@ describe('AdminHighRiskZonesPage', () => {
         confirmSpy.mockRestore();
     });
 
+    test('offers only the zone types the workspace still supports', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        const group = screen.getByRole('radiogroup', { name: 'Zone type' });
+
+        expect(within(group).getAllByRole('radio')).toHaveLength(3);
+        expect(within(group).getByRole('radio', { name: /Landslide Prone/i })).toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: /Accident Prone/i })).toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: /Other Hazard/i })).toBeInTheDocument();
+        // Withdrawn: it must not be selectable, not merely unlabelled.
+        expect(within(group).queryByRole('radio', { name: /Flood/i })).not.toBeInTheDocument();
+    });
+
+    test('keeps every zone-type label on one line, sized to its own column', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        const group = screen.getByRole('radiogroup', { name: 'Zone type' });
+
+        // The row is its own container and the labels are sized from it. Two
+        // earlier attempts are the reason this is pinned down: wrapping made the
+        // row two lines tall and read as six options, and trimming to an ellipsis
+        // hid the word that distinguishes them ("Landslide" vs "Accident"). A
+        // viewport breakpoint cannot do the job either — this form is a rail on a
+        // wide desktop, so the column and the viewport disagree.
+        expect(group.className).toContain('[container-type:inline-size]');
+
+        for (const label of ['Landslide Prone', 'Accident Prone', 'Other Hazard']) {
+            const text = within(group).getByText(label);
+            expect(text.className).toContain('whitespace-nowrap');
+            expect(text.className).toContain('[font-size:clamp(');
+        }
+    });
+
+    test('offers only the two severities the workspace still supports', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        const group = screen.getByRole('radiogroup', { name: 'Severity level' });
+
+        expect(within(group).getAllByRole('radio')).toHaveLength(2);
+        expect(within(group).getByRole('radio', { name: /Medium/i })).toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: /High/i })).toBeInTheDocument();
+        expect(within(group).queryByRole('radio', { name: /Low/i })).not.toBeInTheDocument();
+        expect(within(group).queryByRole('radio', { name: /Critical/i })).not.toBeInTheDocument();
+    });
+
+    test('still names a legacy flood zone it can no longer create', () => {
+        mockUseGlobalHighRiskZones.mockReturnValue({
+            zones: [...mockZones, {
+                _id: 'zone-legacy',
+                name: 'Sibuyan River Flooding',
+                type: 'flood_prone',
+                severity: 'critical',
+                radius: 200,
+                municipality: 'Cajidiocan',
+                coordinates: { lat: 12.3712, lng: 122.5301 },
+                isActive: true,
+                photos: [],
+            }],
+            loading: false,
+            refresh: mockRefresh,
+            removeZone: mockRemoveZone,
+        });
+
+        render(<AdminHighRiskZonesPage />);
+
+        // The label has to survive even though the option is gone: a zone the
+        // list cannot name is a zone the administrator cannot find or fix.
+        expect(screen.getByText(/Flood Prone · Cajidiocan/)).toBeInTheDocument();
+        expect(screen.getByText('Critical')).toBeInTheDocument();
+    });
+
+    test('refuses to save a legacy zone until its withdrawn values are replaced', async () => {
+        mockUseGlobalHighRiskZones.mockReturnValue({
+            zones: [{
+                _id: 'zone-legacy',
+                name: 'Sibuyan River Flooding',
+                type: 'flood_prone',
+                severity: 'low',
+                radius: 200,
+                municipality: 'Cajidiocan',
+                coordinates: { lat: 12.3712, lng: 122.5301 },
+                isActive: true,
+                photos: [],
+            }],
+            loading: false,
+            refresh: mockRefresh,
+            removeZone: mockRemoveZone,
+        });
+
+        render(<AdminHighRiskZonesPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Sibuyan River Flooding' }));
+
+        // The stored values are loaded as they are — not silently coerced to a
+        // supported type, which would re-classify the zone on a mere open — and
+        // the form says out loud what it will not save.
+        expect(screen.getByRole('status')).toHaveTextContent(/Flood Prone and Low/);
+        expect(screen.queryByRole('radio', { name: /Flood/i })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Update zone/i }));
+
+        expect(mockHighRiskZonesAPI.update).not.toHaveBeenCalled();
+        expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining('Flood Prone and Low'));
+
+        // Replacing both is what unblocks it.
+        fireEvent.click(screen.getByRole('radio', { name: /Accident Prone/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /High/i }));
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Update zone/i }));
+
+        await waitFor(() => {
+            expect(mockHighRiskZonesAPI.update).toHaveBeenCalledWith('zone-legacy', expect.any(FormData));
+        });
+        const payload = mockHighRiskZonesAPI.update.mock.calls.at(-1)[1];
+        expect(payload.get('type')).toBe('accident_prone');
+        expect(payload.get('severity')).toBe('high');
+    });
+
     test('keeps a zone it is not allowed to delete', async () => {
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
         render(<AdminHighRiskZonesPage />);
@@ -406,7 +527,7 @@ describe('AdminHighRiskZonesPage', () => {
         confirmSpy.mockRestore();
     });
 
-    test('hands the hazard layers to the map once they resolve', async () => {
+    test('hands the hazard layers to the map switched off, and offers them as controls', async () => {
         render(<AdminHighRiskZonesPage />);
 
         await waitFor(() => {
@@ -415,18 +536,56 @@ describe('AdminHighRiskZonesPage', () => {
                     hazardLayers: expect.arrayContaining([
                         expect.objectContaining({ datasetId: 'landslide', hazardType: 'landslide' }),
                     ]),
+                    // The layers arrive intact and the map opens clean: the viewer
+                    // has asked for no class of them yet.
+                    hazardClassVisibility: {},
                 })
             );
         });
 
-        // The legend is built from the layers actually on the map, so an absent
-        // layer cannot be advertised as present. Scoped to the map workspace:
+        // The control is also the legend, built from the layers actually on the
+        // map — an absent layer cannot be advertised as present — and every class
+        // is offered unchecked, in its own colour, so the key to what could be
+        // drawn survives the map opening without it. Scoped to the map workspace:
         // "Medium" also appears as a severity badge in the zone list.
         const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
-        expect(await within(mapWorkspace).findByText(/^Landslide$/)).toBeInTheDocument();
-        // Storm surge is no longer registered, so the legend must not list it.
-        expect(within(mapWorkspace).queryByText(/^SSA 4$/)).not.toBeInTheDocument();
+        expect(await within(mapWorkspace).findByRole('switch', { name: 'Medium Landslide Susceptibility' }))
+            .toHaveAttribute('aria-checked', 'false');
+        expect(within(mapWorkspace).getByRole('switch', { name: 'High Landslide Susceptibility' }))
+            .toHaveAttribute('aria-checked', 'false');
+        // Storm surge is no longer registered, so no switch may offer it.
+        expect(within(mapWorkspace).queryByRole('switch', { name: /surge|SSA/i })).not.toBeInTheDocument();
         expect(within(mapWorkspace).getByText(/ODC-ODbL/)).toBeInTheDocument();
+    });
+
+    test('switches each susceptibility class independently, without reloading the map', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const medium = await within(mapWorkspace).findByRole('switch', { name: 'Medium Landslide Susceptibility' });
+        const high = within(mapWorkspace).getByRole('switch', { name: 'High Landslide Susceptibility' });
+        const visibility = () => mockMapViewProps.mock.lastCall[0].hazardClassVisibility;
+
+        // Medium alone.
+        fireEvent.click(medium);
+        await waitFor(() => expect(visibility()).toEqual({ landslide: [2] }));
+        expect(medium).toHaveAttribute('aria-checked', 'true');
+        expect(high).toHaveAttribute('aria-checked', 'false');
+
+        // Both at once.
+        fireEvent.click(high);
+        await waitFor(() => expect(visibility()).toEqual({ landslide: [2, 3] }));
+
+        // High alone — switching one off must not disturb the other.
+        fireEvent.click(medium);
+        await waitFor(() => expect(visibility()).toEqual({ landslide: [3] }));
+        expect(medium).toHaveAttribute('aria-checked', 'false');
+        expect(high).toHaveAttribute('aria-checked', 'true');
+
+        // And back to the clean map the page opens with.
+        fireEvent.click(high);
+        await waitFor(() => expect(visibility()).toEqual({ landslide: [] }));
+        expect(high).toHaveAttribute('aria-checked', 'false');
     });
 
     test('enables the placement accuracy aids while the zone form is open', async () => {

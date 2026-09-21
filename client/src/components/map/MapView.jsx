@@ -38,7 +38,9 @@ import {
 } from '../../config/mapProvider';
 import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSupport';
 import {
+    HAZARD_FILL_OPACITY,
     HAZARD_MIN_ZOOM,
+    HAZARD_OUTLINE_OPACITY,
     buildHazardColorExpression,
     hazardFillLayerId,
     hazardOutlineLayerId,
@@ -248,6 +250,28 @@ const MapView = ({
      * layer ids are generated rather than declared.
      */
     hazardLayers = EMPTY_HAZARD_LAYERS,
+    /**
+     * Which hazard classes each loaded dataset draws, keyed by dataset id.
+     *
+     * Three states, and the difference between the last two matters:
+     *
+     * - `null` (the default) — the caller has no per-class control, so every
+     *   class in every layer is drawn. This is what a map that is handed hazard
+     *   layers and nothing else expects, and it keeps this prop optional.
+     * - an object — the caller owns the choice, and the object is authoritative:
+     *   a dataset with no key draws **none** of its classes. So `{}` is a clean
+     *   map, and a dataset that appears in a later refetch cannot quietly start
+     *   drawing itself because the caller had not heard of it yet.
+     * - `{ landslide: [2] }` — only class 2 of that dataset, drawn from the same
+     *   source, the same geometry and the same colours as before.
+     *
+     * Classes are selected with a layer filter rather than by removing layers or
+     * fading them to zero: the filter is the map's own record of what the viewer
+     * asked for, it drops the polygons out of the render pass instead of
+     * compositing them invisibly, and switching a class on or off never rebuilds
+     * the map.
+     */
+    hazardClassVisibility = null,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -1174,8 +1198,10 @@ const MapView = ({
                             'fill-color': colorExpression,
                             // Lighter than the incident fills: this is a
                             // background surface, and at full strength it would
-                            // swamp the pins drawn over it.
-                            'fill-opacity': 0.34,
+                            // swamp the pins drawn over it. It also fades with
+                            // zoom, so the imagery underneath stays readable
+                            // where zone placement actually happens.
+                            'fill-opacity': HAZARD_FILL_OPACITY,
                         },
                     }, beforeId);
                 }
@@ -1189,13 +1215,32 @@ const MapView = ({
                         paint: {
                             'line-color': colorExpression,
                             'line-width': 0.8,
-                            'line-opacity': 0.75,
+                            // Fades with the fill: an outline left at full
+                            // strength around a faded fill is the harshest
+                            // version of this layer.
+                            'line-opacity': HAZARD_OUTLINE_OPACITY,
                         },
                     }, beforeId);
                 }
 
+                // `null` means "no per-class control" — draw the layer whole, which
+                // is what this map did before the control existed. Anything else is
+                // an explicit selection, and an empty one hides the dataset.
+                const selectedClasses = Array.isArray(hazardClassVisibility?.[datasetId])
+                    ? hazardClassVisibility[datasetId]
+                    : [];
+                const classFilter = hazardClassVisibility
+                    ? ['in', ['get', 'haz'], ['literal', [...selectedClasses]]]
+                    : null;
+
                 for (const layerId of [fillId, outlineId]) {
-                    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+                    if (!map.getLayer(layerId)) continue;
+                    map.setLayoutProperty(layerId, 'visibility', visibility);
+                    // Applied on every run rather than only when it changes: a style
+                    // reload recreates the layers with no filter at all, and this
+                    // effect re-runs on that path — a value comparison would skip
+                    // the fresh layer and it would come back fully drawn.
+                    map.setFilter(layerId, classFilter);
                 }
             } catch (error) {
                 // A style reload can remove layers between the check and the
@@ -1203,7 +1248,7 @@ const MapView = ({
                 console.warn(`Hazard layer ${datasetId} could not be added:`, error?.message);
             }
         }
-    }, [hazardLayers, mapReady, isRiskZoneMap]);
+    }, [hazardLayers, hazardClassVisibility, mapReady, isRiskZoneMap]);
 
     // Update data layers
     useEffect(() => {

@@ -71,6 +71,61 @@ export const buildHazardColorExpression = (hazardType, classes) => {
 };
 
 /**
+ * Zoom window the opacity fade spans.
+ *
+ * `HAZARD_MIN_ZOOM` is the zoom the layer starts being drawn at; 13 is
+ * municipal / barangay scale; 16 is the operational camera ceiling
+ * (`OPERATIONAL_MAX_ZOOM` in `mapProvider.js`, left literal here so this module
+ * stays free of the map-engine imports). Those are the only zooms this layer is
+ * ever seen at, so the fade spans exactly them and does not depend on the zoom a
+ * particular map happens to open at.
+ */
+const FADE_START_ZOOM = HAZARD_MIN_ZOOM;
+const FADE_MID_ZOOM = 13;
+const FADE_END_ZOOM = 16;
+
+/**
+ * Fill opacity for the hazard reference layers, fading as the camera closes in.
+ *
+ * These polygons are context behind the pins, not records among them. At the
+ * island overview the layer has to carry the hazard story on its own, but at
+ * street level what an operator is reading is the imagery underneath — the
+ * slope, the road, the building — and an opaque surface over it hides exactly the
+ * detail that makes a zone placement possible. One flat opacity has to choose
+ * between those two jobs, so it fades instead.
+ *
+ * The far stop is the opacity this layer carried at every zoom before the fade
+ * (0.34 fill, 0.75 outline), so the overview still reads the way it did, and the
+ * near stop stays well above zero: a hazard layer that vanishes when zoomed in is
+ * a hazard layer an operator stops trusting.
+ */
+export const HAZARD_FILL_OPACITY = Object.freeze([
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    FADE_START_ZOOM, 0.45,
+    FADE_MID_ZOOM, 0.3,
+    FADE_END_ZOOM, 0.12,
+]);
+
+/**
+ * Outline opacity, fading with the fill.
+ *
+ * The two have to move together: a full-strength boundary around a faded fill is
+ * the harshest version of this layer, because the eye follows the outline while
+ * the surface it encloses dissolves. Colour and width are untouched — only how
+ * much of them reaches the screen.
+ */
+export const HAZARD_OUTLINE_OPACITY = Object.freeze([
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    FADE_START_ZOOM, 0.75,
+    FADE_MID_ZOOM, 0.45,
+    FADE_END_ZOOM, 0.15,
+]);
+
+/**
  * Normalizes the API's hazard payload into what the UI needs.
  *
  * `available: false` is a first-class outcome, not an error to swallow: the
@@ -138,6 +193,8 @@ export const summarizeHazards = (described) => {
 
 export default {
     HAZARD_MIN_ZOOM,
+    HAZARD_FILL_OPACITY,
+    HAZARD_OUTLINE_OPACITY,
     hazardSourceId,
     hazardFillLayerId,
     hazardOutlineLayerId,
