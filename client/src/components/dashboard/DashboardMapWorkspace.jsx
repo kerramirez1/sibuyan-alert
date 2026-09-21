@@ -39,9 +39,16 @@ import {
     MAP_STATUS_CONFIG,
 } from '../../config/mapVisuals';
 import { getMapExperience } from '../../config/mapExperience';
+import {
+    MAP_SCOPE_MUNICIPALITY,
+    canUseMapScope,
+    getMapScopePhrase,
+    isIslandMapScope,
+    normalizeMapScope,
+} from '../../utils/mapScope';
 import { getIncidentCapabilities } from '../adminReports/incidentReportConfig';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
-import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
+import { getMunicipalityMapFocus, getIslandMapFocus } from '../../utils/sibuyanLocations';
 import { buildActiveIncidentsSummary, buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
 
 const STATUS_CONFIG = MAP_STATUS_CONFIG;
@@ -583,6 +590,14 @@ const DashboardMapWorkspace = ({
     focusedReportMissing = false,
     responderMapFilter,
     setResponderMapFilter,
+    // Map scope (municipal_admin only): WHERE the map draws. The page owns the
+    // data behind both scopes and the scope itself, exactly as it owns the rail
+    // tab, so this workspace stays a view over one array.
+    mapScope = MAP_SCOPE_MUNICIPALITY,
+    onMapScopeChange,
+    mapScopeLoading = false,
+    mapScopeError = '',
+    onRetryMapScope,
     canCurrentResponderResolve,
     handleMapRespond,
     handleMapAcknowledgeTransfer,
@@ -681,6 +696,19 @@ const DashboardMapWorkspace = ({
         municipality: user?.assignedMunicipality,
     });
 
+    // The scope control is the municipal administrator's, and only theirs: a
+    // responder's work is assigned by their municipality and a reporter's by
+    // their own reports, so neither has an island-wide view to ask for.
+    const canSwitchMapScope = canUseMapScope(user?.role);
+    const activeMapScope = canSwitchMapScope ? normalizeMapScope(mapScope) : MAP_SCOPE_MUNICIPALITY;
+    const isIslandScope = isIslandMapScope(activeMapScope) && canSwitchMapScope;
+    const mapScopePhrase = getMapScopePhrase(activeMapScope, user?.assignedMunicipality);
+    // Naming the scope in the message, not just drawing it: "no incidents" on an
+    // island-wide map and "no incidents" in one municipality are different
+    // answers, and the empty state is the one place a viewer cannot tell which
+    // map they are looking at from the markers alone.
+    const mapScopeEmptyPhrase = canSwitchMapScope ? mapScopePhrase : '';
+
     // A visit to the map starts at the map's own default, not at the last
     // visit's leftovers.
     //
@@ -774,10 +802,26 @@ const DashboardMapWorkspace = ({
     // outrank the incidents on a warm cache and lose to them on a cold one.
     const municipalityHomeFocus = useMemo(() => {
         if (focusedReport || focusedRiskZone) return null;
+        // Island scope is one level up from the assignment, so its home camera is
+        // the whole island rather than any one municipal centre. It is only the
+        // fallback: report framing still wins when the island has incidents to
+        // frame, which is why the scope's own focus is a wide overview and not a
+        // hard-coded camera the incidents would have to compete with.
+        if (isIslandScope) {
+            return { ...getIslandMapFocus(), requestId: `island-home:${user?.assignedMunicipality || 'all'}` };
+        }
         const home = getMunicipalityMapFocus(user?.assignedMunicipality);
         if (!home) return null;
         return { ...home, requestId: `municipality-home:${user.assignedMunicipality}` };
-    }, [focusedReport, focusedRiskZone, user?.assignedMunicipality]);
+    }, [focusedReport, focusedRiskZone, isIslandScope, user?.assignedMunicipality]);
+
+    // A scope change is an explicit request to re-aim the camera, which is
+    // otherwise a one-time decision (see MapView's opening framing). The request
+    // is the scope itself, so switching back and forth re-aims each way without
+    // ever firing on an unrelated re-render.
+    const homeFocusRequestId = canSwitchMapScope
+        ? `${activeMapScope}:${user?.assignedMunicipality || 'unassigned'}`
+        : null;
 
     // Reporter ownership: prefer the loaded My Reports overview (source of
     // truth for "yours"), fall back to ownership flags on map rows.
@@ -1400,6 +1444,21 @@ const DashboardMapWorkspace = ({
                 </div>
             )}
 
+            {isIslandScope && mapScopeError && (
+                <div role="alert" className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs sm:text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    <span>{mapScopeError}</span>
+                    {onRetryMapScope && (
+                        <button
+                            type="button"
+                            onClick={onRetryMapScope}
+                            className="inline-flex min-h-[44px] sm:min-h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
+                        >
+                            Retry island-wide incidents
+                        </button>
+                    )}
+                </div>
+            )}
+
             {highRiskZonesError && !highRiskZonesLoading && (
                 <div role="alert" className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs sm:text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                     <span>{highRiskZonesError}</span>
@@ -1706,8 +1765,13 @@ const DashboardMapWorkspace = ({
                         focusLocation={focusLocation}
                         homeFocus={municipalityHomeFocus}
                         showPending={mapExperience.showPendingReports}
-                        dataLoading={loading}
+                        // Scope loading is data loading: the map's empty state must
+                        // not call an island-wide set "empty" while it is still on
+                        // its way, which is exactly the frame a scope switch paints.
+                        dataLoading={loading || mapScopeLoading}
                         filterStatus={mapExperience.filters.length > 0 ? responderMapFilter : null}
+                        // Scopes the map's own empty state to the area on screen.
+                        emptyScopePhrase={mapScopeEmptyPhrase}
                         canRespond={mapExperience.canRespond}
                         onRespondToReport={mapExperience.canRespond ? handleMapRespond : null}
                         canResolve={mapExperience.canResolve}
@@ -1733,7 +1797,25 @@ const DashboardMapWorkspace = ({
                         // inherits that boundary rather than needing one of its
                         // own, and the island view is the fallback whenever
                         // there is nothing to frame.
-                        frameReportsOnOpen={mapExperience.framesReportsOnOpen}
+                        //
+                        // Island scope is the exception, and this is where it is
+                        // decided: that scope is the one that answers "where is
+                        // everything?", so its camera is the island overview its
+                        // home focus names. Framing the island's reports instead
+                        // zooms straight past the island whenever they sit in one
+                        // municipality — a single incident resolves to its own
+                        // surroundings — which lands the switch on the very view
+                        // it just left. Municipality scope keeps framing the
+                        // incidents the administrator is there to triage.
+                        frameReportsOnOpen={mapExperience.framesReportsOnOpen && !isIslandScope}
+                        homeFocusRequestId={homeFocusRequestId}
+                        // Map scope as one control in the map's own tool rail, beside
+                        // the layer and location tools rather than over the canvas.
+                        // The handler's presence is what asks for the control, so a
+                        // role with a single scope to draw passes none and gets none.
+                        mapScope={activeMapScope}
+                        onMapScopeChange={canSwitchMapScope ? onMapScopeChange : null}
+                        mapScopeMunicipality={user?.assignedMunicipality}
                         pulseReportIds={pulseReportIds}
                     />
                     {/* One panel, one host at every width: portalled into the
@@ -1890,8 +1972,8 @@ const DashboardMapWorkspace = ({
                                     emptyTitle={activeOverviewMetric?.emptyTitle || 'No active incidents'}
                                     emptyDescription={activeOverviewMetric?.emptyDescription
                                         || (mapExperience.filters.length > 0 && responderMapFilter !== 'all'
-                                            ? 'No incidents match the selected map filter.'
-                                            : 'There are no verified or handled incidents on the map.')}
+                                            ? `No incidents match the selected filters ${mapScopePhrase}.`
+                                            : `There are no verified or handled incidents ${mapScopePhrase}.`)}
                                     onInspect={(report) => setSelectedActiveIncidentId(String(report._id || report.id))}
                                     onLocate={locateActiveIncident}
                                     canLocate={canLocatePanelReport}

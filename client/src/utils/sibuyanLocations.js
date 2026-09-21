@@ -43,6 +43,14 @@ export const MUNICIPALITY_MAP_FOCUS = Object.freeze({
 });
 
 /**
+ * Whole-island camera, for the administrative map one level above a single
+ * municipality (see `utils/mapScope`). Zoom 10 holds all three municipal areas
+ * with coastline on every side; anything closer crops a municipality out of the
+ * view the scope exists to provide.
+ */
+export const SIBUYAN_ISLAND_MAP_FOCUS = Object.freeze({ lat: 12.425, lng: 122.575, zoom: 10 });
+
+/**
  * Returns a MapView-compatible focus target for a municipality, or null when
  * unknown so callers fall back to the island-wide camera.
  */
@@ -51,6 +59,9 @@ export const getMunicipalityMapFocus = (municipality) => {
     const focus = MUNICIPALITY_MAP_FOCUS[municipality.trim()];
     return focus ? { ...focus } : null;
 };
+
+/** Always available, so an island-scoped map is never left without a home. */
+export const getIslandMapFocus = () => ({ ...SIBUYAN_ISLAND_MAP_FOCUS });
 
 /**
  * Returns sorted official barangays for a municipality or all distinct barangays across Sibuyan Island.

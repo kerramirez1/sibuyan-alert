@@ -276,6 +276,31 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
             expect(maplibregl.Marker).toHaveBeenCalled();
         });
     });
+
+    test('puts map scope in the tool rail with the layer and location tools, and only when asked', async () => {
+        const onMapScopeChange = vi.fn();
+        render(<MapView reports={[]} mapScope="island" onMapScopeChange={onMapScopeChange} mapScopeMunicipality="Cajidiocan" />);
+
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalled());
+
+        const rail = screen.getByRole('group', { name: 'Map tools' });
+        const scopeButton = within(rail).getByRole('button', { name: 'Map scope: Entire Sibuyan Island' });
+        // Same rail, same family: the scope control is a sibling of the tools the
+        // map already had, not an overlay of its own.
+        expect(within(rail).getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /reset map view/i })).toBeInTheDocument();
+        expect(scopeButton).toHaveAttribute('aria-haspopup', 'dialog');
+        expect(scopeButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    test('a map with one scope to draw gets no scope control', async () => {
+        render(<MapView reports={[]} />);
+
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalled());
+
+        const rail = screen.getByRole('group', { name: 'Map tools' });
+        expect(within(rail).queryByRole('button', { name: /^Map scope:/ })).not.toBeInTheDocument();
+    });
 });
 
 describe('MapView opening framing', () => {
@@ -665,6 +690,9 @@ describe('MapView opening framing', () => {
     // The viewer's assignment, resolved by the caller's RBAC scope (dashboard:
     // MUNICIPALITY_MAP_FOCUS). It is the map's resting camera, not a link target.
     const HOME_FOCUS = { lat: 12.4044, lng: 122.6897, zoom: 12 };
+    // The dashboard's island-wide map scope: a level above the admin's own
+    // municipality, and a camera that is a place rather than the reports.
+    const ISLAND_FOCUS = { lat: 12.425, lng: 122.575, zoom: 10 };
     const REPORT_BOUNDS = [[122.50, 12.30], [122.70, 12.55]];
 
     test('rests on the viewer\'s own camera when there is nothing to frame', async () => {
@@ -760,6 +788,165 @@ describe('MapView opening framing', () => {
         }));
         // Not the island: this map does not open there, so Reset must not either.
         expect(mockFlyTo).not.toHaveBeenCalledWith(expect.objectContaining({ center: [122.5571, 12.4176] }));
+    });
+
+    test('re-aims an island scope at the island in one animated move', async () => {
+        const view = await renderReady({
+            reports: visibleReports,
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            homeFocusRequestId: 'municipality:Cajidiocan',
+            dataLoading: false,
+        });
+        mockFlyTo.mockClear();
+        mockFitBounds.mockClear();
+
+        view.rerender(
+            <MapView
+                reports={visibleReports}
+                frameReportsOnOpen={false}
+                homeFocus={ISLAND_FOCUS}
+                homeFocusRequestId="island:Cajidiocan"
+                dataLoading={false}
+            />
+        );
+
+        await waitFor(() => {
+            expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+                center: [ISLAND_FOCUS.lng, ISLAND_FOCUS.lat],
+                zoom: ISLAND_FOCUS.zoom,
+            }));
+        });
+        // One move, and animated: the viewer asked to be taken to the island, so
+        // the switch reads as a move between two scopes rather than as a snap.
+        expect(mockFlyTo).toHaveBeenCalledTimes(1);
+        expect(mockFlyTo.mock.calls[0][0].duration).toBeGreaterThan(0);
+        // Island scope draws the island, not the incidents inside it. Framing them
+        // would land the switch on the municipality it just left whenever the
+        // island's incidents happen to sit in one place.
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('holds the island switch until the island\'s data is in', async () => {
+        const view = await renderReady({
+            reports: visibleReports,
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            homeFocusRequestId: 'municipality:Cajidiocan',
+            dataLoading: false,
+        });
+        mockFlyTo.mockClear();
+
+        view.rerender(
+            <MapView
+                reports={visibleReports}
+                frameReportsOnOpen={false}
+                homeFocus={ISLAND_FOCUS}
+                homeFocusRequestId="island:Cajidiocan"
+                dataLoading
+            />
+        );
+
+        // Spent under the loading veil, the move would be invisible — the viewer
+        // would only see the view it arrived at, which is the jump being fixed.
+        expect(mockFlyTo).not.toHaveBeenCalled();
+
+        view.rerender(
+            <MapView
+                reports={visibleReports}
+                frameReportsOnOpen={false}
+                homeFocus={ISLAND_FOCUS}
+                homeFocusRequestId="island:Cajidiocan"
+                dataLoading={false}
+            />
+        );
+
+        await waitFor(() => {
+            expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+                center: [ISLAND_FOCUS.lng, ISLAND_FOCUS.lat],
+                zoom: ISLAND_FOCUS.zoom,
+            }));
+        });
+        expect(mockFlyTo).toHaveBeenCalledTimes(1);
+        expect(mockFlyTo.mock.calls[0][0].duration).toBeGreaterThan(0);
+    });
+
+    test('lets a scope switch own an arrival that is still loading', async () => {
+        // A viewer who switches scope before the first load settles. The opening
+        // camera is instant (an opening view is not a move), so letting it land
+        // first would snap the map somewhere the switch immediately leaves.
+        const view = await renderReady({
+            reports: [],
+            frameReportsOnOpen: true,
+            homeFocus: HOME_FOCUS,
+            homeFocusRequestId: 'municipality:Cajidiocan',
+            dataLoading: true,
+        });
+        mockFlyTo.mockClear();
+
+        view.rerender(
+            <MapView
+                reports={visibleReports}
+                frameReportsOnOpen={false}
+                homeFocus={ISLAND_FOCUS}
+                homeFocusRequestId="island:Cajidiocan"
+                dataLoading={false}
+            />
+        );
+
+        await waitFor(() => {
+            expect(mockFlyTo).toHaveBeenCalled();
+        });
+        // One move, and it is the switch's.
+        expect(mockFlyTo).toHaveBeenCalledTimes(1);
+        expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: [ISLAND_FOCUS.lng, ISLAND_FOCUS.lat],
+            zoom: ISLAND_FOCUS.zoom,
+        }));
+        expect(mockFlyTo.mock.calls[0][0].duration).toBeGreaterThan(0);
+        expect(mockFitBounds).not.toHaveBeenCalled();
+    });
+
+    test('holds the municipality switch until the reports it frames are in', async () => {
+        const view = await renderReady({
+            reports: [],
+            frameReportsOnOpen: false,
+            homeFocus: ISLAND_FOCUS,
+            homeFocusRequestId: 'island:Cajidiocan',
+            dataLoading: false,
+        });
+        mockFitBounds.mockClear();
+
+        view.rerender(
+            <MapView
+                reports={[]}
+                frameReportsOnOpen
+                homeFocus={HOME_FOCUS}
+                homeFocusRequestId="municipality:Cajidiocan"
+                dataLoading
+            />
+        );
+
+        // Nothing to frame yet. Settling on the island the viewer just left and
+        // being pulled off it a moment later is the one thing this wait prevents.
+        expect(mockFitBounds).not.toHaveBeenCalled();
+
+        view.rerender(
+            <MapView
+                reports={visibleReports}
+                frameReportsOnOpen
+                homeFocus={HOME_FOCUS}
+                homeFocusRequestId="municipality:Cajidiocan"
+                dataLoading={false}
+            />
+        );
+
+        await waitFor(() => {
+            expect(mockFitBounds).toHaveBeenCalledTimes(1);
+        });
+        // Same bounds the map opens on inside this municipality, so switching back
+        // lands on the incidents rather than on the municipal centre.
+        expect(mockFitBounds.mock.calls[0][0]).toEqual(REPORT_BOUNDS);
     });
 
     test('stands a pin\'s details in the box it was handed, not over the map', async () => {

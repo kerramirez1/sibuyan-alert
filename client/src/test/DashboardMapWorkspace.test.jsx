@@ -2399,3 +2399,120 @@ describe('DashboardMapWorkspace permissions', () => {
         });
     });
 });
+
+describe('DashboardMapWorkspace map scope', () => {
+    beforeEach(() => mapPropsSpy.mockClear());
+
+    const adminProps = (overrides = {}) => createProps({
+        user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+        isReporter: false,
+        isAdmin: true,
+        isResponder: false,
+        ...overrides,
+    });
+
+    test('asks the map for a scope control only for the municipal administrator', () => {
+        const onMapScopeChange = vi.fn();
+        renderWorkspace(adminProps({ onMapScopeChange }));
+
+        // The control lives in the map's own tool rail, so what this workspace owes
+        // it is the value and the handler — never a second copy of the control.
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.mapScope).toBe('municipality');
+        expect(mapProps.onMapScopeChange).toBe(onMapScopeChange);
+        expect(mapProps.mapScopeMunicipality).toBe('Cajidiocan');
+        expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+
+        // A responder has no island-wide view to ask for: their work is assigned
+        // by municipality, and the API scopes their queue the same way. With no
+        // handler the map draws no scope tool at all.
+        renderWorkspace(createProps({
+            user: { _id: 'resp-1', role: 'responder', assignedMunicipality: 'Cajidiocan' },
+            isReporter: false,
+            isAdmin: false,
+            isResponder: true,
+        }));
+        expect(mapPropsSpy.mock.lastCall[0].onMapScopeChange).toBeNull();
+    });
+
+    test('an island choice made outside this workspace is what the map is asked to draw', () => {
+        const onMapScopeChange = vi.fn();
+        renderWorkspace(adminProps({ mapScope: 'island', onMapScopeChange }));
+
+        // Scope is owned by the page, so the control never toggles anything here:
+        // this workspace only ever reports the page's value back to the map.
+        expect(mapPropsSpy.mock.lastCall[0].mapScope).toBe('island');
+        expect(onMapScopeChange).not.toHaveBeenCalled();
+    });
+
+    test('the island scope re-aims the camera at the island and scopes the empty state to it', () => {
+        renderWorkspace(adminProps({ mapScope: 'island', reports: [] }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        // The island focus is not a fallback behind report framing here, it IS the
+        // camera: this scope answers "where is everything?", so the map stops
+        // framing reports for it. Framing them would zoom past the island whenever
+        // they sit in one municipality and leave the viewer where they started.
+        expect(mapProps.homeFocus).toEqual({
+            lat: 12.425,
+            lng: 122.575,
+            zoom: 10,
+            requestId: 'island-home:Cajidiocan',
+        });
+        expect(mapProps.frameReportsOnOpen).toBe(false);
+        // The request is named per scope, so both directions of the switch re-aim
+        // the camera and an unrelated re-render never does.
+        expect(mapProps.homeFocusRequestId).toBe('island:Cajidiocan');
+        // The map's empty state names the area rather than calling the island empty.
+        expect(mapProps.emptyScopePhrase).toBe('across Sibuyan Island');
+    });
+
+    test('municipality scope keeps the municipality camera and scopes the empty state to it', () => {
+        renderWorkspace(adminProps({ mapScope: 'municipality', reports: [] }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.homeFocus).toEqual({
+            ...MUNICIPALITY_MAP_FOCUS.Cajidiocan,
+            requestId: 'municipality-home:Cajidiocan',
+        });
+        expect(mapProps.homeFocusRequestId).toBe('municipality:Cajidiocan');
+        expect(mapProps.emptyScopePhrase).toBe('in Cajidiocan');
+        expect(mapProps.mapScope).toBe('municipality');
+        // Back inside the office's own municipality the map opens on the incidents
+        // again, exactly as it does for every other operator role.
+        expect(mapProps.frameReportsOnOpen).toBe(true);
+    });
+
+    test('island loading counts as data loading, so the map never calls it empty', () => {
+        renderWorkspace(adminProps({ mapScope: 'island', loading: false, mapScopeLoading: true, reports: [] }));
+
+        expect(mapPropsSpy.mock.lastCall[0].dataLoading).toBe(true);
+    });
+
+    test('an island load failure is surfaced with a retry rather than shown as an empty island', () => {
+        const onRetryMapScope = vi.fn();
+        renderWorkspace(adminProps({
+            mapScope: 'island',
+            mapScopeError: 'Island-wide incidents are temporarily unavailable. Please try again.',
+            onRetryMapScope,
+        }));
+
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent('Island-wide incidents are temporarily unavailable');
+        fireEvent.click(within(alert).getByRole('button', { name: 'Retry island-wide incidents' }));
+        expect(onRetryMapScope).toHaveBeenCalledTimes(1);
+    });
+
+    test('the island scope still hands the map every filter and action contract untouched', () => {
+        renderWorkspace(adminProps({ mapScope: 'island' }));
+
+        const mapProps = mapPropsSpy.mock.lastCall[0];
+        // Scope is WHERE the map draws. It must not alter WHAT the rail filters or
+        // which verbs the administrator is offered: those are still resolved from
+        // the role and from the incident's own municipality.
+        expect(mapProps.filterStatus).toBe('all');
+        expect(mapProps.canVerify).toBe(true);
+        expect(mapProps.canVerifyReport({ municipalityName: 'Magdiwang' })).toBe(false);
+        expect(mapProps.canVerifyReport({ municipalityName: 'Cajidiocan' })).toBe(true);
+    });
+});

@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import toast from '../../utils/appToast';
 import { HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
+import MapToolButton from './MapToolButton';
+import MapScopeControl from './MapScopeControl';
 import {
     getMapCoordinates,
     getMapReportBounds,
@@ -117,20 +119,6 @@ const getInspectorTone = (modal) => {
     return status ? { bar: status.dot, dot: status.dot } : { bar: '', dot: '' };
 };
 
-const MAP_TOOL_BUTTON_CLASS = 'relative flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-700 shadow-2xs transition-all duration-150 hover:bg-white hover:text-gray-950 hover:border-gray-300 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#07130e] dark:hover:border-white/20 dark:hover:text-white cursor-pointer before:absolute before:-inset-2 before:content-[\'\']';
-
-const MapToolButton = ({ label, icon: Icon, active = false, ...props }) => (
-    <button
-        type="button"
-        aria-label={label}
-        title={label}
-        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-emerald-400/80 !bg-emerald-50/95 !text-emerald-800 shadow-xs dark:!border-emerald-600/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
-        {...props}
-    >
-        <Icon className="h-3 w-3" aria-hidden="true" />
-    </button>
-);
-
 const MapView = ({
     reports = [],
     highRiskZones = [],
@@ -223,6 +211,11 @@ const MapView = ({
      * opening view and the Reset map view control together, because those are the
      * same camera and letting them disagree would make Reset a way to lose your
      * bearings.
+     *
+     * Callers may scope it by view rather than by role — the dashboard clears it
+     * for the island-wide map scope, whose camera is the whole island rather than
+     * the incidents inside it. The flag means "this map's home is the reports",
+     * and this map's home is not.
      */
     frameReportsOnOpen = false,
     /**
@@ -234,6 +227,44 @@ const MapView = ({
      * does not know must not silence the state it asked for.
      */
     dataLoading = false,
+    /**
+     * The area the map is currently scoped to, as a prepositional phrase: "in
+     * Cajidiocan", "across Sibuyan Island".
+     *
+     * Only the map's empty state speaks it, because that is the one message a
+     * scope change can turn into a false statement: "no incidents are visible"
+     * means something different on a municipal map and on an island-wide one, and
+     * the markers are not there to tell the reader which one they are looking at.
+     * Empty for callers with a single scope, which keeps their copy unchanged.
+     */
+    emptyScopePhrase = '',
+    /**
+     * A caller-issued request to re-aim the home camera.
+     *
+     * Opening framing is deliberately a one-time decision — later data must not
+     * move the camera out from under a viewer. A scope switch is the exception
+     * the caller knows about and the map cannot infer, so the caller names the
+     * request and a new value re-applies `applyHomeCamera`. Repeating the same
+     * value is a no-op, so this cannot fire on an unrelated re-render.
+     *
+     * It is applied as one animated move: the viewer asked to be taken somewhere,
+     * and a switch that snaps the camera reads as a glitch rather than as a change
+     * of scope.
+     */
+    homeFocusRequestId = null,
+    /**
+     * Map scope (municipal_admin maps only), as the tool rail's compact button.
+     *
+     * The value and the handler are two props because they answer two different
+     * questions, exactly as `canVerify` and `onVerifyToReport` do: `mapScope` is
+     * what the button reports as current, and the presence of
+     * `onMapScopeChange` is what asks for the control at all. Roles with one
+     * scope to draw pass neither, and get no control — a scope switch with one
+     * option is not a switch.
+     */
+    mapScope = null,
+    onMapScopeChange = null,
+    mapScopeMunicipality = '',
     /**
      * Metric scale bar.
      *
@@ -472,13 +503,14 @@ const MapView = ({
     const mapIsEmpty = isRiskZoneMap
         ? filteredRiskZones.length === 0
         : filteredReports.length === 0 && (filterStatus || filteredRiskZones.length === 0);
+    const scopedEmptySuffix = emptyScopePhrase ? ` ${emptyScopePhrase}` : '';
     const emptyMapMessage = isRiskZoneMap
         ? (isRiskZoneLayerVisibleForFilter(filterStatus)
             ? 'No high-risk zones match the selected filter.'
             : 'No high-risk zones are mapped yet.')
         : filterStatus
-            ? 'No incidents match the selected filter.'
-            : 'No active incidents are currently visible.';
+            ? `No incidents match the selected filter${scopedEmptySuffix}.`
+            : `No active incidents are currently visible${scopedEmptySuffix}.`;
 
     useEffect(() => {
         onLocationSelectRef.current = onLocationSelect;
@@ -578,6 +610,17 @@ const MapView = ({
         return 'home';
     }, [frameReportsOnOpen, frameVisibleReports, homeFocus, performanceProfile.navigationDuration]);
 
+    /**
+     * The home-camera request the map has already answered.
+     *
+     * Seeded with the request the map is born with, so the switch effect below
+     * fires on a CHANGE and never on mount: an arrival's camera is the opening
+     * effect's decision, and a deep link that owns it must not be flown away from
+     * a moment later. The opening effect reads it too, to stand aside for a
+     * request that is newer than the view it was about to settle on.
+     */
+    const appliedHomeFocusRequestRef = useRef(homeFocusRequestId);
+
     // The opening camera, decided once. The island view set at construction is
     // the last fallback; when the caller asks for report framing and the viewer's
     // reports are on the map, the map opens on them instead.
@@ -596,6 +639,15 @@ const MapView = ({
             framedOnOpenRef.current = true;
             return;
         }
+        // A scope switch the map has not answered yet is the newer instruction,
+        // and it already knows where the camera is going. Settling on the opening
+        // camera first would put the map somewhere the switch then leaves — and it
+        // would do it instantly, because an opening camera is not a move, which is
+        // the jump a scope change must not look like.
+        if (homeFocusRequestId && appliedHomeFocusRequestRef.current !== homeFocusRequestId) {
+            framedOnOpenRef.current = true;
+            return;
+        }
         // The data is still on its way, so there is nothing to frame yet and the
         // decision can wait. Deciding now is what made the opening view depend on
         // the cache: a warm load framed the incidents immediately and was then
@@ -605,7 +657,30 @@ const MapView = ({
         if (dataLoading) return;
         applyHomeCamera();
         framedOnOpenRef.current = true;
-    }, [applyHomeCamera, dataLoading, effectiveLocateRequest, focusLocation, mapReady]);
+    }, [applyHomeCamera, dataLoading, effectiveLocateRequest, focusLocation, homeFocusRequestId, mapReady]);
+
+    /**
+     * A caller's home-camera request — the map scope switch.
+     *
+     * The request is answered by one camera move, animated, because a scope change
+     * is the viewer asking to be taken somewhere rather than a place the map
+     * happens to open on.
+     *
+     * It waits for the incoming scope's data, and is only recorded once it has
+     * actually been applied — the wait resolves because the effect re-runs when
+     * `dataLoading` lands, and `applyHomeCamera` then closes over the new reports.
+     * Two things hang on that wait. A framing camera would otherwise settle on the
+     * set the viewer just left and stay there. And a move spent while the scope is
+     * still loading is spent under the map's loading veil, so the viewer would
+     * never see the transition they asked for — only the view it arrived at.
+     */
+    useEffect(() => {
+        if (!homeFocusRequestId) return;
+        if (appliedHomeFocusRequestRef.current === homeFocusRequestId) return;
+        if (!mapReady || dataLoading) return;
+        appliedHomeFocusRequestRef.current = homeFocusRequestId;
+        applyHomeCamera({ animate: true });
+    }, [applyHomeCamera, dataLoading, homeFocusRequestId, mapReady]);
 
     // Whether the viewer has taken the wheel. MapLibre fires these same gestures
     // for its own camera moves, so only the ones carrying an originating DOM
@@ -2143,6 +2218,17 @@ const MapView = ({
             {/* Controls */}
             {!['incident-preview', 'report-location'].includes(mode) && (
                 <div className="mobile-sidebar-hide pointer-events-auto absolute bottom-2 right-2 z-20 flex flex-col gap-1 sm:bottom-4 sm:right-4 sm:gap-2" role="group" aria-label="Map tools">
+                    {/* Scope sits above the layer and location tools, which is the
+                        order the rail reads in: what area this map is showing, how
+                        it is drawn, and where to put it back. */}
+                    {typeof onMapScopeChange === 'function' && (
+                        <MapScopeControl
+                            scope={mapScope}
+                            onScopeChange={onMapScopeChange}
+                            municipality={mapScopeMunicipality}
+                        />
+                    )}
+
                     <MapToolButton
                         label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
                         icon={HiOutlineMap}

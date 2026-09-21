@@ -16,6 +16,13 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
+import {
+    DEFAULT_MAP_SCOPE,
+    MAP_SCOPE_ISLAND,
+    getIslandMapScopeCacheKey,
+    mergeMapScopeReports,
+    normalizeMapScope,
+} from '../utils/mapScope';
 import { findRiskZoneById, normalizeRiskZoneId } from '../utils/riskZoneNavigation';
 import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import DashboardViewSwitch from '../components/dashboard/DashboardViewSwitch';
@@ -97,6 +104,25 @@ const DashboardPage = () => {
     // map workspace resets both on every arrival it owns (see its layout effect).
     const [mapSummaryPanel, setMapSummaryPanel] = useState('');
     const [responderMapFilter, setResponderMapFilter] = useState(MAP_DEFAULT_FILTER);
+    // Map scope is WHERE the map draws, not what the account may see or do — see
+    // `utils/mapScope`. The municipality always comes from the session, and the
+    // map opens on it, so the current workflow (and the map's density) is what an
+    // administrator sees by default. Only `municipal_admin` gets the control.
+    const [mapScope, setMapScope] = useState(DEFAULT_MAP_SCOPE);
+    const [islandScopeReports, setIslandScopeReports] = useState(null);
+    const [islandScopeLoading, setIslandScopeLoading] = useState(false);
+    const [islandScopeError, setIslandScopeError] = useState('');
+    const islandScopeRequestRef = useRef(null);
+    // Mirrors the state so the socket write-through can read the loaded island set
+    // without being re-created (and re-subscribing every socket listener) on each
+    // change, and `null` is load-bearing: it means "never asked for", which is
+    // what keeps an idle map from paying for a fetch it did not request.
+    const islandScopeReportsRef = useRef(null);
+    const activeMapScope = isAdmin ? normalizeMapScope(mapScope) : DEFAULT_MAP_SCOPE;
+    const islandScopeCacheKey = getIslandMapScopeCacheKey({
+        municipality: user?.assignedMunicipality,
+        userId: user?._id || user?.id,
+    });
     const [operationsDateKey, setOperationsDateKey] = useState(getManilaCalendarDateKey);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -274,6 +300,108 @@ const DashboardPage = () => {
             || (Array.isArray(r?.transferHistory) && r.transferHistory.some((t) => t?.fromMunicipalityName === activeMunicipality))
         ));
     }, [reports, activeMunicipality]);
+
+    /**
+     * The island-wide set, fetched only when the administrator asks for it.
+     *
+     * It is the public map feed, not a new administrative endpoint: every signed-in
+     * member already receives it, its projection is an allowlist with redacted
+     * evidence and no reporter identity, and it carries no operational fields. The
+     * administrator's own municipality is layered over it (see
+     * `mergeMapScopeReports`), so nothing they can act on becomes weaker in the
+     * wider view. Fetched once per TTL rather than per toggle, and deduped, so
+     * flipping the control never re-requests what is already on hand.
+     */
+    const loadIslandScopeReports = useCallback(({ force = false } = {}) => {
+        if (!isAdmin) return Promise.resolve([]);
+
+        if (!force) {
+            const fresh = getCachedData(islandScopeCacheKey, QUERY_CACHE_TTLS.dashboard);
+            if (Array.isArray(fresh)) {
+                // A read never re-stamps the entry: re-caching here would push the
+                // TTL forward on every toggle and the island set would never refresh.
+                islandScopeReportsRef.current = fresh;
+                setIslandScopeReports(fresh);
+                setIslandScopeLoading(false);
+                return Promise.resolve(fresh);
+            }
+            const stale = getStaleData(islandScopeCacheKey);
+            if (Array.isArray(stale)) {
+                // Instant render from cache, then refresh silently below.
+                islandScopeReportsRef.current = stale;
+                setIslandScopeReports(stale);
+            }
+        }
+        if (islandScopeRequestRef.current) return islandScopeRequestRef.current;
+
+        const hasStale = Array.isArray(getStaleData(islandScopeCacheKey));
+        if (!hasStale) setIslandScopeLoading(true);
+        setIslandScopeError('');
+
+        const request = dedupedFetch(islandScopeCacheKey, () => (
+            fetchAllReportPages(reportsAPI.getAll, { status: 'all' })
+        ))
+            .then((records) => {
+                const nextIslandReports = Array.isArray(records) ? records.filter(Boolean) : [];
+                islandScopeReportsRef.current = nextIslandReports;
+                setCachedData(islandScopeCacheKey, nextIslandReports);
+                setIslandScopeReports(nextIslandReports);
+                return nextIslandReports;
+            })
+            .catch((requestError) => {
+                console.error('Failed to load island-wide incidents:', requestError);
+                // Only surface the failure when there is nothing to draw; a stale
+                // snapshot stays on screen rather than being replaced by an error.
+                if (!Array.isArray(getStaleData(islandScopeCacheKey))) {
+                    setIslandScopeError('Island-wide incidents are temporarily unavailable. Please try again.');
+                }
+                return [];
+            })
+            .finally(() => {
+                islandScopeRequestRef.current = null;
+                setIslandScopeLoading(false);
+            });
+
+        islandScopeRequestRef.current = request;
+        return request;
+    }, [isAdmin, islandScopeCacheKey]);
+
+    useEffect(() => {
+        if (activeMapScope !== MAP_SCOPE_ISLAND) return;
+        loadIslandScopeReports();
+    }, [activeMapScope, loadIslandScopeReports]);
+
+    // A sign-out on this page, or a different account signing in, must not leave
+    // one office's island-wide snapshot (or their scope choice) behind for the
+    // next one. The scope itself resets to the new account's own municipality.
+    useEffect(() => {
+        setMapScope(DEFAULT_MAP_SCOPE);
+        setIslandScopeReports(null);
+        setIslandScopeLoading(false);
+        setIslandScopeError('');
+        islandScopeRequestRef.current = null;
+        islandScopeReportsRef.current = null;
+    }, [user?._id, user?.id, user?.assignedMunicipality]);
+
+    const mapScopedReports = useMemo(() => mergeMapScopeReports({
+        scope: activeMapScope,
+        municipalityReports: dashboardReports,
+        islandReports: islandScopeReports,
+    }), [activeMapScope, dashboardReports, islandScopeReports]);
+    // Live write-through for the island set, mirroring what the socket handlers do
+    // for the operational one: a verified, responded, resolved, deleted or
+    // transferred incident must move the marker it draws, not wait for a refetch.
+    // A no-op until the island set has been loaded at least once, so nothing here
+    // can trigger the fetch the control exists to gate.
+    const applyIslandScopeUpdate = useCallback((update) => {
+        const current = islandScopeReportsRef.current;
+        if (!Array.isArray(current) || typeof update !== 'function') return;
+        const next = update(current);
+        islandScopeReportsRef.current = next;
+        setCachedData(islandScopeCacheKey, next);
+        setIslandScopeReports(next);
+    }, [islandScopeCacheKey]);
+
     const focusedMapReportId = searchParams.get('report') || '';
     // Deep-link guarantee: the preloaded list can miss the target (own pending
     // reports for reporters, municipality-filtered admin lists, stale cache).
@@ -288,7 +416,7 @@ const DashboardPage = () => {
             setFocusedReportMissing(false);
             return;
         }
-        const inList = (Array.isArray(dashboardReports) ? dashboardReports : [])
+        const inList = (Array.isArray(mapScopedReports) ? mapScopedReports : [])
             .some((report) => String(report?._id) === focusedMapReportId);
         if (inList) {
             focusedFetchRef.current = focusedMapReportId;
@@ -317,11 +445,11 @@ const DashboardPage = () => {
         return () => {
             cancelled = true;
         };
-    }, [focusedMapReportId, dashboardReports]);
+    }, [focusedMapReportId, mapScopedReports]);
     const focusedMapReport = useMemo(
-        () => dashboardReports.find((report) => String(report?._id) === focusedMapReportId)
+        () => mapScopedReports.find((report) => String(report?._id) === focusedMapReportId)
             || focusedReportFallback,
-        [dashboardReports, focusedMapReportId, focusedReportFallback],
+        [focusedMapReportId, focusedReportFallback, mapScopedReports],
     );
     const focusedRiskZoneId = normalizeRiskZoneId(searchParams.get('riskZone'));
     const focusedRiskZone = useMemo(
@@ -369,11 +497,11 @@ const DashboardPage = () => {
     }, [isResponder, user]);
 
     const computedResolvedTodayReports = useMemo(() => {
-        return getResolvedTodayReports(dashboardReports, {
+        return getResolvedTodayReports(mapScopedReports, {
             currentUser: user,
             includeAll: isAdmin,
         });
-    }, [isAdmin, dashboardReports, user, operationsDateKey]);
+    }, [isAdmin, mapScopedReports, user, operationsDateKey]);
 
     useEffect(() => {
         let midnightTimer;
@@ -681,6 +809,7 @@ const DashboardPage = () => {
             const cached = getStaleData(dashboardCacheKey);
             const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, upsertDashboardReport(base, normalized));
+            applyIslandScopeUpdate((islandBase) => upsertDashboardReport(islandBase, normalized));
         };
         // Fresh-event pulse registry: ids whose map markers ring for a few
         // seconds after a socket event. Self-expiring via timeout.
@@ -700,6 +829,7 @@ const DashboardPage = () => {
             const cached = getStaleData(dashboardCacheKey);
             const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, removeDashboardReport(base, id));
+            applyIslandScopeUpdate((islandBase) => removeDashboardReport(islandBase, id));
         };
         const patchStatusAndCache = (id, status) => {
             if (!id) return;
@@ -707,6 +837,7 @@ const DashboardPage = () => {
             const cached = getStaleData(dashboardCacheKey);
             const base = Array.isArray(cached) ? cached : [];
             setCachedData(dashboardCacheKey, updateDashboardReportStatus(base, id, status));
+            applyIslandScopeUpdate((islandBase) => updateDashboardReportStatus(islandBase, id, status));
         };
 
         const unsub0 = subscribe('newReport', (data) => {
@@ -822,7 +953,7 @@ const DashboardPage = () => {
             pulseTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
             pulseTimeoutsRef.current.clear();
         };
-    }, [dashboardCacheKey, removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
+    }, [applyIslandScopeUpdate, dashboardCacheKey, removeLoadedReporterOverviewReport, subscribe, updateLoadedReporterOverviewReport]);
 
     useEffect(() => {
         if (panelView === 'incidents') {
@@ -972,8 +1103,13 @@ const DashboardPage = () => {
                     isReporter={isReporter}
                     loading={loading}
                     error={dashboardError}
-                    reports={dashboardReports}
+                    reports={mapScopedReports}
                     resolvedTodayReports={computedResolvedTodayReports}
+                    mapScope={activeMapScope}
+                    onMapScopeChange={setMapScope}
+                    mapScopeLoading={islandScopeLoading}
+                    mapScopeError={islandScopeError}
+                    onRetryMapScope={() => loadIslandScopeReports({ force: true })}
                     highRiskZones={highRiskZones}
                     highRiskZonesLoading={highRiskZonesLoading}
                     highRiskZonesError={highRiskZonesError}

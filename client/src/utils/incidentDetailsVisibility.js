@@ -81,9 +81,19 @@ export const getIncidentVisibilityRules = ({
     const declaredEvidenceCount = Number(report.evidenceCount ?? report.evidence?.evidenceCount ?? report.evidence?.count) || 0;
     const hasEvidenceItems = Array.isArray(report.evidence?.items) && report.evidence.items.length > 0;
     const hasEvidence = hasImages || declaredEvidenceCount > 0 || hasEvidenceItems;
-    const viewerAccess = (report.evidence?.viewerAccess === 'original' || ((operationalRole || isOwnerComputed) && (hasImages || hasEvidenceItems)))
-        ? 'original'
-        : (report.evidence?.viewerAccess || (hasEvidence ? 'redacted' : 'none'));
+    // The server's own declaration outranks role inference, and never the other
+    // way round. A payload that says `redacted` — the public projection, which is
+    // the shape every island-wide pin arrives in — carries redacted descriptors
+    // as its `items`, so inferring "original" from the viewer's role would label
+    // it as unprotected evidence the server had already withheld. `original` is
+    // still inferred from role for payloads that declare nothing, which is every
+    // operational summary and every legacy record.
+    const declaredViewerAccess = report.evidence?.viewerAccess;
+    const viewerAccess = (declaredViewerAccess === 'redacted' || declaredViewerAccess === 'none')
+        ? declaredViewerAccess
+        : (declaredViewerAccess === 'original' || ((operationalRole || isOwnerComputed) && (hasImages || hasEvidenceItems)))
+            ? 'original'
+            : (declaredViewerAccess || (hasEvidence ? 'redacted' : 'none'));
 
     return {
         isOperational: operationalRole,

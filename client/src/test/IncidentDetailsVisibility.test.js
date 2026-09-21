@@ -158,5 +158,49 @@ describe('incidentDetailsVisibility utility', () => {
             expect(rules.showTransferHistory).toBe(true);
             expect(rules.showRestrictedNotice).toBe(false);
         });
+
+        test('a server-declared redacted payload is never upgraded to original by role', () => {
+            // The public projection — the shape every island-wide map pin and
+            // every cross-municipality incident arrives in — carries redacted
+            // evidence descriptors as its `items`. Inferring "original" from the
+            // operator's role would have labelled the section as unprotected
+            // evidence the server had already withheld from this viewer.
+            const rules = getIncidentVisibilityRules({
+                viewerRole: 'municipal_admin',
+                report: {
+                    evidence: {
+                        viewerAccess: 'redacted',
+                        evidenceCount: 1,
+                        items: [{ index: 0, redactedPreviewUrl: '/api/reports/r1/evidence/0/preview?rv=3.4' }],
+                    },
+                },
+            });
+
+            expect(rules.viewerAccess).toBe('redacted');
+            // The rest of the operational descriptor is untouched: role still
+            // governs which sections exist, only the evidence boundary is the
+            // payload's to declare.
+            expect(rules.isOperational).toBe(true);
+            expect(rules.showCoordinates).toBe(true);
+        });
+
+        test('an operational payload that declares original keeps original access', () => {
+            const rules = getIncidentVisibilityRules({
+                viewerRole: 'municipal_admin',
+                report: { evidence: { viewerAccess: 'original', evidenceCount: 1, items: [{ index: 0, originalUrl: '/api/files/x' }] } },
+            });
+
+            expect(rules.viewerAccess).toBe('original');
+        });
+
+        test('a guest is never given original access by a payload that claims it', () => {
+            const rules = getIncidentVisibilityRules({
+                viewerRole: 'guest',
+                report: { evidence: { viewerAccess: 'none', evidenceCount: 0, items: [] } },
+            });
+
+            expect(rules.viewerAccess).toBe('none');
+            expect(rules.showCoordinates).toBe(false);
+        });
     });
 });
