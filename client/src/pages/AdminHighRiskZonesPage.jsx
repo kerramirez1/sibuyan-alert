@@ -1,17 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
+import MapLayerControl from '../components/map/MapLayerControl';
+import CustomSelect from '../components/ui/CustomSelect';
 import toast from '../utils/appToast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import useHazardAreas from '../hooks/useHazardAreas';
+import useAccidentHotspots from '../hooks/useAccidentHotspots';
 import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../utils/mapNavigation';
 import {
     applyRiskZoneLocationAutofill,
     buildRiskZoneLocationAutofill,
 } from '../utils/riskZoneLocation';
 import { getHazardColor } from '../config/hazardAreas';
+import {
+    ACCIDENT_HOTSPOT_DISCLAIMER,
+    describeEmptyHotspotClass,
+    getAccidentHotspotClasses,
+    getAccidentHotspotColor,
+    getAccidentHotspotLegendLabel,
+    resolveAccidentHotspotRule,
+} from '../config/accidentHotspots';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
@@ -77,6 +88,37 @@ const findRetiredSelections = ({ type, severity }) => {
 const MUNICIPALITIES = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
 
 /**
+ * The radius range the form offers, and the step between one value and the next.
+ *
+ * The ceiling is the model's own (5000 m), so the form can express every radius
+ * the database accepts. It stops short at the bottom (50 m rather than the
+ * schema's 10 m) for the same reason the zone types are a subset of what the
+ * schema stores: a radius is read against the scale bar, and below 50 m the
+ * circle is smaller than the pin that places it.
+ *
+ * `step` is what makes the control usable rather than merely present — a slider
+ * over 495 values would be untruthful about how precisely anyone can place one,
+ * and 10 m is finer than the pin itself. The arrows step by exactly that, which
+ * is what makes the small end reachable on a track this long.
+ */
+const RADIUS_LIMITS = Object.freeze({ min: 50, max: 5000, step: 10, defaultValue: 100 });
+
+/**
+ * Where a stored radius lands on the slider.
+ *
+ * A zone saved below the floor opens with the handle at the bottom of the range
+ * instead of being silently rewritten upward: the form may offer a narrower band
+ * than the model allows, but it does not get to change someone's zone just by
+ * being opened. The stored value is shown as it is, and the moment the operator
+ * moves the handle the form owns the new one.
+ */
+const clampToRadiusRange = (value) => {
+    const radius = Number(value);
+    if (!Number.isFinite(radius)) return RADIUS_LIMITS.defaultValue;
+    return Math.min(RADIUS_LIMITS.max, Math.max(RADIUS_LIMITS.min, radius));
+};
+
+/**
  * Tone → class map for the hazard readout shown under the selected pin.
  *
  * `unknown` is styled as deliberately neutral rather than as a success: "we
@@ -97,6 +139,16 @@ const AdminHighRiskZonesPage = () => {
     // or absent.
     const { layers: hazardLayers } = useHazardAreas();
     /**
+     * Accident-prone areas, derived from this system's own accident reports.
+     *
+     * A different kind of layer from the ones above, and treated differently:
+     * the susceptibility polygons are fixed reference geography, while these
+     * circles are a live read of the reports collection over a rolling window —
+     * so they arrive with their own window and derivation, and the hook behind
+     * them revalidates far more often.
+     */
+    const { layer: accidentHotspotLayer } = useAccidentHotspots();
+    /**
      * Which hazard classes the operator has switched on, per dataset.
      *
      * Starts empty, and empty means the map opens clean: susceptibility polygons
@@ -106,6 +158,14 @@ const AdminHighRiskZonesPage = () => {
      * this only decides which classes of them are drawn.
      */
     const [visibleHazardClasses, setVisibleHazardClasses] = useState({});
+    /**
+     * Which accident-prone classes are drawn.
+     *
+     * Off by default, exactly like the susceptibility classes, and for the same
+     * reason: the map is a placement surface first. Empty means off — there is no
+     * second flag to fall out of step with the list of classes.
+     */
+    const [visibleHotspotClasses, setVisibleHotspotClasses] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
     /**
@@ -149,6 +209,21 @@ const AdminHighRiskZonesPage = () => {
     // legacy zone is open for editing with its withdrawn values intact.
     const retiredSelections = useMemo(() => findRetiredSelections(formData), [formData]);
 
+    // The radius the handle can sit at, and whether the stored one is outside the
+    // band the form offers. These are two different numbers exactly once: while a
+    // legacy zone wider than the band is open. `formData.radius` stays the single
+    // source of truth either way — the slider writes to it, the preview circle and
+    // the payload read from it — so nothing downstream has to know the band exists.
+    const sliderRadius = clampToRadiusRange(formData.radius);
+    const isRadiusOutOfRange = Number.isFinite(Number(formData.radius))
+        && Number(formData.radius) !== sliderRadius;
+    // How much of the bar reads as filled. The bar is the input's own background,
+    // so this is the one number the control needs to draw its own state: a
+    // pseudo-element cannot be styled from inline CSS, and a separate element for
+    // the fill could drift away from the thumb sitting on top of it.
+    const radiusFillPercent = ((sliderRadius - RADIUS_LIMITS.min)
+        / (RADIUS_LIMITS.max - RADIUS_LIMITS.min)) * 100;
+
     /**
      * Switches one hazard class on or off.
      *
@@ -156,7 +231,7 @@ const AdminHighRiskZonesPage = () => {
      * below, so the control and the canvas cannot disagree — there is no second
      * copy of this state inside the map to drift out of step.
      */
-    const toggleHazardClass = (datasetId, classValue) => {
+    const toggleHazardClass = useCallback((datasetId, classValue) => {
         if (!datasetId) return;
         setVisibleHazardClasses((previous) => {
             const current = Array.isArray(previous[datasetId]) ? previous[datasetId] : [];
@@ -165,7 +240,116 @@ const AdminHighRiskZonesPage = () => {
                 : [...current, classValue];
             return { ...previous, [datasetId]: next };
         });
-    };
+    }, []);
+
+    /**
+     * Switches one accident-prone class on or off.
+     *
+     * The classes switched on here are exactly the ones handed to the map, so the
+     * control and the canvas cannot disagree. `High` is independent of `Medium`:
+     * the high cells are a subset of the data, not a level of detail of the
+     * medium ones, so showing only the concentrations is a legitimate view.
+     */
+    const toggleHotspotClass = useCallback((classValue) => {
+        setVisibleHotspotClasses((previous) => (
+            previous.includes(classValue)
+                ? previous.filter((value) => value !== classValue)
+                : [...previous, classValue]
+        ));
+    }, []);
+
+    // The classes the layer actually has hotspots in. A class with nothing to draw
+    // is offered disabled rather than missing, so the control still explains what
+    // this layer can show instead of changing shape as the data moves.
+    const hotspotClassesWithData = useMemo(() => {
+        const features = Array.isArray(accidentHotspotLayer?.features) ? accidentHotspotLayer.features : [];
+        return new Set(features.map((feature) => Number(feature?.properties?.class)));
+    }, [accidentHotspotLayer]);
+
+    /**
+     * The rule in force, resolved once for every piece of copy that describes it.
+     *
+     * Which matters more here than for the susceptibility layers: a disabled
+     * control has to say what would make it light up, and "no data" is not an
+     * answer an operator can act on — "no area with 3+ validated reports within
+     * 100 m in the last 30 days" is.
+     */
+    const accidentHotspotRule = useMemo(
+        () => resolveAccidentHotspotRule(accidentHotspotLayer),
+        [accidentHotspotLayer]
+    );
+
+    /**
+     * The layer control's contents, assembled from the layers this page actually
+     * has.
+     *
+     * Two groups because they are two different claims: the susceptibility layers
+     * publish a government rating, the accident layer is the system's own reading
+     * of its own reports. Keeping them apart in the control is the same
+     * distinction the map draws, and it is why the disclaimer belongs to one group
+     * and not the other.
+     *
+     * The control is handed data, never state: it renders what it is given and
+     * reports a toggle, so a switch and the canvas cannot hold two opinions about
+     * whether a layer is on.
+     */
+    const layerControlGroups = useMemo(() => {
+        const groups = [];
+
+        if (hazardLayers.length > 0) {
+            groups.push({
+                id: 'landslide',
+                label: 'Landslide',
+                items: hazardLayers.flatMap((layer) => (
+                    (Array.isArray(layer.classes) ? layer.classes : []).map((hazardClass) => ({
+                        id: `${layer.datasetId}:${hazardClass.value}`,
+                        label: `${hazardClass.label} ${layer.label} Susceptibility`,
+                        color: getHazardColor(layer.hazardType, hazardClass.value),
+                        active: Array.isArray(visibleHazardClasses[layer.datasetId])
+                            && visibleHazardClasses[layer.datasetId].includes(hazardClass.value),
+                        title: `ODC-ODbL · ${layer.attribution || 'DOST Project NOAH'}`,
+                        onToggle: () => toggleHazardClass(layer.datasetId, hazardClass.value),
+                    }))
+                )),
+            });
+        }
+
+        if (accidentHotspotLayer) {
+            groups.push({
+                id: 'accidents',
+                label: 'Accidents',
+                items: getAccidentHotspotClasses(accidentHotspotLayer).map((classValue) => {
+                    const hasHotspots = hotspotClassesWithData.has(Number(classValue));
+                    return {
+                        id: `accident:${classValue}`,
+                        label: getAccidentHotspotLegendLabel(classValue),
+                        color: getAccidentHotspotColor(classValue),
+                        active: visibleHotspotClasses.includes(classValue),
+                        disabled: !hasHotspots,
+                        // The radius is the analysis parameter, so it is stated where
+                        // the layer is switched on — the map draws a 100 m circle,
+                        // and the control says so rather than leaving it to be
+                        // inferred.
+                        title: hasHotspots
+                            ? `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated reports within ${accidentHotspotRule.radiusMeters} m (last ${accidentHotspotRule.windowDays} days). ${ACCIDENT_HOTSPOT_DISCLAIMER}`
+                            : describeEmptyHotspotClass(accidentHotspotRule, classValue),
+                        onToggle: () => toggleHotspotClass(classValue),
+                    };
+                }),
+            });
+        }
+
+        return groups;
+    }, [
+        accidentHotspotLayer,
+        accidentHotspotRule,
+        hazardLayers,
+        hotspotClassesWithData,
+        toggleHazardClass,
+        toggleHotspotClass,
+        visibleHazardClasses,
+        visibleHotspotClasses,
+    ]);
 
     const handleLocationSelect = async (location) => {
         const lat = Number(location?.lat);
@@ -672,7 +856,17 @@ const AdminHighRiskZonesPage = () => {
                 {/* Map Workspace */}
                 <section
                     ref={mapSectionRef}
-                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-7 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
+                    // Eight of twelve columns from xl up — the map is the page, and
+                    // the panel beside it is a tool used between map actions, not a
+                    // second half of the screen. It stays at seven below xl because
+                    // the editor in that panel has a floor: its zone-type row is
+                    // three options that must each stay on one uncut line, and at a
+                    // 1024 px window an eight-of-twelve map would squeeze the panel
+                    // past the width where that still fits. So the panel gives
+                    // ground first, and only down to the width it can actually work
+                    // in — 58 % map on a small laptop, 67 % on any real desktop
+                    // canvas.
+                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-8 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
@@ -681,64 +875,46 @@ const AdminHighRiskZonesPage = () => {
                             {showForm ? 'Select zone location' : 'High-risk zones map'}
                         </h2>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
                             {/* Layer control, and the legend with it.
 
-                                One chip per class of each loaded layer, in the
-                                layer's own class colour, checked when that class
-                                is drawn. The swatch stays coloured while a class
-                                is off, which is the point: the map opens with
-                                nothing drawn, so the control has to be the thing
-                                that says what *could* be drawn and what each
-                                colour means. A separate legend would be a second
-                                copy of the same facts, free to disagree with the
-                                switches sitting beside it.
+                                One collapsed control: it carries a swatch and a
+                                name per class, so it is the legend as well as the
+                                switch — there is no second copy of the same facts
+                                free to disagree with it.
 
-                                Carries the required ODC-ODbL attribution for
-                                screen readers. */}
+                                It used to be a row of chips sitting here, one per
+                                class, which wrapped to two or four lines in this
+                                header and pushed the canvas down — on the one
+                                surface whose whole job is the map. The chips are
+                                now inside the popover, where the same colours and
+                                the same names are still the legend.
+
+                                The ODC-ODbL attribution stays in the document
+                                even while the popover is closed: the licence
+                                travels with the layer, not with the menu. */}
+                            {/* The two layer groups used to be rendered here as
+                                rows of chips. They are now inside the collapsed
+                                `MapLayerControl` below, which carries the same
+                                colours and the same names — it is still the legend,
+                                it just no longer holds the map's height hostage.
+
+                                What stays behind is the part that is not a
+                                control: the attributions and the analysis rule.
+                                Both belong to the layer, not to the menu that
+                                switches it on, so both stay in the document and
+                                remain readable while the popover is shut. */}
                             {hazardLayers.length > 0 && (
-                                <div
-                                    className="flex flex-wrap items-center gap-x-2 gap-y-1"
-                                    role="group"
-                                    aria-label="Landslide susceptibility layers"
-                                >
-                                    {hazardLayers.flatMap((layer) => (
-                                        (Array.isArray(layer.classes) ? layer.classes : []).map((hazardClass) => {
-                                            const isOn = Array.isArray(visibleHazardClasses[layer.datasetId])
-                                                && visibleHazardClasses[layer.datasetId].includes(hazardClass.value);
-                                            return (
-                                                <button
-                                                    key={`${layer.datasetId}:${hazardClass.value}`}
-                                                    type="button"
-                                                    role="switch"
-                                                    aria-checked={isOn}
-                                                    onClick={() => toggleHazardClass(layer.datasetId, hazardClass.value)}
-                                                    className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] cursor-pointer ${
-                                                        isOn
-                                                            ? 'border-gray-300 bg-gray-50 font-medium text-gray-900 dark:border-white/20 dark:bg-white/10 dark:text-white'
-                                                            : 'border-gray-200 font-normal text-gray-500 hover:text-gray-900 dark:border-white/10 dark:text-gray-400 dark:hover:text-white'
-                                                    }`}
-                                                >
-                                                    <span
-                                                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                                                        style={{ backgroundColor: getHazardColor(layer.hazardType, hazardClass.value) }}
-                                                        aria-hidden="true"
-                                                    />
-                                                    <span className="whitespace-nowrap">
-                                                        {`${hazardClass.label} ${layer.label} Susceptibility`}
-                                                    </span>
-                                                    {isOn && (
-                                                        <HiOutlineCheck className="h-3 w-3 shrink-0 text-gray-600 dark:text-gray-200" aria-hidden="true" />
-                                                    )}
-                                                </button>
-                                            );
-                                        })
-                                    ))}
-                                    <span className="sr-only">
-                                        Hazard source: {hazardLayers[0]?.attribution || 'DOST Project NOAH'}.
-                                        Licence {hazardLayers[0]?.licence || 'ODC-ODbL'}.
-                                    </span>
-                                </div>
+                                <span className="sr-only">
+                                    Hazard source: {hazardLayers[0]?.attribution || 'DOST Project NOAH'}.
+                                    Licence {hazardLayers[0]?.licence || 'ODC-ODbL'}.
+                                </span>
+                            )}
+                            {accidentHotspotLayer && (
+                                <span className="sr-only">
+                                    {`Clusters of ${accidentHotspotRule.mediumMinReports}+ validated accident reports within ${accidentHotspotRule.radiusMeters} m of each other (${accidentHotspotRule.highMinReports}+ for High), over the last ${accidentHotspotRule.windowDays} days. `}
+                                    {ACCIDENT_HOTSPOT_DISCLAIMER}
+                                </span>
                             )}
                             {showForm && (
                                 <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -747,6 +923,16 @@ const AdminHighRiskZonesPage = () => {
                                         ? `${Math.round(Number(formData.radius))} m coverage`
                                         : 'Click map to place epicenter'}
                                 </span>
+                            )}
+                            {/* Rightmost, where a GIS layer control belongs, and
+                                the only always-present item in this header row:
+                                the placement readout comes and goes with the form,
+                                so anchoring the button here keeps it from moving.
+                                The map's fullscreen button expands this whole card,
+                                header included, so this control is on screen in
+                                both modes without being moved or duplicated. */}
+                            {layerControlGroups.length > 0 && (
+                                <MapLayerControl groups={layerControlGroups} panelLabel="Map layers" />
                             )}
                         </div>
                     </div>
@@ -773,15 +959,31 @@ const AdminHighRiskZonesPage = () => {
                             // was previously placed blind: no distance reference
                             // and no coordinate until after the click committed.
                             showCursorCoordinates={Boolean(showForm)}
+                            // The stage is the page, so the canvas can own the whole
+                            // screen when asked. It pairs with the fit-to-window
+                            // layout: expanding is how an operator gets more map than
+                            // the workspace was given, without leaving the page.
+                            showFullscreenControl
+                            // Fullscreen expands this whole card, not just the
+                            // canvas: the map's header holds the layer menu and the
+                            // placement readout, and an expanded map that leaves its
+                            // own controls behind on the page has traded one problem
+                            // for another. Nothing moves in the normal layout — the
+                            // header is simply included in what goes fullscreen.
+                            fullscreenContainerRef={mapSectionRef}
                             hazardLayers={hazardLayers}
                             hazardClassVisibility={visibleHazardClasses}
+                            // Derived from the system's own reports, and switched
+                            // independently of the susceptibility classes above.
+                            accidentHotspots={accidentHotspotLayer}
+                            accidentHotspotClasses={visibleHotspotClasses}
                             className="h-full w-full"
                         />
                     </div>
                 </section>
 
                 {/* Right Column: Zone Editor / List */}
-                <div className={`lg:col-span-5 xl:col-span-5 flex flex-col h-full min-h-0 ${mobileTab === 'map' ? 'hidden lg:flex' : 'flex'}`}>
+                <div className={`lg:col-span-5 xl:col-span-4 flex flex-col h-full min-h-0 ${mobileTab === 'map' ? 'hidden lg:flex' : 'flex'}`}>
                     <AnimatePresence mode="wait">
                         {showForm ? (
                             <motion.section
@@ -916,56 +1118,45 @@ const AdminHighRiskZonesPage = () => {
                                         <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                                             Zone type
                                         </label>
-                                        {/* Three options, one row, and every label on exactly one
-                                            line — whole, never wrapped and never trimmed to an
-                                            ellipsis. Both of those were tried and both are wrong:
-                                            a wrapped label makes the row two lines tall and reads
-                                            as two different options, and a trimmed one hides the
-                                            only word that separates them ("Landslide" from
-                                            "Accident").
+                                        {/* A dropdown, not three buttons in a row.
 
-                                            What fits is therefore decided by the label's font
-                                            size, and the font size has to follow the *column*,
-                                            not the viewport: this form is a five-of-twelve rail
-                                            on a wide desktop, so a viewport breakpoint sizes the
-                                            text for a screen it is not being drawn on. Hence the
-                                            container query below — the row is its own container,
-                                            and each label is clamped between a 13 px ceiling
-                                            (never larger than the rest of the form) and an
-                                            8.3 px floor, with the middle term — 3.15 % of the
-                                            row — sized from measurements rather than taste:
-                                            "Landslide Prone" is about 7.3 px wide per px of
-                                            font size, and a column leaves (row − 8)/3 − 20 px
-                                            for text after the dot, the gap and the padding.
-                                            That leaves every option several px of clearance
-                                            from 280 px panels up, and reaches the full 13 px
-                                            once the row passes ~415 px (the desktop rail). */}
-                                        <div
-                                            className="grid grid-cols-3 gap-1 [container-type:inline-size]"
-                                            role="radiogroup"
-                                            aria-label="Zone type"
-                                        >
-                                            {SELECTABLE_ZONE_TYPES.map((type) => {
-                                                const isSelected = formData.type === type.value;
-                                                return (
-                                                    <button
-                                                        key={type.value}
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={isSelected}
-                                                        onClick={() => setFormData({ ...formData, type: type.value })}
-                                                        className={`flex min-w-0 items-center gap-1 rounded-md px-1 py-2 text-left sm:px-1.5 ${
-                                                            isSelected
-                                                                ? 'font-semibold text-gray-900 underline decoration-emerald-600 decoration-2 underline-offset-4 dark:text-white dark:decoration-emerald-500'
-                                                                : 'font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                                        }`}
-                                                    >
-                                                        <span className={`h-2 w-2 shrink-0 rounded-full ${type.color}`} aria-hidden="true" />
-                                                        <span className="min-w-0 whitespace-nowrap [font-size:clamp(8.3px,3.15cqw,13px)]">{type.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                            The row was a squeezed thing: the form is a
+                                            four-of-twelve rail, three options had to share
+                                            it, and the only way to keep "Landslide Prone"
+                                            on one line was to shrink the type until it was
+                                            the smallest text in the form — fitted by
+                                            measurement, but still type nobody wants to read.
+                                            A closed dropdown spends one line of a row
+                                            whatever the panel width, and the options get to
+                                            be normal-sized text inside a menu that is wide
+                                            enough for all three.
+
+                                            It is the app's existing `CustomSelect`: same
+                                            control the filters use, same colour dots, full
+                                            keyboard support, and the hidden native select
+                                            that screen readers and tests read. The values and
+                                            the colour classes come from `SELECTABLE_ZONE_TYPES`
+                                            unchanged, so the payload and the retired-value
+                                            guard are untouched. */}
+                                        <CustomSelect
+                                            value={formData.type}
+                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            options={SELECTABLE_ZONE_TYPES.map((type) => ({
+                                                value: type.value,
+                                                label: type.label,
+                                                dot: type.color,
+                                            }))}
+                                            ariaLabel="Zone type"
+                                            placeholder="Select a zone type"
+                                            // A form field, not a filter chip. The trigger of
+                                            // this control is deliberately content-sized on
+                                            // desktop (in the filter rows a narrow control is
+                                            // what you want), so it is stretched to the field
+                                            // here and given the same 6px radius as the input
+                                            // above it — via the container, which leaves every
+                                            // other caller's trigger exactly as it was.
+                                            className="w-full [&>button]:w-full [&>button]:rounded-md"
+                                        />
                                     </div>
 
                                     {/* Severity Level */}
@@ -1016,22 +1207,103 @@ const AdminHighRiskZonesPage = () => {
 
                                     {/* Radius & Municipality */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label htmlFor="risk-zone-radius" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                                                Radius (meters)
-                                            </label>
-                                            <div className="relative">
+                                        {/* Radius — a slider, and the whole row wide.
+
+                                            It was a number spinner, which is a
+                                            control that asks to be clicked: reaching
+                                            300 m from 100 m meant ten presses of a
+                                            4 mm arrow, or retyping the field. A
+                                            radius is a judgement about how far the
+                                            warning reaches, and it is read on the
+                                            map, so the control that sets it should
+                                            move the same way the thing it draws
+                                            does.
+
+                                            Everything the control has to say is on
+                                            one caption line: the name, the band the
+                                            handle can travel, and the value it is
+                                            sitting at. The band used to be printed
+                                            under the bar, which spent a whole line on
+                                            two numbers that never change. */}
+                                        <div className="sm:col-span-2">
+                                            <div className="mb-1 flex items-baseline gap-2">
+                                                <label htmlFor="risk-zone-radius" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                    Radius
+                                                </label>
+                                                {/* Named so the slider can describe itself by it:
+                                                    the ends of the band are read out with the
+                                                    value, which is what a range announces. */}
+                                                <span id="risk-zone-radius-limits" className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                                                    {`${RADIUS_LIMITS.min}–${RADIUS_LIMITS.max} m`}
+                                                </span>
+                                                <span id="risk-zone-radius-value" className="ml-auto text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                    {`${Number(formData.radius)} m`}
+                                                </span>
+                                            </div>
+
+                                            {/* The row is exactly as tall as the thumb: the handle
+                                                is the only thing here that needs to be
+                                                grabbed, and a taller row than the handle
+                                                would just be empty space in a form that is
+                                                otherwise all compact rows. */}
+                                            <div className="flex h-4 items-center">
                                                 <input
                                                     id="risk-zone-radius"
-                                                    type="number"
-                                                    value={formData.radius}
-                                                    onChange={(e) => setFormData({ ...formData, radius: parseInt(e.target.value) || 0 })}
-                                                    min={10}
-                                                    max={5000}
-                                                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 pr-8 text-sm font-medium text-gray-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                                    type="range"
+                                                    value={sliderRadius}
+                                                    onChange={(e) => setFormData({ ...formData, radius: Number(e.target.value) })}
+                                                    min={RADIUS_LIMITS.min}
+                                                    max={RADIUS_LIMITS.max}
+                                                    step={RADIUS_LIMITS.step}
+                                                    // The spinner carried its unit in the
+                                                    // field; a range has nowhere to print
+                                                    // one, so the unit is spoken instead.
+                                                    aria-valuetext={`${Number(formData.radius)} meters`}
+                                                    // Describes the band the handle can travel: the
+                                                    // ends are printed, so they are announced rather
+                                                    // than left to be inferred from the min and max.
+                                                    aria-describedby="risk-zone-radius-limits"
+                                                    // The input *is* the bar — a 4 px hairline whose own
+                                                    // background is the filled track, drawn as a two-stop
+                                                    // gradient with an inline stop position — and the
+                                                    // 16 px thumb is the handle, hung 6 px up so it is
+                                                    // centred on that bar.
+                                                    //
+                                                    // Deliberately the plain recipe rather than a taller
+                                                    // input with the bar painted inside it: the input's
+                                                    // own box is the one piece of geometry this control
+                                                    // can be sure of. A padded box would leave the bar's
+                                                    // vertical position, and with it the thumb's, to
+                                                    // whatever the engine does with a transparent track
+                                                    // inside it.
+                                                    //
+                                                    // Sizes are chosen against the rest of the form, not
+                                                    // against the most a control could be: this sits in a
+                                                    // column of 12 px labels and 36 px inputs, and a
+                                                    // heavier knob turned one field into a block. 16 px is
+                                                    // still the tallest thing in the row, and still well
+                                                    // clear of the bar it must stay centred on.
+                                                    //
+                                                    // The value is a `formData.radius` number either
+                                                    // way: the slider writes to it, the readout and the
+                                                    // map's draft circle read from it.
+                                                    style={{
+                                                        backgroundImage: `linear-gradient(to right, var(--radius-fill) 0 ${radiusFillPercent}%, transparent ${radiusFillPercent}% 100%)`,
+                                                    }}
+                                                    className="h-1 w-full cursor-pointer appearance-none rounded-full bg-gray-200 [--radius-fill:#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-emerald-700 [&::-moz-range-track]:h-1 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-emerald-700 [&::-webkit-slider-thumb]:shadow-md dark:bg-white/15 dark:[&::-moz-range-thumb]:border-[#0c1813] dark:[&::-moz-range-thumb]:bg-emerald-500 dark:[&::-webkit-slider-thumb]:border-[#0c1813] dark:[&::-webkit-slider-thumb]:bg-emerald-500 dark:[--radius-fill:#10b981]"
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">m</span>
                                             </div>
+
+                                            {/* A zone saved before the form offered this
+                                                band keeps its own value — stated, not
+                                                corrected. */}
+                                            {isRadiusOutOfRange && (
+                                                <p className="mt-1 text-[11px] font-medium leading-snug text-amber-700 dark:text-amber-400">
+                                                    {`This zone is saved at a radius outside the ${RADIUS_LIMITS.min}–${RADIUS_LIMITS.max} m this `}
+                                                    control offers. Move the slider to change it; leaving it alone saves
+                                                    it as it is.
+                                                </p>
+                                            )}
                                         </div>
 
                                         {!user?.assignedMunicipality && (

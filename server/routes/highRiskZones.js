@@ -10,6 +10,8 @@ import {
     getHazardLayer,
     getHazardLayerCatalog,
 } from '../services/hazardAreaService.js';
+import Report from '../models/Report.js';
+import { accidentHotspotValidator } from '../utils/accidentHotspots.js';
 import { HAZARD_DATASET_IDS, isKnownHazardDataset } from '../config/hazardDatasets.js';
 import { validateMongoIdParam } from '../middleware/validate.js';
 import {
@@ -287,6 +289,58 @@ router.get('/hazards/:datasetId', protect, requireRole('municipal_admin'), async
         res.status(500).json({
             success: false,
             message: 'Failed to get hazard layer',
+        });
+    }
+});
+
+/**
+ * @route   GET /api/high-risk-zones/accident-hotspots
+ * @desc    Accident-prone areas derived from the system's own accident reports
+ * @access  Private (municipal_admin only)
+ *
+ * The one map layer on this workspace that is not external data. Landslide
+ * susceptibility arrives as PHIVOLCS polygons; accident-prone areas are computed
+ * from the reports this system already holds, so the layer changes when the
+ * accidents do rather than when a dataset is redeployed.
+ *
+ * Lives on this router rather than next to the legacy
+ * `GET /api/reports/high-risk-zones` aggregation because it answers a different
+ * question and is scoped differently: that one is public and only counts
+ * `verified`/`responding`/`resolved`, while a zone-placement layer is an
+ * administrative aid (admin-only, like the hazard layers) and counts every
+ * validated state, `transferred` included.
+ *
+ * Declared before `/:id` so the literal path is never parsed as an object id.
+ *
+ * Aggregated cell data only — a coordinate, a report count and a class. There is
+ * no shape of this payload that carries a reporter, an address or a report id.
+ */
+router.get('/accident-hotspots', protect, requireRole('municipal_admin'), async (req, res) => {
+    try {
+        const policy = resolveQueryPolicy();
+        const layer = await Report.getAccidentHotspots({ maxTimeMS: policy.maxTimeMs });
+
+        sendConditionalJson(req, res, { success: true, data: layer }, {
+            // Fingerprinted from the cells themselves: the payload is small, and a
+            // report re-pinned to a different corner of the same cell changes no
+            // count and no timestamp — only a validator built from the positions
+            // notices that.
+            etag: buildWeakEtag(
+                'accident-hotspots',
+                layer.windowDays,
+                accidentHotspotValidator(layer)
+            ),
+            // Deliberately no server-side TTL, unlike the zone list: this answer
+            // moves as reports are verified, and a cached hotspot map would
+            // disagree with the pins drawn beside it. The ETag still turns an
+            // unchanged repeat into a ~200 byte 304 instead of a second body.
+            maxAgeSeconds: 0,
+        });
+    } catch (error) {
+        console.error('Get accident hotspots error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get accident-prone areas',
         });
     }
 });

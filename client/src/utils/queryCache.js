@@ -27,6 +27,12 @@ export const QUERY_CACHE_TTLS = {
     // hazard payload out of every navigation, and the server's ETag still
     // revalidates it once the window lapses.
     hazardLayers: 30 * 60 * 1000,
+    // The opposite case: derived from live reports, so it changes when an
+    // accident is reported or verified. Short enough that a hotspot map is not
+    // visibly behind the pins beside it, long enough to survive a remount — and
+    // the `reportVerified` socket event invalidates it immediately rather than
+    // waiting this out.
+    accidentHotspots: 2 * 60 * 1000,
 };
 
 const DEFAULT_CACHE_TTL = 60 * 1000;

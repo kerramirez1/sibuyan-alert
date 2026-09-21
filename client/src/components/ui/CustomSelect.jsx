@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HiCheck, HiChevronDown } from 'react-icons/hi';
 
 /**
  * CustomSelect - Accessible, styled dropdown selector with floating menu,
  * semantic option tags, smooth animations, scrollable listbox, and full keyboard navigation.
+ *
+ * A value that no option names is shown as the placeholder and left unselected:
+ * this control reports the state it was given, it never substitutes one.
  */
 const CustomSelect = ({
     value,
@@ -18,16 +21,28 @@ const CustomSelect = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    // Which side of the trigger the menu opens on. Below is the default, and the
+    // only side the filter rows ever need.
+    const [opensAbove, setOpensAbove] = useState(false);
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
     const listboxRef = useRef(null);
     const hiddenSelectRef = useRef(null);
 
-    // Selected option object
+    // The option the value names.
+    //
+    // `null` when the value is not in `options` at all, and that is deliberate: the
+    // closed field must not show an option the control is not actually on. The
+    // previous fallback was `options[0]`, which meant a value the list no longer
+    // offered — a zone type that has been retired, a barangay outside the selected
+    // municipality — was displayed as whatever happened to be first, and the field
+    // and the form state then disagreed without either of them saying so. With no
+    // match the field states the placeholder instead, and the caller keeps the
+    // value it holds.
     const selectedIndex = options.findIndex((opt) => String(opt.value) === String(value));
-    const selectedOption = (selectedIndex >= 0 ? options[selectedIndex] : null)
-        || options[0]
-        || { value: '', label: placeholder || 'Select...' };
+    const selectedOption = selectedIndex >= 0
+        ? options[selectedIndex]
+        : { value: '', label: placeholder || 'Select...', dot: null, isPlaceholder: true };
 
     // Reset highlighted index when opening
     useEffect(() => {
@@ -36,14 +51,52 @@ const CustomSelect = ({
         }
     }, [isOpen, selectedIndex]);
 
+    // Room check: open upward when there is none below.
+    //
+    // The menu is absolutely positioned inside whatever container the caller
+    // hands us, and in a form that container is a scroll area that clips its own
+    // overflow — so a menu with nowhere to go is a menu whose options cannot be
+    // clicked at all. If the space below the trigger cannot hold the menu, it
+    // opens upward instead, the one direction that container can actually give
+    // it. The clipping boxes are found by walking up the ancestor chain, so the
+    // measurement is the real one rather than the viewport's.
+    //
+    // `useLayoutEffect`, because a menu that opens down and then jumps up is
+    // worse than either: this settles before the frame is painted.
+    useLayoutEffect(() => {
+        if (!isOpen) return;
+        const trigger = triggerRef.current;
+        const menu = listboxRef.current;
+        if (!trigger || !menu) return;
+
+        const gap = 6;
+        const triggerRect = trigger.getBoundingClientRect();
+        let clipTop = 0;
+        let clipBottom = window.innerHeight;
+        for (let node = trigger.parentElement; node; node = node.parentElement) {
+            if (window.getComputedStyle(node).overflowY !== 'visible') {
+                const rect = node.getBoundingClientRect();
+                clipTop = Math.max(clipTop, rect.top);
+                clipBottom = Math.min(clipBottom, rect.bottom);
+            }
+        }
+
+        const roomBelow = clipBottom - triggerRect.bottom - gap;
+        const roomAbove = triggerRect.top - clipTop - gap;
+        setOpensAbove(roomBelow < menu.offsetHeight && roomAbove > roomBelow);
+    }, [isOpen]);
+
     // Scroll highlighted option into view
     useEffect(() => {
         if (isOpen && listboxRef.current && highlightedIndex >= 0) {
             const listbox = listboxRef.current;
             const optionElements = listbox.querySelectorAll('[role="option"]');
             const highlightedEl = optionElements[highlightedIndex];
+            // Optional call: scrolling the menu is a nicety, and the one
+            // environment that has no `scrollIntoView` at all (jsdom, where every
+            // component test runs) must not lose the whole render over it.
             if (highlightedEl) {
-                highlightedEl.scrollIntoView({ block: 'nearest' });
+                highlightedEl.scrollIntoView?.({ block: 'nearest' });
             }
         }
     }, [isOpen, highlightedIndex]);
@@ -117,11 +170,15 @@ const CustomSelect = ({
             {/* Underlying select for full test automation & form accessibility */}
             <select
                 ref={hiddenSelectRef}
-                value={value}
+                value={selectedIndex >= 0 ? value : ''}
                 onChange={(event) => onChange?.(event)}
                 aria-label={ariaLabel}
                 className="sr-only"
             >
+                {/* The placeholder doubles as "nothing in this list is selected",
+                    so a value the options cannot name still reads as unselected
+                    rather than silently becoming the first option. */}
+                {selectedIndex < 0 && <option value="">{placeholder || 'Select...'}</option>}
                 {options.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -150,7 +207,9 @@ const CustomSelect = ({
                     {selectedOption?.dot && (
                         <span className={`h-2 w-2 rounded-full shrink-0 ${selectedOption.dot}`} aria-hidden="true" />
                     )}
-                    <span className="truncate">{selectedOption.label}</span>
+                    <span className={`truncate ${selectedOption.isPlaceholder ? 'font-normal text-gray-500 dark:text-gray-400' : ''}`}>
+                        {selectedOption.label}
+                    </span>
                 </div>
                 <HiChevronDown
                     className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 dark:text-gray-500 ${
@@ -166,7 +225,7 @@ const CustomSelect = ({
                     ref={listboxRef}
                     role="listbox"
                     aria-label={ariaLabel}
-                    className={`absolute left-0 right-0 ${alignmentClass} sm:min-w-[190px] max-w-[280px] z-[100] mt-1.5 max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-gray-200/90 bg-white/98 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/98 dark:shadow-black/60 focus:outline-none animate-in fade-in zoom-in-95 duration-100`}
+                    className={`absolute left-0 right-0 ${alignmentClass} sm:min-w-[190px] max-w-[280px] z-[100] max-h-64 overflow-y-auto ${opensAbove ? 'bottom-full mb-1.5' : 'mt-1.5'} overscroll-contain rounded-xl border border-gray-200/90 bg-white/98 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/98 dark:shadow-black/60 focus:outline-none animate-in fade-in zoom-in-95 duration-100`}
                     style={{
                         maxHeight: '280px',
                         WebkitOverflowScrolling: 'touch',

@@ -85,7 +85,15 @@ const {
         getHazardsAt: vi.fn().mockResolvedValue({
             data: { data: { available: true, reason: 'clear', results: [] } },
         }),
+        // The accident-prone layer resolves asynchronously like the hazard
+        // layers, so it has to be present on the mock too — otherwise the page
+        // would only ever be tested on the failure path.
+        getAccidentHotspots: vi.fn(),
     },
+}));
+
+vi.mock('../context/SocketContext', () => ({
+    useSocket: () => ({ subscribe: vi.fn(() => vi.fn()), reconnectVersion: 0 }),
 }));
 
 vi.mock('../hooks/useGlobalHighRiskZones', () => ({
@@ -116,6 +124,7 @@ vi.mock('../components/map/MapView', () => ({
                         Select mock map point
                     </button>
                 )}
+
             </div>
         );
     },
@@ -167,10 +176,87 @@ vi.mock('../services/api', () => ({
 }));
 
 import AdminHighRiskZonesPage from '../pages/AdminHighRiskZonesPage';
+import { setCachedData } from '../utils/queryCache';
+import { ACCIDENT_HOTSPOTS_CACHE_KEY } from '../hooks/useAccidentHotspots';
+
+const hotspotCell = (classValue, count, coordinates) => ({
+    type: 'Feature',
+    properties: { class: classValue, count },
+    geometry: { type: 'Point', coordinates },
+});
+const ACCIDENT_RULE = Object.freeze({
+    radiusMeters: 100,
+    windowDays: 30,
+    mediumMinReports: 3,
+    highMinReports: 6,
+});
+
+/** The normalized layer as the hook stores it in the query cache. */
+const hotspotLayer = (features, rule = ACCIDENT_RULE) => ({
+    datasetId: 'accident_hotspots',
+    label: 'Accident-prone',
+    source: 'Sibuyan Alert accident reports',
+    derivedFromReports: true,
+    method: 'radius_cluster',
+    rule,
+    classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
+    features,
+    totals: {
+        reports: features.reduce((total, entry) => total + entry.properties.count, 0),
+        hotspots: features.length,
+        clusteredReports: features.reduce((total, entry) => total + entry.properties.count, 0),
+    },
+});
+
+const accidentPayload = (features, rule = ACCIDENT_RULE) => ({
+    data: { data: hotspotLayer(features, rule) },
+});
+
+/** One Medium hotspot: three validated reports inside one 100 m area. */
+const MEDIUM_HOTSPOT = [hotspotCell(2, 3, [122.676219, 12.345053])];
+
+/**
+ * Puts the layer on screen before the first render.
+ *
+ * These tests are about what the control does with a derived layer, and a layer
+ * that arrives one microtask later than the render makes every assertion here a
+ * `waitFor` on a request that is not the subject. The fetch and cache paths have
+ * their own tests in `useAccidentHotspots.test.jsx`; this seeds the snapshot the
+ * hook renders from, and leaves the request mock in place as the fallback for a
+ * cache the hook considers stale.
+ */
+const seedAccidentHotspots = (features = MEDIUM_HOTSPOT, rule = ACCIDENT_RULE) => {
+    mockHighRiskZonesAPI.getAccidentHotspots.mockResolvedValue(accidentPayload(features, rule));
+    setCachedData(ACCIDENT_HOTSPOTS_CACHE_KEY, hotspotLayer(features, rule));
+};
+
+/**
+ * The radius the form is actually carrying.
+ *
+ * Read by id rather than by text because the readout and the band's lower end can
+ * print the same string ("50 m"), and at that value a text query would be asking
+ * two elements which one is which.
+ */
+const radiusReadout = () => document.getElementById('risk-zone-radius-value')?.textContent;
+
+/**
+ * Opens the map's collapsed Layers control and returns its panel.
+ *
+ * The switches moved inside the popover — that is the point of the control, one
+ * line of header instead of a block of chips — so a test about toggling a layer
+ * has to do the thing an operator does first. Handing back the panel keeps the
+ * scoping explicit: the same "Medium" also appears as a severity badge in the
+ * zone list, and a page-wide query would find the wrong one.
+ */
+const openLayerControl = async (mapWorkspace) => {
+    fireEvent.click(within(mapWorkspace).getByRole('button', { name: /Layers/i }));
+    return within(mapWorkspace).findByRole('group', { name: 'Map layers' });
+};
 
 describe('AdminHighRiskZonesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        seedAccidentHotspots();
         globalThis.URL.createObjectURL = vi.fn((file) => `blob:http://localhost/${file.name}`);
         globalThis.URL.revokeObjectURL = vi.fn();
         mockUseGlobalHighRiskZones.mockReturnValue({
@@ -260,9 +346,10 @@ describe('AdminHighRiskZonesPage', () => {
 
         expect(screen.getByRole('heading', { name: 'Add high-risk zone' })).toBeInTheDocument();
         expect(screen.getByLabelText(/Zone name/i)).toBeInTheDocument();
-        expect(screen.getByRole('radiogroup', { name: 'Zone type' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Zone type')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Accident Prone/i })).toHaveAttribute('aria-haspopup', 'listbox');
         expect(screen.getByRole('radiogroup', { name: 'Severity level' })).toBeInTheDocument();
-        expect(screen.getByLabelText(/Radius \(meters\)/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Radius$/i)).toBeInTheDocument();
         expect(screen.getByText('0/5 photos')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Attach reference photos' })).toBeInTheDocument();
         expect(screen.getByText(/JPEG, PNG, WebP up to 5 MB each/i)).toBeInTheDocument();
@@ -329,7 +416,9 @@ describe('AdminHighRiskZonesPage', () => {
 
         expect(screen.getByRole('heading', { name: 'Edit high-risk zone' })).toBeInTheDocument();
         expect(screen.getByLabelText(/Zone name/i)).toHaveValue('Cambajao River Overflow');
-        expect(screen.getByLabelText(/Radius \(meters\)/i)).toHaveValue(150);
+        // The stored radius opens on the slider, in the band the form offers.
+        expect(screen.getByLabelText(/^Radius$/i)).toHaveValue('150');
+        expect(screen.getByText('150 m')).toBeInTheDocument();
         expect(screen.getByText('1/5 photos')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Update zone' })).toBeInTheDocument();
 
@@ -397,35 +486,95 @@ describe('AdminHighRiskZonesPage', () => {
         render(<AdminHighRiskZonesPage />);
 
         fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
-        const group = screen.getByRole('radiogroup', { name: 'Zone type' });
+        const select = screen.getByLabelText('Zone type');
+        const options = within(select).getAllByRole('option');
 
-        expect(within(group).getAllByRole('radio')).toHaveLength(3);
-        expect(within(group).getByRole('radio', { name: /Landslide Prone/i })).toBeInTheDocument();
-        expect(within(group).getByRole('radio', { name: /Accident Prone/i })).toBeInTheDocument();
-        expect(within(group).getByRole('radio', { name: /Other Hazard/i })).toBeInTheDocument();
-        // Withdrawn: it must not be selectable, not merely unlabelled.
-        expect(within(group).queryByRole('radio', { name: /Flood/i })).not.toBeInTheDocument();
+        expect(options).toHaveLength(3);
+        expect(options.map((option) => option.textContent)).toEqual([
+            'Landslide Prone',
+            'Accident Prone',
+            'Other Hazard',
+        ]);
+        // Withdrawn: it must not be selectable, not merely unlabelled. The hidden
+        // native select is what the form submits and what a screen reader reads,
+        // so an option missing from it is an option that cannot be chosen.
+        expect(within(select).queryByRole('option', { name: /Flood/i })).not.toBeInTheDocument();
     });
 
-    test('keeps every zone-type label on one line, sized to its own column', () => {
+    test('keeps the zone type in one closed row, with the options inside a menu', async () => {
         render(<AdminHighRiskZonesPage />);
 
         fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
-        const group = screen.getByRole('radiogroup', { name: 'Zone type' });
 
-        // The row is its own container and the labels are sized from it. Two
-        // earlier attempts are the reason this is pinned down: wrapping made the
-        // row two lines tall and read as six options, and trimming to an ellipsis
-        // hid the word that distinguishes them ("Landslide" vs "Accident"). A
-        // viewport breakpoint cannot do the job either — this form is a rail on a
-        // wide desktop, so the column and the viewport disagree.
-        expect(group.className).toContain('[container-type:inline-size]');
+        // The closed field states the current type on one line, whatever the panel
+        // width. Three options in a fixed row could not: on this rail the labels
+        // had to be shrunk to be readable at all, and the menu is what buys them a
+        // normal size back.
+        const trigger = screen.getByRole('button', { name: /Accident Prone/i });
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(trigger.querySelector('svg')).toBeTruthy();
+        expect(within(trigger).getByText('Accident Prone').className).toContain('truncate');
 
-        for (const label of ['Landslide Prone', 'Accident Prone', 'Other Hazard']) {
-            const text = within(group).getByText(label);
-            expect(text.className).toContain('whitespace-nowrap');
-            expect(text.className).toContain('[font-size:clamp(');
-        }
+        fireEvent.click(trigger);
+        expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+        const listbox = await screen.findByRole('listbox', { name: 'Zone type' });
+        const options = within(listbox).getAllByRole('option');
+        expect(options.map((option) => option.textContent)).toEqual([
+            expect.stringContaining('Landslide Prone'),
+            expect.stringContaining('Accident Prone'),
+            expect.stringContaining('Other Hazard'),
+        ]);
+
+        // Each option keeps the colour the type already had elsewhere in the app.
+        const dotColours = options.map((option) => option.querySelector('span')?.className || '');
+        expect(dotColours[0]).toContain('bg-amber-500');
+        expect(dotColours[1]).toContain('bg-red-500');
+        expect(dotColours[2]).toContain('bg-gray-500');
+
+        // And the one that is on says so, rather than relying on the reader
+        // noticing which row the tick is beside.
+        expect(options[1]).toHaveAttribute('aria-selected', 'true');
+        expect(options[0]).toHaveAttribute('aria-selected', 'false');
+    });
+
+    test('selects a zone type by mouse and by keyboard, and closes behind itself', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        const trigger = screen.getByRole('button', { name: /Accident Prone/i });
+        const select = screen.getByLabelText('Zone type');
+
+        // Mouse: the whole field is the target, and choosing closes the menu. The
+        // option is looked up inside the listbox, because the hidden native select
+        // legitimately carries `role="option"` too — it is the same list, read by
+        // screen readers and by the form.
+        fireEvent.click(trigger);
+        const openListbox = await screen.findByRole('listbox', { name: 'Zone type' });
+        fireEvent.click(within(openListbox).getByRole('option', { name: /Other Hazard/i }));
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(select).toHaveValue('other');
+        expect(screen.getByRole('button', { name: /Other Hazard/i })).toBeInTheDocument();
+
+        // Keyboard: open, move, commit. The browser's own focus is never moved to
+        // the option — the trigger keeps it, which is what makes Tab out sensible.
+        fireEvent.keyDown(screen.getByRole('button', { name: /Other Hazard/i }), { key: 'ArrowDown' });
+        expect(await screen.findByRole('listbox')).toBeInTheDocument();
+        fireEvent.keyDown(screen.getByRole('button', { name: /Other Hazard/i }), { key: 'Enter' });
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(select).toHaveValue('other');
+
+        // The three ways out: choose, click away, Escape — each one closes it.
+        fireEvent.click(trigger);
+        expect(await screen.findByRole('listbox')).toBeInTheDocument();
+        fireEvent.mouseDown(document.body);
+        await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+        fireEvent.click(trigger);
+        expect(await screen.findByRole('listbox')).toBeInTheDocument();
+        fireEvent.keyDown(trigger, { key: 'Escape' });
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Zone type')).toHaveValue('other');
     });
 
     test('offers only the two severities the workspace still supports', () => {
@@ -439,6 +588,137 @@ describe('AdminHighRiskZonesPage', () => {
         expect(within(group).getByRole('radio', { name: /High/i })).toBeInTheDocument();
         expect(within(group).queryByRole('radio', { name: /Low/i })).not.toBeInTheDocument();
         expect(within(group).queryByRole('radio', { name: /Critical/i })).not.toBeInTheDocument();
+    });
+
+    test('replaces the radius spinner with a slider over the band the form offers', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+
+        // A native range, deliberately: the arrows, PageUp/PageDown and Home/End
+        // are the browser's, and no bespoke widget would give them as reliably as
+        // the one element that is defined by having them.
+        const slider = screen.getByLabelText(/^Radius$/i);
+        expect(slider).toHaveAttribute('type', 'range');
+        expect(slider).toHaveAttribute('min', '50');
+        // The ceiling is the model's own, so every radius the database accepts can
+        // be expressed here — including the few-kilometre corridors a zone can
+        // legitimately cover.
+        expect(slider).toHaveAttribute('max', '5000');
+        expect(slider).toHaveAttribute('step', '10');
+        expect(slider).toHaveValue('100');
+
+        // A handle position is not a number anyone can act on, so the value is
+        // stated beside the label, and the band it can travel is on the same
+        // caption line rather than on a line of its own under the bar.
+        expect(screen.getByText('100 m')).toBeInTheDocument();
+        expect(screen.getByText('50–5000 m')).toBeInTheDocument();
+
+        // The unit the spinner printed inside the field is spoken instead, and so
+        // is the band the handle can travel.
+        expect(slider).toHaveAttribute('aria-valuetext', '100 meters');
+        expect(slider).toHaveAttribute('aria-describedby', 'risk-zone-radius-limits');
+    });
+
+    test('moves the value and the draft coverage circle together while dragging', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        fireEvent.click(screen.getByText('Select mock map point'));
+
+        const slider = screen.getByLabelText(/^Radius$/i);
+        const draftRadius = () => mockMapViewProps.mock.lastCall[0]
+            .highRiskZones.find((zone) => zone._id === 'draft-risk-zone-preview')?.radius;
+
+        await waitFor(() => expect(draftRadius()).toBe(100));
+
+        fireEvent.change(slider, { target: { value: '300' } });
+
+        // One state, two readers: the readout and the circle are drawn from the
+        // same `formData.radius`, so there is no second copy to lag behind the drag.
+        expect(radiusReadout()).toBe('300 m');
+        expect(slider).toHaveAttribute('aria-valuetext', '300 meters');
+        expect(draftRadius()).toBe(300);
+
+        // 50 m is also the band's lower end printed under the track, so the readout
+        // is named rather than searched for: at this value the two strings match.
+        fireEvent.change(slider, { target: { value: '50' } });
+        expect(radiusReadout()).toBe('50 m');
+        expect(draftRadius()).toBe(50);
+    });
+
+    test('keeps a stored radius the form no longer offers, and saves it as it is', async () => {
+        // 25 m: legal in the database (the schema floor is 10 m), below the 50 m
+        // floor the form offers.
+        mockUseGlobalHighRiskZones.mockReturnValue({
+            zones: [{
+                _id: 'zone-pinpoint',
+                name: 'Pinpoint Hazard',
+                type: 'other',
+                severity: 'medium',
+                radius: 25,
+                municipality: 'Cajidiocan',
+                coordinates: { lat: 12.3712, lng: 122.5301 },
+                isActive: true,
+                photos: [],
+            }],
+            loading: false,
+            refresh: mockRefresh,
+            removeZone: mockRemoveZone,
+        });
+
+        render(<AdminHighRiskZonesPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Pinpoint Hazard' }));
+
+        const slider = screen.getByLabelText(/^Radius$/i);
+
+        // The handle sits at the bottom of the band, because it has nowhere further
+        // to go — but the form says what the zone actually is, and says why it
+        // cannot show it. Offering a narrower band is not the same as rewriting
+        // the zone that opens in it.
+        expect(slider).toHaveValue('50');
+        expect(radiusReadout()).toBe('25 m');
+        expect(screen.getByText(/outside the 50–5000 m/)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Update zone/i }));
+
+        await waitFor(() => {
+            expect(mockHighRiskZonesAPI.update).toHaveBeenCalledWith('zone-pinpoint', expect.any(FormData));
+        });
+        expect(mockHighRiskZonesAPI.update.mock.calls.at(-1)[1].get('radius')).toBe('25');
+    });
+
+    test('hands an out-of-range radius over to the band as soon as the handle moves', () => {
+        mockUseGlobalHighRiskZones.mockReturnValue({
+            zones: [{
+                _id: 'zone-pinpoint',
+                name: 'Pinpoint Hazard',
+                type: 'other',
+                severity: 'medium',
+                radius: 25,
+                municipality: 'Cajidiocan',
+                coordinates: { lat: 12.3712, lng: 122.5301 },
+                isActive: true,
+                photos: [],
+            }],
+            loading: false,
+            refresh: mockRefresh,
+            removeZone: mockRemoveZone,
+        });
+
+        render(<AdminHighRiskZonesPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Pinpoint Hazard' }));
+
+        const slider = screen.getByLabelText(/^Radius$/i);
+        expect(radiusReadout()).toBe('25 m');
+
+        fireEvent.change(slider, { target: { value: '200' } });
+
+        // From the first movement on, there is nothing out of range to warn about:
+        // the form owns the value, and the warning goes away with the state it was
+        // describing rather than lingering as a stale banner.
+        expect(radiusReadout()).toBe('200 m');
+        expect(screen.queryByText(/outside the 50–5000 m/)).not.toBeInTheDocument();
     });
 
     test('still names a legacy flood zone it can no longer create', () => {
@@ -492,7 +772,14 @@ describe('AdminHighRiskZonesPage', () => {
         // supported type, which would re-classify the zone on a mere open — and
         // the form says out loud what it will not save.
         expect(screen.getByRole('status')).toHaveTextContent(/Flood Prone and Low/);
-        expect(screen.queryByRole('radio', { name: /Flood/i })).not.toBeInTheDocument();
+        expect(within(screen.getByLabelText('Zone type')).queryByRole('option', { name: /Flood/i }))
+            .not.toBeInTheDocument();
+
+        // And the field does not quietly move to a type the zone is not: a
+        // withdrawn value that names no option reads as nothing selected, so the
+        // field and the notice agree that a choice is still owed.
+        expect(screen.getByRole('button', { name: /Select a zone type/i })).toBeInTheDocument();
+        expect(screen.getByLabelText('Zone type')).toHaveValue('');
 
         fireEvent.click(screen.getByRole('button', { name: /Update zone/i }));
 
@@ -500,7 +787,9 @@ describe('AdminHighRiskZonesPage', () => {
         expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining('Flood Prone and Low'));
 
         // Replacing both is what unblocks it.
-        fireEvent.click(screen.getByRole('radio', { name: /Accident Prone/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Select a zone type/i }));
+        const recoveryListbox = await screen.findByRole('listbox', { name: 'Zone type' });
+        fireEvent.click(within(recoveryListbox).getByRole('option', { name: /Accident Prone/i }));
         fireEvent.click(screen.getByRole('radio', { name: /High/i }));
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
@@ -527,6 +816,50 @@ describe('AdminHighRiskZonesPage', () => {
         confirmSpy.mockRestore();
     });
 
+    test('keeps every layer switch behind one collapsed control in the map header', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const control = within(mapWorkspace).getByRole('button', { name: /Layers/i });
+        expect(control).toHaveAttribute('aria-expanded', 'false');
+
+        // Closed, the control costs one line of header instead of the four rows
+        // of chips it replaced — which is the whole reason the canvas can be the
+        // page now. Nothing is switched on by default either way.
+        expect(within(mapWorkspace).queryByRole('switch')).not.toBeInTheDocument();
+
+        fireEvent.click(control);
+        expect(control).toHaveAttribute('aria-expanded', 'true');
+        expect(await within(mapWorkspace).findByRole('group', { name: 'Map layers' })).toBeInTheDocument();
+
+        // Clicking anywhere outside shuts it, so it never sits over the map once
+        // the operator has moved on to something else.
+        fireEvent.pointerDown(document.body);
+        await waitFor(() => expect(control).toHaveAttribute('aria-expanded', 'false'));
+
+        // Escape closes it too, and hands focus back to the button that opened it.
+        fireEvent.click(control);
+        await within(mapWorkspace).findByRole('group', { name: 'Map layers' });
+        fireEvent.keyDown(document, { key: 'Escape' });
+        await waitFor(() => expect(control).toHaveAttribute('aria-expanded', 'false'));
+        expect(control).toHaveFocus();
+    });
+
+    test('sends the whole map card fullscreen, so the layer menu goes with it', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        // Fullscreen expands exactly one element and leaves everything outside it
+        // on the page. The header holding the Layers control is inside the card
+        // the map is told to expand, so the control is still on screen when the
+        // map is — no second control, no move, no change to the normal layout.
+        const mapSection = screen.getByLabelText('High-risk zones map workspace');
+        const props = mockMapViewProps.mock.lastCall[0];
+
+        expect(props.showFullscreenControl).toBe(true);
+        expect(props.fullscreenContainerRef?.current).toBe(mapSection);
+        expect(mapSection.contains(within(mapSection).getByRole('button', { name: /Layers/i }))).toBe(true);
+    });
+
     test('hands the hazard layers to the map switched off, and offers them as controls', async () => {
         render(<AdminHighRiskZonesPage />);
 
@@ -549,12 +882,15 @@ describe('AdminHighRiskZonesPage', () => {
         // drawn survives the map opening without it. Scoped to the map workspace:
         // "Medium" also appears as a severity badge in the zone list.
         const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
-        expect(await within(mapWorkspace).findByRole('switch', { name: 'Medium Landslide Susceptibility' }))
+        const panel = await openLayerControl(mapWorkspace);
+        expect(within(panel).getByRole('switch', { name: 'Medium Landslide Susceptibility' }))
             .toHaveAttribute('aria-checked', 'false');
-        expect(within(mapWorkspace).getByRole('switch', { name: 'High Landslide Susceptibility' }))
+        expect(within(panel).getByRole('switch', { name: 'High Landslide Susceptibility' }))
             .toHaveAttribute('aria-checked', 'false');
         // Storm surge is no longer registered, so no switch may offer it.
-        expect(within(mapWorkspace).queryByRole('switch', { name: /surge|SSA/i })).not.toBeInTheDocument();
+        expect(within(panel).queryByRole('switch', { name: /surge|SSA/i })).not.toBeInTheDocument();
+        // The attribution belongs to the layer, not to the popover that switches
+        // it on, so it stays readable with the control shut.
         expect(within(mapWorkspace).getByText(/ODC-ODbL/)).toBeInTheDocument();
     });
 
@@ -562,8 +898,9 @@ describe('AdminHighRiskZonesPage', () => {
         render(<AdminHighRiskZonesPage />);
 
         const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
-        const medium = await within(mapWorkspace).findByRole('switch', { name: 'Medium Landslide Susceptibility' });
-        const high = within(mapWorkspace).getByRole('switch', { name: 'High Landslide Susceptibility' });
+        const panel = await openLayerControl(mapWorkspace);
+        const medium = within(panel).getByRole('switch', { name: 'Medium Landslide Susceptibility' });
+        const high = within(panel).getByRole('switch', { name: 'High Landslide Susceptibility' });
         const visibility = () => mockMapViewProps.mock.lastCall[0].hazardClassVisibility;
 
         // Medium alone.
@@ -586,6 +923,121 @@ describe('AdminHighRiskZonesPage', () => {
         fireEvent.click(high);
         await waitFor(() => expect(visibility()).toEqual({ landslide: [] }));
         expect(high).toHaveAttribute('aria-checked', 'false');
+    });
+
+    test('offers the accident-prone classes switched off, and says where they come from', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const group = await openLayerControl(mapWorkspace);
+
+        const medium = within(group).getByRole('switch', { name: 'Medium Accident-Prone Area' });
+        expect(medium).toHaveAttribute('aria-checked', 'false');
+
+        // The layer has one Medium hotspot and no High one, so High is offered,
+        // disabled, with the rule that would light it up printed on it — a control
+        // that silently disappears as the data moves is a control nobody can
+        // learn, and "no data" is not something an operator can act on.
+        const high = within(group).getByRole('switch', { name: 'High Accident-Prone Area' });
+        expect(high).toBeDisabled();
+        expect(high).toHaveAttribute('aria-checked', 'false');
+        expect(high).toHaveAttribute(
+            'title',
+            'No area with 6+ validated reports within 100 m in the last 30 days.'
+        );
+        expect(medium).not.toBeDisabled();
+
+        // The claim travels with the control: this is the system's own reading of
+        // its own reports, not a government susceptibility rating.
+        expect(medium).toHaveAttribute(
+            'title',
+            expect.stringMatching(/not an official government hazard classification/i)
+        );
+
+        await waitFor(() => {
+            const props = mockMapViewProps.mock.lastCall[0];
+            // Handed to the map switched off, like the susceptibility layers — and
+            // with the rule attached, because the map draws the radius the server
+            // clustered by.
+            expect(props.accidentHotspotClasses).toEqual([]);
+            expect(props.accidentHotspots.features).toHaveLength(1);
+            expect(props.accidentHotspots.rule).toEqual(ACCIDENT_RULE);
+        });
+    });
+
+    test('switches accident-prone classes independently of the susceptibility ones', async () => {
+        seedAccidentHotspots([
+            hotspotCell(2, 3, [122.676219, 12.345053]),
+            hotspotCell(3, 6, [122.55, 12.4]),
+        ]);
+
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const group = await openLayerControl(mapWorkspace);
+        const mediumAccident = within(group).getByRole('switch', { name: 'Medium Accident-Prone Area' });
+        const highAccident = within(group).getByRole('switch', { name: 'High Accident-Prone Area' });
+        const landslideMedium = within(group).getByRole('switch', { name: 'Medium Landslide Susceptibility' });
+
+        const props = () => mockMapViewProps.mock.lastCall[0];
+
+        fireEvent.click(mediumAccident);
+        await waitFor(() => expect(props().accidentHotspotClasses).toEqual([2]));
+
+        // Both at once.
+        fireEvent.click(highAccident);
+        await waitFor(() => expect(props().accidentHotspotClasses).toEqual([2, 3]));
+        expect(mediumAccident).toHaveAttribute('aria-checked', 'true');
+        expect(highAccident).toHaveAttribute('aria-checked', 'true');
+
+        // The susceptibility control is a different vocabulary — a different
+        // dataset, a different claim, a different window — so switching one must
+        // not move the other.
+        fireEvent.click(landslideMedium);
+        await waitFor(() => expect(props().hazardClassVisibility).toEqual({ landslide: [2] }));
+        expect(props().accidentHotspotClasses).toEqual([2, 3]);
+
+        // And back to the clean map the page opens with.
+        fireEvent.click(mediumAccident);
+        fireEvent.click(highAccident);
+        await waitFor(() => expect(props().accidentHotspotClasses).toEqual([]));
+        expect(props().hazardClassVisibility).toEqual({ landslide: [2] });
+    });
+
+    test('offers the classes disabled when no area reaches the floor', async () => {
+        // Two validated accidents are two accidents: the server classifies
+        // nothing, and the control says why rather than claiming a layer.
+        seedAccidentHotspots([]);
+
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const group = await openLayerControl(mapWorkspace);
+
+        const medium = within(group).getByRole('switch', { name: 'Medium Accident-Prone Area' });
+        const high = within(group).getByRole('switch', { name: 'High Accident-Prone Area' });
+        expect(medium).toBeDisabled();
+        expect(high).toBeDisabled();
+        expect(high).toHaveAttribute('title', expect.stringContaining('6+ validated reports within 100 m'));
+
+        // The layer still reaches the map — empty — because the control's job is
+        // to state what can be drawn, and right now that is nothing.
+        expect(mockMapViewProps.mock.lastCall[0].accidentHotspots.features).toEqual([]);
+    });
+
+    test('describes a retuned rule as it is, not as it used to be', async () => {
+        seedAccidentHotspots([], { ...ACCIDENT_RULE, radiusMeters: 250, highMinReports: 4 });
+
+        render(<AdminHighRiskZonesPage />);
+
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        const group = await openLayerControl(mapWorkspace);
+
+        // A configuration change needs no code change here: the payload's rule is
+        // what both the map and this sentence read.
+        expect(within(group).getByRole('switch', { name: 'High Accident-Prone Area' }))
+            .toHaveAttribute('title', 'No area with 4+ validated reports within 250 m in the last 30 days.');
+        expect(mockMapViewProps.mock.lastCall[0].accidentHotspots.rule.radiusMeters).toBe(250);
     });
 
     test('enables the placement accuracy aids while the zone form is open', async () => {
@@ -630,8 +1082,8 @@ describe('AdminHighRiskZonesPage', () => {
         await waitFor(() => {
             expect(screen.getByText(/High landslide/i)).toBeInTheDocument();
         });
-        expect(screen.getByRole('radio', { name: /Landslide Prone/i })).toHaveAttribute('aria-checked', 'true');
-        expect(screen.getByRole('radio', { name: /Accident Prone/i })).toHaveAttribute('aria-checked', 'false');
+        expect(screen.getByLabelText('Zone type')).toHaveValue('landslide_prone');
+        expect(screen.getByRole('button', { name: /Landslide Prone/i })).toBeInTheDocument();
         expect(mockToast.success).toHaveBeenCalledWith(
             expect.stringContaining('Zone type set to landslide prone'),
             expect.anything()

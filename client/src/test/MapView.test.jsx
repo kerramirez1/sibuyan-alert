@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+// `vi.hoisted` because the mock factory below is hoisted above this file's
+// declarations, and a control reference inside it would be read before it
+// exists. The other mocks survive it by only being touched from inside bodies
+// that run later; this one is a plain property.
+const { mockFullscreenControl } = vi.hoisted(() => ({ mockFullscreenControl: vi.fn() }));
+
 const mockMapInstances = [];
 const mockSetLayoutProperty = vi.fn();
 const LOAD_ADDED_IDS = new Set([
@@ -12,9 +18,20 @@ const LOAD_ADDED_IDS = new Set([
 // Fresh maps have no sources/layers: get* returns null so the component's
 // idempotent ensureSource/ensureLayer path adds them (prod behavior). Style
 // layers queried later for visibility toggles report as existing.
+// Accident-prone layers are added by a data effect after mount (like the hazard
+// layers), so the mock has to remember what was added: absent before
+// `addSource`/`addLayer`, present after. Without that memory the effect would
+// look like it re-adds them on every toggle, and the "switching a class never
+// rebuilds anything" assertion would be untestable.
+const addedLayerIds = new Set();
+const addedSourceIds = new Set();
+const mockSetData = vi.fn();
 const mockGetLayer = vi.fn((id) => {
     if (typeof id === 'string' && (id.includes('risk-zone') || id.includes('risk_zone') || id.includes('user-location') || id.includes('gps-accuracy'))) {
         return LOAD_ADDED_IDS.has(id) ? { id } : null;
+    }
+    if (typeof id === 'string' && id.includes('accident-hotspot')) {
+        return addedLayerIds.has(id) ? { id } : null;
     }
     return { id };
 });
@@ -22,17 +39,25 @@ const mockGetSource = vi.fn((id) => {
     if (typeof id === 'string' && (id.includes('risk-zone') || id.includes('risk_zone') || id.includes('user-location') || id.includes('gps-accuracy'))) {
         return null;
     }
+    if (typeof id === 'string' && id.includes('accident-hotspot')) {
+        return addedSourceIds.has(id) ? { setData: mockSetData } : null;
+    }
     return { setData: vi.fn() };
 });
 const mockSetFilter = vi.fn();
+const mockSetPaintProperty = vi.fn();
 const mockSetMaxZoom = vi.fn();
 const mockEaseTo = vi.fn();
 const mockFitBounds = vi.fn();
 const mockFlyTo = vi.fn();
 const mockOnCallbacks = {};
 const mockAddControl = vi.fn();
-const mockAddSource = vi.fn();
-const mockAddLayer = vi.fn();
+const mockAddSource = vi.fn((id) => {
+    addedSourceIds.add(id);
+});
+const mockAddLayer = vi.fn((layer) => {
+    if (layer?.id) addedLayerIds.add(layer.id);
+});
 const mockRemove = vi.fn();
 
 vi.mock('maplibre-gl', () => ({
@@ -45,6 +70,7 @@ vi.mock('maplibre-gl', () => ({
             this.getLayer = mockGetLayer;
             this.getMaxZoom = vi.fn(() => 16);
             this.setFilter = mockSetFilter;
+            this.setPaintProperty = mockSetPaintProperty;
             this.setMaxZoom = mockSetMaxZoom;
             this.getZoom = vi.fn(() => 11);
             this.easeTo = mockEaseTo;
@@ -65,6 +91,7 @@ vi.mock('maplibre-gl', () => ({
             mockMapInstances.push(this);
         }),
         NavigationControl: vi.fn(),
+        FullscreenControl: mockFullscreenControl,
         AttributionControl: vi.fn(),
         Marker: vi.fn(function () {
             this.setLngLat = vi.fn().mockReturnThis();
@@ -117,6 +144,10 @@ import {
     PMTILES_SOURCE_ID,
     STREET_FALLBACK_LAYER_ID,
 } from '../config/mapProvider';
+import {
+    ACCIDENT_HOTSPOT_SOURCE_ID,
+    accidentHotspotCircleLayerId,
+} from '../config/accidentHotspots';
 
 describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
     beforeEach(() => {
@@ -802,5 +833,297 @@ describe('MapView opening framing', () => {
 
         await waitFor(() => expect(onAcknowledgeTransferToReport).toHaveBeenCalledTimes(1));
         expect(onAcknowledgeTransferToReport.mock.calls[0][0]).toMatchObject({ _id: 'pin-transfer' });
+    });
+});
+
+describe('MapView accident-prone circles', () => {
+    const RULE = { radiusMeters: 100, windowDays: 30, mediumMinReports: 3, highMinReports: 6 };
+
+    const hotspotLayer = (features, rule = RULE) => ({
+        datasetId: 'accident_hotspots',
+        label: 'Accident-prone',
+        source: 'Sibuyan Alert accident reports',
+        derivedFromReports: true,
+        method: 'radius_cluster',
+        rule,
+        classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
+        features,
+    });
+
+    const point = (hazardClass, count, coordinates) => ({
+        type: 'Feature',
+        properties: { class: hazardClass, count },
+        geometry: { type: 'Point', coordinates },
+    });
+
+    const mediumCell = point(2, 3, [122.676219, 12.345053]);
+    const highCell = point(3, 6, [122.55, 12.4]);
+    const layerWithBoth = (rule) => hotspotLayer([mediumCell, highCell], rule);
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockMapInstances.length = 0;
+        addedLayerIds.clear();
+        addedSourceIds.clear();
+        Object.keys(mockOnCallbacks).forEach((k) => delete mockOnCallbacks[k]);
+        vi.stubEnv('VITE_3D_LABELS_PMTILES_URL', '');
+        vi.stubEnv('VITE_PMTILES_URL', '');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(createRangeResponse(createPmtilesHeader())));
+    });
+
+    const renderReady = async (props, existingView) => {
+        const view = existingView ?? render(<MapView {...props} />);
+        if (existingView) existingView.rerender(<MapView {...props} />);
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(mockOnCallbacks.load).toBeInstanceOf(Function));
+        return view;
+    };
+
+    const addedLayer = (layerId) => mockAddLayer.mock.calls
+        .map(([layer]) => layer)
+        .find((layer) => layer?.id === layerId);
+
+    const circleLayerId = (classValue) => accidentHotspotCircleLayerId(classValue);
+
+    test('adds one shared source and one circle layer per class, both off', async () => {
+        await renderReady({ reports: [], mode: 'risk-zones', accidentHotspots: layerWithBoth() });
+
+        // One source for both classes: a point is not duplicated per class, and
+        // each layer selects its own class with a filter.
+        expect(mockAddSource).toHaveBeenCalledWith(ACCIDENT_HOTSPOT_SOURCE_ID, expect.objectContaining({
+            type: 'geojson',
+        }));
+        expect(mockAddSource.mock.calls.filter(([id]) => id === ACCIDENT_HOTSPOT_SOURCE_ID)).toHaveLength(1);
+
+        const medium = addedLayer(circleLayerId(2));
+        const high = addedLayer(circleLayerId(3));
+        expect(medium).toMatchObject({
+            type: 'circle',
+            source: ACCIDENT_HOTSPOT_SOURCE_ID,
+            filter: ['==', ['get', 'class'], 2],
+            // The default state of the layer is off, on the map itself.
+            layout: { visibility: 'none' },
+        });
+        expect(high).toMatchObject({
+            filter: ['==', ['get', 'class'], 3],
+            layout: { visibility: 'none' },
+        });
+
+        // Intensity separates the two classes, not size: both circles are the
+        // same 100 m analysis area, so a bigger medium dot would misstate where
+        // the hotspot ends.
+        expect(high.paint['circle-radius']).toEqual(medium.paint['circle-radius']);
+        expect(high.paint['circle-opacity']).toBeGreaterThan(medium.paint['circle-opacity']);
+
+        // The radius is the rule drawn to scale: a Mercator ramp clamped to a
+        // legible minimum, not a fixed pixel size and not the report count.
+        expect(medium.paint['circle-radius'][0]).toBe('max');
+        expect(medium.paint['circle-radius'][1]).toMatchObject({ 0: 'interpolate' });
+        expect(medium.paint['circle-radius'][1][1]).toEqual(['exponential', 2]);
+    });
+
+    test('switches each class by visibility alone, without rebuilding the map', async () => {
+        const view = await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [],
+        });
+
+        expect(mockSetLayoutProperty).not.toHaveBeenCalledWith(circleLayerId(2), 'visibility', 'visible');
+
+        // Medium alone.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [2],
+        }, view);
+
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenCalledWith(circleLayerId(2), 'visibility', 'visible');
+        });
+        expect(mockSetLayoutProperty).toHaveBeenCalledWith(circleLayerId(3), 'visibility', 'none');
+
+        // Both, and then the clean map again — each toggle must leave the other
+        // class exactly as it was.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [2, 3],
+        }, view);
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenCalledWith(circleLayerId(3), 'visibility', 'visible');
+        });
+
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [],
+        }, view);
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenLastCalledWith(circleLayerId(3), 'visibility', 'none');
+        });
+
+        // Nothing was re-created: one map, one source, two layers, and the data
+        // itself is only ever handed over through setData.
+        expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        expect(mockAddSource.mock.calls.filter(([id]) => id === ACCIDENT_HOTSPOT_SOURCE_ID)).toHaveLength(1);
+        expect(mockAddLayer.mock.calls.filter(([layer]) => layer?.id === circleLayerId(2))).toHaveLength(1);
+        expect(mockSetData).toHaveBeenCalledWith(expect.objectContaining({ type: 'FeatureCollection' }));
+    });
+
+    test('draws the radius the server rule states, and not one of its own', async () => {
+        const view = await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth(),
+        });
+
+        const firstRadius = addedLayer(circleLayerId(2)).paint['circle-radius'];
+        expect(firstRadius[1].slice(3)).toEqual([10, expect.any(Number), 13, expect.any(Number), 16, expect.any(Number)]);
+
+        // Retuning the analysis on the server widens the circle without a reload:
+        // the paint is rewritten, and nothing is re-created.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth({ ...RULE, radiusMeters: 250 }),
+        }, view);
+
+        await waitFor(() => {
+            expect(mockSetPaintProperty).toHaveBeenCalledWith(
+                circleLayerId(2),
+                'circle-radius',
+                expect.anything()
+            );
+        });
+        const repainted = mockSetPaintProperty.mock.calls.at(-1)[2];
+        // Same zoom stops, a wider circle at each of them.
+        expect(repainted[1].slice(3)).toEqual([10, expect.any(Number), 13, expect.any(Number), 16, expect.any(Number)]);
+        expect(repainted[1].slice(3)).not.toEqual(firstRadius[1].slice(3));
+        expect(mockAddLayer.mock.calls.filter(([layer]) => layer?.id === circleLayerId(2))).toHaveLength(1);
+        expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+
+        // An unchanged rule is not repainted on every render — a needless paint
+        // write restarts MapLibre's transition each time the data refreshes.
+        mockSetPaintProperty.mockClear();
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            accidentHotspots: layerWithBoth({ ...RULE, radiusMeters: 250 }),
+        }, view);
+        expect(mockSetPaintProperty).not.toHaveBeenCalled();
+    });
+
+    test('draws nothing for a map that was handed no accident layer', async () => {
+        await renderReady({ reports: [], mode: 'risk-zones' });
+
+        expect(mockAddSource).not.toHaveBeenCalledWith(ACCIDENT_HOTSPOT_SOURCE_ID, expect.anything());
+        expect(addedLayer(circleLayerId(2))).toBeUndefined();
+    });
+
+    test('stays off on a map whose subject is not risk zones', async () => {
+        // Same rule as the hazard layers: mapped hazards belong to the workspace
+        // that draws them, so an incident map cannot inherit them by accident.
+        await renderReady({
+            reports: [],
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [2, 3],
+        });
+
+        expect(addedLayer(circleLayerId(2)).layout).toEqual({ visibility: 'none' });
+        expect(addedLayer(circleLayerId(3)).layout).toEqual({ visibility: 'none' });
+    });
+
+    test('leaves the susceptibility layers untouched while it draws', async () => {
+        const landslideLayer = {
+            datasetId: 'landslide',
+            hazardType: 'landslide',
+            label: 'Landslide',
+            classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
+            features: [
+                { type: 'Feature', properties: { haz: 2 }, geometry: { type: 'MultiPolygon', coordinates: [] } },
+            ],
+        };
+
+        const view = await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+            hazardClassVisibility: { landslide: [2] },
+            accidentHotspots: layerWithBoth(),
+        });
+
+        await waitFor(() => {
+            expect(mockSetFilter).toHaveBeenCalledWith('hazard-landslide-fill', ['in', ['get', 'haz'], ['literal', [2]]]);
+        });
+
+        // Switching an accident class on must not disturb the susceptibility
+        // layer's own class selection — the two controls are independent.
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            hazardLayers: [landslideLayer],
+            hazardClassVisibility: { landslide: [2] },
+            accidentHotspots: layerWithBoth(),
+            accidentHotspotClasses: [2],
+        }, view);
+
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenCalledWith(circleLayerId(2), 'visibility', 'visible');
+        });
+        expect(mockSetFilter).toHaveBeenLastCalledWith('hazard-landslide-outline', ['in', ['get', 'haz'], ['literal', [2]]]);
+        expect(mockSetLayoutProperty).not.toHaveBeenCalledWith('hazard-landslide-fill', 'visibility', 'none');
+    });
+
+    test('installs the fullscreen button for a map that asked to own the screen', async () => {
+        // The zones workspace is the map that *is* the page, so it asks for the
+        // expand control MapLibre already ships rather than growing one of its
+        // own. It stacks under the navigation control, in the corner the map
+        // already uses for camera actions.
+        await renderReady({ reports: [], mode: 'risk-zones', showFullscreenControl: true });
+
+        expect(mockFullscreenControl).toHaveBeenCalledTimes(1);
+        expect(mockAddControl).toHaveBeenCalledWith(mockFullscreenControl.mock.instances[0], 'top-right');
+    });
+
+    test('leaves the fullscreen button off the maps that did not ask', async () => {
+        // Most maps here are a card, a preview or a thumbnail, and expanding one
+        // of those is not an action anyone wants. The default is what keeps them
+        // as they were.
+        await renderReady({ reports: [], mode: 'risk-zones' });
+
+        expect(mockFullscreenControl).not.toHaveBeenCalled();
+    });
+
+    test('expands the caller\u2019s wrapper when one is given', async () => {
+        // Fullscreen expands one element; anything outside it stays on the page.
+        // A caller whose map has a header of its own passes that wrapper, so the
+        // header's controls are inside the fullscreen element rather than left
+        // behind on a page the user can no longer see.
+        const wrapper = document.createElement('section');
+        const wrapperRef = { current: wrapper };
+
+        await renderReady({
+            reports: [],
+            mode: 'risk-zones',
+            showFullscreenControl: true,
+            fullscreenContainerRef: wrapperRef,
+        });
+
+        expect(mockFullscreenControl).toHaveBeenCalledTimes(1);
+        expect(mockFullscreenControl.mock.calls[0][0]).toEqual({ container: wrapper });
+    });
+
+    test('expands the map itself when the caller has no wrapper', async () => {
+        // The default is MapLibre's own behaviour, and most maps here are a card
+        // or a preview with nothing around them to carry along.
+        await renderReady({ reports: [], mode: 'risk-zones', showFullscreenControl: true });
+
+        expect(mockFullscreenControl).toHaveBeenCalledTimes(1);
+        expect(mockFullscreenControl.mock.calls[0][0]).toBeUndefined();
     });
 });

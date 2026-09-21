@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
 import { RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
+import { ACCIDENT_HOTSPOT_MAX_REPORTS } from '../config/accidentHotspots.js';
+import {
+    buildAccidentHotspotLayer,
+    buildAccidentHotspotMatch,
+    resolveAccidentHotspotRule,
+} from '../utils/accidentHotspots.js';
 
 /**
  * Incident Report Model
@@ -585,6 +591,60 @@ reportSchema.statics.getHighRiskZones = async function () {
     ]);
 
     return zones;
+};
+
+/**
+ * Accident-prone areas, derived from this collection's own validated reports.
+ *
+ * Deliberately separate from `getHighRiskZones` above rather than a change to
+ * it. That aggregation is a public contract with its own history (and its own
+ * blind spot: it drops `transferred`, which is a validated state); the map layer
+ * needs a different answer — every validated state, a validity envelope for the
+ * coordinates, and a classification the map can draw — and rewriting the older
+ * query to serve the newer caller would change one endpoint's meaning to add
+ * another's.
+ *
+ * The distance rule is applied in Node, not in a `$geoWithin` pipeline. The
+ * hotspot rule is about reports within 100 m of each other rather than a query
+ * for what is near a known point, and keeping it in `utils/accidentHotspots.js`
+ * means the thresholds can be tested against fixed coordinates without a
+ * database — which is the only way "exactly 2, exactly 3, exactly 6" can be
+ * asserted at all.
+ *
+ * Only three fields are selected: the coordinates, the incident time (for a
+ * deterministic order), and the id (to break ties between two reports at the
+ * same timestamp). A reporter, an address or a description is never loaded into
+ * memory, so there is no shape of this function that can leak one.
+ */
+reportSchema.statics.getAccidentHotspots = async function ({ now = new Date(), maxTimeMS, rule } = {}) {
+    const resolvedRule = rule || resolveAccidentHotspotRule();
+
+    const documents = await this.find(buildAccidentHotspotMatch(now, resolvedRule))
+        .select('_id coordinates incidentTime')
+        // Earliest first: the first report of a hotspot becomes its anchor, so the
+        // order is part of the result rather than an implementation detail. The id
+        // keeps two reports sharing a timestamp in a stable order.
+        .sort({ incidentTime: 1, _id: 1 })
+        .limit(ACCIDENT_HOTSPOT_MAX_REPORTS + 1)
+        .maxTimeMS(Number.isFinite(maxTimeMS) ? maxTimeMS : 5_000)
+        .lean();
+
+    let reports = documents;
+    if (reports.length > ACCIDENT_HOTSPOT_MAX_REPORTS) {
+        console.warn(
+            `Accident hotspot derivation reached its ${ACCIDENT_HOTSPOT_MAX_REPORTS} report ceiling; ` +
+            'oldest reports in the window were left out of this layer.'
+        );
+        reports = reports.slice(0, ACCIDENT_HOTSPOT_MAX_REPORTS);
+    }
+
+    return buildAccidentHotspotLayer(
+        reports.map((report) => ({
+            lat: report?.coordinates?.lat,
+            lng: report?.coordinates?.lng,
+        })),
+        resolvedRule
+    );
 };
 
 // Static method to get statistics

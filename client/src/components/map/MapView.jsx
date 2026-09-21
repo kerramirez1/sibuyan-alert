@@ -46,6 +46,17 @@ import {
     hazardOutlineLayerId,
     hazardSourceId,
 } from '../../config/hazardAreas';
+import {
+    ACCIDENT_HOTSPOT_MIN_ZOOM,
+    ACCIDENT_HOTSPOT_SOURCE_ID,
+    EMPTY_ACCIDENT_HOTSPOT_CLASSES,
+    accidentHotspotCircleLayerId,
+    buildAccidentHotspotFilterExpression,
+    buildAccidentHotspotRadiusExpression,
+    getAccidentHotspotClasses,
+    getAccidentHotspotPaint,
+    resolveAccidentHotspotRule,
+} from '../../config/accidentHotspots';
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
@@ -233,6 +244,36 @@ const MapView = ({
      */
     showScaleControl = true,
     /**
+     * Fullscreen / expand-map button.
+     *
+     * MapLibre ships this control, so there is no reason to hand-roll one: it
+     * fullscreens the map's own container, keeps the canvas sized through the
+     * transition (a fullscreen map that did not resize would render at the old
+     * viewport), and falls back to a CSS-fullscreen mode where the Fullscreen
+     * API is unavailable.
+     *
+     * Off by default, because fullscreening is a workspace decision: only a map
+     * that *is* the page — the Risk Zones canvas, not a card preview or an
+     * embedded incident thumbnail — has anything to gain from owning the screen.
+     */
+    showFullscreenControl = false,
+    /**
+     * The element the fullscreen button expands, when it is not the map alone.
+     *
+     * Fullscreen expands one element, and everything outside that element is left
+     * behind on the page underneath it. That is invisible for a bare map, and very
+     * visible for a map that has a toolbar: a caller whose header holds controls
+     * for the canvas — a layer menu, a placement readout — passes that wrapper in,
+     * so the header travels with the map instead of disappearing exactly when the
+     * map has the most room to use it.
+     *
+     * A ref rather than an element: the wrapper does not exist yet when this
+     * component first renders, and the map is built on the committed DOM.
+     * `null` (the default) expands the map container, which is MapLibre's own
+     * behaviour.
+     */
+    fullscreenContainerRef = null,
+    /**
      * Live cursor readout in the corner of the canvas.
      *
      * A click commits a coordinate, so the value has to be readable *before*
@@ -272,6 +313,31 @@ const MapView = ({
      * the map.
      */
     hazardClassVisibility = null,
+    /**
+     * Accident-prone areas, as the payload returned by
+     * `GET /api/high-risk-zones/accident-hotspots`.
+     *
+     * Not part of `hazardLayers`, although it looks similar, and the difference
+     * is not cosmetic. A hazard layer is a polygon surface drawn from government
+     * GIS data; this one is a set of computed points derived from the system's
+     * own reports, and it is drawn with different layer types (circles, not
+     * fills), different metadata, and a different cache lifetime. Folding it into
+     * the hazard array would mean one effect arguing about two geometries for no
+     * gain.
+     *
+     * `null` (the default) means "this map has no such layer" and stays true for
+     * every caller except the admin Risk Zones workspace, so the public and
+     * responder maps are untouched by this feature.
+     */
+    accidentHotspots = null,
+    /**
+     * Which accident-prone classes are drawn, as class values (`[2]`, `[2, 3]`).
+     *
+     * An array rather than an object keyed by class, because unlike the hazard
+     * layers there is exactly one dataset here — and empty means off, which is
+     * the state this layer starts in.
+     */
+    accidentHotspotClasses = EMPTY_ACCIDENT_HOTSPOT_CLASSES,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -282,6 +348,10 @@ const MapView = ({
     const selectedOperationalMarkerRef = useRef(null);
     const popupRef = useRef(null);
     const markerFocusCleanupRef = useRef(null);
+    // The hotspot radius last painted, in metres. Only a changed rule warrants
+    // new paint — re-applying it on every run would restart MapLibre's paint
+    // transition each time the layer's data was refreshed.
+    const accidentHotspotRadiusRef = useRef(null);
     const streetLayersRef = useRef({ all: [], active: [], fallback: null });
     const satelliteLayersRef = useRef({ all: [], vectorLabels: [] });
     const streetZoomRangeRef = useRef({ min: 0, max: OPERATIONAL_MAX_ZOOM });
@@ -771,6 +841,27 @@ const MapView = ({
             }
         }
 
+        // Stacked below the navigation control, in the same corner it already
+        // uses: expanding the map is the same kind of action as zooming it.
+        if (showFullscreenControl) {
+            try {
+                // The wrapper when the caller has one, so the map's own header —
+                // and the layer menu inside it — is part of what goes fullscreen.
+                // Expanding the canvas alone would leave those controls on the
+                // page, which is where they are least useful.
+                const fullscreenContainer = fullscreenContainerRef?.current;
+                mapInstance.addControl(
+                    new maplibregl.FullscreenControl(
+                        fullscreenContainer ? { container: fullscreenContainer } : undefined
+                    ),
+                    'top-right'
+                );
+            } catch {
+                // Fullscreen is progressive enhancement, and the API is absent
+                // on some embedded browsers.
+            }
+        }
+
         // Metric scale bar. Placed bottom-left because MapLibre's default
         // attribution sits bottom-right, and the compact attribution installed
         // below already occupies that corner.
@@ -1249,6 +1340,127 @@ const MapView = ({
             }
         }
     }, [hazardLayers, hazardClassVisibility, mapReady, isRiskZoneMap]);
+
+    /**
+     * Accident-prone circles: one GeoJSON source, one circle layer per class.
+     *
+     * Separate from the hazard effect because the geometry is different — those
+     * are polygon surfaces, these are computed points — and because the two
+     * layers answer to different owners: the hazard classes come from a registry
+     * the server publishes, while these come from the system's own reports over a
+     * window, and they change at different rates.
+     *
+     * Two layers rather than one layer with a class filter, because the classes
+     * are switched independently: a per-class layer means a toggle is a
+     * `visibility` flip, which is the map's cheapest operation and cannot disturb
+     * the other class, the shared source, or the map itself. Nothing here ever
+     * calls `setStyle` or re-creates the map, so toggling never reloads a tile or
+     * loses the camera.
+     *
+     * Inserted below the risk-zone fill, like the hazard layers: operator-drawn
+     * zones are the subject of this workspace and the derived context must never
+     * cover them.
+     */
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current || !accidentHotspots) return;
+        const map = mapInstanceRef.current;
+
+        const features = Array.isArray(accidentHotspots.features) ? accidentHotspots.features : [];
+        const selectedClasses = Array.isArray(accidentHotspotClasses) ? accidentHotspotClasses : [];
+        const beforeId = map.getLayer(RISK_ZONE_FILL_LAYER_ID) ? RISK_ZONE_FILL_LAYER_ID : undefined;
+        // The radius is the server's analysis parameter drawn to scale, so it is
+        // read from the payload rather than fixed here: retuning the rule widens
+        // the circles without a change in this file.
+        const rule = resolveAccidentHotspotRule(accidentHotspots);
+        const radiusExpression = buildAccidentHotspotRadiusExpression(rule.radiusMeters);
+
+        try {
+            const collection = { type: 'FeatureCollection', features };
+            const source = map.getSource(ACCIDENT_HOTSPOT_SOURCE_ID);
+            if (source) {
+                source.setData(collection);
+            } else {
+                map.addSource(ACCIDENT_HOTSPOT_SOURCE_ID, { type: 'geojson', data: collection });
+            }
+        } catch (error) {
+            // A style reload can drop the source between the check and the call.
+            // The next data change re-adds it, so skipping is correct.
+            console.warn('Accident-prone source could not be added:', error?.message);
+            return;
+        }
+
+        for (const classValue of getAccidentHotspotClasses(accidentHotspots)) {
+            const paint = getAccidentHotspotPaint(classValue);
+            if (!paint) continue;
+
+            const layerId = accidentHotspotCircleLayerId(classValue);
+            const visible = isRiskZoneMap
+                && features.length > 0
+                && selectedClasses.includes(classValue);
+
+            if (!map.getLayer(layerId)) {
+                try {
+                    map.addLayer({
+                        id: layerId,
+                        type: 'circle',
+                        source: ACCIDENT_HOTSPOT_SOURCE_ID,
+                        minzoom: ACCIDENT_HOTSPOT_MIN_ZOOM,
+                        // Class selection is this layer's own filter, so the two
+                        // classes share one source without duplicating a point.
+                        filter: buildAccidentHotspotFilterExpression(classValue),
+                        layout: { visibility: visible ? 'visible' : 'none' },
+                        paint: {
+                            'circle-color': paint.color,
+                            // No zoom fade here, unlike the susceptibility surface:
+                            // a fill fades so the imagery underneath stays readable,
+                            // but a circle is a marker for one spot — fading it out
+                            // at street level would hide the hotspot exactly where
+                            // an operator is placing a zone.
+                            'circle-opacity': paint.fillOpacity,
+                            // Both classes draw the same 100 m area — what
+                            // separates them is intensity, so the radius is the
+                            // rule's, not the class's.
+                            'circle-radius': radiusExpression,
+                            'circle-stroke-color': paint.color,
+                            'circle-stroke-opacity': paint.strokeOpacity,
+                            'circle-stroke-width': paint.strokeWidth,
+                        },
+                    }, beforeId);
+                } catch (error) {
+                    console.warn(`${layerId} could not be added:`, error?.message);
+                }
+                continue;
+            }
+
+            // Existing layer: switching a class is a visibility flip and nothing
+            // else — the source is untouched, so the map never re-parses the data.
+            map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+        }
+
+        // A retuned rule is the one case that has to touch paint after the layer
+        // was added, because the alternative is a circle that keeps claiming the
+        // old radius until the operator reloads the page. `null` is the first run,
+        // where the layers were just created with this radius — repainting them
+        // here would be a needless write, and would restart a transition.
+        const radiusChanged = accidentHotspotRadiusRef.current !== null
+            && accidentHotspotRadiusRef.current !== rule.radiusMeters;
+
+        if (radiusChanged) {
+            for (const classValue of getAccidentHotspotClasses(accidentHotspots)) {
+                const layerId = accidentHotspotCircleLayerId(classValue);
+                if (!map.getLayer(layerId) || typeof map.setPaintProperty !== 'function') continue;
+                try {
+                    map.setPaintProperty(layerId, 'circle-radius', radiusExpression);
+                } catch (error) {
+                    console.warn(`${layerId} radius could not be updated:`, error?.message);
+                }
+            }
+        }
+
+        // Recorded either way, so the next run can tell "already painted" from
+        // "the server retuned the rule".
+        accidentHotspotRadiusRef.current = rule.radiusMeters;
+    }, [accidentHotspotClasses, accidentHotspots, isRiskZoneMap, mapReady]);
 
     // Update data layers
     useEffect(() => {

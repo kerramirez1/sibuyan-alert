@@ -249,6 +249,11 @@ export const highRiskZonesAPI = {
         params: { lat, lng },
         ...config,
     }),
+
+    // Accident-prone areas, derived server-side from the system's own validated
+    // accident reports. Admin-only like the hazard layers above, and aggregated
+    // to ~1 km cells: the response carries counts and classes, never a report.
+    getAccidentHotspots: (config = {}) => api.get('/high-risk-zones/accident-hotspots', config),
 };
 
 // Notifications API
