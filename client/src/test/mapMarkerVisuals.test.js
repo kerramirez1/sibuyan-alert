@@ -413,10 +413,11 @@ describe('incident marker sizing', () => {
         expect(getRiskZoneMarkerSvg('#DC2626')).toContain(sizeAttr);
     });
 
-    test('the draggable placement pin is its own size and stays larger', () => {
+    test('the draggable placement pin matches the public marker size', () => {
         expect(getSelectedLocationMarkerSvg()).toContain(
             `width="${SELECTED_MARKER_SIZE.width}" height="${SELECTED_MARKER_SIZE.height}"`,
         );
-        expect(SELECTED_MARKER_SIZE.width).toBeGreaterThan(INCIDENT_MARKER_SIZE.width);
+        expect(SELECTED_MARKER_SIZE.width).toBe(INCIDENT_MARKER_SIZE.width);
+        expect(SELECTED_MARKER_SIZE.height).toBe(INCIDENT_MARKER_SIZE.height);
     });
 });

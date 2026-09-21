@@ -501,6 +501,17 @@ describe('AdminHighRiskZonesPage', () => {
         expect(within(select).queryByRole('option', { name: /Flood/i })).not.toBeInTheDocument();
     });
 
+    test('does not include Flood in the hazard type filter chips', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const filterToolbar = screen.getByRole('toolbar', { name: 'Filter zones by hazard type' });
+        expect(within(filterToolbar).getByRole('button', { name: 'All' })).toBeInTheDocument();
+        expect(within(filterToolbar).getByRole('button', { name: 'Landslide' })).toBeInTheDocument();
+        expect(within(filterToolbar).getByRole('button', { name: 'Accident' })).toBeInTheDocument();
+        expect(within(filterToolbar).getByRole('button', { name: 'Other' })).toBeInTheDocument();
+        expect(within(filterToolbar).queryByRole('button', { name: /Flood/i })).not.toBeInTheDocument();
+    });
+
     test('keeps the zone type in one closed row, with the options inside a menu', async () => {
         render(<AdminHighRiskZonesPage />);
 
@@ -526,11 +537,11 @@ describe('AdminHighRiskZonesPage', () => {
             expect.stringContaining('Other Hazard'),
         ]);
 
-        // Each option keeps the colour the type already had elsewhere in the app.
+        // No color coding: zone type is plain label text only.
         const dotColours = options.map((option) => option.querySelector('span')?.className || '');
-        expect(dotColours[0]).toContain('bg-amber-500');
-        expect(dotColours[1]).toContain('bg-red-500');
-        expect(dotColours[2]).toContain('bg-gray-500');
+        expect(dotColours.join(' ')).not.toContain('bg-amber-500');
+        expect(dotColours.join(' ')).not.toContain('bg-red-500');
+        expect(dotColours.join(' ')).not.toContain('bg-gray-500');
 
         // And the one that is on says so, rather than relying on the reader
         // noticing which row the tick is beside.

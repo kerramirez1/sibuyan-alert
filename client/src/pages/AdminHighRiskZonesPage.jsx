@@ -38,17 +38,20 @@ import {
  * Every zone type this client can *render*, which is no longer the same list as
  * the one it can *offer*.
  *
- * Flood-prone zones are withdrawn from the form, but the entry stays: this table
- * is also how an existing zone is labelled and coloured in the list, in the type
- * filter and on the map. A zone saved as `flood_prone` before the option was
+ * Flood-prone zones are withdrawn from the form and filter chips, but the entry stays: this table
+ * is how an existing zone is labelled in the list and on the map. A zone saved as `flood_prone` before the option was
  * retired must keep reading "Flood Prone" — data the workspace cannot name is
  * data an administrator cannot manage, reclassify or trust.
+ *
+ * No color coding on zone types: classification is by plain label text only,
+ * so the form and list stay legible on monochrome prints and
+ * for color-blind operators.
  */
 const ZONE_TYPES = [
-    { value: 'landslide_prone', label: 'Landslide Prone', color: 'bg-amber-500' },
-    { value: 'accident_prone', label: 'Accident Prone', color: 'bg-red-500' },
-    { value: 'flood_prone', label: 'Flood Prone', color: 'bg-blue-500' },
-    { value: 'other', label: 'Other Hazard', color: 'bg-gray-500' },
+    { value: 'landslide_prone', label: 'Landslide Prone' },
+    { value: 'accident_prone', label: 'Accident Prone' },
+    { value: 'flood_prone', label: 'Flood Prone' },
+    { value: 'other', label: 'Other Hazard' },
 ];
 
 /** Same split as `ZONE_TYPES`: `low` and `critical` are displayable, not selectable. */
@@ -1016,7 +1019,7 @@ const AdminHighRiskZonesPage = () => {
                                 </div>
 
                                 <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                                    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3.5 sm:p-4 space-y-3 sm:space-y-3.5">
+                                    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3.5 pb-5 sm:p-4 sm:pb-5 space-y-3 sm:space-y-3.5">
                                         {/* Zone Name */}
                                         <div>
                                             <label htmlFor="risk-zone-name" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -1132,10 +1135,10 @@ const AdminHighRiskZonesPage = () => {
                                             enough for all three.
 
                                             It is the app's existing `CustomSelect`: same
-                                            control the filters use, same colour dots, full
-                                            keyboard support, and the hidden native select
-                                            that screen readers and tests read. The values and
-                                            the colour classes come from `SELECTABLE_ZONE_TYPES`
+                                            control the filters use, full keyboard support,
+                                            and the hidden native select that screen readers
+                                            and tests read. Plain text options, no color dots.
+                                            The values come from `SELECTABLE_ZONE_TYPES`
                                             unchanged, so the payload and the retired-value
                                             guard are untouched. */}
                                         <CustomSelect
@@ -1144,18 +1147,19 @@ const AdminHighRiskZonesPage = () => {
                                             options={SELECTABLE_ZONE_TYPES.map((type) => ({
                                                 value: type.value,
                                                 label: type.label,
-                                                dot: type.color,
                                             }))}
                                             ariaLabel="Zone type"
                                             placeholder="Select a zone type"
+                                            tone="neutral"
                                             // A form field, not a filter chip. The trigger of
                                             // this control is deliberately content-sized on
                                             // desktop (in the filter rows a narrow control is
                                             // what you want), so it is stretched to the field
-                                            // here and given the same 6px radius as the input
-                                            // above it — via the container, which leaves every
-                                            // other caller's trigger exactly as it was.
-                                            className="w-full [&>button]:w-full [&>button]:rounded-md"
+                                            // here and given the same 6px radius, body text
+                                            // size and weight as the inputs above it — via the
+                                            // container, which leaves every other caller's
+                                            // trigger exactly as it was.
+                                            className="w-full [&>button]:w-full [&>button]:rounded-md [&>button]:text-sm [&>button]:font-medium [&>button]:text-gray-900 [&>button]:shadow-none dark:[&>button]:text-white"
                                         />
                                     </div>
 
@@ -1226,14 +1230,14 @@ const AdminHighRiskZonesPage = () => {
                                             under the bar, which spent a whole line on
                                             two numbers that never change. */}
                                         <div className="sm:col-span-2">
-                                            <div className="mb-1 flex items-baseline gap-2">
+                                            <div className="mb-1.5 flex items-baseline gap-2">
                                                 <label htmlFor="risk-zone-radius" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                                                     Radius
                                                 </label>
                                                 {/* Named so the slider can describe itself by it:
                                                     the ends of the band are read out with the
                                                     value, which is what a range announces. */}
-                                                <span id="risk-zone-radius-limits" className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                                                <span id="risk-zone-radius-limits" className="text-[11px] font-normal tabular-nums text-gray-400 dark:text-gray-500">
                                                     {`${RADIUS_LIMITS.min}–${RADIUS_LIMITS.max} m`}
                                                 </span>
                                                 <span id="risk-zone-radius-value" className="ml-auto text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
@@ -1449,7 +1453,7 @@ const AdminHighRiskZonesPage = () => {
                                     </div>
 
                                     {/* Form Actions (Pinned to bottom of panel) */}
-                                    <div className="border-t border-gray-200 p-3 sm:px-4 shrink-0 flex items-center gap-2.5 dark:border-white/10">
+                                    <div className="border-t border-gray-200 bg-white p-3 sm:px-4 shrink-0 flex items-center gap-2.5 dark:border-white/10 dark:bg-[#0c1813]">
                                         <button
                                             type="button"
                                             onClick={resetForm}
@@ -1512,7 +1516,6 @@ const AdminHighRiskZonesPage = () => {
                                                 { id: 'all', label: 'All' },
                                                 { id: 'landslide_prone', label: 'Landslide' },
                                                 { id: 'accident_prone', label: 'Accident' },
-                                                { id: 'flood_prone', label: 'Flood' },
                                                 { id: 'other', label: 'Other' },
                                             ].map((chip) => (
                                                 <button
@@ -1575,7 +1578,6 @@ const AdminHighRiskZonesPage = () => {
                                                     <div className="flex items-start justify-between gap-2.5">
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className={`h-2 w-2 shrink-0 rounded-full ${typeInfo?.color || 'bg-gray-400'}`} aria-hidden="true" />
                                                                 <h3 className="font-semibold text-xs sm:text-[13px] text-gray-900 dark:text-white truncate">
                                                                     {zone?.name}
                                                                 </h3>

@@ -96,12 +96,12 @@ export const RESPONDING_DOT_SIZE = Object.freeze({ footprint: 14, core: 9 });
 export const RESPONDING_DOT_LEGEND_SIZE = Object.freeze({ footprint: 12, core: 8 });
 
 /**
- * Draggable placement pin for the report flow. Deliberately larger than an
- * incident marker: it is a target the user grabs and drags, not a map label.
- * Recorded here at its existing size so the number lives in one place — this
- * change is not meant to resize it.
+ * Draggable placement pin for the report and zone flows. Same size as an
+ * incident marker so the epicenter reads like the public map pins instead of
+ * dwarfing them — the coverage circle already shows the affected area, and the
+ * marker stays draggable through its MapLibre hit area.
  */
-export const SELECTED_MARKER_SIZE = Object.freeze({ width: 30, height: 34 });
+export const SELECTED_MARKER_SIZE = Object.freeze({ width: 12, height: 17 });
 
 /**
  * Center glyph for the teardrop pin head — white dot for incidents,

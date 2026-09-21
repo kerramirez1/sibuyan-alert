@@ -18,6 +18,9 @@ const CustomSelect = ({
     icon: Icon,
     renderOption,
     align = 'left',
+    // Form fields (e.g. zone type) must read as plain inputs: white surface and
+    // body text even when filled. Filter chips keep the default emerald tint.
+    tone = 'auto',
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -165,6 +168,15 @@ const CustomSelect = ({
         ? 'sm:left-auto sm:right-0'
         : 'sm:left-0 sm:right-auto';
 
+    // Neutral tone skips the emerald "has value" tint so a filled form field
+    // looks exactly like its sibling inputs.
+    const hasValueTone = value && value !== 'all' && tone !== 'neutral';
+    const triggerToneClass = isOpen
+        ? 'border-emerald-500 bg-emerald-50/30 text-emerald-950 ring-2 ring-emerald-500/20 dark:border-emerald-500/70 dark:bg-emerald-950/40 dark:text-emerald-200'
+        : hasValueTone
+            ? 'border-emerald-400/80 bg-emerald-50/20 text-emerald-900 dark:border-emerald-700/50 dark:bg-emerald-950/30 dark:text-emerald-200'
+            : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50/80 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5';
+
     return (
         <div ref={containerRef} className={`relative inline-block w-full sm:w-auto ${className}`}>
             {/* Underlying select for full test automation & form accessibility */}
@@ -194,13 +206,7 @@ const CustomSelect = ({
                 onKeyDown={handleKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                className={`group flex h-9 w-full sm:w-auto min-w-[130px] items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold shadow-2xs outline-none transition-all duration-150 cursor-pointer select-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:border-emerald-500 ${
-                    isOpen
-                        ? 'border-emerald-500 bg-emerald-50/30 text-emerald-950 ring-2 ring-emerald-500/20 dark:border-emerald-500/70 dark:bg-emerald-950/40 dark:text-emerald-200'
-                        : value && value !== 'all'
-                            ? 'border-emerald-400/80 bg-emerald-50/20 text-emerald-900 dark:border-emerald-700/50 dark:bg-emerald-950/30 dark:text-emerald-200'
-                            : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50/80 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5'
-                }`}
+                className={`group flex h-9 w-full sm:w-auto min-w-[130px] items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold shadow-2xs outline-none transition-all duration-150 cursor-pointer select-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:border-emerald-500 ${triggerToneClass}`}
             >
                 <div className="flex items-center gap-1.5 truncate">
                     {Icon && <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />}
