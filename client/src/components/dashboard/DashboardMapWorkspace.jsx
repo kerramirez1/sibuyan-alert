@@ -739,6 +739,10 @@ const DashboardMapWorkspace = ({
     // drift — and a guest, who is never sent pending rows, gets no card, no tab
     // and no panel entry rather than a zero.
     const isReporter = user?.role === 'reporter';
+    // The NOAH hazard reference layers are deliberately NOT loaded here. They are
+    // an administrative aid for placing high-risk zones, and they live on the
+    // admin Risk Zones workspace alone — so this map neither fetches the ~1.7 MB
+    // of polygons nor draws them, whatever the viewer's tab happens to be.
     const pendingMappedReports = allMappedReports.filter((report) => report?.status === 'pending');
     const dispatchableReports = activeReports.filter((report) => ['verified', 'transferred'].includes(report.status));
     const activeResponseReports = activeReports.filter((report) => report.status === 'responding');
@@ -1689,6 +1693,9 @@ const DashboardMapWorkspace = ({
                     <MapView
                         reports={reports}
                         highRiskZones={highRiskZones}
+                        // No hazardLayers prop: the NOAH reference layers are
+                        // admin-only and render on the Risk Zones workspace, not
+                        // on this incident map. Omitted deliberately.
                         locateRequest={mapLocateRequest || deepLinkedLocateRequest}
                         externalContextPanelOpen={Boolean(mapSummaryPanel)}
                         onEntityInspectorChange={handleMapInspectorChange}

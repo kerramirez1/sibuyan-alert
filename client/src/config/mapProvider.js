@@ -13,6 +13,12 @@ export const OPERATIONAL_MAX_ZOOM = 16;
 const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const ESRI_REFERENCE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
 const OSM_FALLBACK_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// OpenStreetMap publishes real detail well past the satellite ceiling. The
+// fallback street layer used to inherit OPERATIONAL_MAX_ZOOM (16), which capped
+// a source that declares `maxzoom: 19` at 16 — throwing away the one basemap an
+// operator can actually use to place a precise pin. Street mode is where
+// precision comes from, so it is capped by its own source instead.
+const OSM_FALLBACK_MAX_ZOOM = 19;
 const PROTOMAPS_GLYPHS_URL = 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf';
 const PROTOMAPS_SPRITE_URL = 'https://protomaps.github.io/basemaps-assets/sprites/v4/light';
 
@@ -389,7 +395,10 @@ export const createOperationalMapStyle = ({
         streetMinZoom: pmtilesInspection?.minZoom ?? 0,
         streetMaxZoom: normalizedStreetPmtilesUrl
             ? Math.min(pmtilesInspection?.maxZoom ?? OPERATIONAL_MAX_ZOOM, OPERATIONAL_MAX_ZOOM)
-            : OPERATIONAL_MAX_ZOOM,
+            // No street archive configured, so the OSM raster fallback is the
+            // street basemap. It is its own source with its own ceiling — the
+            // satellite clamp does not apply to it.
+            : OSM_FALLBACK_MAX_ZOOM,
         pmtilesInspection,
         labels3DInspection,
         pmtilesError: null,

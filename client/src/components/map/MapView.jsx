@@ -37,6 +37,13 @@ import {
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
 import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSupport';
+import {
+    HAZARD_MIN_ZOOM,
+    buildHazardColorExpression,
+    hazardFillLayerId,
+    hazardOutlineLayerId,
+    hazardSourceId,
+} from '../../config/hazardAreas';
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
 import MapOverlayPanel from './MapOverlayPanel';
@@ -57,6 +64,10 @@ import {
 const SIBUYAN_CENTER = [122.5571, 12.4176]; // Lon/Lat
 const SIBUYAN_CAMERA_BOUNDS = [[122.35, 12.20], [122.80, 12.65]];
 const GENERAL_CAMERA_BOUNDS = [[121.5, 11.5], [123.5, 13.5]];
+
+// Stable identity for "no hazard layers", so the default prop value does not
+// create a new array on every render and re-run the layer effect forever.
+const EMPTY_HAZARD_LAYERS = Object.freeze([]);
 
 // Incident category colors
 const INCIDENT_COLORS = {
@@ -210,6 +221,33 @@ const MapView = ({
      * does not know must not silence the state it asked for.
      */
     dataLoading = false,
+    /**
+     * Metric scale bar.
+     *
+     * A hazard zone is defined by a radius in metres, and this map had no
+     * distance reference at all, so an operator could not judge whether the
+     * circle under the cursor was 100 m or 400 m across. On by default: it costs
+     * one control and removes a whole class of mis-sized zones.
+     */
+    showScaleControl = true,
+    /**
+     * Live cursor readout in the corner of the canvas.
+     *
+     * A click commits a coordinate, so the value has to be readable *before*
+     * committing. Only the placement surfaces turn this on — a read-only map
+     * does not need to narrate the pointer.
+     */
+    showCursorCoordinates = false,
+    /**
+     * NOAH hazard reference layers, as the array returned by
+     * `GET /api/high-risk-zones/hazards`.
+     *
+     * An empty array (or the default) means "not loaded"; no hazard layers are
+     * added, so a slow or failed fetch degrades to the map without the overlay
+     * instead of blocking it. Each entry carries its own `datasetId`, so the
+     * layer ids are generated rather than declared.
+     */
+    hazardLayers = EMPTY_HAZARD_LAYERS,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -230,6 +268,7 @@ const MapView = ({
     const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
     const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
+    const [cursorCoordinate, setCursorCoordinate] = useState(null);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     // Opening framing is a one-time decision: after it is made, data that arrives
@@ -286,6 +325,30 @@ const MapView = ({
     // mode has to count as well. Without it the zones page filtered its own zones
     // away and drew an empty map — the one screen that exists to show them.
     const isRiskZoneMap = mode === 'risk-zones' || isRiskZoneLayerVisibleForFilter(filterStatus);
+
+    /**
+     * Attribution for the hazard layers, shown only while they are drawn.
+     *
+     * The datasets are ODC-ODbL, which requires attribution wherever they are
+     * rendered — so it cannot live only in the zones workspace's legend, because
+     * this map draws them too. Rendered here rather than in a legend component
+     * so every surface that draws the layer carries the credit, including ones
+     * with no legend of their own.
+     *
+     * Sources are deduplicated and joined: landslide is PHIVOLCS, storm surge is
+     * PAGASA, and showing one of them would misattribute the other.
+     */
+    const hazardAttribution = useMemo(() => {
+        if (!isRiskZoneMap || hazardLayers.length === 0) return null;
+
+        const sources = [...new Set(hazardLayers.map((layer) => layer?.attribution).filter(Boolean))];
+        if (sources.length === 0) return null;
+
+        const licences = [...new Set(hazardLayers.map((layer) => layer?.licence).filter(Boolean))];
+        return licences.length > 0
+            ? `${sources.join(' · ')} (${licences.join(', ')})`
+            : sources.join(' · ');
+    }, [hazardLayers, isRiskZoneMap]);
 
     // Hazard zones render when this map is about them, or when a risk zone is
     // explicitly targeted for location/inspection.
@@ -684,6 +747,54 @@ const MapView = ({
             }
         }
 
+        // Metric scale bar. Placed bottom-left because MapLibre's default
+        // attribution sits bottom-right, and the compact attribution installed
+        // below already occupies that corner.
+        if (showScaleControl) {
+            try {
+                mapInstance.addControl(
+                    new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }),
+                    'bottom-left'
+                );
+            } catch {
+                // Scale control is progressive enhancement.
+            }
+        }
+
+        // Live cursor coordinate. Updates are coalesced to one per frame: a
+        // mousemove fires far faster than React can usefully re-render, and this
+        // runs on the same thread that is painting the map.
+        if (showCursorCoordinates) {
+            let cursorFrame = 0;
+            const handleCursorMove = (event) => {
+                if (cursorFrame) return;
+                cursorFrame = requestAnimationFrame(() => {
+                    cursorFrame = 0;
+                    if (cancelled) return;
+                    setCursorCoordinate({
+                        lat: event.lngLat.lat,
+                        lng: event.lngLat.lng,
+                    });
+                });
+            };
+            const clearCursor = () => setCursorCoordinate(null);
+
+            mapInstance.on('mousemove', handleCursorMove);
+            mapInstance.on('mouseout', clearCursor);
+            // Teardown for both listeners; a stale handler would keep setting
+            // state on an unmounted component.
+            const removeCursorListeners = () => {
+                if (cursorFrame) cancelAnimationFrame(cursorFrame);
+                mapInstance.off('mousemove', handleCursorMove);
+                mapInstance.off('mouseout', clearCursor);
+            };
+            const previousRemoveCompassToggle = removeCompassToggle;
+            removeCompassToggle = () => {
+                removeCursorListeners();
+                previousRemoveCompassToggle?.();
+            };
+        }
+
         // Keep the canvas fitted when side panels collapse, the device rotates,
         // or the responsive container height changes. Visual-only without this.
         if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
@@ -761,6 +872,12 @@ const MapView = ({
                     // Layer raced with a style reload — safe to skip.
                 }
             };
+
+            // Hazard layers are NOT registered here. The set is dynamic (the
+            // server decides which datasets exist), and the payload arrives
+            // asynchronously, so they are created by the data effect below —
+            // which also has to be able to add a layer after mount.
+
             ensureSource(RISK_ZONE_SOURCE_ID, {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
@@ -1001,6 +1118,92 @@ const MapView = ({
             points: performanceProfile.riskZonePolygonPoints,
         }));
     }, [filteredRiskZones, mapReady, performanceProfile.riskZonePolygonPoints, mode]);
+
+    // Create and populate one source + fill + outline per hazard layer, and show
+    // them only when the viewer has asked for mapped hazards.
+    //
+    // Done here rather than in the load handler because both the set of layers
+    // and their data arrive asynchronously: the map mounts before the catalog is
+    // fetched, so a layer may need to be added long after mount. Layers are
+    // inserted *before* the risk-zone layers, which is what keeps operator-drawn
+    // zones on top of the terrain context they were placed against.
+    //
+    // Visibility follows the risk-zone layer rather than getting a control of its
+    // own: `isRiskZoneMap` is already "this viewer asked to see mapped hazards",
+    // and a second toggle would be a second vocabulary for the same intent.
+    useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+        const map = mapInstanceRef.current;
+
+        // Undefined when the risk-zone layer is absent, which makes addLayer
+        // append — still correct, just not ordered.
+        const beforeId = map.getLayer(RISK_ZONE_FILL_LAYER_ID) ? RISK_ZONE_FILL_LAYER_ID : undefined;
+        const visibility = isRiskZoneMap ? 'visible' : 'none';
+
+        for (const layer of hazardLayers) {
+            const datasetId = layer?.datasetId;
+            if (!datasetId) continue;
+
+            const sourceId = hazardSourceId(datasetId);
+            const fillId = hazardFillLayerId(datasetId);
+            const outlineId = hazardOutlineLayerId(datasetId);
+            const features = Array.isArray(layer.features) ? layer.features : [];
+            const classes = Array.isArray(layer.classes) ? layer.classes : [];
+
+            try {
+                const existing = map.getSource(sourceId);
+                if (existing) {
+                    existing.setData({ type: 'FeatureCollection', features });
+                } else {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: { type: 'FeatureCollection', features },
+                    });
+                }
+
+                const colorExpression = buildHazardColorExpression(layer.hazardType, classes);
+
+                if (!map.getLayer(fillId)) {
+                    map.addLayer({
+                        id: fillId,
+                        type: 'fill',
+                        source: sourceId,
+                        minzoom: HAZARD_MIN_ZOOM,
+                        layout: { visibility },
+                        paint: {
+                            'fill-color': colorExpression,
+                            // Lighter than the incident fills: this is a
+                            // background surface, and at full strength it would
+                            // swamp the pins drawn over it.
+                            'fill-opacity': 0.34,
+                        },
+                    }, beforeId);
+                }
+                if (!map.getLayer(outlineId)) {
+                    map.addLayer({
+                        id: outlineId,
+                        type: 'line',
+                        source: sourceId,
+                        minzoom: HAZARD_MIN_ZOOM,
+                        layout: { visibility },
+                        paint: {
+                            'line-color': colorExpression,
+                            'line-width': 0.8,
+                            'line-opacity': 0.75,
+                        },
+                    }, beforeId);
+                }
+
+                for (const layerId of [fillId, outlineId]) {
+                    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+                }
+            } catch (error) {
+                // A style reload can remove layers between the check and the
+                // add. Skipping is correct — the next data change re-adds them.
+                console.warn(`Hazard layer ${datasetId} could not be added:`, error?.message);
+            }
+        }
+    }, [hazardLayers, mapReady, isRiskZoneMap]);
 
     // Update data layers
     useEffect(() => {
@@ -1536,6 +1739,33 @@ const MapView = ({
                 className="absolute inset-0 overflow-hidden rounded-lg"
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
+
+            {/* Live pointer position. Rendered above the canvas but below the
+                error and loading states, so a broken map never shows a readout
+                for a surface that is not there.
+
+                Six decimals is deliberate: four is roughly 11 m, which is the
+                same order as the placement error we are trying to remove. */}
+            {showCursorCoordinates && cursorCoordinate && (
+                <div
+                    className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg border border-gray-200/80 bg-white/95 px-2.5 py-1.5 font-mono text-[11px] leading-tight text-gray-800 shadow-2xs backdrop-blur-xs dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-100"
+                    aria-hidden="true"
+                >
+                    {cursorCoordinate.lat.toFixed(6)}, {cursorCoordinate.lng.toFixed(6)}
+                </div>
+            )}
+
+            {/* ODC-ODbL requires attribution wherever the hazard polygons are
+                drawn. Kept muted and out of the way, but always present while
+                the layer is on screen. */}
+            {hazardAttribution && (
+                <div
+                    className="pointer-events-none absolute bottom-2 right-2 z-20 max-w-[60%] text-right text-[10px] leading-tight text-gray-700/90 dark:text-gray-200/80"
+                    aria-label="Hazard data attribution"
+                >
+                    Hazard data: {hazardAttribution}
+                </div>
+            )}
 
             {mapError && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-gray-100 p-6 text-center dark:bg-gray-900" role="alert">

@@ -46,11 +46,30 @@ const createRangeResponse = (bytes, status = 206) => ({
 });
 
 describe('map provider configuration', () => {
-    test('caps every operational map below the incomplete imagery level', () => {
+    test('caps satellite imagery below the incomplete imagery level', () => {
         const result = createOperationalMapStyle({ pmtilesUrl: '' });
 
         expect(OPERATIONAL_MAX_ZOOM).toBe(16);
-        expect(result.streetMaxZoom).toBe(OPERATIONAL_MAX_ZOOM);
+        expect(result.streetMinZoom).toBe(0);
+    });
+
+    test('lets the street basemap reach the OpenStreetMap ceiling, not the satellite one', () => {
+        // With no street archive configured, the OSM raster fallback *is* the
+        // street basemap. It declares `maxzoom: 19` and genuinely has detail
+        // there, so inheriting the satellite clamp of 16 threw away the only
+        // view precise enough to place a hazard-zone pin.
+        const result = createOperationalMapStyle({ pmtilesUrl: '' });
+
+        expect(result.streetMaxZoom).toBe(19);
+        expect(result.streetMaxZoom).toBeGreaterThan(OPERATIONAL_MAX_ZOOM);
+    });
+
+    test('still clamps a self-hosted street archive to the operational ceiling', () => {
+        const result = createOperationalMapStyle({
+            pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+        });
+
+        expect(result.streetMaxZoom).toBeLessThanOrEqual(OPERATIONAL_MAX_ZOOM);
     });
 
     test('builds a self-hosted PMTiles street source with a public fallback', () => {

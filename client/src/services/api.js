@@ -237,6 +237,18 @@ export const highRiskZonesAPI = {
         data instanceof FormData ? { ...config, headers: { 'Content-Type': 'multipart/form-data', ...config.headers } } : config
     ),
     delete: (id) => api.delete(`/high-risk-zones/${id}`),
+
+    // NOAH hazard reference layers (landslide, storm surge). Immutable between
+    // deploys and served with a day-long cache plus an ETag, so this is a
+    // one-time transfer per browser rather than a per-page-load cost.
+    getHazardLayers: (config = {}) => api.get('/high-risk-zones/hazards', config),
+    getHazardLayer: (datasetId, config = {}) => api.get(`/high-risk-zones/hazards/${datasetId}`, config),
+    // Point lookup used when the map layers are not loaded, or when a caller
+    // needs the hazard for a coordinate without running a full verification.
+    getHazardsAt: (lat, lng, config = {}) => api.get('/high-risk-zones/hazards/at', {
+        params: { lat, lng },
+        ...config,
+    }),
 };
 
 // Notifications API

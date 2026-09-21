@@ -45,6 +45,31 @@ describe('queryCache stale-while-revalidate store', () => {
         expect(retry).toHaveBeenCalledTimes(1);
     });
 
+    test('starts the fetcher synchronously, on the caller tick', async () => {
+        // Callers depend on this ordering, so it is a contract rather than an
+        // implementation detail: deferring the call by even one microtask was
+        // enough to change what a search-and-filter page observed.
+        const fetcher = vi.fn().mockResolvedValue('ok');
+        const pending = dedupedFetch('k', fetcher);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        await expect(pending).resolves.toBe('ok');
+    });
+
+    test('surfaces a synchronous fetcher throw instead of a TDZ error', async () => {
+        // Regression guard: releasing the inflight slot from a `finally` inside
+        // the promise chain meant a fetcher that threw synchronously ran that
+        // cleanup while the promise binding was still uninitialized, so callers
+        // saw "Cannot access 'request' before initialization" and the real error
+        // was lost.
+        const throwing = vi.fn(() => { throw new Error('real cause'); });
+
+        await expect(dedupedFetch('k', throwing)).rejects.toThrow('real cause');
+        // Nothing should be left in flight, so a retry is not deduped away.
+        const retry = vi.fn().mockResolvedValue('recovered');
+        await expect(dedupedFetch('k', retry)).resolves.toBe('recovered');
+        expect(retry).toHaveBeenCalledTimes(1);
+    });
+
     test('clearQueryCache supports prefix invalidation', () => {
         setCachedData('incident-queue:admin:p1', []);
         setCachedData('dashboard:public:guest', []);

@@ -22,6 +22,11 @@ export const QUERY_CACHE_TTLS = {
     adminDashboard: 3 * 60 * 1000,
     adminUsers: 2 * 60 * 1000,
     accidentHistory: 3 * 60 * 1000,
+    // Reference geography, not user data: the polygons change only when a
+    // dataset is regenerated and redeployed. A long TTL keeps the combined
+    // hazard payload out of every navigation, and the server's ETag still
+    // revalidates it once the window lapses.
+    hazardLayers: 30 * 60 * 1000,
 };
 
 const DEFAULT_CACHE_TTL = 60 * 1000;
@@ -74,19 +79,39 @@ export const clearQueryCache = (prefix) => {
 /**
  * Shares a single promise across concurrent callers for the same key.
  * Failures are not cached; the inflight slot is always released.
+ *
+ * The fetcher is invoked **synchronously**, on the caller's tick. That ordering
+ * is load-bearing: callers depend on the request starting before they continue,
+ * and deferring it by even one microtask changes what they observe.
+ *
+ * The `try` exists for the case where the fetcher throws synchronously. The
+ * previous form released the inflight slot from a `finally` inside the promise
+ * chain, so a synchronous throw ran that cleanup while the `request` binding was
+ * still in its temporal dead zone — the caller received "Cannot access 'request'
+ * before initialization" instead of the real error, erasing the actual failure.
+ * Catching here turns a synchronous throw into the rejected promise this
+ * function is documented to return.
  */
 export const dedupedFetch = (key, fetcher) => {
     const ongoing = inflightRequests.get(key);
     if (ongoing) return ongoing;
 
-    const request = (async () => {
-        try {
-            return await fetcher();
-        } finally {
-            if (inflightRequests.get(key) === request) inflightRequests.delete(key);
-        }
-    })();
+    // Held on an object so the cleanup closure never reads the promise binding
+    // directly. `.finally` is always scheduled asynchronously, so `slot.request`
+    // is assigned well before this can run.
+    const slot = {};
+    const settle = () => {
+        if (inflightRequests.get(key) === slot.request) inflightRequests.delete(key);
+    };
 
+    let request;
+    try {
+        request = Promise.resolve(fetcher()).finally(settle);
+    } catch (error) {
+        return Promise.reject(error);
+    }
+
+    slot.request = request;
     inflightRequests.set(key, request);
     return request;
 };

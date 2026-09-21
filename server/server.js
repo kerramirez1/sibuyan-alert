@@ -65,6 +65,12 @@ app.set('io', io);
 const boundaryStatus = { ready: false, count: 0, checked: false };
 app.set('boundaryStatus', boundaryStatus);
 
+// Hazard layer readiness rides along for the same reason: an environment where
+// the NOAH import was skipped would otherwise answer every pin with "no hazard
+// here", which reads as a clear result instead of a missing dataset.
+const hazardLayerStatus = { ready: false, count: 0, checked: false };
+app.set('hazardLayerStatus', hazardLayerStatus);
+
 // Connect to MongoDB and seed data
 const initializeDatabase = async () => {
     await connectDB();
@@ -99,6 +105,35 @@ const initializeDatabase = async () => {
         }
     } catch (error) {
         console.warn('⚠️ Boundary readiness check skipped:', error.message);
+    }
+    // Same reasoning as the boundary check above: a missing hazard dataset must
+    // be visible in boot logs and /api/health, because the alternative is a map
+    // that silently reports every location as hazard-free.
+    try {
+        const { default: HazardArea } = await import('./models/HazardArea.js');
+        const { HAZARD_DATASET_IDS } = await import('./config/hazardDatasets.js');
+        const hazardCount = await HazardArea.countDocuments({ isActive: true });
+        const importedDatasets = await HazardArea.distinct('datasetId', { isActive: true });
+        const missingDatasets = HAZARD_DATASET_IDS.filter((id) => !importedDatasets.includes(id));
+
+        hazardLayerStatus.count = hazardCount;
+        hazardLayerStatus.checked = true;
+        hazardLayerStatus.ready = hazardCount > 0;
+        hazardLayerStatus.datasets = importedDatasets;
+        hazardLayerStatus.missingDatasets = missingDatasets;
+
+        if (hazardCount === 0) {
+            console.warn('⚠️ HazardArea is empty — zone placement will report every point as hazard-free. Fix: npm run import:hazards --prefix server (needs server/data/noah-sibuyan-*.geojson + MONGODB_URI)');
+        } else {
+            console.log(`⛰️ Hazard areas ready: ${hazardCount} across ${importedDatasets.length}/${HAZARD_DATASET_IDS.length} dataset(s)`);
+            // A partially imported set is worth naming: an absent layer renders
+            // as "no hazard here" for that hazard specifically.
+            if (missingDatasets.length > 0) {
+                console.warn(`⚠️ Hazard datasets not imported (their layers will report nothing): ${missingDatasets.join(', ')}`);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Hazard layer readiness check skipped:', error.message);
     }
     // D7 Analytics / Historical Data is a read-only view on reports — ensure it
     // exists without ever failing the boot (analytics degrades to live
@@ -163,6 +198,7 @@ app.use('/api/auth', (_req, res, next) => {
 app.get('/api/health', (req, res) => {
     const databaseConnected = mongoose.connection.readyState === 1;
     const status = req.app.get('boundaryStatus') || boundaryStatus;
+    const hazard = req.app.get('hazardLayerStatus') || hazardLayerStatus;
     res.status(databaseConnected ? 200 : 503).json({
         success: databaseConnected,
         service: 'sibuyan-accident-alert',
@@ -172,6 +208,13 @@ app.get('/api/health', (req, res) => {
             ready: Boolean(status.ready),
             count: status.count || 0,
             checked: Boolean(status.checked),
+        },
+        hazardLayers: {
+            ready: Boolean(hazard.ready),
+            count: hazard.count || 0,
+            checked: Boolean(hazard.checked),
+            datasets: hazard.datasets || [],
+            missingDatasets: hazard.missingDatasets || [],
         },
     });
 });

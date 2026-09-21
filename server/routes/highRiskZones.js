@@ -5,6 +5,12 @@ import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { sortHighRiskZonesBySeverity } from '../utils/highRiskZones.js';
 import { resolveRiskZoneJurisdiction } from '../services/riskZoneJurisdictionService.js';
+import {
+    describeHazardsAt,
+    getHazardLayer,
+    getHazardLayerCatalog,
+} from '../services/hazardAreaService.js';
+import { HAZARD_DATASET_IDS, isKnownHazardDataset } from '../config/hazardDatasets.js';
 import { validateMongoIdParam } from '../middleware/validate.js';
 import {
     uploadRiskZonePhotos,
@@ -114,6 +120,152 @@ router.get('/', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get high-risk zones',
+        });
+    }
+});
+
+/**
+ * @route   GET /api/high-risk-zones/hazards
+ * @desc    Every NOAH hazard layer for Sibuyan, in one payload
+ * @access  Private (municipal_admin only)
+ *
+ * Declared before the `/:id` routes so the literal path is never parsed as an
+ * object id.
+ *
+ * This is reference geography, not user data: the geometry is fixed at import
+ * time and changes only when a dataset is regenerated. It is therefore served
+ * from the memoised dataset files rather than the collection, and the ETag folds
+ * in every layer's own validator — a redeploy with new polygons invalidates
+ * every cached copy without any manual cache busting.
+ *
+ * Admin-only: these reference layers exist to help an administrator place a
+ * high-risk zone, and they are drawn on the admin Risk Zones workspace alone.
+ * The public dashboard map no longer requests them, so there is no reader left
+ * to serve anonymously.
+ *
+ * One request for all layers rather than one per layer: the client needs the
+ * whole set to build its legend and toggles, and five round-trips on a weak link
+ * to render one screen is the cost this shape avoids.
+ */
+router.get('/hazards', protect, requireRole('municipal_admin'), async (req, res) => {
+    try {
+        const catalog = getHazardLayerCatalog();
+
+        sendConditionalJson(req, res, {
+            success: true,
+            data: {
+                layers: catalog.payloads,
+                // Named so an operator can see which layers are simply absent on
+                // this environment, rather than assuming they cover nothing.
+                unavailable: catalog.missing,
+            },
+        }, {
+            etag: catalog.etag,
+            // Immutable between deploys, so a day of client caching is safe.
+            // `must-revalidate` (set by the helper) still forces a conditional
+            // request once it lapses, so a stale layer cannot outlive a deploy
+            // by more than that window.
+            maxAgeSeconds: 86_400,
+        });
+    } catch (error) {
+        console.error('Get hazard layers error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get hazard layers',
+        });
+    }
+});
+
+/**
+ * @route   GET /api/high-risk-zones/hazards/at
+ * @desc    Resolve every hazard class containing a coordinate
+ * @access  Private (municipal_admin only)
+ *
+ * Declared before `/hazards/:datasetId` so `at` is never read as a dataset id.
+ *
+ * Exposed separately from the geocode response so any surface — including the
+ * map's own click handler — can ask the question without running a full location
+ * verification. The geocode path uses the same service, so the two can never
+ * disagree.
+ */
+router.get('/hazards/at', protect, requireRole('municipal_admin'), async (req, res) => {
+    try {
+        const lat = Number(req.query.lat);
+        const lng = Number(req.query.lng);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid lat and lng query parameters are required',
+            });
+        }
+
+        const rawDatasetIds = req.query.datasets;
+        const datasetIds = typeof rawDatasetIds === 'string' && rawDatasetIds.trim()
+            ? rawDatasetIds.split(',').map((id) => id.trim()).filter(Boolean)
+            : undefined;
+
+        if (datasetIds) {
+            const unknown = datasetIds.filter((id) => !isKnownHazardDataset(id));
+            if (unknown.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Unknown hazard dataset(s): ${unknown.join(', ')}. Known: ${HAZARD_DATASET_IDS.join(', ')}`,
+                });
+            }
+        }
+
+        const hazards = await describeHazardsAt(lat, lng, { datasetIds });
+        return res.json({ success: true, data: hazards });
+    } catch (error) {
+        console.error('Resolve hazard error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to resolve hazard at this location',
+        });
+    }
+});
+
+/**
+ * @route   GET /api/high-risk-zones/hazards/:datasetId
+ * @desc    One NOAH hazard layer
+ * @access  Private (municipal_admin only)
+ *
+ * Kept alongside the combined catalog so a caller that needs a single layer —
+ * the public map showing only landslides, for instance — does not pay for the
+ * other four.
+ */
+router.get('/hazards/:datasetId', protect, requireRole('municipal_admin'), async (req, res) => {
+    const { datasetId } = req.params;
+
+    if (!isKnownHazardDataset(datasetId)) {
+        return res.status(404).json({
+            success: false,
+            message: `Unknown hazard dataset: ${datasetId}. Known: ${HAZARD_DATASET_IDS.join(', ')}`,
+        });
+    }
+
+    try {
+        const layer = getHazardLayer(datasetId);
+        sendConditionalJson(req, res, { success: true, data: layer.payload }, {
+            etag: layer.etag,
+            maxAgeSeconds: 86_400,
+        });
+    } catch (error) {
+        // A missing dataset file is an operational state, not a bug: the import
+        // has not been run on this environment. Say so, with the fix, rather
+        // than returning a generic 500 the operator cannot act on.
+        if (error?.code === 'ENOENT') {
+            console.warn(`Hazard dataset file is missing for ${datasetId}:`, error.path);
+            return res.status(503).json({
+                success: false,
+                message: `Hazard dataset "${datasetId}" is not installed. Run npm run import:hazards --prefix server, then retry.`,
+            });
+        }
+        console.error(`Get hazard layer error (${datasetId}):`, error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get hazard layer',
         });
     }
 });

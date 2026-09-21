@@ -11,6 +11,8 @@
         "seed:responders": "node seeds/seedResponders.js",
         "download:barangay-boundaries": "node scripts/downloadSibuyanBarangayBoundaries.js",
         "import:barangay-boundaries": "node scripts/importSibuyanBarangayBoundaries.js",
+    "import:landslide-hazards": "node scripts/importHazardAreas.js --dataset landslide",
+    "import:hazards": "node scripts/importHazardAreas.js",
         "reset:responders": "node seeds/seedResponders.js",
         "migrate:gridfs": "node scripts/migrateMediaToGridFS.js",
         "migrate:harden-report-evidence": "node scripts/hardenReportEvidencePrivacy.js",

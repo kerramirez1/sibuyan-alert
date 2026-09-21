@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mockZones = [
@@ -56,6 +56,35 @@ const {
         create: vi.fn().mockResolvedValue({ data: { success: true } }),
         update: vi.fn().mockResolvedValue({ data: { success: true } }),
         delete: vi.fn().mockResolvedValue({ data: { success: true } }),
+        // The hazard reference layers resolve asynchronously on mount, so they
+        // have to be present on the mock or the page would be tested only on the
+        // failure path.
+        getHazardLayers: vi.fn().mockResolvedValue({
+            data: {
+                data: {
+                    layers: [
+                        {
+                            datasetId: 'landslide',
+                            hazardType: 'landslide',
+                            label: 'Landslide',
+                            shortLabel: 'Landslide',
+                            attribution: 'DOST Project NOAH / PHIVOLCS',
+                            licence: 'ODC-ODbL',
+                            classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
+                            features: [
+                                { type: 'Feature', properties: { haz: 3 }, geometry: { type: 'MultiPolygon', coordinates: [] } },
+                                { type: 'Feature', properties: { haz: 2 }, geometry: { type: 'MultiPolygon', coordinates: [] } },
+                            ],
+                        },
+                    ],
+                    unavailable: [],
+                },
+            },
+        }),
+        getHazardLayer: vi.fn().mockResolvedValue({ data: { data: { features: [] } } }),
+        getHazardsAt: vi.fn().mockResolvedValue({
+            data: { data: { available: true, reason: 'clear', results: [] } },
+        }),
     },
 }));
 
@@ -113,6 +142,24 @@ vi.mock('../services/api', () => ({
                     barangay: { name: 'Cambajao' },
                     municipality: { name: 'Cajidiocan' },
                     displayAddress: 'Cambajao, Cajidiocan, Romblon',
+                    // The geocode response carries hazard readings alongside
+                    // jurisdiction, so one round-trip answers both questions.
+                    hazards: {
+                        available: true,
+                        reason: 'in_hazard',
+                        results: [
+                            {
+                                datasetId: 'landslide',
+                                hazardType: 'landslide',
+                                hazardClass: 3,
+                                hazardLabel: 'High',
+                                classDescription: 'No dwelling zone',
+                                suggestedZoneType: 'landslide_prone',
+                                source: 'DOST Project NOAH / PHIVOLCS',
+                                licence: 'ODC-ODbL',
+                            },
+                        ],
+                    },
                 },
             },
         }),
@@ -308,7 +355,9 @@ describe('AdminHighRiskZonesPage', () => {
         fireEvent.click(screen.getByText('Select mock map point'));
 
         await waitFor(() => {
-            expect(screen.getByText(/Location selected: 12.3785, 122.5432/i)).toBeInTheDocument();
+            // Six decimals: the readout was widened from four (~11 m) so the
+            // displayed precision matches the placement precision.
+            expect(screen.getByText(/Location selected: 12\.378500, 122\.543200/i)).toBeInTheDocument();
         });
 
         const submitBtn = screen.getByRole('button', { name: 'Create zone' });
@@ -355,5 +404,105 @@ describe('AdminHighRiskZonesPage', () => {
         expect(mockRemoveZone).not.toHaveBeenCalled();
 
         confirmSpy.mockRestore();
+    });
+
+    test('hands the hazard layers to the map once they resolve', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        await waitFor(() => {
+            expect(mockMapViewProps).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    hazardLayers: expect.arrayContaining([
+                        expect.objectContaining({ datasetId: 'landslide', hazardType: 'landslide' }),
+                    ]),
+                })
+            );
+        });
+
+        // The legend is built from the layers actually on the map, so an absent
+        // layer cannot be advertised as present. Scoped to the map workspace:
+        // "Medium" also appears as a severity badge in the zone list.
+        const mapWorkspace = screen.getByLabelText('High-risk zones map workspace');
+        expect(await within(mapWorkspace).findByText(/^Landslide$/)).toBeInTheDocument();
+        // Storm surge is no longer registered, so the legend must not list it.
+        expect(within(mapWorkspace).queryByText(/^SSA 4$/)).not.toBeInTheDocument();
+        expect(within(mapWorkspace).getByText(/ODC-ODbL/)).toBeInTheDocument();
+    });
+
+    test('enables the placement accuracy aids while the zone form is open', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        // Closed form: no cursor readout, because nothing is being placed.
+        expect(mockMapViewProps).toHaveBeenLastCalledWith(
+            expect.objectContaining({ showCursorCoordinates: false })
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+
+        await waitFor(() => {
+            expect(mockMapViewProps).toHaveBeenLastCalledWith(
+                expect.objectContaining({ showCursorCoordinates: true })
+            );
+        });
+    });
+
+    test('shows the hazard reading for the selected pin in the form', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        fireEvent.click(screen.getByText('Select mock map point'));
+
+        // The reading is rendered as one chip per layer, so a point that is high
+        // landslide and clear storm surge keeps both facts visible.
+        await waitFor(() => {
+            expect(screen.getByText(/^High landslide$/)).toBeInTheDocument();
+        });
+    });
+
+    test('adopts the suggested zone type when the pin lands in a high hazard', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        fireEvent.click(screen.getByText('Select mock map point'));
+
+        // The geocode fixture reports high landslide with a suggestion, so the
+        // form's untouched default is replaced — and the toast says so, because
+        // a silent change would look like a bug.
+        await waitFor(() => {
+            expect(screen.getByText(/High landslide/i)).toBeInTheDocument();
+        });
+        expect(screen.getByRole('radio', { name: /Landslide Prone/i })).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', { name: /Accident Prone/i })).toHaveAttribute('aria-checked', 'false');
+        expect(mockToast.success).toHaveBeenCalledWith(
+            expect.stringContaining('Zone type set to landslide prone'),
+            expect.anything()
+        );
+    });
+
+    test('says the hazard could not be checked when no reading is available', async () => {
+        // A missing or failed hazard lookup must read as unknown, never as safe.
+        const { reportsAPI } = await import('../services/api');
+        reportsAPI.geocodeLocation.mockResolvedValueOnce({
+            data: {
+                data: {
+                    coordinates: { lat: 12.3785, lng: 122.5432 },
+                    isWithinSibuyanBounds: true,
+                    barangayAssignment: 'matched',
+                    municipalityAssignment: 'matched',
+                    barangay: { name: 'Cambajao' },
+                    municipality: { name: 'Cajidiocan' },
+                    displayAddress: 'Cambajao, Cajidiocan, Romblon',
+                    hazards: { available: false, reason: 'dataset_missing', results: [] },
+                },
+            },
+        });
+
+        render(<AdminHighRiskZonesPage />);
+        fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+        fireEvent.click(screen.getByText('Select mock map point'));
+
+        await waitFor(() => {
+            expect(screen.getByText(/Hazard: could not be checked/i)).toBeInTheDocument();
+        });
     });
 });

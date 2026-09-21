@@ -5,11 +5,13 @@ import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
 import toast from '../utils/appToast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
+import useHazardAreas from '../hooks/useHazardAreas';
 import { MAP_FOCUS_PRESETS, scheduleElementScroll } from '../utils/mapNavigation';
 import {
     applyRiskZoneLocationAutofill,
     buildRiskZoneLocationAutofill,
 } from '../utils/riskZoneLocation';
+import { getHazardColor } from '../config/hazardAreas';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
@@ -37,11 +39,37 @@ const SEVERITY_LEVELS = [
 
 const MUNICIPALITIES = ['Cajidiocan', 'Magdiwang', 'San Fernando'];
 
+/**
+ * Tone → class map for the hazard readout shown under the selected pin.
+ *
+ * `unknown` is styled as deliberately neutral rather than as a success: "we
+ * could not check" must not read as "you are safe".
+ */
+const HAZARD_TONE_CLASSES = {
+    high: 'text-red-700 dark:text-red-300',
+    medium: 'text-amber-700 dark:text-amber-300',
+    clear: 'text-emerald-700 dark:text-emerald-300',
+    unknown: 'text-gray-500 dark:text-gray-400',
+};
+
 const AdminHighRiskZonesPage = () => {
     const { user } = useAuth();
     const { zones, loading, refresh: refreshZones, removeZone } = useGlobalHighRiskZones();
+    // NOAH hazard reference layers (landslide, storm surge). Non-blocking by
+    // design: the workspace works exactly as before when these are still loading
+    // or absent.
+    const { layers: hazardLayers } = useHazardAreas();
     const [showForm, setShowForm] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
+    /**
+     * Hazard readings for the currently selected pin, across every imported
+     * NOAH layer.
+     *
+     * Held in state rather than only announced in a toast, because the toast is
+     * gone by the time the administrator has finished filling in the rest of the
+     * form — and the hazard is a fact about the zone they are about to save.
+     */
+    const [selectedHazards, setSelectedHazards] = useState(null);
     const [focusLocation, setFocusLocation] = useState(null);
     const [editingZone, setEditingZone] = useState(null);
     const [formData, setFormData] = useState({
@@ -85,6 +113,7 @@ const AdminHighRiskZonesPage = () => {
         locationAbortRef.current = controller;
         setIsResolvingLocation(true);
         setSelectedLocation(null);
+        setSelectedHazards(null);
 
         try {
             toast.loading('Verifying barangay boundary...', { id: 'geocoding' });
@@ -113,8 +142,30 @@ const AdminHighRiskZonesPage = () => {
             }
 
             setSelectedLocation(detected.coordinates);
+            setSelectedHazards(detected.hazards);
             setFormData((previous) => applyRiskZoneLocationAutofill(previous, detected));
-            toast.success(`Location verified in ${detected.barangay}`, { id: 'geocoding' });
+
+            // Report the hazards together with the barangay. This is the moment
+            // the layers earn their place: the administrator has just dropped a
+            // pin, and the answer tells them what is known about that spot.
+            // When a reading justifies a zone type, the type has already been
+            // suggested, so the message says so rather than leaving them to
+            // notice the change on their own.
+            const { hazards } = detected;
+            if (hazards?.known && hazards.results.length > 0) {
+                const reading = hazards.results
+                    .map((result) => `${result.label} ${result.hazardType.replace(/_/g, ' ')}`)
+                    .join(', ');
+                const suggestion = detected.suggestedZoneType
+                    ? ` Zone type set to ${detected.suggestedZoneType.replace(/_/g, ' ')}.`
+                    : '';
+                toast.success(
+                    `Location verified in ${detected.barangay} — ${reading}.${suggestion}`,
+                    { id: 'geocoding', duration: 6000 }
+                );
+            } else {
+                toast.success(`Location verified in ${detected.barangay}`, { id: 'geocoding' });
+            }
             return true;
         } catch (error) {
             const isCanceled = error?.code === 'ERR_CANCELED'
@@ -544,18 +595,50 @@ const AdminHighRiskZonesPage = () => {
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
-                    <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
                         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             {showForm ? 'Select zone location' : 'High-risk zones map'}
                         </h2>
-                        {showForm && (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                                {draftZonePreview
-                                    ? `${Math.round(Number(formData.radius))} m coverage`
-                                    : 'Click map to place epicenter'}
-                            </span>
-                        )}
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                            {/* Legend for the hazard overlays. Built from the
+                                layers actually on the map rather than a fixed
+                                list — a key to something that is not drawn is
+                                worse than none, because it makes an absent layer
+                                look present. The swatch shows each layer's
+                                most-severe class colour, which is the one worth
+                                recognising. Carries the required ODC-ODbL
+                                attribution for screen readers. */}
+                            {hazardLayers.length > 0 && (
+                                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                    {hazardLayers.map((layer) => {
+                                        const highestClass = layer.classes?.[layer.classes.length - 1]?.value;
+                                        return (
+                                            <span key={layer.datasetId} className="inline-flex items-center gap-1">
+                                                <span
+                                                    className="h-2 w-2 rounded-[2px]"
+                                                    style={{ backgroundColor: getHazardColor(layer.hazardType, highestClass) }}
+                                                    aria-hidden="true"
+                                                />
+                                                {layer.shortLabel || layer.label}
+                                            </span>
+                                        );
+                                    })}
+                                    <span className="sr-only">
+                                        Hazard source: {hazardLayers[0]?.attribution || 'DOST Project NOAH'}.
+                                        Licence {hazardLayers[0]?.licence || 'ODC-ODbL'}.
+                                    </span>
+                                </span>
+                            )}
+                            {showForm && (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                                    {draftZonePreview
+                                        ? `${Math.round(Number(formData.radius))} m coverage`
+                                        : 'Click map to place epicenter'}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     {/* Map View Frame */}
@@ -575,6 +658,12 @@ const AdminHighRiskZonesPage = () => {
                             // are still arriving.
                             showDataState
                             dataLoading={loading}
+                            // Placement accuracy aids. The epicenter of a zone is
+                            // the one thing this page exists to get right, and it
+                            // was previously placed blind: no distance reference
+                            // and no coordinate until after the click committed.
+                            showCursorCoordinates={Boolean(showForm)}
+                            hazardLayers={hazardLayers}
                             className="h-full w-full"
                         />
                     </div>
@@ -642,11 +731,48 @@ const AdminHighRiskZonesPage = () => {
                                                     <span>Verifying barangay boundary...</span>
                                                 </div>
                                             ) : selectedLocation && Number.isFinite(Number(selectedLocation?.lat)) && Number.isFinite(Number(selectedLocation?.lng)) ? (
-                                                <div className="flex items-center justify-between gap-2 py-2 text-xs text-gray-700 dark:text-gray-300">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <HiOutlineCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                        <span className="truncate font-mono tabular-nums">
-                                                            Location selected: {Number(selectedLocation.lat).toFixed(4)}, {Number(selectedLocation.lng).toFixed(4)}
+                                                <div className="flex items-start justify-between gap-2 py-2 text-xs text-gray-700 dark:text-gray-300">
+                                                    <div className="flex items-start gap-2 min-w-0">
+                                                        <HiOutlineCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                        <span className="min-w-0">
+                                                            {/* Six decimals is about 0.1 m; the previous four
+                                                                was about 11 m, the same order as the placement
+                                                                error this readout exists to let you avoid. */}
+                                                            <span className="block truncate font-mono tabular-nums">
+                                                                Location selected: {Number(selectedLocation.lat).toFixed(6)}, {Number(selectedLocation.lng).toFixed(6)}
+                                                            </span>
+                                                            {/* One chip per hazard layer, not a single
+                                                                collapsed word: a point can be high landslide
+                                                                and clear storm surge, and merging those into
+                                                                one phrase would lose the distinction that
+                                                                makes the layers worth having. */}
+                                                            {selectedHazards && (
+                                                                <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                                                                    {!selectedHazards.known && (
+                                                                        <span className={`text-[11px] font-medium ${HAZARD_TONE_CLASSES.unknown}`}>
+                                                                            Hazard: could not be checked
+                                                                        </span>
+                                                                    )}
+                                                                    {selectedHazards.known && selectedHazards.results.length === 0 && (
+                                                                        <span className={`text-[11px] font-medium ${HAZARD_TONE_CLASSES.clear}`}>
+                                                                            Hazard: none mapped here
+                                                                        </span>
+                                                                    )}
+                                                                    {selectedHazards.results.map((result) => (
+                                                                        <span
+                                                                            key={result.datasetId}
+                                                                            className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 dark:text-gray-200"
+                                                                        >
+                                                                            <span
+                                                                                className="h-1.5 w-1.5 rounded-full"
+                                                                                style={{ backgroundColor: result.color }}
+                                                                                aria-hidden="true"
+                                                                            />
+                                                                            {result.label} {result.hazardType.replace(/_/g, ' ')}
+                                                                        </span>
+                                                                    ))}
+                                                                </span>
+                                                            )}
                                                         </span>
                                                     </div>
                                                     <button

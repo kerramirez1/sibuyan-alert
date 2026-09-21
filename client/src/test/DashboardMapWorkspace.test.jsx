@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 
-const { mapPropsSpy } = vi.hoisted(() => ({ mapPropsSpy: vi.fn() }));
+const { mapPropsSpy, getHazardLayersSpy } = vi.hoisted(() => ({
+    mapPropsSpy: vi.fn(),
+    getHazardLayersSpy: vi.fn(),
+}));
 
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
@@ -10,6 +13,22 @@ vi.mock('../components/map/MapView', () => ({
         return <div data-testid="map-view" />;
     },
 }));
+
+// The workspace takes its data as props, so nothing here should reach the
+// network at all. The hazard-layer endpoint is spied on specifically so the
+// "the dashboard never fetches the admin-only reference layers" contract is
+// asserted rather than assumed. `importOriginal` keeps every other export real,
+// so a transitive consumer of this module is unaffected.
+vi.mock('../services/api', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        highRiskZonesAPI: {
+            ...actual.highRiskZonesAPI,
+            getHazardLayers: getHazardLayersSpy,
+        },
+    };
+});
 
 import DashboardMapWorkspace from '../components/dashboard/DashboardMapWorkspace';
 import { MUNICIPALITY_MAP_FOCUS } from '../utils/sibuyanLocations';
@@ -226,7 +245,10 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(row).toBe(liveMap.parentElement);
         expect(liveMap).toHaveClass('order-1', 'sm:order-2');
         expect(summary.parentElement).toHaveClass('order-2', 'sm:order-1');
-        expect(row).toHaveClass('flex', 'flex-col', 'gap-3', 'sm:gap-5');
+        // Tighter than the gap-3/sm:gap-5 this used to assert. From lg the row is
+        // a single grid, so the gap only separates the map from the cards in the
+        // stacked phone layout, where both already carry their own padding.
+        expect(row).toHaveClass('flex', 'flex-col', 'gap-2', 'sm:gap-2');
         // Reporter has 4 metrics, and on a phone they fill a two-by-two grid:
         // pending review and active incidents on the first row, resolved and
         // risk zones on the second. The row order is the priority, so it is the
@@ -258,10 +280,20 @@ describe('DashboardMapWorkspace permissions', () => {
         const row = column.parentElement;
 
         // One grid holds both, filled to the height the viewport leaves under
-        // the app header, with a floor the map can never be cut below. Its
-        // parent is height-bound, so the page has nothing left to scroll at lg.
+        // the app header. `min-h-0` rather than the fixed 420px floor this used
+        // to assert: the row has to be allowed to shrink so the map and the
+        // summary scroll inside themselves, which is the whole point of the
+        // height-bound workspace. A hard floor did the opposite — it pushed the
+        // page into scrolling instead of the panes.
         expect(row).toBe(liveMap.parentElement);
-        expect(row).toHaveClass('lg:grid', 'lg:flex-1', 'lg:min-h-[420px]', 'lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)]');
+        expect(row).toHaveClass(
+            'lg:grid',
+            'lg:flex-1',
+            'lg:min-h-0',
+            'lg:items-stretch',
+            'lg:gap-2',
+            'lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)]'
+        );
 
         // The map paints in the first column and the summary in the second,
         // even though the summary stays first in the DOM so that the stacked
@@ -303,8 +335,10 @@ describe('DashboardMapWorkspace permissions', () => {
 
         // Which leaves the map card holding the canvas and nothing else at lg:
         // the mobile filter bar is the card's only header band, and it is hidden
-        // from lg up, so the card itself carries the inset instead.
-        expect(liveMap).toHaveClass('lg:p-2');
+        // from lg up, so the card itself carries the inset instead — `lg:p-1`,
+        // tightened from `lg:p-2` along with the row gap, so the canvas keeps
+        // the pixels rather than the frame around it.
+        expect(liveMap).toHaveClass('lg:p-1');
         expect(liveMap.firstElementChild).toHaveClass('lg:hidden');
     });
 
@@ -2064,7 +2098,27 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(mapProps.reports).toEqual(publicReports);
         });
 
-        test('4b. Hands MapView the role\'s own opening camera', () => {
+        test('4a. Never fetches or draws the hazard reference layers', () => {
+            getHazardLayersSpy.mockClear();
+            renderWorkspace(createProps({ responderMapFilter: 'all' }));
+
+            // The NOAH reference layers are admin-only now, so this map is not
+            // even handed the prop — the ~1.7 MB payload is never requested.
+            expect(mapPropsSpy.mock.lastCall[0].hazardLayers).toBeUndefined();
+            expect(getHazardLayersSpy).not.toHaveBeenCalled();
+        });
+
+        test('4b. Still does not fetch them when the Risk zones layer is open', () => {
+            getHazardLayersSpy.mockClear();
+            renderWorkspace(createProps({ responderMapFilter: 'risk-zones' }));
+
+            // Opening the risk-zone tab used to be the trigger for the hazard
+            // fetch. It is now a request for the zone circles only.
+            expect(mapPropsSpy.mock.lastCall[0].hazardLayers).toBeUndefined();
+            expect(getHazardLayersSpy).not.toHaveBeenCalled();
+        });
+
+        test('4c. Hands MapView the role\'s own opening camera', () => {
             // Guest: the public safety map opens on the whole island.
             renderWorkspace(createProps({
                 user: null,
@@ -2172,7 +2226,11 @@ describe('DashboardMapWorkspace permissions', () => {
                 // card, which is 8px more than the longest line in the app (40
                 // characters, 143.3px in the self-hosted Inter) needs in order to
                 // fit without wrapping at all.
-                expect(btn).toHaveClass('px-2', 'py-2', 'sm:px-4', 'sm:py-4', 'lg:justify-center', 'lg:py-2');
+                // `sm:py-3`, not the `sm:py-4` this used to assert: the card
+                // grows from the phone row but stops short of the full 16px, so
+                // a four-card column still closes inside the height the map
+                // beside it sets.
+                expect(btn).toHaveClass('px-2', 'py-2', 'sm:px-4', 'sm:py-3', 'lg:justify-center', 'lg:py-2');
                 // One number slot, sized per width — 20px in a half-width phone
                 // card, 28px once the card is wide enough for its supporting line
                 // to sit beside it. It stays the card's headline at both, which is

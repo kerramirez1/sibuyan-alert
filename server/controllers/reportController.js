@@ -8,6 +8,7 @@ import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import { isWithinSibuyanBounds } from '../services/geocoding.js';
 import { processLocation, getResponseTimeEstimate } from '../services/locationService.js';
+import { describeHazardsAt } from '../services/hazardAreaService.js';
 import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
@@ -1647,6 +1648,19 @@ export const geocodeLocation = async (req, res) => {
             locationResult.coordinates.lng
         );
 
+        // Hazard susceptibility for the resolved point, from every imported
+        // NOAH dataset. Folded into this response on purpose: whoever is placing
+        // a pin already has to wait for this call, so the hazards come back in
+        // the same round-trip instead of costing a second one. Never rejects — a
+        // lookup failure reports `available: false` rather than being flattened
+        // into "no hazard here", which would be a dangerous thing to imply.
+        const hazards = isWithinBounds
+            ? await describeHazardsAt(
+                locationResult.coordinates.lat,
+                locationResult.coordinates.lng
+            )
+            : { available: false, reason: 'outside_sibuyan_bounds', results: [] };
+
         res.json({
             success: true,
             data: {
@@ -1667,6 +1681,7 @@ export const geocodeLocation = async (req, res) => {
                 source: locationResult.source,
                 municipalityAssignment: locationResult.municipalityAssignment,
                 isWithinSibuyanBounds: isWithinBounds,
+                hazards,
                 warnings: locationResult.warnings,
             },
             message: `Location processed via ${locationResult.source}. Municipality: ${locationResult.municipalityName || 'Unknown'}`,
