@@ -5,7 +5,6 @@ import { format, formatDistanceToNow } from 'date-fns';
 import toast from '../utils/appToast';
 import {
     HiOutlineChevronDown,
-    HiOutlineCloudUpload,
     HiOutlineDocumentAdd,
     HiOutlineExclamationCircle,
     HiOutlineX,
@@ -26,6 +25,7 @@ import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import ImageViewer from '../components/ui/ImageViewer';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
+import OfflineQueueBanner from '../components/reporterReports/OfflineQueueBanner';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
@@ -286,7 +286,15 @@ function MyReportsPage() {
     const [searchParams] = useSearchParams();
     const { subscribe } = useSocket();
     const { isOnline } = useConnectivity();
-    const { pendingCount, isSyncing, sync: syncOfflineReports } = useOfflineReportSync();
+    const {
+        pendingCount,
+        deliverableCount,
+        blockedReports,
+        isSyncing,
+        sync: syncOfflineReports,
+        resolveBlockedReport,
+        discardReport,
+    } = useOfflineReportSync();
     const requestedReportId = searchParams.get('report');
     const requestedStatus = searchParams.get('status');
     const itemRefs = useRef({});
@@ -549,41 +557,32 @@ function MyReportsPage() {
                 </div>
             </header>
 
-            {pendingCount > 0 && (
-                <div
-                    role="region"
-                    aria-label="Offline queued reports"
-                    className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-200"
-                >
-                    <div className="flex items-start gap-3">
-                        <HiOutlineCloudUpload className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-                        <div>
-                            <p className="text-sm font-semibold">
-                                {pendingCount} incident {pendingCount === 1 ? 'report is' : 'reports are'} queued on this device
-                            </p>
-                            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
-                                Saved locally while offline. {isOnline ? 'Retrying automatically — you can also Sync now.' : 'Will automatically sync when internet connection returns.'}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            className="rounded-md bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
-                            onClick={async () => {
-                                const res = await syncOfflineReports();
-                                if (res?.sent > 0) {
-                                    fetchReports(true);
-                                }
-                            }}
-                            disabled={isSyncing || !isOnline}
-                        >
-                            {isSyncing ? 'Syncing reports…' : 'Sync now'}
-                        </Button>
-                    </div>
-                </div>
-            )}
+            <OfflineQueueBanner
+                pendingCount={pendingCount}
+                deliverableCount={deliverableCount}
+                blockedReports={blockedReports}
+                isOnline={isOnline}
+                isSyncing={isSyncing}
+                onSync={async () => {
+                    const res = await syncOfflineReports();
+                    if (res?.sent > 0) {
+                        fetchReports(true);
+                    }
+                }}
+                onResolveBlocked={async (clientReportId, options) => {
+                    const resolved = await resolveBlockedReport(clientReportId, options);
+                    if (!resolved) {
+                        // Nothing to retry: the entry left the queue between the
+                        // render and the click (another tab delivered it).
+                        toast.error('That queued report is no longer on this device.');
+                    }
+                }}
+                onDiscard={async (clientReportId) => {
+                    if (await discardReport(clientReportId)) {
+                        toast.success('Queued report discarded.');
+                    }
+                }}
+            />
 
             {loading ? (
                 <MyReportsSkeleton />

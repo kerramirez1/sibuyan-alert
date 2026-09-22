@@ -1,17 +1,21 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+    POSSIBLE_DUPLICATE_CODE,
+    QUEUE_BLOCKED_CODES,
     buildQueuedFormData,
     clearOfflineReportQueue,
     clearQueuedReportSending,
     classifySubmitFailure,
-    countQueuedReports,
     createClientReportId,
+    describeSubmitFailure,
     enqueueReport,
     flushQueuedReports,
     isOfflineQueueSupported,
     isTransientSubmitFailure,
     listQueuedReports,
+    partitionQueuedReports,
     removeQueuedReport,
+    resolveBlockedQueuedReport,
     subscribeToQueueChanges,
 } from '../utils/offlineReportQueue';
 
@@ -255,7 +259,7 @@ describe('offline report queue', () => {
         expect(nestedData.has('casualties')).toBe(false);
     });
 
-    test('supports countQueuedReports, removeQueuedReport, and clearOfflineReportQueue with storage mock', async () => {
+    test('supports listQueuedReports, removeQueuedReport, and clearOfflineReportQueue with storage mock', async () => {
         const originalIndexedDB = globalThis.indexedDB;
         const storeData = new Map();
 
@@ -306,23 +310,20 @@ describe('offline report queue', () => {
         };
 
         try {
-            expect(await countQueuedReports()).toBe(0);
+            expect(await listQueuedReports()).toEqual([]);
 
             await enqueueReport({ clientReportId: 'rep-1', fields: { address: 'Site A' } });
             await enqueueReport({ clientReportId: 'rep-2', fields: { address: 'Site B' } });
 
-            expect(await countQueuedReports()).toBe(2);
-
-            const list = await listQueuedReports();
-            expect(list).toHaveLength(2);
+            expect(await listQueuedReports()).toHaveLength(2);
 
             const removed = await removeQueuedReport('rep-1');
             expect(removed).toBe(true);
-            expect(await countQueuedReports()).toBe(1);
+            expect((await listQueuedReports()).map((entry) => entry.clientReportId)).toEqual(['rep-2']);
 
             const cleared = await clearOfflineReportQueue();
             expect(cleared).toBe(true);
-            expect(await countQueuedReports()).toBe(0);
+            expect(await listQueuedReports()).toEqual([]);
         } finally {
             if (originalIndexedDB !== undefined) {
                 globalThis.indexedDB = originalIndexedDB;
@@ -546,6 +547,148 @@ describe('offline report queue', () => {
                 expect(listener).toHaveBeenCalledTimes(2);
             } finally {
                 unsubscribe();
+                storage.restore();
+            }
+        });
+    });
+
+    describe('queue ownership', () => {
+        test('records the filing reporter and refuses to deliver for anyone else', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueueReport({
+                    clientReportId: 'rep-owned',
+                    fields: { address: 'Owned' },
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => ({ success: true }));
+
+                // A different account signed in on this device (an admin, say):
+                // sending would collect a 403 and park the report as blocked.
+                const otherSession = await flushQueuedReports(send, { reporterId: 'admin-b' });
+                expect(send).not.toHaveBeenCalled();
+                expect(otherSession.foreign).toBe(1);
+                expect(otherSession.remaining).toBe(0);
+                expect(otherSession.deliverableRemaining).toBe(0);
+                expect(storage.storeData.has('rep-owned')).toBe(true);
+
+                const ownerSession = await flushQueuedReports(send, { reporterId: 'reporter-a' });
+                expect(send).toHaveBeenCalledTimes(1);
+                expect(ownerSession.sent).toBe(1);
+                expect(storage.storeData.has('rep-owned')).toBe(false);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('adopts an entry stored by an older build rather than stranding it', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                // No reporterId: staged before owner binding existed.
+                await enqueueReport({ clientReportId: 'rep-legacy', fields: { address: 'Legacy' } });
+
+                const send = vi.fn(async () => ({ success: true }));
+                const result = await flushQueuedReports(send, { reporterId: 'reporter-a' });
+
+                expect(result.sent).toBe(1);
+                expect(result.foreign).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('partitions entries by what this session can act on, without returning foreign ones', () => {
+            const partition = partitionQueuedReports([
+                { clientReportId: 'mine', reporterId: 'reporter-a', fields: {} },
+                { clientReportId: 'blocked', reporterId: 'reporter-a', blockedReason: 'Nope' },
+                { clientReportId: 'held', reporterId: 'reporter-a', sendingSince: Date.now() },
+                { clientReportId: 'theirs', reporterId: 'reporter-b', fields: { address: 'Secret' } },
+                null,
+            ], { reporterId: 'reporter-a' });
+
+            expect(partition.deliverable.map((entry) => entry.clientReportId)).toEqual(['mine']);
+            expect(partition.blocked.map((entry) => entry.clientReportId)).toEqual(['blocked']);
+            expect(partition.deferred.map((entry) => entry.clientReportId)).toEqual(['held']);
+            expect(partition.foreignCount).toBe(1);
+        });
+    });
+
+    describe('a report the queue cannot deliver on its own', () => {
+        test('marks a possible duplicate as needing the reporter, and stops the retry loop', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueueReport({
+                    clientReportId: 'rep-dupe',
+                    fields: { address: 'Same corner' },
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => {
+                    const error = new Error('Possible duplicate');
+                    error.response = {
+                        status: 409,
+                        data: {
+                            code: POSSIBLE_DUPLICATE_CODE,
+                            message: 'A similar incident was already reported nearby.',
+                        },
+                    };
+                    throw error;
+                });
+
+                const result = await flushQueuedReports(send, { reporterId: 'reporter-a' });
+
+                expect(result.blocked).toBe(1);
+                expect(result.remaining).toBe(1);
+                // Nothing left that a later pass could deliver, so the hook must
+                // not keep waking up for it.
+                expect(result.deliverableRemaining).toBe(0);
+
+                const [stored] = await listQueuedReports();
+                expect(stored.blockedCode).toBe(QUEUE_BLOCKED_CODES.duplicate);
+                expect(stored.blockedReason).toBe('A similar incident was already reported nearby.');
+
+                // The reporter answers the question the queue could not.
+                const listener = vi.fn();
+                const unsubscribe = subscribeToQueueChanges(listener);
+                expect(await resolveBlockedQueuedReport('rep-dupe', { confirmDistinct: true })).toBe(true);
+                expect(listener).toHaveBeenCalledTimes(1);
+                unsubscribe();
+
+                const [cleared] = await listQueuedReports();
+                expect(cleared.blockedReason).toBeNull();
+                expect(cleared.blockedCode).toBeNull();
+                expect(cleared.fields.confirmDistinct).toBe('true');
+
+                // And the resend then goes out on the next pass.
+                const sending = vi.fn(async () => ({ success: true }));
+                const afterResolve = await flushQueuedReports(sending, { reporterId: 'reporter-a' });
+                expect(afterResolve.sent).toBe(1);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('reports a rejection without a body in words the reporter can read', () => {
+            expect(describeSubmitFailure({ response: { status: 400, data: {} } })).toEqual({
+                blockedReason: 'Rejected by the server',
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+            });
+            expect(describeSubmitFailure({ response: { status: 403, data: { message: 'Access denied' } } })).toEqual({
+                blockedReason: 'Access denied',
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+            });
+        });
+
+        test('leaves a report that is gone from the queue alone', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                expect(await resolveBlockedQueuedReport('never-stored')).toBe(false);
+            } finally {
                 storage.restore();
             }
         });

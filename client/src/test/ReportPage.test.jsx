@@ -23,7 +23,11 @@ vi.mock('../services/api', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: toastMock }));
 
-
+// The page stamps each stored copy with the filing reporter, so the queue can
+// only ever be delivered by that reporter's own session.
+vi.mock('../context/AuthContext', () => ({
+    useAuth: () => ({ user: { _id: 'reporter-1', role: 'reporter', isVerified: true } }),
+}));
 
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {

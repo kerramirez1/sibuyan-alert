@@ -26,9 +26,19 @@
  * Failures are classified rather than retried blindly (`classifySubmitFailure`):
  *   - Transient (no response, timeout, 401, 408, 429, 5xx) -> stays queued and
  *     is retried on the next pass. A dropped upload usually lands here.
- *   - Permanent (other 4xx) -> marked blocked with the server's message so the
- *     reporter can see and fix it, instead of the report silently retrying
- *     forever and never arriving.
+ *   - Needs the reporter (other 4xx) -> marked blocked with the server's own
+ *     message and a machine-readable code (`QUEUE_BLOCKED_CODES`), and skipped
+ *     by later passes until the reporter acts on it (`resolveBlockedQueuedReport`)
+ *     or discards it. A rejection the reporter cannot fix is worth parking; a
+ *     possible duplicate is not a rejection at all, so it is surfaced as a
+ *     question instead of being retried forever or silently dropped.
+ *
+ * Every entry records the reporter who filed it. The queue lives on the device
+ * but delivery is a session, and on a shared phone those are not the same
+ * thing: without the owner, an admin or responder signing in next would upload
+ * someone else's report (403-blocked, parked at that), and a second reporter
+ * would have it filed under their own name. Only the owner's session may
+ * deliver an entry — see `partitionQueuedReports`.
  */
 
 import { QUEUED_REPORT_SENDING_STALE_MS } from '../config/reportSubmission';
@@ -78,6 +88,38 @@ export const classifySubmitFailure = (error) => {
 
 export const isTransientSubmitFailure = (error) => classifySubmitFailure(error) === 'transient';
 
+/**
+ * The server's warning code for "a similar incident was already reported
+ * nearby". It is a question, not a rejection, and only the reporter can answer
+ * it — which the queue cannot do on their behalf.
+ */
+export const POSSIBLE_DUPLICATE_CODE = 'POSSIBLE_DUPLICATE';
+
+/** Why a queued report is waiting on the reporter instead of the network. */
+export const QUEUE_BLOCKED_CODES = {
+    duplicate: 'duplicate',
+    rejected: 'rejected',
+};
+
+/**
+ * Turns a permanent failure into what the reporter needs to see: the server's
+ * own words, plus a code the inbox can branch on. A missing body still produces
+ * a readable reason, because "Rejected by the server" beats an empty line.
+ */
+export const describeSubmitFailure = (error) => {
+    const data = error?.response?.data;
+    const message = typeof data?.message === 'string' && data.message.trim()
+        ? data.message.trim()
+        : 'Rejected by the server';
+
+    return {
+        blockedReason: message,
+        blockedCode: data?.code === POSSIBLE_DUPLICATE_CODE
+            ? QUEUE_BLOCKED_CODES.duplicate
+            : QUEUE_BLOCKED_CODES.rejected,
+    };
+};
+
 const queueListeners = new Set();
 
 /**
@@ -105,17 +147,55 @@ export const subscribeToQueueChanges = (listener) => {
     return () => queueListeners.delete(listener);
 };
 
-const openDb = () => new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(STORE)) {
-            db.createObjectStore(STORE, { keyPath: 'clientReportId' });
-        }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-});
+/**
+ * One connection, reused.
+ *
+ * `indexedDB.open` returns a new `IDBDatabase` on every call and nothing closes
+ * them, so opening per operation leaked a connection per count, patch and list.
+ * The cached promise is keyed on the `indexedDB` object itself, so a replaced
+ * implementation (tests, or a browser that swaps it) can never inherit a stale
+ * connection.
+ */
+let connectionIndexedDB = null;
+let connectionPromise = null;
+
+const openDb = () => {
+    if (typeof indexedDB === 'undefined') {
+        return Promise.reject(new Error('IndexedDB is unavailable'));
+    }
+
+    if (connectionIndexedDB !== indexedDB) {
+        connectionIndexedDB = indexedDB;
+        connectionPromise = null;
+    }
+    if (connectionPromise) return connectionPromise;
+
+    connectionPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+                db.createObjectStore(STORE, { keyPath: 'clientReportId' });
+            }
+        };
+        request.onsuccess = () => {
+            const db = request.result;
+            // Another tab asking for a newer version must not be blocked by
+            // this one holding the old version open.
+            db.onversionchange = () => {
+                db.close();
+                connectionPromise = null;
+            };
+            resolve(db);
+        };
+        request.onerror = () => {
+            connectionPromise = null;
+            reject(request.error);
+        };
+    });
+
+    return connectionPromise;
+};
 
 /**
  * Runs one IndexedDB transaction and resolves with the request's result.
@@ -165,11 +245,13 @@ const requestValue = (request) => ({ __request: true, value: request });
  *   about to send this exact entry. The lease is written in the same
  *   transaction as the entry, so a retry pass can never observe a
  *   freshly-staged report without its in-flight marker.
+ * @param {string} [params.reporterId] - The account that filed the report. Only
+ *   that account's session may deliver the entry afterwards.
  * @returns {Promise<Object|null>} the stored entry, or null when the device
  *   cannot persist (private mode, storage disabled, quota exhausted) — the
  *   caller must then fall back to telling the user the report was not saved.
  */
-export const enqueueReport = async ({ fields, images = [], clientReportId, leased = false }) => {
+export const enqueueReport = async ({ fields, images = [], clientReportId, leased = false, reporterId = null }) => {
     if (!isOfflineQueueSupported()) return null;
 
     try {
@@ -178,11 +260,13 @@ export const enqueueReport = async ({ fields, images = [], clientReportId, lease
             : createClientReportId();
         const entry = {
             clientReportId: safeClientReportId,
+            reporterId: reporterId ? String(reporterId) : null,
             fields,
             images,
             queuedAt: Date.now(),
             attempts: 0,
             blockedReason: null,
+            blockedCode: null,
             sendingSince: leased ? Date.now() : null,
         };
         await runTransaction('readwrite', (store) => store.put(entry));
@@ -204,16 +288,6 @@ export const listQueuedReports = async () => {
     }
 };
 
-export const countQueuedReports = async () => {
-    if (!isOfflineQueueSupported()) return 0;
-    try {
-        const count = await runTransaction('readonly', (store) => requestValue(store.count()));
-        return typeof count === 'number' ? count : 0;
-    } catch {
-        return 0;
-    }
-};
-
 export const removeQueuedReport = async (clientReportId) => {
     if (!isOfflineQueueSupported()) return false;
     try {
@@ -231,33 +305,41 @@ export const removeQueuedReport = async (clientReportId) => {
  * A missing entry is ignored rather than recreated: a report that was already
  * delivered must not be resurrected by a late bookkeeping write.
  *
- * @returns {Promise<boolean>} true when the patched entry was written
+ * @returns {Promise<boolean>} true when the patched entry was written, false
+ *   when there was nothing to patch — callers notify the queue only on a real
+ *   change, so a late write cannot wake the retry loop over nothing.
  */
 const patchQueuedReport = async (clientReportId, buildPatch) => {
     if (!clientReportId) return false;
 
+    let patched = false;
+
     try {
         await runTransaction('readwrite', (store) => {
             const getRequest = store.get(clientReportId);
+            // Issued from a request callback, so it stays inside this same
+            // transaction: the read and the write cannot be split apart.
             getRequest.onsuccess = () => {
                 const entry = getRequest.result;
                 if (!entry) return;
+                patched = true;
                 store.put({ ...entry, ...buildPatch(entry) });
             };
         });
-        return true;
+        return patched;
     } catch {
         return false;
     }
 };
 
-const markAttempt = async (clientReportId, blockedReason) => {
+const markAttempt = async (clientReportId, blocked) => {
     // Losing an attempt counter is not worth surfacing, and must not notify:
     // that would immediately re-trigger the retry that just failed.
     await patchQueuedReport(clientReportId, (entry) => ({
         attempts: (entry.attempts || 0) + 1,
         lastAttemptAt: Date.now(),
-        blockedReason: blockedReason ?? entry.blockedReason ?? null,
+        blockedReason: blocked?.blockedReason ?? entry.blockedReason ?? null,
+        blockedCode: blocked?.blockedCode ?? entry.blockedCode ?? null,
     }));
 };
 
@@ -316,33 +398,119 @@ const isReplayableNow = (entry, now) => {
 };
 
 /**
+ * True when this session may deliver the entry.
+ *
+ * An entry with no recorded owner predates owner binding (or was staged by an
+ * older build); it is adopted rather than stranded, because a report already on
+ * the device must not be lost to a schema change. Everything else belongs
+ * strictly to the reporter who filed it.
+ */
+const isOwnedBy = (entry, reporterId) => {
+    if (!reporterId) return true;
+    if (!entry?.reporterId) return true;
+    return String(entry.reporterId) === String(reporterId);
+};
+
+/**
+ * Splits stored entries into what this session can act on.
+ *
+ * Foreign entries are counted, never returned: another account's report must
+ * not appear in this session's list — not even as a redacted row — while it
+ * waits for its own reporter to sign back in. `deliverable` can be attempted
+ * now, `deferred` is held by a live submit attempt, and `blocked` is waiting on
+ * the reporter rather than the network.
+ */
+export const partitionQueuedReports = (entries = [], { reporterId = null, now = Date.now() } = {}) => {
+    const partition = { deliverable: [], blocked: [], deferred: [], foreignCount: 0 };
+
+    for (const entry of entries) {
+        if (!entry) continue;
+        if (!isOwnedBy(entry, reporterId)) {
+            partition.foreignCount += 1;
+            continue;
+        }
+        if (entry.blockedReason) {
+            partition.blocked.push(entry);
+            continue;
+        }
+        if (isReplayableNow(entry, now)) partition.deliverable.push(entry);
+        else partition.deferred.push(entry);
+    }
+
+    return partition;
+};
+
+/**
+ * The raw, non-identifying context of a queued report, for the inbox row.
+ * Address first, because that is how the reporter recognises the incident.
+ */
+export const describeQueuedReport = (entry = {}) => ({
+    address: entry.fields?.address || '',
+    barangay: entry.fields?.barangay || '',
+    incidentType: entry.fields?.incidentType || '',
+    queuedAt: entry.queuedAt ?? null,
+});
+
+/**
+ * Clears the blocked state so the next pass may attempt the report again.
+ *
+ * `confirmDistinct` carries the reporter's answer to the duplicate question the
+ * replay could not answer for them: the resend then files the report as a
+ * deliberately separate incident instead of coming back as the same warning.
+ */
+export const resolveBlockedQueuedReport = async (clientReportId, { confirmDistinct = false } = {}) => {
+    const patched = await patchQueuedReport(clientReportId, (entry) => ({
+        blockedReason: null,
+        blockedCode: null,
+        ...(confirmDistinct ? { fields: { ...entry.fields, confirmDistinct: 'true' } } : {}),
+    }));
+
+    if (patched) notifyQueueChanged();
+    return patched;
+};
+
+/**
  * Attempts to deliver every queued report.
  *
  * Sequential on purpose: this runs on a reconnect, often on a weak link, and
  * firing N multipart uploads at once is the fastest way to fail all of them.
  *
+ * What it reports back drives the retry policy, so the shape matters:
+ * `blocked` is this pass's newly blocked reports, `remaining` is everything
+ * still stored for this session, and `deliverableRemaining` is what a later
+ * pass could still deliver on its own — the number the hook times against.
+ *
  * @param {Function} send - async (formData) => response
- * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, remaining: number}>}
+ * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, foreign: number, remaining: number, deliverableRemaining: number}>}
  */
-const runFlush = async (send) => {
+const runFlush = async (send, { reporterId = null } = {}) => {
     const queued = (await listQueuedReports()) || [];
+    const partition = partitionQueuedReports(queued, { reporterId, now: Date.now() });
+    const owned = queued.length - partition.foreignCount;
+
     if (typeof send !== 'function') {
-        return { sent: 0, failed: 0, blocked: 0, deferred: 0, remaining: queued.length };
+        return {
+            sent: 0,
+            failed: 0,
+            blocked: 0,
+            deferred: partition.deferred.length,
+            foreign: partition.foreignCount,
+            remaining: owned,
+            deliverableRemaining: partition.deliverable.length + partition.deferred.length,
+        };
     }
 
-    const now = Date.now();
-    const deliverable = [];
-    let deferred = 0;
+    const result = {
+        sent: 0,
+        failed: 0,
+        blocked: 0,
+        deferred: partition.deferred.length,
+        foreign: partition.foreignCount,
+        remaining: owned,
+        deliverableRemaining: 0,
+    };
 
-    for (const entry of queued) {
-        if (entry.blockedReason) continue;
-        if (isReplayableNow(entry, now)) deliverable.push(entry);
-        else deferred += 1;
-    }
-
-    const result = { sent: 0, failed: 0, blocked: 0, deferred, remaining: queued.length };
-
-    for (const entry of deliverable) {
+    for (const entry of partition.deliverable) {
         try {
             await send(buildQueuedFormData(entry));
             await removeQueuedReport(entry.clientReportId);
@@ -353,15 +521,22 @@ const runFlush = async (send) => {
                 await markAttempt(entry.clientReportId, null);
                 result.failed += 1;
             } else {
-                // The server will reject this forever; stop retrying and keep
-                // the entry visible so the reporter can act on it.
-                await markAttempt(entry.clientReportId, error.response?.data?.message || 'Rejected by the server');
+                // Only the reporter can clear this one, so stop retrying it and
+                // keep the entry visible with the server's reason on it.
+                await markAttempt(entry.clientReportId, describeSubmitFailure(error));
                 result.blocked += 1;
             }
         }
     }
 
-    result.remaining = queued.length - result.sent;
+    result.remaining = Math.max(0, owned - result.sent);
+    // What is left that is worth another pass: everything owned and still
+    // stored, minus what just went out and minus what now needs the reporter.
+    // A blocked report must not keep the retry loop alive.
+    result.deliverableRemaining = Math.max(
+        0,
+        owned - result.sent - partition.blocked.length - result.blocked,
+    );
     return result;
 };
 
@@ -376,12 +551,15 @@ const runFlush = async (send) => {
  * the exact bandwidth the report is competing for.
  *
  * @param {Function} send - async (formData) => response
- * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, remaining: number}>}
+ * @param {object} [options]
+ * @param {string} [options.reporterId] - The signed-in account. Entries filed
+ *   by anyone else are left alone for that reporter's own session.
+ * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, foreign: number, remaining: number, deliverableRemaining: number}>}
  */
-export const flushQueuedReports = (send) => {
+export const flushQueuedReports = (send, options) => {
     if (activeFlush) return activeFlush;
 
-    const flush = runFlush(send).finally(() => {
+    const flush = runFlush(send, options).finally(() => {
         if (activeFlush === flush) activeFlush = null;
     });
     activeFlush = flush;
@@ -404,12 +582,17 @@ export default {
     createClientReportId,
     classifySubmitFailure,
     isTransientSubmitFailure,
+    POSSIBLE_DUPLICATE_CODE,
+    QUEUE_BLOCKED_CODES,
+    describeSubmitFailure,
     subscribeToQueueChanges,
     enqueueReport,
     listQueuedReports,
-    countQueuedReports,
     removeQueuedReport,
     clearQueuedReportSending,
+    resolveBlockedQueuedReport,
+    partitionQueuedReports,
+    describeQueuedReport,
     buildQueuedFormData,
     flushQueuedReports,
     clearOfflineReportQueue,

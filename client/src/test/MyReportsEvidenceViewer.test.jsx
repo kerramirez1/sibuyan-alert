@@ -33,6 +33,14 @@ vi.mock('../services/api', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: mocks.toast }));
 
+// The page delivers its own queued reports, so it needs the signed-in reporter.
+vi.mock('../context/AuthContext', () => ({
+    useAuth: () => ({
+        user: { _id: 'reporter-1', role: 'reporter', isVerified: true },
+        canSubmitReports: () => true,
+    }),
+}));
+
 describe('MyReports Evidence Inspection and Modal Experience', () => {
     beforeEach(() => {
         clearBlobCache();

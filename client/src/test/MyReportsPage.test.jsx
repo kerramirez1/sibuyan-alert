@@ -9,9 +9,12 @@ const mocks = vi.hoisted(() => ({
     toast: { success: vi.fn(), error: vi.fn() },
     offlineSync: {
         pendingCount: 0,
+        deliverableCount: 0,
+        blockedReports: [],
         isSyncing: false,
         sync: vi.fn(),
-        refreshCount: vi.fn(),
+        resolveBlockedReport: vi.fn(),
+        discardReport: vi.fn(),
     },
 }));
 
@@ -330,9 +333,12 @@ describe('reporter situation update flow', () => {
     test('renders offline queued reports banner and allows manual sync', async () => {
         mocks.offlineSync = {
             pendingCount: 2,
+            deliverableCount: 2,
+            blockedReports: [],
             isSyncing: false,
             sync: vi.fn().mockResolvedValue({ sent: 2, failed: 0, blocked: 0 }),
-            refreshCount: vi.fn(),
+            resolveBlockedReport: vi.fn(),
+            discardReport: vi.fn(),
         };
 
         renderPage();
@@ -345,9 +351,56 @@ describe('reporter situation update flow', () => {
 
         mocks.offlineSync = {
             pendingCount: 0,
+            deliverableCount: 0,
+            blockedReports: [],
             isSyncing: false,
             sync: vi.fn(),
-            refreshCount: vi.fn(),
+            resolveBlockedReport: vi.fn(),
+            discardReport: vi.fn(),
+        };
+    });
+
+    test('shows a queued report the server refused, with the reason and the fix', async () => {
+        const resolveBlockedReport = vi.fn().mockResolvedValue(true);
+        const discardReport = vi.fn().mockResolvedValue(true);
+        mocks.offlineSync = {
+            pendingCount: 1,
+            deliverableCount: 0,
+            blockedReports: [{
+                clientReportId: 'rep-queued',
+                blockedCode: 'duplicate',
+                blockedReason: 'A similar incident was already reported nearby.',
+                queuedAt: Date.now(),
+                label: 'Poblacion coastal road',
+            }],
+            isSyncing: false,
+            sync: vi.fn(),
+            resolveBlockedReport,
+            discardReport,
+        };
+
+        renderPage();
+
+        // The banner must not promise a retry that cannot happen.
+        expect(await screen.findByText(/Nothing can be sent automatically/i)).toBeInTheDocument();
+        expect(screen.getByText('A similar incident was already reported nearby.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Sync now/i })).toBeDisabled();
+
+        fireEvent.click(screen.getByRole('button', { name: /This is a different incident/i }));
+        await waitFor(() => expect(resolveBlockedReport)
+            .toHaveBeenCalledWith('rep-queued', { confirmDistinct: true }));
+
+        fireEvent.click(screen.getByRole('button', { name: /Discard/i }));
+        await waitFor(() => expect(discardReport).toHaveBeenCalledWith('rep-queued'));
+
+        mocks.offlineSync = {
+            pendingCount: 0,
+            deliverableCount: 0,
+            blockedReports: [],
+            isSyncing: false,
+            sync: vi.fn(),
+            resolveBlockedReport: vi.fn(),
+            discardReport: vi.fn(),
         };
     });
 });

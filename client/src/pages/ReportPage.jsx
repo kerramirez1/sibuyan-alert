@@ -16,6 +16,7 @@ import {
     removeQueuedReport,
 } from '../utils/offlineReportQueue';
 import { useConnectivity } from '../hooks/useConnectivity';
+import { useAuth } from '../context/AuthContext';
 import { REPORT_SUBMIT_TIMEOUT_MS } from '../config/reportSubmission';
 import { clearReportDraft, loadReportDraft, saveReportDraft } from '../utils/reportDraft';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
@@ -56,6 +57,10 @@ const DEFAULT_REPORT_FORM = {
 const ReportPage = () => {
     const navigate = useNavigate();
     const { isOffline } = useConnectivity();
+    const { user } = useAuth();
+    // Stamped on every stored copy: only this reporter's own session may deliver
+    // it later, so a report cannot be filed under whoever signs in next.
+    const reporterId = user?._id || user?.id || null;
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
     // Idempotency key for the report currently being submitted. Held in a ref
@@ -606,13 +611,13 @@ const ReportPage = () => {
     const stageOnDevice = async (clientReportId, { confirmDistinct = false, leased = true } = {}) => {
         const fields = buildQueueFields({ confirmDistinct });
 
-        const stored = await enqueueReport({ clientReportId, fields, images, leased });
+        const stored = await enqueueReport({ clientReportId, fields, images, leased, reporterId });
         if (stored) return { entry: stored, imagesDropped: false };
         if (!images.length) return null;
 
         // Photos are the bulk of the payload. Losing them is bad; losing the
         // whole report is worse, so the fields are stored on their own.
-        const fieldsOnly = await enqueueReport({ clientReportId, fields, images: [], leased });
+        const fieldsOnly = await enqueueReport({ clientReportId, fields, images: [], leased, reporterId });
         return fieldsOnly ? { entry: fieldsOnly, imagesDropped: true } : null;
     };
 

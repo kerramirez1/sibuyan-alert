@@ -66,7 +66,8 @@ const MainLayout = ({ children, fitWindow = false }) => {
 
     // Delivers reports filed while offline. Mounted at the authenticated layout
     // so a queued report is sent from wherever the reporter happens to be, not
-    // only if they return to the report page.
+    // only if they return to the report page. The hook delivers only the
+    // signed-in reporter's own reports, so mounting it for every role is safe.
     useOfflineReportSync();
 
     // Focus management: focus close button on open, restore to hamburger on close

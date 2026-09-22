@@ -2,13 +2,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const {
-    countQueuedReportsMock,
+    listQueuedReportsMock,
     flushQueuedReportsMock,
     subscribeMock,
     createReportMock,
     toastMock,
+    authMock,
 } = vi.hoisted(() => ({
-    countQueuedReportsMock: vi.fn(),
+    listQueuedReportsMock: vi.fn(),
     flushQueuedReportsMock: vi.fn(),
     subscribeMock: vi.fn(),
     createReportMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
         loading: vi.fn(),
         dismiss: vi.fn(),
     },
+    authMock: { user: { _id: 'reporter-1' }, canSubmitReports: () => true },
 }));
 
 vi.mock('../services/api', () => ({
@@ -26,11 +28,21 @@ vi.mock('../services/api', () => ({
 
 vi.mock('../utils/appToast', () => ({ default: toastMock }));
 
-vi.mock('../utils/offlineReportQueue', () => ({
-    countQueuedReports: countQueuedReportsMock,
-    flushQueuedReports: flushQueuedReportsMock,
-    subscribeToQueueChanges: subscribeMock,
+vi.mock('../context/AuthContext', () => ({
+    useAuth: () => authMock,
 }));
+
+// Only the storage and the delivery are stubbed: partitioning is pure, so the
+// real implementation runs and the hook is tested against the real rules.
+vi.mock('../utils/offlineReportQueue', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        listQueuedReports: listQueuedReportsMock,
+        flushQueuedReports: flushQueuedReportsMock,
+        subscribeToQueueChanges: subscribeMock,
+    };
+});
 
 import { nextRetryDelay, useOfflineReportSync } from '../hooks/useOfflineReportSync';
 import {
@@ -51,7 +63,21 @@ const flushResult = (overrides = {}) => ({
     failed: 0,
     blocked: 0,
     deferred: 0,
+    foreign: 0,
     remaining: 1,
+    deliverableRemaining: 1,
+    ...overrides,
+});
+
+const queuedEntry = (overrides = {}) => ({
+    clientReportId: 'rep-1',
+    reporterId: 'reporter-1',
+    fields: { address: 'Cajidiocan Port' },
+    queuedAt: Date.now(),
+    attempts: 0,
+    blockedReason: null,
+    blockedCode: null,
+    sendingSince: null,
     ...overrides,
 });
 
@@ -59,8 +85,10 @@ describe('useOfflineReportSync', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         setOnline(true);
-        countQueuedReportsMock.mockResolvedValue(0);
-        flushQueuedReportsMock.mockResolvedValue(flushResult({ remaining: 0 }));
+        authMock.user = { _id: 'reporter-1' };
+        authMock.canSubmitReports = () => true;
+        listQueuedReportsMock.mockResolvedValue([]);
+        flushQueuedReportsMock.mockResolvedValue(flushResult({ remaining: 0, deliverableRemaining: 0 }));
         subscribeMock.mockImplementation(() => () => {});
     });
 
@@ -82,19 +110,28 @@ describe('useOfflineReportSync', () => {
         expect(nextRetryDelay(OFFLINE_SYNC_RETRY_MAX_MS, flushResult({ deferred: 1 })))
             .toBe(OFFLINE_SYNC_RETRY_MAX_MS);
         expect(nextRetryDelay(OFFLINE_SYNC_RETRY_MAX_MS, null)).toBe(OFFLINE_SYNC_RETRY_MAX_MS);
+        // A report waiting on the reporter is not worth retrying: the clock
+        // resets instead of doubling, and the timer stops arming.
+        expect(nextRetryDelay(OFFLINE_SYNC_RETRY_MAX_MS, flushResult({
+            blocked: 1,
+            deliverableRemaining: 0,
+        }))).toBe(OFFLINE_SYNC_RETRY_BASE_MS);
     });
 
-    test('hands the queue the authenticated report endpoint', async () => {
+    test('hands the queue the authenticated report endpoint and the signed-in reporter', async () => {
         let send = null;
-        flushQueuedReportsMock.mockImplementation(async (sendFn) => {
+        let options = null;
+        flushQueuedReportsMock.mockImplementation(async (sendFn, passedOptions) => {
             send = sendFn;
-            return flushResult({ sent: 1, remaining: 0 });
+            options = passedOptions;
+            return flushResult({ sent: 1, remaining: 0, deliverableRemaining: 0 });
         });
 
         const { result } = renderHook(() => useOfflineReportSync());
 
         await waitFor(() => expect(flushQueuedReportsMock).toHaveBeenCalled());
         expect(result.current.isSyncing).toBe(false);
+        expect(options).toEqual({ reporterId: 'reporter-1' });
 
         const formData = new FormData();
         await send(formData);
@@ -104,11 +141,14 @@ describe('useOfflineReportSync', () => {
     });
 
     test('reports the queue depth and announces delivered reports', async () => {
-        let pending = 2;
-        countQueuedReportsMock.mockImplementation(async () => pending);
+        let entries = [
+            queuedEntry({ clientReportId: 'rep-1' }),
+            queuedEntry({ clientReportId: 'rep-2' }),
+        ];
+        listQueuedReportsMock.mockImplementation(async () => entries);
         flushQueuedReportsMock.mockImplementation(async () => {
-            pending = 0;
-            return flushResult({ sent: 2, remaining: 0 });
+            entries = [];
+            return flushResult({ sent: 2, remaining: 0, deliverableRemaining: 0 });
         });
 
         const { result } = renderHook(() => useOfflineReportSync());
@@ -117,14 +157,67 @@ describe('useOfflineReportSync', () => {
         expect(toastMock.success).toHaveBeenCalledWith('2 offline reports submitted.');
     });
 
+    test('surfaces a blocked report with its reason instead of retrying it silently', async () => {
+        listQueuedReportsMock.mockResolvedValue([
+            queuedEntry({
+                blockedReason: 'A similar incident was already reported nearby.',
+                blockedCode: 'duplicate',
+            }),
+        ]);
+        flushQueuedReportsMock.mockResolvedValue(flushResult({
+            blocked: 1,
+            remaining: 1,
+            deliverableRemaining: 0,
+        }));
+
+        const { result } = renderHook(() => useOfflineReportSync());
+
+        await waitFor(() => expect(result.current.blockedReports).toHaveLength(1));
+        expect(result.current.blockedReports[0]).toMatchObject({
+            clientReportId: 'rep-1',
+            blockedCode: 'duplicate',
+            blockedReason: 'A similar incident was already reported nearby.',
+            label: 'Cajidiocan Port',
+        });
+        // Still owed to the server, so the banner keeps counting it...
+        expect(result.current.pendingCount).toBe(1);
+        // ...but nothing is deliverable, so no pass can be worth scheduling.
+        expect(result.current.deliverableCount).toBe(0);
+        expect(toastMock.error).toHaveBeenCalledWith('1 queued report could not be submitted and needs attention.');
+    });
+
+    test('never shows another account\'s queued report as this reporter\'s own', async () => {
+        listQueuedReportsMock.mockResolvedValue([
+            queuedEntry({ clientReportId: 'admin-queued', reporterId: 'municipal-admin-9' }),
+        ]);
+
+        const { result } = renderHook(() => useOfflineReportSync());
+
+        await waitFor(() => expect(listQueuedReportsMock).toHaveBeenCalled());
+        await waitFor(() => expect(result.current.pendingCount).toBe(0));
+        expect(result.current.deliverableCount).toBe(0);
+        expect(result.current.blockedReports).toHaveLength(0);
+    });
+
+    test('does not flush at all from a session that cannot submit reports', async () => {
+        authMock.user = { _id: 'admin-9', role: 'municipal_admin' };
+        authMock.canSubmitReports = () => false;
+        listQueuedReportsMock.mockResolvedValue([queuedEntry({ reporterId: 'reporter-1' })]);
+
+        renderHook(() => useOfflineReportSync());
+
+        await waitFor(() => expect(listQueuedReportsMock).toHaveBeenCalled());
+        expect(flushQueuedReportsMock).not.toHaveBeenCalled();
+    });
+
     test('retries on its own while the signal is gone and no connection event fires', async () => {
         vi.useFakeTimers();
-        countQueuedReportsMock.mockResolvedValue(1);
+        listQueuedReportsMock.mockResolvedValue([queuedEntry()]);
         flushQueuedReportsMock.mockResolvedValue(flushResult({ failed: 1 }));
 
         renderHook(() => useOfflineReportSync());
 
-        // Mount pass and the count refresh settle without advancing any timer.
+        // Mount pass and the list read settle without advancing any timer.
         await act(async () => {
             await vi.advanceTimersByTimeAsync(0);
         });
@@ -143,7 +236,7 @@ describe('useOfflineReportSync', () => {
     });
 
     test('delivers again when the app regains focus', async () => {
-        countQueuedReportsMock.mockResolvedValue(1);
+        listQueuedReportsMock.mockResolvedValue([queuedEntry()]);
         flushQueuedReportsMock.mockResolvedValue(flushResult({ failed: 1 }));
 
         renderHook(() => useOfflineReportSync());
@@ -165,7 +258,7 @@ describe('useOfflineReportSync', () => {
             queueListener = listener;
             return () => { queueListener = null; };
         });
-        countQueuedReportsMock.mockResolvedValue(1);
+        listQueuedReportsMock.mockResolvedValue([queuedEntry()]);
         flushQueuedReportsMock.mockResolvedValue(flushResult({ failed: 1 }));
 
         renderHook(() => useOfflineReportSync());
@@ -183,11 +276,11 @@ describe('useOfflineReportSync', () => {
 
     test('stays quiet while the device is offline and delivers when it returns', async () => {
         setOnline(false);
-        countQueuedReportsMock.mockResolvedValue(1);
+        listQueuedReportsMock.mockResolvedValue([queuedEntry()]);
 
         renderHook(() => useOfflineReportSync());
 
-        await waitFor(() => expect(countQueuedReportsMock).toHaveBeenCalled());
+        await waitFor(() => expect(listQueuedReportsMock).toHaveBeenCalled());
         expect(flushQueuedReportsMock).not.toHaveBeenCalled();
 
         setOnline(true);
