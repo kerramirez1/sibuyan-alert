@@ -86,20 +86,16 @@ const baseProps = {
 };
 
 describe('DashboardAnalyticsWorkspace', () => {
-    test('renders a compact municipality-scoped operational dashboard', () => {
+    test('renders the municipal briefing with its metrics and navigation', () => {
         const onOpenMap = vi.fn();
         const onOpenReports = vi.fn();
         render(<DashboardAnalyticsWorkspace {...baseProps} onOpenMap={onOpenMap} onOpenReports={onOpenReports} />);
 
         expect(screen.getByRole('heading', { name: 'Incident overview' })).toBeInTheDocument();
 
-        // The view's subject is its h1, and it prints nothing — the same call the
-        // map workspace makes for its own title. What the header shows is the
-        // eyebrow that names the EOC and the line that says what the view is
-        // reporting for the month.
         const pageHeading = screen.getByRole('heading', { level: 1, name: 'Municipal Situation Overview' });
-        expect(pageHeading).toHaveClass('sr-only');
-        expect(pageHeading.className).not.toContain('sm:text-[32px]');
+        expect(pageHeading).toBeVisible();
+        expect(pageHeading).not.toHaveClass('sr-only');
         expect(screen.getByText(/incident status and response readiness for/i)).toBeInTheDocument();
 
         expect(screen.queryByRole('button', { name: 'Cajidiocan' })).not.toBeInTheDocument();
@@ -114,7 +110,10 @@ describe('DashboardAnalyticsWorkspace', () => {
         );
         expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
         expect(within(screen.getByTestId('trend-insight')).getByText(/1 report/)).toBeInTheDocument();
-        expect(screen.getByText('1 · 100%')).toBeInTheDocument();
+        const lifecycle = within(screen.getByLabelText('Report lifecycle distribution'));
+        expect(lifecycle.getByText('Verified')).toBeInTheDocument();
+        expect(lifecycle.getByText('100%')).toBeInTheDocument();
+        expect(lifecycle.getByText('1')).toBeInTheDocument();
         expect(screen.getByText('No responded incidents')).toBeInTheDocument();
 
         expect(screen.getByRole('heading', { name: 'By barangay' })).toBeInTheDocument();
@@ -135,9 +134,14 @@ describe('DashboardAnalyticsWorkspace', () => {
             'sm:h-[360px]',
             'lg:h-[400px]',
         );
-        expect(screen.getByText(report.address)).toHaveClass('truncate');
-
         const recentActivitySection = screen.getByLabelText('Recent activity');
+        const activityButton = within(recentActivitySection).getByRole('button', { name: /^View incident queue: E\. Aguinaldo/ });
+        expect(activityButton).toHaveTextContent(report.address);
+        activityButton.focus();
+        expect(activityButton).toHaveFocus();
+        fireEvent.click(activityButton);
+        expect(onOpenReports).toHaveBeenCalledTimes(2);
+
         const activityBadge = within(recentActivitySection).getByText('Verified');
         expect(activityBadge).toBeInTheDocument();
         expect(activityBadge).not.toHaveClass('border-gray-200/90', 'bg-gray-50/80', 'rounded-md');
@@ -312,24 +316,14 @@ describe('DashboardAnalyticsWorkspace', () => {
             );
         });
 
-        test('stacks the trend header before its meta row can overrun the panel', () => {
+        test('keeps severity context and a labeled alternative to selecting chart bars', () => {
             render(<DashboardAnalyticsWorkspace {...baseProps} chartData={severityTrend} />);
 
-            const meta = screen.getByTestId('trend-insight').parentElement;
-            const header = meta.parentElement;
-
-            // The meta column holds an insight sentence and the legend and used
-            // to be `shrink-0` beside the title at every width, so on a phone it
-            // kept its size and pushed the panel past the viewport, where the
-            // page's own `overflow-x-hidden` clipped the peak link.
-            expect(header).toHaveClass('flex-col', 'sm:flex-row', 'sm:justify-between');
-            expect(meta).toHaveClass('items-start', 'sm:items-end', 'min-w-0');
-            // And it is the title, not the sentence, that keeps its width: a
-            // `shrink-0` meta is held at its max-content width, which starved
-            // the panel's own heading instead of wrapping the insight line.
-            expect(meta).not.toHaveClass('sm:shrink-0');
-            expect(screen.getByRole('heading', { name: 'Incident trend' }).parentElement).toHaveClass('sm:shrink-0');
-            expect(screen.getByLabelText('Severity legend')).toHaveClass('flex-wrap', 'gap-x-2.5');
+            const legend = within(screen.getByLabelText('Severity legend'));
+            expect(legend.getByText('Minor')).toBeInTheDocument();
+            expect(legend.getByText('Moderate')).toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: 'Filter map by day' })).toHaveValue('');
+            expect(screen.getByRole('option', { name: /Sep 5, 2026 · 2 reports/ })).toBeInTheDocument();
         });
 
         test('splits the insight and breakdown sections where their columns actually fit', () => {
@@ -398,6 +392,26 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(screen.queryByText('Showing Jul 8')).not.toBeInTheDocument();
             const clearedCall = mocks.mapProps.mock.calls.at(-1)[0];
             expect(clearedCall.reports).toHaveLength(3);
+        });
+
+        test('day selector shares the chart drill-down and resets on month changes', () => {
+            mocks.mapProps.mockClear();
+            const { rerender } = render(<DashboardAnalyticsWorkspace {...julyProps} />);
+            const selector = screen.getByRole('combobox', { name: 'Filter map by day' });
+
+            fireEvent.change(selector, { target: { value: '2026-07-09' } });
+            expect(screen.getByText('Showing Jul 9')).toBeInTheDocument();
+            expect(mocks.mapProps.mock.calls.at(-1)[0].reports.map((item) => item._id)).toEqual(['r3']);
+
+            fireEvent.change(selector, { target: { value: '' } });
+            expect(screen.queryByText('Showing Jul 9')).not.toBeInTheDocument();
+            expect(mocks.mapProps.mock.calls.at(-1)[0].reports).toHaveLength(3);
+
+            fireEvent.change(selector, { target: { value: '2026-07-08' } });
+            rerender(<DashboardAnalyticsWorkspace {...julyProps} selectedMonth={new Date(2026, 7, 1)} />);
+            expect(selector).toHaveValue('');
+            expect(screen.queryByText('Showing Jul 8')).not.toBeInTheDocument();
+            expect(mocks.mapProps.mock.calls.at(-1)[0].reports).toHaveLength(3);
         });
 
         test('lists active days instead of a near-empty chart for a sparse full month', () => {

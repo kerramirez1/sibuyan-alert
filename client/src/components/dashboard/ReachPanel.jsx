@@ -1,3 +1,6 @@
+import { useId } from 'react';
+import styles from './DashboardAnalyticsWorkspace.module.css';
+
 /**
  * Reach panel — who opened this record's details, counted once per viewer.
  *
@@ -33,45 +36,47 @@
  */
 const ReachPanel = ({ title, description, rows = [], emptyDetail }) => {
     const safeRows = Array.isArray(rows) ? rows : [];
+    const titleId = useId();
+    const descriptionId = useId();
 
     return (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:rounded-2xl dark:bg-[#0c1813]/90 dark:ring-white/10">
-            <div className="border-b border-gray-100 px-3.5 py-2.5 dark:border-white/5">
-                <h2 className="font-display text-sm font-bold text-gray-950 dark:text-white">{title}</h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+        <div className="flex min-w-0 flex-col">
+            <div className="px-5 py-5 sm:px-6">
+                <h2 id={titleId} className={styles.title}>{title}</h2>
+                <p id={descriptionId} className={styles.description}>{description}</p>
             </div>
 
             {safeRows.length === 0 ? (
-                <p className="px-3.5 py-5 text-xs text-gray-500 dark:text-gray-400">{emptyDetail}</p>
+                <p className={`px-5 py-6 text-sm sm:px-6 ${styles.secondary}`}>{emptyDetail}</p>
             ) : (
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            <th scope="col" className="px-3.5 py-2 font-bold">Record</th>
-                            <th scope="col" className="whitespace-nowrap px-3.5 py-2 text-right font-bold">Public</th>
-                            {/* `whitespace-nowrap` because the record label is the column
-                                that should absorb the squeeze: in the two-panel dashboard
-                                layout these headers were the first thing to run out of
-                                width, so "All viewers" broke onto two lines while the
-                                numbers beneath it stayed on one. */}
-                            <th scope="col" className="whitespace-nowrap px-3.5 py-2 text-right font-bold">All viewers</th>
+                <table className="w-full table-fixed text-left" aria-labelledby={titleId} aria-describedby={descriptionId}>
+                    <colgroup>
+                        <col />
+                        <col className="w-[4.5rem]" />
+                        <col className="w-24" />
+                    </colgroup>
+                    <thead className={styles.reachHeader}>
+                        <tr className={`text-[11px] ${styles.secondary}`}>
+                            <th scope="col" className="py-2.5 pl-5 pr-2 font-medium sm:pl-6">Record</th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Public</th>
+                            <th scope="col" className="whitespace-nowrap py-2.5 pl-2 pr-5 text-right font-medium sm:pr-6">All viewers</th>
                         </tr>
                     </thead>
                     <tbody>
                         {safeRows.map((row) => (
-                            <tr key={row.id} className="border-t border-gray-100 dark:border-white/5">
-                                <td className="px-3.5 py-2 text-xs font-medium text-gray-900 dark:text-gray-100">
+                            <tr key={row.id} className={`border-t ${styles.rule}`}>
+                                <td className="break-words py-3 pl-5 pr-2 text-xs font-medium leading-relaxed sm:pl-6">
                                     {row.label}
                                     {row.municipalityName ? (
-                                        <span className="ml-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                            · {row.municipalityName}
+                                        <span className={`mt-0.5 block text-[11px] font-normal ${styles.subtle}`}>
+                                            {row.municipalityName}
                                         </span>
                                     ) : null}
                                 </td>
-                                <td className="px-3.5 py-2 text-right text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                                <td className={`px-3 py-3 text-right text-sm font-semibold tabular-nums ${styles.accent}`}>
                                     {row.publicViewers}
                                 </td>
-                                <td className="px-3.5 py-2 text-right text-xs tabular-nums text-gray-600 dark:text-gray-300">
+                                <td className={`py-3 pl-2 pr-5 text-right text-xs tabular-nums sm:pr-6 ${styles.secondary}`}>
                                     {row.uniqueViewers}
                                 </td>
                             </tr>
@@ -80,7 +85,7 @@ const ReachPanel = ({ title, description, rows = [], emptyDetail }) => {
                 </table>
             )}
 
-            <p className="border-t border-gray-100 px-3.5 py-2.5 text-[11px] leading-snug text-gray-500 dark:border-white/5 dark:text-gray-400">
+            <p className={`mt-auto border-t px-5 py-4 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
                 Counts someone opening the details. Seeing a pin on the map is not counted, and repeat
                 opens by the same viewer count once. Public is anonymous visitors and verified
                 reporters; All viewers also includes responders and municipal admins.

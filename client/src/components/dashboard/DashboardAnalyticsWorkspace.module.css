@@ -1,0 +1,309 @@
+.workspace {
+    --analytics-surface: var(--surface);
+    --analytics-muted: #f7f9fc;
+    --analytics-border: #e1e7ee;
+    --analytics-ink: #152a40;
+    --analytics-secondary: #526176;
+    --analytics-subtle: #65748a;
+    --analytics-accent: #14385c;
+    --analytics-accent-soft: #edf3f9;
+    --analytics-track: #e8eef4;
+    --chart-axis: #65748a;
+    --chart-grid: #e8eef4;
+    color: var(--analytics-ink);
+}
+
+:global(.dark) .workspace {
+    --analytics-muted: var(--surface-muted);
+    --analytics-border: var(--border-strong);
+    --analytics-ink: var(--text-primary);
+    --analytics-secondary: #b1c4bc;
+    --analytics-subtle: #94aaa0;
+    --analytics-accent: #a9cce8;
+    --analytics-accent-soft: rgb(143 173 201 / 0.1);
+    --analytics-track: #263d34;
+    --chart-axis: #94aaa0;
+    --chart-grid: #2a4036;
+}
+
+.surface {
+    min-width: 0;
+    border: 1px solid var(--analytics-border, var(--border));
+    border-radius: 12px;
+    background: var(--analytics-surface, var(--surface));
+    box-shadow: 0 1px 2px rgb(15 42 68 / 0.03);
+}
+
+.panel {
+    min-width: 0;
+    padding: 20px;
+}
+
+.panelHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.title {
+    color: var(--analytics-ink, var(--text-primary));
+    font-family: Outfit, system-ui, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.description {
+    margin-top: 4px;
+    color: var(--analytics-secondary, var(--text-secondary));
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.meta {
+    flex-shrink: 0;
+    padding-top: 3px;
+    color: var(--analytics-subtle, var(--text-secondary));
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.sectionLabel {
+    color: var(--analytics-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.secondary { color: var(--analytics-secondary, var(--text-secondary)); }
+.subtle { color: var(--analytics-subtle, var(--text-secondary)); }
+.accent { color: var(--analytics-accent, var(--accent-text)); }
+
+.link {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 6px;
+    color: var(--analytics-accent);
+    font-size: 12px;
+    font-weight: 600;
+    text-underline-offset: 4px;
+}
+
+.link:hover { text-decoration: underline; }
+
+.periodControl {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    border: 1px solid var(--analytics-border);
+    border-radius: 8px;
+    padding: 3px;
+    background: var(--analytics-surface);
+}
+
+.periodButton {
+    display: inline-flex;
+    min-width: 40px;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: var(--analytics-secondary);
+}
+
+.periodButton:hover:not(:disabled) { background: var(--analytics-muted); }
+.periodButton:disabled { cursor: not-allowed; opacity: 0.35; }
+
+.workspace .exportButton {
+    border-radius: 8px;
+    /* Override the legacy dark-mode mappings on Button's neutral utilities. */
+    background-color: var(--analytics-accent-soft) !important;
+    color: var(--analytics-accent) !important;
+    font-size: 13px;
+}
+
+.workspace .exportButton:hover { background-color: var(--analytics-track) !important; }
+
+.summaryFooter {
+    border-top: 1px solid var(--analytics-border);
+    background: var(--analytics-muted);
+    border-radius: 0 0 11px 11px;
+}
+
+.metric {
+    min-width: 0;
+    padding: 20px;
+    border-color: var(--analytics-border);
+}
+
+.metricAttention { background: rgb(245 158 11 / 0.06); }
+
+.metricLabel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--analytics-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.metricValue {
+    margin-top: 12px;
+    font-family: Outfit, system-ui, sans-serif;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+}
+
+.trendInsight {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 4px;
+    margin-top: 16px;
+    border-top: 1px solid var(--analytics-border);
+    padding-top: 12px;
+    color: var(--analytics-secondary);
+    font-size: 12px;
+    line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+}
+
+.tooltip {
+    min-width: 156px;
+    border: 1px solid var(--analytics-border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--analytics-surface);
+    color: var(--analytics-ink);
+    box-shadow: 0 4px 16px rgb(15 42 68 / 0.1);
+    font-size: 12px;
+}
+
+.empty {
+    display: flex;
+    min-height: 160px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    color: var(--analytics-secondary);
+    text-align: center;
+}
+
+.dayRow {
+    display: flex;
+    min-height: 52px;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: left;
+}
+
+.dayRow:hover,
+.dayRow[aria-pressed='true'] { background: var(--analytics-accent-soft); }
+
+.dayRow[aria-pressed='true'] { color: var(--analytics-accent); }
+
+.daySelect {
+    min-height: 40px;
+    min-width: 0;
+    max-width: 100%;
+    border: 1px solid var(--analytics-border);
+    border-radius: 6px;
+    padding: 6px 28px 6px 10px;
+    background-color: var(--analytics-surface);
+    color: var(--analytics-ink);
+    font-size: 12px;
+}
+
+.track { background: var(--analytics-track); }
+.rule { border-color: var(--analytics-border, var(--border)); }
+
+.selectedDay {
+    background: var(--analytics-accent-soft);
+    color: var(--analytics-accent);
+}
+
+.mapFilters {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    border-bottom: 1px solid var(--analytics-border);
+}
+
+.mapFilters > button {
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    border-radius: 6px;
+    padding: 8px;
+    white-space: normal;
+}
+
+.mapFilters > button::before { inset: 0; }
+
+.activityRow {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 16px 20px;
+    text-align: left;
+}
+
+.activityRow:hover { background: var(--analytics-muted); }
+.workspace li:last-child > .activityRow { border-radius: 0 0 11px 11px; }
+
+.reachHeader { background: var(--analytics-muted, var(--surface-muted)); }
+
+.dividedPanels > * + * { border-top: 1px solid var(--analytics-border); }
+
+@media (min-width: 768px) {
+    .dividedPanels > * + * {
+        border-top: 0;
+        border-left: 1px solid var(--analytics-border);
+    }
+}
+
+/* Keep focus visible against both light surfaces and dark map chrome. The
+   legacy global button rule suppresses outlines, so scope its replacement. */
+.workspace :is(button, a, select):focus-visible {
+    outline: 2px solid var(--analytics-accent) !important;
+    outline-offset: 3px;
+    box-shadow: none !important;
+    filter: none;
+}
+
+@media (min-width: 640px) {
+    .panel { padding: 24px; }
+    .metric { padding: 22px 24px; }
+    .metricValue { font-size: 40px; }
+    .activityRow { padding: 16px 24px; }
+    .mapFilters { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+    .mapFilters > button {
+        justify-content: flex-start;
+        border-radius: 6px 6px 0 0;
+        padding-right: 12px;
+        padding-left: 12px;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 374px) {
+    .panel, .metric { padding: 16px; }
+}

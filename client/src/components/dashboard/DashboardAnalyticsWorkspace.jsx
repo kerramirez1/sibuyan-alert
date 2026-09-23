@@ -9,6 +9,7 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    Cell,
     LabelList,
     ResponsiveContainer,
     Tooltip,
@@ -18,7 +19,14 @@ import {
 import {
     HiChevronLeft,
     HiChevronRight,
+    HiOutlineArrowRight,
+    HiOutlineCalendar,
+    HiOutlineChartBar,
+    HiOutlineClock,
     HiOutlineDownload,
+    HiOutlineExclamationCircle,
+    HiOutlineLocationMarker,
+    HiOutlineX,
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import Button from '../ui/Button';
@@ -30,6 +38,7 @@ import MapFilterRail from './MapFilterRail';
 import { getFilteredMapReports } from '../../utils/mapReports';
 import { getMapExperience } from '../../config/mapExperience';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
+import styles from './DashboardAnalyticsWorkspace.module.css';
 
 const MAP_STATUS_FILTERS = Object.freeze([
     // The operations rail's own three status tabs, in its wording, because they
@@ -67,30 +76,14 @@ const SEVERITY_SERIES = Object.freeze([
     Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#9CA3AF' }),
 ]);
 
-/**
- * One surface for every card on this page, and the same one the operations map
- * card beside it draws: a single hairline ring plus a real elevation, so the two
- * halves of the dashboard read as one component family. The panels used to pair
- * a border with `shadow-2xs` while the map carried a ring and `shadow-sm`, which
- * is two card styles on one screen.
- */
-const PANEL_SURFACE = 'rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:rounded-2xl dark:bg-[#0c1813]/90 dark:ring-white/10';
-const PANEL_CLASS = `${PANEL_SURFACE} p-3.5 sm:p-4`;
-
-/**
- * Card chrome, in one place: one title scale, one description scale, one divider
- * tone, one meta treatment. Four panels had drifted into four variants of the
- * same header — `pb-2` here, `items-center` there, a `text-[11px]` meta on one
- * and nothing on the next — which read as four components rather than one card
- * with four contents.
- */
-const PANEL_HEADER_CLASS = 'flex items-start justify-between gap-3 border-b border-gray-100 pb-2.5 dark:border-white/5';
-const PANEL_TITLE_CLASS = 'font-display text-sm font-bold text-gray-950 dark:text-white';
-const PANEL_DESCRIPTION_CLASS = 'mt-0.5 text-xs text-gray-500 dark:text-gray-400';
-const PANEL_META_CLASS = 'shrink-0 text-[11px] font-semibold tabular-nums text-gray-500 dark:text-gray-400';
-
-/** The band label above a section — the micro-heading the map column uses. */
-const SECTION_LABEL_CLASS = 'text-[11px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300';
+// Related panels share one surface; typography and theme tokens stay local to analytics.
+const PANEL_SURFACE = styles.surface;
+const PANEL_CLASS = styles.panel;
+const PANEL_HEADER_CLASS = styles.panelHeader;
+const PANEL_TITLE_CLASS = styles.title;
+const PANEL_DESCRIPTION_CLASS = styles.description;
+const PANEL_META_CLASS = styles.meta;
+const SECTION_LABEL_CLASS = styles.sectionLabel;
 
 const formatActivityTime = (value) => {
     if (!value) return 'Time unavailable';
@@ -116,12 +109,15 @@ const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const firstPayload = payload[0]?.payload;
     return (
-        <div className="rounded-lg border border-gray-200/90 bg-white/95 p-2.5 text-xs shadow-md backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/95">
-            <p className="mb-1 font-bold text-gray-900 dark:text-white">{firstPayload?.fullDate || label}</p>
+        <div className={styles.tooltip}>
+            <p className="mb-2 font-semibold">{firstPayload?.fullDate || label}</p>
             {payload.map((entry) => (
                 <div key={String(entry?.dataKey ?? entry?.name ?? Math.random())} className="flex items-center justify-between gap-3 py-0.5">
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">{entry.name || entry.dataKey}</span>
-                    <span className="font-bold text-gray-900 dark:text-white tabular-nums">{entry.value}</span>
+                    <span className={`inline-flex items-center gap-2 ${styles.secondary}`}>
+                        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+                        {entry.name || entry.dataKey}
+                    </span>
+                    <span className="font-semibold tabular-nums">{entry.value}</span>
                 </div>
             ))}
         </div>
@@ -129,9 +125,10 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 const EmptyChart = ({ message = 'No data for the selected period', detail }) => (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center dark:border-white/10">
-        <p className="text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">{message}</p>
-        {detail && <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{detail}</p>}
+    <div className={styles.empty}>
+        <HiOutlineChartBar className={`mb-3 h-7 w-7 ${styles.subtle}`} aria-hidden="true" />
+        <p className="text-sm font-semibold">{message}</p>
+        {detail && <p className="mt-1.5 max-w-sm text-xs leading-relaxed">{detail}</p>}
     </div>
 );
 
@@ -159,21 +156,20 @@ const dominantSeverityFill = (day) => {
     return SEVERITY_SERIES.find(({ key }) => key === top)?.fill || '#9CA3AF';
 };
 
-/**
- * One KPI in the overview band. Equal weight by construction — one label tone,
- * one number size, one helper tone — because a band read at a glance cannot
- * afford a tile that looks more urgent than its neighbour; where a tile sits is
- * what orders them. `accent` is the single exception, and only for a state the
- * reader has to act on.
- */
-const MetricTile = ({ label, value, helper, accent = null }) => (
-    <div className="flex min-w-0 flex-col px-3 py-3.5 sm:px-4 sm:py-4">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-1.5 text-2xl font-bold leading-none tabular-nums tracking-tight text-gray-900 sm:text-[28px] dark:text-white">
-            {value}
-        </p>
-        <p className="mt-1.5 text-xs leading-snug text-gray-500 dark:text-gray-400">{helper}</p>
-        {accent ? <p className="mt-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">{accent}</p> : null}
+const MetricTile = ({ label, value, helper, status, accent = null }) => (
+    <div className={`${styles.metric} ${accent ? styles.metricAttention : ''}`}>
+        <dt className={styles.metricLabel}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400'}`} aria-hidden="true" />
+            {label}
+        </dt>
+        <dd className={`${styles.metricValue} ${accent ? 'text-amber-700 dark:text-amber-400' : ''}`}>{value}</dd>
+        <dd className={`mt-2 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
+        {accent && (
+            <dd className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                <HiOutlineExclamationCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                {accent}
+            </dd>
+        )}
     </div>
 );
 
@@ -182,6 +178,7 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
     const safeReportCount = Number.isFinite(Number(reportCount)) ? Number(reportCount) : 0;
     const activeDays = safeChartData.filter((day) => Number(day?.total) > 0);
     const summaryId = useId();
+    const daySelectId = useId();
     const hasTrendData = activeDays.length > 0;
     // A full month with almost nothing in it reads as a broken chart, so list
     // the active days instead. Short excerpts (drill-downs, tests) keep bars.
@@ -210,64 +207,52 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
 
     return (
         <div className={`${PANEL_CLASS} xl:col-span-2`}>
-            {/* The meta column stacks under the title below sm. It carries a full
-                insight sentence plus the severity legend and was `shrink-0`
-                beside the title, so on a phone it kept its width and pushed the
-                panel wider than the viewport — and the page's `overflow-x-hidden`
-                then cut the peak link off rather than letting anything scroll.
-                One row from sm, where the two can share the width. */}
-            <div className="flex flex-col gap-2 border-b border-gray-100 pb-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3 dark:border-white/5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0 sm:shrink-0">
                     <h2 className={PANEL_TITLE_CLASS}>Incident trend</h2>
                     <p className={PANEL_DESCRIPTION_CLASS}>Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
                 </div>
-                {/* The title keeps its width and the meta absorbs the squeeze —
-                    the reverse of what this did. A `shrink-0` item is held at
-                    its max-content width, so the insight sentence ("47 reports ·
-                    Peak Sep 12 (6) · 30 quiet days of 30 · 12 fewer than Aug"
-                    is ~480px) sat at its full width and starved the title beside
-                    it, which wrapped to a strip one character wide. The sentence
-                    is the part that should wrap; the panel's name is not. */}
-                <div className="flex min-w-0 flex-col items-start gap-1 text-[11px] tabular-nums text-gray-500 sm:items-end dark:text-gray-400">
-                    <p data-testid="trend-insight">
-                        <span className="tabular-nums font-bold text-gray-700 dark:text-gray-300">{reportLabel}</span>
-                        {insight.peak && (
-                            <>
-                                <span aria-hidden="true"> · Peak </span>
-                                <button
-                                    type="button"
-                                    onClick={() => onSelectDay?.(insight.peak.dayKey)}
-                                    title={`Filter map to ${insight.peak.fullDate}`}
-                                    aria-label={`Filter map to ${insight.peak.fullDate}`}
-                                    className="font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
-                                >
-                                    {insight.peak.label}
-                                </button>
-                                <span className="tabular-nums"> ({insight.peak.count})</span>
-                            </>
-                        )}
-                        {insight.total > 0 && insight.quietDays > 0 && (
-                            <span> · {insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {safeChartData.length}</span>
-                        )}
-                        {insight.delta && (
-                            <span className="tabular-nums"> · {insight.delta.label}</span>
-                        )}
-                    </p>
-                    {presentSeverities.length > 0 && (
-                        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1" aria-label="Severity legend">
+                {presentSeverities.length > 0 && (
+                    <div className={`min-w-0 text-[11px] ${styles.secondary}`}>
+                        <p className={`mb-1.5 font-medium sm:text-right ${styles.subtle}`}>Severity</p>
+                        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 sm:justify-end" aria-label="Severity legend">
                             {presentSeverities.map(({ key, label, fill }) => (
-                                <span key={key} className="inline-flex items-center gap-1">
-                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: fill }} aria-hidden="true" />
-                                    <span>{label}</span>
+                                <span key={key} className="inline-flex items-center gap-1.5">
+                                    <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: fill }} aria-hidden="true" />
+                                    {label}
                                 </span>
                             ))}
                         </p>
-                    )}
-                </div>
+                    </div>
+                )}
+            </div>
+
+            <div data-testid="trend-insight" className={styles.trendInsight}>
+                <span className={`font-semibold ${styles.accent}`}>{reportLabel}</span>
+                {insight.peak && (
+                    <span className="inline-flex items-center gap-1">
+                        Peak
+                        <button
+                            type="button"
+                            onClick={() => onSelectDay?.(insight.peak.dayKey)}
+                            title={`Filter map to ${insight.peak.fullDate}`}
+                            aria-label={`Filter map to ${insight.peak.fullDate}`}
+                            aria-pressed={selectedDay === insight.peak.dayKey}
+                            className={`rounded px-1 font-semibold underline decoration-dotted underline-offset-4 ${styles.accent}`}
+                        >
+                            {insight.peak.label}
+                        </button>
+                        <span>({insight.peak.count})</span>
+                    </span>
+                )}
+                {insight.total > 0 && insight.quietDays > 0 && (
+                    <span>{insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {safeChartData.length}</span>
+                )}
+                {insight.delta && <span className={styles.subtle}>{insight.delta.label}</span>}
             </div>
 
             {!hasTrendData ? (
-                <div className="mt-3">
+                <div className="py-4">
                     <EmptyChart
                         message={safeReportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
                         detail={safeReportCount === 0
@@ -280,7 +265,8 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                     <p id={summaryId} className="sr-only">
                         {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
                     </p>
-                    <ul data-testid="incident-days-list" className="divide-y divide-gray-100 dark:divide-white/5">
+                    <p className={`mb-2 text-xs ${styles.secondary}`}>Recorded days</p>
+                    <ul data-testid="incident-days-list" className="space-y-1">
                         {activeDays.map((day) => {
                             const isSelected = day.dayKey === selectedDay;
                             return (
@@ -290,11 +276,12 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                                         onClick={() => handleDaySelect(day)}
                                         aria-pressed={isSelected}
                                         aria-label={`Filter map to ${day.fullDate}, ${day.total} ${day.total === 1 ? 'report' : 'reports'}`}
-                                        className={`flex w-full items-center gap-2.5 py-2.5 text-left ${isSelected ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}
+                                        className={styles.dayRow}
                                     >
                                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dominantSeverityFill(day) }} aria-hidden="true" />
-                                        <span className="min-w-0 flex-1 truncate text-sm">{day.fullDate}</span>
-                                        <span className="shrink-0 text-sm tabular-nums">{day.total} {day.total === 1 ? 'report' : 'reports'}</span>
+                                        <span className="min-w-0 flex-1 text-sm font-medium">{day.fullDate}</span>
+                                        <span className="shrink-0 text-xs font-semibold tabular-nums">{day.total} {day.total === 1 ? 'report' : 'reports'}</span>
+                                        <HiChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     </button>
                                 </li>
                             );
@@ -307,19 +294,19 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                         {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
                     </p>
                     <div
-                        className="h-44 min-w-0 w-full sm:h-48"
+                        className="h-52 min-w-0 w-full sm:h-56"
                         role="img"
                         aria-label={`Daily incident report trend for ${formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}`}
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={safeChartData} data-testid="incident-bar-chart" margin={{ top: 12, right: 8, left: -24, bottom: 0 }} barCategoryGap="30%">
-                                <CartesianGrid strokeDasharray="3 4" vertical stroke="var(--chart-grid)" />
+                            <BarChart data={safeChartData} data-testid="incident-bar-chart" margin={{ top: 16, right: 4, left: 0, bottom: 0 }} barCategoryGap="30%" accessibilityLayer>
+                                <CartesianGrid strokeDasharray="3 4" vertical={false} stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
+                                    tick={{ fill: 'var(--chart-axis)', fontSize: 11 }}
                                     tickFormatter={(value, index) => (index === 0 ? value : formatXAxisDay(value))}
                                     interval="preserveStartEnd"
                                     minTickGap={24}
@@ -328,11 +315,11 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: 'var(--chart-axis)', fontSize: 10 }}
+                                    tick={{ fill: 'var(--chart-axis)', fontSize: 11 }}
                                     allowDecimals={false}
                                     width={28}
                                 />
-                                <Tooltip content={<ChartTooltip />} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--analytics-accent-soft)' }} />
                                 {SEVERITY_SERIES.map(({ key, label, fill }) => (
                                     <Bar
                                         key={key}
@@ -342,16 +329,39 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                                         fill={fill}
                                         isAnimationActive={false}
                                         onClick={handleBarClick}
+                                        cursor="pointer"
                                     >
+                                        {safeChartData.map((day, index) => (
+                                            <Cell key={day.dayKey || index} fillOpacity={selectedDay && day.dayKey !== selectedDay ? 0.3 : 1} />
+                                        ))}
                                         <LabelList dataKey="total" content={renderStackTotalLabel(key)} />
                                     </Bar>
                                 ))}
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-                        Select a bar to filter the map.
-                    </p>
+                </div>
+            )}
+            {hasTrendData && (
+                <div className={`mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`}>
+                    <p className={`text-xs ${styles.subtle}`}>Select a {isSparseTrend ? 'day' : 'bar or a day'} to filter the map.</p>
+                    <div className="flex min-w-0 items-center gap-2">
+                        <label htmlFor={daySelectId} className={`shrink-0 text-xs font-medium ${styles.secondary}`}>Map day</label>
+                        <select
+                            id={daySelectId}
+                            aria-label="Filter map by day"
+                            value={selectedDay || ''}
+                            onChange={(event) => onSelectDay?.(event.target.value || null)}
+                            className={`flex-1 sm:flex-initial ${styles.daySelect}`}
+                        >
+                            <option value="">All days</option>
+                            {activeDays.map((day, index) => (
+                                <option key={day.dayKey || index} value={day.dayKey}>
+                                    {day.fullDate} · {day.total} {day.total === 1 ? 'report' : 'reports'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             )}
         </div>
@@ -362,7 +372,7 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
     const safeStatus = toSafeArray(statusData);
     const safeTotal = Number.isFinite(Number(totalReports)) ? Number(totalReports) : 0;
     return (
-    <div className={PANEL_CLASS}>
+    <div className={`${PANEL_CLASS} border-t xl:border-l xl:border-t-0 ${styles.rule}`}>
         <div className={PANEL_HEADER_CLASS}>
             <div className="min-w-0">
                 <h2 className={PANEL_TITLE_CLASS}>Report lifecycle</h2>
@@ -375,12 +385,8 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
             )}
         </div>
         {safeStatus.length ? (
-            <div className="mt-3.5 space-y-3" aria-label="Report lifecycle distribution">
-                {/* Visual Segmented Proportional Distribution Track — one bar, no
-                    gaps between segments: the seams this used to draw (`gap-0.5`)
-                    cut the bar into tiles and made a continuous share look like
-                    separate quantities. */}
-                <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5" aria-hidden="true">
+            <div className="mt-5" aria-label="Report lifecycle distribution">
+                <div className={`flex h-2.5 w-full overflow-hidden rounded-full ${styles.track}`} aria-hidden="true">
                     {safeStatus.map((item) => {
                         const pct = safeTotal ? (Number(item?.value || 0) / safeTotal) * 100 : 0;
                         if (pct <= 0) return null;
@@ -388,30 +394,34 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
                             <div
                                 key={String(item?.name || Math.random())}
                                 style={{ width: `${pct}%`, backgroundColor: item.color }}
-                                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
+                                className="h-full"
                                 title={`${item.name}: ${item.value}`}
                             />
                         );
                     })}
                 </div>
 
-                {/* Status Breakdown Rows */}
-                <div className="divide-y divide-gray-100/80 dark:divide-white/5">
+                <div className={`mt-5 flex items-center justify-between text-[11px] font-medium ${styles.subtle}`} aria-hidden="true">
+                    <span>Status</span>
+                    <span className="flex gap-4"><span className="w-10 text-right">Reports</span><span className="w-10 text-right">Share</span></span>
+                </div>
+                <dl className="mt-1">
                     {safeStatus.map((item) => {
                         const percentage = safeTotal ? Math.round((Number(item?.value || 0) / safeTotal) * 100) : 0;
                         return (
-                            <div key={String(item?.name || Math.random())} className="flex items-center justify-between gap-2 py-2.5 text-xs">
-                                <div className="flex min-w-0 items-center gap-2">
+                            <div key={String(item?.name || Math.random())} className={`flex items-center justify-between gap-2 border-b py-3 text-[13px] last:border-0 ${styles.rule}`}>
+                                <dt className="flex min-w-0 items-center gap-2">
                                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
-                                    <span className="truncate font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
-                                </div>
-                                <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-white">
-                                    {item.value} · {percentage}%
-                                </span>
+                                    <span className="font-medium">{item.name}</span>
+                                </dt>
+                                <dd className="flex shrink-0 items-center gap-4 tabular-nums">
+                                    <span className="w-10 text-right font-semibold">{item.value}<span className="sr-only"> reports, </span></span>
+                                    <span className={`w-10 text-right text-xs ${styles.secondary}`}>{percentage}%</span>
+                                </dd>
                             </div>
                         );
                     })}
-                </div>
+                </dl>
             </div>
         ) : (
             <div className="mt-3"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
@@ -433,13 +443,13 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                 </div>
                 {safeData.length > 0 && (
                     <span className={PANEL_META_CLASS}>
-                        {safeData.length} {isMunicipality ? 'municipalities' : 'recorded'}
+                        {safeData.length} {isMunicipality ? 'municipalities' : 'shown'}
                     </span>
                 )}
             </div>
 
             {safeData.length ? (
-                <div className="mt-3.5 space-y-1" role="list" aria-label={`${title}: ${description}`}>
+                <div className="mt-4" role="list" aria-label={`${title}: ${description}`}>
                     {safeData.map((item, index) => {
                         const count = Number(item?.count) || 0;
                         const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -448,30 +458,24 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                         return (
                             <div
                                 key={String(item?.name ?? `row-${index}`)}
-                                className="group relative rounded-lg px-2 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                                className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-3"
                                 role="listitem"
                             >
-                                <div className="relative z-10 flex items-center justify-between gap-2 text-xs">
-                                    <div className="flex min-w-0 items-center gap-2.5">
-                                        <span className={`shrink-0 text-[11px] font-semibold tabular-nums ${
-                                            isTop ? 'text-brand-700 dark:text-sky-400' : 'text-gray-400 dark:text-gray-500'
-                                        }`}>
-                                            {String(index + 1).padStart(2, '0')}
-                                        </span>
-                                        <span className="truncate font-semibold text-gray-900 dark:text-gray-100">
-                                            {item.name}
-                                        </span>
-                                    </div>
-                                    <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                                        {count} <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">({percentage}%)</span>
-                                    </span>
-                                </div>
-                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                                <span className={`pt-0.5 text-[11px] font-medium tabular-nums ${isTop ? styles.accent : styles.subtle}`} aria-hidden="true">
+                                    {String(index + 1).padStart(2, '0')}
+                                </span>
+                                <span className="min-w-0 break-words text-[13px] font-medium leading-5">{item.name}</span>
+                                <span className="flex items-baseline gap-2 text-[13px] font-semibold tabular-nums">
+                                    {count} <span className={`w-9 text-right text-xs font-normal ${styles.secondary}`}>{percentage}%</span>
+                                </span>
+                                <div className={`col-span-2 col-start-2 mt-2 h-1.5 overflow-hidden rounded-full ${styles.track}`} aria-hidden="true">
                                     <div
-                                        className={`h-full rounded-full transition-all duration-300 ${
-                                            isTop ? 'bg-brand-600 dark:bg-brand-500' : 'bg-gray-400 dark:bg-gray-600'
-                                        }`}
-                                        style={{ width: `${Math.max(percentage, count > 0 ? 4 : 0)}%` }}
+                                        className="h-full rounded-full"
+                                        style={{
+                                            width: `${Math.max(percentage, count > 0 ? 4 : 0)}%`,
+                                            backgroundColor: isTop ? 'var(--analytics-accent)' : 'var(--analytics-subtle)',
+                                            opacity: isTop ? 1 : 0.55,
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -483,6 +487,7 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                     <EmptyChart message={`No ${title.toLowerCase()} data`} detail={emptyDetail} />
                 </div>
             )}
+            {safeData.length > 0 && <p className={`mt-3 text-[11px] ${styles.subtle}`}>Share of reports in the displayed breakdown.</p>}
         </div>
     );
 };
@@ -642,259 +647,192 @@ const DashboardAnalyticsWorkspace = ({
 
     if (loading) {
         return (
-            <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4" role="status" aria-busy="true" aria-label="Loading analytics">
+            <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-6`} role="status" aria-busy="true" aria-label="Loading analytics">
                 <span className="sr-only">Loading analytics</span>
-                {/* Mirrors the real page's rhythm — header, overview band, the two
-                    insight panels, the map — so the skeleton is the layout it is
-                    standing in for rather than a stack of unrelated boxes. */}
-                <div className="flex flex-col gap-2">
-                    <SkeletonCard className="h-14" />
-                    <SkeletonCard className="h-9" />
+                <div className="space-y-3 py-1">
+                    <Skeleton variant="text" className="h-3 w-32" />
+                    <Skeleton variant="text" className="h-9 w-3/4 max-w-md" />
+                    <Skeleton variant="text" className="h-4 w-full max-w-xl" />
+                    <Skeleton variant="text" className="h-12 w-64 max-w-full" />
                 </div>
-                <div className="grid grid-cols-2 divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 md:grid-cols-4 md:rounded-2xl [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
+                <div className={`${PANEL_SURFACE} grid grid-cols-2 md:grid-cols-4 [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t`}>
                     {[0, 1, 2, 3].map((item) => (
-                        <div key={item} className="flex flex-col px-3 py-3.5 sm:px-4 sm:py-4">
-                            <Skeleton variant="text" className="h-2.5 w-20" />
-                            <Skeleton variant="text" className="mt-2 h-7 w-12" />
-                            <Skeleton variant="text" className="mt-2 h-2.5 w-24" />
+                        <div key={item} className={styles.metric}>
+                            <Skeleton variant="text" className="h-3 w-20" />
+                            <Skeleton variant="text" className="mt-3 h-10 w-14" />
+                            <Skeleton variant="text" className="mt-3 h-3 w-24 max-w-full" />
                         </div>
                     ))}
                 </div>
-                <div className="grid gap-3 xl:grid-cols-3">
-                    <SkeletonCard className="h-64 xl:col-span-2" />
-                    <SkeletonCard className="h-64" />
+                <div className={`${PANEL_SURFACE} grid xl:grid-cols-3`}>
+                    <SkeletonCard className="h-80 xl:col-span-2" />
+                    <SkeletonCard className="h-80" />
                 </div>
-                <SkeletonCard className="h-64" />
+                <SkeletonCard className="h-80" />
             </div>
         );
     }
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-3.5 sm:space-y-4">
-            {/* Header & Controls */}
-            <header className="flex flex-col gap-2.5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-6`}>
+            <header className="space-y-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                     <div className="min-w-0">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700 dark:text-sky-400">
+                        <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${styles.accent}`}>
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
-                        </span>
-                        {/* This view's subject, printed as nothing — the call the
-                            map workspace makes for its own h1, for the same
-                            reason. A screen reader still announces "Municipal
-                            Situation Overview" on arrival and headings
-                            navigation still finds it; what it stops doing is
-                            spending the top of the page on a 32px line that the
-                            eyebrow above ("<Municipality> EOC") and the sentence
-                            below both already say. */}
-                        <h1 className="sr-only">Municipal Situation Overview</h1>
-                        <p className="mt-1.5 max-w-[68ch] text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                        </p>
+                        <h1 className="mt-1.5 font-display text-[28px] font-semibold leading-tight tracking-tight sm:text-[32px]">Municipal Situation Overview</h1>
+                        <p className={`mt-2 max-w-[70ch] text-[13px] leading-relaxed ${styles.secondary}`}>
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`
                                 : `Island-wide incident briefing and municipal comparisons for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`}
                         </p>
                     </div>
-                    {viewSwitch && <div className="shrink-0 sm:pt-0.5">{viewSwitch}</div>}
+                    {viewSwitch && <div className="shrink-0 sm:pt-1">{viewSwitch}</div>}
                 </div>
 
-                {/* One column on a phone, one left-aligned row from sm — the
-                    same row the toolbar already had from lg. It used to be a
-                    two-column grid at sm, which made both controls half the
-                    content width: a month stepper ~350px wide with its chevrons
-                    at the far edges, and an Export button that, at ~350px of
-                    solid brand fill, out-weighed every number on the page. They
-                    are a scope control and a secondary action, so they take their
-                    own width and line up where lg already put them. */}
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-h-9 w-full items-center justify-between gap-0.5 rounded-lg bg-gray-100/80 p-1 ring-1 ring-gray-200/80 sm:w-52 dark:bg-white/5 dark:ring-white/10">
-                        <button
-                            type="button"
-                            onClick={() => setSelectedMonth((current) => {
-                                try {
-                                    const base = toValidDate(current) || new Date();
-                                    return subMonths(base, 1);
-                                } catch {
-                                    return new Date();
-                                }
-                            })}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                            aria-label="Previous month"
-                        >
-                            <HiChevronLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setSelectedMonth(new Date())}
-                            className="min-w-0 flex-1 rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-800 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-200 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                            aria-label="Return to current month"
-                        >
-                            {formatMonthLabel(effectiveMonth, 'MMM yyyy', '')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                try {
-                                    const base = toValidDate(selectedMonth) || new Date();
-                                    const nextMonth = addMonths(base, 1);
-                                    if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
-                                } catch {
-                                    setSelectedMonth(new Date());
-                                }
-                            }}
-                            disabled={(() => {
-                                try {
-                                    return isSameMonth(effectiveMonth, new Date());
-                                } catch {
-                                    return false;
-                                }
-                            })()}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-950 dark:text-gray-400 dark:hover:bg-[#0c1813] dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30"
-                            aria-label="Next month"
-                        >
-                            <HiChevronRight className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                <div className={`flex w-full flex-col gap-3 border-b pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`} role="toolbar" aria-label="Analytics controls">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" role="group" aria-label="Reporting period">
+                        <span className={`text-xs font-medium ${styles.secondary}`}>Reporting period</span>
+                        <div className={`${styles.periodControl} w-full sm:w-64`}>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedMonth((current) => {
+                                    try {
+                                        const base = toValidDate(current) || new Date();
+                                        return subMonths(base, 1);
+                                    } catch {
+                                        return new Date();
+                                    }
+                                })}
+                                className={styles.periodButton}
+                                aria-label="Previous month"
+                            >
+                                <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedMonth(new Date())}
+                                className={`${styles.periodButton} flex-1 gap-2 px-2 text-[13px] font-semibold`}
+                                aria-label="Return to current month"
+                                title="Return to current month"
+                            >
+                                <HiOutlineCalendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span aria-live="polite" aria-atomic="true">{formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    try {
+                                        const base = toValidDate(selectedMonth) || new Date();
+                                        const nextMonth = addMonths(base, 1);
+                                        if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
+                                    } catch {
+                                        setSelectedMonth(new Date());
+                                    }
+                                }}
+                                disabled={(() => {
+                                    try {
+                                        return isSameMonth(effectiveMonth, new Date());
+                                    } catch {
+                                        return false;
+                                    }
+                                })()}
+                                className={styles.periodButton}
+                                aria-label="Next month"
+                            >
+                                <HiChevronRight className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                        </div>
                     </div>
-                    {/* Export is the toolbar's only action. It used to sit beside a
-                        `Map` button that called the same `onOpenMap` the map card's
-                        own "Open full map" already calls — two controls, one
-                        destination, on a page whose card announces it. The card's
-                        action stays because it sits on the map being opened; the
-                        toolbar copy was the duplicate. Uses the app's own Button
-                        so hover, focus and disabled behaviour come from one place
-                        instead of this file's copy of them. */}
                     <Button
                         type="button"
-                        variant="primary"
-                        size="sm"
+                        variant="secondary"
+                        size="md"
                         icon={HiOutlineDownload}
                         onClick={exportDashboard}
-                        className="w-full sm:w-auto sm:min-w-24"
+                        className={`${styles.exportButton} w-full sm:w-auto`}
                         aria-label="Export dashboard data as Excel"
                     >
-                        Export
+                        Export Excel
                     </Button>
                 </div>
             </header>
 
-            {error && <div role="alert" className="rounded-lg border border-red-200/90 bg-red-50/80 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
+            {error && (
+                <div role="alert" className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                    <HiOutlineExclamationCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span>{error}</span>
+                </div>
+            )}
 
-            {/* Situation Summary */}
             <section aria-label="Analytics summary">
-                <div className="flex items-baseline justify-between gap-2">
-                    <h2 className={SECTION_LABEL_CLASS}>
-                        Incident overview
-                    </h2>
-                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                        Operational status
-                    </span>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <h2 className={SECTION_LABEL_CLASS}>Incident overview</h2>
+                    <p className={`text-[11px] ${styles.subtle}`}>
+                        Operational status · {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
+                    </p>
                 </div>
 
-                {/* The overview band: one hairline grid, four equal tiles, the same
-                    divided-band idiom the operations workspace draws its summary
-                    with. It used to be four cells separated by their own
-                    hand-placed borders — `border-l` on three of them and a
-                    `border-t` on the second row at narrow widths — which left the
-                    first cell flush against the panel edge and the rules a pixel
-                    off from the row above. A divided grid draws every rule once
-                    and stretches the tiles to one height.
+                <div className={`${PANEL_SURFACE} mt-3 overflow-hidden`}>
+                    <dl data-testid="overview-band" className="grid grid-cols-2 md:grid-cols-4 [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
+                        <MetricTile
+                            label="Pending review"
+                            status="pending"
+                            value={safeMetrics.pendingCount ?? 0}
+                            helper={(safeMetrics.pendingCount ?? 0) > 0 ? 'Awaiting review' : 'No pending reports'}
+                            accent={(safeMetrics.pendingCount ?? 0) > 0 ? 'Action needed' : null}
+                        />
+                        <MetricTile
+                            label="Dispatch ready"
+                            status="verified"
+                            value={safeMetrics.dispatchReadyCount ?? 0}
+                            helper={(safeMetrics.dispatchReadyCount ?? 0) > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
+                        />
+                        <MetricTile
+                            label="Responding"
+                            status="responding"
+                            value={safeMetrics.respondingCount ?? 0}
+                            helper={(safeMetrics.respondingCount ?? 0) > 0 ? 'Field response active' : 'No active field response'}
+                        />
+                        <MetricTile
+                            label="Resolved"
+                            status="resolved"
+                            value={safeMetrics.resolvedCount ?? 0}
+                            helper={`${safeMetrics.resolutionRate ?? 0}% resolution rate`}
+                        />
+                    </dl>
 
-                    The rules are `nth-child` widths rather than `divide-x`/
-                    `divide-y`, because those two helpers do not know a grid's
-                    shape: `divide-y` puts a `border-top` on every child but the
-                    first, so in the two-column phone layout it drew a rule above
-                    the tile BESIDE the first one — a stray line across the top of
-                    the band's second cell. The widths below are the two shapes
-                    this band actually takes: 2×2 below md, 1×4 from md. `nth-child(3)`
-                    is the tile whose left rule only exists in the four-across
-                    layout, and `nth-child(n+3)` are the two bottom tiles whose top
-                    rule only exists in the 2×2 one — so that row rule is scoped to
-                    `max-md` rather than added and then zeroed at md, which leaves
-                    nothing for source order to get wrong.
-
-                    And it is md, not sm, that fits four across: a 640px viewport
-                    is 592px of content, which is 148px per tile — narrower than
-                    the phone's own two-column tiles, so the desktop layout used to
-                    arrive at its most cramped. Four across waits until 768px
-                    (720px of content, 180px per tile) and turns the band's
-                    narrowest state into its phone state, which is the one that was
-                    designed for it. */}
-                <div data-testid="overview-band" className="mt-1.5 grid grid-cols-2 divide-gray-200/80 overflow-hidden rounded-xl border border-gray-200/90 bg-gray-50/70 shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/70 md:grid-cols-4 md:rounded-2xl [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
-                    <MetricTile
-                        label="Pending review"
-                        value={safeMetrics.pendingCount ?? 0}
-                        helper={(safeMetrics.pendingCount ?? 0) > 0 ? 'Awaiting review' : 'No pending reports'}
-                        accent={(safeMetrics.pendingCount ?? 0) > 0 ? 'Action needed' : null}
-                    />
-                    <MetricTile
-                        label="Dispatch ready"
-                        value={safeMetrics.dispatchReadyCount ?? 0}
-                        helper={(safeMetrics.dispatchReadyCount ?? 0) > 0 ? 'Verified, unassigned' : 'No unassigned incidents'}
-                    />
-                    <MetricTile
-                        label="Responding"
-                        value={safeMetrics.respondingCount ?? 0}
-                        helper={(safeMetrics.respondingCount ?? 0) > 0 ? 'Field response active' : 'No active field response'}
-                    />
-                    <MetricTile
-                        label="Resolved"
-                        value={safeMetrics.resolvedCount ?? 0}
-                        helper={`${safeMetrics.resolutionRate ?? 0}% resolution rate`}
-                    />
-                </div>
-
-                {/* Integrated Baseline Operational Facts Footer Bar.
-
-                    The three facts and their middots used to be one wrapping flex
-                    row. A middot was therefore a flex item of its own, and a flex
-                    item can begin a line — so on a phone the row wrapped as a
-                    sentence fragment ending in "18m" followed by a line starting
-                    with "· ACTIVE RISK ZONES". Below sm the facts are a 2×2 grid of
-                    label-over-value cells instead (the same shape the band above
-                    it takes), the middots are dropped because a grid separates by
-                    position and not by glyph, and the scope label closes the block
-                    on its own right-aligned line, which is also where the block
-                    already wrapped at sm widths with three facts and a sample
-                    clause to fit.
-
-                    From sm it is the one-line row this was, with one change: each
-                    middot now trails the fact it follows, inside that fact's own
-                    box, instead of standing between them. A separator that is its
-                    own flex item can be pushed to the next line on its own, and one
-                    did — the row needs ~600px of inline content, so at 640px it
-                    wrapped, and that is the same defect as on the phone. Bound to
-                    the end of the previous fact it can only ever close a line. */}
-                <div className="flex flex-col gap-2 border-t border-gray-200 py-3 text-xs text-gray-600 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:py-2.5 dark:border-white/10 dark:text-gray-400">
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">New reports</span>
-                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{safeCount(safeReports)}</span>
-                                <span aria-hidden="true" className="hidden pl-1.5 text-gray-300 sm:inline dark:text-gray-600">·</span>
-                            </span>
-                            {/* Label and value stay on one line in the phone grid;
-                                only the sample clause drops to the second line,
-                                which is the tier it belongs to. */}
-                            <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
-                                <span className="inline-flex items-center gap-1.5">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Median response</span>
-                                    <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                                        {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
-                                    </span>
-                                </span>
-                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                    {safeMetrics.responseSampleCount
-                                        ? `(${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'})`
-                                        : 'No responded incidents'}
-                                </span>
-                                <span aria-hidden="true" className="hidden pl-1.5 text-gray-300 sm:inline dark:text-gray-600">·</span>
-                            </span>
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active risk zones</span>
-                                <span className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">{activeRiskZoneCount}</span>
-                            </span>
+                    <dl className={`${styles.summaryFooter} grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-3 sm:px-6`}>
+                        <div className="min-w-0">
+                            <dt className={`flex items-center gap-1.5 text-xs ${styles.secondary}`}>
+                                <HiOutlineChartBar className="h-4 w-4 shrink-0" aria-hidden="true" />New reports
+                            </dt>
+                            <dd className="mt-1 text-lg font-semibold tabular-nums">{safeCount(safeReports)}</dd>
+                            <dd className={`mt-0.5 text-[11px] ${styles.subtle}`}>Created in this period</dd>
                         </div>
-                        <span className="text-right text-[11px] text-gray-500 dark:text-gray-400 sm:text-left">
-                            {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
-                        </span>
-                    </div>
+                        <div className="order-last col-span-2 min-w-0 sm:order-none sm:col-span-1">
+                            <dt className={`flex items-center gap-1.5 text-xs ${styles.secondary}`}>
+                                <HiOutlineClock className="h-4 w-4 shrink-0" aria-hidden="true" />Median response
+                            </dt>
+                            <dd className="mt-1 text-lg font-semibold tabular-nums">
+                                {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
+                            </dd>
+                            <dd className={`mt-0.5 text-[11px] ${styles.subtle}`}>
+                                {safeMetrics.responseSampleCount
+                                    ? `Based on ${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'}`
+                                    : 'No responded incidents'}
+                            </dd>
+                        </div>
+                        <div className="min-w-0">
+                            <dt className={`flex items-center gap-1.5 text-xs ${styles.secondary}`}>
+                                <HiOutlineLocationMarker className="h-4 w-4 shrink-0" aria-hidden="true" />Active risk zones
+                            </dt>
+                            <dd className="mt-1 text-lg font-semibold tabular-nums">{activeRiskZoneCount}</dd>
+                            <dd className={`mt-0.5 text-[11px] ${styles.subtle}`}>Current active zones</dd>
+                        </div>
+                    </dl>
+                </div>
             </section>
 
             {/* Monthly Insights Section: Incident Trend & Lifecycle */}
@@ -907,30 +845,27 @@ const DashboardAnalyticsWorkspace = ({
                 xl the content column is 976px and the same three columns are
                 314px each, with the trend at 640px — so the split starts where it
                 fits rather than where the viewport name changes. */}
-            <section className="grid gap-3 xl:grid-cols-3" aria-label="Monthly insights">
+            <section className={`${PANEL_SURFACE} grid xl:grid-cols-3`} aria-label="Monthly insights">
                 <TrendPanel chartData={safeChartData} selectedMonth={effectiveMonth} reportCount={safeCount(safeReports)} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
                 <LifecyclePanel statusData={toSafeArray(statusData)} totalReports={safeCount(safeReports)} />
             </section>
 
-            {/* Incident Map Section */}
-            {/* Same surface language as the operations map card: one ring, one
-                radius, one shadow — a bordered card beside a ringed one read as
-                two component families on two pages that show the same map. */}
             <section className={`${PANEL_SURFACE} overflow-hidden`} aria-label="Analytics map">
-                <div className="flex flex-col gap-2 p-2 sm:p-2.5">
-                    <div className="flex items-center justify-between gap-3 px-1 pt-0.5">
-                        <div className="flex min-w-0 items-baseline gap-2">
-                            <h2 className={`shrink-0 ${PANEL_TITLE_CLASS}`}>Monthly incident map</h2>
-                            <p className="hidden truncate text-xs text-gray-500 sm:block dark:text-gray-400">
+                <div className="flex flex-col gap-4 px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
+                    <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
+                        <div className="min-w-0">
+                            <h2 className={PANEL_TITLE_CLASS}>Monthly incident map</h2>
+                            <p className={PANEL_DESCRIPTION_CLASS}>
                                 Geographic incident distribution for {formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}
                             </p>
                         </div>
                         <button
                             type="button"
                             onClick={onOpenMap}
-                            className="inline-flex min-h-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
+                            className={`${styles.link} shrink-0`}
                         >
                             Open full map
+                            <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
                         </button>
                     </div>
 
@@ -948,7 +883,7 @@ const DashboardAnalyticsWorkspace = ({
                         it is true there: only an authenticated viewer reaches
                         this page, so the open set includes pending. */}
                     <div
-                        className="flex w-full min-w-0 flex-wrap items-end gap-x-1 gap-y-0.5 border-b border-gray-200 dark:border-white/10"
+                        className={styles.mapFilters}
                         aria-label="Map status filter"
                         role="group"
                     >
@@ -962,16 +897,18 @@ const DashboardAnalyticsWorkspace = ({
                     </div>
                     {/* Selected-day drill-down (from trend bars or peak link) */}
                     {selectedDay && (
-                        <div className="flex items-center gap-2 px-1">
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className={`${styles.selectedDay} flex flex-wrap items-center justify-between gap-x-3 rounded-md px-3`} role="status">
+                            <p className="flex items-center gap-2 py-2 text-xs font-medium">
+                                <HiOutlineCalendar className="h-4 w-4" aria-hidden="true" />
                                 Showing {selectedDayLabel}
                             </p>
                             <button
                                 type="button"
                                 onClick={() => setSelectedDay(null)}
                                 aria-label={`Clear day filter ${selectedDayLabel}`}
-                                className="text-xs font-semibold text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
+                                className={styles.link}
                             >
+                                <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                                 Clear
                             </button>
                         </div>
@@ -1014,7 +951,7 @@ const DashboardAnalyticsWorkspace = ({
                 than at the width the sidebar turns on. At lg this section used to
                 go two-up at 348px a card while the very same content sat
                 one-up at 720px one breakpoint earlier. */}
-            <section className="grid gap-3 md:grid-cols-2" aria-label="Operational breakdown">
+            <section className={`${PANEL_SURFACE} ${styles.dividedPanels} grid md:grid-cols-2`} aria-label="Operational breakdown">
                 {hasMunicipality ? (
                     <>
                         <RankedBreakdownPanel
@@ -1053,7 +990,7 @@ const DashboardAnalyticsWorkspace = ({
                 Admin-only, and rendered only once data exists so a viewer
                 without permission never sees an empty shell. */}
             {isAdminViewer && reach ? (
-                <section className="grid gap-3 md:grid-cols-2" aria-label="Reach">
+                <section className={`${PANEL_SURFACE} ${styles.dividedPanels} grid md:grid-cols-2`} aria-label="Reach">
                     <ReachPanel
                         title="Incident reach"
                         description="Distinct viewers who opened each incident"
@@ -1069,59 +1006,64 @@ const DashboardAnalyticsWorkspace = ({
                 </section>
             ) : null}
 
-            {/* Recent Operational Activity Section */}
-            <section ref={historySectionRef} aria-label="Recent activity">
-                <div className="flex items-baseline justify-between gap-2">
+            <section ref={historySectionRef} className={`${PANEL_SURFACE} scroll-mt-4`} aria-label="Recent activity">
+                <div className="flex flex-col items-start gap-1 px-5 py-5 sm:flex-row sm:justify-between sm:gap-4 sm:px-6">
                     <div>
-                        <h2 className={SECTION_LABEL_CLASS}>Recent activity</h2>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Latest updates across the current scope</p>
+                        <h2 className={PANEL_TITLE_CLASS}>Recent activity</h2>
+                        <p className={PANEL_DESCRIPTION_CLASS}>Latest updates across the current scope · All dates</p>
                     </div>
                     <button
                         type="button"
                         onClick={onOpenReports}
-                        className="inline-flex shrink-0 items-center text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:text-sm dark:text-sky-400 dark:hover:text-sky-300 cursor-pointer"
+                        className={`${styles.link} shrink-0`}
                     >
                         View incident queue
+                        <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
                     </button>
                 </div>
                 {recentReports.length ? (
-                    <ul className="mt-2.5 divide-y divide-gray-100 border-t border-gray-200 dark:divide-white/5 dark:border-white/10">
+                    <ul className={`border-t ${styles.rule}`}>
                         {recentReports.map((reportItem) => {
                             const status = (reportItem.status || 'pending').toLowerCase();
                             const statusConfig = MAP_STATUS_CONFIG[status] || MAP_STATUS_CONFIG.pending;
                             return (
-                                <li key={reportItem._id}>
-                                <article
-                                    onClick={onOpenReports}
-                                    className="flex cursor-pointer items-center gap-3 py-3 transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.03]"
-                                >
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                            {reportItem.address || reportItem.title || 'Location unavailable'}
-                                        </p>
-                                        <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
-                                            {getPhysicalMunicipality(reportItem) || 'Unknown municipality'}
-                                            <span aria-hidden="true"> · </span>
-                                            {reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}
-                                            <span aria-hidden="true"> · </span>
-                                            {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
-                                        </p>
-                                    </div>
-                                    {/* Dot + label, the same status idiom the incident
-                                        queue and the reporter workspace use: the colour
-                                        carries the state at a glance and the word keeps
-                                        it readable without colour. Deliberately not a
-                                        pill — this is a row's own state, not a badge
-                                        competing with the record for attention. */}
-                                    <span
-                                        className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                                        title={`Status: ${statusConfig.label || status}`}
-                                        aria-label={`Status: ${statusConfig.label || status}`}
+                                <li key={reportItem._id} className={`border-b last:border-0 ${styles.rule}`}>
+                                    <button
+                                        type="button"
+                                        onClick={onOpenReports}
+                                        className={styles.activityRow}
+                                        aria-label={`View incident queue: ${reportItem.address || reportItem.title || 'Location unavailable'}, ${statusConfig.label || status}`}
                                     >
-                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                                        {statusConfig.label || status}
-                                    </span>
-                                </article>
+                                        <span className="col-span-2 min-w-0 sm:col-span-1">
+                                            <span className="block break-words text-sm font-medium leading-relaxed">
+                                                {reportItem.address || reportItem.title || 'Location unavailable'}
+                                            </span>
+                                            <span className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed ${styles.secondary}`}>
+                                                <span className="inline-flex items-baseline gap-2">
+                                                    <span>{getPhysicalMunicipality(reportItem) || 'Unknown municipality'}</span>
+                                                    <span aria-hidden="true">·</span>
+                                                </span>
+                                                <span className="inline-flex items-baseline gap-2">
+                                                    <span>{reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}</span>
+                                                    <span aria-hidden="true">·</span>
+                                                </span>
+                                                <time dateTime={reportItem.updatedAt || reportItem.createdAt} className={styles.subtle}>
+                                                    {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
+                                                </time>
+                                            </span>
+                                        </span>
+                                        <span className={`col-span-2 flex items-center gap-2 text-xs font-medium sm:col-span-1 ${styles.secondary}`}>
+                                            <span
+                                                className="inline-flex items-center gap-1.5"
+                                                title={`Status: ${statusConfig.label || status}`}
+                                                aria-label={`Status: ${statusConfig.label || status}`}
+                                            >
+                                                <span className={`h-2 w-2 shrink-0 rounded-full ${statusConfig.dot || 'bg-gray-400'}`} aria-hidden="true" />
+                                                {statusConfig.label || status}
+                                            </span>
+                                            <HiChevronRight className={`ml-auto h-4 w-4 shrink-0 sm:ml-2 ${styles.subtle}`} aria-hidden="true" />
+                                        </span>
+                                    </button>
                                 </li>
                             );
                         })}
@@ -1133,8 +1075,10 @@ const DashboardAnalyticsWorkspace = ({
 };
 
 const EmptyState = () => (
-    <div className="mt-2.5 rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
-        No recent activity available.
+    <div className={`${styles.empty} border-t ${styles.rule}`}>
+        <HiOutlineClock className={`mb-3 h-7 w-7 ${styles.subtle}`} aria-hidden="true" />
+        <p className="text-sm font-medium">No recent activity available.</p>
+        <p className="mt-1.5 max-w-sm text-xs leading-relaxed">Incident updates will appear here as reports are reviewed and handled.</p>
     </div>
 );
 
