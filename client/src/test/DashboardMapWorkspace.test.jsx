@@ -342,13 +342,14 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(liveMap.firstElementChild).toHaveClass('lg:hidden');
     });
 
-    test('renders status filter row with view switch directly below top navigation and prevents wrapping', () => {
+    test('keeps the view switch with the page heading and status filters in their own rail', () => {
         const viewSwitch = <div data-testid="test-view-switch">View Switch</div>;
         renderWorkspace(createProps({ viewSwitch }));
 
         const rail = screen.getByLabelText('Map status filter');
         expect(rail).toHaveClass('w-full', 'lg:flex');
-        expect(within(rail).getByTestId('test-view-switch')).toBeInTheDocument();
+        const header = screen.getByRole('heading', { level: 1 }).closest('header');
+        expect(within(header).getByTestId('test-view-switch')).toBeInTheDocument();
         expect(within(rail).getByRole('button', { name: /all open/i })).toBeInTheDocument();
 
         // The filter rail container uses single-line overflow without multi-line wrapping
@@ -526,10 +527,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(cards[1]).not.toHaveClass('col-span-2');
         expect(cards[2]).not.toHaveClass('col-span-2');
         cards.forEach((card) => {
-            // The card's outline is a ring, not a border: the base stylesheet
-            // forces every button's border-color transparent, so a bordered card
-            // rendered with no edge at all.
-            expect(card).toHaveClass('rounded-xl', 'ring-1');
+            expect(card).toHaveClass('surface-panel');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
     });
@@ -581,7 +579,8 @@ describe('DashboardMapWorkspace permissions', () => {
             metricButtons.forEach((button) => {
                 expect(button).toHaveAttribute('type', 'button');
                 expect(button).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
-                expect(button).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-emerald-600');
+                button.focus();
+                expect(button).toHaveFocus();
             });
             unmount();
         });
@@ -2179,11 +2178,10 @@ describe('DashboardMapWorkspace permissions', () => {
                 isAdmin: false,
             }));
 
-            // The page title is preserved for screen readers as an sr-only h1,
-            // reclaiming vertical space so the operational map interface dominates the view.
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toHaveTextContent('Sibuyan Island incident map');
-            expect(heading).toHaveClass('sr-only');
+            expect(heading).toBeVisible();
+            expect(heading).not.toHaveClass('sr-only');
             expect(screen.queryByText('Reporter map')).not.toBeInTheDocument();
             expect(screen.queryByText(/Track your reports and community incidents across Sibuyan Island/i)).not.toBeInTheDocument();
         });
@@ -2210,34 +2208,11 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(metricButtons).toHaveLength(3);
 
             metricButtons.forEach((btn) => {
-                // Compact phone row that grows into a comfortably padded card
-                // from sm — one padding rhythm for every card in the band — and
-                // gives that padding back at lg, where the card is one of four
-                // in the map's own column: the stack has to close inside the
-                // height the map beside it sets, because the pane a card opens is
-                // laid over exactly this box.
-                //
-                // `py-2`, not the `py-2.5` the four equal rows used: on a phone
-                // the band is a priority list whose height is the map's loss,
-                // and 8px top and bottom still leaves a 56px target.
-                //
-                // `px-2` is what the phone's one-line supporting text is
-                // measured against: at 375px it leaves 151px inside a half-width
-                // card, which is 8px more than the longest line in the app (40
-                // characters, 143.3px in the self-hosted Inter) needs in order to
-                // fit without wrapping at all.
-                // `sm:py-3`, not the `sm:py-4` this used to assert: the card
-                // grows from the phone row but stops short of the full 16px, so
-                // a four-card column still closes inside the height the map
-                // beside it sets.
-                expect(btn).toHaveClass('px-2', 'py-2', 'sm:px-4', 'sm:py-3', 'lg:justify-center', 'lg:py-2');
-                // One number slot, sized per width — 20px in a half-width phone
-                // card, 28px once the card is wide enough for its supporting line
-                // to sit beside it. It stays the card's headline at both, which is
-                // why it is one element with two sizes rather than two elements.
+                // One comfortably padded, accessible target with a single number slot.
+                expect(btn).toHaveClass('px-3', 'py-3', 'sm:px-4', 'lg:justify-center');
                 const numbers = Array.from(btn.querySelectorAll('.tabular-nums'));
                 expect(numbers).toHaveLength(1);
-                expect(numbers[0]).toHaveClass('text-xl', 'sm:text-[28px]');
+                expect(numbers[0]).toHaveClass('text-[28px]', 'sm:text-[32px]');
                 // The number and its supporting line are one row, and the row is
                 // what stacks on a phone (there is no room beside a number in a
                 // 167px card) and goes side by side from sm. The number is not a

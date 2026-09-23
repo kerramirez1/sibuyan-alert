@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import api from '../services/api';
 import toast from '../utils/appToast';
 import {
@@ -62,7 +63,7 @@ const ForgotPasswordPage = () => {
                 <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
                 <div>
                     <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                        Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
+                        Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
                     </p>
                     <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                         Accident Alert &amp; Mapping System
@@ -73,37 +74,27 @@ const ForgotPasswordPage = () => {
             {/* Back to Login */}
             <Link
                 to="/login"
-                className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:text-gray-400 dark:hover:text-white"
+                className="text-action mb-4"
             >
                 <HiOutlineArrowLeft className="h-4 w-4" /> Back to login
             </Link>
 
             {/* Main Card Container */}
-            <div className="w-full rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8">
+            <div className="form-surface w-full">
                 {!sent ? (
                     <>
                         {/* Header */}
-                        <div className="mb-6">
-                            <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
-                                Account Recovery
-                            </p>
-                            <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
-                                Forgot your password?
-                            </h1>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
-                                Enter the email address associated with your account to receive a password reset link.
-                            </p>
-                        </div>
+                        <PageHeader className="mb-6" eyebrow="Account Recovery" title="Forgot your password?" description="Enter the email address associated with your account to receive a password reset link." />
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label htmlFor="recovery-email" className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="recovery-email" className="field-label">
                                     Email Address
                                 </label>
                                 <div className="relative">
                                     <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-                                        <HiOutlineMail className="h-4.5 w-4.5" />
+                                        <HiOutlineMail className="h-4 w-4" aria-hidden="true" />
                                     </div>
                                     <input
                                         type="email"
@@ -114,7 +105,7 @@ const ForgotPasswordPage = () => {
                                         onChange={(e) => setEmail(e.target.value)}
                                         autoComplete="email"
                                         required
-                                        className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-9 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
+                                        className="field-control pl-10"
                                     />
                                 </div>
                             </div>
@@ -122,7 +113,7 @@ const ForgotPasswordPage = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="btn-primary w-full disabled:opacity-60"
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     {loading ? (
@@ -146,20 +137,20 @@ const ForgotPasswordPage = () => {
                             <HiOutlineCheckCircle className="h-7 w-7" />
                         </div>
 
-                        <h2 className="font-display text-xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-2xl">
+                        <h1 className="page-title">
                             Check your email
-                        </h2>
+                        </h1>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                             We have sent a password reset link to <strong className="text-gray-900 dark:text-white font-semibold">{email}</strong>.
                         </p>
 
-                        <div className="mt-5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-3.5 dark:border-white/10 dark:bg-[#07130e]">
+                        <div className="mt-5 border-y border-[var(--border)] py-4">
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Didn&apos;t receive the email? Check your spam folder or{' '}
                                 <button
                                     type="button"
                                     onClick={() => setSent(false)}
-                                    className="font-semibold text-brand-700 hover:text-brand-900 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    className="font-semibold text-[var(--accent-text)] underline underline-offset-4"
                                 >
                                     try again
                                 </button>
@@ -178,12 +169,12 @@ const ForgotPasswordPage = () => {
                 )}
 
                 {/* Additional Help */}
-                <div className="mt-6 border-t border-gray-200/80 pt-4.5 text-center dark:border-white/10">
+                <div className="mt-6 border-t border-[var(--border)] pt-5 text-center">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                         Need help?{' '}
                         <a
                             href="mailto:sibuyan.alert@gmail.com"
-                            className="font-semibold text-brand-700 transition-colors hover:text-brand-900 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            className="font-semibold text-[var(--accent-text)] underline-offset-4 hover:underline"
                         >
                             Contact Support
                         </a>

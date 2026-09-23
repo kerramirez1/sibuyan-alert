@@ -769,22 +769,13 @@ const AdminHighRiskZonesPage = () => {
                         wraps onto its own line when a narrow viewport leaves it no
                         room. */}
                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
-                            High-risk zones
-                        </p>
-                        {/* Printed as nothing, the same call the map workspace makes
-                            for its title: the eyebrow above names the surface and
-                            the line below names the municipality, so a 30px headline
-                            between them only repeated both. It stays as the
-                            document's h1 — the heading a screen reader announces and
-                            a headings list is built from. */}
-                        <h1 className="sr-only">High-risk zone management</h1>
+                        <h1 className="page-title page-title--compact">High-risk zone management</h1>
                         <p className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
                             <span>Sibuyan Island · Alert System Active</span>
                         </p>
                     </div>
-                    <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
+                    <p className="page-description">
                         View mapped hazards and manage zones for {user?.assignedMunicipality || 'all municipalities'}.
                     </p>
                 </div>
@@ -810,7 +801,7 @@ const AdminHighRiskZonesPage = () => {
                                 setMobileTab('panel');
                             }
                         }}
-                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 cursor-pointer"
+                        className="btn-primary"
                     >
                         <HiOutlinePlus className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>Add zone</span>
@@ -819,17 +810,13 @@ const AdminHighRiskZonesPage = () => {
             </header>
 
             {/* Mobile / Tablet View Switcher */}
-            <div className="flex shrink-0 items-center gap-6 border-b border-gray-200 lg:hidden dark:border-white/10" role="tablist" aria-label="Mobile workspace view">
+            <div className="filter-tabs shrink-0 lg:hidden" role="tablist" aria-label="Mobile workspace view">
                 <button
                     type="button"
                     role="tab"
                     aria-selected={mobileTab === 'map'}
                     onClick={() => setMobileTab('map')}
-                    className={`shrink-0 border-b pb-2.5 text-sm ${
-                        mobileTab === 'map'
-                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
-                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                    }`}
+                    className="filter-tab"
                 >
                     Map View
                 </button>
@@ -838,11 +825,7 @@ const AdminHighRiskZonesPage = () => {
                     role="tab"
                     aria-selected={mobileTab === 'panel'}
                     onClick={() => setMobileTab('panel')}
-                    className={`shrink-0 border-b pb-2.5 text-sm ${
-                        mobileTab === 'panel'
-                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
-                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                    }`}
+                    className="filter-tab"
                 >
                     {showForm ? (editingZone ? 'Edit Zone' : 'New Zone Form') : `Marked Zones (${Array.isArray(zones) ? zones.length : 0})`}
                 </button>
@@ -869,7 +852,7 @@ const AdminHighRiskZonesPage = () => {
                     // ground first, and only down to the width it can actually work
                     // in — 58 % map on a small laptop, 67 % on any real desktop
                     // canvas.
-                    className={`scroll-mt-20 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 lg:col-span-7 xl:col-span-8 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
+                    className={`surface-panel scroll-mt-20 flex-col overflow-hidden lg:col-span-7 xl:col-span-8 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
@@ -995,13 +978,13 @@ const AdminHighRiskZonesPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={{ duration: 0.15 }}
-                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90"
+                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden"
                                 aria-label={editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
                             >
                                 {/* Editor Header */}
                                 <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
                                     <div>
-                                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        <h2 className="section-title">
                                             {editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
                                         </h2>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -1032,7 +1015,7 @@ const AdminHighRiskZonesPage = () => {
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 placeholder="e.g. Blind curve on the Cajidiocan road"
                                                 required
-                                                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                                className="field-control"
                                             />
                                         </div>
 
@@ -1319,7 +1302,7 @@ const AdminHighRiskZonesPage = () => {
                                                     id="risk-zone-municipality"
                                                     value={formData.municipality}
                                                     onChange={(e) => setFormData({ ...formData, municipality: e.target.value })}
-                                                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                                    className="field-control"
                                                 >
                                                     {MUNICIPALITIES.map((m) => (
                                                         <option key={m} value={m}>{m}</option>
@@ -1341,7 +1324,7 @@ const AdminHighRiskZonesPage = () => {
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             rows={2}
-                                            className="w-full rounded-md border border-gray-200 bg-white p-2.5 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                            className="field-control min-h-20 resize-y"
                                             placeholder="Brief description of the hazard..."
                                         />
                                     </div>
@@ -1457,14 +1440,14 @@ const AdminHighRiskZonesPage = () => {
                                         <button
                                             type="button"
                                             onClick={resetForm}
-                                            className="inline-flex h-9 flex-1 items-center justify-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                            className="btn-outline flex-1"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={isSubmitting || isResolvingLocation || (!selectedLocation && !editingZone)}
-                                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md bg-brand-700 px-3 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
+                                            className="btn-primary flex-1"
                                         >
                                             {isSubmitting ? (
                                                 <>
@@ -1485,12 +1468,12 @@ const AdminHighRiskZonesPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={{ duration: 0.15 }}
-                                className="flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90"
+                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden"
                                 aria-label="Marked high-risk zones"
                             >
                                 {/* List Header */}
                                 <div className="border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
-                                    <h2 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <h2 className="section-title">
                                         Marked zones ({Array.isArray(zones) ? zones.length : 0})
                                     </h2>
                                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -1508,10 +1491,11 @@ const AdminHighRiskZonesPage = () => {
                                                 value={zoneSearch}
                                                 onChange={(e) => setZoneSearch(e.target.value)}
                                                 placeholder="Search zones or municipality..."
-                                                className="h-8 w-full rounded-md border border-gray-200 bg-white pl-8 pr-3 text-xs font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                                className="field-control pl-8"
+                                                aria-label="Search zones or municipality"
                                             />
                                         </div>
-                                        <div className="flex items-center gap-4 overflow-x-auto custom-scrollbar pb-0.5 text-xs" role="toolbar" aria-label="Filter zones by hazard type">
+                                        <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="Filter zones by hazard type">
                                             {[
                                                 { id: 'all', label: 'All' },
                                                 { id: 'landslide_prone', label: 'Landslide' },
@@ -1523,11 +1507,7 @@ const AdminHighRiskZonesPage = () => {
                                                     type="button"
                                                     onClick={() => setZoneTypeFilter(chip.id)}
                                                     aria-pressed={zoneTypeFilter === chip.id}
-                                                    className={`shrink-0 border-b pb-1 ${
-                                                        zoneTypeFilter === chip.id
-                                                            ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
-                                                            : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                                    }`}
+                                                    className="filter-tab px-2 text-xs"
                                                 >
                                                     {chip.label}
                                                 </button>

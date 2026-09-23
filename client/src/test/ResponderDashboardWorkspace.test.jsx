@@ -111,17 +111,13 @@ describe('ResponderDashboardWorkspace', () => {
             expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
             expect(card).toHaveClass(
                 'cursor-pointer',
-                'bg-white',
-                'hover:bg-gray-50',
-                'focus-visible:ring-2',
+                'metric-tile',
+                'hover:bg-[var(--surface-hover)]',
             );
             expect(card).not.toHaveClass('rounded-xl', 'shadow-sm', 'border-transparent');
         });
         expect(resolvedCard).toHaveAccessibleName(/View today's records/i);
-        expect(emergenciesCard.parentElement?.parentElement).toHaveClass(
-            'grid-cols-2',
-            'xl:grid-cols-4',
-        );
+        expect(emergenciesCard.parentElement?.parentElement).toHaveClass('metric-strip');
         expect(screen.queryByText('Active')).not.toBeInTheDocument();
         expect(screen.queryByText('On Mission')).not.toBeInTheDocument();
     });

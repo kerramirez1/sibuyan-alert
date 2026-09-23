@@ -172,7 +172,7 @@ export const IncidentSeverityIndicator = ({ severity }) => {
         || { dot: 'bg-gray-400', text: 'text-gray-600 dark:text-gray-300' };
 
     return (
-        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${style.text}`}>
+        <span className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${style.text}`}>
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} aria-hidden="true" />
             {normalizedSeverity || 'Unspecified'}
         </span>
@@ -183,7 +183,7 @@ export const OperationalStatusIndicator = ({ status }) => {
     const config = INCIDENT_STATUS[status];
     if (!config) {
         return (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" aria-hidden="true" />
                 {status || 'Unknown'}
             </span>
@@ -191,7 +191,7 @@ export const OperationalStatusIndicator = ({ status }) => {
     }
 
     return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dotClassName || 'bg-gray-400'}`} aria-hidden="true" />
             {config.label}
         </span>
@@ -223,8 +223,9 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="inline-flex min-h-10 w-full items-center justify-start rounded-md px-2 py-1.5 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto sm:py-0.5"
+                className="btn-outline w-full sm:w-auto"
             >
+                <HiOutlineEye className="h-4 w-4" aria-hidden="true" />
                 <span>Inspect report</span>
             </button>
 
@@ -314,8 +315,9 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="inline-flex min-h-10 w-full items-center justify-start rounded-md px-2 py-3 text-[13px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white sm:w-auto sm:py-0.5"
+                className="btn-outline w-full sm:w-auto"
             >
+                <HiOutlineEye className="h-4 w-4" aria-hidden="true" />
                 <span>Inspect report</span>
             </button>
 
@@ -367,9 +369,9 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
 
     return (
         <article
-            className={`min-w-0 rounded-lg border px-4 py-4 sm:px-5 ${isSelected
-                ? 'border-gray-300 border-l-2 border-l-emerald-700 bg-gray-50 dark:border-gray-600 dark:border-l-emerald-500 dark:bg-white/[0.03]'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]'}`}
+            className={`min-w-0 border-l-[3px] px-4 py-5 sm:px-5 ${isSelected
+                ? 'border-l-[var(--accent)] bg-[var(--accent-soft)]'
+                : 'border-l-transparent'}`}
             data-status={safeReport.status || 'unknown'}
             data-selected={isSelected ? 'true' : 'false'}
         >
@@ -431,7 +433,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </div>
             )}
 
-            <div className="mt-3 border-t border-gray-100 pt-2 dark:border-white/5">
+            <div className="mt-4 border-t border-[var(--border)] pt-3">
                 {actionSlot}
             </div>
         </article>
@@ -514,7 +516,7 @@ const IncidentPagination = ({ pagination, onPageChange }) => {
                     type="button"
                     onClick={() => onPageChange(safePage - 1)}
                     disabled={safePage <= 1}
-                    className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                    className="btn-outline"
                 >
                     Previous
                 </button>
@@ -522,7 +524,7 @@ const IncidentPagination = ({ pagination, onPageChange }) => {
                     type="button"
                     onClick={() => onPageChange(safePage + 1)}
                     disabled={safePage >= pages}
-                    className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                    className="btn-outline"
                 >
                     Next
                 </button>
@@ -576,8 +578,8 @@ const IncidentQueue = ({
         const emptyCopy = (isResponder && responderEmptyCopy[responderView])
             || ['No incident reports found', 'Adjust the status or search filters and try again.'];
         return (
-            <div className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center dark:border-white/10 dark:bg-white/5">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{emptyCopy[0]}</p>
+            <div className="surface-panel p-10 text-center">
+                <p className="section-title">{emptyCopy[0]}</p>
                 <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">{emptyCopy[1]}</p>
             </div>
         );
@@ -588,7 +590,7 @@ const IncidentQueue = ({
 
     return (
         <section aria-label="Incident queue">
-            <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="flex flex-col gap-3">
+            <ul aria-label={isResponder ? "Responder incident list" : "Admin incident list"} className="surface-panel divide-y divide-[var(--border)] overflow-hidden">
                 {safeReports.map((report, index) => (
                     <li key={report?._id ?? index}>
                         <RowComponent

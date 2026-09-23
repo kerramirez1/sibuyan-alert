@@ -415,7 +415,8 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
                 expect(btn).toHaveAttribute('aria-controls', 'dashboard-map-summary-panel');
                 expect(btn).toHaveAttribute('aria-pressed');
                 expect(btn).toHaveAttribute('aria-expanded');
-                expect(btn).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-inset');
+                btn.focus();
+                expect(btn).toHaveFocus();
             });
 
             // Verify the 3 labeled actions exist with full text (mobile slim
@@ -472,7 +473,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             expect(updatedActiveBtn).toHaveAttribute('aria-expanded', 'true');
         });
 
-        test('overview metric labels stay on one line and are never clipped', () => {
+        test('overview labels and supporting context can wrap without being clipped', () => {
             render(
                 <MemoryRouter>
                     <DashboardMapWorkspace {...workspaceProps} />
@@ -483,54 +484,17 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
             const buttons = within(summaryRegion).getAllByRole('button');
 
             buttons.forEach((btn) => {
-                // Two label spans per card: the mobile slim row clips on
-                // purpose, the desktop card label is the one that must never
-                // clip.
-                const labelSpans = Array.from(btn.querySelectorAll('span.uppercase'));
+                const labelSpans = Array.from(btn.querySelectorAll('span.font-semibold.leading-snug'));
                 expect(labelSpans.length).toBeGreaterThanOrEqual(2);
-                expect(labelSpans.some((span) => span.className.includes('truncate'))).toBe(true);
-                const labelSpan = labelSpans.find((span) => !span.className.includes('truncate'));
-                expect(labelSpan).toBeTruthy();
-                // The desktop label wraps to a second line rather than being
-                // clipped, and is not forced onto one line either — a nowrap
-                // label overflowed its box and sat under the chevron.
-                expect(labelSpan.className).toContain('leading-snug');
-                expect(labelSpan.className).not.toContain('whitespace-nowrap');
-
-                // Helper text must also wrap cleanly without single-line clipping
-                const helperP = btn.querySelector('p.text-gray-500, p.text-gray-400');
-                if (helperP) {
-                    expect(helperP.className).toContain('break-words');
-                    expect(helperP.className).not.toContain('truncate');
-                }
-
-                // The metric strip cards print their helper on one span, whose
-                // behaviour is sized to the card rather than fixed: one line at
-                // 9px on a half-width phone card, and a wrapping 11px line from sm
-                // where the card is wide enough for the sentence either way.
-                //
-                // 9px is a measurement, not a taste: in the self-hosted Inter the
-                // longest supporting line in the app (the 40-character
-                // active-incidents mix) is 143.3px at that size with
-                // `tracking-tighter`, against the 151px a half-width card's
-                // padding leaves it.
-                const helper = btn.querySelector('span.text-\\[9px\\]');
+                labelSpans.forEach((label) => {
+                    expect(label.textContent).toBeTruthy();
+                    expect(label).not.toHaveClass('truncate', 'whitespace-nowrap');
+                });
+                const helper = btn.querySelector('span[title]');
                 expect(helper).toBeTruthy();
-                expect(helper).toHaveClass('whitespace-nowrap', 'overflow-hidden', 'tracking-tighter');
-                expect(helper.className.split(/\s+/)).not.toContain('line-clamp-2');
-                expect(helper.className).not.toContain('truncate');
-                expect(helper.className).not.toContain('text-ellipsis');
-                // From sm it takes the rest of the value row and may wrap: the
-                // clamp is what lets a longer line break instead of clipping.
-                expect(helper.className.split(/\s+/)).toContain('sm:flex-1');
-                expect(helper.className.split(/\s+/)).toContain('sm:line-clamp-2');
-                // Wrapping is back below 375px, where the arithmetic runs out — a
-                // 320px phone gets a second line rather than a clipped word — and
-                // from sm, where the card is wide and an 11px line fits either way.
-                expect(helper.className.split(/\s+/)).toContain('max-[374px]:line-clamp-2');
-                expect(helper.className.split(/\s+/)).toContain('max-[374px]:whitespace-normal');
-                expect(helper.className.split(/\s+/)).toContain('sm:tracking-normal');
-                expect(helper.className.split(/\s+/)).toContain('sm:whitespace-normal');
+                expect(helper).toHaveTextContent(helper.title);
+                expect(helper).toHaveClass('whitespace-normal', 'text-[11px]');
+                expect(helper).not.toHaveClass('truncate', 'overflow-hidden', 'line-clamp-2');
             });
         });
 

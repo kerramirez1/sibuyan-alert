@@ -32,8 +32,8 @@ const Coverage = ({ municipalities = [] }) => {
             <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.72fr)] lg:gap-10 xl:gap-14">
                 <div>
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-sky-300">Coverage</p>
-                    <h2 className="font-display text-xl font-bold tracking-tight text-white sm:text-2xl">Connected across Sibuyan Island.</h2>
-                    <p className="mb-5 mt-1.5 max-w-xl text-xs leading-relaxed text-slate-300">
+                    <h2 className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">Connected across Sibuyan Island.</h2>
+                    <p className="mb-5 mt-2 max-w-xl text-[13px] leading-relaxed text-slate-200">
                         The platform serves the island&apos;s three municipalities while keeping report visibility, administration, and response responsibilities properly scoped.
                     </p>
 
@@ -49,7 +49,7 @@ const Coverage = ({ municipalities = [] }) => {
                             return (
                                 <li
                                     key={municipality?.code ?? index}
-                                    className="flex min-w-0 items-center gap-2.5 border-b border-white/10 px-1 py-2 sm:gap-3 sm:px-2 sm:py-2.5"
+                                    className="flex min-w-0 items-center gap-3 border-b border-white/15 px-1 py-3 sm:gap-4 sm:px-2"
                                 >
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden p-0.5 sm:h-9 sm:w-9">
                                         {logo
@@ -58,9 +58,9 @@ const Coverage = ({ municipalities = [] }) => {
                                     </span>
                                     <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between sm:gap-6">
                                         <div className="flex items-center gap-2">
-                                            <p className="truncate text-xs font-bold uppercase tracking-wider text-white">{municipality?.name ?? 'Unknown municipality'}</p>
+                                            <p className="text-sm font-semibold text-white">{municipality?.name ?? 'Unknown municipality'}</p>
                                         </div>
-                                        <p className="mt-0.5 shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:mt-0 sm:text-xs">{barangayCount} BRGYS</p>
+                                        <p className="mt-0.5 shrink-0 text-xs tabular-nums text-slate-200 sm:mt-0">{barangayCount} barangays</p>
                                     </div>
                                 </li>
                             );
@@ -74,7 +74,7 @@ const Coverage = ({ municipalities = [] }) => {
                     className="border-t border-white/15 pt-8 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0 xl:pl-14"
                 >
                     <p className="text-[11px] font-bold uppercase tracking-widest text-sky-300">System guarantees</p>
-                    <h3 className="mt-1.5 font-display text-lg font-bold text-white">Built for accountability.</h3>
+                    <h3 className="mt-2 font-display text-xl font-semibold text-white">Built for accountability.</h3>
                     <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-300">
                         Every incident record passes through a structured review and response chain before public visibility.
                     </p>
@@ -86,7 +86,7 @@ const Coverage = ({ municipalities = [] }) => {
                                     <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
-                                    <span className="text-xs leading-relaxed text-slate-300">{text}</span>
+                                    <span className="text-[13px] leading-relaxed text-slate-200">{text}</span>
                                 </li>
                             ))}
                         </ul>

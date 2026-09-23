@@ -485,7 +485,7 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
 
         const list = await screen.findByRole('list', { name: 'Responder incident list' });
-        expect(list).toHaveClass('flex', 'flex-col', 'gap-3');
+        expect(list).toHaveClass('surface-panel', 'divide-y');
         expect(screen.queryByTestId('incident-table')).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
         expect(screen.getByLabelText('Operational totals')).toHaveTextContent('3 incidents');
@@ -496,12 +496,12 @@ describe('AdminReportsPage operational queue', () => {
         const resolvedRow = screen.getByText('Cajidiocan public market').closest('li');
         const respondingStatus = within(activeRow).getByText('Active response');
         const resolvedStatus = within(resolvedRow).getByText('Resolved');
-        expect(respondingStatus).toHaveClass('text-gray-600');
+        expect(respondingStatus).toHaveClass('text-[var(--text-secondary)]');
         expect(respondingStatus).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
-        expect(resolvedStatus).toHaveClass('text-gray-600');
+        expect(resolvedStatus).toHaveClass('text-[var(--text-secondary)]');
         expect(resolvedStatus).not.toHaveClass('bg-green-50', 'text-green-700');
         expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('border-gray-300', 'bg-white', 'text-gray-700');
-        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('min-h-10', 'text-gray-600');
+        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('btn-outline');
         expect(within(resolvedRow).getByRole('button', { name: 'Inspect report' })).toBeInTheDocument();
         expect(within(resolvedRow).queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
@@ -543,7 +543,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(panelBody).toHaveClass('min-h-0', 'flex-1', 'overflow-x-hidden', 'overflow-y-auto');
         expect(panelBody.scrollTop).toBe(0);
         expect(sourceRow).toHaveAttribute('data-selected', 'true');
-        expect(sourceRow).toHaveClass('bg-gray-50', 'border-l-emerald-700');
+        expect(sourceRow).toHaveClass('bg-[var(--accent-soft)]', 'border-l-[var(--accent)]');
         expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-expanded', 'true');
         expect(within(sourceRow).getByRole('button', { name: 'Inspect report' })).toHaveAttribute('aria-controls', 'responder-incident-inspector');
         const openFullMap = within(inspector).getByRole('button', { name: 'Open full map' });
@@ -647,7 +647,7 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Active response' }));
-        expect(screen.getByRole('button', { name: 'Active response' })).toHaveClass('bg-gray-100', 'text-gray-900');
+        expect(screen.getByRole('button', { name: 'Active response' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('button', { name: 'Active response' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
         await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20, status: 'responding' }));
 

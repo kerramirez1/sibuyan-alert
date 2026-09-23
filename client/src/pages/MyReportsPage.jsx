@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from '../utils/appToast';
 import {
@@ -544,18 +545,8 @@ function MyReportsPage() {
             : STATUS_CONFIG[filterStatus]?.label || filterStatus;
 
     return (
-        <div className="mx-auto w-full max-w-5xl">
-            {/* Single page title block. Submit lives in the bottom nav + sidebar. */}
-            <header className="pb-5 sm:pb-6">
-                <div className="min-w-0">
-                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        My reports
-                    </h1>
-                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        Track the review and response status of your incident submissions.
-                    </p>
-                </div>
-            </header>
+        <div className="page-shell max-w-5xl space-y-6">
+            <PageHeader eyebrow="Your incident records" title="My reports" description="Track the review and response status of your incident submissions." />
 
             <OfflineQueueBanner
                 pendingCount={pendingCount}
@@ -599,27 +590,27 @@ function MyReportsPage() {
             ) : (
                 <div>
                     {/* Summary KPI cards */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <section aria-label="Report summary" className="metric-strip">
                         {metricCards.map(({ label, value, helper }) => (
                             <div
                                 key={label}
-                                className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                                className="metric-tile"
                             >
-                                <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
+                                <p className="metric-value">
                                     {value}
                                 </p>
-                                <p className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                <p className="metric-label">
                                     {label}
                                 </p>
-                                <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-gray-500 dark:text-gray-400">{helper}</p>
+                                <p className="metric-helper">{helper}</p>
                             </div>
                         ))}
                     </section>
 
                     {/* Submitted incident records */}
-                    <section className="mt-6 border-t border-gray-200 pt-5 sm:mt-8 sm:pt-6 dark:border-white/10" aria-label="Submitted reports">
+                    <section className="surface-panel mt-6 p-5 sm:p-6" aria-label="Submitted reports">
                         <div className="flex items-center justify-between gap-2">
-                            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <h2 className="section-title">
                                 {filterStatus === 'all'
                                     ? 'Submitted reports'
                                     : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`}
@@ -644,7 +635,7 @@ function MyReportsPage() {
                                     type="button"
                                     onClick={() => setFilterStatus('all')}
                                     aria-label={`Clear ${activeFilterLabel} filter and show all reports`}
-                                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 text-xs font-semibold text-brand-800 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-sky-300 dark:hover:bg-white/10"
+                                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-[var(--accent-soft)] px-3 text-xs font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)]"
                                 >
                                     <span>Filter: {activeFilterLabel}</span>
                                     <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
@@ -653,7 +644,7 @@ function MyReportsPage() {
                         )}
 
                         {(Array.isArray(reports) ? reports.length : 0) > 0 && (
-                            <div className="mt-4 hidden gap-6 border-b border-gray-200 pb-0 sm:flex dark:border-white/10" aria-label="Filter reports by status">
+                            <div className="filter-tabs mt-4 hidden sm:flex" aria-label="Filter reports by status">
                                 {FILTERS.map((filter) => {
                                     const safeLength = Array.isArray(reports) ? reports.length : 0;
                                     const count = filter === 'all' ? safeLength : (counts[filter] || 0);
@@ -667,11 +658,7 @@ function MyReportsPage() {
                                             type="button"
                                             aria-pressed={isActive}
                                             onClick={() => setFilterStatus(filter)}
-                                            className={`shrink-0 border-b pb-2.5 text-sm ${
-                                                isActive
-                                                    ? 'border-gray-900 font-medium text-gray-900 dark:border-white dark:text-white'
-                                                    : 'border-transparent font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                            }`}
+                                            className="filter-tab"
                                         >
                                             {label}
                                             <span className="ml-1.5 tabular-nums text-xs text-gray-400 dark:text-gray-500">{count}</span>
@@ -750,7 +737,7 @@ function MyReportsPage() {
                                             >
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
-                                                    <h3 className="truncate text-sm font-medium text-gray-900 min-[400px]:text-[15px] dark:text-white">
+                                                    <h3 className="break-words text-sm font-medium leading-relaxed text-[var(--text-primary)] min-[400px]:text-[15px]">
                                                         {getLocation(report)}
                                                     </h3>
                                                     <p className="mt-0.5 text-xs leading-snug text-gray-500 min-[400px]:text-[13px] dark:text-gray-400">

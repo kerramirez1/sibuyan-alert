@@ -22,6 +22,7 @@ import { clearReportDraft, loadReportDraft, saveReportDraft } from '../utils/rep
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -797,17 +798,8 @@ const ReportPage = () => {
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
-            {/* Single page title block. The supporting copy is left uncapped so it
-                occupies the header's full width instead of stopping early. */}
-            <header className="pb-2">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                    Submit incident report
-                </h1>
-                <p className="mt-1 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required.
-                </p>
-            </header>
+        <div className="page-shell max-w-7xl space-y-6">
+            <PageHeader eyebrow="Incident reporting" title="Submit incident report" description="Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required." />
 
             {draftRestored && (
                 <div
@@ -826,9 +818,9 @@ const ReportPage = () => {
             )}
 
             {/* Guided Form Layout (2-column desktop/tablet, sequential mobile) */}
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
+            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
                 {/* Left Column: Interactive Location Map (Sticky on Desktop) */}
-                <div className="w-full lg:sticky lg:top-20 self-start">
+                <div className="w-full min-w-0 self-start xl:sticky xl:top-4">
                     <ReportLocationPanel
                         locationStatus={locationStatus}
                         geoLoading={geoLoading}
@@ -847,7 +839,7 @@ const ReportPage = () => {
                 </div>
 
                 {/* Right Column: Incident Details, Casualties, Evidence, and Review */}
-                <div className="w-full">
+                <div className="w-full min-w-0">
                     <ReportDetailsPanel
                         formData={formData}
                         setFormData={setFormData}

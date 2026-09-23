@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import { useSocket } from '../context/SocketContext';
 import { reportsAPI } from '../services/api';
 import {
@@ -290,20 +291,8 @@ const ReporterDashboardPage = () => {
     }, [latestActiveReport]);
 
     return (
-        <div className="mx-auto w-full max-w-5xl">
-            {/* Single page title block: live subline replaces the static tagline.
-                Quick actions live in the mobile bottom nav + sidebar, so no
-                header buttons here. */}
-            <header className="pb-4 sm:pb-5">
-                <div className="min-w-0">
-                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Dashboard
-                    </h1>
-                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        {loading ? 'Loading your report overview.' : headerSummary}
-                    </p>
-                </div>
-            </header>
+        <div className="page-shell max-w-5xl space-y-6">
+            <PageHeader eyebrow="Reporter workspace" title="Dashboard" description={loading ? 'Loading your report overview.' : headerSummary} />
 
             {loading ? (
                 <ReporterDashboardSkeleton />
@@ -319,18 +308,18 @@ const ReporterDashboardPage = () => {
                     </Button>
                 </div>
             ) : (
-                <div className="divide-y divide-gray-200 dark:divide-white/10">
+                <div className="space-y-6">
                     {/* Summary KPI cards */}
-                    <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <section aria-label="Report summary" className="metric-strip">
                         {stats.map((stat) => (
                             <Link
                                 key={stat.key}
                                 to={stat.to}
                                 aria-label={`${stat.label}: ${stat.value}. ${stat.helper}`}
-                                className="group block min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
+                                className="metric-tile group block transition-colors hover:bg-[var(--surface-hover)]"
                             >
                                 <div className="flex items-start justify-between gap-3">
-                                    <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 transition-colors group-hover:text-brand-800 dark:text-white dark:group-hover:text-sky-300">
+                                    <p className="metric-value min-w-0 flex-1">
                                         {stat.value}
                                     </p>
                                     <HiOutlineArrowRight
@@ -338,10 +327,10 @@ const ReporterDashboardPage = () => {
                                         aria-hidden="true"
                                     />
                                 </div>
-                                <p className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                                <p className="metric-label">
                                     {stat.label}
                                 </p>
-                                <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-gray-500 dark:text-gray-400">
+                                <p className="metric-helper">
                                     {stat.helper}
                                 </p>
                             </Link>
@@ -350,11 +339,11 @@ const ReporterDashboardPage = () => {
 
                     {/* Latest update: one status line, one stepper */}
                     {latestActiveReport && (
-                        <section aria-labelledby="latest-update-heading" className="py-6">
-                            <h2 id="latest-update-heading" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <section aria-labelledby="latest-update-heading" className="surface-panel p-5 sm:p-6">
+                            <h2 id="latest-update-heading" className="section-title">
                                 Latest update
                             </h2>
-                            <p className="mt-1.5 truncate text-sm font-semibold text-gray-900 dark:text-white">
+                            <p className="mt-2 break-words text-sm font-medium text-[var(--text-secondary)]">
                                 {getReportHeading(latestActiveReport)}
                             </p>
 
@@ -415,9 +404,9 @@ const ReporterDashboardPage = () => {
                     )}
 
                     {/* Recent reports: rows are the links, no Action column */}
-                    <section aria-labelledby="recent-reports-heading" className="py-6">
+                    <section aria-labelledby="recent-reports-heading" className="surface-panel p-5 sm:p-6">
                         <div className="flex items-baseline justify-between gap-2">
-                            <h2 id="recent-reports-heading" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <h2 id="recent-reports-heading" className="section-title">
                                 Recent reports
                             </h2>
                             {(Array.isArray(reports) ? reports.length : 0) > 0 && (
@@ -446,7 +435,7 @@ const ReporterDashboardPage = () => {
                                                 className="group flex items-center gap-3 py-3.5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4 dark:hover:bg-white/[0.02]"
                                             >
                                                 <span className="min-w-0 flex-1">
-                                                    <span className="block truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                                    <span className="block break-words text-sm font-medium leading-relaxed text-[var(--text-primary)]">
                                                         {location}
                                                     </span>
                                                     <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-gray-400">

@@ -20,8 +20,8 @@ export const Skeleton = ({
         circular: 'rounded-full shrink-0',
         rectangular: 'rounded-none',
         rounded: 'rounded-xl',
-        card: 'rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white dark:border-white/10 dark:bg-[#0c1813]/90',
-        button: 'h-9 rounded-xl',
+        card: 'surface-panel',
+        button: 'h-10 rounded-lg',
     }[variant] || 'rounded-xl';
 
     const baseColorClass = variant === 'card'
@@ -160,7 +160,7 @@ export const SkeletonCard = ({
     return (
         <div
             {...roleAttr}
-            className={`rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 shadow-2xs ${padding} ${className}`.trim()}
+            className={`surface-panel ${padding} ${className}`.trim()}
             {...props}
         >
             {label && <span className="sr-only">{label}</span>}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import api from '../services/api';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import toast from '../utils/appToast';
@@ -98,8 +99,8 @@ const ResetPasswordPage = () => {
                 >
                     <HiOutlineArrowLeft className="h-4 w-4" /> Back to login
                 </Link>
-                <div className="w-full rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8" role="alert">
-                    <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                <div className="form-surface w-full" role="alert">
+                    <h1 className="page-title">
                         Invalid reset link
                     </h1>
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
@@ -125,7 +126,7 @@ const ResetPasswordPage = () => {
                 <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
                 <div>
                     <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                        Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
+                        Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
                     </p>
                     <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                         Accident Alert &amp; Mapping System
@@ -142,26 +143,16 @@ const ResetPasswordPage = () => {
             </Link>
 
             {/* Main Card Container */}
-            <div className="w-full rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8">
+            <div className="form-surface w-full">
                 {!success ? (
                     <>
                         {/* Header */}
-                        <div className="mb-6">
-                            <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
-                                Password Reset
-                            </p>
-                            <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
-                                Set a new password
-                            </h1>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
-                                Enter and confirm your new secure account password below.
-                            </p>
-                        </div>
+                        <PageHeader className="mb-6" eyebrow="Password Reset" title="Set a new password" description="Enter and confirm your new secure account password below." />
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="reset-password" className="field-label">
                                     New Password
                                 </label>
                                 <div className="relative">
@@ -169,6 +160,7 @@ const ResetPasswordPage = () => {
                                         <HiOutlineLockClosed className="h-4.5 w-4.5" />
                                     </div>
                                     <input
+                                        id="reset-password"
                                         type={showPassword ? 'text' : 'password'}
                                         name="password"
                                         value={formData.password}
@@ -177,12 +169,12 @@ const ResetPasswordPage = () => {
                                         required
                                         minLength={PASSWORD_MIN_CHARACTERS}
                                         maxLength={72}
-                                        className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-11 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
+                                        className="field-control pl-10 pr-12"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(prev => !prev)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:text-gray-300"
+                                        className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     >
                                         {showPassword ? <HiOutlineEyeOff className="h-4.5 w-4.5" /> : <HiOutlineEye className="h-4.5 w-4.5" />}
@@ -191,7 +183,7 @@ const ResetPasswordPage = () => {
                             </div>
 
                             <div>
-                                <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="reset-confirm-password" className="field-label">
                                     Confirm New Password
                                 </label>
                                 <div className="relative">
@@ -199,6 +191,7 @@ const ResetPasswordPage = () => {
                                         <HiOutlineLockClosed className="h-4.5 w-4.5" />
                                     </div>
                                     <input
+                                        id="reset-confirm-password"
                                         type={showConfirmPassword ? 'text' : 'password'}
                                         name="confirmPassword"
                                         value={formData.confirmPassword}
@@ -207,12 +200,12 @@ const ResetPasswordPage = () => {
                                         required
                                         minLength={PASSWORD_MIN_CHARACTERS}
                                         maxLength={72}
-                                        className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-11 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-100 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:hover:border-gray-600 dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40"
+                                        className="field-control pl-10 pr-12"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowConfirmPassword(prev => !prev)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:text-gray-300"
+                                        className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                         aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                                     >
                                         {showConfirmPassword ? <HiOutlineEyeOff className="h-4.5 w-4.5" /> : <HiOutlineEye className="h-4.5 w-4.5" />}
@@ -221,7 +214,7 @@ const ResetPasswordPage = () => {
                             </div>
 
                             {/* Password Requirements */}
-                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/80 p-3.5 dark:border-white/10 dark:bg-[#07130e]">
+                            <div className="rounded-lg bg-[var(--surface-muted)] p-4">
                                 <p className="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
                                     Password requirements:
                                 </p>
@@ -242,7 +235,7 @@ const ResetPasswordPage = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="min-h-12 w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="btn-primary w-full disabled:opacity-60"
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     {loading ? (
@@ -266,9 +259,9 @@ const ResetPasswordPage = () => {
                             <HiOutlineCheckCircle className="h-7 w-7" />
                         </div>
 
-                        <h2 className="font-display text-xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-2xl">
+                        <h1 className="page-title">
                             Password Reset Successful
-                        </h2>
+                        </h1>
                         <p className="mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                             Your password has been successfully reset. Redirecting to login…
                         </p>

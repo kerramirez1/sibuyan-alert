@@ -19,13 +19,13 @@ const steps = [
 ];
 
 const HowItWorks = () => (
-    <section id="how-it-works" className="scroll-mt-16 border-y border-gray-200/80 bg-white px-5 py-10 dark:border-white/5 dark:bg-gray-950 sm:px-8 sm:py-12">
+    <section id="how-it-works" className="scroll-mt-16 border-y border-[var(--border)] bg-[var(--surface)] px-5 py-10 sm:px-8 sm:py-12">
         <div className="mx-auto max-w-6xl">
             <div className="mb-6 max-w-2xl sm:mb-8">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:text-sky-400">
+                <p className="page-eyebrow">
                     ISLAND-WIDE DISPATCH PROTOCOL
                 </p>
-                <h2 className="font-display text-xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-2xl">
+                <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
                     From report to field response.
                 </h2>
                 <p className="mt-2 text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-400">
@@ -40,17 +40,17 @@ const HowItWorks = () => (
                 className="grid grid-cols-1 divide-y divide-gray-200 md:grid-cols-3 md:divide-y-0 md:divide-x dark:divide-white/10"
             >
                 {steps.map(({ n, title, desc }) => (
-                    <div key={n} role="listitem" className="relative min-w-0 p-4">
+                    <div key={n} role="listitem" className="relative min-w-0 px-4 py-5 sm:px-6">
                         <span
                             aria-hidden="true"
-                            className="font-mono text-xl sm:text-2xl font-black tracking-tight text-gray-300 dark:text-gray-700"
+                            className="font-display text-2xl font-semibold tracking-tight text-[var(--accent-text)]"
                         >
                             {n}
                         </span>
-                        <h3 className="mt-2 text-sm font-bold text-gray-950 dark:text-white">
+                        <h3 className="section-title mt-3">
                             {title}
                         </h3>
-                        <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                        <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                             {desc}
                         </p>
                     </div>

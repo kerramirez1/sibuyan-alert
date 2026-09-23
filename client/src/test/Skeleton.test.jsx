@@ -46,7 +46,7 @@ describe('Skeleton UI Component & Primitives', () => {
         render(<SkeletonButton size="h-9 w-28" label="Loading action" />);
 
         const button = screen.getByRole('status', { name: 'Loading action' });
-        expect(button).toHaveClass('h-9', 'w-28', 'rounded-xl');
+        expect(button).toHaveClass('h-9', 'w-28', 'rounded-lg');
     });
 
     test('renders SkeletonCard with application styling and children', () => {
@@ -57,7 +57,7 @@ describe('Skeleton UI Component & Primitives', () => {
         );
 
         const card = screen.getByRole('status', { name: 'Loading card container' });
-        expect(card).toHaveClass('border', 'border-gray-200/90', 'bg-white', 'shadow-2xs');
+        expect(card).toHaveClass('surface-panel');
         expect(screen.getByTestId('card-child')).toBeInTheDocument();
     });
 

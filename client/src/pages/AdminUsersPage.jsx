@@ -11,6 +11,7 @@ import {
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import { Skeleton, SkeletonCircle, SkeletonButton, SkeletonRow } from '../components/ui/Skeleton';
 import toast from '../utils/appToast';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
@@ -366,7 +367,7 @@ const AdminUsersPage = () => {
         const safeRole = typeof role === 'string' ? role : '';
         const config = ROLE_BADGES[safeRole] || { label: safeRole || 'Unknown', dot: 'bg-gray-400' };
         return (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
                 <span>{config.label}</span>
             </span>
@@ -377,7 +378,7 @@ const AdminUsersPage = () => {
         const safeStatus = typeof status === 'string' ? status : '';
         const config = VERIFICATION_BADGES[safeStatus] || { label: 'N/A', dot: 'bg-gray-400' };
         return (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`} aria-hidden="true" />
                 <span>{config.label}</span>
             </span>
@@ -385,67 +386,54 @@ const AdminUsersPage = () => {
     };
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1120px] space-y-6 sm:space-y-8">
-            {/* Page Header */}
-            <header className="flex flex-col gap-2 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-white/10">
-                <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">
-                        Municipal administration
-                    </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Manage users
-                    </h1>
-                    <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        View and verify reporter accounts.
-                    </p>
-                </div>
-
-                <p className="flex shrink-0 items-center gap-1.5 text-xs text-gray-500 sm:pt-1 dark:text-gray-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
-                    <span>Sibuyan Island · Alert System Active</span>
-                </p>
-            </header>
+        <div className="page-shell max-w-[1120px] space-y-6">
+            <PageHeader
+                eyebrow="Municipal administration"
+                title="Manage users"
+                description="View and verify reporter accounts."
+                actions={<p className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" /><span>Sibuyan Island · Alert System Active</span></p>}
+            />
 
             {/* Summary Metrics Strip */}
             {stats && (
-                <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="User directory summary">
-                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                        <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.totalUsers}</p>
-                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total users</span>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Registered accounts</p>
+                <section className="metric-strip" aria-label="User directory summary">
+                    <div className="metric-tile">
+                        <p className="metric-value">{stats.totalUsers}</p>
+                        <span className="metric-label block">Total users</span>
+                        <p className="metric-helper">Registered accounts</p>
                     </div>
 
-                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <div className="metric-tile">
                         <div className="flex items-start justify-between gap-3">
-                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.reporters}</p>
+                            <p className="metric-value min-w-0 flex-1">{stats.reporters}</p>
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 mt-2" aria-hidden="true" />
                         </div>
-                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Reporters</span>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Field reporters</p>
+                        <span className="metric-label block">Reporters</span>
+                        <p className="metric-helper">Field reporters</p>
                     </div>
 
-                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <div className="metric-tile">
                         <div className="flex items-start justify-between gap-3">
-                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.pendingVerification}</p>
+                            <p className="metric-value min-w-0 flex-1">{stats.pendingVerification}</p>
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 mt-2" aria-hidden="true" />
                         </div>
-                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Pending</span>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
+                        <span className="metric-label block">Pending</span>
+                        <p className="metric-helper">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
                     </div>
 
-                    <div className="rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+                    <div className="metric-tile">
                         <div className="flex items-start justify-between gap-3">
-                            <p className="min-w-0 flex-1 truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">{stats.responders}</p>
+                            <p className="metric-value min-w-0 flex-1">{stats.responders}</p>
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500 mt-2" aria-hidden="true" />
                         </div>
-                        <span className="mt-2 block truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Responders</span>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Emergency units</p>
+                        <span className="metric-label block">Responders</span>
+                        <p className="metric-helper">Emergency units</p>
                     </div>
                 </section>
             )}
 
             {/* Users Data Section */}
-            <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Users directory">
+            <section className="surface-panel overflow-hidden" aria-label="Users directory">
                 {/* Search & Filters Toolbar */}
                 <div className="border-b border-gray-200 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
                     <div className="flex flex-col gap-2.5 sm:gap-3">
@@ -458,14 +446,15 @@ const AdminUsersPage = () => {
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && fetchUsers({ force: true })}
-                                    className="h-9 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                    className="field-control pl-9"
+                                    aria-label="Search users by name or email"
                                 />
                             </div>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => fetchUsers({ force: true })}
-                                    className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                                    className="btn-primary"
                                 >
                                     Search
                                 </button>
@@ -473,7 +462,7 @@ const AdminUsersPage = () => {
                                     <button
                                         type="button"
                                         onClick={clearFilters}
-                                        className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                        className="btn-outline"
                                     >
                                         Clear
                                     </button>
@@ -484,7 +473,7 @@ const AdminUsersPage = () => {
                             <select
                                 value={filter.role}
                                 onChange={(e) => setFilter({ ...filter, role: e.target.value })}
-                                className="h-9 w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                className="field-control sm:w-auto"
                                 aria-label="Filter by role"
                             >
                                 <option value="">All Roles</option>
@@ -494,7 +483,7 @@ const AdminUsersPage = () => {
                             <select
                                 value={filter.verificationStatus}
                                 onChange={(e) => setFilter({ ...filter, verificationStatus: e.target.value })}
-                                className="h-9 w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                                className="field-control sm:w-auto"
                                 aria-label="Filter by verification status"
                             >
                                 <option value="">All Status</option>

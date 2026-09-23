@@ -17,13 +17,13 @@
     --analytics-muted: var(--surface-muted);
     --analytics-border: var(--border-strong);
     --analytics-ink: var(--text-primary);
-    --analytics-secondary: #b1c4bc;
-    --analytics-subtle: #94aaa0;
+    --analytics-secondary: var(--text-secondary);
+    --analytics-subtle: var(--text-muted);
     --analytics-accent: #a9cce8;
     --analytics-accent-soft: rgb(143 173 201 / 0.1);
-    --analytics-track: #263d34;
-    --chart-axis: #94aaa0;
-    --chart-grid: #2a4036;
+    --analytics-track: var(--border);
+    --chart-axis: var(--text-muted);
+    --chart-grid: var(--border);
 }
 
 .surface {
@@ -253,8 +253,6 @@
     padding: 8px;
     white-space: normal;
 }
-
-.mapFilters > button::before { inset: 0; }
 
 .activityRow {
     display: grid;

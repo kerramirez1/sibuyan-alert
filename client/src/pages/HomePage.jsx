@@ -109,9 +109,10 @@ const HomePage = () => {
         !isAuthenticated || user?.role === 'reporter';
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-slate-100 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+        <div className="min-h-screen overflow-x-hidden bg-[var(--bg-primary)] font-sans text-[var(--text-primary)] antialiased">
+            <a href="#main-content" className="skip-link">Skip to content</a>
             {/* ── Compact hairline navbar: solid surface, no blur wash ── */}
-            <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-white/5 dark:bg-gray-950">
+            <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--border)] bg-[var(--surface)]">
                 <div className="mx-auto flex h-[58px] max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-8 lg:px-10 xl:px-14">
                     <Link to="/" className="flex min-w-0 shrink items-center gap-0" aria-label="Sibuyan Alert home">
                         {/* Unified wordmark (same treatment as the footer): the logo IS the
@@ -124,9 +125,9 @@ const HomePage = () => {
                     </Link>
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Landing page">
-                        <a href="#home" className="text-xs font-bold uppercase tracking-wider text-brand-700 transition-colors hover:text-brand-600 dark:text-sky-300 dark:hover:text-sky-200">Home</a>
-                        <Link to="/dashboard?view=map" className="text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-300 dark:hover:text-white">Live map</Link>
-                        <a href="#how-it-works" className="text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-300 dark:hover:text-white">How it works</a>
+                        <a href="#home" className="text-action">Home</a>
+                        <Link to="/dashboard?view=map" className="text-action">Live map</Link>
+                        <a href="#how-it-works" className="text-action">How it works</a>
                     </nav>
 
                     <nav className="flex shrink-0 items-center gap-1 sm:gap-1.5" aria-label="Account actions">
@@ -141,7 +142,7 @@ const HomePage = () => {
                         ) : (
                             <Link
                                 to="/login"
-                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-100 hover:text-gray-950 sm:px-3 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                                className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] sm:px-3"
                             >
                                 Sign in
                             </Link>
@@ -155,7 +156,7 @@ const HomePage = () => {
                                     : '/login'
                                 }
                                 id="header-report-cta"
-                                className="inline-flex h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 hover:text-red-700 sm:px-3 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                                className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-2 text-xs font-semibold text-red-700 hover:bg-red-50 sm:px-3 dark:text-red-300 dark:hover:bg-red-950/30"
                             >
                                 <span>Report<span className="hidden min-[400px]:inline"> incident</span></span>
                             </Link>
@@ -164,7 +165,7 @@ const HomePage = () => {
                 </div>
             </header>
 
-            <main>
+            <main id="main-content" tabIndex={-1}>
                 <LandingHero
                     publicStats={publicStats}
                     publicStatsState={publicStatsState}
@@ -176,7 +177,7 @@ const HomePage = () => {
             </main>
 
             {/* ── Linear-inspired Clean Footer ── */}
-            <footer className="border-t border-gray-200/80 bg-slate-100 px-5 pb-8 pt-10 dark:border-white/10 dark:bg-gray-950 sm:px-8 sm:pt-12">
+            <footer className="border-t border-[var(--border)] bg-[var(--surface-muted)] px-5 pb-8 pt-10 sm:px-8 sm:pt-12">
                 <div className="mx-auto max-w-6xl">
                     <div
                         data-testid="landing-footer-grid"
@@ -226,7 +227,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <Link
                                                     to={to}
-                                                     className="inline-block text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 dark:text-gray-300 dark:hover:text-sky-300"
+                                                className="inline-flex min-h-8 items-center text-[13px] text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--accent-text)] hover:underline"
                                                 >
                                                     {label}
                                                 </Link>
@@ -235,7 +236,7 @@ const HomePage = () => {
                                             <li key={label}>
                                                 <a
                                                     href={href}
-                                                     className="inline-block text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 dark:text-gray-300 dark:hover:text-sky-300"
+                                                className="inline-flex min-h-8 items-center text-[13px] text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--accent-text)] hover:underline"
                                                 >
                                                     {label}
                                                 </a>
@@ -258,7 +259,7 @@ const HomePage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setActiveLegalDocument(documentType)}
-                                            className="inline-block rounded text-left text-xs text-gray-600 transition-all hover:translate-x-0.5 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-gray-300 dark:hover:text-sky-300 dark:focus-visible:ring-sky-400 dark:focus-visible:ring-offset-gray-950"
+                                            className="inline-flex min-h-8 items-center rounded text-left text-[13px] text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--accent-text)] hover:underline"
                                         >
                                             {label}
                                         </button>

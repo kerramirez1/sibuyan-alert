@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 
 const Input = forwardRef(({
     label,
@@ -6,22 +6,32 @@ const Input = forwardRef(({
     icon: Icon,
     rightElement = null,
     className = '',
+    id,
+    'aria-describedby': describedBy,
+    'aria-invalid': invalid,
     ...props
 }, ref) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
+    const errorId = `${inputId}-error`;
+    const descriptionIds = [describedBy, error ? errorId : null].filter(Boolean).join(' ') || undefined;
     return (
         <div className={className}>
             {label && (
-                <label className="label">{label}</label>
+                <label htmlFor={inputId} className="label">{label}</label>
             )}
             <div className="relative">
                 {Icon && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon className="w-5 h-5" />
+                    <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
                     </div>
                 )}
                 <input
                     ref={ref}
-                    className={`input ${Icon ? 'pl-12' : ''} ${rightElement ? 'pr-12' : ''} ${error ? 'input-error' : ''}`}
+                    id={inputId}
+                    aria-invalid={invalid ?? (error ? true : undefined)}
+                    aria-describedby={descriptionIds}
+                    className={`input ${Icon ? 'pl-10' : ''} ${rightElement ? 'pr-12' : ''} ${error ? 'input-error' : ''}`}
                     {...props}
                 />
                 {rightElement && (
@@ -31,7 +41,7 @@ const Input = forwardRef(({
                 )}
             </div>
             {error && (
-                <p className="mt-1.5 text-sm text-danger-600">{error}</p>
+                <p id={errorId} className="mt-1.5 text-xs leading-relaxed text-[var(--danger)]">{error}</p>
             )}
         </div>
     );

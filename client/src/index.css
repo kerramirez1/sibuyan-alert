@@ -8,6 +8,7 @@
 @import '@fontsource/outfit/latin-600.css';
 @import '@fontsource/outfit/latin-700.css';
 @import '@fontsource/outfit/latin-800.css';
+@import './styles/design-system.css';
 
 @tailwind base;
 @tailwind components;
@@ -16,32 +17,27 @@
 /* Semantic application theme tokens. New components should prefer these variables. */
 :root {
   /* Backgrounds */
-  --bg-primary: #f6fbf8;
-  /* near-white with faint green breath */
+  --bg-primary: #f3f6fa;
   --bg-secondary: #ffffff;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
-  --surface-hover: #eef7f2;
-  /* very subtle green hover */
-  --surface-muted: #f2f9f5;
+  --surface-hover: #edf2f7;
+  --surface-muted: #f7f9fc;
 
   /* Typography */
-  --text-primary: #0f1f1a;
-  /* dark with green tint, not pure #111827 */
-  --text-secondary: #516b62;
-  /* green-tinted gray */
-  --text-muted: #7a9a8e;
+  --text-primary: #152a40;
+  --text-secondary: #526176;
+  --text-muted: #65748a;
 
   /* Borders */
-  --border: #d0e8dc;
-  /* very subtle green border */
-  --border-strong: #b4d4c8;
+  --border: #e1e7ee;
+  --border-strong: #cbd5e1;
 
-  /* Brand / Accent = emerald-600 */
-  --accent: #059669;
-  --accent-hover: #047857;
-  --accent-soft: #ecfdf5;
-  --accent-text: #047857;
+  /* Command navy is brand; green, amber and red retain their status meanings. */
+  --accent: #14385c;
+  --accent-hover: #0f2a44;
+  --accent-soft: #edf3f9;
+  --accent-text: #14385c;
 
   /* Semantic status */
   --danger: #dc2626;
@@ -52,22 +48,22 @@
   --success-soft: #ecfdf5;
 
   /* Focus */
-  --focus-ring: #059669;
+  --focus-ring: #35648f;
 
   /* Overlays & shadows */
-  --overlay: rgb(9 23 17 / 0.55);
-  --shadow-sm: 0 1px 3px rgb(9 23 17 / 0.07);
-  --shadow-lg: 0 16px 36px rgb(9 23 17 / 0.12);
+  --overlay: rgb(10 28 46 / 0.55);
+  --shadow-sm: 0 1px 2px rgb(15 42 68 / 0.04);
+  --shadow-lg: 0 16px 40px rgb(15 42 68 / 0.14);
 
   /* Chart */
-  --chart-grid: #d0e8dc;
-  --chart-axis: #516b62;
-  --chart-axis-strong: #2a4d3a;
-  --chart-fill: #ecfdf5;
+  --chart-grid: #e8eef4;
+  --chart-axis: #65748a;
+  --chart-axis-strong: #526176;
+  --chart-fill: #edf3f9;
 
   /* Map controls */
   --map-control: #ffffff;
-  --map-control-hover: #eef7f2;
+  --map-control-hover: #edf2f7;
 
   /* Map marker beat: how often a pulse wave leaves a marker. ONE shared value
      drives both consumers of the pulse kit — the high-risk zone radar and the
@@ -83,31 +79,26 @@
 }
 
 .dark {
-  /* Backgrounds — deep forest green, not blue-navy.
-     The auth shell already uses this palette (#0d1917); we extend it
-     to the entire authenticated app so the UI feels like one system. */
-  --bg-primary: #091711;
-  --bg-secondary: #0e1f18;
-  --surface: #112219;
-  --surface-elevated: #162c21;
-  --surface-hover: #1d3628;
-  --surface-muted: #0e1f18;
+  --bg-primary: #0b1623;
+  --bg-secondary: #0e1b2a;
+  --surface: #111f2f;
+  --surface-elevated: #182a3d;
+  --surface-hover: #1c2e42;
+  --surface-muted: #0e1b2a;
 
-  /* Typography — warm green-white, not cool slate */
-  --text-primary: #e8f5ee;
-  --text-secondary: #8bafa1;
-  --text-muted: #567a6d;
+  --text-primary: #e8eff7;
+  --text-secondary: #b0bfd0;
+  --text-muted: #93a5ba;
 
   /* Borders */
-  --border: #1c3428;
-  --border-strong: #264a38;
+  --border: #26384c;
+  --border-strong: #374e66;
 
   /* Brand / Accent */
-  --accent: #34d399;
-  /* emerald-400 in dark */
-  --accent-hover: #6ee7b7;
-  --accent-soft: rgb(5 150 105 / 0.22);
-  --accent-text: #6ee7b7;
+  --accent: #a9cce8;
+  --accent-hover: #c5dff3;
+  --accent-soft: rgb(143 173 201 / 0.12);
+  --accent-text: #a9cce8;
 
   /* Semantic status */
   --danger: #f87171;
@@ -118,22 +109,22 @@
   --success-soft: rgb(5 150 105 / 0.28);
 
   /* Focus */
-  --focus-ring: #34d399;
+  --focus-ring: #a9cce8;
 
   /* Overlays & shadows */
-  --overlay: rgb(4 10 7 / 0.78);
-  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 18px 42px rgb(0 0 0 / 0.4);
+  --overlay: rgb(4 10 18 / 0.7);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.15);
+  --shadow-lg: 0 18px 42px rgb(0 0 0 / 0.3);
 
   /* Chart */
-  --chart-grid: #1c3428;
-  --chart-axis: #567a6d;
-  --chart-axis-strong: #8bafa1;
-  --chart-fill: rgb(5 150 105 / 0.15);
+  --chart-grid: #26384c;
+  --chart-axis: #93a5ba;
+  --chart-axis-strong: #b0bfd0;
+  --chart-fill: rgb(143 173 201 / 0.12);
 
   /* Map controls */
-  --map-control: #112219;
-  --map-control-hover: #1d3628;
+  --map-control: #111f2f;
+  --map-control-hover: #1c2e42;
 }
 
 /* Hero image entrance: CSS-only replacement for framer-motion scale entrance in HeroSection.
@@ -186,7 +177,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700;
+    @apply bg-gray-300 dark:bg-gray-600;
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
@@ -194,8 +185,7 @@
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gradient-to-b from-gray-400 to-gray-500 dark:from-gray-500 dark:to-gray-600;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    @apply bg-gray-400 dark:bg-gray-500;
   }
 
   /* Custom Scrollbar Utility */
@@ -208,12 +198,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800;
+    @apply bg-gray-300 dark:bg-gray-600;
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-gradient-to-b from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700;
+    @apply bg-gray-400 dark:bg-gray-500;
   }
 
   /* Hide scrollbar utility */
@@ -226,47 +216,23 @@
     scrollbar-width: none;
   }
 
-  /* Buttons are borderless across every page, including selected states. */
-  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]) {
-    border-color: transparent !important;
-    border-image: none !important;
-  }
-
-  /* Keep borderless neutral actions distinguishable from pure-white panels. */
-  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"])[class~="bg-white"] {
-    background-color: #eef0f3 !important;
-  }
-
-  .dark :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"])[class~="bg-white"] {
-    background-color: rgb(255 255 255 / 0.08) !important;
-  }
-
-  /* Suppress utility rings and use elevation/contrast for keyboard focus. */
-  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus {
+  /* A visible, consistent keyboard indicator across links, controls and menus. */
+  :where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
     --tw-ring-offset-shadow: 0 0 #0000 !important;
     --tw-ring-shadow: 0 0 #0000 !important;
-    outline: none !important;
-  }
-
-  :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus-visible {
-    box-shadow: 0 8px 18px rgb(17 24 39 / 0.22) !important;
-    filter: brightness(0.92);
-  }
-
-  .dark :where(button, [role="button"], .ui-button, a[class*="inline-flex"][class*="rounded"], a[class*="min-h-"][class*="rounded"]):focus-visible {
-    box-shadow: 0 8px 18px rgb(0 0 0 / 0.48) !important;
-    filter: brightness(1.12);
+    outline: 2px solid var(--focus-ring) !important;
+    outline-offset: 3px;
   }
 }
 
 /* Custom Component Styles */
 @layer components {
 
-  /* Glassmorphism */
+  /* Legacy surface helpers use the same restrained theme as newer pages. */
   .glass {
-    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-glass;
-    @apply border border-white/20 dark:border-gray-700/30;
-    @apply shadow-glass dark:shadow-glass-dark;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
   }
 
   /* Gradient Text */
@@ -275,187 +241,129 @@
     @apply bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500;
   }
 
-  /* Button Base - Premium Edition */
+  /* Shared control geometry, without decorative movement. */
   .btn {
     @apply inline-flex items-center justify-center gap-2;
-    @apply px-5 py-3 rounded-xl font-semibold;
-    @apply transition-all duration-300 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply min-h-11 px-4 py-2.5 rounded-lg text-sm font-semibold;
+    @apply transition-colors duration-150;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transform hover:scale-[1.02] active:scale-[0.98];
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-  }
-
-  .btn:hover::before {
-    width: 300px;
-    height: 300px;
   }
 
   .btn-primary {
-    @apply btn text-white;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    @apply btn bg-brand-700 text-white;
   }
 
   .btn-primary:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
-    @apply focus:ring-primary-500;
+    @apply bg-brand-800;
   }
 
   .btn-secondary {
-    @apply btn bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700;
-    @apply dark:from-gray-800 dark:to-gray-700 dark:text-gray-200;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    @apply btn;
+    background: var(--surface-muted);
+    color: var(--text-primary);
   }
 
   .btn-secondary:hover {
-    @apply from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    @apply focus:ring-gray-500;
+    background: var(--surface-hover);
   }
 
   .btn-danger {
-    @apply btn text-white;
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    @apply btn bg-red-700 text-white;
   }
 
   .btn-danger:hover {
-    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
-    box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
-    @apply focus:ring-danger-500;
+    @apply bg-red-800;
   }
 
   .btn-success {
-    @apply btn text-white;
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    @apply btn bg-emerald-700 text-white;
   }
 
   .btn-success:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
-    @apply focus:ring-success-500;
+    @apply bg-emerald-800;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-gray-600 dark:text-gray-400;
-    @apply hover:bg-gray-100/80 dark:hover:bg-gray-800/80;
-    backdrop-filter: blur(10px);
+    @apply btn bg-transparent;
+    color: var(--text-secondary);
   }
+  .btn-ghost:hover { background: var(--surface-hover); }
 
   .btn-outline {
-    @apply btn border-2 text-primary-600;
-    border-image: linear-gradient(135deg, #3B82F6, #2563EB) 1;
-    @apply hover:bg-primary-600 hover:text-white;
-    @apply dark:text-primary-400;
-    @apply dark:hover:bg-primary-400 dark:hover:text-gray-900;
+    @apply btn;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--accent-text);
   }
+  .btn-outline:hover { background: var(--accent-soft); }
 
-  /* Cards - Premium Edition */
+  /* Surfaces */
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-2xl p-6;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-    @apply border border-gray-100/50 dark:border-gray-700/50;
-    backdrop-filter: blur(10px);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
-  }
-
-  .dark .card {
-    background: linear-gradient(135deg, rgba(31, 41, 55, 0.95) 0%, rgba(31, 41, 55, 0.98) 100%);
+    @apply rounded-xl p-5 sm:p-6;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
   }
 
   .card-hover {
-    @apply card transition-all duration-300;
-    @apply hover:-translate-y-2;
-    @apply hover:border-primary-200/80 dark:hover:border-primary-800/80;
+    @apply card transition-colors duration-150;
   }
 
   .card-hover:hover {
-    box-shadow: 0 12px 40px rgba(22, 163, 74, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(22, 163, 74, 0.05);
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
   }
 
-  /* Inputs - Premium Edition */
+  /* Form controls */
   .input {
-    @apply w-full px-4 py-3.5 rounded-xl;
-    @apply bg-white dark:bg-gray-800;
-    @apply border-2 border-gray-200 dark:border-gray-700;
-    @apply text-gray-900 dark:text-gray-100;
-    @apply placeholder-gray-400 dark:placeholder-gray-500;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500;
-    @apply transition-all duration-300;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    @apply w-full min-h-11 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-primary);
   }
+  .input::placeholder { color: var(--text-muted); }
 
   .input:focus {
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15), 0 2px 8px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
+    border-color: var(--focus-ring);
   }
 
   .input-error {
-    @apply input border-danger-500 focus:ring-danger-500/50 focus:border-danger-500;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+    border-color: var(--danger);
   }
 
   .input-error:focus {
-    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-color: var(--danger);
   }
 
   /* Labels */
   .label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
+    @apply block text-[13px] font-semibold mb-1.5;
+    color: var(--text-secondary);
   }
 
-  /* Status Badges - Premium Edition */
+  /* Status badges retain meaningful color without decorative depth. */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(8px);
-    transition: all 0.3s ease;
-  }
-
-  .badge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    @apply inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold;
   }
 
   .badge-pending {
     @apply badge text-accent-700 dark:text-accent-300;
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.2) 100%);
-    border: 1px solid rgba(251, 191, 36, 0.3);
+    background: var(--warning-soft);
   }
 
   .badge-verified {
     @apply badge text-success-700 dark:text-success-300;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.2) 100%);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: var(--success-soft);
   }
 
   .badge-rejected {
     @apply badge text-danger-700 dark:text-danger-300;
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.2) 100%);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: var(--danger-soft);
   }
 
   .badge-info {
     @apply badge text-primary-700 dark:text-primary-300;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.2) 100%);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: var(--accent-soft);
   }
 
   /* Map Marker */
@@ -1169,16 +1077,14 @@
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .page-enter {
-  animation: pageEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageEnter 150ms ease-out;
 }
 
 /* The summary panel takes the column the cards were standing in, so it arrives
@@ -1477,15 +1383,11 @@
   }
 }
 
-/* Shared MapLibre navigation controls stay compact so they never cover
-   the island, on desktop and mobile alike. The sizes are marked important
-   because maplibre-gl.css is imported by the lazy MapView chunk and is
-   therefore injected after this stylesheet at runtime, so its 29px default
-   would otherwise win. The hit area stays the button itself — visual size
-   only. */
+/* Keep navigation targets usable without overwhelming embedded maps. Important
+   sizes take precedence over the map renderer's lazy-loaded stylesheet. */
 .maplibregl-ctrl-group button {
-  width: 24px !important;
-  height: 24px !important;
+  width: 32px !important;
+  height: 32px !important;
 }
 
 /* MapLibre paints each glyph at its SVG's natural 29px inside the button,
@@ -1499,40 +1401,38 @@
   outline-offset: 2px;
 }
 
-/* Touch screens get an extra-small control so it never covers the island on
-   a phone; tapping is supplemented by pinch/double-tap zoom, which is how the
-   control is operated there anyway. */
+/* Smaller canvases retain at least a 28px target alongside gesture navigation. */
 @media (max-width: 640px) {
   .maplibregl-ctrl-group button {
-    width: 18px !important;
-    height: 18px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    background-size: 18px 18px;
+    background-size: 24px 24px;
   }
 }
 
 /* Compact zoom controls in embedded incident location preview */
 .incident-location-preview .maplibregl-ctrl-group button {
-  width: 22px !important;
-  height: 22px !important;
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-  background-size: 22px 22px;
+  background-size: 24px 24px;
 }
 
 /* Without this, the preview rule above (higher specificity) would keep the
    control at its desktop size on phones — larger than the plain map's. */
 @media (max-width: 640px) {
   .incident-location-preview .maplibregl-ctrl-group button {
-    width: 18px !important;
-    height: 18px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    background-size: 18px 18px;
+    background-size: 24px 24px;
   }
 }
 
@@ -1542,8 +1442,7 @@
  * utilities. These exact-class overrides make those surfaces theme-aware
  * without changing status colors, layout utilities, or business components.
  */
-/* Dark mode background overrides — maps legacy Tailwind light-mode bg-*
- * classes to the new deep-green surface tokens. */
+/* Dark mode background overrides map legacy utilities to semantic surfaces. */
 .dark .bg-white,
 .dark .bg-white\/95,
 .dark .bg-white\/90,
@@ -1765,28 +1664,14 @@
   color: var(--text-primary);
 }
 
-/* Authentication uses a warmer green-neutral dark palette so its branded
- * overview and form workspace read as one interface. Light mode is unchanged. */
+/* Authentication shares the application theme and its navy brand panel. */
 .dark .auth-shell {
-  --bg-primary: #0d1917;
-  --bg-secondary: #101e1b;
-  --surface: #152622;
-  --surface-elevated: #192c27;
-  --surface-hover: #203630;
-  --surface-muted: #101f1c;
-  --text-primary: #f1f5f3;
-  --text-secondary: #adbbb6;
-  --text-muted: #83958f;
-  --border: #30463f;
-  --border-strong: #405b52;
-  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 20px 44px rgb(0 0 0 / 0.4);
   background: var(--bg-primary);
 }
 
 .dark .auth-overview {
-  background: #062b1b !important;
-  border-color: #1d4b38 !important;
+  background: #0a1c2e !important;
+  border-color: var(--border) !important;
 }
 
 .dark .auth-content {
@@ -1836,9 +1721,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
+  html { scroll-behavior: auto; }
   body,
-  .theme-toggle {
+  .theme-toggle,
+  button,
+  a,
+  input,
+  select,
+  textarea {
     transition: none !important;
   }
 }

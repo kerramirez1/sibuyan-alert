@@ -13,21 +13,21 @@ const FieldError = ({ id, children }) => (
 
 const SectionHeader = ({ id, step, title, description }) => (
     <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        <p className="page-eyebrow">
             Step {step} of 4
         </p>
-        <h2 id={id} className="mt-1 text-base font-bold text-gray-900 sm:text-lg dark:text-white">
+        <h2 id={id} className="section-title">
             {title}
         </h2>
         {description && (
-            <p className="mt-0.5 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+            <p className="section-description">
                 {description}
             </p>
         )}
     </div>
 );
 
-const inputClass = 'h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200';
+const inputClass = 'field-control';
 
 const formatBytes = (bytes) => {
     if (!bytes || bytes <= 0) return '0 B';
@@ -58,7 +58,7 @@ const ReportDetailsPanel = ({
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
 
     return (
-        <div className="divide-y divide-gray-200 dark:divide-white/10">
+        <div className="surface-panel divide-y divide-[var(--border)] px-5 py-6 sm:px-6">
             {/* Step 2: Incident Details */}
             <section className="pb-6" aria-labelledby="details-heading">
                 <SectionHeader
@@ -68,9 +68,9 @@ const ReportDetailsPanel = ({
                     description="Classify the incident, set the approximate time, and describe road or environmental conditions."
                 />
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     <label className="block min-w-0">
-                        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        <span className="field-label">
                             Accident type
                         </span>
                         <select
@@ -86,7 +86,7 @@ const ReportDetailsPanel = ({
                     </label>
 
                     <label className="block min-w-0">
-                        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        <span className="field-label">
                             Incident date and time <span className="text-emerald-700 dark:text-emerald-400" aria-hidden="true">*</span>
                         </span>
                         <input
@@ -102,8 +102,8 @@ const ReportDetailsPanel = ({
                         {errors.incidentTime && <FieldError id="incident-time-error">{errors.incidentTime}</FieldError>}
                     </label>
 
-                    <label className="block sm:col-span-2">
-                        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                        <span className="field-label">
                             Severity
                         </span>
                         <select
@@ -121,8 +121,8 @@ const ReportDetailsPanel = ({
                         </span>
                     </label>
 
-                    <label className="block sm:col-span-2">
-                        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                        <span className="field-label">
                             Description <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
                         </span>
                         <textarea
@@ -132,7 +132,7 @@ const ReportDetailsPanel = ({
                             rows={3}
                             maxLength={2000}
                             placeholder="Describe what happened, the road condition, direction of travel, or other useful details"
-                            className="min-h-[80px] w-full resize-y rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 sm:min-h-[96px] dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                            className="field-control min-h-28 resize-y"
                         />
                         <span className="mt-1 block text-right text-[11px] text-gray-400 dark:text-gray-500">
                             {formData.description?.length || 0}/2000
@@ -156,7 +156,7 @@ const ReportDetailsPanel = ({
                         { name: 'casualties.missing', label: 'Missing', value: formData.casualties.missing },
                     ].map((field) => (
                         <div key={field.name}>
-                            <label htmlFor={field.name} className="mb-1 block cursor-pointer text-center text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                            <label htmlFor={field.name} className="field-label text-center">
                                 {field.label}
                             </label>
                             <input
@@ -170,7 +170,7 @@ const ReportDetailsPanel = ({
                                 min="0"
                                 max="999"
                                 placeholder="—"
-                                className="h-10 w-full rounded-lg border border-gray-300 bg-white text-center text-sm font-semibold tabular-nums text-gray-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 dark:border-white/10 dark:bg-[#07130e] dark:text-white"
+                                className="field-control text-center font-semibold tabular-nums"
                             />
                         </div>
                     ))}
@@ -252,7 +252,7 @@ const ReportDetailsPanel = ({
                             <button
                                 type="button"
                                 onClick={() => cameraInputRef?.current?.click()}
-                                className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                className="btn-outline"
                             >
                                 {images.length > 0 ? 'Take another' : 'Take photo'}
                             </button>
@@ -260,7 +260,7 @@ const ReportDetailsPanel = ({
                             <button
                                 type="button"
                                 onClick={() => fileInputRef?.current?.click()}
-                                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5"
+                                className="btn-outline"
                             >
                                 {images.length > 0 ? 'Choose more' : 'Choose photos'}
                             </button>
@@ -297,7 +297,7 @@ const ReportDetailsPanel = ({
 
             {/* Submission Checkpoint */}
             <section className="pt-6" aria-labelledby="submit-heading">
-                <h2 id="submit-heading" className="text-base font-bold text-gray-900 sm:text-lg dark:text-white">
+                <h2 id="submit-heading" className="section-title">
                     Review before submitting
                 </h2>
                 <p className="mt-0.5 text-xs text-gray-500 sm:text-sm dark:text-gray-400">

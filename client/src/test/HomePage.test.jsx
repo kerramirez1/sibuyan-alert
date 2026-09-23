@@ -73,8 +73,8 @@ describe('HomePage operational landing page', () => {
         expect(await within(metricsStrip).findByText(/Verified reports/i)).toBeInTheDocument();
         expect(await within(metricsStrip).findByText('July 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
-        const mapAction = screen.getByRole('link', { name: 'Viewlive map' });
-        const reportAction = screen.getByRole('link', { name: /Reportan Incident/ });
+        const mapAction = screen.getByRole('link', { name: 'View live map' });
+        const reportAction = screen.getByRole('link', { name: /Report an Incident/ });
         const registrationAction = screen.getByRole('link', { name: 'Register as a reporter' });
         expect(mapAction).toHaveAttribute('href', '/dashboard?view=map');
         expect(reportAction).toHaveAttribute('href', '/login');
@@ -82,14 +82,14 @@ describe('HomePage operational landing page', () => {
         expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(reportAction).toHaveClass('min-h-11', 'sm:min-h-12');
         expect(mapAction).not.toHaveClass('border-emerald-700');
-        expect(mapAction).toHaveClass('ui-button', 'bg-white', 'text-gray-800');
+        expect(mapAction).toHaveClass('bg-[var(--surface)]', 'text-[var(--text-primary)]');
         expect(reportAction).toHaveClass('bg-red-600', 'text-white');
         expect(mapAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(reportAction).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
         expect(screen.getByRole('img', { name: /Map of Sibuyan Island showing Cajidiocan/i })).toBeInTheDocument();
         expect(screen.getByRole('list', { name: 'Municipalities covered' })).toBeInTheDocument();
-        expect(screen.getByText('14 BRGYS')).toBeInTheDocument();
-        expect(screen.getByText('12 BRGYS')).toBeInTheDocument();
+        expect(screen.getByText('14 barangays')).toBeInTheDocument();
+        expect(screen.getByText('12 barangays')).toBeInTheDocument();
         const municipalityCoverage = screen.getByTestId('municipality-coverage-list');
         const guarantees = screen.getByTestId('system-guarantees');
         expect(screen.queryByTestId('coverage-metrics')).not.toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('HomePage operational landing page', () => {
         expect(municipalityCoverage).toHaveClass('flex', 'flex-col');
         Array.from(municipalityCoverage.children).forEach((municipalityRow) => {
             // Municipal-grade flat ledger rows: hairline bottom divider, no card chrome.
-            expect(municipalityRow).toHaveClass('border-b', 'border-white/10');
+            expect(municipalityRow).toHaveClass('border-b', 'border-white/15');
             expect(municipalityRow).not.toHaveClass('rounded');
         });
         expect(screen.getByRole('img', { name: 'Cajidiocan seal' })).toBeInTheDocument();
@@ -146,7 +146,8 @@ describe('HomePage operational landing page', () => {
         expect(staticMapPreview).toHaveAttribute('width', '640');
         expect(staticMapPreview).toHaveAttribute('height', '530');
         expect(eyebrow).toHaveTextContent('Island-wide incident coordination');
-        expect(eyebrow).toHaveClass('whitespace-nowrap', 'text-[8px]', 'sm:text-[11px]', 'lg:mb-2');
+        expect(eyebrow).toHaveClass('text-[10px]', 'sm:text-[11px]');
+        expect(eyebrow).not.toHaveClass('whitespace-nowrap');
         expect(eyebrow).not.toHaveClass('hidden');
         expect(copy).toContainElement(eyebrow);
         expect(description).toHaveClass('order-3', 'basis-full', 'lg:basis-auto');
@@ -169,7 +170,7 @@ describe('HomePage operational landing page', () => {
             'Responder dispatch',
         ]);
         expect(within(benefitList).getByText('View mapped high-risk areas and monitored hazard zones on the live map.')).toBeInTheDocument();
-        expect(benefitList).toHaveClass('flex', 'flex-col', 'gap-6', 'lg:mt-2');
+        expect(benefitList).toHaveClass('flex', 'flex-col', 'gap-5', 'lg:mt-2');
         expect(benefitList).not.toHaveClass('overflow-y-auto', 'overflow-hidden', 'max-h-full');
         benefitRows.forEach((row) => {
             expect(row).toHaveClass('flex', 'items-start', 'gap-4');

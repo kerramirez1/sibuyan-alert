@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import PageHeader from '../components/ui/PageHeader';
 import { format, formatDistanceToNow, isAfter, subDays } from 'date-fns';
 import toast from '../utils/appToast';
 import {
@@ -687,59 +688,45 @@ const AccidentHistoryPage = () => {
     }
 
     return (
-        <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
-            {/* Header: Clean Public Archive Title */}
-            <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
-                        Public Archive
-                    </span>
-
-                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Accident history
-                    </h1>
-                    <p className="mt-1.5 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        Resolved public-safety incidents across Sibuyan Island.
-                    </p>
-                </div>
-            </header>
+        <div className="page-shell max-w-6xl space-y-6">
+            <PageHeader eyebrow="Public Archive" title="Accident history" description="Resolved public-safety incidents across Sibuyan Island." />
 
             {/* Shared summary strip with My Reports / Dashboard: same labels, dots, dividers, sizes. */}
             <section
-                className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+                className="metric-strip"
                 aria-label="History summary"
             >
                 {/* 1. Total Resolved */}
-                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-green-700 dark:text-green-400">
+                <div className="metric-tile">
+                    <p className="metric-value text-green-700 dark:text-green-400">
                         {stats.total}
                     </p>
-                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <h2 className="metric-label">
                         Total resolved
                     </h2>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">All recorded incidents</p>
+                    <p className="metric-helper">All recorded incidents</p>
                 </div>
 
                 {/* 2. Last 7 Days */}
-                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
+                <div className="metric-tile">
+                    <p className="metric-value">
                         {stats.last7}
                     </p>
-                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <h2 className="metric-label">
                         Last 7 days
                     </h2>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">Recently closed</p>
+                    <p className="metric-helper">Recently closed</p>
                 </div>
 
                 {/* 3. Last 30 Days */}
-                <div className="min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
-                    <p className="truncate font-display text-2xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white">
+                <div className="metric-tile">
+                    <p className="metric-value">
                         {stats.last30}
                     </p>
-                    <h2 className="mt-2 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <h2 className="metric-label">
                         Last 30 days
                     </h2>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">Monthly activity</p>
+                    <p className="metric-helper">Monthly activity</p>
                 </div>
 
                 {/* 4. Top Barangay Insight */}
@@ -754,15 +741,15 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`min-w-0 rounded-lg border border-gray-200/90 bg-white p-4 text-left shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 ${
+                    className={`metric-tile text-left hover:bg-[var(--surface-hover)] ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'cursor-pointer' : ''
                     }`}
                 >
-                    <p className="truncate font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                    <p className="metric-value metric-value--text">
                         {topBarangayInfo.name}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-1">
-                        <h2 className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        <h2 className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-secondary)]">
                             Top Barangay
                         </h2>
                         {topBarangayInfo.name && topBarangayInfo.name !== 'No data' && (
@@ -771,12 +758,12 @@ const AccidentHistoryPage = () => {
                             </span>
                         )}
                     </div>
-                    <p className="mt-0.5 text-[11px] leading-tight text-gray-500 dark:text-gray-400">{topBarangayInfo.helper}</p>
+                    <p className="metric-helper">{topBarangayInfo.helper}</p>
                 </div>
             </section>
 
             {/* Resolved Incident Records Ledger */}
-            <section className="rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90" aria-label="Resolved accident records">
+            <section className="surface-panel" aria-label="Resolved accident records">
                 {/* Search-First Archive Toolbar */}
                 <div className="border-b border-gray-200 p-3 sm:p-4 dark:border-white/10">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -789,7 +776,7 @@ const AccidentHistoryPage = () => {
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder={isMobile ? 'Search archive or barangay…' : 'Search location, barangay, or incident category…'}
-                                className="h-9 w-full rounded-md border border-gray-200 bg-white py-1.5 pl-9 pr-8 text-sm font-medium text-gray-900 outline-none placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+                                className="field-control pl-9 pr-8 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                             />
                             {searchQuery && (
                                 <button
@@ -804,12 +791,12 @@ const AccidentHistoryPage = () => {
                         </label>
 
                         {/* Consolidated Toolbar Controls */}
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
                             {/* Refined Ghost/Outlined Filters Button */}
                             <button
                                 type="button"
                                 onClick={() => setFilterModalOpen(true)}
-                                className={`flex h-9 items-center justify-between gap-2 rounded-md border px-3 text-[13px] font-medium cursor-pointer ${
+                                className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 text-[13px] font-medium cursor-pointer ${
                                     activeFilterCount > 0
                                         ? 'border-gray-400 text-gray-900 dark:border-gray-500 dark:text-white'
                                         : 'bg-transparent border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
@@ -833,7 +820,7 @@ const AccidentHistoryPage = () => {
                                     id="history-sort-select"
                                     value={sortOrder}
                                     onChange={(e) => setSortOrder(e.target.value)}
-                                    className="h-9 appearance-none rounded-md border border-gray-200 bg-white py-1 pl-3 pr-8 text-[13px] font-medium text-gray-700 outline-none hover:bg-gray-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 cursor-pointer"
+                                    className="field-control w-auto cursor-pointer appearance-none pr-8"
                                 >
                                     {SORT_OPTIONS.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>

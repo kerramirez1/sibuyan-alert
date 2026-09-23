@@ -51,7 +51,7 @@ describe('ForgotPasswordPage auth consistency and behavior', () => {
         expect(screen.getByText('Account Recovery')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Forgot your password?' })).toBeInTheDocument();
         expect(screen.getByLabelText('Email Address')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Send Reset Link' })).toHaveClass('bg-brand-700');
+        expect(screen.getByRole('button', { name: 'Send Reset Link' })).toHaveClass('btn-primary');
         expect(screen.getByRole('link', { name: 'Back to login' })).toHaveAttribute('href', '/login');
         expect(screen.getByRole('link', { name: 'Contact Support' })).toHaveAttribute('href', 'mailto:sibuyan.alert@gmail.com');
     });

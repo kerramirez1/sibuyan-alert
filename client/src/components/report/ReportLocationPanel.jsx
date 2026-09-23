@@ -29,19 +29,19 @@ const ReportLocationPanel = ({
     const isAcquiringLocation = geoLoading || locationStatus === 'detecting';
 
     return (
-        <section aria-labelledby="location-heading">
+        <section className="surface-panel p-5 sm:p-6" aria-labelledby="location-heading">
             <div className="flex items-baseline justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <p className="page-eyebrow mb-0">
                     Step 1 of 4
                 </p>
-                <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400" role="status">
+                <p className="shrink-0 rounded-md bg-[var(--accent-soft)] px-2 py-1 text-[11px] font-medium text-[var(--accent-text)]" role="status">
                     {isAcquiringLocation ? 'Acquiring GPS…' : statusLabel}
                 </p>
             </div>
-            <h2 id="location-heading" className="mt-1 text-base font-bold text-gray-900 sm:text-lg dark:text-white">
+            <h2 id="location-heading" className="section-title mt-2">
                 Incident location
             </h2>
-            <p className="mt-0.5 text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+            <p className="section-description">
                 Click on the map or use your GPS location to set the exact incident coordinates.
             </p>
 
@@ -63,7 +63,7 @@ const ReportLocationPanel = ({
                     onClick={detectLocation}
                     disabled={isAcquiringLocation}
                     aria-label="Use my current GPS location"
-                    className="absolute bottom-3 right-3 z-10 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-75 dark:border-white/15 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-[#14241c]"
+                    className="absolute bottom-3 right-3 z-10 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-primary)] shadow-sm hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-75"
                 >
                     {isAcquiringLocation ? (
                         <>
@@ -87,14 +87,14 @@ const ReportLocationPanel = ({
                         <button
                             type="button"
                             onClick={retryLocation}
-                            className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-300 px-3.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/15 dark:text-gray-200 dark:hover:bg-white/5"
+                            className="btn-outline"
                         >
                             Adjust
                         </button>
                         <button
                             type="button"
                             onClick={confirmLocation}
-                            className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                            className="btn-primary"
                         >
                             Confirm location
                         </button>
@@ -105,7 +105,7 @@ const ReportLocationPanel = ({
             {/* Location fields */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <span className="field-label">
                         Address or landmark <span className="text-emerald-700 dark:text-emerald-400" aria-hidden="true">*</span>
                     </span>
                     <input
@@ -116,14 +116,11 @@ const ReportLocationPanel = ({
                         aria-invalid={Boolean(locationError)}
                         aria-describedby={locationError ? 'location-error' : undefined}
                         placeholder="Near Municipal Hall, Poblacion"
-                        className={`h-10 w-full rounded-lg border bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-gray-200 ${locationError
-                            ? 'border-red-300 focus:border-red-400 focus:ring-red-100 dark:border-red-800'
-                            : 'border-gray-300 focus:border-emerald-600 focus:ring-emerald-600/15 dark:border-white/10'
-                            }`}
+                        className="field-control"
                     />
                 </label>
                 <label className="block">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    <span className="field-label">
                         Barangay
                     </span>
                     <input
@@ -132,7 +129,7 @@ const ReportLocationPanel = ({
                         value={formData.barangay}
                         onChange={handleChange}
                         placeholder="Poblacion"
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200"
+                        className="field-control"
                     />
                 </label>
                 {locationError && (

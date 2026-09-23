@@ -19,7 +19,7 @@ const CustomSelect = ({
     renderOption,
     align = 'left',
     // Form fields (e.g. zone type) must read as plain inputs: white surface and
-    // body text even when filled. Filter chips keep the default emerald tint.
+    // body text even when filled. Filter controls use the app's accent tint.
     tone = 'auto',
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -168,14 +168,14 @@ const CustomSelect = ({
         ? 'sm:left-auto sm:right-0'
         : 'sm:left-0 sm:right-auto';
 
-    // Neutral tone skips the emerald "has value" tint so a filled form field
+    // Neutral tone skips the "has value" tint so a filled form field
     // looks exactly like its sibling inputs.
     const hasValueTone = value && value !== 'all' && tone !== 'neutral';
     const triggerToneClass = isOpen
-        ? 'border-emerald-500 bg-emerald-50/30 text-emerald-950 ring-2 ring-emerald-500/20 dark:border-emerald-500/70 dark:bg-emerald-950/40 dark:text-emerald-200'
+        ? 'border-[var(--focus-ring)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
         : hasValueTone
-            ? 'border-emerald-400/80 bg-emerald-50/20 text-emerald-900 dark:border-emerald-700/50 dark:bg-emerald-950/30 dark:text-emerald-200'
-            : 'border-gray-200/90 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50/80 dark:border-white/10 dark:bg-[#07130e] dark:text-gray-200 dark:hover:bg-white/5';
+            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--accent-text)]'
+            : 'border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]';
 
     return (
         <div ref={containerRef} className={`relative inline-block w-full sm:w-auto ${className}`}>
@@ -206,7 +206,7 @@ const CustomSelect = ({
                 onKeyDown={handleKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                className={`group flex h-9 w-full sm:w-auto min-w-[130px] items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold shadow-2xs outline-none transition-all duration-150 cursor-pointer select-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:border-emerald-500 ${triggerToneClass}`}
+                className={`group flex min-h-11 w-full min-w-[130px] cursor-pointer select-none items-center justify-between gap-2 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors duration-150 sm:w-auto ${triggerToneClass}`}
             >
                 <div className="flex items-center gap-1.5 truncate">
                     {Icon && <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" aria-hidden="true" />}
@@ -219,7 +219,7 @@ const CustomSelect = ({
                 </div>
                 <HiChevronDown
                     className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 dark:text-gray-500 ${
-                        isOpen ? 'rotate-180 text-emerald-600 dark:text-emerald-400' : 'group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                        isOpen ? 'rotate-180 text-[var(--accent-text)]' : 'group-hover:text-[var(--text-primary)]'
                     }`}
                     aria-hidden="true"
                 />
@@ -231,7 +231,7 @@ const CustomSelect = ({
                     ref={listboxRef}
                     role="listbox"
                     aria-label={ariaLabel}
-                    className={`absolute left-0 right-0 ${alignmentClass} sm:min-w-[190px] max-w-[280px] z-[100] max-h-64 overflow-y-auto ${opensAbove ? 'bottom-full mb-1.5' : 'mt-1.5'} overscroll-contain rounded-xl border border-gray-200/90 bg-white/98 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-md dark:border-white/10 dark:bg-[#0c1813]/98 dark:shadow-black/60 focus:outline-none animate-in fade-in zoom-in-95 duration-100`}
+                    className={`absolute left-0 right-0 ${alignmentClass} z-[100] max-h-64 max-w-[280px] overflow-y-auto overscroll-contain rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-1 shadow-[var(--shadow-lg)] sm:min-w-[190px] ${opensAbove ? 'bottom-full mb-1.5' : 'mt-1.5'}`}
                     style={{
                         maxHeight: '280px',
                         WebkitOverflowScrolling: 'touch',
@@ -248,12 +248,12 @@ const CustomSelect = ({
                                 aria-selected={isSelected}
                                 onClick={() => handleSelect(opt.value)}
                                 onMouseEnter={() => setHighlightedIndex(index)}
-                                className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-100 cursor-pointer select-none ${
+                                className={`flex min-h-10 items-center justify-between gap-2 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-100 cursor-pointer select-none ${
                                     isSelected
-                                        ? 'bg-emerald-500/10 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 font-bold'
+                                        ? 'bg-[var(--accent-soft)] text-[var(--accent-text)] font-semibold'
                                         : isHighlighted
-                                            ? 'bg-gray-100/80 text-gray-950 dark:bg-white/5 dark:text-white'
-                                            : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white'
+                                            ? 'bg-[var(--surface-hover)] text-[var(--text-primary)]'
+                                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
                                 }`}
                             >
                                 <div className="flex items-center gap-2 truncate">
@@ -263,7 +263,7 @@ const CustomSelect = ({
                                     {renderOption ? renderOption(opt) : <span className="truncate">{opt.label}</span>}
                                 </div>
                                 {isSelected && (
-                                    <HiCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                                    <HiCheck className="h-4 w-4 shrink-0 text-[var(--accent-text)]" aria-hidden="true" />
                                 )}
                             </div>
                         );

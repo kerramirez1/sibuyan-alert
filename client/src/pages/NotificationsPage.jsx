@@ -9,6 +9,8 @@ import {
     HiOutlineShieldCheck,
 } from 'react-icons/hi';
 import { useNavigate } from '../router';
+import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
@@ -160,52 +162,23 @@ const NotificationsPage = () => {
     }), [activeFilter, notifications]);
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-6">
-            {/* Header */}
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
-                            <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Incident Communications</span>
-                            <span className="text-brand-300 dark:text-slate-500 font-normal">·</span>
-                            <span className="hidden xs:inline text-brand-700 dark:text-sky-400 font-bold">Operational Inbox</span>
-                        </span>
-                    </div>
-                    <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Notifications
-                    </h1>
-                    <p className="mt-0.5 max-w-xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                        Review report activity and open the exact incident that needs attention.
-                    </p>
-                </div>
-
-                <div className="flex w-full gap-2 sm:w-auto shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => fetchNotifications()}
-                        disabled={loading}
-                        className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-[#0c1813] dark:text-gray-200 dark:hover:bg-white/5 cursor-pointer min-h-[44px] sm:min-h-0"
-                    >
-                        <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+        <div className="page-shell max-w-5xl space-y-6">
+            <PageHeader
+                eyebrow={<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1"><HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /><span>Incident Communications</span><span className="hidden xs:inline">· Operational Inbox</span></span>}
+                title="Notifications"
+                description="Review report activity and open the exact incident that needs attention."
+                actions={<>
+                    <Button variant="outline" onClick={() => fetchNotifications()} disabled={loading}>
+                        <HiOutlineRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         <span>Refresh</span>
-                    </button>
-                    {counts.unread > 0 && (
-                        <button
-                            type="button"
-                            onClick={markAllAsRead}
-                            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer min-h-[44px] sm:min-h-0"
-                        >
-                            <HiOutlineCheck className="h-4 w-4" aria-hidden="true" />
-                            <span>Mark all read</span>
-                        </button>
-                    )}
-                </div>
-            </header>
+                    </Button>
+                    {counts.unread > 0 && <Button onClick={markAllAsRead} icon={HiOutlineCheck}>Mark all read</Button>}
+                </>}
+            />
 
             {/* Filter Tabs */}
             <nav
-                className="flex items-center gap-1 overflow-x-auto rounded-xl sm:rounded-2xl border border-gray-200/90 bg-gray-50/70 p-1.5 dark:border-white/10 dark:bg-[#0c1813]/70"
+                className="filter-tabs"
                 aria-label="Notification filters"
             >
                 {FILTERS.map((filter) => {
@@ -216,10 +189,7 @@ const NotificationsPage = () => {
                             type="button"
                             onClick={() => setActiveFilter(filter.key)}
                             aria-pressed={active}
-                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer min-h-[44px] sm:min-h-0 ${active
-                                    ? 'bg-white text-gray-950 shadow-2xs dark:bg-white/10 dark:text-white'
-                                    : 'text-gray-600 hover:bg-white/50 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white'
-                                }`}
+                            className="filter-tab"
                         >
                             <span>{filter.label}</span>
                             <span
@@ -243,7 +213,7 @@ const NotificationsPage = () => {
 
             {/* Notification Ledger */}
             <section
-                className="overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                className="surface-panel overflow-hidden"
                 aria-label="Notification inbox"
             >
                 {loading && notifications.length === 0 ? (
@@ -266,7 +236,7 @@ const NotificationsPage = () => {
                         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500">
                             <HiOutlineInbox className="h-6 w-6" aria-hidden="true" />
                         </span>
-                        <h2 className="mt-3 font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                        <h2 className="section-title mt-3">
                             No notifications in this view
                         </h2>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -316,13 +286,13 @@ const NotificationsPage = () => {
                                                 </time>
                                             </div>
 
-                                            <h3 className={`text-xs sm:text-sm font-bold leading-snug break-words ${!notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
+                                            <h3 className={`text-sm font-semibold leading-relaxed break-words ${!notification.isRead ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-200'
                                                 }`}>
                                                 {title}
                                             </h3>
 
                                             {message && (
-                                                <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                <p className="line-clamp-2 text-[13px] text-[var(--text-secondary)] leading-relaxed">
                                                     {message}
                                                 </p>
                                             )}

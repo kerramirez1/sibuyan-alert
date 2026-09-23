@@ -106,14 +106,8 @@ export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, 
             aria-pressed={selected}
             title={title}
             aria-label={ariaLabel}
-            // 12px and tight padding because this rail shares a row with a
-            // divider, a group cue and four more controls: at 13px with a 20px
-            // gap it needed ~890px and wrapped to a second row inside the map
-            // column, which cost the canvas more height than the tabs are worth.
-            // Measured, the five controls now need ~615px, so a 1280px viewport
-            // (~640px of rail) holds them in one row. The `before:-inset-1`
-            // overlay keeps the tap target comfortable anyway.
-            className={`relative -mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-t-lg px-1.5 pb-2 pt-1.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 before:absolute before:-inset-1 before:content-[''] ${selected
+            // The native target carries its own hit area; adjacent filters do not overlap.
+            className={`relative -mb-px inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-t-lg px-2.5 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${selected
                 ? `${styles.selectedSurface} font-semibold ${styles.selectedText}`
                 : `font-normal text-gray-500 hover:bg-white/80 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
                 }`}

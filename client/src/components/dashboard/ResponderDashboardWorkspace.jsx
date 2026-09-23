@@ -15,8 +15,8 @@ import {
     HiOutlineRefresh,
 } from 'react-icons/hi';
 
-const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
-const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-white/10 dark:bg-[#0c1813]/90';
+const DASHBOARD_CONTAINER_CLASS = 'page-shell max-w-[1500px] space-y-6';
+const PANEL_CLASS = 'surface-panel p-5 sm:p-6';
 
 const toCount = (value) => {
     const count = Number(value);
@@ -26,7 +26,7 @@ const toCount = (value) => {
 const DashboardEmptyState = ({ icon: Icon, title, description }) => (
     <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
         <Icon className="h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-        <p className="mt-2 text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">{title}</p>
+        <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">{title}</p>
         <p className="mt-1 max-w-sm text-xs leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
     </div>
 );
@@ -38,10 +38,10 @@ const KpiCard = ({ stat, loading }) => {
             <Link
                 to={stat.link}
                 aria-label={`${stat.title}: ${loading ? 'loading' : stat.value}. ${stat.actionLabel}`}
-                className="group block h-full min-h-[6.5rem] cursor-pointer bg-white p-4 sm:p-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-[#0c1813]/90 dark:hover:bg-white/[0.02]"
+                className="metric-tile group block h-full cursor-pointer transition-colors hover:bg-[var(--surface-hover)]"
             >
                 <div className="flex items-start justify-between gap-3">
-                    <p className={`font-display font-bold leading-none tabular-nums tracking-tight ${isHighPriority ? 'text-2xl sm:text-3xl text-gray-950 dark:text-white' : 'text-2xl text-gray-900 dark:text-gray-100'}`}>
+                    <p className={`metric-value ${isHighPriority ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                         {loading ? '...' : stat.value}
                     </p>
                     <HiOutlineArrowRight
@@ -49,10 +49,10 @@ const KpiCard = ({ stat, loading }) => {
                         aria-hidden="true"
                     />
                 </div>
-                <h2 className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <h2 className="metric-label">
                     {stat.title}
                 </h2>
-                <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                <p className="metric-helper">
                     {stat.subtext}
                 </p>
             </Link>
@@ -192,15 +192,15 @@ const ResponderDashboardWorkspace = ({
     return (
         <div className={DASHBOARD_CONTAINER_CLASS}>
             {/* Header Area */}
-            <header className="flex flex-col gap-4 border-b border-gray-200/80 pb-4 dark:border-white/10 lg:flex-row lg:items-end lg:justify-between">
+            <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <p className="page-eyebrow">
                         Responder operations
                     </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
+                    <h1 className="page-title">
                         Dashboard
                     </h1>
-                    <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
+                    <p className="page-description">
                         Barangay incident activity and hazard monitoring.
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-400" aria-label="Operational context">
@@ -214,12 +214,12 @@ const ResponderDashboardWorkspace = ({
                 </div>
 
                 {/* Actions: one row on all screens */}
-                <div className="flex flex-row items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
+                <div className="flex w-full flex-wrap items-center gap-2 xl:w-auto">
                     {/* Deliberate, before the drive out of coverage. */}
                     <FieldPreloadButton />
                     <Link
                         to="/admin/reports?view=dispatch-queue"
-                        className="inline-flex h-9 min-h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-brand-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none sm:gap-2 sm:px-4"
+                        className="btn-primary flex-1 text-xs sm:flex-none"
                     >
                         <span>Dispatch queue</span>
                         {availableIncidents > 0 && (
@@ -232,7 +232,7 @@ const ResponderDashboardWorkspace = ({
 
                     <Link
                         to="/dashboard?view=map"
-                        className="inline-flex h-9 min-h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:flex-none sm:px-3.5 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                        className="btn-outline flex-1 text-xs sm:flex-none"
                     >
                         <HiOutlineMap className="h-4 w-4" aria-hidden="true" />
                         <span>Safety map</span>
@@ -250,7 +250,7 @@ const ResponderDashboardWorkspace = ({
             )}
 
             {/* 1. Operational status strip: spacing-led stats, no container box */}
-            <section className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-gray-200 py-2 sm:grid-cols-4 dark:border-white/10 xl:grid-cols-4" aria-label="Operational status">
+            <section className="metric-strip" aria-label="Operational status">
                 {kpiCards.map((stat) => (
                     <KpiCard
                         key={stat.title}
@@ -266,7 +266,7 @@ const ResponderDashboardWorkspace = ({
                 <section className={PANEL_CLASS} aria-labelledby="barangay-distribution-title">
                     <div className="flex flex-col items-start gap-2 border-b border-gray-200 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
                         <div className="min-w-0">
-                            <h2 id="barangay-distribution-title" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <h2 id="barangay-distribution-title" className="section-title">
                                 Barangay distribution
                             </h2>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -297,7 +297,7 @@ const ResponderDashboardWorkspace = ({
                                 return (
                                     <div key={item?.barangay || idx} className="py-3">
                                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                                            <p className="truncate text-xs font-semibold text-gray-900 dark:text-white">
+                                            <p className="break-words text-[13px] font-medium text-[var(--text-primary)]">
                                                 {item?.barangay || 'Unspecified barangay'}
                                             </p>
 
@@ -335,7 +335,7 @@ const ResponderDashboardWorkspace = ({
                 <section className={PANEL_CLASS} aria-labelledby="hazard-watchlist-title">
                     <div className="flex flex-col items-start gap-2 border-b border-gray-200 pb-3 dark:border-white/10 xs:flex-row xs:items-center xs:justify-between">
                         <div className="min-w-0">
-                            <h2 id="hazard-watchlist-title" className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <h2 id="hazard-watchlist-title" className="section-title">
                                 Hazard watchlist
                             </h2>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -344,7 +344,7 @@ const ResponderDashboardWorkspace = ({
                         </div>
                         <Link
                             to="/dashboard?view=map"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            className="text-action"
                         >
                             <span>Map view</span>
                             <HiOutlineExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -370,7 +370,7 @@ const ResponderDashboardWorkspace = ({
                                     >
                                         <div className="flex flex-col items-start justify-between gap-2 xs:flex-row">
                                             <div className="min-w-0">
-                                                <p className="truncate font-display text-xs font-bold text-gray-950 dark:text-white">
+                                                <p className="break-words text-sm font-semibold text-[var(--text-primary)]">
                                                     {zone.name}
                                                 </p>
                                                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -393,7 +393,7 @@ const ResponderDashboardWorkspace = ({
                                                 {zone.description}
                                             </p>
                                         )}
-                                        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 group-hover:text-emerald-800 dark:text-emerald-400 dark:group-hover:text-emerald-300">
+                                        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-text)]">
                                             View on map
                                             <HiOutlineArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
                                         </span>

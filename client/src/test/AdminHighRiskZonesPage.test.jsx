@@ -270,13 +270,9 @@ describe('AdminHighRiskZonesPage', () => {
     test('renders page header, status pill, map workspace, and marked zones list', () => {
         render(<AdminHighRiskZonesPage />);
 
-        expect(screen.getByText('High-risk zones')).toBeInTheDocument();
-        // The page's subject is its h1 and it prints nothing: a screen reader
-        // announces it and headings navigation finds it, while the band at the
-        // top spends its lines on the eyebrow and the municipality the line
-        // below names instead.
         const pageHeading = screen.getByRole('heading', { level: 1, name: 'High-risk zone management' });
-        expect(pageHeading).toHaveClass('sr-only');
+        expect(pageHeading).toBeVisible();
+        expect(pageHeading).not.toHaveClass('sr-only');
         expect(pageHeading.className).not.toContain('text-2xl');
         expect(pageHeading.className).not.toContain('sm:text-3xl');
         expect(screen.getByText(/View mapped hazards and manage zones for Cajidiocan\./i)).toBeInTheDocument();
@@ -313,7 +309,7 @@ describe('AdminHighRiskZonesPage', () => {
         // therefore grouped with the title on one row instead of owning a third
         // line. Re-stacking it costs ~20px of map on every screen, which is the
         // regression this pins down.
-        const title = screen.getByText('High-risk zones');
+        const title = screen.getByRole('heading', { level: 1, name: 'High-risk zone management' });
         const status = screen.getByText(/Sibuyan Island · Alert System Active/i);
         const titleRow = title.parentElement;
         expect(titleRow.contains(status)).toBe(true);

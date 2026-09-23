@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 
 const BASE_STYLES = [
-    'ui-button relative inline-flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-transparent font-semibold',
+    'ui-button relative inline-flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent font-semibold',
     'text-center leading-tight transition-colors duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
@@ -11,21 +11,21 @@ const BASE_STYLES = [
 const VARIANT_STYLES = Object.freeze({
     primary: 'border-transparent bg-brand-700 text-white hover:bg-brand-800',
     alert: 'border-transparent bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
-    secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
+    secondary: 'bg-[var(--surface-muted)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]',
     danger: 'bg-red-700 text-white hover:bg-red-800 focus-visible:ring-red-500',
-    dangerOutline: 'bg-gray-100 text-red-700 hover:bg-red-50 focus-visible:ring-red-500',
+    dangerOutline: 'bg-[var(--surface-muted)] text-red-700 hover:bg-red-50 focus-visible:ring-red-500 dark:text-red-300',
     success: 'border-transparent bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-500',
     warning: 'bg-amber-700 text-white hover:bg-amber-800 focus-visible:ring-amber-500',
-    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-950',
-    outline: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
+    ghost: 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]',
+    outline: '!border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]',
 });
 
 const SIZE_STYLES = Object.freeze({
-    sm: 'min-h-9 px-3 py-1.5 text-xs',
+    sm: 'min-h-10 px-3 py-2 text-xs',
     md: 'min-h-11 px-4 py-2.5 text-sm',
     lg: 'min-h-12 px-5 py-3 text-sm',
     xl: 'min-h-[3.25rem] px-6 py-3.5 text-base',
-    iconSm: 'h-9 w-9 shrink-0 p-0 text-sm',
+    iconSm: 'h-10 w-10 shrink-0 p-0 text-sm',
     icon: 'h-11 w-11 shrink-0 p-0 text-sm',
     iconLg: 'h-12 w-12 shrink-0 p-0 text-base',
 });

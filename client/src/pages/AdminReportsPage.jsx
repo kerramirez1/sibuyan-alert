@@ -138,7 +138,7 @@ const AdminReportsPage = () => {
     const openImage = useCallback((image) => setViewerImage(image), []);
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-[1120px] overflow-x-hidden">
+        <div className="page-shell max-w-[1120px]">
             <IncidentQueueControls
                 role={user?.role}
                 municipality={user?.assignedMunicipality}

@@ -90,15 +90,15 @@ const ResponderQueueControls = ({
 
     return (
         <>
-            <header className="mb-4 flex min-w-0 flex-col gap-3 border-b border-gray-200 pb-4 dark:border-white/10 sm:flex-row sm:items-start sm:justify-between">
+            <header className="page-header mb-5">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">
+                    <p className="page-eyebrow">
                         Responder operations
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+                    <h1 className="page-title">
                         Incident reports
                     </h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                    <p className="page-description">
                         Municipality-scoped incident records available to responders.
                     </p>
                     {stats && (
@@ -127,7 +127,7 @@ const ResponderQueueControls = ({
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        className="btn-outline"
                     >
                         <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
@@ -135,8 +135,8 @@ const ResponderQueueControls = ({
                 </div>
             </header>
 
-            <nav className="mb-4 overflow-x-auto border-b border-gray-200/80 dark:border-white/10" aria-label="Responder incident views">
-                <div className="-mb-px flex min-w-max items-end gap-2 sm:min-w-0 sm:flex-wrap">
+            <nav className="mb-5" aria-label="Responder incident views">
+                <div className="filter-tabs">
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
                         return (
@@ -145,9 +145,7 @@ const ResponderQueueControls = ({
                                 type="button"
                                 aria-current={active ? 'page' : undefined}
                                 onClick={() => onResponderViewChange(view.value)}
-                                className={`min-h-10 whitespace-nowrap border-b-2 px-3 py-2 text-xs sm:text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ${active
-                                    ? 'border-brand-600 text-gray-950 dark:border-brand-500 dark:text-white'
-                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-100'}`}
+                                className="filter-tab"
                             >
                                 {view.label}
                             </button>
@@ -156,7 +154,7 @@ const ResponderQueueControls = ({
                 </div>
             </nav>
 
-            <section aria-label="Incident filters" className="mb-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
+            <section aria-label="Incident filters" className="surface-panel mb-5 p-4 sm:p-5">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -172,12 +170,12 @@ const ResponderQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="h-11 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            className="field-control pl-9"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 sm:h-9 sm:w-auto"
+                        className="btn-primary w-full sm:w-auto"
                     >
                         Search
                     </button>
@@ -185,7 +183,7 @@ const ResponderQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:h-9 sm:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            className="btn-outline w-full sm:w-auto"
                         >
                             <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
@@ -205,9 +203,7 @@ const ResponderQueueControls = ({
                                 type="button"
                                 aria-pressed={status === ''}
                                 onClick={() => setStatus('')}
-                                className={`h-8 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${status === ''
-                                    ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
-                                    : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                                className="filter-tab"
                             >
                                 All statuses
                             </button>
@@ -220,9 +216,7 @@ const ResponderQueueControls = ({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setStatus(statusValue)}
-                                        className={`h-8 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${active
-                                            ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
-                                            : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                                        className="filter-tab"
                                     >
                                         {config.label}
                                     </button>
@@ -283,15 +277,15 @@ const IncidentQueueControls = ({
 
     return (
         <>
-            <header className="mb-4 flex min-w-0 flex-col gap-3 border-b border-gray-200 pb-4 dark:border-white/10 sm:flex-row sm:items-start sm:justify-between">
+            <header className="page-header mb-5">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-sky-400">
+                    <p className="page-eyebrow">
                         Incident management
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl dark:text-white">
+                    <h1 className="page-title">
                         Incident reports
                     </h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                    <p className="page-description">
                         {`Municipality-scoped incident records${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
@@ -331,7 +325,7 @@ const IncidentQueueControls = ({
                         type="button"
                         onClick={onRefresh}
                         disabled={loading}
-                        className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-wait disabled:opacity-60 sm:h-9 xs:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        className="btn-outline w-full xs:w-auto"
                     >
                         <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                         Refresh
@@ -339,7 +333,7 @@ const IncidentQueueControls = ({
                 </div>
             </header>
 
-            <section aria-label="Incident filters" className="mb-4 border-b border-gray-200/80 pb-4 dark:border-white/10">
+            <section aria-label="Incident filters" className="surface-panel mb-5 p-4 sm:p-5">
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -355,12 +349,12 @@ const IncidentQueueControls = ({
                             value={searchDraft}
                             onChange={(event) => setSearchDraft(event.target.value)}
                             placeholder="Search address, description, or municipality"
-                            className="h-11 w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 sm:h-9 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            className="field-control pl-9"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 sm:h-9 sm:w-auto"
+                        className="btn-primary w-full sm:w-auto"
                     >
                         Search
                     </button>
@@ -368,7 +362,7 @@ const IncidentQueueControls = ({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:h-9 sm:w-auto dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            className="btn-outline w-full sm:w-auto"
                         >
                             <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
                             Clear
@@ -380,14 +374,12 @@ const IncidentQueueControls = ({
                     <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         Status
                     </span>
-                    <div className="flex min-w-0 flex-nowrap gap-1.5 overflow-x-auto overscroll-x-contain pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0" aria-label="Filter by status">
+                    <div className="flex min-w-0 flex-wrap gap-1" aria-label="Filter by status">
                         <button
                             type="button"
                             aria-pressed={status === ''}
                             onClick={() => setStatus('')}
-                            className={`h-11 shrink-0 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:h-8 ${status === ''
-                                ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
-                                : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                            className="filter-tab"
                         >
                             All statuses
                         </button>
@@ -400,9 +392,7 @@ const IncidentQueueControls = ({
                                     type="button"
                                     aria-pressed={active}
                                     onClick={() => setStatus(statusValue)}
-                                    className={`h-11 shrink-0 rounded-md border px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:h-8 ${active
-                                        ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white'
-                                        : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}`}
+                                    className="filter-tab"
                                 >
                                     {config.label}
                                 </button>

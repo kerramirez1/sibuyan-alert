@@ -445,8 +445,8 @@ const MetricStripItem = ({
         // beside it is solid, and two halves of one row reading as two slightly
         // different surfaces is exactly the kind of difference a reader notices
         // without being able to name it.
-        className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl bg-white px-2 py-2 text-left shadow-sm ring-1 ring-gray-200/80 transition duration-150 hover:shadow-md hover:ring-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-4 sm:py-3 lg:justify-center lg:py-2 ${className} dark:bg-white/[0.02] dark:ring-white/10 dark:hover:bg-white/[0.05] dark:hover:ring-white/20 ${selected
-            ? 'ring-2 ring-brand-600 dark:ring-brand-400'
+        className={`surface-panel group relative flex min-w-0 cursor-pointer flex-col overflow-hidden px-3 py-3 text-left transition-colors duration-150 hover:border-[var(--border-strong)] focus-visible:outline-offset-[-3px] sm:px-4 lg:justify-center ${className} ${selected
+            ? 'border-[var(--focus-ring)]'
             : ''
             }`}
     >
@@ -471,7 +471,7 @@ const MetricStripItem = ({
             names itself wrongly is worse than one set in a smaller label. */}
         <span className="relative flex w-full items-center gap-1.5 lg:hidden">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-            <span className="min-w-0 flex-1 truncate text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500 sm:text-[11px] dark:text-gray-400">
+            <span className="min-w-0 flex-1 text-left text-xs font-semibold leading-snug text-[var(--text-secondary)]">
                 {label}
             </span>
             <MetricStripAffordance selected={selected} />
@@ -482,7 +482,7 @@ const MetricStripItem = ({
             so the desktop label is never truncated. */}
         <span className="relative hidden w-full items-center gap-2 lg:flex">
             {statusDot && <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" />}
-            <span className={`min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-[0.09em] ${selected ? 'text-brand-800 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`min-w-0 flex-1 text-xs font-semibold leading-snug ${selected ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}>
                 {label}
             </span>
             <MetricStripAffordance selected={selected} />
@@ -495,58 +495,17 @@ const MetricStripItem = ({
             room beside a 20px number in a 167px card), so this is a column below
             sm and a row from sm up.
 
-            `mt-auto` below lg only: two cards sharing a row are stretched to
-            the taller one, and pushing this row to the card's foot is what keeps
-            their supporting lines level. At lg the cards share the column's
-            height evenly (see the grid) and the whole tile is centred instead, so
-            an auto margin there would fight that. */}
-        <span className="relative flex w-full min-w-0 flex-col items-start gap-1 pt-2 max-lg:mt-auto sm:flex-row sm:items-baseline sm:gap-2.5">
-            <span className="relative shrink-0 font-display text-xl font-bold leading-none tracking-tight text-gray-950 tabular-nums sm:text-[28px] dark:text-white">
+            Values stay aligned from the top on a phone, even when a helper
+            needs a second line. The full tile is centred in its desktop row. */}
+        <span className="relative flex w-full min-w-0 flex-col items-start gap-1 pt-2 sm:flex-row sm:items-baseline sm:gap-2.5">
+            <span className="relative shrink-0 font-display text-[28px] font-semibold leading-none tracking-tight text-[var(--text-primary)] tabular-nums sm:text-[32px]">
                 {value}
             </span>
         {helper && (
-            // On a phone this is ONE line, and the type is measured to make that
-            // true rather than hoped for. The longest supporting line in the app
-            // is the active-incidents mix — "1 responding, 2 waiting
-            // (1 transferred)", 40 characters — and in the Inter this app
-            // self-hosts it measures 196.6px at the 11px it used to be set at,
-            // against the 143.5px a half-width card offered then. At 9px with
-            // `tracking-tighter` it measures 143.3px, and the card's 8px padding
-            // offers 151.5px: it fits with 8px to spare.
-            //
-            // One line is deliberate at this size. `whitespace-nowrap` plus
-            // `overflow-hidden` is the whole constraint — no `line-clamp`, no
-            // ellipsis: the descriptions are fixed strings and they fit. A second
-            // line would also undo the band's balance, because the shorter of the
-            // two cards in a row would float its sentence in the middle of the
-            // card instead of sitting level with its neighbour's.
-            //
-            // 9px is the app's smallest type — the size of the bottom-nav labels
-            // — and this is the one place that size carries a sentence. That is
-            // the trade this band makes for keeping every word of the four
-            // supporting lines visible with no wrap, no ellipsis and no shorter
-            // wording.
-            //
-            // Below 375px the arithmetic runs out: on a 320px phone the same
-            // sentence has ~124px to fit in, which no readable size satisfies.
-            // There the clamp comes back, so a narrow device gets a second line
-            // instead of a silently clipped word. `max-[374px]` is the app's own
-            // arbitrary-variant idiom (see `min-[501px]` in the layout) and it
-            // leaves the 375px target on one line with 8px spare.
-            //
-            // From sm the clamp comes back, because the sentence is no longer
-            // boxed into a half-width card: it sits beside the number with the
-            // rest of the row to itself, and a longer line degrades into a wrap
-            // rather than a clip.
-            //
-            // From sm it takes the rest of the row (`flex-1` + `min-w-0`), which
-            // is why it wraps there rather than being held to one line: at that
-            // width the card is full-width, and the clamp is what lets a longer
-            // line degrade into a second line instead of a clip. `title` carries
-            // the full string for a hover read either way.
+            // Operational context remains readable at every width; long summaries wrap.
             <span
                 title={helper}
-                className="relative min-w-0 overflow-hidden whitespace-nowrap text-[9px] font-normal tracking-tighter text-gray-500 max-[374px]:line-clamp-2 max-[374px]:whitespace-normal sm:flex-1 sm:line-clamp-2 sm:text-[11px] sm:leading-snug sm:tracking-normal sm:whitespace-normal dark:text-gray-400"
+                className="relative min-w-0 whitespace-normal text-[11px] font-normal leading-relaxed text-[var(--text-secondary)] sm:flex-1"
             >
                 {helper}
             </span>
@@ -1408,14 +1367,16 @@ const DashboardMapWorkspace = ({
                 nothing left to scroll. The floor is 500px: below that the canvas
                 clips terrain, so a short viewport scrolls the page rather than
                 crushing the map. */}
-            {/* The document's accessible title for assistive technology */}
-            <h1 className="sr-only">{mapExperience.title}</h1>
+            <header className="flex min-w-0 shrink-0 items-center justify-between gap-3 px-1 py-2">
+                <h1 className="page-title page-title--compact min-w-0 flex-1">{mapExperience.title}</h1>
+                {viewSwitch && <div className="shrink-0">{viewSwitch}</div>}
+            </header>
 
             {/* Status filter toolbar and view switch directly below the top navigation,
                 reclaiming vertical space so the operational map dominates the view. */}
-            {(mapExperience.filters.length > 0 || viewSwitch) && (
+            {mapExperience.filters.length > 0 && (
                 <div
-                    className={`${viewSwitch ? 'flex' : 'hidden'} lg:flex w-full min-w-0 items-end justify-between gap-x-3 lg:border-b border-gray-200 dark:border-white/10`}
+                    className="hidden w-full min-w-0 items-end justify-between gap-x-3 border-b border-[var(--border)] lg:flex"
                     aria-label="Map status filter"
                     role="group"
                 >
@@ -1428,11 +1389,6 @@ const DashboardMapWorkspace = ({
                                 onSelectFilter={selectMapFilter}
                                 getCount={getFilterCount}
                             />
-                        </div>
-                    )}
-                    {viewSwitch && (
-                        <div className="shrink-0 pb-1 max-lg:w-full max-lg:flex max-lg:justify-end max-lg:pb-1 max-lg:pt-2">
-                            {viewSwitch}
                         </div>
                     )}
                 </div>
@@ -1581,7 +1537,7 @@ const DashboardMapWorkspace = ({
                     below takes the rest and divides it between the tiles, so the
                     heading must not be the thing that stretches. */}
                 <div className="flex items-baseline justify-between gap-3 px-1 lg:shrink-0">
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300">Current overview</h2>
+                    <h2 className="text-xs font-semibold text-[var(--text-primary)]">Current overview</h2>
                     {/* gray-500, not gray-400: the hint is instructional text at
                         11px, and gray-400 on this background sits near 2.6:1 —
                         below the 4.5:1 a reader with low vision needs. gray-500
@@ -1656,7 +1612,7 @@ const DashboardMapWorkspace = ({
                 one radius, one shadow. A border here and a ring there read as
                 two different component families on a screen where they are two
                 halves of the same row. */}
-            <section ref={mapSectionRef} className="order-1 scroll-mt-20 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80 sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-1 dark:bg-[#0c1813]/90 dark:ring-white/10" aria-label="Live incident map">
+            <section ref={mapSectionRef} className="surface-panel order-1 scroll-mt-20 overflow-hidden sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-1" aria-label="Live incident map">
                 {/* Mobile and tablet controls only: the desktop rail is the
                     full-width bar above, so from lg the card holds nothing but
                     the canvas — which is the cleanest thing a map card can hold,

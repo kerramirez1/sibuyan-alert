@@ -25,7 +25,7 @@ import {
 
 const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'border-red-500 bg-white/[0.08] text-white'
+    ? 'border-sky-300 bg-white/[0.08] text-white'
     : 'border-transparent text-slate-300/70 hover:bg-white/[0.06] hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-white';
 const getAlertNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
@@ -154,7 +154,8 @@ const MainLayout = ({ children, fitWindow = false }) => {
 
     return (
         <>
-            <div className={`fixed inset-0 flex min-h-0 overflow-hidden bg-white dark:bg-gray-950 ${sidebarOpen ? 'z-[95]' : ''}`}>
+            <div className={`fixed inset-0 flex min-h-0 overflow-hidden bg-[var(--surface)] ${sidebarOpen ? 'z-[95]' : ''}`}>
+                <a href="#main-content" className="skip-link">Skip to content</a>
                 {/* Mobile Sidebar Overlay: CSS fade avoids loading framer-motion
                     (~99 kB) on every authenticated page just for one transition. */}
                 {sidebarOpen && (
@@ -187,7 +188,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                         flex line with "ibuyan Alert" and sized in em so the
                                         visible S glyph matches the text cap height. */}
                                     <span aria-hidden="true" className="min-w-0">
-                                        <span className="flex items-center text-xs font-bold tracking-tight text-white">
+                                        <span className="flex items-center font-display text-base font-semibold tracking-tight text-white">
                                             <img
                                                 src="/icons/Alert.png"
                                                 alt=""
@@ -197,7 +198,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                                 ibuyan <span className="text-red-400">Alert</span>
                                             </span>
                                         </span>
-                                        <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                                        <span className="mt-1 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-slate-300">
                                             Island Operations
                                         </span>
                                     </span>
@@ -410,9 +411,9 @@ const MainLayout = ({ children, fitWindow = false }) => {
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-gray-950">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-primary)]">
                     {/* Operational Header */}
-                    <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-3 border-b border-gray-200/80 bg-white/90 px-2.5 sm:px-4 lg:px-8 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/90">
+                    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-1.5 border-b border-[var(--border)] bg-[var(--surface)] px-2.5 sm:h-16 sm:gap-3 sm:px-4 lg:px-8">
                         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
                             <button
                                 ref={menuButtonRef}
@@ -420,13 +421,13 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={openDrawer}
                                 aria-label="Open navigation menu"
                                 aria-expanded={sidebarOpen}
-                                className="inline-flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 active:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--accent-text)] hover:bg-[var(--surface-hover)] lg:hidden"
                             >
                                 <HiOutlineMenu className="h-5 w-5" />
                             </button>
 
                             <div className="flex-1 min-w-0 px-1">
-                                <span className="block text-xs sm:text-sm font-bold font-display tracking-tight text-gray-900 truncate leading-tight uppercase dark:text-white">
+                                <span className="block truncate font-display text-sm font-semibold leading-tight text-[var(--text-primary)] sm:text-base">
                                     Sibuyan Island Operations
                                 </span>
                                 <p className="hidden md:block text-[11px] text-gray-500 dark:text-gray-400 truncate">
@@ -450,7 +451,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                     onClick={() => setMobileSearchOpen((current) => !current)}
                                     aria-label="Search incident reports"
                                     aria-expanded={mobileSearchOpen}
-                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50 active:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 md:hidden dark:text-gray-300 dark:hover:bg-white/10 cursor-pointer"
+                                    className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--accent-text)] hover:bg-[var(--surface-hover)] md:hidden"
                                 >
                                     <HiOutlineSearch className="h-5 w-5" aria-hidden="true" />
                                 </button>
@@ -495,7 +496,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         Below lg the flag changes nothing — these pages keep a
                         natural height and scroll like every other page, which is
                         what a phone needs. */}
-                    <main data-map-scroll-container className={isMapView
+                    <main id="main-content" tabIndex={-1} data-map-scroll-container className={isMapView
                         ? `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-1 sm:px-3 sm:pt-2 lg:px-2 lg:pt-0 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-2' : 'pb-2'}`
                         : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${fitWindow ? 'lg:overflow-y-hidden ' : ''}${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
                         {/* `lg:h-full` and not plain `h-full`: a definite height

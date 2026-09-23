@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import { adminAPI, analyticsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -20,9 +21,9 @@ import { useSystemHealth } from '../hooks/useSystemHealth';
 import { getMapStatusDot, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
-const DASHBOARD_CONTAINER_CLASS = 'mx-auto w-full min-w-0 max-w-[1500px] overflow-x-hidden space-y-4 sm:space-y-5';
-const PANEL_CLASS = 'rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-white/10 dark:bg-[#0c1813]/90';
-const SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white';
+const DASHBOARD_CONTAINER_CLASS = 'page-shell max-w-[1500px] space-y-6';
+const PANEL_CLASS = 'surface-panel p-5 sm:p-6';
+const SECTION_TITLE_CLASS = 'section-title';
 const SECTION_META_CLASS = 'text-xs text-gray-500 dark:text-gray-400';
 
 const MAX_ACTIVITY_ITEMS = 8;
@@ -49,14 +50,14 @@ const ACTIVITY_LABELS = {
 };
 
 const AdminKpiCard = ({ stat, loading }) => (
-    <article className="min-w-0 overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90">
+    <article className="min-w-0">
         <Link
             to={stat.link}
             aria-label={`${stat.title}: ${loading ? 'loading' : stat.value}. ${stat.actionLabel}`}
-            className="group block h-full min-h-[6.5rem] cursor-pointer p-4 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/[0.02] sm:p-5"
+            className="metric-tile group block h-full cursor-pointer transition-colors hover:bg-[var(--surface-hover)]"
         >
             <div className="flex items-start justify-between gap-3">
-                <p className="font-display text-2xl font-bold leading-none tracking-tight text-gray-950 dark:text-white">
+                <p className="metric-value">
                     {loading ? '...' : stat.value}
                 </p>
                 <HiOutlineArrowRight
@@ -64,10 +65,10 @@ const AdminKpiCard = ({ stat, loading }) => (
                     aria-hidden="true"
                 />
             </div>
-            <h2 className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <h2 className="metric-label">
                 {stat.title}
             </h2>
-            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className="metric-helper">
                 {stat.subtext}
             </p>
         </Link>
@@ -406,23 +407,13 @@ const AdminPage = () => {
 
     return (
         <div className={DASHBOARD_CONTAINER_CLASS}>
-            {/* Page header: shared dashboard language — eyebrow, title, context line */}
-            <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
-                <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400">
-                        {municipality} operations
-                    </p>
-                    <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                        Dashboard
-                    </h1>
-                    <p className="mt-1 max-w-xl text-sm text-gray-600 dark:text-gray-400">
-                        Review pending work and monitor municipality volume.
-                    </p>
-                    <p className="mt-2 flex shrink-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <PageHeader eyebrow={`${municipality} operations`} title="Dashboard" description="Review pending work and monitor municipality volume.">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
+                    <p className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                         <span className={`h-1.5 w-1.5 rounded-full ${systemDegraded ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
                         <span>{systemDegraded ? 'System degraded' : 'System active'} · Sibuyan Island · {user?.assignedMunicipality || 'All Municipalities'}</span>
                     </p>
-                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" aria-live="polite">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-live="polite">
                         <button
                             type="button"
                             onClick={() => !connected && reconnect?.()}
@@ -432,7 +423,6 @@ const AdminPage = () => {
                             aria-label={connected ? 'Live operational stream' : 'Disconnected. Click to reconnect immediately.'}
                         >
                             <span className="relative flex h-2 w-2" aria-hidden="true">
-                                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${connected ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                                 <span className={`relative inline-flex h-2 w-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-amber-500'}`} />
                             </span>
                             <span className={connected ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
@@ -449,10 +439,10 @@ const AdminPage = () => {
                         )}
                     </p>
                 </div>
-            </header>
+            </PageHeader>
 
             {/* KPI strip: same row language as the responder workspace */}
-            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-4" aria-label="Operational status">
+            <section className="metric-strip" aria-label="Operational status">
                 {kpiCards.map((stat) => (
                     <AdminKpiCard
                         key={stat.title}
@@ -479,7 +469,7 @@ const AdminPage = () => {
                     <ul className="mt-2 divide-y divide-gray-100 dark:divide-white/5">
                         {activityFeed.map((entry, index) => (
                             <li key={entry?.key ?? index} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
-                                <p className="min-w-0 truncate text-gray-800 dark:text-gray-200">
+                                <p className="min-w-0 break-words leading-relaxed text-[var(--text-primary)]">
                                     <span className="font-semibold">{entry?.label || 'Operations update'}</span>
                                     {entry?.detail && <span className="text-gray-500 dark:text-gray-400"> · {entry.detail}</span>}
                                 </p>

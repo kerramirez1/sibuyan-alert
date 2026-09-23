@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import { useAuth } from '../context/AuthContext';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { reportsAPI } from '../services/api';
@@ -38,7 +39,7 @@ const REGISTRATION_STEPS = [
     },
 ];
 
-const FIELD_CLASS = 'block h-11 w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-700 dark:bg-[#07130e] dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-950/40 dark:disabled:bg-gray-900/50 dark:disabled:text-gray-600';
+const FIELD_CLASS = 'field-control';
 
 const FieldError = ({ id, children }) => children ? (
     <p id={id} className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400" role="alert">{children}</p>
@@ -471,7 +472,7 @@ const RegisterPage = () => {
                 <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
                 <div>
                     <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                        Sibuyan <span className="text-brand-700 dark:text-sky-400">Alert</span>
+                        Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
                     </p>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
                         Accident Alert &amp; Mapping System
@@ -488,20 +489,13 @@ const RegisterPage = () => {
             </Link>
 
             {/* Step Header */}
-            <header className="mb-5">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
-                    {currentStep.title}
-                </h1>
-                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 sm:text-sm leading-relaxed">
-                    {currentStep.description}
-                </p>
-            </header>
+            <PageHeader className="mb-5" eyebrow="Reporter registration" title={currentStep.title} description={currentStep.description} />
 
             {/* Linear-Style Segmented Progress Indicator */}
             <p className="sr-only" aria-live="polite">{`Step ${safeStep} of ${REGISTRATION_STEPS.length}: ${currentStep.label}`}</p>
-            <div className="mb-6 border-b border-gray-200/80 pb-4 dark:border-white/10" aria-label="Registration progress">
+            <div className="mb-6" aria-label="Registration progress">
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-800 dark:text-sky-400">
+                    <p className="text-xs font-semibold text-[var(--accent-text)]">
                         Step {safeStep} of {REGISTRATION_STEPS.length}: {currentStep.label}
                     </p>
                     <span className="font-mono text-xs font-semibold text-gray-400 dark:text-gray-500">
@@ -523,11 +517,11 @@ const RegisterPage = () => {
             </div>
 
             {/* Main Form Container */}
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200/90 bg-white p-6 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90 sm:p-8" noValidate>
+            <form onSubmit={handleSubmit} className="form-surface" noValidate>
                 {safeStep === 1 && (
                     <section aria-labelledby="account-step-title" className="space-y-4">
                         <div className="border-b border-gray-200/80 pb-2.5 dark:border-white/10">
-                            <h2 id="account-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Account Information</h2>
+                            <h2 id="account-step-title" className="section-title">Account Information</h2>
                         </div>
 
                         <div className="grid gap-3.5 sm:grid-cols-2">
@@ -617,7 +611,7 @@ const RegisterPage = () => {
                 {safeStep === 2 && (
                     <section aria-labelledby="id-step-title" className="space-y-4">
                         <div>
-                            <h2 id="id-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Upload your ID</h2>
+                            <h2 id="id-step-title" className="section-title">Upload your ID</h2>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Take or upload a clear photo of a valid government-issued or school ID.</p>
                         </div>
 
@@ -696,7 +690,7 @@ const RegisterPage = () => {
                 {safeStep === 3 && (
                     <section aria-labelledby="face-step-title" className="space-y-4">
                         <div>
-                            <h2 id="face-step-title" className="font-display text-base font-bold text-gray-950 dark:text-white">Camera preview</h2>
+                            <h2 id="face-step-title" className="section-title">Camera preview</h2>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Center your full face inside the guide and make sure the photo is clear.</p>
                         </div>
 

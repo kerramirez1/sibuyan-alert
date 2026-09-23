@@ -59,7 +59,7 @@ describe('MainLayout responsive navigation', () => {
         renderLayout();
 
         const activeLink = screen.getByRole('link', { name: 'Accident History' });
-        expect(activeLink).toHaveClass('min-h-10', 'bg-white/[0.08]', 'text-white', 'border-red-500');
+        expect(activeLink).toHaveClass('min-h-10', 'bg-white/[0.08]', 'text-white', 'border-sky-300');
         expect(activeLink.className).not.toContain('gradient');
         expect(activeLink.className).not.toContain('shadow');
         expect(activeLink.className).not.toContain('focus:ring');

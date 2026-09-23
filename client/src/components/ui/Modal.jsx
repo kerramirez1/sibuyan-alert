@@ -82,20 +82,20 @@ const Modal = ({
                     <motion.div
                         ref={contentRef}
                         tabIndex={-1}
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full ${sizes[size]} max-h-[90vh] overflow-hidden`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className={`surface-panel relative w-full ${sizes[size]} max-h-[90dvh] overflow-hidden shadow-[var(--shadow-lg)]`}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby={title ? titleId : undefined}
                     >
                         {/* Header */}
                         {(title || showCloseButton) && (
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] px-5 py-4 sm:px-6">
                                 {title && (
-                                    <h2 id={titleId} className="text-xl font-display font-bold text-gray-900 dark:text-white">
+                                    <h2 id={titleId} className="section-title">
                                         {title}
                                     </h2>
                                 )}
@@ -104,17 +104,17 @@ const Modal = ({
                                         type="button"
                                         ref={closeButtonRef}
                                         onClick={onClose}
-                                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                                        className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
                                         aria-label="Close modal"
                                     >
-                                        <HiOutlineX className="w-5 h-5 text-gray-500" />
+                                        <HiOutlineX className="h-5 w-5" aria-hidden="true" />
                                     </button>
                                 )}
                             </div>
                         )}
 
                         {/* Body */}
-                        <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
+                        <div className="max-h-[calc(90dvh-5rem)] overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
                             {children}
                         </div>
                     </motion.div>

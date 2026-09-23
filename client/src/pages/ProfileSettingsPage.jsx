@@ -1,6 +1,7 @@
 import { useState, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from '../router';
+import PageHeader from '../components/ui/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
@@ -17,7 +18,6 @@ import {
     HiOutlineX,
     HiOutlineBell,
     HiOutlineLockClosed,
-    HiOutlineShieldCheck,
     HiOutlineTrash,
 } from 'react-icons/hi';
 
@@ -469,26 +469,12 @@ const ProfileSettingsPage = () => {
     const hasAvatar = Boolean(avatarPreview || user?.avatar);
 
     return (
-        <div className="mx-auto w-full min-w-0 max-w-4xl space-y-4 sm:space-y-6 pb-12">
-            {/* Page Header */}
-            <header className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-200/90 bg-brand-50/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-brand-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
-                        <HiOutlineShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Account</span>
-                    </span>
-                </div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl dark:text-white">
-                    Profile settings
-                </h1>
-                <p className="max-w-2xl text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Manage your personal information, security, and notification preferences.
-                </p>
-            </header>
+        <div className="page-shell max-w-4xl space-y-6 pb-8">
+            <PageHeader eyebrow="Account" title="Profile settings" description="Manage your personal information, security, and notification preferences." />
 
             {/* Compact Account Identity Header */}
             <section
-                className="relative overflow-visible rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-2xs dark:border-white/10 dark:bg-[#0c1813]/90"
+                className="surface-panel relative overflow-visible p-5 sm:p-6"
                 aria-label="Account identity summary"
             >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -510,10 +496,10 @@ const ProfileSettingsPage = () => {
 
                         {/* User Metadata */}
                         <div className="min-w-0 space-y-0.5">
-                            <h2 className="truncate font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                            <h2 className="section-title break-words">
                                 {user?.name || 'User'}
                             </h2>
-                            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                            <p className="break-all text-[13px] text-[var(--text-secondary)]">
                                 {user?.email}
                             </p>
                             <div className="pt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -687,13 +673,13 @@ const ProfileSettingsPage = () => {
             {/* Main Settings Form */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 {/* Unified Settings Workspace Surface */}
-                <div className="divide-y divide-gray-200/80 overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200/90 bg-white shadow-2xs dark:divide-white/10 dark:border-white/10 dark:bg-[#0c1813]/90">
+                <div className="surface-panel divide-y divide-[var(--border)]">
                     {/* 1. Basic Information / Personal Information Section */}
                     <section className="p-4 sm:p-6" aria-labelledby="basic-info-heading">
                         <div className="mb-4">
-                            <h3 id="basic-info-heading" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                            <h2 id="basic-info-heading" className="section-title">
                                 Basic information
-                            </h3>
+                            </h2>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                 Update your full display name and contact email.
                             </p>
@@ -711,7 +697,7 @@ const ProfileSettingsPage = () => {
                                     value={formData.name}
                                     onChange={handleChange}
                                     required
-                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
+                                    className="field-control"
                                     placeholder="Enter your full name"
                                 />
                             </div>
@@ -726,7 +712,7 @@ const ProfileSettingsPage = () => {
                                     value={formData.email}
                                     onChange={handleChange}
                                     required
-                                    className="h-10 w-full rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 dark:border-white/10 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0"
+                                    className="field-control"
                                     placeholder="Enter email address"
                                 />
                             </div>
@@ -738,17 +724,17 @@ const ProfileSettingsPage = () => {
                         <div className="mb-4">
                             <div className="flex items-center gap-1.5">
                                 <HiOutlineLockClosed className="h-4 w-4 text-brand-700 dark:text-sky-400" aria-hidden="true" />
-                                <h3 id="protected-info-heading" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                                <h2 id="protected-info-heading" className="section-title">
                                     Protected information
-                                </h3>
+                                </h2>
                             </div>
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                 These attributes are managed by the system and cannot be edited here.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                        <div className="grid grid-cols-1 gap-4 rounded-lg bg-[var(--surface-muted)] p-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="min-w-0">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Account role
                                 </span>
@@ -758,7 +744,7 @@ const ProfileSettingsPage = () => {
                             </div>
 
                             {user?.assignedMunicipality && (
-                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Municipality
                                     </span>
@@ -769,7 +755,7 @@ const ProfileSettingsPage = () => {
                             )}
 
                             {user?.agency && (
-                                <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 sm:p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                <div className="min-w-0">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Agency / Unit
                                     </span>
@@ -789,9 +775,9 @@ const ProfileSettingsPage = () => {
                                     <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h3 id="notifications-heading" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                                    <h2 id="notifications-heading" className="section-title">
                                         Browser notifications
-                                    </h3>
+                                    </h2>
                                     <p className="mt-0.5 max-w-xl text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                         Receive incident, dispatch, response, and account updates even when Sibuyan Alert is not open.
                                     </p>
@@ -827,7 +813,7 @@ const ProfileSettingsPage = () => {
                                         type="button"
                                         onClick={handleTestPush}
                                         disabled={pushState?.loading}
-                                        className="inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-3.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
+                                        className="btn-outline"
                                     >
                                         Send test
                                     </button>
@@ -837,11 +823,7 @@ const ProfileSettingsPage = () => {
                                     onClick={handlePushToggle}
                                     disabled={pushState?.loading || pushState?.supported === false}
                                     aria-pressed={pushState?.subscribed}
-                                    className={`inline-flex h-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl px-4 text-xs font-semibold shadow-2xs transition disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${
-                                        pushState?.subscribed
-                                            ? 'border border-gray-200/90 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            : 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500'
-                                    }`}
+                                    className={pushState?.subscribed ? 'btn-outline' : 'btn-primary'}
                                 >
                                     {pushState?.loading
                                         ? 'Please wait…'
@@ -854,9 +836,9 @@ const ProfileSettingsPage = () => {
                     {/* 4. Security / Change Password Section */}
                     <section className="p-4 sm:p-6" aria-labelledby="security-heading">
                         <div className="mb-4 sm:mb-5">
-                            <h3 id="security-heading" className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white">
+                            <h2 id="security-heading" className="section-title">
                                 Change password
-                            </h3>
+                            </h2>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                                 Leave these fields blank if you do not want to change your password.
                             </p>
@@ -878,11 +860,7 @@ const ProfileSettingsPage = () => {
                                         name="currentPassword"
                                         value={formData.currentPassword}
                                         onChange={handleChange}
-                                        className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
-                                            errors.currentPassword
-                                                ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
-                                        }`}
+                                        className="field-control pr-12"
                                         placeholder="Enter current password"
                                         maxLength={72}
                                         aria-invalid={Boolean(errors.currentPassword)}
@@ -891,7 +869,7 @@ const ProfileSettingsPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowCurrentPassword((prev) => !prev)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+                                        className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                         aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                                     >
                                         {showCurrentPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -920,11 +898,7 @@ const ProfileSettingsPage = () => {
                                             name="newPassword"
                                             value={formData.newPassword}
                                             onChange={handleChange}
-                                            className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
-                                                errors.newPassword
-                                                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                    : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
-                                            }`}
+                                            className="field-control pr-12"
                                             placeholder="Enter new password"
                                             maxLength={72}
                                             aria-invalid={Boolean(errors.newPassword)}
@@ -933,7 +907,7 @@ const ProfileSettingsPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowNewPassword((prev) => !prev)}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+                                            className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                             aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                                         >
                                             {showNewPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -964,11 +938,7 @@ const ProfileSettingsPage = () => {
                                             name="confirmPassword"
                                             value={formData.confirmPassword}
                                             onChange={handleChange}
-                                            className={`h-10 w-full rounded-xl border bg-white pl-3.5 pr-10 text-xs sm:text-sm font-medium text-gray-950 shadow-2xs outline-none transition placeholder:text-gray-400 focus:ring-2 dark:bg-[#07130e] dark:text-white min-h-[44px] sm:min-h-0 ${
-                                                errors.confirmPassword
-                                                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500'
-                                                    : 'border-gray-200/90 focus:border-brand-600 focus:ring-brand-500/20 dark:border-white/10'
-                                            }`}
+                                            className="field-control pr-12"
                                             placeholder="Re-enter new password"
                                             maxLength={72}
                                             aria-invalid={Boolean(errors.confirmPassword)}
@@ -977,7 +947,7 @@ const ProfileSettingsPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+                                            className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                             aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                                         >
                                             {showConfirmPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
@@ -999,14 +969,14 @@ const ProfileSettingsPage = () => {
                     <button
                         type="button"
                         onClick={() => navigate(user?.role === 'reporter' ? '/my-reports' : '/dashboard')}
-                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-5 text-xs sm:text-sm font-semibold text-gray-700 shadow-2xs transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10 cursor-pointer"
+                        className="btn-outline"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={loading || !hasChanges}
-                        className="inline-flex h-10 min-h-[44px] sm:min-h-0 items-center justify-center rounded-xl bg-brand-700 px-6 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
+                        className="btn-primary"
                     >
                         {loading ? (
                             <span className="flex items-center justify-center gap-2">

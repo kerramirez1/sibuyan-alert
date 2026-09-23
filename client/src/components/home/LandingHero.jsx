@@ -32,12 +32,12 @@ const benefits = [
 ];
 
 const Metric = ({ value, label, sublabel = null }) => (
-    <div className="flex min-w-0 flex-1 flex-col px-3 py-2 text-left sm:px-8 sm:py-2.5">
-        <p className="font-display text-xl font-black leading-none tabular-nums text-white sm:text-3xl">{value}</p>
-        <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-gray-400 sm:text-[10px]">{label}</p>
+    <div className="flex min-w-0 flex-1 flex-col px-2 py-3 text-left sm:px-8 sm:py-4">
+        <p className="font-display text-2xl font-semibold leading-none tabular-nums text-white sm:text-4xl">{value}</p>
+        <p className="mt-2 text-[11px] font-medium leading-relaxed text-slate-200 sm:text-xs">{label}</p>
         {/* Reserved slot keeps all three columns the same height whether or
             not a sublabel exists, so dividers and baselines stay even. */}
-        <p className="mt-0.5 min-h-[11px] truncate text-[8px] font-semibold uppercase tracking-wider text-gray-500 sm:min-h-[13px] sm:text-[9px]">{sublabel || ' '}</p>
+        <p className="mt-1 min-h-4 text-[10px] leading-relaxed text-slate-300 sm:text-[11px]">{sublabel || ' '}</p>
     </div>
 );
 
@@ -77,23 +77,23 @@ const LandingHero = ({
     const isLoading = publicStatsState === 'loading';
 
     return (
-        <section id="home" className="relative isolate overflow-hidden border-b border-gray-200/80 bg-slate-100 pt-[58px] dark:border-white/5 dark:bg-gray-950">
+        <section id="home" className="relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg-primary)] pt-[58px]">
             {/* Municipal-grade flat background: no decorative grid or radial
                 atmosphere layers — contrast comes from the dark metrics bar and
                 hairline dividers below. */}
-            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 pb-6 pt-4 sm:px-8 sm:pb-8 sm:pt-6 lg:min-h-[calc(100svh-170px)] lg:px-10 lg:py-10 xl:px-14">
+            <div className="mx-auto flex w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-10 lg:px-10 lg:py-12 xl:px-14">
                 <div data-testid="landing-hero-layout" className="flex flex-1 flex-wrap items-stretch gap-x-2 gap-y-4 min-[400px]:gap-x-3.5 sm:gap-x-8 sm:gap-y-5 lg:flex-nowrap lg:items-start lg:gap-x-10 xl:gap-x-14">
                     {/* ── Column 1: Copy and Actions ── */}
                     <div className="contents lg:flex lg:min-w-0 lg:flex-[1.1] lg:flex-col lg:items-start">
                         <div data-testid="landing-hero-copy" className="order-1 flex min-w-0 flex-1 self-stretch flex-col justify-between overflow-visible text-left lg:order-none lg:w-full lg:flex-none">
-                            <p data-testid="landing-hero-eyebrow" className="mb-1.5 max-w-full whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.06em] text-brand-700 min-[400px]:text-[10px] min-[400px]:tracking-[0.12em] sm:mb-2 sm:text-[11px] sm:tracking-[0.2em] lg:mb-2 dark:text-sky-300">
+                            <p data-testid="landing-hero-eyebrow" className="mb-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-[var(--accent-text)] sm:text-[11px]">
                                 Island-wide incident coordination
                             </p>
-                            <p className="mb-4 flex items-center gap-1 whitespace-nowrap text-[9px] font-medium text-gray-500 min-[400px]:text-[10px] dark:text-gray-400">
+                            <p className="mb-4 flex items-start gap-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                                 <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                 Sibuyan Island · Romblon, Philippines
                             </p>
-                            <h1 className="font-display text-[1.65rem] font-black leading-[0.96] tracking-[-0.045em] text-gray-950 min-[400px]:text-[2rem] min-[430px]:text-4xl sm:text-5xl lg:text-[4.25rem] xl:text-[5rem] dark:text-white">
+                            <h1 className="font-display text-[1.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--text-primary)] min-[400px]:text-[2rem] min-[430px]:text-4xl sm:text-5xl lg:text-[4rem] xl:text-[4.5rem]">
                                 Report.
                                 <span className="block text-brand-700 dark:text-sky-400">Verify.</span>
                                 <span className="block">Respond.</span>
@@ -127,10 +127,10 @@ const LandingHero = ({
                                         <Link
                                             to={reportCta.to}
                                             id="hero-report-cta"
-                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-red-600 px-2 py-2.5 text-[10px] font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm"
+                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-2 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
                                         >
                                             <HiExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            <span>Report<span className="hidden min-[400px]:inline"> an Incident</span></span>
+                                            <span>Report an Incident</span>
                                         </Link>
                                     )
                                 )}
@@ -138,10 +138,10 @@ const LandingHero = ({
                                 {/* Secondary CTA: View live map */}
                                 <Link
                                     to="/dashboard?view=map"
-                                    className="ui-button inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-white px-2 py-2.5 text-[10px] font-bold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-white dark:ring-white/20 dark:hover:bg-white/15"
+                                    className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
                                 >
                                     <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    <span>View<span className="hidden min-[400px]:inline"> live</span> map</span>
+                                    <span>View live map</span>
                                 </Link>
                             </div>
 
@@ -167,13 +167,13 @@ const LandingHero = ({
 
                     {/* ── Column 3: Tactical Capabilities List ── */}
                     <div data-testid="landing-hero-benefits" className="order-5 basis-full lg:order-none lg:w-[clamp(290px,25vw,360px)] lg:basis-auto lg:flex-none lg:self-start">
-                        <ul className="flex flex-col gap-6 px-0 py-1 sm:px-0 lg:mt-2">
+                                <ul className="flex flex-col gap-5 py-1 lg:mt-2">
                             {benefits.map(({ title, description }) => (
                                 <li key={title} className="flex items-start gap-4">
                                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600 dark:bg-sky-400" aria-hidden="true" />
                                     <div className="min-w-0">
-                                        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-950 dark:text-white">{title}</h2>
-                                        <p className="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
+                                        <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
+                                        <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>
                                     </div>
                                 </li>
                             ))}
@@ -185,9 +185,9 @@ const LandingHero = ({
             {/* ── Telemetry Readout: single row on all viewports, dividers carry structure ── */}
             <div data-testid="landing-hero-metrics" className="w-full border-t border-white/10 bg-brand-950 px-3 py-3 dark:border-white/10 dark:bg-brand-950 sm:px-4 sm:py-3.5">
                 <div className="mx-auto grid max-w-[1440px] grid-cols-3 divide-x divide-white/10 sm:px-8 lg:px-10 xl:px-14 dark:divide-white/10">
-                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="VERIFIED REPORTS" sublabel={verifiedPeriodLabel} />
-                    <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="ACTIVE RISK ZONES" />
-                    <Metric value={municipalityCount} label="MUNICIPALITIES COVERED" />
+                    <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="Verified reports" sublabel={verifiedPeriodLabel} />
+                    <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="Active risk zones" />
+                    <Metric value={municipalityCount} label="Municipalities covered" />
                 </div>
             </div>
         </section>

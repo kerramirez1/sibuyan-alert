@@ -58,7 +58,7 @@ const MunicipalitySeals = () => (
     <div className="flex shrink-0 items-center gap-2" aria-label="Municipality seals">
         {municipalitySeals.map(({ name, src, imageClass }) => (
             <span key={name} className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/15 bg-white/10 p-0.5" title={name}>
-                <img src={src} alt={`${name} seal`} className={`h-full w-full object-contain grayscale opacity-80 ${imageClass}`} />
+                <img src={src} alt={`${name} seal`} className={`h-full w-full object-contain ${imageClass}`} />
             </span>
         ))}
     </div>
@@ -92,7 +92,8 @@ const AuthLayout = ({ children, variant = 'login' }) => {
     const isFocusedPortal = isLoginPortal || isRegistrationPortal;
 
     return (
-        <div className="auth-shell min-h-dvh bg-gray-50/70 font-sans text-gray-900 selection:bg-brand-200 selection:text-brand-900 dark:bg-gray-950 dark:text-gray-100 lg:grid lg:grid-cols-[minmax(370px,38%)_minmax(0,1fr)]">
+        <div className="auth-shell min-h-dvh bg-[var(--bg-primary)] font-sans text-[var(--text-primary)] lg:grid lg:grid-cols-[minmax(370px,38%)_minmax(0,1fr)]">
+            <a href="#main-content" className="skip-link">Skip to content</a>
             {/* ── Left Branding & Overview Panel ── */}
             <aside
                 className={`auth-overview relative hidden min-h-dvh border-r border-brand-900/60 bg-brand-950 text-white lg:flex lg:flex-col ${isRegistrationPortal ? 'lg:sticky lg:top-0 lg:h-dvh lg:self-start lg:overflow-y-auto' : ''}`}
@@ -126,9 +127,9 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                         </p>
                         {isRegistrationPortal ? (
                             <>
-                                <h1 className="max-w-md font-display text-2xl font-bold leading-snug tracking-tight text-white xl:text-3xl">
+                                <h2 className="max-w-md font-display text-2xl font-semibold leading-snug tracking-tight text-white xl:text-3xl">
                                     Become a verified reporter.
-                                </h1>
+                                </h2>
                                 <p className="mt-3 max-w-md text-xs sm:text-sm leading-relaxed text-brand-200/80">
                                     Create your account and complete identity verification before incident reporting is enabled.
                                 </p>
@@ -145,9 +146,9 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                             </>
                         ) : (
                             <>
-                                <h1 className="max-w-md font-display text-2xl font-bold leading-snug tracking-tight text-white xl:text-3xl">
+                                <h2 className="max-w-md font-display text-2xl font-semibold leading-snug tracking-tight text-white xl:text-3xl">
                                     Report, review, map, and coordinate accident response in one system.
-                                </h1>
+                                </h2>
                                 <p className="mt-3 max-w-md text-xs sm:text-sm leading-relaxed text-brand-200/80">
                                     Built for residents, municipal administrators, and emergency response units across Sibuyan Island.
                                 </p>
@@ -175,7 +176,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                     {/* Coverage & System Footer */}
                     <div>
                         <MunicipalityCoverage compact={isFocusedPortal} />
-                        <p className="mt-6 text-[10px] font-medium uppercase tracking-[0.14em] text-brand-300/40">
+                        <p className="mt-6 text-[11px] text-brand-200/80">
                             © 2026 Sibuyan Alert System
                         </p>
                     </div>
@@ -183,7 +184,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
             </aside>
 
             {/* ── Right Content Panel ── */}
-            <main className="auth-content relative flex min-h-dvh w-full items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <main id="main-content" tabIndex={-1} className="auth-content relative flex min-h-dvh w-full min-w-0 items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
                 <div className={`w-full ${isRegistrationPortal ? 'max-w-[640px]' : 'max-w-[420px]'}`}>
                     {children}
                 </div>
