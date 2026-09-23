@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineX } from 'react-icons/hi';
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { FOCUSABLE_SELECTOR } from '../../utils/focusableElements';
 
 const Modal = ({
     isOpen,
@@ -39,9 +40,7 @@ const Modal = ({
             if (event.key === 'Escape') onCloseRef.current();
             if (event.key !== 'Tab') return;
 
-            const focusable = contentRef.current?.querySelectorAll(
-                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-            );
+            const focusable = contentRef.current?.querySelectorAll(FOCUSABLE_SELECTOR);
             if (!focusable?.length) {
                 event.preventDefault();
                 contentRef.current?.focus();

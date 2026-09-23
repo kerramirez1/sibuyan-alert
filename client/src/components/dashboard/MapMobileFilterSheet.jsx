@@ -5,15 +5,7 @@ import {
     HiOutlineX,
 } from 'react-icons/hi';
 import { MAP_ACTIVE_INCIDENT_CONFIG, MAP_STATUS_CONFIG } from '../../config/mapVisuals';
-
-const FOCUSABLE_SELECTOR = [
-    'a[href]',
-    'button:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-].join(',');
+import { FOCUSABLE_SELECTOR } from '../../utils/focusableElements';
 
 // One row shape and one selected state for every option in the sheet, so the
 // three sections cannot drift into three different treatments of "chosen".
@@ -178,7 +170,7 @@ const MapMobileFilterSheet = ({
                 aria-modal="true"
                 aria-labelledby={titleId}
                 aria-describedby={descriptionId}
-                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl border-t border-gray-200 bg-white pb-safe sm:rounded-2xl sm:border sm:max-w-lg dark:border-white/10 dark:bg-[#0c1813]"
+                className="relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-2xl border-t border-gray-200 bg-white pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl sm:border sm:max-w-lg sm:pb-0 dark:border-white/10 dark:bg-[#0c1813]"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 px-4 py-3.5">

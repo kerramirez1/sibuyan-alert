@@ -171,14 +171,32 @@ export default {
                 '200%': '200% 200%',
             },
             boxShadow: {
+                // See the note on `backdropBlur` below: v4 scale names kept for
+                // the tokens the codebase already uses.
+                '2xs': '0 1px 1px 0 rgba(0, 0, 0, 0.04)',
+                'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                 'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
                 'glass-dark': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
                 'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
                 'glow': '0 0 20px rgba(59, 130, 246, 0.3)',
                 'danger-glow': '0 0 20px rgba(239, 68, 68, 0.3)',
             },
+            // The class vocabulary in `src/` follows the Tailwind v4 scale, which
+            // names the subtle end of each scale `2xs`/`xs`. This build runs
+            // Tailwind 3.4, where those utilities do not exist and were dropped
+            // from the output entirely — every card, button and input that asked
+            // for `shadow-2xs` rendered flat, and the sheets lost their blur.
+            // Defining the tokens keeps the design system's names authoritative
+            // instead of rewriting call sites to v3 spellings that mean the same
+            // thing.
             backdropBlur: {
                 'glass': '16px',
+                // v4 `backdrop-blur-xs`; same value as v3's `backdrop-blur-sm`.
+                'xs': '4px',
+            },
+            borderRadius: {
+                // v4 `rounded-xs`; same value as v3's `rounded-sm`.
+                'xs': '0.125rem',
             },
         },
     },

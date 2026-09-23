@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from '../router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,8 @@ import { authAPI } from '../services/api';
 import toast from '../utils/appToast';
 import { resolveAssetUrl } from '../utils/assets';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
+import { AVATAR_ACCEPT_ATTRIBUTE, describeAvatarRejection } from '../config/avatarUpload';
+import useDialogA11y from '../hooks/useDialogA11y';
 import {
     HiOutlineEye,
     HiOutlineEyeOff,
@@ -48,8 +51,11 @@ const ProfileSettingsPage = () => {
     const avatarInputRef = useRef(null);
     const changePhotoButtonRef = useRef(null);
     const photoMenuRef = useRef(null);
+    const photoSheetRef = useRef(null);
+    const webcamDialogRef = useRef(null);
     const videoRef = useRef(null);
     const streamRef = useRef(null);
+    const photoSheetTitleId = useId();
     const [isWebcamOpen, setIsWebcamOpen] = useState(false);
     const [showPhotoMenu, setShowPhotoMenu] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -100,7 +106,9 @@ const ProfileSettingsPage = () => {
         };
     }, []);
 
-    // Photo menu click-outside & Escape key handling
+    // Photo menu click-outside, Escape, and Tab-out handling. A menu that stays
+    // open after focus has left it is a stale overlay: nothing there is
+    // reachable any more, so the next Tab lands on the page behind it.
     useEffect(() => {
         if (!showPhotoMenu) return undefined;
 
@@ -109,17 +117,30 @@ const ProfileSettingsPage = () => {
                 e.preventDefault();
                 setShowPhotoMenu(false);
                 changePhotoButtonRef.current?.focus();
+                return;
             }
+
+            if (e.key !== 'Tab') return;
+
+            const active = document.activeElement;
+            const focusIsInMenu = photoMenuRef.current?.contains(active)
+                || photoSheetRef.current?.contains(active)
+                || changePhotoButtonRef.current?.contains(active);
+            if (!focusIsInMenu) setShowPhotoMenu(false);
         };
 
+        // Both surfaces count as "inside". The desktop popover is always in the
+        // DOM (`hidden sm:block`), so checking only it would treat every tap on
+        // the mobile sheet as an outside click: `mousedown` closes the sheet
+        // before `click` can reach the button, and the sheet's own
+        // stopPropagation does not help — this is a native document listener,
+        // not a React one. The action would silently do nothing.
         const handleClickOutside = (e) => {
-            if (
-                photoMenuRef.current &&
-                !photoMenuRef.current.contains(e.target) &&
-                !changePhotoButtonRef.current?.contains(e.target)
-            ) {
-                setShowPhotoMenu(false);
-            }
+            const clickInsideMenu = photoMenuRef.current?.contains(e.target)
+                || photoSheetRef.current?.contains(e.target)
+                || changePhotoButtonRef.current?.contains(e.target);
+
+            if (!clickInsideMenu) setShowPhotoMenu(false);
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -138,21 +159,34 @@ const ProfileSettingsPage = () => {
         }
     };
 
+    // Stage a photo for the next save and show it immediately. Kept in one
+    // place so the picker and the camera cannot disagree about what a staged
+    // avatar looks like (revoking the previous object URL included).
+    const stageAvatar = (file) => {
+        if (avatarPreview?.startsWith('blob:')) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+        setFormData((prev) => ({ ...prev, avatar: file }));
+        setAvatarPreview(URL.createObjectURL(file));
+    };
+
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error('Image must be less than 5MB');
-                return;
-            }
-            if (avatarPreview?.startsWith('blob:')) {
-                URL.revokeObjectURL(avatarPreview);
-            }
-            setFormData((prev) => ({ ...prev, avatar: file }));
-            setAvatarPreview(URL.createObjectURL(file));
-            setShowPhotoMenu(false);
-            e.target.value = '';
+        // Reset the input before every decision, including rejection: a rejected
+        // file left in the input means re-picking the same photo fires no
+        // `change` event at all, so the retry a phone user reaches for first
+        // does nothing and reports nothing.
+        e.target.value = '';
+        if (!file) return;
+
+        const rejection = describeAvatarRejection(file);
+        if (rejection) {
+            toast.error(rejection);
+            return;
         }
+
+        stageAvatar(file);
+        setShowPhotoMenu(false);
     };
 
     const startWebcam = async () => {
@@ -204,16 +238,20 @@ const ProfileSettingsPage = () => {
             ctx.drawImage(videoRef.current, 0, 0);
 
             canvas.toBlob((blob) => {
-                if (blob) {
-                    const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+                if (!blob) return;
 
-                    if (avatarPreview?.startsWith('blob:')) {
-                        URL.revokeObjectURL(avatarPreview);
-                    }
-                    setFormData((prev) => ({ ...prev, avatar: file }));
-                    setAvatarPreview(URL.createObjectURL(file));
-                    stopWebcam();
+                const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+                // A full-resolution capture can still exceed the upload limit,
+                // and the server would reject it after the photo is already
+                // taken — so refuse it here, while the user can retake it.
+                const rejection = describeAvatarRejection(file);
+                if (rejection) {
+                    toast.error(rejection);
+                    return;
                 }
+
+                stageAvatar(file);
+                stopWebcam();
             }, 'image/jpeg', 0.9);
         }
     };
@@ -223,6 +261,24 @@ const ProfileSettingsPage = () => {
             videoRef.current.srcObject = streamRef.current;
         }
     }, [isWebcamOpen]);
+
+    // Both dialogs are modal: focus moves in, Tab cycles inside, Escape closes,
+    // and focus returns to "Change photo". The sheet is the only photo entry
+    // point below `sm` (the popover is `hidden sm:block`), so without this a
+    // keyboard user on a phone could open it and never reach an option.
+    useDialogA11y({
+        isOpen: showPhotoMenu,
+        onClose: () => setShowPhotoMenu(false),
+        containerRef: photoSheetRef,
+        restoreFocusRef: changePhotoButtonRef,
+    });
+
+    useDialogA11y({
+        isOpen: isWebcamOpen,
+        onClose: stopWebcam,
+        containerRef: webcamDialogRef,
+        restoreFocusRef: changePhotoButtonRef,
+    });
 
     const triggerCamera = () => {
         startWebcam();
@@ -485,86 +541,98 @@ const ProfileSettingsPage = () => {
                             <span>Change photo</span>
                         </button>
 
-                        {/* Photo Source Menu */}
+                        {/* Photo source menu.
+
+                            The desktop popover stays inside this trigger's
+                            positioning context so it opens under the button. The
+                            mobile sheet is portaled to the body because the page
+                            body is wrapped in `.page-enter`, whose retained
+                            transform (animation-fill-mode: both) makes it the
+                            containing block for every `position: fixed`
+                            descendant — rendered inline, the sheet would be laid
+                            out against the full page height and clipped by
+                            <main>'s scroll container instead of sticking to the
+                            viewport, leaving the user with a dimmed screen and no
+                            way to reach the picker. */}
                         {showPhotoMenu && (
-                            <>
-                                {/* Backdrop */}
+                            <div
+                                ref={photoMenuRef}
+                                role="menu"
+                                aria-label="Profile photo options"
+                                className={`hidden sm:block absolute right-0 z-30 w-56 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#0c1813] ${
+                                    menuPlacement === 'above' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={triggerGallery}
+                                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
+                                >
+                                    <HiOutlinePhotograph className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
+                                    <span>Choose from device</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={triggerCamera}
+                                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
+                                >
+                                    <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
+                                    <span>Take photo</span>
+                                </button>
+                                {hasAvatar && (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={handleRemovePhoto}
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors cursor-pointer min-h-[38px]"
+                                    >
+                                        <HiOutlineTrash className="h-4 w-4 text-red-500 shrink-0" aria-hidden="true" />
+                                        <span>Remove photo</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {showPhotoMenu && typeof document !== 'undefined' && createPortal(
+                            <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
                                 <div
-                                    className="fixed inset-0 z-20 bg-black/40 backdrop-blur-2xs sm:bg-transparent sm:backdrop-blur-none"
+                                    className="fixed inset-0 bg-black/50 backdrop-blur-xs"
                                     onClick={() => setShowPhotoMenu(false)}
                                     aria-hidden="true"
                                 />
-
-                                {/* Desktop Anchored Popover */}
                                 <div
-                                    ref={photoMenuRef}
-                                    role="menu"
-                                    aria-label="Profile photo options"
-                                    className={`hidden sm:block absolute right-0 z-30 w-56 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#0c1813] ${
-                                        menuPlacement === 'above' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-                                    }`}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={triggerGallery}
-                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
-                                    >
-                                        <HiOutlinePhotograph className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
-                                        <span>Choose from device</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={triggerCamera}
-                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white transition-colors cursor-pointer min-h-[38px]"
-                                    >
-                                        <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
-                                        <span>Take photo</span>
-                                    </button>
-                                    {hasAvatar && (
-                                        <button
-                                            type="button"
-                                            role="menuitem"
-                                            onClick={handleRemovePhoto}
-                                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors cursor-pointer min-h-[38px]"
-                                        >
-                                            <HiOutlineTrash className="h-4 w-4 text-red-500 shrink-0" aria-hidden="true" />
-                                            <span>Remove photo</span>
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Mobile Bottom Action Sheet */}
-                                <div
-                                    className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end"
+                                    ref={photoSheetRef}
+                                    tabIndex={-1}
                                     role="dialog"
                                     aria-modal="true"
-                                    aria-label="Change profile photo"
+                                    aria-labelledby={photoSheetTitleId}
+                                    className="relative z-10 flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl border-t border-gray-200/90 bg-white outline-none dark:border-white/10 dark:bg-[#0c1813]"
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div
-                                        className="fixed inset-0 bg-black/50 backdrop-blur-xs"
-                                        onClick={() => setShowPhotoMenu(false)}
-                                        aria-hidden="true"
-                                    />
-                                    <div
-                                        className="relative z-10 w-full rounded-t-2xl border-t border-gray-200/90 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-[#0c1813] space-y-2 pb-6"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-white/10">
-                                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                                Change profile photo
-                                            </h3>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPhotoMenu(false)}
-                                                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                                aria-label="Close photo menu"
-                                            >
-                                                <HiOutlineX className="h-4 w-4" />
-                                            </button>
-                                        </div>
+                                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5 dark:border-white/10">
+                                        <h3
+                                            id={photoSheetTitleId}
+                                            className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                                        >
+                                            Change profile photo
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPhotoMenu(false)}
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:hover:bg-white/10 dark:hover:text-gray-200 cursor-pointer"
+                                            aria-label="Close photo menu"
+                                        >
+                                            <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                        </button>
+                                    </div>
+
+                                    {/* Scrollable so the sheet still fits when the
+                                        action list is taller than the viewport
+                                        (short landscape phones). */}
+                                    <div className="flex-1 min-h-0 space-y-2 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                                         <button
                                             type="button"
                                             onClick={triggerGallery}
@@ -600,13 +668,14 @@ const ProfileSettingsPage = () => {
                                         </button>
                                     </div>
                                 </div>
-                            </>
+                            </div>,
+                            document.body
                         )}
 
                         <input
                             ref={avatarInputRef}
                             type="file"
-                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                            accept={AVATAR_ACCEPT_ATTRIBUTE}
                             onChange={handleAvatarChange}
                             className="hidden"
                             aria-label="Upload profile image from device"
@@ -954,78 +1023,86 @@ const ProfileSettingsPage = () => {
                 </div>
             </form>
 
-            {/* Webcam Capture Modal */}
-            <AnimatePresence>
-                {isWebcamOpen && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="webcam-modal-title"
-                    >
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs"
-                            onClick={stopWebcam}
-                        />
-
-                        <motion.div
-                            initial={{ scale: 0.96, opacity: 0, y: 8 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.96, opacity: 0, y: 8 }}
-                            transition={{ duration: 0.15 }}
-                            className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
-                            onClick={(e) => e.stopPropagation()}
+            {/* Webcam capture dialog. Portaled for the same reason as the photo
+                sheet above, plus one of its own: centred against the page
+                content instead of the viewport, a capture dialog on a long page
+                opens above the fold and the camera looks broken. */}
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {isWebcamOpen && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="webcam-modal-title"
                         >
-                            <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
-                                <h3 id="webcam-modal-title" className="text-sm font-bold text-gray-950 dark:text-white flex items-center gap-2">
-                                    <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
-                                    Take profile photo
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={stopWebcam}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200 transition-colors cursor-pointer"
-                                    aria-label="Close camera"
-                                >
-                                    <HiOutlineX className="h-5 w-5" aria-hidden="true" />
-                                </button>
-                            </div>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs"
+                                onClick={stopWebcam}
+                            />
 
-                            <div className="relative bg-black aspect-square sm:aspect-video flex items-center justify-center overflow-hidden">
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    className="w-full h-full object-cover -scale-x-100"
-                                />
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-36 w-36 rounded-full border-2 border-dashed border-white/60 pointer-events-none" />
-                            </div>
+                            <motion.div
+                                ref={webcamDialogRef}
+                                tabIndex={-1}
+                                initial={{ scale: 0.96, opacity: 0, y: 8 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.96, opacity: 0, y: 8 }}
+                                transition={{ duration: 0.15 }}
+                                className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200/90 bg-white shadow-2xl outline-none dark:border-white/10 dark:bg-[#0c1813]"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
+                                    <h3 id="webcam-modal-title" className="text-sm font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                                        <HiOutlineCamera className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
+                                        Take profile photo
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={stopWebcam}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                                        aria-label="Close camera"
+                                    >
+                                        <HiOutlineX className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                </div>
 
-                            <div className="flex items-center justify-between gap-3 border-t border-gray-200/80 bg-gray-50/70 p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
-                                <button
-                                    type="button"
-                                    onClick={stopWebcam}
-                                    className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-4 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={captureWebcamPhoto}
-                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
-                                >
-                                    <HiOutlineCamera className="h-4 w-4" aria-hidden="true" />
-                                    Capture photo
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                <div className="relative bg-black aspect-square sm:aspect-video flex items-center justify-center overflow-hidden">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="w-full h-full object-cover -scale-x-100"
+                                    />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-36 w-36 rounded-full border-2 border-dashed border-white/60 pointer-events-none" />
+                                </div>
+
+                                <div className="flex items-center justify-between gap-3 border-t border-gray-200/80 bg-gray-50/70 p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
+                                    <button
+                                        type="button"
+                                        onClick={stopWebcam}
+                                        className="inline-flex h-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white px-4 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={captureWebcamPhoto}
+                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-2xs transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 cursor-pointer"
+                                    >
+                                        <HiOutlineCamera className="h-4 w-4" aria-hidden="true" />
+                                        Capture photo
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

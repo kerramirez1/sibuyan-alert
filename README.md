@@ -249,6 +249,8 @@ Deployed on Heroku — see [HEROKU_DEPLOYMENT.md](HEROKU_DEPLOYMENT.md).
 ## Additional Documentation
 
 - [AGENTS.md](AGENTS.md) — coding agent configuration and command reference
+- [CODEBASE_CONTEXT.md](CODEBASE_CONTEXT.md) — architecture, models, API surface, invariants
+- [SYSTEM_PROCESSES.md](SYSTEM_PROCESSES.md) — every business flow, background loop, and client-side async mechanism
 - [HEROKU_DEPLOYMENT.md](HEROKU_DEPLOYMENT.md) — deployment guide
 - [ACCOUNTS.example.md](ACCOUNTS.example.md) — account provisioning reference
 - [server/data/README.md](server/data/README.md) — source datasets: provenance, licence, and regeneration steps

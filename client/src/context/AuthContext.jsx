@@ -475,9 +475,20 @@ export const AuthProvider = ({ children }) => {
         return user.role === 'reporter' && user.isVerified;
     }, [user]);
 
-    // Manual user state update
+    // Manual user state update.
+    //
+    // Merges into the current user instead of replacing it. Callers hand this a
+    // response projection, and a projection is not the whole account: the
+    // profile update answers with the editable fields only, so replacing would
+    // drop `isVerified`/`verificationStatus` (which gate `/report` and the
+    // submit CTA) plus the address the account restored at sign-in. A null is
+    // still a deliberate clear.
     const updateUser = useCallback((userData) => {
-        setUser(userData);
+        if (userData == null) {
+            setUser(null);
+            return;
+        }
+        setUser((current) => (current ? { ...current, ...userData } : userData));
     }, []);
 
     const value = {

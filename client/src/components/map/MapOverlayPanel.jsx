@@ -5,6 +5,7 @@ import {
     HiOutlineChevronUp,
     HiOutlineX,
 } from 'react-icons/hi';
+import { FOCUSABLE_SELECTOR } from '../../utils/focusableElements';
 
 /**
  * The width below which this panel stops sitting beside the map and becomes a
@@ -17,15 +18,6 @@ import {
  * cannot disagree about where the sheet starts.
  */
 export const PANEL_SHEET_MEDIA_QUERY = '(max-width: 639px)';
-
-const FOCUSABLE_SELECTOR = [
-    'a[href]',
-    'button:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-].join(',');
 
 const MapOverlayPanel = ({
     id,

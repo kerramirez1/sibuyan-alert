@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import {
     handleMulterError,
     requireRegistrationVerificationImages,
+    uploadAvatar,
     uploadIdDocument,
     validateUploadContent,
 } from '../middleware/upload.js';
@@ -41,6 +42,53 @@ const createRegistrationUploadApp = () => {
     );
     return app;
 };
+
+const createAvatarUploadApp = () => {
+    const app = express();
+    app.put(
+        '/avatar',
+        uploadAvatar,
+        handleMulterError,
+        validateUploadContent,
+        (req, res) => res.status(204).end(),
+    );
+    return app;
+};
+
+const createJpegBuffer = (totalBytes = 64) => {
+    const buffer = Buffer.alloc(totalBytes);
+    buffer.set([0xff, 0xd8, 0xff, 0xe0], 0);
+    return buffer;
+};
+
+describe('avatar upload mime handling', () => {
+    test('accepts the non-standard image/jpg type browsers report for .jpg files', async () => {
+        // The picker advertises `image/jpg`, so a browser that reports it must
+        // not reach the allowlist as an unknown type: the user chose a photo the
+        // picker offered, and it was rejected with "must be a JPEG, PNG, or
+        // WebP image".
+        const response = await request(createAvatarUploadApp())
+            .put('/avatar')
+            .attach('avatar', createJpegBuffer(), {
+                filename: 'photo.jpg',
+                contentType: 'image/jpg',
+            });
+
+        expect(response.status).toBe(204);
+    });
+
+    test('still rejects image types the allowlist does not support', async () => {
+        const response = await request(createAvatarUploadApp())
+            .put('/avatar')
+            .attach('avatar', createPngHeader(), {
+                filename: 'photo.gif',
+                contentType: 'image/gif',
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toMatch(/Avatar must be a JPEG, PNG, or WebP image/);
+    });
+});
 
 describe('identity upload boundary', () => {
     test('accepts an image upload with safe dimensions', async () => {

@@ -21,6 +21,7 @@ import {
 } from '../utils/pushSubscription.js';
 import { sendPushToUser } from '../services/pushService.js';
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
+import { buildSelfUserPayload } from '../utils/userPayload.js';
 import { detectFaces } from '../services/faceDetectionService.js';
 
 /**
@@ -246,20 +247,7 @@ export const login = async (req, res) => {
         res.json({
             success: true,
             data: {
-                user: {
-                    id: user._id,
-                    email: user.email,
-                    name: user.name,
-                    role: user.role,
-                    agency: user.agency,
-                    responderUnit: user.responderUnit,
-                    assignedMunicipality: user.assignedMunicipality,
-                    avatar: user.avatar,
-                    address: user.address,
-                    barangay: user.barangay,
-                    isVerified: user.isVerified,
-                    verificationStatus: user.verificationStatus,
-                },
+                user: buildSelfUserPayload(user),
             },
         });
     } catch (error) {
@@ -290,22 +278,7 @@ export const getMe = async (req, res) => {
 
         res.json({
             success: true,
-            data: {
-                id: user._id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                agency: user.agency,
-                responderUnit: user.responderUnit,
-                assignedMunicipality: user.assignedMunicipality,
-                avatar: user.avatar,
-                address: user.address,
-                barangay: user.barangay,
-                isVerified: user.isVerified,
-                verificationStatus: user.verificationStatus,
-                notificationPreferences: user.notificationPreferences,
-                createdAt: user.createdAt,
-            },
+            data: buildSelfUserPayload(user),
         });
     } catch (error) {
         console.error('Get me error:', error);
@@ -426,17 +399,10 @@ export const updateProfile = async (req, res) => {
         res.json({
             success: true,
             message: 'Profile updated successfully',
-            data: {
-                id: user._id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                agency: user.agency,
-                responderUnit: user.responderUnit,
-                assignedMunicipality: user.assignedMunicipality,
-                avatar: user.avatar,
-                notificationPreferences: user.notificationPreferences,
-            },
+            // The same projection `/auth/me` answers with: the client merges this
+            // into the session user, and a narrower shape would drop the
+            // verification fields that gate the reporter submit flow.
+            data: buildSelfUserPayload(user),
         });
     } catch (error) {
         if (uploadedAvatarUrl && !profileSaved) {

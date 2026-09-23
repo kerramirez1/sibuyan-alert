@@ -6,8 +6,26 @@ const MIN_IDENTITY_SHORT_EDGE = 300;
 const MIN_IDENTITY_LONG_EDGE = 480;
 const MAX_IDENTITY_PIXELS = 40_000_000;
 
+/**
+ * Map the MIME types browsers actually send onto the ones we accept.
+ *
+ * `image/jpg` and `image/pjpeg` are not registered types, but browsers and
+ * older Android pickers report them for ordinary .jpg files. The client's
+ * picker offered `image/jpg`, so such a photo passed every client-side check and
+ * was then rejected here with "must be a JPEG, PNG, or WebP image". Normalizing
+ * before both the allowlist and the magic-number check keeps the file's declared
+ * type and its bytes in agreement for the rest of the pipeline.
+ */
+const normalizeImageMimeType = (mimetype) => {
+    const value = String(mimetype || '').toLowerCase();
+    if (value === 'image/jpg' || value === 'image/pjpeg') return 'image/jpeg';
+    return value;
+};
+
 const createFileFilter = (allowedTypes, message) => (req, file, callback) => {
-    if (allowedTypes.has(file.mimetype)) {
+    const mimetype = normalizeImageMimeType(file.mimetype);
+    if (allowedTypes.has(mimetype)) {
+        file.mimetype = mimetype;
         callback(null, true);
         return;
     }
