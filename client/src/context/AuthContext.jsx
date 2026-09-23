@@ -437,22 +437,24 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/resubmit-id', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            const verificationStatus = response.data?.data?.verificationStatus;
-            if (!verificationStatus) {
-                throw new Error('Resubmit response did not include a verification status');
+            const updatedUser = response.data?.data;
+            if (!updatedUser?.verificationStatus || typeof updatedUser.isVerified !== 'boolean') {
+                throw new Error('Resubmit response did not include the verification state');
             }
             setUser((prev) => {
                 if (!prev) return prev;
+                if (String(prev.id || prev._id) !== String(updatedUser.id)) return prev;
                 return {
                     ...prev,
-                    verificationStatus,
+                    ...updatedUser,
                 };
             });
             toast.success('ID document resubmitted for verification');
             return { success: true };
-        } catch {
-            toast.error('Failed to resubmit ID document');
-            return { success: false };
+        } catch (error) {
+            const message = error.response?.data?.message || 'Failed to resubmit ID document';
+            toast.error(message);
+            return { success: false, message };
         }
     }, []);
 
@@ -477,12 +479,9 @@ export const AuthProvider = ({ children }) => {
 
     // Manual user state update.
     //
-    // Merges into the current user instead of replacing it. Callers hand this a
-    // response projection, and a projection is not the whole account: the
-    // profile update answers with the editable fields only, so replacing would
-    // drop `isVerified`/`verificationStatus` (which gate `/report` and the
-    // submit CTA) plus the address the account restored at sign-in. A null is
-    // still a deliberate clear.
+    // API profile responses carry the full self-account projection. Also allow
+    // intentional partial caller updates without dropping verification state or
+    // the address restored at sign-in. A null remains a deliberate clear.
     const updateUser = useCallback((userData) => {
         if (userData == null) {
             setUser(null);

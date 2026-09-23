@@ -160,17 +160,7 @@ export const register = async (req, res) => {
             success: true,
             message: 'Registration successful. Your account is pending verification.',
             data: {
-                user: {
-                    id: user._id,
-                    email: user.email,
-                    name: user.name,
-                    role: user.role,
-                    address: user.address,
-                    barangay: user.barangay,
-                    assignedMunicipality: user.assignedMunicipality,
-                    isVerified: user.isVerified,
-                    verificationStatus: user.verificationStatus,
-                },
+                user: buildSelfUserPayload(user),
             },
         });
     } catch (error) {
@@ -378,7 +368,8 @@ export const updateProfile = async (req, res) => {
             user.avatar = storedAvatar.url;
         }
 
-        // Save user (role is protected - cannot be changed via this endpoint)
+        // Only the explicit editable fields above are assigned. Role, approval
+        // flags, reviewer identity, timestamps and feedback are not profile inputs.
         await user.save();
         profileSaved = true;
 
@@ -622,6 +613,7 @@ export const resubmitIdDocument = async (req, res) => {
             user.selfiePhoto = storedSelfie.url;
         }
         user.verificationStatus = 'pending';
+        user.isVerified = false;
         user.verificationFeedback = null;
         user.recordVerificationEvent({ action: 'id_resubmitted', actor: user._id });
         await user.save();
@@ -632,9 +624,7 @@ export const resubmitIdDocument = async (req, res) => {
         res.json({
             success: true,
             message: 'ID photo resubmitted. Your verification is pending review.',
-            data: {
-                verificationStatus: user.verificationStatus,
-            },
+            data: buildSelfUserPayload(user),
         });
     } catch (error) {
         if (!profileSaved) {

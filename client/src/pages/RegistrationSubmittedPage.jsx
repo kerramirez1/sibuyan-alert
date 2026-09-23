@@ -10,8 +10,8 @@ import {
 const RegistrationSubmittedPage = (props = {}) => {
     const { isAuthenticated, user } = useAuth();
     const accountTargetOverride = props?.accountTargetOverride;
-    // ordinary (pending) and reporter both land here; /my-reports is reporter-only,
-    // so route ordinary users to /profile where verification status + resubmit live.
+    // Reporter identity is retained while approval is pending. Keep the existing
+    // role destination; the separate profile link opens verification information.
     // Unauthenticated visits (refresh before session restore) fall back to /login.
     const accountTarget = accountTargetOverride
         || (user?.role === 'reporter' ? '/my-reports' : null)
@@ -55,6 +55,9 @@ const RegistrationSubmittedPage = (props = {}) => {
             <Link to={accountTarget} className="btn-primary mt-6 w-full">
                 Go to my account
             </Link>
+            {isAuthenticated && user?.role === 'reporter' && (
+                <Link to="/profile" className="text-action mt-3">View verification status</Link>
+            )}
             {!isAuthenticated && (
                 <p className="mt-3 text-xs text-gray-500">
                     Already verified? <Link to="/login" className="font-semibold text-brand-700 hover:underline">Sign in</Link> to continue.

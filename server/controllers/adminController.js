@@ -30,6 +30,7 @@ import {
 } from '../config/responderUnits.js';
 import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+import { buildUserVerificationPayload } from '../utils/userPayload.js';
 import {
     getPhilippineCalendarMonthRange,
     getPhilippineCalendarWeekRange,
@@ -371,8 +372,7 @@ export const verifyReporter = async (req, res) => {
                 id: user._id,
                 email: user.email,
                 name: user.name,
-                verificationStatus: user.verificationStatus,
-                isVerified: user.isVerified,
+                ...buildUserVerificationPayload(user),
                 notification: {
                     inAppSent: true,
                     emailAttempted: user.notificationPreferences?.email !== false,

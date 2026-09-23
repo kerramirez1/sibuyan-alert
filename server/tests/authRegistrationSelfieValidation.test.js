@@ -179,6 +179,9 @@ describe('server-side reporter selfie face validation', () => {
             .field('municipality', 'Cajidiocan')
             .field('barangay', 'Gutivan')
             .field('agreeToTerms', 'true')
+            .field('role', 'municipal_admin')
+            .field('isVerified', 'true')
+            .field('verificationStatus', 'approved')
             .attach('idDocument', createPngHeader(), {
                 filename: 'id.png',
                 contentType: 'image/png',
@@ -193,5 +196,10 @@ describe('server-side reporter selfie face validation', () => {
         expect(response.body.data.user.role).toBe('reporter');
         expect(response.body.data.user.verificationStatus).toBe('pending');
         expect(response.body.data.user.isVerified).toBe(false);
+        expect(response.body.data.user.verificationFeedback).toBeNull();
+        expect(User.create).toHaveBeenCalledWith(expect.objectContaining({ role: 'reporter', isVerified: false, verificationStatus: 'pending' }));
+        expect(response.body.data.user).not.toHaveProperty('idDocument');
+        expect(response.body.data.user).not.toHaveProperty('selfiePhoto');
+        expect(response.body.data.user).not.toHaveProperty('verificationHistory');
     });
 });

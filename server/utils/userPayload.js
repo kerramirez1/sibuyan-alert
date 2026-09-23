@@ -1,7 +1,17 @@
+/** Verification fields for the account owner or its authorized municipal reviewer.
+ * Keep documents, reviewer identity and verification history out of this projection.
+ */
+export const buildUserVerificationPayload = (user) => ({
+    role: user.role,
+    isVerified: user.isVerified === true,
+    verificationStatus: user.verificationStatus ?? null,
+    verificationFeedback: user.verificationFeedback ?? null,
+});
+
 /**
  * The single shape of "my own account" returned to the signed-in client.
  *
- * `/auth/login`, `GET /auth/me` and `PUT /auth/me` all answer with this payload.
+ * Registration, login, GET/PUT /auth/me and ID resubmission share this payload.
  * They used to be written out by hand in each handler, and they drifted: the
  * profile update omitted `isVerified`/`verificationStatus`, so a verified
  * reporter who saved a new display name lost the client-side verification state
@@ -17,15 +27,13 @@ export const buildSelfUserPayload = (user) => {
         id: user._id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        ...buildUserVerificationPayload(user),
         agency: user.agency,
         responderUnit: user.responderUnit,
         assignedMunicipality: user.assignedMunicipality,
         avatar: user.avatar,
         address: user.address,
         barangay: user.barangay,
-        isVerified: user.isVerified,
-        verificationStatus: user.verificationStatus,
         notificationPreferences: user.notificationPreferences,
         createdAt: user.createdAt,
     };

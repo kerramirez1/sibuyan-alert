@@ -5,7 +5,10 @@ import { MemoryRouter } from '../router';
 const mocks = vi.hoisted(() => ({
     callbacks: {},
     getMyReports: vi.fn(),
+    user: null,
 }));
+
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mocks.user }) }));
 
 vi.mock('../context/SocketContext', () => ({
     useSocket: () => ({
@@ -60,6 +63,7 @@ describe('ReporterDashboardPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.callbacks = {};
+        mocks.user = { id: 'reporter-1', role: 'reporter', isVerified: true, verificationStatus: 'approved' };
         mocks.getMyReports.mockResolvedValue({
             data: { data: sampleReports },
         });
@@ -136,6 +140,22 @@ describe('ReporterDashboardPage', () => {
         expect(await screen.findByText('No activity logged')).toBeInTheDocument();
         expect(screen.getByText(/There are currently no reports linked to your profile/i)).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Submit new incident/i })).toHaveAttribute('href', '/report');
+    });
+
+    test.each([
+        ['pending', 'Pending administrator approval'],
+        ['rejected', 'Verification rejected'],
+        [undefined, 'Status unavailable'],
+    ])('keeps %s reporters in their dashboard with a route to account verification', async (verificationStatus, label) => {
+        mocks.user = { id: 'reporter-1', role: 'reporter', isVerified: false, verificationStatus, verificationFeedback: verificationStatus === 'rejected' ? 'The ID is not readable.' : null };
+        mocks.getMyReports.mockResolvedValueOnce({ data: { data: [] } });
+        render(<MemoryRouter><ReporterDashboardPage /></MemoryRouter>);
+        expect(await screen.findByText('No activity logged')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'Verification status' })).toHaveTextContent(label);
+        expect(screen.getByRole('link', { name: 'View verification status' })).toHaveAttribute('href', '/profile');
+        expect(screen.queryByRole('link', { name: /Submit new incident/i })).not.toBeInTheDocument();
+        if (verificationStatus === 'rejected') expect(screen.getByText('The ID is not readable.')).toBeInTheDocument();
     });
 
     test('renders single lifecycle stepper with canonical step names', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildSelfUserPayload } from '../utils/userPayload.js';
+import { buildSelfUserPayload, buildUserVerificationPayload } from '../utils/userPayload.js';
 
 const reporter = {
     _id: 'user-1',
@@ -14,6 +14,7 @@ const reporter = {
     barangay: 'Tampayan',
     isVerified: true,
     verificationStatus: 'approved',
+    verificationFeedback: null,
     notificationPreferences: { browserPush: true, inApp: true, email: false },
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
 };
@@ -48,6 +49,7 @@ describe('buildSelfUserPayload', () => {
             'notificationPreferences',
             'responderUnit',
             'role',
+            'verificationFeedback',
             'verificationStatus',
         ]);
         // `id`, not `_id`: every client call site reads `user.id`.
@@ -57,5 +59,32 @@ describe('buildSelfUserPayload', () => {
 
     test('returns null for a missing user instead of a half-built object', () => {
         expect(buildSelfUserPayload(null)).toBeNull();
+    });
+
+    test('returns owner feedback without identity photos, reviewer details, or history', () => {
+        const account = {
+            ...reporter,
+            isVerified: false,
+            verificationStatus: 'rejected',
+            verificationFeedback: 'Please upload a clearer ID photo.',
+            idDocument: '/api/files/private-id/document.jpg',
+            selfiePhoto: '/api/files/private-selfie/selfie.jpg',
+            verifiedBy: { name: 'Private reviewer', email: 'reviewer@example.com' },
+            verifiedAt: new Date(),
+            verificationHistory: [{ action: 'rejected', feedback: 'Internal history' }],
+            password: 'private-password-hash',
+        };
+        for (const payload of [buildSelfUserPayload(account), buildUserVerificationPayload(account)]) {
+            expect(payload).toMatchObject({ role: 'reporter', isVerified: false, verificationStatus: 'rejected', verificationFeedback: account.verificationFeedback });
+            for (const field of ['idDocument', 'selfiePhoto', 'verifiedBy', 'verifiedAt', 'verificationHistory', 'password']) {
+                expect(payload).not.toHaveProperty(field);
+            }
+        }
+    });
+
+    test('does not infer verification from role when approval fields are missing', () => {
+        expect(buildUserVerificationPayload({ role: 'reporter' })).toEqual({
+            role: 'reporter', isVerified: false, verificationStatus: null, verificationFeedback: null,
+        });
     });
 });

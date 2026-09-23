@@ -87,8 +87,8 @@ describe('ProtectedRoute', () => {
         expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });
 
-    test('redirects unverified reporter to their dashboard when requireVerified is true', () => {
-        mockAuthValue.user = { role: 'reporter', isVerified: false, verificationStatus: 'pending' };
+    test.each(['pending', 'rejected'])('redirects %s reporters to their dashboard when requireVerified is true', (verificationStatus) => {
+        mockAuthValue.user = { role: 'reporter', isVerified: false, verificationStatus };
         mockAuthValue.isAuthenticated = true;
         mockAuthValue.loading = false;
 
@@ -96,6 +96,14 @@ describe('ProtectedRoute', () => {
 
         expect(screen.getByText('Dashboard')).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    });
+
+    test.each(['pending', 'rejected'])('allows %s reporters to use their role-only workflow pages', (verificationStatus) => {
+        mockAuthValue.user = { role: 'reporter', isVerified: false, verificationStatus };
+        mockAuthValue.isAuthenticated = true;
+        mockAuthValue.loading = false;
+        renderProtected({ allowedRoles: ['reporter'] });
+        expect(screen.getByText('Protected Content')).toBeInTheDocument();
     });
 
     test('allows verified reporter when requireVerified is true', () => {

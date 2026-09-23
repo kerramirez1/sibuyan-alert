@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
     disablePushNotifications: vi.fn(),
     sendTestPushNotification: vi.fn(),
     updateProfile: vi.fn(),
+    resubmitIdDocument: vi.fn(),
+    prepareIdentityImage: vi.fn(),
+    prepareVerificationImage: vi.fn(),
     navigate: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn(), default: vi.fn() },
 }));
@@ -21,6 +24,7 @@ const mockUser = {
     agency: 'LGU Cajidiocan',
     avatar: null,
 };
+let currentUser = mockUser;
 
 let currentPushState = {
     subscribed: false,
@@ -31,13 +35,20 @@ let currentPushState = {
 
 vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({
-        user: mockUser,
+        user: currentUser,
         updateUser: mocks.updateUser,
         pushState: currentPushState,
         enablePushNotifications: mocks.enablePushNotifications,
         disablePushNotifications: mocks.disablePushNotifications,
         sendTestPushNotification: mocks.sendTestPushNotification,
+        resubmitIdDocument: mocks.resubmitIdDocument,
     }),
+}));
+
+vi.mock('../utils/identityImage', async (importOriginal) => ({
+    ...await importOriginal(),
+    prepareIdentityImage: mocks.prepareIdentityImage,
+    prepareVerificationImage: mocks.prepareVerificationImage,
 }));
 
 vi.mock('../services/api', () => ({
@@ -60,6 +71,10 @@ vi.mock('../utils/appToast', () => ({
 describe('ProfileSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        currentUser = mockUser;
+        mocks.prepareIdentityImage.mockImplementation(async (file) => ({ file }));
+        mocks.prepareVerificationImage.mockImplementation(async (file) => ({ file }));
+        mocks.resubmitIdDocument.mockResolvedValue({ success: true });
         currentPushState = {
             subscribed: false,
             permission: 'default',
@@ -233,6 +248,104 @@ describe('ProfileSettingsPage', () => {
         await waitFor(() => {
             expect(mocks.enablePushNotifications).toHaveBeenCalled();
             expect(mocks.toast.success).toHaveBeenCalledWith('Browser notifications enabled');
+        });
+    });
+
+    describe('role and verification are distinct', () => {
+        const reporter = { ...mockUser, _id: 'reporter-1', role: 'reporter', agency: null, name: 'Juan Reporter' };
+
+        test.each([
+            ['reporter', 'pending', false, 'Reporter', 'Pending administrator approval'],
+            ['reporter', 'approved', true, 'Reporter', 'Verified reporter'],
+            ['reporter', 'rejected', false, 'Reporter', 'Verification rejected'],
+            ['reporter', 'not_required', false, 'Reporter', 'Not required'],
+            ['ordinary', 'not_required', false, 'Community Member', null],
+            ['responder', 'not_required', true, 'Responder', null],
+            ['municipal_admin', 'not_required', true, 'Municipal Admin', null],
+        ])('presents %s / %s without treating role as approval', (role, verificationStatus, isVerified, label, statusLabel) => {
+            currentUser = { ...reporter, role, verificationStatus, isVerified };
+            render(<ProfileSettingsPage />);
+            const protectedInfo = screen.getByRole('region', { name: 'Protected information' });
+            expect(within(protectedInfo).getByText('Account role').nextElementSibling).toHaveTextContent(label);
+            expect(within(protectedInfo).queryByRole('textbox')).not.toBeInTheDocument();
+            if (statusLabel) {
+                expect(within(protectedInfo).getByRole('status', { name: 'Verification status' })).toHaveTextContent(statusLabel);
+            } else {
+                expect(within(protectedInfo).queryByText('Verification status')).not.toBeInTheDocument();
+                expect(screen.queryByText('Verified reporter')).not.toBeInTheDocument();
+            }
+            if (verificationStatus !== 'rejected' || role !== 'reporter') {
+                expect(screen.queryByRole('button', { name: 'Resubmit ID' })).not.toBeInTheDocument();
+            }
+        });
+
+        test.each([
+            [undefined, false], [undefined, true], [null, true], ['unknown', true], ['__proto__', true],
+            ['approved', false], ['approved', undefined], ['approved', 'true'],
+        ])('does not claim approval for status %s and flag %s', (verificationStatus, isVerified) => {
+            currentUser = { ...reporter, verificationStatus, isVerified };
+            render(<ProfileSettingsPage />);
+            expect(screen.getByRole('status', { name: 'Verification status' })).toHaveTextContent('Status unavailable');
+            expect(screen.queryByText('Verified reporter')).not.toBeInTheDocument();
+            expect(screen.queryByText('You can submit incident reports.')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Resubmit ID' })).not.toBeInTheDocument();
+        });
+
+        test('shows rejection feedback without rendering private verification metadata', () => {
+            currentUser = {
+                ...reporter, isVerified: false, verificationStatus: 'rejected', verificationFeedback: 'Please upload a clearer ID.',
+                idDocument: '/private/identity.jpg', selfiePhoto: '/private/selfie.jpg',
+                verifiedBy: { name: 'Private Reviewer' }, verificationHistory: [{ feedback: 'Private history' }],
+            };
+            const { container } = render(<ProfileSettingsPage />);
+            expect(screen.getByText('Administrator feedback')).toBeInTheDocument();
+            expect(screen.getByText('Please upload a clearer ID.')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Resubmit ID' })).toBeInTheDocument();
+            expect(container.innerHTML).not.toMatch(/\/private\/|Private Reviewer|Private history/);
+        });
+
+        test('resubmits ID and optional selfie via the verification flow, without submitting the profile form', async () => {
+            currentUser = { ...reporter, isVerified: false, verificationStatus: 'rejected' };
+            render(<ProfileSettingsPage />);
+            fireEvent.click(screen.getByRole('button', { name: 'Resubmit ID' }));
+            const dialog = screen.getByRole('dialog', { name: 'Resubmit verification documents' });
+            const idFile = new File(['id image'], 'id.png', { type: 'image/png' });
+            const selfie = new File(['selfie image'], 'selfie.png', { type: 'image/png' });
+            fireEvent.change(within(dialog).getByLabelText('ID photo (required)'), { target: { files: [idFile] } });
+            fireEvent.change(within(dialog).getByLabelText('Replacement selfie (optional)'), { target: { files: [selfie] } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Send for review' }));
+            await waitFor(() => expect(mocks.resubmitIdDocument).toHaveBeenCalledOnce());
+            const data = mocks.resubmitIdDocument.mock.calls[0][0];
+            expect(data.get('idDocument').name).toBe('id.png');
+            expect(data.get('selfiePhoto').name).toBe('selfie.png');
+            expect(data.get('role')).toBeNull();
+            expect(data.get('isVerified')).toBeNull();
+            expect(mocks.updateProfile).not.toHaveBeenCalled();
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        });
+
+        test('keeps failed resubmissions open with the server feedback', async () => {
+            currentUser = { ...reporter, isVerified: false, verificationStatus: 'rejected' };
+            mocks.resubmitIdDocument.mockResolvedValue({ success: false, message: 'Face verification is temporarily unavailable.' });
+            render(<ProfileSettingsPage />);
+            fireEvent.click(screen.getByRole('button', { name: 'Resubmit ID' }));
+            const dialog = screen.getByRole('dialog', { name: 'Resubmit verification documents' });
+            fireEvent.change(within(dialog).getByLabelText('ID photo (required)'), { target: { files: [new File(['id'], 'id.png', { type: 'image/png' })] } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Send for review' }));
+            expect(await within(dialog).findByRole('alert')).toHaveTextContent('Face verification is temporarily unavailable.');
+            expect(mocks.resubmitIdDocument.mock.calls[0][0].get('selfiePhoto')).toBeNull();
+            expect(screen.getByRole('status', { name: 'Verification status' })).toHaveTextContent('Verification rejected');
+        });
+
+        test('invalid identity images do not reach the resubmission API', async () => {
+            currentUser = { ...reporter, isVerified: false, verificationStatus: 'rejected' };
+            mocks.prepareIdentityImage.mockRejectedValue(new Error('Use a JPG, PNG, or WebP image.'));
+            render(<ProfileSettingsPage />);
+            fireEvent.click(screen.getByRole('button', { name: 'Resubmit ID' }));
+            const dialog = screen.getByRole('dialog', { name: 'Resubmit verification documents' });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Send for review' }));
+            expect(await within(dialog).findByRole('alert')).toHaveTextContent('Use a JPG, PNG, or WebP image.');
+            expect(mocks.resubmitIdDocument).not.toHaveBeenCalled();
         });
     });
 });

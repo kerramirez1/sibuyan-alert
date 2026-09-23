@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '../router';
 import PageHeader from '../components/ui/PageHeader';
+import { useAuth } from '../context/AuthContext';
+import ReporterVerificationStatus from '../components/auth/ReporterVerificationStatus';
+import { getReporterVerificationPresentation } from '../utils/reporterVerification';
 import { useSocket } from '../context/SocketContext';
 import { reportsAPI } from '../services/api';
 import {
@@ -133,6 +136,8 @@ const ReporterDashboardSkeleton = () => (
 );
 
 const ReporterDashboardPage = () => {
+    const { user } = useAuth();
+    const verification = getReporterVerificationPresentation(user);
     // Shared with MyReportsPage (same data). Session-scoped: wiped on logout.
     const cacheKey = 'my-reports:list';
     const [reports, setReports] = useState(() => {
@@ -293,6 +298,13 @@ const ReporterDashboardPage = () => {
     return (
         <div className="page-shell max-w-5xl space-y-6">
             <PageHeader eyebrow="Reporter workspace" title="Dashboard" description={loading ? 'Loading your report overview.' : headerSummary} />
+            {verification && !verification.approved && (
+                <section className="surface-panel p-4 sm:p-5" aria-label="Account verification">
+                    <ReporterVerificationStatus user={user}>
+                        <Link to="/profile" className="text-action mt-2">View verification status</Link>
+                    </ReporterVerificationStatus>
+                </section>
+            )}
 
             {loading ? (
                 <ReporterDashboardSkeleton />
@@ -465,14 +477,16 @@ const ReporterDashboardPage = () => {
                             <div className="py-10 text-center sm:text-left">
                                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">No activity logged</h3>
                                 <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 sm:mx-0 dark:text-gray-400">
-                                    There are currently no reports linked to your profile. Submit a new incident to see it tracked here.
+                                    {verification?.approved
+                                        ? 'There are currently no reports linked to your profile. Submit a new incident to see it tracked here.'
+                                        : 'Your incident history will appear here after your account is approved and you submit a report.'}
                                 </p>
-                                <Link
+                                {verification?.approved && <Link
                                     to="/report"
                                     className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:min-h-0 sm:h-10 dark:bg-red-600 dark:hover:bg-red-500"
                                 >
                                     Submit new incident
-                                </Link>
+                                </Link>}
                             </div>
                         )}
                     </section>

@@ -2,6 +2,9 @@ import { useState, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from '../router';
 import PageHeader from '../components/ui/PageHeader';
+import ReporterVerificationStatus from '../components/auth/ReporterVerificationStatus';
+import ReporterIdResubmission from '../components/auth/ReporterIdResubmission';
+import { getReporterVerificationPresentation } from '../utils/reporterVerification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
@@ -31,7 +34,7 @@ const ROLE_DISPLAY_NAMES = {
 const ROLE_DOT_COLORS = {
     municipal_admin: 'bg-indigo-500',
     responder: 'bg-cyan-500',
-    reporter: 'bg-emerald-500',
+    reporter: 'bg-brand-500',
     ordinary: 'bg-gray-400',
 };
 
@@ -43,6 +46,7 @@ const ProfileSettingsPage = () => {
         enablePushNotifications,
         disablePushNotifications,
         sendTestPushNotification,
+        resubmitIdDocument,
     } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -465,6 +469,7 @@ const ProfileSettingsPage = () => {
     };
 
     const roleName = ROLE_DISPLAY_NAMES[user?.role] || user?.role || 'User';
+    const reporterVerification = getReporterVerificationPresentation(user);
     const roleDotColor = ROLE_DOT_COLORS[user?.role] || 'bg-gray-400';
     const hasAvatar = Boolean(avatarPreview || user?.avatar);
 
@@ -762,6 +767,15 @@ const ProfileSettingsPage = () => {
                                     <p className="mt-1 font-semibold text-xs sm:text-sm text-gray-950 dark:text-white">
                                         {user.agency}
                                     </p>
+                                </div>
+                            )}
+                            {reporterVerification && (
+                                <div className="min-w-0 border-t border-[var(--border)] pt-4 sm:col-span-2 lg:col-span-3">
+                                    <ReporterVerificationStatus user={user}>
+                                        {reporterVerification.canResubmit && (
+                                            <ReporterIdResubmission key={user.id || user._id} onSubmit={resubmitIdDocument} />
+                                        )}
+                                    </ReporterVerificationStatus>
                                 </div>
                             )}
                         </div>

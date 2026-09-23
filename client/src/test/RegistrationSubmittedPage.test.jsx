@@ -1,13 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 import RegistrationSubmittedPage from '../pages/RegistrationSubmittedPage';
 
+const mocks = vi.hoisted(() => ({ user: null }));
 vi.mock('../context/AuthContext', () => ({
-    useAuth: () => ({ isAuthenticated: false, user: null }),
+    useAuth: () => ({ isAuthenticated: !!mocks.user, user: mocks.user }),
 }));
 
 describe('RegistrationSubmittedPage', () => {
+    beforeEach(() => { mocks.user = null; });
     test('explains the pending-review state and provides an account action', () => {
         render(
             <MemoryRouter>
@@ -30,5 +32,12 @@ describe('RegistrationSubmittedPage', () => {
         );
 
         expect(screen.getByRole('link', { name: /Go to my account/i })).toHaveAttribute('href', '/my-reports');
+    });
+
+    test('gives pending reporters a verification link while retaining their role destination', () => {
+        mocks.user = { id: 'reporter-1', role: 'reporter', isVerified: false, verificationStatus: 'pending' };
+        render(<MemoryRouter><RegistrationSubmittedPage /></MemoryRouter>);
+        expect(screen.getByRole('link', { name: 'Go to my account' })).toHaveAttribute('href', '/my-reports');
+        expect(screen.getByRole('link', { name: 'View verification status' })).toHaveAttribute('href', '/profile');
     });
 });
