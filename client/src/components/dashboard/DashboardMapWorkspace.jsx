@@ -15,13 +15,11 @@ import {
     HiOutlineRefresh,
     HiOutlineX,
 } from 'react-icons/hi';
-import { Link } from '../../router';
 import MapView from '../map/MapView';
 import MapIncidentDetails from '../map/MapIncidentDetails';
 import HighRiskZoneDetails from '../map/HighRiskZoneDetails';
 import MapOverlayPanel, { PANEL_SHEET_MEDIA_QUERY } from '../map/MapOverlayPanel';
 import MapMobileFilterSheet from './MapMobileFilterSheet';
-import Button from '../ui/Button';
 import { SkeletonRow } from '../ui/Skeleton';
 import MapFilterRail, { RAIL_TONES, getRailTone, getRailDotClass } from './MapFilterRail';
 import {
@@ -529,7 +527,7 @@ const PRIMARY_METRIC_IDS = new Set(['pending', 'active']);
 
 const DashboardMapWorkspace = ({
     user,
-    isAuthenticated,
+    isAuthenticated = Boolean(user),
     isAdmin,
     isResponder,
     loading,
@@ -574,6 +572,8 @@ const DashboardMapWorkspace = ({
     pulseReportIds = [],
     viewSwitch = null,
 }) => {
+    const isGuestLayout = !isAuthenticated;
+    const [guestEmptyStateTarget, setGuestEmptyStateTarget] = useState(null);
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
@@ -1560,20 +1560,21 @@ const DashboardMapWorkspace = ({
                     tile that looks more urgent than its neighbour: what tells the
                     reader which KPI matters is where it sits.
 
-                    A guest has three cards (no pending set reaches an anonymous
-                    viewer), so the odd one — always a primary — takes the full row
-                    rather than leaving a hole beside it. */}
+                    Guests use three equal full-width rows on phones. Signed-in
+                    users retain this existing two-column arrangement. */}
                 {/* `auto-rows-fr` from lg: however many tiles there are (four for
                     a signed-in role, three for a guest), the column's remaining
                     height is divided equally between them, which is what keeps
                     the band's rhythm even rather than leaving the last of them a
                     different size. */}
-                <div className="mt-1.5 grid grid-cols-2 gap-2 sm:mt-2 sm:grid-cols-1 sm:gap-3 lg:min-h-0 lg:flex-1 lg:auto-rows-fr lg:gap-2" data-testid="map-summary-cards">
+                <div className={`mt-1.5 grid ${isGuestLayout ? 'grid-cols-1 max-sm:auto-rows-fr' : 'grid-cols-2'} gap-2 sm:mt-2 sm:grid-cols-1 sm:gap-3 lg:min-h-0 lg:flex-1 lg:auto-rows-fr lg:gap-2`} data-testid="map-summary-cards">
                     {metrics.map((metric, index) => (
                         <MetricStripItem
                             key={metric.id}
                             index={index}
-                            className={metrics.length % 2 === 1 && PRIMARY_METRIC_IDS.has(metric.id) ? 'col-span-2 sm:col-span-1' : ''}
+                            className={isGuestLayout
+                                ? 'max-sm:min-h-[104px]'
+                                : metrics.length % 2 === 1 && PRIMARY_METRIC_IDS.has(metric.id) ? 'col-span-2 sm:col-span-1' : ''}
                             label={metric.label}
                             value={metric.value}
                             helper={metric.helper}
@@ -1746,6 +1747,8 @@ const DashboardMapWorkspace = ({
                         viewerRole={user?.role || 'guest'}
                         viewer={user}
                         showDataState
+                        emptyStatePlacement={isGuestLayout ? 'external' : undefined}
+                        emptyStateTarget={isGuestLayout ? guestEmptyStateTarget : null}
                         enable3D
                         // Per role: operators open on the incidents in front of
                         // them, guests open on the whole island. The report set
@@ -1966,36 +1969,15 @@ const DashboardMapWorkspace = ({
                         </MapOverlayPanel>
                     )}
                 </div>
+                {isGuestLayout && (
+                    <div
+                        ref={setGuestEmptyStateTarget}
+                        data-testid="guest-map-empty-state"
+                        className="empty:hidden lg:shrink-0"
+                    />
+                )}
             </section>
             </div>
-
-            {!isAuthenticated && (
-                <section className="border-t border-gray-200 py-3.5 sm:py-4 lg:shrink-0 dark:border-white/10 sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Public safety and reporter registration">
-                    <div className="min-w-0 flex-1">
-                        <h2 className="text-[13px] sm:text-sm font-semibold text-gray-900 dark:text-white break-words">
-                            Sibuyan Island Emergency Network
-                        </h2>
-                        <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400 break-words">
-                            Incident feeds are public. Join as a verified reporter to submit real-time reports.
-                        </p>
-                    </div>
-                    <div className="mt-2.5 flex flex-row flex-wrap items-center gap-x-3 gap-y-2 sm:mt-0 sm:shrink-0">
-                        <Button
-                            as={Link}
-                            to="/register"
-                            className="inline-flex items-center justify-center rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold px-3.5 min-h-[38px] sm:min-h-9"
-                        >
-                            <span>Become a reporter</span>
-                        </Button>
-                        <Link
-                            to="/login"
-                            className="inline-flex min-h-9 items-center text-xs font-medium text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-sky-400"
-                        >
-                            Sign in
-                        </Link>
-                    </div>
-                </section>
-            )}
 
         </div>
     );

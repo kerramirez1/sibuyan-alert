@@ -589,6 +589,52 @@ describe('MapView opening framing', () => {
         });
     });
 
+    test('renders external empty-state feedback outside the canvas and keeps it in sync with data and filters', async () => {
+        const outlet = document.createElement('div');
+        document.body.appendChild(outlet);
+        let view;
+        const props = { reports: [], showDataState: true, filterStatus: 'all', emptyStatePlacement: 'external', emptyStateTarget: outlet };
+        try {
+            view = await renderReady(props);
+            const message = await within(outlet).findByRole('status');
+            expect(message).toHaveTextContent('No incidents match the selected filter.');
+            const mapRoot = mockMapInstances[0].options.container.parentElement;
+            expect(mapRoot).not.toContainElement(message);
+            expect(message).not.toHaveClass('absolute');
+
+            await renderReady({ ...props, dataLoading: true }, view);
+            expect(outlet).toBeEmptyDOMElement();
+            await renderReady({ ...props, reports: visibleReports }, view);
+            expect(outlet).toBeEmptyDOMElement();
+
+            await renderReady({ ...props, filterStatus: 'risk-zones', highRiskZones: [] }, view);
+            expect(await within(outlet).findByRole('status')).toHaveTextContent('No high-risk zones match the selected filter.');
+            await renderReady({ ...props, showDataState: false }, view);
+            expect(outlet).toBeEmptyDOMElement();
+            expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole('group', { name: 'Map tools' })).toBeInTheDocument();
+        } finally {
+            view?.unmount();
+            expect(outlet).toBeEmptyDOMElement();
+            outlet.remove();
+        }
+    });
+
+    test('external mode waits for its outlet instead of briefly drawing an overlay', async () => {
+        const view = await renderReady({ reports: [], showDataState: true, filterStatus: 'all', emptyStatePlacement: 'external', emptyStateTarget: null });
+        await waitFor(() => expect(screen.queryByText('Preparing map…')).not.toBeInTheDocument());
+        expect(screen.queryByText('No incidents match the selected filter.')).not.toBeInTheDocument();
+        view.unmount();
+    });
+
+    test.each(['reporter', 'responder', 'municipal_admin'])('retains the default %s empty-state and map controls without an external outlet', async (viewerRole) => {
+        await renderReady({ reports: [], showDataState: true, filterStatus: 'all', viewerRole });
+        const message = await screen.findByText('No incidents match the selected filter.');
+        expect(mockMapInstances[0].options.container.parentElement).toContainElement(message);
+        expect(message).toHaveClass('absolute', 'bottom-3', 'left-1/2');
+        expect(screen.getByRole('group', { name: 'Map tools' })).toBeInTheDocument();
+    });
+
     test('opens on the incidents the viewer can see, not on open water', async () => {
         await renderReady({ reports: visibleReports, frameReportsOnOpen: true });
 

@@ -238,11 +238,11 @@ describe('MainLayout responsive navigation', () => {
         expect(within(bottomNav).getByRole('link', { name: 'Map' })).not.toHaveAttribute('aria-current');
     });
 
-    test('removes visible section headings for guest and only renders authorized guest navigation', () => {
+    test('keeps guest map sign-in and registration routes alongside authorized public navigation', () => {
         mocks.isAuthenticated = false;
         mocks.user = null;
 
-        renderLayout('/');
+        renderLayout('/dashboard?view=map');
 
         expect(screen.queryByText('Operations')).not.toBeInTheDocument();
         expect(screen.queryByText('Mapping')).not.toBeInTheDocument();
@@ -252,8 +252,8 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
-        expect(within(sidebar).getByRole('link', { name: /Sign in/i })).toBeInTheDocument();
-        expect(within(sidebar).getByRole('link', { name: /Become a Reporter/i })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: /Sign in/i })).toHaveAttribute('href', '/login');
+        expect(within(sidebar).getByRole('link', { name: /Become a Reporter/i })).toHaveAttribute('href', '/register');
 
         expect(within(sidebar).queryByRole('link', { name: 'Incident Reports' })).not.toBeInTheDocument();
         expect(within(sidebar).queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();

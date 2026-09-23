@@ -93,6 +93,42 @@ const findReportRow = (scope, incidentType) => within(scope)
 describe('DashboardMapWorkspace permissions', () => {
     beforeEach(() => mapPropsSpy.mockClear());
 
+    test.each(['guest', 'reporter'])('keeps the %s map and overview without a registration footer or reserved row', (role) => {
+        const isReporter = role === 'reporter';
+        const props = createProps({
+            user: isReporter ? { _id: 'reporter-1', role: 'reporter' } : null,
+            isAuthenticated: isReporter,
+            isReporter,
+        });
+        renderWorkspace(props);
+
+        expect(screen.queryByRole('region', { name: 'Public safety and reporter registration' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Sibuyan Island Emergency Network')).not.toBeInTheDocument();
+        expect(screen.queryByText('Incident feeds are public. Join as a verified reporter to submit real-time reports.')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sibuyan Island incident map');
+
+        const map = screen.getByRole('region', { name: 'Live incident map' });
+        const column = screen.getByTestId('map-summary-column');
+        const row = column.parentElement;
+        expect(map.parentElement).toBe(row);
+        expect(row.children).toHaveLength(2);
+        expect(row).toHaveClass('lg:grid-cols-[minmax(0,1fr)_clamp(288px,24vw,332px)]');
+        expect(row.parentElement.lastElementChild).toBe(row);
+        expect(column).toContainElement(screen.getByRole('heading', { name: 'Current overview' }));
+
+        const cards = within(screen.getByRole('region', { name: 'Map summary' }));
+        expect(cards.getAllByRole('button')).toHaveLength(isReporter ? 4 : 3);
+        const riskZones = cards.getByRole('button', { name: /risk zones/i });
+        riskZones.focus();
+        expect(riskZones).toHaveFocus();
+        fireEvent.click(riskZones);
+        expect(props.setMapSummaryPanel).toHaveBeenCalledWith('overview:risk-zones');
+
+        const filters = screen.getByRole('group', { name: 'Map status filter' });
+        fireEvent.click(within(filters).getByRole('button', { name: /Resolved archive/i }));
+        expect(props.setResponderMapFilter).toHaveBeenCalledWith('resolved');
+    });
+
     test('offers the transfer acknowledgement to the receiving municipality only', () => {
         const handleMapAcknowledgeTransfer = vi.fn();
         renderWorkspace(createProps({
@@ -505,7 +541,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(screen.getByRole('region', { name: 'Map summary' }).scrollTop).toBe(0);
     });
 
-    test('uses clean overview cards with consistent spacing', () => {
+    test('gives only guests three equal full-width mobile KPI rows', () => {
         renderWorkspace(createProps({
             user: null,
             isAuthenticated: false,
@@ -515,21 +551,64 @@ describe('DashboardMapWorkspace permissions', () => {
         const cardsGrid = screen.getByTestId('map-summary-cards');
         const cards = Array.from(cardsGrid.children);
 
-        // Guest sees 3 cards: active incidents, active response, risk zones.
-        // Transferred is folded into active incidents, not shown separately.
+        // Public information retains its original order and meaning.
         expect(cards).toHaveLength(3);
-        // Two columns on a phone, one from sm. Guest has an odd number of
-        // cards, so the primary one takes the full row instead of leaving a
-        // hole beside it, and the two secondary figures share the row under it.
-        expect(cardsGrid).toHaveClass('grid', 'grid-cols-2', 'sm:grid-cols-1');
+        expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual([
+            expect.stringMatching(/active incidents/i),
+            expect.stringMatching(/resolved/i),
+            expect.stringMatching(/risk zones/i),
+        ]);
+        expect(cardsGrid).toHaveClass('grid', 'grid-cols-1', 'max-sm:auto-rows-fr', 'sm:grid-cols-1');
+        expect(cardsGrid).not.toHaveClass('grid-cols-2');
         expect(cardsGrid.className).not.toContain('lg:grid-cols-3');
-        expect(cards[0]).toHaveClass('col-span-2', 'sm:col-span-1');
-        expect(cards[1]).not.toHaveClass('col-span-2');
-        expect(cards[2]).not.toHaveClass('col-span-2');
         cards.forEach((card) => {
-            expect(card).toHaveClass('surface-panel');
+            expect(card).toHaveClass('surface-panel', 'max-sm:min-h-[104px]');
+            expect(card).not.toHaveClass('col-span-2');
         });
         expect(cards.every((card) => card.tagName === 'BUTTON')).toBe(true);
+
+        const map = screen.getByRole('region', { name: 'Live incident map' });
+        const frame = screen.getByTestId('map-view').parentElement;
+        const outlet = screen.getByTestId('guest-map-empty-state');
+        expect(outlet.parentElement).toBe(map);
+        expect(frame).not.toContainElement(outlet);
+        expect(frame.compareDocumentPosition(outlet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(outlet).toHaveClass('empty:hidden');
+        expect(mapPropsSpy.mock.lastCall[0].emptyStatePlacement).toBe('external');
+        expect(mapPropsSpy.mock.lastCall[0].emptyStateTarget).toBe(outlet);
+    });
+
+    test.each(['reporter', 'responder', 'municipal_admin'])('preserves the original %s KPI classes and map presentation', (role) => {
+        renderWorkspace(createProps({
+            user: { _id: 'member-1', role, assignedMunicipality: 'Cajidiocan' },
+            isAuthenticated: true,
+            isReporter: role === 'reporter',
+            isResponder: role === 'responder',
+            isAdmin: role === 'municipal_admin',
+        }));
+        const grid = screen.getByTestId('map-summary-cards');
+        expect(grid.className).toBe('mt-1.5 grid grid-cols-2 gap-2 sm:mt-2 sm:grid-cols-1 sm:gap-3 lg:min-h-0 lg:flex-1 lg:auto-rows-fr lg:gap-2');
+        expect(grid.children).toHaveLength(4);
+        for (const card of grid.children) {
+            expect(card).not.toHaveClass('max-sm:min-h-[104px]', 'col-span-2');
+            expect(card).toHaveClass('px-3', 'py-3', 'sm:px-4', 'lg:justify-center');
+        }
+        expect(screen.queryByTestId('guest-map-empty-state')).not.toBeInTheDocument();
+        expect(mapPropsSpy.mock.lastCall[0].emptyStatePlacement).toBeUndefined();
+        expect(mapPropsSpy.mock.lastCall[0].emptyStateTarget).toBeNull();
+    });
+
+    test('does not apply guest sizing to an authenticated community account using public metrics', () => {
+        renderWorkspace(createProps({
+            user: { _id: 'member-1', role: 'ordinary' },
+            isAuthenticated: true,
+            isReporter: false,
+        }));
+        const grid = screen.getByTestId('map-summary-cards');
+        expect(grid).toHaveClass('grid-cols-2');
+        expect(grid.children).toHaveLength(3);
+        expect(grid.children[0]).toHaveClass('col-span-2', 'sm:col-span-1');
+        expect(grid).not.toHaveClass('max-sm:auto-rows-fr');
     });
 
     test('renders every role-specific overview metric as a full semantic button', () => {

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -200,6 +201,10 @@ const MapView = ({
     viewerRole = 'guest',
     viewer = null,
     showDataState = false,
+    // Optional presentation outlet; filtering and readiness still determine the message here.
+    // External mode waits for its host instead of flashing an overlay while it mounts.
+    emptyStatePlacement = 'overlay',
+    emptyStateTarget = null,
     disableScrollZoom = false,
     mode = 'full',
     pulseReportIds = [],
@@ -2132,10 +2137,19 @@ const MapView = ({
             )}
 
             {mapReady && showDataState && mapIsEmpty && !dataLoading && (
-                    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 w-max max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:text-xs dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
-                        {emptyMapMessage}
-                    </div>
-                )}
+                emptyStatePlacement === 'external'
+                    ? emptyStateTarget && createPortal(
+                        <div className="border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium leading-relaxed text-[var(--text-secondary)]" role="status">
+                            {emptyMapMessage}
+                        </div>,
+                        emptyStateTarget,
+                    )
+                    : (
+                        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 w-max max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:text-xs dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200" role="status">
+                            {emptyMapMessage}
+                        </div>
+                    )
+            )}
 
             {mapModal && (
                 <MapOverlayPanel
