@@ -594,23 +594,39 @@ function MyReportsPage() {
                         {metricCards.map(({ label, value, helper }) => (
                             <div
                                 key={label}
-                                className="metric-tile"
+                                className="metric-tile min-w-0 p-3 min-[360px]:p-4 sm:p-[18px] md:p-5"
+                                aria-label={`${label}: ${value}, ${helper}`}
                             >
                                 <p className="metric-value">
                                     {value}
                                 </p>
-                                <p className="metric-label">
+                                <p
+                                    className="metric-label truncate"
+                                    title={label}
+                                >
                                     {label}
                                 </p>
-                                <p className="metric-helper">{helper}</p>
+                                <p
+                                    className="metric-helper truncate"
+                                    title={helper}
+                                >
+                                    {helper}
+                                </p>
                             </div>
                         ))}
                     </section>
 
                     {/* Submitted incident records */}
-                    <section className="surface-panel mt-6 p-5 sm:p-6" aria-label="Submitted reports">
-                        <div className="flex items-center justify-between gap-2">
-                            <h2 className="section-title">
+                    <section className="surface-panel mt-6 p-4 min-[400px]:p-5 sm:p-6" aria-label="Submitted reports">
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                            <h2
+                                className="section-title min-w-0 truncate text-base min-[400px]:text-[17px]"
+                                title={
+                                    filterStatus === 'all'
+                                        ? 'Submitted reports'
+                                        : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`
+                                }
+                            >
                                 {filterStatus === 'all'
                                     ? 'Submitted reports'
                                     : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`}
@@ -620,7 +636,7 @@ function MyReportsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setFilterModalOpen(true)}
-                                    className="inline-flex min-h-[44px] items-center px-1 text-sm font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline sm:hidden dark:text-sky-400 dark:hover:text-sky-300"
+                                    className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap px-1 text-xs font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline min-[360px]:text-sm sm:hidden dark:text-sky-400 dark:hover:text-sky-300"
                                 >
                                     <span>Filter reports{filterStatus !== 'all' ? ' · 1' : ''}</span>
                                 </button>
@@ -630,15 +646,15 @@ function MyReportsPage() {
                         {/* Active filter chip — the only place the current filter
                             is named on mobile (desktop tabs are sm+ only). */}
                         {activeFilterLabel && (
-                            <div className="mt-3">
+                            <div className="mt-3 min-w-0">
                                 <button
                                     type="button"
                                     onClick={() => setFilterStatus('all')}
                                     aria-label={`Clear ${activeFilterLabel} filter and show all reports`}
-                                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-[var(--accent-soft)] px-3 text-xs font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)]"
+                                    className="inline-flex max-w-full min-h-10 items-center gap-1.5 rounded-md bg-[var(--accent-soft)] px-3 text-xs font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)]"
                                 >
-                                    <span>Filter: {activeFilterLabel}</span>
-                                    <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="truncate">Filter: {activeFilterLabel}</span>
+                                    <HiOutlineX className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 </button>
                             </div>
                         )}
@@ -729,7 +745,7 @@ function MyReportsPage() {
                                                 onClick={() => toggleReportSelected(reportId)}
                                                 aria-expanded={isExpanded}
                                                 aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for report at ${getLocation(report)}`}
-                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-baseline gap-x-3 border-l-4 py-3.5 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:items-center sm:py-4 cursor-pointer ${
+                                                className={`grid w-full min-h-[44px] grid-cols-[minmax(0,1fr)_24px] items-center gap-x-3 border-l-4 py-3 pl-3 text-left min-[400px]:gap-x-4 min-[400px]:pl-4 sm:grid-cols-[minmax(0,1fr)_120px_110px_24px] sm:py-4 cursor-pointer ${
                                                     isExpanded
                                                         ? 'border-l-brand-600'
                                                         : 'border-l-transparent'
@@ -737,22 +753,40 @@ function MyReportsPage() {
                                             >
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
-                                                    <h3 className="break-words text-sm font-medium leading-relaxed text-[var(--text-primary)] min-[400px]:text-[15px]">
+                                                    <h3
+                                                        className="truncate text-sm font-medium leading-normal text-[var(--text-primary)] min-[400px]:text-[15px]"
+                                                        title={getLocation(report)}
+                                                    >
                                                         {getLocation(report)}
                                                     </h3>
-                                                    <p className="mt-0.5 text-xs leading-snug text-gray-500 min-[400px]:text-[13px] dark:text-gray-400">
+                                                    <p
+                                                        className="mt-0.5 truncate text-xs leading-snug text-gray-500 min-[400px]:text-[13px] dark:text-gray-400"
+                                                        title={`${formatIncidentType(report)} · Submitted ${formatRelativeDate(report.createdAt)}`}
+                                                    >
                                                         {formatIncidentType(report)} · Submitted {formatRelativeDate(report.createdAt)}
                                                     </p>
-                                                    <p className="mt-0.5 text-xs leading-snug text-gray-500 sm:hidden dark:text-gray-400">
-                                                        {status.label} · {severityLabel}
+                                                    <p
+                                                        className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-xs leading-snug text-gray-500 sm:hidden dark:text-gray-400"
+                                                        title={`Status: ${status.label} · Severity: ${severityLabel}`}
+                                                    >
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} aria-hidden="true" />
+                                                        <span className="truncate">{status.label}</span>
+                                                        <span className="shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true">·</span>
+                                                        <span className="shrink-0">{severityLabel}</span>
                                                     </p>
                                                 </div>
 
-                                                <span className="hidden truncate text-sm text-gray-500 sm:block dark:text-gray-400">
+                                                <span
+                                                    className="hidden truncate text-sm text-gray-500 sm:block dark:text-gray-400"
+                                                    title={status.label}
+                                                >
                                                     {status.label}
                                                 </span>
 
-                                                <span className="hidden items-center gap-1.5 text-sm text-gray-500 sm:inline-flex dark:text-gray-400">
+                                                <span
+                                                    className="hidden items-center gap-1.5 text-sm text-gray-500 sm:inline-flex dark:text-gray-400"
+                                                    title={`Severity: ${severityLabel}`}
+                                                >
                                                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
                                                     <span className="truncate">{severityLabel}</span>
                                                 </span>

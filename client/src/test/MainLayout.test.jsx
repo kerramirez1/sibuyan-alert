@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     logout: vi.fn(),
     isAuthenticated: true,
+    canSubmitReports: () => false,
     user: {
         _id: 'admin-1',
         name: 'Cajidiocan Municipal Admin',
@@ -17,7 +18,7 @@ vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({
         user: mocks.user,
         logout: mocks.logout,
-        canSubmitReports: () => false,
+        canSubmitReports: () => (typeof mocks.canSubmitReports === 'function' ? mocks.canSubmitReports() : !!mocks.canSubmitReports),
         isAuthenticated: mocks.isAuthenticated,
         updateUser: vi.fn(),
     }),
@@ -47,6 +48,7 @@ const renderLayout = (entry = '/accident-history') => render(
 describe('MainLayout responsive navigation', () => {
     beforeEach(() => {
         mocks.isAuthenticated = true;
+        mocks.canSubmitReports = () => false;
         mocks.user = {
             _id: 'admin-1',
             name: 'Cajidiocan Municipal Admin',
@@ -288,6 +290,80 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
+    });
+
+    test('applies unified navigation styling, distinct inactive action state for Submit Report, and active-state parity across destinations', () => {
+        mocks.user = {
+            _id: 'reporter-1',
+            name: 'Juan Reporter',
+            role: 'reporter',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.canSubmitReports = () => true;
+
+        // 1. When on /reporter: Dashboard is active, Submit Report is prominent but inactive
+        const { unmount: unmountReporter } = renderLayout('/reporter');
+        const reporterSidebar = getSidebar();
+
+        const dashboardLink = within(reporterSidebar).getByRole('link', { name: 'Dashboard' });
+        const submitReportLink = within(reporterSidebar).getByRole('link', { name: 'Submit Report' });
+        const myReportsLink = within(reporterSidebar).getByRole('link', { name: 'My Reports' });
+        const mapLink = within(reporterSidebar).getByRole('link', { name: 'Map' });
+        const historyLink = within(reporterSidebar).getByRole('link', { name: 'Accident History' });
+
+        // Shared dimensions & ergonomics across all items
+        [dashboardLink, submitReportLink, myReportsLink, mapLink, historyLink].forEach((link) => {
+            expect(link).toHaveClass('min-h-10', 'px-3', 'rounded-md', 'gap-3');
+            expect(link.querySelector('svg')).toHaveClass('h-[18px]', 'w-[18px]', 'shrink-0');
+        });
+
+        // Dashboard is active destination
+        expect(dashboardLink).toHaveClass('border-sky-300', 'bg-white/[0.08]', 'text-white');
+        expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+        expect(dashboardLink).toHaveClass('focus-visible:ring-sky-400');
+
+        // Submit Report is prominent action but clearly NOT selected/active
+        expect(submitReportLink).toHaveClass('border-transparent', 'bg-red-500/10', 'text-red-200');
+        expect(submitReportLink).not.toHaveClass('border-red-400');
+        expect(submitReportLink).not.toHaveClass('border-sky-300');
+        expect(submitReportLink).not.toHaveAttribute('aria-current');
+        expect(submitReportLink).toHaveClass('focus-visible:ring-red-400');
+
+        // Remaining destinations are inactive
+        expect(myReportsLink).toHaveClass('border-transparent', 'text-slate-300/70');
+        expect(myReportsLink).not.toHaveClass('bg-white/[0.08]');
+        expect(myReportsLink).not.toHaveAttribute('aria-current');
+        expect(myReportsLink).toHaveClass('focus-visible:ring-sky-400');
+
+        unmountReporter();
+
+        // 2. When on /report: Submit Report is active destination
+        const { unmount: unmountReport } = renderLayout('/report');
+        const reportSidebar = getSidebar();
+        const activeSubmitReportLink = within(reportSidebar).getByRole('link', { name: 'Submit Report' });
+        const inactiveDashboardLink = within(reportSidebar).getByRole('link', { name: 'Dashboard' });
+
+        expect(activeSubmitReportLink).toHaveClass('border-red-400', 'bg-red-500/20', 'text-white');
+        expect(activeSubmitReportLink).toHaveAttribute('aria-current', 'page');
+        expect(activeSubmitReportLink).toHaveClass('focus-visible:ring-red-400');
+
+        expect(inactiveDashboardLink).toHaveClass('border-transparent');
+        expect(inactiveDashboardLink).not.toHaveClass('border-sky-300');
+        expect(inactiveDashboardLink).not.toHaveAttribute('aria-current');
+
+        unmountReport();
+
+        // 3. When on /my-reports: My Reports uses standard active-state pattern
+        renderLayout('/my-reports');
+        const myReportsSidebar = getSidebar();
+        const activeMyReportsLink = within(myReportsSidebar).getByRole('link', { name: 'My Reports' });
+        const inactiveSubmitLink = within(myReportsSidebar).getByRole('link', { name: 'Submit Report' });
+
+        expect(activeMyReportsLink).toHaveClass('border-sky-300', 'bg-white/[0.08]', 'text-white');
+        expect(activeMyReportsLink).toHaveAttribute('aria-current', 'page');
+
+        expect(inactiveSubmitLink).toHaveClass('border-transparent', 'bg-red-500/10');
+        expect(inactiveSubmitLink).not.toHaveAttribute('aria-current');
     });
 
     test('removes visible section headings for responder and only renders authorized responder navigation', () => {

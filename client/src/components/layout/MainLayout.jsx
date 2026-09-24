@@ -28,9 +28,10 @@ const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-sky-300 bg-white/[0.08] text-white'
     : 'border-transparent text-slate-300/70 hover:bg-white/[0.06] hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-white';
-const getAlertNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
-    ? 'border-red-500 bg-red-600/20 text-white'
-    : 'border-red-900/40 bg-red-600/10 text-red-200 hover:bg-red-600/20 hover:text-white'}`;
+const ALERT_NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
+const getAlertNavLinkClass = (active) => `${ALERT_NAV_LINK_BASE} ${active
+    ? 'border-red-400 bg-red-500/20 text-white'
+    : 'border-transparent bg-red-500/10 text-red-200 hover:bg-red-500/20 hover:text-white'}`;
 
 const getAccountContext = (user) => {
     const roleLabels = {

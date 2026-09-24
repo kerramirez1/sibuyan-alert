@@ -136,19 +136,36 @@ export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, 
 
 /**
  * The tooltip a status tab wears when its caller did not supply one: the rail's
- * two cases are scope-dependent (`all` means the whole open set only when the
- * viewer receives pending rows) and "awaiting review" is what the remaining
- * tabs of that rail are. A caller that ships a different or narrower tab set
- * passes `title` per tab instead.
+ * `all` tab is scope-dependent (`all` means the whole open set only when the
+ * viewer receives pending rows, or active ongoing incidents for guests),
+ * `active` covers the handled states (verified, transferred, responding),
+ * and `pending` covers reports awaiting verification. A caller that ships a
+ * different or narrower tab set passes `title` per tab instead.
  */
-const statusTabTitle = (filter, showPendingReports) => {
-    if (filter.title) return filter.title;
-    if (filter.value === 'all') {
-        return showPendingReports
-            ? 'All open reports (pending + being handled)'
-            : 'Active ongoing incidents';
+export const statusTabTitle = (filter, showPendingReports) => {
+    if (filter?.title) return filter.title;
+    switch (filter?.value) {
+        case 'all':
+            return showPendingReports
+                ? 'All open reports (pending + being handled)'
+                : 'Active ongoing incidents';
+        case 'active':
+            return 'Verified, transferred, and responding reports';
+        case 'pending':
+            return 'Reports awaiting verification';
+        case 'verified':
+            return 'Verified reports';
+        case 'responding':
+            return 'Responding reports';
+        case 'transferred':
+            return 'Transferred reports';
+        case 'dispatch':
+            return 'Verified and transferred reports awaiting dispatch';
+        case 'resolved':
+            return 'Resolved reports';
+        default:
+            return filter?.label || 'Filter reports';
     }
-    return 'Unverified reports awaiting review';
 };
 
 export const MapFilterRail = ({
