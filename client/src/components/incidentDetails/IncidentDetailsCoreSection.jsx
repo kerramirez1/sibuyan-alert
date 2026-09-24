@@ -1,5 +1,7 @@
 import { format } from 'date-fns';
 import { formatIncidentLabel, getPhysicalMunicipality, normalizeCasualties } from '../../utils/incidentDetails';
+import { isVerifiedReportReporter } from '../../utils/reporterVerification';
+import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
@@ -164,7 +166,12 @@ const IncidentDetailsCoreSection = ({
 
                 {showReporterName && (
                     <DetailItem label="Reporter">
-                        <span className="block">{report.reporter?.name || 'Unknown reporter'}</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span>{report.reporter?.name || 'Unknown reporter'}</span>
+                            {isVerifiedReportReporter(report.reporter) && (
+                                <VerifiedReporterBadge size="sm" />
+                            )}
+                        </div>
                         {showReporterContact && report.reporter?.email && (
                             <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 break-all">
                                 {report.reporter.email}

@@ -13,6 +13,8 @@ import {
 } from 'react-icons/hi';
 import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import Button from '../ui/Button';
+import { isVerifiedReportReporter } from '../../utils/reporterVerification';
+import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
 
 const formatDate = (value) => {
     if (!value) return 'Not available';
@@ -160,8 +162,13 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
                 title="Reporter information"
                 summary={safeReport.reporter?.isVerified ? 'Verified reporter account' : 'Identity verification not confirmed'}
             >
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-sm font-semibold text-gray-900">{safeReport.reporter?.name || 'Reporter name unavailable'}</p>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{safeReport.reporter?.name || 'Reporter name unavailable'}</p>
+                        {isVerifiedReportReporter(safeReport.reporter) && (
+                            <VerifiedReporterBadge size="sm" />
+                        )}
+                    </div>
                     {safeReport.reporter?.email ? (
                         <a href={`mailto:${safeReport.reporter.email}`} className="mt-3 inline-flex min-h-10 max-w-full items-center gap-2 break-all rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
                             <HiOutlineMail className="h-4 w-4 shrink-0" aria-hidden="true" />

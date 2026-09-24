@@ -80,9 +80,27 @@ describe('IncidentDetailsContent', () => {
         expect(screen.getByText('12.404400, 122.689700')).toBeInTheDocument();
         expect(screen.getByTestId('mock-evidence-gallery')).toBeInTheDocument();
         expect(screen.getAllByText('Juan Dela Cruz').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByRole('status', { name: 'Verified reporter' })).toBeInTheDocument();
         expect(screen.getByText('juan@example.com')).toBeInTheDocument();
         expect(screen.getAllByText('Philippine National Police').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText(/Personal identities, evidence, and internal coordination details are protected/i)).not.toBeInTheDocument();
+    });
+
+    test('does not render verified badge when reporter is not verified', () => {
+        const unverifiedReport = {
+            ...sampleReport,
+            reporter: { name: 'Unverified Pedro', email: 'pedro@example.com', isVerified: false },
+        };
+        render(
+            <IncidentDetailsContent
+                report={unverifiedReport}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        expect(screen.getByText('Unverified Pedro')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
     });
 
     test('renders owner details for reporter viewing their own report', () => {

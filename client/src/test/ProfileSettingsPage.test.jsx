@@ -347,5 +347,30 @@ describe('ProfileSettingsPage', () => {
             expect(await within(dialog).findByRole('alert')).toHaveTextContent('Use a JPG, PNG, or WebP image.');
             expect(mocks.resubmitIdDocument).not.toHaveBeenCalled();
         });
+
+        test('shows verified reporter badge beside user name for approved verified reporter', () => {
+            currentUser = { ...reporter, role: 'reporter', verificationStatus: 'approved', isVerified: true, name: 'Juan Reporter' };
+            render(<ProfileSettingsPage />);
+            const headerName = screen.getByRole('heading', { level: 2, name: /Juan Reporter/i });
+            expect(headerName).toBeInTheDocument();
+            const badge = screen.getByRole('status', { name: 'Verified reporter' });
+            expect(badge).toBeInTheDocument();
+            expect(badge).toHaveAttribute('title', 'Verified reporter');
+            expect(badge).toHaveClass('text-[10px]');
+        });
+
+        test.each([
+            ['reporter', 'pending', false],
+            ['reporter', 'rejected', false],
+            ['reporter', 'approved', false],
+            ['ordinary', 'approved', true],
+            ['responder', 'approved', true],
+            ['municipal_admin', 'approved', true],
+        ])('does not show verified badge beside name for %s with status %s and isVerified %s', (role, verificationStatus, isVerified) => {
+            currentUser = { ...reporter, role, verificationStatus, isVerified, name: 'Test User' };
+            render(<ProfileSettingsPage />);
+            expect(screen.queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
+        });
     });
 });
+

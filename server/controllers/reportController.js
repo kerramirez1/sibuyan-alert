@@ -966,7 +966,7 @@ export const getReportById = async (req, res) => {
         }
 
         const report = await Report.findById(req.params.id)
-            .populate('reporter', 'name avatar')
+            .populate('reporter', 'name avatar isVerified')
             .populate('verifiedBy', 'name')
             .populate('reportUpdates.author', 'name role agency')
             .populate('municipality', 'name code emergencyContacts responseCapabilities');

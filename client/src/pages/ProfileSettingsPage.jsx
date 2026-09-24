@@ -4,7 +4,8 @@ import { useNavigate } from '../router';
 import PageHeader from '../components/ui/PageHeader';
 import ReporterVerificationStatus from '../components/auth/ReporterVerificationStatus';
 import ReporterIdResubmission from '../components/auth/ReporterIdResubmission';
-import { getReporterVerificationPresentation } from '../utils/reporterVerification';
+import VerifiedReporterBadge from '../components/ui/VerifiedReporterBadge';
+import { getReporterVerificationPresentation, isVerifiedReporter } from '../utils/reporterVerification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
@@ -501,9 +502,14 @@ const ProfileSettingsPage = () => {
 
                         {/* User Metadata */}
                         <div className="min-w-0 space-y-0.5">
-                            <h2 className="section-title break-words">
-                                {user?.name || 'User'}
-                            </h2>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="section-title break-words">
+                                    {user?.name || 'User'}
+                                </h2>
+                                {isVerifiedReporter(user) && (
+                                    <VerifiedReporterBadge size="sm" />
+                                )}
+                            </div>
                             <p className="break-all text-[13px] text-[var(--text-secondary)]">
                                 {user?.email}
                             </p>

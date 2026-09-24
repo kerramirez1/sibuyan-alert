@@ -1,4 +1,6 @@
-import { HiOutlineBadgeCheck, HiOutlineMail, HiOutlineUser } from 'react-icons/hi';
+import { HiOutlineMail, HiOutlineUser } from 'react-icons/hi';
+import { isVerifiedReportReporter } from '../../utils/reporterVerification';
+import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
 
 const IncidentDetailsReporterSection = ({
     reporter = {},
@@ -15,16 +17,13 @@ const IncidentDetailsReporterSection = ({
                 Reporter information
             </h3>
             <div className="mt-2 rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 dark:border-white/10 dark:bg-white/5">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <HiOutlineUser className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                     <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
                         {reporter.name || 'Anonymous reporter'}
                     </span>
-                    {reporter.isVerified && (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300">
-                            <HiOutlineBadgeCheck className="h-3 w-3" aria-hidden="true" />
-                            Verified
-                        </span>
+                    {isVerifiedReportReporter(reporter) && (
+                        <VerifiedReporterBadge size="sm" />
                     )}
                 </div>
 

@@ -439,4 +439,44 @@ describe('MainLayout responsive navigation', () => {
         expect(screen.getByText('Page content').parentElement).not.toHaveClass('lg:h-full');
         expect(screen.getByRole('main')).not.toHaveClass('lg:overflow-y-hidden');
     });
+
+    test('renders verified reporter badge in sidebar for approved verified reporter', () => {
+        mocks.user = {
+            _id: 'reporter-1',
+            name: 'Juan Verified Reporter',
+            role: 'reporter',
+            verificationStatus: 'approved',
+            isVerified: true,
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        renderLayout();
+        const sidebar = getSidebar();
+        expect(within(sidebar).getByText('Juan Verified Reporter')).toBeInTheDocument();
+        const badge = within(sidebar).getByRole('status', { name: 'Verified reporter' });
+        expect(badge).toBeInTheDocument();
+        expect(badge).toHaveAttribute('title', 'Verified reporter');
+    });
+
+    test.each([
+        ['reporter', 'pending', false],
+        ['reporter', 'rejected', false],
+        ['reporter', 'approved', false],
+        ['ordinary', 'approved', true],
+        ['responder', 'approved', true],
+        ['municipal_admin', 'approved', true],
+    ])('does not render verified reporter badge in sidebar for %s with status %s and isVerified %s', (role, verificationStatus, isVerified) => {
+        mocks.user = {
+            _id: 'user-test',
+            name: 'Sidebar Test User',
+            role,
+            verificationStatus,
+            isVerified,
+            assignedMunicipality: 'Cajidiocan',
+        };
+
+        renderLayout();
+        const sidebar = getSidebar();
+        expect(within(sidebar).queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
+    });
 });

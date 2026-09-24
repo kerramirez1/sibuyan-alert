@@ -8,6 +8,8 @@ import ReportSearch from '../search/ReportSearch';
 import { useOfflineReportSync } from '../../hooks/useOfflineReportSync';
 import { resolveAssetUrl } from '../../utils/assets';
 import { DASHBOARD_ANALYTICS_VIEW, resolveDashboardView } from '../../utils/dashboardView';
+import { isVerifiedReporter } from '../../utils/reporterVerification';
+import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
 import {
     HiOutlineHome,
     HiOutlineClipboardList,
@@ -367,9 +369,14 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1 overflow-hidden">
-                                        <p className="whitespace-nowrap text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
-                                            {user?.name}
-                                        </p>
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <p className="truncate min-w-0 text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
+                                                {user?.name}
+                                            </p>
+                                            {isVerifiedReporter(user) && (
+                                                <VerifiedReporterBadge size="sm" variant="sidebar" />
+                                            )}
+                                        </div>
                                         <p className="mt-0.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-400">
                                             {getAccountContext(user)}
                                         </p>
