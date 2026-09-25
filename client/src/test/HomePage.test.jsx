@@ -73,10 +73,13 @@ describe('HomePage operational landing page', () => {
         expect(await within(metricsStrip).findByText(/Verified reports/i)).toBeInTheDocument();
         expect(await within(metricsStrip).findByText('July 2026')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Report.*Verify.*Respond/i })).toBeInTheDocument();
-        const mapAction = screen.getByRole('link', { name: 'View live map' });
+        const mapAction = screen.getByRole('link', { name: 'View map' });
+        const landingNav = screen.getByRole('navigation', { name: 'Landing page' });
+        const navMapLink = within(landingNav).getByRole('link', { name: 'Map' });
         const reportAction = screen.getByRole('link', { name: /Report an Incident/ });
         const registrationAction = screen.getByRole('link', { name: 'Register as a reporter' });
         expect(mapAction).toHaveAttribute('href', '/dashboard?view=map');
+        expect(navMapLink).toHaveAttribute('href', '/dashboard?view=map');
         expect(reportAction).toHaveAttribute('href', '/login');
         expect(registrationAction).toHaveAttribute('href', '/register');
         expect(mapAction).toHaveClass('min-h-11', 'sm:min-h-12');

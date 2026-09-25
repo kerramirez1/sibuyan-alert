@@ -7,7 +7,6 @@ import {
     HiOutlineBadgeCheck,
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
-    HiOutlineArrowsExpand,
     HiOutlineCheckCircle,
     HiOutlineClock,
     HiOutlineExclamationCircle,
@@ -608,7 +607,6 @@ const DashboardMapWorkspace = ({
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
     const [panelActionLoading, setPanelActionLoading] = useState(false);
     const [isMapExpanded, setIsMapExpanded] = useState(false);
-    const [isPhoneViewport, setIsPhoneViewport] = useState(() => isSummaryPaneSheetViewport());
 
     const enterExpandedMap = useCallback(() => {
         if (isSummaryPaneSheetViewport()) return;
@@ -640,9 +638,7 @@ const DashboardMapWorkspace = ({
         if (typeof window === 'undefined') return undefined;
 
         const handleViewportChange = () => {
-            const isPhone = isSummaryPaneSheetViewport();
-            setIsPhoneViewport(isPhone);
-            if (isPhone && isMapExpanded) {
+            if (isSummaryPaneSheetViewport() && isMapExpanded) {
                 exitExpandedMap();
             }
         };
@@ -1489,20 +1485,6 @@ const DashboardMapWorkspace = ({
                             />
                         </div>
                     )}
-                    {!isPhoneViewport && (
-                        <div className="flex shrink-0 items-center pb-1">
-                            <button
-                                type="button"
-                                onClick={enterExpandedMap}
-                                className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                                aria-label="Expand map"
-                                title="Expand map"
-                            >
-                                <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
-                                <span>Expand map</span>
-                            </button>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -1870,19 +1852,6 @@ const DashboardMapWorkspace = ({
                                             </button>
                                         )}
                                     </div>
-
-                                    {/* Discoverable Expand map button on tablet only */}
-                                    {!isPhoneViewport && (
-                                        <button
-                                            type="button"
-                                            onClick={enterExpandedMap}
-                                            className="hidden sm:inline-flex min-h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200"
-                                            aria-label="Expand map"
-                                            title="Expand map"
-                                        >
-                                            <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
-                                        </button>
-                                    )}
                                 </div>
                             );
                         })()}

@@ -10,7 +10,20 @@ const { mapPropsSpy, getHazardLayersSpy } = vi.hoisted(() => ({
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
         mapPropsSpy(props);
-        return <div data-testid="map-view" />;
+        const isPhone = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 639px)').matches;
+        return (
+            <div data-testid="map-view">
+                {typeof props.onToggleExpand === 'function' && (props.isExpanded || !isPhone) && (
+                    <button
+                        type="button"
+                        aria-label={props.isExpanded ? 'Exit expanded map' : 'Expand map'}
+                        onClick={props.onToggleExpand}
+                    >
+                        {props.isExpanded ? 'Exit expanded map' : 'Expand map'}
+                    </button>
+                )}
+            </div>
+        );
     },
 }));
 
@@ -2576,7 +2589,7 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         mapPropsSpy.mockClear();
     });
 
-    test('enters expanded mode via toolbar button and exits via exit button', () => {
+    test('enters expanded mode via canonical expand button and exits via exit button', () => {
         renderWorkspace(createProps());
 
         // Initially not expanded
@@ -2584,9 +2597,9 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         expect(mapProps.isExpanded).toBe(false);
         expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
 
-        // Click "Expand map" (desktop or mobile trigger)
+        // Exactly one canonical "Expand map" entry button exists
         const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
-        expect(expandBtns.length).toBeGreaterThanOrEqual(1);
+        expect(expandBtns).toHaveLength(1);
         fireEvent.click(expandBtns[0]);
 
         // MapView receives isExpanded=true and dockTarget=null
@@ -2594,12 +2607,12 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         expect(mapProps.isExpanded).toBe(true);
         expect(mapProps.dockTarget).toBeNull();
 
-        // Exit button is present
-        const exitBtn = screen.getByRole('button', { name: 'Exit expanded map' });
-        expect(exitBtn).toBeInTheDocument();
+        // Exit buttons are present (header and MapView rail)
+        const exitBtns = screen.getAllByRole('button', { name: 'Exit expanded map' });
+        expect(exitBtns.length).toBeGreaterThanOrEqual(1);
 
         // Click "Exit expanded map"
-        fireEvent.click(exitBtn);
+        fireEvent.click(exitBtns[0]);
 
         // Back to normal mode
         mapProps = mapPropsSpy.mock.lastCall[0];
@@ -2682,7 +2695,8 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         expect(mapPropsSpy.mock.lastCall[0].dockTarget).toBeNull();
 
         // Exit expanded mode
-        fireEvent.click(screen.getByRole('button', { name: 'Exit expanded map' }));
+        const exitBtns = screen.getAllByRole('button', { name: 'Exit expanded map' });
+        fireEvent.click(exitBtns[0]);
         expect(mapPropsSpy.mock.lastCall[0].dockTarget).toBe(normalDockTarget);
     });
 
@@ -2837,7 +2851,7 @@ describe('DashboardMapWorkspace expanded map mode', () => {
             renderWorkspace(createProps());
 
             const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
-            expect(expandBtns.length).toBeGreaterThanOrEqual(1);
+            expect(expandBtns).toHaveLength(1);
         } finally {
             window.matchMedia = originalMatchMedia;
         }
@@ -2867,9 +2881,9 @@ describe('DashboardMapWorkspace expanded map mode', () => {
 
             expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
 
-            const exitBtn = screen.getByRole('button', { name: 'Exit expanded map' });
-            expect(exitBtn).toBeInTheDocument();
-            fireEvent.click(exitBtn);
+            const exitBtns = screen.getAllByRole('button', { name: 'Exit expanded map' });
+            expect(exitBtns.length).toBeGreaterThanOrEqual(1);
+            fireEvent.click(exitBtns[0]);
 
             expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
         } finally {

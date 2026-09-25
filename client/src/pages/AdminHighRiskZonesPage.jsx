@@ -32,7 +32,15 @@ import {
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
     HiOutlineSearch,
+    HiOutlineX,
 } from 'react-icons/hi';
+import { PANEL_SHEET_MEDIA_QUERY } from '../components/map/MapOverlayPanel';
+
+const isPhoneViewportCheck = () => {
+    if (typeof window === 'undefined') return false;
+    if (typeof window.matchMedia === 'function') return window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
+    return window.innerWidth < 640;
+};
 
 /**
  * Every zone type this client can *render*, which is no longer the same list as
@@ -200,6 +208,100 @@ const AdminHighRiskZonesPage = () => {
     const [mobileTab, setMobileTab] = useState('map');
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
+    const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+    const enterExpandedMap = useCallback(() => {
+        if (isPhoneViewportCheck()) return;
+        setIsMapExpanded(true);
+        const target = mapSectionRef.current;
+        if (target && typeof target.requestFullscreen === 'function') {
+            target.requestFullscreen().catch(() => {});
+        }
+    }, []);
+
+    const exitExpandedMap = useCallback(() => {
+        setIsMapExpanded(false);
+        if (typeof document !== 'undefined' && document.fullscreenElement) {
+            if (typeof document.exitFullscreen === 'function') {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+    }, []);
+
+    const toggleExpandedMap = useCallback(() => {
+        if (isMapExpanded) {
+            exitExpandedMap();
+        } else {
+            enterExpandedMap();
+        }
+    }, [isMapExpanded, enterExpandedMap, exitExpandedMap]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const handleViewportChange = () => {
+            const isPhone = isPhoneViewportCheck();
+            if (isPhone && isMapExpanded) {
+                exitExpandedMap();
+            }
+        };
+
+        if (window.matchMedia) {
+            const mediaQueryList = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
+            if (typeof mediaQueryList.addEventListener === 'function') {
+                mediaQueryList.addEventListener('change', handleViewportChange);
+                window.addEventListener('resize', handleViewportChange);
+                return () => {
+                    mediaQueryList.removeEventListener('change', handleViewportChange);
+                    window.removeEventListener('resize', handleViewportChange);
+                };
+            }
+            if (typeof mediaQueryList.addListener === 'function') {
+                mediaQueryList.addListener(handleViewportChange);
+                window.addEventListener('resize', handleViewportChange);
+                return () => {
+                    mediaQueryList.removeListener(handleViewportChange);
+                    window.removeEventListener('resize', handleViewportChange);
+                };
+            }
+        }
+
+        window.addEventListener('resize', handleViewportChange);
+        return () => window.removeEventListener('resize', handleViewportChange);
+    }, [isMapExpanded, exitExpandedMap]);
+
+    useEffect(() => {
+        if (!isMapExpanded) return undefined;
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                exitExpandedMap();
+            }
+        };
+
+        const handleFullscreenChange = () => {
+            const isCurrentlyFullscreen = Boolean(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            );
+            if (!isCurrentlyFullscreen && isMapExpanded) {
+                setIsMapExpanded(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, [isMapExpanded, exitExpandedMap]);
+
     const focusRequestSequenceRef = useRef(0);
     const locationRequestRef = useRef(0);
     const locationAbortRef = useRef(null);
@@ -842,17 +944,10 @@ const AdminHighRiskZonesPage = () => {
                 {/* Map Workspace */}
                 <section
                     ref={mapSectionRef}
-                    // Eight of twelve columns from xl up — the map is the page, and
-                    // the panel beside it is a tool used between map actions, not a
-                    // second half of the screen. It stays at seven below xl because
-                    // the editor in that panel has a floor: its zone-type row is
-                    // three options that must each stay on one uncut line, and at a
-                    // 1024 px window an eight-of-twelve map would squeeze the panel
-                    // past the width where that still fits. So the panel gives
-                    // ground first, and only down to the width it can actually work
-                    // in — 58 % map on a small laptop, 67 % on any real desktop
-                    // canvas.
-                    className={`surface-panel scroll-mt-20 flex-col overflow-hidden lg:col-span-7 xl:col-span-8 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`}
+                    className={isMapExpanded
+                        ? 'surface-panel fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[var(--surface)] p-2 sm:p-3 overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+                        : `surface-panel scroll-mt-20 flex-col overflow-hidden lg:col-span-7 xl:col-span-8 h-full lg:min-h-0 ${mobileTab === 'panel' ? 'hidden lg:flex' : 'flex'}`
+                    }
                     aria-label="High-risk zones map workspace"
                 >
                     {/* Map Section Header */}
@@ -920,6 +1015,18 @@ const AdminHighRiskZonesPage = () => {
                             {layerControlGroups.length > 0 && (
                                 <MapLayerControl groups={layerControlGroups} panelLabel="Map layers" />
                             )}
+                            {isMapExpanded && (
+                                <button
+                                    type="button"
+                                    onClick={exitExpandedMap}
+                                    className="inline-flex min-h-[44px] sm:min-h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 text-xs font-semibold text-gray-700 shadow-xs transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                    aria-label="Exit expanded map"
+                                    title="Exit expanded map (Esc)"
+                                >
+                                    <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Exit expanded map</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -945,18 +1052,9 @@ const AdminHighRiskZonesPage = () => {
                             // was previously placed blind: no distance reference
                             // and no coordinate until after the click committed.
                             showCursorCoordinates={Boolean(showForm)}
-                            // The stage is the page, so the canvas can own the whole
-                            // screen when asked. It pairs with the fit-to-window
-                            // layout: expanding is how an operator gets more map than
-                            // the workspace was given, without leaving the page.
-                            showFullscreenControl
-                            // Fullscreen expands this whole card, not just the
-                            // canvas: the map's header holds the layer menu and the
-                            // placement readout, and an expanded map that leaves its
-                            // own controls behind on the page has traded one problem
-                            // for another. Nothing moves in the normal layout — the
-                            // header is simply included in what goes fullscreen.
-                            fullscreenContainerRef={mapSectionRef}
+                            // Standardized canonical expand toggle in the MapView tool rail.
+                            isExpanded={isMapExpanded}
+                            onToggleExpand={toggleExpandedMap}
                             hazardLayers={hazardLayers}
                             hazardClassVisibility={visibleHazardClasses}
                             // Derived from the system's own reports, and switched

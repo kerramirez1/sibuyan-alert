@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import MapView from '../components/map/MapView';
 
@@ -89,6 +89,25 @@ describe('MapView expanded map control', () => {
 
         fireEvent.click(expandBtn);
         expect(handleToggleExpand).toHaveBeenCalledTimes(1);
+    });
+
+    test('renders canonical "Expand map" control inside Map tools rail', async () => {
+        const handleToggleExpand = vi.fn();
+
+        render(
+            <MapView
+                reports={[]}
+                onToggleExpand={handleToggleExpand}
+                isExpanded={false}
+            />
+        );
+
+        const mapToolsRail = await screen.findByRole('group', { name: /map tools/i });
+        expect(mapToolsRail).toBeInTheDocument();
+        const expandBtn = within(mapToolsRail).getByRole('button', { name: /expand map/i });
+        expect(expandBtn).toBeInTheDocument();
+        expect(expandBtn).toHaveAttribute('aria-pressed', 'false');
+        expect(expandBtn).toHaveAttribute('title', 'Expand map');
     });
 
     test('renders "Exit expanded map" when isExpanded is true', async () => {

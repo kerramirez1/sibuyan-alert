@@ -135,13 +135,13 @@ const LandingHero = ({
                                     )
                                 )}
 
-                                {/* Secondary CTA: View live map */}
+                                {/* Secondary CTA: View map */}
                                 <Link
                                     to="/dashboard?view=map"
                                     className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
                                 >
                                     <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    <span>View live map</span>
+                                    <span>View map</span>
                                 </Link>
                             </div>
 

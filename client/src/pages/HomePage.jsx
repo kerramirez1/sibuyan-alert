@@ -126,7 +126,7 @@ const HomePage = () => {
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Landing page">
                         <a href="#home" className="text-action">Home</a>
-                        <Link to="/dashboard?view=map" className="text-action">Live map</Link>
+                        <Link to="/dashboard?view=map" className="text-action">Map</Link>
                         <a href="#how-it-works" className="text-action">How it works</a>
                     </nav>
 

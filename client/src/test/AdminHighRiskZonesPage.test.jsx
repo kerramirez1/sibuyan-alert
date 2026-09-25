@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mockZones = [
@@ -113,6 +113,7 @@ vi.mock('../utils/appToast', () => ({
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
         mockMapViewProps(props);
+        const isPhone = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 639px)').matches;
         return (
             <div data-testid="map-view">
                 <span>Map preview</span>
@@ -124,7 +125,15 @@ vi.mock('../components/map/MapView', () => ({
                         Select mock map point
                     </button>
                 )}
-
+                {typeof props.onToggleExpand === 'function' && (props.isExpanded || !isPhone) && (
+                    <button
+                        type="button"
+                        aria-label={props.isExpanded ? 'Exit expanded map' : 'Expand map'}
+                        onClick={props.onToggleExpand}
+                    >
+                        {props.isExpanded ? 'Exit expanded map' : 'Expand map'}
+                    </button>
+                )}
             </div>
         );
     },
@@ -852,19 +861,130 @@ describe('AdminHighRiskZonesPage', () => {
         expect(control).toHaveFocus();
     });
 
-    test('sends the whole map card fullscreen, so the layer menu goes with it', async () => {
+    test('sends the whole map card into expanded mode, so the layer menu goes with it', async () => {
         render(<AdminHighRiskZonesPage />);
 
-        // Fullscreen expands exactly one element and leaves everything outside it
-        // on the page. The header holding the Layers control is inside the card
-        // the map is told to expand, so the control is still on screen when the
-        // map is — no second control, no move, no change to the normal layout.
         const mapSection = screen.getByLabelText('High-risk zones map workspace');
-        const props = mockMapViewProps.mock.lastCall[0];
+        let props = mockMapViewProps.mock.lastCall[0];
 
-        expect(props.showFullscreenControl).toBe(true);
-        expect(props.fullscreenContainerRef?.current).toBe(mapSection);
+        expect(props.isExpanded).toBe(false);
+        expect(typeof props.onToggleExpand).toBe('function');
+        expect(props.showFullscreenControl).toBeUndefined();
+
+        // Expand button in canonical MapView mock is present
+        const expandBtn = within(mapSection).getByRole('button', { name: 'Expand map' });
+        expect(expandBtn).toBeInTheDocument();
+
+        // Click expand button to enter expanded mode
+        fireEvent.click(expandBtn);
+
+        props = mockMapViewProps.mock.lastCall[0];
+        expect(props.isExpanded).toBe(true);
+        expect(mapSection).toHaveClass('fixed', 'inset-0', 'z-[60]');
+
+        // Layer menu remains accessible inside the expanded map card
         expect(mapSection.contains(within(mapSection).getByRole('button', { name: /Layers/i }))).toBe(true);
+
+        // Header and MapView tool rail both offer exit buttons
+        const exitBtns = within(mapSection).getAllByRole('button', { name: 'Exit expanded map' });
+        expect(exitBtns.length).toBe(2);
+
+        // Click header exit button
+        fireEvent.click(exitBtns[0]);
+
+        props = mockMapViewProps.mock.lastCall[0];
+        expect(props.isExpanded).toBe(false);
+        expect(mapSection).not.toHaveClass('fixed', 'inset-0');
+    });
+
+    test('exits expanded mode when Escape key is pressed', async () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const mapSection = screen.getByLabelText('High-risk zones map workspace');
+        const expandBtn = within(mapSection).getByRole('button', { name: 'Expand map' });
+        fireEvent.click(expandBtn);
+
+        expect(mockMapViewProps.mock.lastCall[0].isExpanded).toBe(true);
+        expect(mapSection).toHaveClass('fixed', 'inset-0', 'z-[60]');
+
+        // Press Escape
+        fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+
+        expect(mockMapViewProps.mock.lastCall[0].isExpanded).toBe(false);
+        expect(mapSection).not.toHaveClass('fixed', 'inset-0');
+    });
+
+    test('omits expand button on phone viewports below sm', async () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            render(<AdminHighRiskZonesPage />);
+
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+            const props = mockMapViewProps.mock.lastCall[0];
+            expect(props.isExpanded).toBe(false);
+
+            // Programmatic toggle guarded on phone
+            act(() => {
+                props.onToggleExpand();
+            });
+            expect(mockMapViewProps.mock.lastCall[0].isExpanded).toBe(false);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('auto-exits expanded mode when viewport resizes to mobile', async () => {
+        const originalMatchMedia = window.matchMedia;
+        let isPhone = false;
+        let changeListener = null;
+
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            get matches() {
+                return isPhone && query === '(max-width: 639px)';
+            },
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn((event, listener) => {
+                if (event === 'change') changeListener = listener;
+            }),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            render(<AdminHighRiskZonesPage />);
+
+            const mapSection = screen.getByLabelText('High-risk zones map workspace');
+            const expandBtn = within(mapSection).getByRole('button', { name: 'Expand map' });
+            fireEvent.click(expandBtn);
+
+            expect(mockMapViewProps.mock.lastCall[0].isExpanded).toBe(true);
+
+            act(() => {
+                isPhone = true;
+                if (changeListener) {
+                    changeListener({ matches: true });
+                }
+                window.dispatchEvent(new Event('resize'));
+            });
+
+            expect(mockMapViewProps.mock.lastCall[0].isExpanded).toBe(false);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
     });
 
     test('hands the hazard layers to the map switched off, and offers them as controls', async () => {
