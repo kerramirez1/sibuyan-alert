@@ -20,7 +20,7 @@ const MAP_TOOL_BUTTON_CLASS = 'relative flex h-7 w-7 items-center justify-center
  * hand focus back to itself when it closes, and a function component cannot be
  * given a ref. The ref lands on the real button, not on a wrapper.
  */
-export const MapToolButton = forwardRef(({ label, icon: Icon, active = false, children, ...props }, ref) => (
+export const MapToolButton = forwardRef(({ label, icon: Icon, active = false, className = '', children, ...props }, ref) => (
     <button
         ref={ref}
         type="button"
@@ -28,7 +28,7 @@ export const MapToolButton = forwardRef(({ label, icon: Icon, active = false, ch
         title={label}
         // `!` because the base class already sets a border and a surface, and the
         // active state has to win over them regardless of rule order.
-        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-emerald-400/80 !bg-emerald-50/95 !text-emerald-800 shadow-xs dark:!border-emerald-600/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''}`}
+        className={`${MAP_TOOL_BUTTON_CLASS} ${active ? '!border-emerald-400/80 !bg-emerald-50/95 !text-emerald-800 shadow-xs dark:!border-emerald-600/60 dark:!bg-emerald-950/80 dark:!text-emerald-300' : ''} ${className}`.trim()}
         {...props}
     >
         <Icon className="h-3 w-3" aria-hidden="true" />

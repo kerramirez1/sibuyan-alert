@@ -4,7 +4,7 @@ import maplibregl from 'maplibre-gl';
 import { useMemo } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import toast from '../../utils/appToast';
-import { HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
+import { HiOutlineArrowsExpand, HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
 import MapToolButton from './MapToolButton';
 import MapScopeControl from './MapScopeControl';
 import {
@@ -62,7 +62,7 @@ import {
 } from '../../config/accidentHotspots';
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
-import MapOverlayPanel from './MapOverlayPanel';
+import MapOverlayPanel, { PANEL_SHEET_MEDIA_QUERY } from './MapOverlayPanel';
 import {
     isRiskZoneLayerVisibleForFilter,
     MAP_ACTIVE_INCIDENT_CONFIG,
@@ -294,6 +294,15 @@ const MapView = ({
      */
     showFullscreenControl = false,
     /**
+     * Whether the map is currently in expanded/fullscreen view mode.
+     */
+    isExpanded = false,
+    /**
+     * Optional handler to toggle expanded/fullscreen view mode.
+     * When provided, adds an accessible Expand Map tool button to the map's tool rail.
+     */
+    onToggleExpand = null,
+    /**
      * The element the fullscreen button expands, when it is not the map alone.
      *
      * Fullscreen expands one element, and everything outside that element is left
@@ -401,6 +410,48 @@ const MapView = ({
     const [cursorCoordinate, setCursorCoordinate] = useState(null);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [isPhoneViewport, setIsPhoneViewport] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        if (typeof window.matchMedia === 'function') {
+            return window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
+        }
+        return window.innerWidth < 640;
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const updateViewport = () => {
+            if (typeof window.matchMedia === 'function') {
+                setIsPhoneViewport(window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches);
+            } else {
+                setIsPhoneViewport(window.innerWidth < 640);
+            }
+        };
+
+        if (window.matchMedia) {
+            const mql = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
+            if (typeof mql.addEventListener === 'function') {
+                mql.addEventListener('change', updateViewport);
+                window.addEventListener('resize', updateViewport);
+                return () => {
+                    mql.removeEventListener('change', updateViewport);
+                    window.removeEventListener('resize', updateViewport);
+                };
+            }
+            if (typeof mql.addListener === 'function') {
+                mql.addListener(updateViewport);
+                window.addEventListener('resize', updateViewport);
+                return () => {
+                    mql.removeListener(updateViewport);
+                    window.removeEventListener('resize', updateViewport);
+                };
+            }
+        }
+
+        window.addEventListener('resize', updateViewport);
+        return () => window.removeEventListener('resize', updateViewport);
+    }, []);
     // Opening framing is a one-time decision: after it is made, data that arrives
     // later (a refresh, a new report, a filter change) must not move the camera
     // out from under whatever the viewer is looking at.
@@ -2256,6 +2307,17 @@ const MapView = ({
                         icon={HiOutlineLocationMarker}
                         onClick={recenterMap}
                     />
+
+                    {typeof onToggleExpand === 'function' && (isExpanded || !isPhoneViewport) && (
+                        <MapToolButton
+                            label={isExpanded ? 'Exit expanded map' : 'Expand map'}
+                            icon={HiOutlineArrowsExpand}
+                            active={isExpanded}
+                            onClick={onToggleExpand}
+                            aria-pressed={isExpanded}
+                            className={!isExpanded ? 'hidden sm:flex' : ''}
+                        />
+                    )}
                 </div>
             )}
         </div>

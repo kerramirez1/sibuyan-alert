@@ -7,6 +7,7 @@ import {
     HiOutlineBadgeCheck,
     HiOutlineArrowLeft,
     HiOutlineArrowRight,
+    HiOutlineArrowsExpand,
     HiOutlineCheckCircle,
     HiOutlineClock,
     HiOutlineExclamationCircle,
@@ -606,6 +607,103 @@ const DashboardMapWorkspace = ({
     const [selectedActiveRiskZoneId, setSelectedActiveRiskZoneId] = useState('');
     const [mapLocateRequest, setMapLocateRequest] = useState(null);
     const [panelActionLoading, setPanelActionLoading] = useState(false);
+    const [isMapExpanded, setIsMapExpanded] = useState(false);
+    const [isPhoneViewport, setIsPhoneViewport] = useState(() => isSummaryPaneSheetViewport());
+
+    const enterExpandedMap = useCallback(() => {
+        if (isSummaryPaneSheetViewport()) return;
+        setIsMapExpanded(true);
+        const target = mapSectionRef.current;
+        if (target && typeof target.requestFullscreen === 'function') {
+            target.requestFullscreen().catch(() => {});
+        }
+    }, []);
+
+    const exitExpandedMap = useCallback(() => {
+        setIsMapExpanded(false);
+        if (typeof document !== 'undefined' && document.fullscreenElement) {
+            if (typeof document.exitFullscreen === 'function') {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+    }, []);
+
+    const toggleExpandedMap = useCallback(() => {
+        if (isMapExpanded) {
+            exitExpandedMap();
+        } else {
+            enterExpandedMap();
+        }
+    }, [isMapExpanded, enterExpandedMap, exitExpandedMap]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const handleViewportChange = () => {
+            const isPhone = isSummaryPaneSheetViewport();
+            setIsPhoneViewport(isPhone);
+            if (isPhone && isMapExpanded) {
+                exitExpandedMap();
+            }
+        };
+
+        if (window.matchMedia) {
+            const mediaQueryList = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
+            if (typeof mediaQueryList.addEventListener === 'function') {
+                mediaQueryList.addEventListener('change', handleViewportChange);
+                window.addEventListener('resize', handleViewportChange);
+                return () => {
+                    mediaQueryList.removeEventListener('change', handleViewportChange);
+                    window.removeEventListener('resize', handleViewportChange);
+                };
+            }
+            if (typeof mediaQueryList.addListener === 'function') {
+                mediaQueryList.addListener(handleViewportChange);
+                window.addEventListener('resize', handleViewportChange);
+                return () => {
+                    mediaQueryList.removeListener(handleViewportChange);
+                    window.removeEventListener('resize', handleViewportChange);
+                };
+            }
+        }
+
+        window.addEventListener('resize', handleViewportChange);
+        return () => window.removeEventListener('resize', handleViewportChange);
+    }, [isMapExpanded, exitExpandedMap]);
+
+    useEffect(() => {
+        if (!isMapExpanded) return undefined;
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                exitExpandedMap();
+            }
+        };
+
+        const handleFullscreenChange = () => {
+            const isCurrentlyFullscreen = Boolean(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            );
+            if (!isCurrentlyFullscreen && isMapExpanded) {
+                setIsMapExpanded(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, [isMapExpanded, exitExpandedMap]);
+
+    const effectiveDockTarget = isMapExpanded ? null : summaryDockNode;
     const createFocusRequestId = () => {
         focusRequestSequenceRef.current += 1;
         return `${Date.now()}-${focusRequestSequenceRef.current}`;
@@ -1391,6 +1489,20 @@ const DashboardMapWorkspace = ({
                             />
                         </div>
                     )}
+                    {!isPhoneViewport && (
+                        <div className="flex shrink-0 items-center pb-1">
+                            <button
+                                type="button"
+                                onClick={enterExpandedMap}
+                                className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                aria-label="Expand map"
+                                title="Expand map"
+                            >
+                                <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
+                                <span>Expand map</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -1613,30 +1725,109 @@ const DashboardMapWorkspace = ({
                 one radius, one shadow. A border here and a ring there read as
                 two different component families on a screen where they are two
                 halves of the same row. */}
-            <section ref={mapSectionRef} className="surface-panel order-1 scroll-mt-20 overflow-hidden sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-1" aria-label="Live incident map">
-                {/* Mobile and tablet controls only: the desktop rail is the
-                    full-width bar above, so from lg the card holds nothing but
-                    the canvas — which is the cleanest thing a map card can hold,
-                    and worth ~46px of canvas height on a laptop. The sheet is
-                    rendered here because this is where its trigger lives. */}
-                <div className="flex flex-col gap-1.5 px-1.5 pb-1.5 pt-1 sm:gap-2 sm:p-2 lg:hidden">
-                    {mapExperience.filters.length > 0 && (() => {
-                        const isFiltered = responderMapFilter && responderMapFilter !== 'all';
-                        const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
-                        const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
-                        const activeFilterCount = getFilterCount(responderMapFilter);
-                        const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
-                        // Config owns which statuses a tab shows, so it owns the dot
-                        // too: 'dispatch' is a pair, and reading its colour off
-                        // MAP_STATUS_CONFIG directly would have fallen back to gray
-                        // — the colour of "unknown state". This is the same lookup
-                        // the rail and the sheet read, so the summary dot cannot
-                        // name a different colour than the tab it reports on.
-                        const activeStatusDotClass = getRailDotClass(responderMapFilter);
+            <section
+                ref={mapSectionRef}
+                className={isMapExpanded
+                    ? 'fixed inset-0 z-[60] flex flex-col bg-[var(--surface)] p-2 sm:p-3 overflow-hidden overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+                    : 'surface-panel order-1 scroll-mt-20 overflow-hidden sm:order-2 lg:col-start-1 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:p-1'}
+                aria-label="Live incident map"
+            >
+                {/* Expanded mode toolbar: Filter rail + mobile trigger + Exit expanded map button */}
+                {isMapExpanded && (
+                    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-1 pb-2 pt-0.5 sm:px-2">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                            {mapExperience.filters.length > 0 && (
+                                <div className="hidden min-w-0 flex-1 items-center gap-x-1 overflow-x-auto no-scrollbar lg:flex" role="group" aria-label="Expanded map status filter">
+                                    <MapFilterRail
+                                        filters={mapExperience.filters}
+                                        showPendingReports={mapExperience.showPendingReports}
+                                        selectedFilter={responderMapFilter}
+                                        onSelectFilter={selectMapFilter}
+                                        getCount={getFilterCount}
+                                    />
+                                </div>
+                            )}
 
-                        return (
-                            <>
-                                {/* 1. Mobile & Tablet Filter Control Bar (< lg / < 1024px) */}
+                            {mapExperience.filters.length > 0 && (() => {
+                                const isFiltered = responderMapFilter && responderMapFilter !== 'all';
+                                const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
+                                const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
+                                const activeFilterCount = getFilterCount(responderMapFilter);
+                                const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
+                                const activeStatusDotClass = getRailDotClass(responderMapFilter);
+
+                                return (
+                                    <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsMobileFilterOpen(true)}
+                                            aria-expanded={isMobileFilterOpen}
+                                            aria-haspopup="dialog"
+                                            aria-label={`Filters${isFiltered ? ', 1 filter applied' : ''}`}
+                                            className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold shadow-sm ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${isFiltered
+                                                ? 'bg-brand-700 text-white ring-brand-700 dark:bg-brand-600 dark:ring-brand-500'
+                                                : 'bg-white/95 text-gray-800 ring-gray-200/80 hover:bg-white hover:ring-gray-300 dark:bg-white/5 dark:text-gray-200 dark:ring-white/10 dark:hover:bg-white/10'
+                                                }`}
+                                        >
+                                            <HiOutlineFilter className={`h-3.5 w-3.5 ${isFiltered ? 'text-brand-100 dark:text-white' : 'text-brand-700 dark:text-sky-400'}`} aria-hidden="true" />
+                                            <span>Filters</span>
+                                            {isFiltered && (
+                                                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold tabular-nums text-brand-800">
+                                                    1
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                                            <p className="flex min-w-0 flex-1 items-center gap-2 truncate text-[11px] font-medium text-gray-600 sm:text-xs dark:text-gray-400">
+                                                <span className={`h-2 w-2 shrink-0 rounded-full ${activeStatusDotClass}`} aria-hidden="true" />
+                                                <span className="truncate">{activeFilterSummary}</span>
+                                            </p>
+
+                                            {isFiltered && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => selectMapFilter('all')}
+                                                    aria-label="Clear active filter and show all"
+                                                    className="flex min-h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-gray-200"
+                                                    title="Clear filter"
+                                                >
+                                                    <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={exitExpandedMap}
+                                className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] shadow-sm hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                aria-label="Exit expanded map"
+                                title="Exit expanded map (Esc)"
+                            >
+                                <HiOutlineX className="h-4 w-4" aria-hidden="true" />
+                                <span className="hidden sm:inline">Exit expanded map</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Mobile and tablet controls only (when not in expanded mode) */}
+                {!isMapExpanded && (
+                    <div className="flex flex-col gap-1.5 px-1.5 pb-1.5 pt-1 sm:gap-2 sm:p-2 lg:hidden">
+                        {mapExperience.filters.length > 0 && (() => {
+                            const isFiltered = responderMapFilter && responderMapFilter !== 'all';
+                            const currentFilterObj = mapExperience.filters.find((f) => f.value === responderMapFilter);
+                            const activeFilterLabel = currentFilterObj ? currentFilterObj.label : (responderMapFilter === 'risk-zones' ? 'Risk Zones' : 'Active Incidents');
+                            const activeFilterCount = getFilterCount(responderMapFilter);
+                            const activeFilterSummary = `${activeFilterLabel} · ${activeFilterCount}`;
+                            const activeStatusDotClass = getRailDotClass(responderMapFilter);
+
+                            return (
                                 <div className="flex w-full items-center gap-2 lg:hidden">
                                     {/* Filters Trigger Button */}
                                     <button
@@ -1679,25 +1870,40 @@ const DashboardMapWorkspace = ({
                                             </button>
                                         )}
                                     </div>
+
+                                    {/* Discoverable Expand map button on tablet only */}
+                                    {!isPhoneViewport && (
+                                        <button
+                                            type="button"
+                                            onClick={enterExpandedMap}
+                                            className="hidden sm:inline-flex min-h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200"
+                                            aria-label="Expand map"
+                                            title="Expand map"
+                                        >
+                                            <HiOutlineArrowsExpand className="h-4 w-4" aria-hidden="true" />
+                                        </button>
+                                    )}
                                 </div>
+                            );
+                        })()}
+                    </div>
+                )}
 
-                                {/* Mobile & Tablet Filter Bottom Sheet */}
-                                <MapMobileFilterSheet
-                                    isOpen={isMobileFilterOpen}
-                                    onClose={() => setIsMobileFilterOpen(false)}
-                                    filters={mapExperience.filters}
-                                    selectedFilter={responderMapFilter}
-                                    onSelectFilter={selectMapFilter}
-                                    getFilterCount={getFilterCount}
-                                    triggerRef={mobileFilterTriggerRef}
-                                />
+                {/* Mobile & Tablet Filter Bottom Sheet */}
+                <MapMobileFilterSheet
+                    isOpen={isMobileFilterOpen}
+                    onClose={() => setIsMobileFilterOpen(false)}
+                    filters={mapExperience.filters}
+                    selectedFilter={responderMapFilter}
+                    onSelectFilter={selectMapFilter}
+                    getFilterCount={getFilterCount}
+                    triggerRef={mobileFilterTriggerRef}
+                />
 
-                            </>
-                        );
-                    })()}
-                </div>
-
-                <div className={`relative ${PHONE_MAP_FRAME_CLASSES} overflow-hidden rounded-lg sm:aspect-auto sm:h-[460px] lg:h-auto lg:min-h-0 lg:flex-1`}>
+                <div className={isMapExpanded
+                    ? 'relative flex-1 min-h-0 w-full overflow-hidden rounded-lg'
+                    : `relative ${PHONE_MAP_FRAME_CLASSES} overflow-hidden rounded-lg sm:aspect-auto sm:h-[460px] lg:h-auto lg:min-h-0 lg:flex-1`
+                }>
                     {loading && safeCount(reports) === 0 && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-[#0c1813]/80 backdrop-blur-xs" aria-live="polite">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
@@ -1716,8 +1922,11 @@ const DashboardMapWorkspace = ({
                         externalContextPanelOpen={Boolean(mapSummaryPanel)}
                         onEntityInspectorChange={handleMapInspectorChange}
                         // The summary box, so a pin's details stand in the column
-                        // beside the map instead of covering it.
-                        dockTarget={summaryDockNode}
+                        // beside the map instead of covering it. When expanded,
+                        // details float contextually over the map canvas.
+                        dockTarget={effectiveDockTarget}
+                        isExpanded={isMapExpanded}
+                        onToggleExpand={toggleExpandedMap}
                         className="h-full w-full"
                         focusLocation={focusLocation}
                         homeFocus={municipalityHomeFocus}
@@ -1784,7 +1993,7 @@ const DashboardMapWorkspace = ({
                         nor a card laid across the map itself. Held back for the
                         one frame before the slot exists, which keeps an overlay
                         from flashing in the map's corner on the way in. */}
-                    {hasSummaryPanel && summaryDockNode && (
+                    {hasSummaryPanel && (summaryDockNode || isMapExpanded) && (
                         <MapOverlayPanel
                             id={MAP_SUMMARY_PANEL_ID}
                             title={panelTitle}
@@ -1792,7 +2001,7 @@ const DashboardMapWorkspace = ({
                             onClose={closeMapSummaryPanel}
                             closeLabel={panelCloseLabel}
                             presentation="contextual"
-                            dockTarget={summaryDockNode}
+                            dockTarget={effectiveDockTarget}
                             accentClassName={summaryPanelAccent}
                             accentDotClassName={summaryPanelTone.dot}
                             contentKey={`${mapSummaryPanel}:${selectedActiveIncidentId || selectedActiveRiskZoneId || 'list'}`}

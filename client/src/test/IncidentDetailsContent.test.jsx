@@ -103,6 +103,23 @@ describe('IncidentDetailsContent', () => {
         expect(screen.queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
     });
 
+    test('does not render verified reporter badge when reporter role is non-reporter even if isVerified is true', () => {
+        const responderReport = {
+            ...sampleReport,
+            reporter: { name: 'Responder Santos', email: 'santos@example.com', role: 'responder', isVerified: true },
+        };
+        render(
+            <IncidentDetailsContent
+                report={responderReport}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        expect(screen.getByText('Responder Santos')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
+    });
+
     test('renders owner details for reporter viewing their own report', () => {
         render(
             <IncidentDetailsContent

@@ -2570,3 +2570,389 @@ describe('DashboardMapWorkspace map scope', () => {
         expect(mapProps.canVerifyReport({ municipalityName: 'Cajidiocan' })).toBe(true);
     });
 });
+
+describe('DashboardMapWorkspace expanded map mode', () => {
+    beforeEach(() => {
+        mapPropsSpy.mockClear();
+    });
+
+    test('enters expanded mode via toolbar button and exits via exit button', () => {
+        renderWorkspace(createProps());
+
+        // Initially not expanded
+        let mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(false);
+        expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
+
+        // Click "Expand map" (desktop or mobile trigger)
+        const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+        expect(expandBtns.length).toBeGreaterThanOrEqual(1);
+        fireEvent.click(expandBtns[0]);
+
+        // MapView receives isExpanded=true and dockTarget=null
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(true);
+        expect(mapProps.dockTarget).toBeNull();
+
+        // Exit button is present
+        const exitBtn = screen.getByRole('button', { name: 'Exit expanded map' });
+        expect(exitBtn).toBeInTheDocument();
+
+        // Click "Exit expanded map"
+        fireEvent.click(exitBtn);
+
+        // Back to normal mode
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(false);
+        expect(mapProps.dockTarget).not.toBeNull();
+        expect(screen.queryByRole('button', { name: 'Exit expanded map' })).not.toBeInTheDocument();
+    });
+
+    test('toggles expanded mode when MapView calls onToggleExpand', () => {
+        renderWorkspace(createProps());
+
+        let mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(false);
+        expect(typeof mapProps.onToggleExpand).toBe('function');
+
+        // Trigger onToggleExpand from MapView
+        act(() => {
+            mapProps.onToggleExpand();
+        });
+
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(true);
+
+        // Trigger onToggleExpand again to exit
+        act(() => {
+            mapProps.onToggleExpand();
+        });
+
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(false);
+    });
+
+    test('exits expanded mode when Escape key is pressed', () => {
+        renderWorkspace(createProps());
+
+        const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+        fireEvent.click(expandBtns[0]);
+
+        expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+
+        // Press Escape
+        fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+
+        expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+    });
+
+    test('maintains filter rail availability and interactivity inside expanded view', () => {
+        const setResponderMapFilter = vi.fn();
+        renderWorkspace(createProps({
+            setResponderMapFilter,
+            responderMapFilter: 'all',
+        }));
+
+        // Expand map
+        const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+        fireEvent.click(expandBtns[0]);
+
+        // Filter rail inside expanded view is accessible
+        const expandedRail = screen.getByRole('group', { name: /expanded map status filter/i });
+        expect(expandedRail).toBeInTheDocument();
+
+        // Click a filter button inside expanded view
+        const activeButton = within(expandedRail).getByRole('button', { name: /active incidents/i });
+        fireEvent.click(activeButton);
+
+        expect(setResponderMapFilter).toHaveBeenCalledWith('active');
+    });
+
+    test('switches dockTarget to null when expanded and restores summaryDockNode upon exit', () => {
+        renderWorkspace(createProps());
+
+        // In normal mode, dockTarget is assigned to summaryDockNode
+        const initialMapProps = mapPropsSpy.mock.lastCall[0];
+        const normalDockTarget = initialMapProps.dockTarget;
+        expect(normalDockTarget).not.toBeNull();
+
+        // Expand map
+        const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+        fireEvent.click(expandBtns[0]);
+        expect(mapPropsSpy.mock.lastCall[0].dockTarget).toBeNull();
+
+        // Exit expanded mode
+        fireEvent.click(screen.getByRole('button', { name: 'Exit expanded map' }));
+        expect(mapPropsSpy.mock.lastCall[0].dockTarget).toBe(normalDockTarget);
+    });
+
+    test.each(['guest', 'reporter', 'responder', 'municipal_admin'])(
+        '%s role can enter and exit expanded map mode',
+        (role) => {
+            const isAdmin = role === 'municipal_admin';
+            const isResponder = role === 'responder';
+            const isReporter = role === 'reporter';
+            const isGuest = role === 'guest';
+
+            renderWorkspace(createProps({
+                user: isGuest ? null : { _id: `${role}-1`, role, name: role, assignedMunicipality: 'Cajidiocan' },
+                isAuthenticated: !isGuest,
+                isAdmin,
+                isResponder,
+                isReporter,
+            }));
+
+            // All roles have onToggleExpand passed to MapView
+            const mapProps = mapPropsSpy.mock.lastCall[0];
+            expect(typeof mapProps.onToggleExpand).toBe('function');
+
+            // Toggle expand
+            act(() => {
+                mapProps.onToggleExpand();
+            });
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+
+            // Toggle exit
+            act(() => {
+                mapPropsSpy.mock.lastCall[0].onToggleExpand();
+            });
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+        }
+    );
+
+    test('municipal admin mapScope remains restricted to admin and independent of expanded mode', () => {
+        const onMapScopeChange = vi.fn();
+        renderWorkspace(createProps({
+            user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            isAuthenticated: true,
+            isAdmin: true,
+            onMapScopeChange,
+        }));
+
+        let mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.onMapScopeChange).toBe(onMapScopeChange);
+
+        // Enter expanded mode
+        act(() => {
+            mapProps.onToggleExpand();
+        });
+
+        // onMapScopeChange remains intact and role-authorized
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(true);
+        expect(mapProps.onMapScopeChange).toBe(onMapScopeChange);
+    });
+
+    test('non-admin roles do not receive onMapScopeChange even in expanded mode', () => {
+        const onMapScopeChange = vi.fn();
+        renderWorkspace(createProps({
+            user: { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Cajidiocan' },
+            isAuthenticated: true,
+            isAdmin: false,
+            isResponder: true,
+            onMapScopeChange,
+        }));
+
+        let mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.onMapScopeChange).toBeNull();
+
+        // Enter expanded mode
+        act(() => {
+            mapProps.onToggleExpand();
+        });
+
+        mapProps = mapPropsSpy.mock.lastCall[0];
+        expect(mapProps.isExpanded).toBe(true);
+        expect(mapProps.onMapScopeChange).toBeNull();
+    });
+
+    test('does not expose any "Expand map" entry button on phone-sized viewports below sm', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps());
+
+            const expandBtns = screen.queryAllByRole('button', { name: /expand map/i });
+            expect(expandBtns).toHaveLength(0);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('prevents entering expanded map on phone-sized viewports below sm', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps());
+
+            const mapProps = mapPropsSpy.mock.lastCall[0];
+            expect(mapProps.isExpanded).toBe(false);
+
+            act(() => {
+                mapProps.onToggleExpand();
+            });
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('keeps "Expand map" entry button available on tablet viewports', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps());
+
+            const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+            expect(expandBtns.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('keeps "Exit expanded map" available when expanded, including on mobile viewports', () => {
+        const originalMatchMedia = window.matchMedia;
+        let isPhone = false;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            get matches() {
+                return isPhone && query === '(max-width: 639px)';
+            },
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps());
+
+            const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+            fireEvent.click(expandBtns[0]);
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+
+            const exitBtn = screen.getByRole('button', { name: 'Exit expanded map' });
+            expect(exitBtn).toBeInTheDocument();
+            fireEvent.click(exitBtn);
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('automatically exits expanded mode when resizing from expanded tablet/desktop down to mobile', () => {
+        const originalMatchMedia = window.matchMedia;
+        let isPhone = false;
+        let changeListener = null;
+
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            get matches() {
+                return isPhone && query === '(max-width: 639px)';
+            },
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn((event, listener) => {
+                if (event === 'change') changeListener = listener;
+            }),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps());
+
+            const expandBtns = screen.getAllByRole('button', { name: 'Expand map' });
+            fireEvent.click(expandBtns[0]);
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+
+            act(() => {
+                isPhone = true;
+                if (changeListener) {
+                    changeListener({ matches: true });
+                }
+                window.dispatchEvent(new Event('resize'));
+            });
+
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+            expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('preserves mobile filters, clear filter action, and reset view on phone viewports', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        const setResponderMapFilter = vi.fn();
+
+        try {
+            renderWorkspace(createProps({
+                responderMapFilter: 'verified',
+                setResponderMapFilter,
+            }));
+
+            const filterTrigger = screen.getByRole('button', { name: /filters, 1 filter applied/i });
+            expect(filterTrigger).toBeInTheDocument();
+
+            const clearBtn = screen.getByRole('button', { name: /clear active filter and show all/i });
+            expect(clearBtn).toBeInTheDocument();
+            fireEvent.click(clearBtn);
+            expect(setResponderMapFilter).toHaveBeenCalledWith('all');
+
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+});
+

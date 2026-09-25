@@ -155,7 +155,7 @@ const MapMobileFilterSheet = ({
         : `Show ${activeCount} ${activeCount === 1 ? 'incident' : 'incidents'}`;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-4 lg:hidden">
+        <div className="fixed inset-0 z-[70] flex flex-col justify-end sm:items-center sm:justify-center sm:p-4 lg:hidden">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-gray-950/60"
