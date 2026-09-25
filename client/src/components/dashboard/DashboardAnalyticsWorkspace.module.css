@@ -121,6 +121,72 @@
 .periodButton:hover:not(:disabled) { background: var(--analytics-muted); }
 .periodButton:disabled { cursor: not-allowed; opacity: 0.35; }
 
+/* The reporting scope: one bounded track holding its three options, so the
+   labels read as choices rather than as a run of words. The active option is
+   raised onto the track, ringed, set heavier, and check-marked — four cues, so
+   selection never rests on colour alone. Focus comes from the workspace-wide
+   `:focus-visible` rule above. */
+.scopeControl {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--analytics-border);
+    border-radius: 10px;
+    padding: 4px;
+    background: var(--analytics-muted);
+}
+
+.scopeButton {
+    display: inline-flex;
+    /* Below sm the control is a stretched flex child of the stacked toolbar, so
+       the three options share its width equally. Content-sized buttons there
+       bunched at the left of a full-width track and left two-thirds of it empty. */
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 7px;
+    padding: 0 8px;
+    color: var(--analytics-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+    .scopeButton {
+        flex: 0 0 auto;
+        padding: 0 12px;
+    }
+}
+
+.scopeButton:hover:not(.scopeButtonActive) {
+    background: var(--analytics-surface);
+    color: var(--analytics-ink);
+}
+
+.scopeButtonActive {
+    background: var(--analytics-surface);
+    color: var(--analytics-accent);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--analytics-border), 0 1px 2px rgb(15 42 68 / 0.12);
+}
+
+/* Reserved whether or not it holds a glyph, so switching scope cannot shift
+   the width of the row. */
+.scopeIndicator {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
 .workspace .exportButton {
     border-radius: 8px;
     /* Override the legacy dark-mode mappings on Button's neutral utilities. */

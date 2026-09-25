@@ -17,6 +17,7 @@ import {
     YAxis,
 } from 'recharts';
 import {
+    HiCheck,
     HiChevronLeft,
     HiChevronRight,
     HiOutlineArrowRight,
@@ -31,7 +32,7 @@ import {
 import MapView from '../map/MapView';
 import Button from '../ui/Button';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
-import { countReportsInMonth, filterReportsByDayKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
+import { ANALYTICS_SCOPE, countReportsInMonth, filterReportsByPeriodKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
 import MapFilterRail from './MapFilterRail';
@@ -75,6 +76,53 @@ const SEVERITY_SERIES = Object.freeze([
     Object.freeze({ key: 'critical', label: 'Critical', fill: '#EF4444' }),
     Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#9CA3AF' }),
 ]);
+
+/**
+ * The three reporting scopes, in the order they widen. Each option carries its
+ * own `title` so the control explains itself on hover without a legend beside it.
+ */
+const SCOPE_OPTIONS = Object.freeze([
+    Object.freeze({ value: ANALYTICS_SCOPE.MONTHLY, label: 'Monthly', title: 'Show one month at a time' }),
+    Object.freeze({ value: ANALYTICS_SCOPE.YEARLY, label: 'Yearly', title: 'Show one year at a time' }),
+    Object.freeze({ value: ANALYTICS_SCOPE.ALL_TIME, label: 'All time', title: 'Show every recorded incident, with no month or year filter' }),
+]);
+
+/**
+ * Per-scope wording for the trend panel. The scope decides the bucket size, so
+ * it also decides what a bucket is called and what a drill-down selects.
+ */
+const SCOPE_TREND_COPY = Object.freeze({
+    [ANALYTICS_SCOPE.MONTHLY]: Object.freeze({
+        volumePrefix: 'Daily volume for',
+        trendNoun: 'Daily incident report trend for',
+        bucketNoun: 'day',
+        selectLabel: 'Filter map by day',
+        selectHeading: 'Map day',
+        emptyDetail: 'Choose another month.',
+    }),
+    [ANALYTICS_SCOPE.YEARLY]: Object.freeze({
+        volumePrefix: 'Monthly volume for',
+        trendNoun: 'Monthly incident report trend for',
+        bucketNoun: 'month',
+        selectLabel: 'Filter map by month',
+        selectHeading: 'Map month',
+        emptyDetail: 'Choose another year.',
+    }),
+    [ANALYTICS_SCOPE.ALL_TIME]: Object.freeze({
+        volumePrefix: 'Yearly volume across',
+        trendNoun: 'Yearly incident report trend across',
+        bucketNoun: 'year',
+        selectLabel: 'Filter map by year',
+        selectHeading: 'Map year',
+        emptyDetail: 'No reports have been recorded yet.',
+    }),
+});
+
+const SCOPE_MAP_HEADING = Object.freeze({
+    [ANALYTICS_SCOPE.MONTHLY]: 'Monthly incident map',
+    [ANALYTICS_SCOPE.YEARLY]: 'Yearly incident map',
+    [ANALYTICS_SCOPE.ALL_TIME]: 'All-time incident map',
+});
 
 // Related panels share one surface; typography and theme tokens stay local to analytics.
 const PANEL_SURFACE = styles.surface;
@@ -173,17 +221,36 @@ const MetricTile = ({ label, value, helper, status, accent = null }) => (
     </div>
 );
 
-const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthCount = 0, selectedDay, onSelectDay }) => {
+const TrendPanel = ({
+    chartData = [],
+    selectedMonth,
+    reportCount = 0,
+    prevMonthCount = 0,
+    prevLabel = null,
+    selectedDay,
+    onSelectDay,
+    scope = ANALYTICS_SCOPE.MONTHLY,
+    periodLabel = '',
+}) => {
     const safeChartData = toSafeArray(chartData);
     const safeReportCount = Number.isFinite(Number(reportCount)) ? Number(reportCount) : 0;
     const activeDays = safeChartData.filter((day) => Number(day?.total) > 0);
     const summaryId = useId();
     const daySelectId = useId();
+    const copy = SCOPE_TREND_COPY[scope] || SCOPE_TREND_COPY[ANALYTICS_SCOPE.MONTHLY];
     const hasTrendData = activeDays.length > 0;
     // A full month with almost nothing in it reads as a broken chart, so list
     // the active days instead. Short excerpts (drill-downs, tests) keep bars.
     const isSparseTrend = hasTrendData && safeChartData.length >= 28 && activeDays.length <= 2;
-    const insight = getTrendInsight(safeChartData, { selectedMonth, prevMonthCount });
+    // A bucketed scope draws one bar per month (Yearly) or per year (All time),
+    // so one or two active buckets leave a full-width plot almost entirely empty
+    // and stretch the bars that remain. Those are listed instead — same period,
+    // same count, same drill-down — rather than plotted as two lonely columns.
+    const isThinTrend = hasTrendData
+        && scope !== ANALYTICS_SCOPE.MONTHLY
+        && activeDays.length <= 2;
+    const isCompactTrend = isSparseTrend || isThinTrend;
+    const insight = getTrendInsight(safeChartData, { selectedMonth, prevMonthCount, prevLabel });
     const presentSeverities = SEVERITY_SERIES.filter(({ key }) => safeChartData.some((day) => (Number(day?.[key]) || 0) > 0));
     const reportLabel = `${safeReportCount} ${safeReportCount === 1 ? 'report' : 'reports'}`;
     const activeDaySummary = activeDays
@@ -206,11 +273,11 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
     };
 
     return (
-        <div className={`${PANEL_CLASS} xl:col-span-2`}>
+        <div className={`${PANEL_CLASS} xl:col-span-3`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0 sm:shrink-0">
                     <h2 className={PANEL_TITLE_CLASS}>Incident trend</h2>
-                    <p className={PANEL_DESCRIPTION_CLASS}>Daily volume for {formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}</p>
+                    <p className={PANEL_DESCRIPTION_CLASS}>{copy.volumePrefix} {periodLabel}</p>
                 </div>
                 {presentSeverities.length > 0 && (
                     <div className={`min-w-0 text-[11px] ${styles.secondary}`}>
@@ -256,21 +323,21 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                     <EmptyChart
                         message={safeReportCount === 0 ? 'No reports in this period' : 'No valid report dates in this period'}
                         detail={safeReportCount === 0
-                            ? 'Choose another month.'
+                            ? copy.emptyDetail
                             : 'Some reports could not be plotted because their timestamps are missing or invalid.'}
                     />
                 </div>
-            ) : isSparseTrend ? (
+            ) : isCompactTrend ? (
                 <div className="mt-3">
                     <p id={summaryId} className="sr-only">
-                        {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
+                        {reportLabel} recorded. Reports by active {copy.bucketNoun}: {activeDaySummary}. {insightSummary}.
                     </p>
-                    <p className={`mb-2 text-xs ${styles.secondary}`}>Recorded days</p>
+                    <p className={`mb-2 text-xs ${styles.secondary}`}>Recorded {copy.bucketNoun}s</p>
                     <ul data-testid="incident-days-list" className="space-y-1">
-                        {activeDays.map((day) => {
+                        {activeDays.map((day, index) => {
                             const isSelected = day.dayKey === selectedDay;
                             return (
-                                <li key={day.dayKey}>
+                                <li key={day.dayKey || index}>
                                     <button
                                         type="button"
                                         onClick={() => handleDaySelect(day)}
@@ -291,12 +358,12 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
             ) : (
                 <div className="mt-3">
                     <p id={summaryId} className="sr-only">
-                        {reportLabel} recorded. Reports by active day: {activeDaySummary}. {insightSummary}.
+                        {reportLabel} recorded. Reports by active {copy.bucketNoun}: {activeDaySummary}. {insightSummary}.
                     </p>
                     <div
                         className="h-52 min-w-0 w-full sm:h-56"
                         role="img"
-                        aria-label={`Daily incident report trend for ${formatMonthLabel(selectedMonth, 'MMMM yyyy', 'selected period')}`}
+                        aria-label={`${copy.trendNoun} ${periodLabel}`}
                         aria-describedby={summaryId}
                     >
                         <ResponsiveContainer width="100%" height="100%">
@@ -327,6 +394,12 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
                                         name={label}
                                         stackId="incidents"
                                         fill={fill}
+                                        // Monthly draws 28-31 categories, so its bars are
+                                        // already ~15px and this never bites. It exists for
+                                        // the scopes that draw few buckets — a Yearly plot is
+                                        // 12 bars and an All-time plot can be one, where an
+                                        // uncapped bar would fill a third of the panel.
+                                        maxBarSize={56}
                                         isAnimationActive={false}
                                         onClick={handleBarClick}
                                         cursor="pointer"
@@ -344,12 +417,12 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
             )}
             {hasTrendData && (
                 <div className={`mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`}>
-                    <p className={`text-xs ${styles.subtle}`}>Select a {isSparseTrend ? 'day' : 'bar or a day'} to filter the map.</p>
+                    <p className={`text-xs ${styles.subtle}`}>Select a {isCompactTrend ? copy.bucketNoun : `bar or a ${copy.bucketNoun}`} to filter the map.</p>
                     <div className="flex min-w-0 items-center gap-2">
-                        <label htmlFor={daySelectId} className={`shrink-0 text-xs font-medium ${styles.secondary}`}>Map day</label>
+                        <label htmlFor={daySelectId} className={`shrink-0 text-xs font-medium ${styles.secondary}`}>{copy.selectHeading}</label>
                         <select
                             id={daySelectId}
-                            aria-label="Filter map by day"
+                            aria-label={copy.selectLabel}
                             value={selectedDay || ''}
                             onChange={(event) => onSelectDay?.(event.target.value || null)}
                             className={`flex-1 sm:flex-initial ${styles.daySelect}`}
@@ -368,15 +441,15 @@ const TrendPanel = ({ chartData = [], selectedMonth, reportCount = 0, prevMonthC
     );
 };
 
-const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
+const LifecyclePanel = ({ statusData = [], totalReports = 0, periodLabel = '' }) => {
     const safeStatus = toSafeArray(statusData);
     const safeTotal = Number.isFinite(Number(totalReports)) ? Number(totalReports) : 0;
     return (
-    <div className={`${PANEL_CLASS} border-t xl:border-l xl:border-t-0 ${styles.rule}`}>
+    <div className={`${PANEL_CLASS} border-t xl:col-span-2 xl:border-l xl:border-t-0 ${styles.rule}`}>
         <div className={PANEL_HEADER_CLASS}>
             <div className="min-w-0">
                 <h2 className={PANEL_TITLE_CLASS}>Report lifecycle</h2>
-                <p className={PANEL_DESCRIPTION_CLASS}>Status distribution for the selected month</p>
+                <p className={PANEL_DESCRIPTION_CLASS}>Status distribution for {periodLabel}</p>
             </div>
             {safeTotal > 0 && (
                 <span className={PANEL_META_CLASS}>
@@ -424,7 +497,7 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0 }) => {
                 </dl>
             </div>
         ) : (
-            <div className="mt-3"><EmptyChart message="No lifecycle data" detail="No reports were created in the selected month." /></div>
+            <div className="mt-3"><EmptyChart message="No lifecycle data" detail={`No reports were created in ${periodLabel}.`} /></div>
         )}
     </div>
     );
@@ -497,6 +570,10 @@ const DashboardAnalyticsWorkspace = ({
     hasMunicipality,
     selectedMonth,
     setSelectedMonth,
+    analyticsScope = ANALYTICS_SCOPE.MONTHLY,
+    setAnalyticsScope,
+    selectedYear,
+    setSelectedYear,
     reports,
     allReports,
     highRiskZones,
@@ -521,6 +598,25 @@ const DashboardAnalyticsWorkspace = ({
     const safeChartData = toSafeArray(chartData);
     const safeMetrics = (performanceMetrics && typeof performanceMetrics === 'object') ? performanceMetrics : {};
     const effectiveMonth = toValidDate(selectedMonth) || new Date();
+    const currentYear = new Date().getFullYear();
+    const effectiveYear = Number.isFinite(Number(selectedYear)) ? Number(selectedYear) : currentYear;
+    const scopeLabelId = useId();
+    // One phrase names the active period. The subtitle, the panel descriptions
+    // and the export caption all read it, so they cannot describe different
+    // periods — and in All time it is the sentence that replaces the picker.
+    const periodLabel = analyticsScope === ANALYTICS_SCOPE.ALL_TIME
+        ? 'all recorded incidents'
+        : analyticsScope === ANALYTICS_SCOPE.YEARLY
+            ? String(effectiveYear)
+            : formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period');
+    const scopeMetaSuffix = analyticsScope === ANALYTICS_SCOPE.ALL_TIME
+        ? 'all recorded incidents'
+        : `${periodLabel} scope`;
+    const insightsLabel = analyticsScope === ANALYTICS_SCOPE.YEARLY
+        ? 'Yearly insights'
+        : analyticsScope === ANALYTICS_SCOPE.ALL_TIME
+            ? 'All-time insights'
+            : 'Monthly insights';
     const activeRiskZoneCount = safeZones.filter((zone) => zone?.isActive !== false).length;
     const [mapStatusFilter, setMapStatusFilter] = useState('all');
     const [selectedDay, setSelectedDay] = useState(null);
@@ -554,30 +650,50 @@ const DashboardAnalyticsWorkspace = ({
         return getMunicipalityMapFocus(user?.assignedMunicipality);
     }, [focusLocation, user?.assignedMunicipality]);
 
-    // Day drill-downs belong to one month view; a new month starts unfiltered.
+    // Bucket drill-downs belong to one period; a new month, year, or scope
+    // starts unfiltered.
     useEffect(() => {
         setSelectedDay(null);
-    }, [selectedMonth]);
+    }, [selectedMonth, selectedYear, analyticsScope]);
 
-    const prevMonthCount = (() => {
-        // Pace-fair delta: when viewing the in-progress Manila month, compare
-        // against the previous month's first N days — never a partial month
-        // against a full one.
+    // The previous period's count, for the trend's "more/fewer than" line. All
+    // time has nothing to compare against, so it reports no delta at all rather
+    // than a zero that would read as "no change".
+    const { prevPeriodCount, prevPeriodLabel } = useMemo(() => {
+        if (analyticsScope === ANALYTICS_SCOPE.ALL_TIME) {
+            return { prevPeriodCount: null, prevPeriodLabel: null };
+        }
         try {
+            if (analyticsScope === ANALYTICS_SCOPE.YEARLY) {
+                const previousYear = effectiveYear - 1;
+                const count = safeAllReports.filter((item) => {
+                    if (!item?.createdAt) return false;
+                    const reportedAt = parseISO(item.createdAt);
+                    return !Number.isNaN(reportedAt.getTime()) && reportedAt.getFullYear() === previousYear;
+                }).length;
+                return { prevPeriodCount: count, prevPeriodLabel: String(previousYear) };
+            }
+            // Pace-fair delta: when viewing the in-progress Manila month, compare
+            // against the previous month's first N days — never a partial month
+            // against a full one.
             const nowManila = new Date(Date.now() + MANILA_OFFSET_MS);
             const viewingCurrentManilaMonth = getManilaMonthKey(effectiveMonth) === getManilaMonthKey(nowManila);
-            return countReportsInMonth(
+            const count = countReportsInMonth(
                 safeAllReports,
                 subMonths(effectiveMonth, 1),
                 viewingCurrentManilaMonth
                     ? { throughDayOfMonth: nowManila.getUTCDate() }
                     : {},
             );
+            return { prevPeriodCount: count, prevPeriodLabel: null };
         } catch {
-            return 0;
+            return { prevPeriodCount: 0, prevPeriodLabel: null };
         }
-    })();
-    const mapDayReports = selectedDay ? filterReportsByDayKey(safeReports, selectedDay) : safeReports;
+    }, [analyticsScope, effectiveMonth, effectiveYear, safeAllReports]);
+
+    const mapDayReports = selectedDay
+        ? filterReportsByPeriodKey(safeReports, { scope: analyticsScope, periodKey: selectedDay })
+        : safeReports;
     const selectedDayLabel = safeChartData.find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
 
     // Every tab counts its own set on the month's reports, `all` included — and
@@ -607,7 +723,9 @@ const DashboardAnalyticsWorkspace = ({
                 import('../../utils/excelExport'),
                 import('file-saver'),
             ]);
-            const monthLabel = formatMonthLabel(effectiveMonth, 'MMMM yyyy', '');
+            // The caption names whatever period is on screen, so an all-time
+            // export cannot be filed as if it were one month's.
+            const monthLabel = analyticsScope === ANALYTICS_SCOPE.ALL_TIME ? 'All time' : periodLabel;
             // Cap export rows: a full prod history can OOM the tab on EOC hardware.
             const MAX_EXPORT_ROWS = 5000;
             const exportIncidents = safeAllReports.slice(0, MAX_EXPORT_ROWS);
@@ -664,9 +782,11 @@ const DashboardAnalyticsWorkspace = ({
                         </div>
                     ))}
                 </div>
-                <div className={`${PANEL_SURFACE} grid xl:grid-cols-3`}>
+                {/* Matches the real insights grid: same cap, same 3:2 split, so the
+                    cards do not jump sideways when the data lands. */}
+                <div className={`${PANEL_SURFACE} mx-auto grid w-full max-w-6xl xl:grid-cols-5`}>
+                    <SkeletonCard className="h-80 xl:col-span-3" />
                     <SkeletonCard className="h-80 xl:col-span-2" />
-                    <SkeletonCard className="h-80" />
                 </div>
                 <SkeletonCard className="h-80" />
             </div>
@@ -684,78 +804,161 @@ const DashboardAnalyticsWorkspace = ({
                         <h1 className="mt-1.5 font-display text-[28px] font-semibold leading-tight tracking-tight sm:text-[32px]">Municipal Situation Overview</h1>
                         <p className={`mt-2 max-w-[70ch] text-[13px] leading-relaxed ${styles.secondary}`}>
                             {hasMunicipality
-                                ? `${user?.assignedMunicipality} incident status and response readiness for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`
-                                : `Island-wide incident briefing and municipal comparisons for ${formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}.`}
+                                ? `${user?.assignedMunicipality} incident status and response readiness for ${periodLabel}.`
+                                : `Island-wide incident briefing and municipal comparisons for ${periodLabel}.`}
                         </p>
                     </div>
                     {viewSwitch && <div className="shrink-0 sm:pt-1">{viewSwitch}</div>}
                 </div>
 
                 <div className={`flex w-full flex-col gap-3 border-b pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`} role="toolbar" aria-label="Analytics controls">
-                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" role="group" aria-label="Reporting period">
-                        <span className={`text-xs font-medium ${styles.secondary}`}>Reporting period</span>
-                        <div className={`${styles.periodControl} w-full sm:w-64`}>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedMonth((current) => {
-                                    try {
-                                        const base = toValidDate(current) || new Date();
-                                        return subMonths(base, 1);
-                                    } catch {
-                                        return new Date();
-                                    }
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
+                        {/* The scope control is a segmented group, not three words in a
+                            row: one bounded track holds the options, and the active one
+                            is raised, ringed, heavier AND check-marked — so selection
+                            never rests on colour alone. `aria-pressed` is the app's own
+                            segmented-control convention (see MapFilterRail). */}
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <span id={scopeLabelId} className={`text-xs font-medium ${styles.secondary}`}>Scope</span>
+                            <div role="group" aria-labelledby={scopeLabelId} className={styles.scopeControl}>
+                                {SCOPE_OPTIONS.map((option) => {
+                                    const isActive = option.value === analyticsScope;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            aria-pressed={isActive}
+                                            title={option.title}
+                                            onClick={() => setAnalyticsScope?.(option.value)}
+                                            className={`${styles.scopeButton} ${isActive ? styles.scopeButtonActive : ''}`}
+                                        >
+                                            <span className={styles.scopeIndicator} aria-hidden="true">
+                                                {isActive ? <HiCheck className="h-3.5 w-3.5" /> : null}
+                                            </span>
+                                            {option.label}
+                                        </button>
+                                    );
                                 })}
-                                className={styles.periodButton}
-                                aria-label="Previous month"
-                            >
-                                <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedMonth(new Date())}
-                                className={`${styles.periodButton} flex-1 gap-2 px-2 text-[13px] font-semibold`}
-                                aria-label="Return to current month"
-                                title="Return to current month"
-                            >
-                                <HiOutlineCalendar className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                <span aria-live="polite" aria-atomic="true">{formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')}</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    try {
-                                        const base = toValidDate(selectedMonth) || new Date();
-                                        const nextMonth = addMonths(base, 1);
-                                        if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
-                                    } catch {
-                                        setSelectedMonth(new Date());
-                                    }
-                                }}
-                                disabled={(() => {
-                                    try {
-                                        return isSameMonth(effectiveMonth, new Date());
-                                    } catch {
-                                        return false;
-                                    }
-                                })()}
-                                className={styles.periodButton}
-                                aria-label="Next month"
-                            >
-                                <HiChevronRight className="h-5 w-5" aria-hidden="true" />
-                            </button>
+                            </div>
                         </div>
+
+                        {/* The period picker is the scope's own detail, so it exists only
+                            for the two scopes that have a period to pick. All time has
+                            none: the scope control and the page subtitle already say what
+                            is on screen, and a disabled-looking date control beside them
+                            would only promise a choice that does not exist. */}
+                        {analyticsScope === ANALYTICS_SCOPE.MONTHLY && (
+                            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <span className={`text-xs font-medium ${styles.secondary}`}>Reporting month</span>
+                                <div className={`${styles.periodControl} w-full sm:w-64`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedMonth((current) => {
+                                            try {
+                                                const base = toValidDate(current) || new Date();
+                                                return subMonths(base, 1);
+                                            } catch {
+                                                return new Date();
+                                            }
+                                        })}
+                                        className={styles.periodButton}
+                                        aria-label="Previous month"
+                                    >
+                                        <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedMonth(new Date())}
+                                        className={`${styles.periodButton} flex-1 gap-2 px-2 text-[13px] font-semibold`}
+                                        aria-label="Return to current month"
+                                        title="Return to current month"
+                                    >
+                                        <HiOutlineCalendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <span aria-live="polite" aria-atomic="true">{formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            try {
+                                                const base = toValidDate(selectedMonth) || new Date();
+                                                const nextMonth = addMonths(base, 1);
+                                                if (nextMonth <= new Date()) setSelectedMonth(nextMonth);
+                                            } catch {
+                                                setSelectedMonth(new Date());
+                                            }
+                                        }}
+                                        disabled={(() => {
+                                            try {
+                                                return isSameMonth(effectiveMonth, new Date());
+                                            } catch {
+                                                return false;
+                                            }
+                                        })()}
+                                        className={styles.periodButton}
+                                        aria-label="Next month"
+                                    >
+                                        <HiChevronRight className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {analyticsScope === ANALYTICS_SCOPE.YEARLY && (
+                            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <span className={`text-xs font-medium ${styles.secondary}`}>Reporting year</span>
+                                <div className={`${styles.periodControl} w-full sm:w-64`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedYear?.((current) => {
+                                            const value = Number(current);
+                                            return Number.isFinite(value) ? value - 1 : currentYear;
+                                        })}
+                                        className={styles.periodButton}
+                                        aria-label="Previous year"
+                                    >
+                                        <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedYear?.(currentYear)}
+                                        className={`${styles.periodButton} flex-1 gap-2 px-2 text-[13px] font-semibold`}
+                                        aria-label="Return to current year"
+                                        title="Return to current year"
+                                    >
+                                        <HiOutlineCalendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <span aria-live="polite" aria-atomic="true">{effectiveYear}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedYear?.((current) => {
+                                            const value = Number(current);
+                                            return Number.isFinite(value) ? Math.min(value + 1, currentYear) : currentYear;
+                                        })}
+                                        disabled={effectiveYear >= currentYear}
+                                        className={styles.periodButton}
+                                        aria-label="Next year"
+                                    >
+                                        <HiChevronRight className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        icon={HiOutlineDownload}
-                        onClick={exportDashboard}
-                        className={`${styles.exportButton} w-full sm:w-auto`}
-                        aria-label="Export dashboard data as Excel"
-                    >
-                        Export Excel
-                    </Button>
+                    {/* Export is an action, not a period control: it keeps its own cell,
+                        and earns a rule only while the toolbar is stacked. */}
+                    <div className={`w-full border-t pt-4 sm:w-auto sm:border-t-0 sm:pt-0 ${styles.rule}`}>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="md"
+                            icon={HiOutlineDownload}
+                            onClick={exportDashboard}
+                            className={`${styles.exportButton} w-full sm:w-auto`}
+                            aria-label="Export dashboard data as Excel"
+                        >
+                            Export Excel
+                        </Button>
+                    </div>
                 </div>
             </header>
 
@@ -770,7 +973,7 @@ const DashboardAnalyticsWorkspace = ({
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <h2 className={SECTION_LABEL_CLASS}>Incident overview</h2>
                     <p className={`text-[11px] ${styles.subtle}`}>
-                        Operational status · {formatMonthLabel(effectiveMonth, 'MMMM yyyy', '')} scope
+                        Operational status · {scopeMetaSuffix}
                     </p>
                 </div>
 
@@ -835,28 +1038,47 @@ const DashboardAnalyticsWorkspace = ({
                 </div>
             </section>
 
-            {/* Monthly Insights Section: Incident Trend & Lifecycle */}
-            {/* Two columns from xl, not lg. The app's sidebar is 240px from lg
-                and the main column keeps 32px of padding, so the width a 1024px
-                viewport leaves for content is 720px — the same 720px a 768px
-                tablet has, where this section has always stacked. Three columns
-                of 226px split that into a 453px trend chart (31 day-bars in
-                ~436px) beside a lifecycle card narrower than its own rows. From
-                xl the content column is 976px and the same three columns are
-                314px each, with the trend at 640px — so the split starts where it
-                fits rather than where the viewport name changes. */}
-            <section className={`${PANEL_SURFACE} grid xl:grid-cols-3`} aria-label="Monthly insights">
-                <TrendPanel chartData={safeChartData} selectedMonth={effectiveMonth} reportCount={safeCount(safeReports)} prevMonthCount={prevMonthCount} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-                <LifecyclePanel statusData={toSafeArray(statusData)} totalReports={safeCount(safeReports)} />
+            {/* Incident trend & lifecycle. Two columns from xl, not lg: the app's
+                sidebar is 240px from lg and the main column keeps 32px of padding,
+                so a 1024px viewport leaves 720px for content — the same 720px a
+                768px tablet has, where this section has always stacked. Below xl
+                the two panels stack full width.
+
+                The xl split is 3:2, not 2:1. The trend is the wider half because
+                it carries an axis and a stacked severity bar per bucket, but 2:1
+                handed the plot two thirds of the section for twelve bars or fewer
+                while the lifecycle card got a column narrower than its own rows.
+
+                The section is capped at 1152px (max-w-6xl) and centred. The
+                workspace runs to 1500px, so on a 1920px display an uncapped grid
+                gave the trend panel ~1000px — a plot half again wider than the
+                ~640px it was tuned at, with every bar spread out to match. 1152px
+                puts the trend at ~690px and the lifecycle at ~460px. With 304px of
+                chrome from lg (240px sidebar + 2×32px padding) the cap starts to
+                bind at ~1456px viewport; below that the section is the content
+                width, and on a phone it is the full column. */}
+            <section className={`${PANEL_SURFACE} mx-auto grid w-full max-w-6xl xl:grid-cols-5`} aria-label={insightsLabel}>
+                <TrendPanel
+                    chartData={safeChartData}
+                    selectedMonth={effectiveMonth}
+                    reportCount={safeCount(safeReports)}
+                    prevMonthCount={prevPeriodCount}
+                    prevLabel={prevPeriodLabel}
+                    selectedDay={selectedDay}
+                    onSelectDay={setSelectedDay}
+                    scope={analyticsScope}
+                    periodLabel={periodLabel}
+                />
+                <LifecyclePanel statusData={toSafeArray(statusData)} totalReports={safeCount(safeReports)} periodLabel={periodLabel} />
             </section>
 
             <section className={`${PANEL_SURFACE} overflow-hidden`} aria-label="Analytics map">
                 <div className="flex flex-col gap-4 px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
                     <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
                         <div className="min-w-0">
-                            <h2 className={PANEL_TITLE_CLASS}>Monthly incident map</h2>
+                            <h2 className={PANEL_TITLE_CLASS}>{SCOPE_MAP_HEADING[analyticsScope] || SCOPE_MAP_HEADING[ANALYTICS_SCOPE.MONTHLY]}</h2>
                             <p className={PANEL_DESCRIPTION_CLASS}>
-                                Geographic incident distribution for {formatMonthLabel(effectiveMonth, 'MMMM yyyy', 'selected period')}
+                                Geographic incident distribution for {periodLabel}
                             </p>
                         </div>
                         <button

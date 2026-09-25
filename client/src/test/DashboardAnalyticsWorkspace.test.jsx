@@ -6,7 +6,12 @@ vi.mock('recharts', () => ({
     BarChart: ({ children }) => <div data-testid="incident-bar-chart">{children}</div>,
     LineChart: ({ children }) => <div data-testid="incident-line-chart">{children}</div>,
     Line: ({ name }) => <div>{name}</div>,
-    Bar: ({ children }) => <div>{children}</div>,
+    // `maxBarSize` is consumed by recharts internally, so the mock has to record
+    // the props for the bar cap to be assertable at all.
+    Bar: ({ children, ...props }) => {
+        mocks.barProps(props);
+        return <div>{children}</div>;
+    },
     LabelList: () => null,
     CartesianGrid: () => null,
     Cell: () => null,
@@ -15,7 +20,7 @@ vi.mock('recharts', () => ({
     YAxis: () => null,
 }));
 
-const mocks = vi.hoisted(() => ({ mapProps: vi.fn() }));
+const mocks = vi.hoisted(() => ({ mapProps: vi.fn(), barProps: vi.fn() }));
 
 // Reach is an admin-only fetch of its own; stubbed so the section is on screen
 // and its layout is testable without a network round trip.
@@ -69,8 +74,8 @@ const baseProps = {
         responseSampleCount: 0,
     },
     chartData: [
-        { date: 'Jul 16', fullDate: 'Jul 16, 2026', total: 0 },
-        { date: 'Jul 17', fullDate: 'Jul 17, 2026', total: 1 },
+        { date: 'Jul 16', fullDate: 'Jul 16, 2026', dayKey: '2026-07-16', total: 0 },
+        { date: 'Jul 17', fullDate: 'Jul 17, 2026', dayKey: '2026-07-17', total: 1 },
     ],
     statusData: [{ name: 'Verified', value: 1, color: '#3b82f6' }],
     municipalityBarData: [{ name: 'Cajidiocan', count: 1 }],
@@ -331,18 +336,109 @@ describe('DashboardAnalyticsWorkspace', () => {
 
             // A 768px tablet and a 1024px laptop both leave 720px of content —
             // the sidebar spends exactly what the wider padding gives back — so
-            // the 2×2 and the 3-column splits are keyed to the width they need:
-            // two cards from md, the trend's two-of-three from xl.
+            // the 2×2 and the two-column splits are keyed to the width they need:
+            // two cards from md, the trend/lifecycle split from xl.
             const insights = screen.getByLabelText('Monthly insights');
-            expect(insights).toHaveClass('xl:grid-cols-3');
-            expect(insights.className).not.toMatch(/\blg:grid-cols-3\b/);
-            expect(screen.getByRole('heading', { name: 'Incident trend' }).closest('div[class*="xl:col-span-2"]')).not.toBeNull();
+            expect(insights).toHaveClass('xl:grid-cols-5');
+            expect(insights.className).not.toMatch(/\blg:grid-cols-5\b/);
+            expect(screen.getByRole('heading', { name: 'Incident trend' }).closest('div[class*="xl:col-span-3"]')).not.toBeNull();
+            expect(screen.getByRole('heading', { name: 'Report lifecycle' }).closest('div[class*="xl:col-span-2"]')).not.toBeNull();
 
             for (const label of ['Operational breakdown', 'Reach']) {
                 const section = screen.getByLabelText(label);
                 expect(section).toHaveClass('md:grid-cols-2');
                 expect(section.className).not.toMatch(/\blg:grid-cols-2\b/);
             }
+        });
+
+        test('caps and centres the insights section instead of letting it run to the workspace edge', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            // The workspace runs to 1500px. Uncapped, a 1920px display handed the
+            // trend panel ~1000px; the cap holds the plot near the ~640px it was
+            // tuned at, and mx-auto keeps the section on the content axis.
+            const insights = screen.getByLabelText('Monthly insights');
+            expect(insights).toHaveClass('mx-auto', 'w-full', 'max-w-6xl');
+        });
+
+        test('caps bar width so a scope with few buckets cannot draw oversized bars', () => {
+            mocks.barProps.mockClear();
+            render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            const caps = mocks.barProps.mock.calls.map(([props]) => props.maxBarSize);
+
+            // Every severity series carries the cap. Monthly's 28-31 categories
+            // already sit well under it, so this only bites where a scope draws
+            // twelve bars or one.
+            expect(caps.length).toBeGreaterThan(0);
+            expect(caps.every((value) => value === 56)).toBe(true);
+        });
+
+        test('lists a thin bucketed trend rather than stretching a near-empty chart', () => {
+            const february = {
+                ...report,
+                _id: 'feb-1',
+                createdAt: '2026-02-10T10:00:00+08:00',
+                updatedAt: '2026-02-10T10:00:00+08:00',
+            };
+            const yearlyTrend = [
+                { date: 'Jan', fullDate: 'January 2026', dayKey: '2026-01', total: 0, minor: 0, moderate: 0, severe: 0, critical: 0, unknown: 0 },
+                { date: 'Feb', fullDate: 'February 2026', dayKey: '2026-02', total: 3, minor: 1, moderate: 0, severe: 0, critical: 2, unknown: 0 },
+                { date: 'Mar', fullDate: 'March 2026', dayKey: '2026-03', total: 0, minor: 0, moderate: 0, severe: 0, critical: 0, unknown: 0 },
+            ];
+
+            mocks.mapProps.mockClear();
+            render(
+                <DashboardAnalyticsWorkspace
+                    {...baseProps}
+                    analyticsScope="yearly"
+                    selectedYear={2026}
+                    setSelectedYear={vi.fn()}
+                    reports={[february]}
+                    allReports={[february]}
+                    chartData={yearlyTrend}
+                />
+            );
+
+            // One active bucket out of twelve: no plot, but the period, the count
+            // and the drill-down all survive.
+            expect(screen.queryByTestId('incident-bar-chart')).not.toBeInTheDocument();
+            const list = screen.getByTestId('incident-days-list');
+            expect(within(list).getByText('February 2026')).toBeInTheDocument();
+            expect(within(list).getByText('3 reports')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Filter map to February 2026, 3 reports' }));
+
+            expect(screen.getByText('Showing Feb')).toBeInTheDocument();
+            expect(mocks.mapProps.mock.calls.at(-1)[0].reports.map((item) => item._id)).toEqual(['feb-1']);
+        });
+
+        test('keeps the bar chart for a bucketed scope with more than two active buckets', () => {
+            const yearlyTrend = ['Jan', 'Feb', 'Mar'].map((label, index) => ({
+                date: label,
+                fullDate: `${label}uary 2026`,
+                dayKey: `2026-0${index + 1}`,
+                total: 1,
+                minor: 1,
+                moderate: 0,
+                severe: 0,
+                critical: 0,
+                unknown: 0,
+            }));
+
+            render(
+                <DashboardAnalyticsWorkspace
+                    {...baseProps}
+                    analyticsScope="yearly"
+                    selectedYear={2026}
+                    setSelectedYear={vi.fn()}
+                    chartData={yearlyTrend}
+                />
+            );
+
+            // Three active months is a trend, not a list.
+            expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
+            expect(screen.queryByTestId('incident-days-list')).not.toBeInTheDocument();
         });
     });
 
@@ -457,6 +553,89 @@ describe('DashboardAnalyticsWorkspace', () => {
 
             fireEvent.click(screen.getByRole('button', { name: 'Filter map to Sep 5, 2026, 1 report' }));
             expect(screen.queryByText('Showing Sep 5')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('reporting scope control', () => {
+        const currentYear = new Date().getFullYear();
+
+        test('groups the three scopes into one segmented control, Monthly by default', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            const group = screen.getByRole('group', { name: 'Scope' });
+            const options = within(group).getAllByRole('button');
+
+            // Three separate selectable options, not a run of words.
+            expect(options.map((button) => button.textContent)).toEqual(['Monthly', 'Yearly', 'All time']);
+            expect(within(group).getByRole('button', { name: 'Monthly' })).toHaveAttribute('aria-pressed', 'true');
+            expect(within(group).getByRole('button', { name: 'Yearly' })).toHaveAttribute('aria-pressed', 'false');
+            expect(within(group).getByRole('button', { name: 'All time' })).toHaveAttribute('aria-pressed', 'false');
+
+            // Selection is never colour alone: the active option is the one that
+            // carries the check, and the two beside it carry none.
+            expect(within(group).getByRole('button', { name: 'Monthly' }).querySelector('svg')).not.toBeNull();
+            expect(within(group).getByRole('button', { name: 'Yearly' }).querySelector('svg')).toBeNull();
+        });
+
+        test('shows the month picker only in Monthly and the year picker only in Yearly', () => {
+            const { rerender } = render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            expect(screen.getByText('Reporting month')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument();
+            expect(screen.queryByText('Reporting year')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Previous year' })).not.toBeInTheDocument();
+
+            rerender(
+                <DashboardAnalyticsWorkspace
+                    {...baseProps}
+                    analyticsScope="yearly"
+                    selectedYear={currentYear}
+                    setSelectedYear={vi.fn()}
+                />
+            );
+
+            expect(screen.getByText('Reporting year')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Previous year' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Next year' })).toBeDisabled();
+            expect(screen.queryByText('Reporting month')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument();
+
+            // The panels follow the scope rather than still describing a month.
+            expect(screen.getByText(new RegExp(`readiness for ${currentYear}\\.`))).toBeInTheDocument();
+            expect(screen.getByLabelText('Yearly insights')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Yearly incident map' })).toBeInTheDocument();
+        });
+
+        test('drops every period control in All time, leaving the scope and the subtitle to speak', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} analyticsScope="all_time" />);
+
+            // No period label, no calendar, no picker — the whole cluster is gone,
+            // not merely disabled.
+            expect(screen.queryByText('Reporting month')).not.toBeInTheDocument();
+            expect(screen.queryByText('Reporting year')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Previous year' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Return to current month' })).not.toBeInTheDocument();
+
+            // What replaces it is the active scope and the subtitle.
+            expect(screen.getByRole('button', { name: 'All time' })).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByText(/readiness for all recorded incidents\./)).toBeInTheDocument();
+            expect(screen.getByLabelText('All-time insights')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'All-time incident map' })).toBeInTheDocument();
+        });
+
+        test('reports the chosen scope and keeps export outside the scope group', () => {
+            const setAnalyticsScope = vi.fn();
+            render(<DashboardAnalyticsWorkspace {...baseProps} setAnalyticsScope={setAnalyticsScope} />);
+
+            const group = screen.getByRole('group', { name: 'Scope' });
+            fireEvent.click(within(group).getByRole('button', { name: 'Yearly' }));
+
+            expect(setAnalyticsScope).toHaveBeenCalledWith('yearly');
+
+            // Export is an action, not a scope option, so it never sits in the group.
+            expect(within(group).queryByRole('button', { name: 'Export dashboard data as Excel' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Export dashboard data as Excel' })).toBeInTheDocument();
         });
     });
 });

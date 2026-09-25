@@ -17,6 +17,22 @@ const MONTH_ABBR = Object.freeze([
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]);
 
+const MONTH_FULL = Object.freeze([
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+]);
+
+/**
+ * The three reporting scopes the analytics workspace offers. One bucket
+ * granularity per scope: days inside a month, months inside a year, years
+ * across everything.
+ */
+export const ANALYTICS_SCOPE = Object.freeze({
+    MONTHLY: 'monthly',
+    YEARLY: 'yearly',
+    ALL_TIME: 'all_time',
+});
+
 const pad2 = (value) => String(value).padStart(2, '0');
 
 const manilaParts = (date) => {
@@ -37,6 +53,8 @@ export const getManilaMonthKey = (date) => {
     const parts = manilaParts(date);
     return `${parts.year}-${pad2(parts.month)}`;
 };
+
+export const getManilaYearKey = (date) => String(manilaParts(date).year);
 
 const daysInManilaMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
@@ -166,10 +184,119 @@ export const filterReportsByDayKey = (reports = [], dayKey) => {
 };
 
 /**
+ * Bucket reports by month across one calendar year (Manila), so a Yearly scope
+ * reads as twelve bars rather than 365. Months that have not happened yet in the
+ * viewed year are omitted, the same way buildDailyIncidentTrend stops at today.
+ */
+export const buildMonthlyIncidentTrend = ({ reports = [], selectedYear, now = new Date() } = {}) => {
+    const reference = manilaParts(toValidDate(now) || new Date());
+    const year = Number.isFinite(Number(selectedYear)) ? Number(selectedYear) : reference.year;
+    const lastMonth = reference.year === year ? reference.month : 12;
+
+    const totals = new Map();
+    const severity = new Map();
+    for (const report of Array.isArray(reports) ? reports : []) {
+        const reportedAt = toValidDate(report?.createdAt);
+        if (!reportedAt) continue;
+        const key = getManilaMonthKey(reportedAt);
+        if (!key.startsWith(`${year}-`)) continue;
+        totals.set(key, (totals.get(key) || 0) + 1);
+        if (!severity.has(key)) severity.set(key, emptySeverityBuckets());
+        severity.get(key)[normalizeSeverity(report?.severity)] += 1;
+    }
+
+    return Array.from({ length: lastMonth }, (_, index) => {
+        const month = index + 1;
+        const key = `${year}-${pad2(month)}`;
+        return {
+            date: MONTH_ABBR[month - 1],
+            fullDate: `${MONTH_FULL[month - 1]} ${year}`,
+            dayKey: key,
+            total: totals.get(key) || 0,
+            ...(severity.get(key) || emptySeverityBuckets()),
+        };
+    });
+};
+
+/**
+ * Bucket reports by year across everything the scope holds. The range runs from
+ * the earliest record to the current year, so a quiet year between two busy ones
+ * stays visible as a gap instead of being closed up.
+ */
+export const buildYearlyIncidentTrend = ({ reports = [], now = new Date() } = {}) => {
+    const referenceYear = manilaParts(toValidDate(now) || new Date()).year;
+    const totals = new Map();
+    const severity = new Map();
+
+    for (const report of Array.isArray(reports) ? reports : []) {
+        const reportedAt = toValidDate(report?.createdAt);
+        if (!reportedAt) continue;
+        const key = getManilaYearKey(reportedAt);
+        totals.set(key, (totals.get(key) || 0) + 1);
+        if (!severity.has(key)) severity.set(key, emptySeverityBuckets());
+        severity.get(key)[normalizeSeverity(report?.severity)] += 1;
+    }
+
+    if (totals.size === 0) return [];
+
+    const years = [...totals.keys()].map(Number);
+    const firstYear = Math.min(...years);
+    const lastYear = Math.max(referenceYear, ...years);
+
+    return Array.from({ length: lastYear - firstYear + 1 }, (_, index) => {
+        const key = String(firstYear + index);
+        return {
+            date: key,
+            fullDate: key,
+            dayKey: key,
+            total: totals.get(key) || 0,
+            ...(severity.get(key) || emptySeverityBuckets()),
+        };
+    });
+};
+
+/**
+ * The trend for whichever scope is active, so the workspace asks one question
+ * and gets back the bucket size that scope implies.
+ */
+export const buildPeriodIncidentTrend = ({
+    reports = [],
+    scope = ANALYTICS_SCOPE.MONTHLY,
+    selectedMonth,
+    selectedYear,
+    now = new Date(),
+} = {}) => {
+    if (scope === ANALYTICS_SCOPE.ALL_TIME) return buildYearlyIncidentTrend({ reports, now });
+    if (scope === ANALYTICS_SCOPE.YEARLY) return buildMonthlyIncidentTrend({ reports, selectedYear, now });
+    return buildDailyIncidentTrend({ reports, selectedMonth, now });
+};
+
+/**
+ * Keep the reports behind one trend bucket, for click-to-filter drill-downs.
+ * The key is a Manila day, month, or year depending on the active scope —
+ * `buildPeriodIncidentTrend` produces exactly those keys as `dayKey`.
+ */
+export const filterReportsByPeriodKey = (reports = [], { scope = ANALYTICS_SCOPE.MONTHLY, periodKey } = {}) => {
+    const source = Array.isArray(reports) ? reports : [];
+    if (!periodKey) return source;
+
+    const keyOf = scope === ANALYTICS_SCOPE.ALL_TIME
+        ? getManilaYearKey
+        : scope === ANALYTICS_SCOPE.YEARLY
+            ? getManilaMonthKey
+            : getManilaDayKey;
+
+    return source.filter((report) => {
+        const reportedAt = toValidDate(report?.createdAt);
+        return reportedAt ? keyOf(reportedAt) === periodKey : false;
+    });
+};
+
+/**
  * One-line admin insight derived from built trend data:
  * total, peak day, quiet-day count, and an optional month-over-month delta.
  */
-export const getTrendInsight = (chartData = [], { selectedMonth, prevMonthCount = null } = {}) => {
+export const getTrendInsight = (chartData = [], { selectedMonth, prevMonthCount = null, prevLabel = null } = {}) => {
     const days = Array.isArray(chartData) ? chartData : [];
     const total = days.reduce((sum, day) => sum + (Number(day?.total) || 0), 0);
 
@@ -186,17 +313,19 @@ export const getTrendInsight = (chartData = [], { selectedMonth, prevMonthCount 
     let delta = null;
     if (Number.isFinite(prevMonthCount) && (total > 0 || prevMonthCount > 0)) {
         const month = toValidDate(selectedMonth);
-        const prevLabel = month
+        // The caller owns the comparison's name when it is not a month — a Yearly
+        // scope compares against "2025", which no month formatter can produce.
+        const resolvedPrevLabel = prevLabel || (month
             ? format(new Date(month.getFullYear(), month.getMonth() - 1, 1), 'MMM')
-            : 'prev. month';
+            : 'prev. month');
         const diff = total - prevMonthCount;
         // Plain words instead of signed arithmetic: "-3 vs Aug" reads as an
         // error code, "3 fewer than August" reads as a sentence.
         const label = diff > 0
-            ? `${diff} more than ${prevLabel}`
+            ? `${diff} more than ${resolvedPrevLabel}`
             : diff < 0
-                ? `${-diff} fewer than ${prevLabel}`
-                : `No change vs ${prevLabel}`;
+                ? `${-diff} fewer than ${resolvedPrevLabel}`
+                : `No change vs ${resolvedPrevLabel}`;
         delta = { diff, label };
     }
 

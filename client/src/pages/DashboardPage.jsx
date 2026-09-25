@@ -33,7 +33,7 @@ import {
     resolveDashboardView,
 } from '../utils/dashboardView';
 import { withoutFocusedEntity } from '../utils/dashboardFocus';
-import { buildDailyIncidentTrend } from '../utils/analyticsTrend';
+import { ANALYTICS_SCOPE, buildPeriodIncidentTrend } from '../utils/analyticsTrend';
 import {
     getManilaCalendarDateKey,
     getMillisecondsUntilNextManilaDay,
@@ -98,6 +98,10 @@ const DashboardPage = () => {
     });
     const [dashboardError, setDashboardError] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
+    // The analytics reporting scope. Monthly is the original behaviour and stays
+    // the default, so every existing deep link and test keeps the view it had.
+    const [analyticsScope, setAnalyticsScope] = useState(ANALYTICS_SCOPE.MONTHLY);
+    const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
     const { subscribe, reconnectVersion } = useSocket();
     // The map's view state. Which tab the map opens on is the role's own answer
     // (mapExperience.defaultFilter); this is only this page's copy of it, and the
@@ -724,17 +728,26 @@ const DashboardPage = () => {
     // Filter reports by municipality on the client side
     const filteredReports = dashboardReports;
 
-    // Further filter by selected month for analytics
-    const monthFilteredReports = useMemo(() => {
-        return (Array.isArray(filteredReports) ? filteredReports : []).filter(Boolean).filter(r => {
+    // Further filter by the active reporting scope. Monthly keeps the original
+    // month match; Yearly widens it to a calendar year; All time applies no
+    // period filter at all. One place decides, because every panel below —
+    // metrics, lifecycle, breakdowns, the map, and the export — reads this set.
+    const periodReports = useMemo(() => {
+        const source = (Array.isArray(filteredReports) ? filteredReports : []).filter(Boolean);
+        if (analyticsScope === ANALYTICS_SCOPE.ALL_TIME) return source;
+        return source.filter((report) => {
             try {
-                if (!r?.createdAt) return false;
-                return isSameMonth(parseISO(r.createdAt), selectedMonth);
+                if (!report?.createdAt) return false;
+                const reportedAt = parseISO(report.createdAt);
+                if (analyticsScope === ANALYTICS_SCOPE.YEARLY) {
+                    return reportedAt.getFullYear() === selectedYear;
+                }
+                return isSameMonth(reportedAt, selectedMonth);
             } catch {
                 return false;
             }
         });
-    }, [filteredReports, selectedMonth]);
+    }, [filteredReports, analyticsScope, selectedMonth, selectedYear]);
 
     // Real-time map updates (including public viewers)
     useEffect(() => {
@@ -969,17 +982,17 @@ const DashboardPage = () => {
 
     // ===== COMPUTED DATA =====
 
-    const chartData = useMemo(() => {
-        return buildDailyIncidentTrend({
-            reports: monthFilteredReports,
-            selectedMonth,
-        });
-    }, [monthFilteredReports, selectedMonth]);
+    const chartData = useMemo(() => buildPeriodIncidentTrend({
+        reports: periodReports,
+        scope: analyticsScope,
+        selectedMonth,
+        selectedYear,
+    }), [periodReports, analyticsScope, selectedMonth, selectedYear]);
 
     // Status breakdown
     const statusData = useMemo(() => {
         const counts = { pending: 0, verified: 0, transferred: 0, responding: 0, resolved: 0, rejected: 0 };
-        monthFilteredReports.forEach(r => { if (counts[r?.status] !== undefined) counts[r.status]++; });
+        periodReports.forEach(r => { if (counts[r?.status] !== undefined) counts[r.status]++; });
         return Object.entries(counts)
             .filter(([, v]) => v > 0)
             .map(([name, value]) => ({
@@ -987,7 +1000,7 @@ const DashboardPage = () => {
                 value,
                 color: MAP_STATUS_CONFIG[name].markerColor,
             }));
-    }, [monthFilteredReports]);
+    }, [periodReports]);
 
 
 
@@ -995,19 +1008,19 @@ const DashboardPage = () => {
     // not which office currently handles it)
     const municipalityBarData = useMemo(() => {
         const counts = {};
-        monthFilteredReports.forEach(r => {
+        periodReports.forEach(r => {
             const name = getPhysicalMunicipality(r) || 'Unknown';
             counts[name] = (counts[name] || 0) + 1;
         });
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
-    }, [monthFilteredReports]);
+    }, [periodReports]);
 
     // Barangay breakdown for bar chart
     const barangayBarData = useMemo(() => {
         const counts = {};
-        monthFilteredReports.forEach(r => {
+        periodReports.forEach(r => {
             if (r?.barangay) {
                 const physicalMunicipality = getPhysicalMunicipality(r);
                 const name = activeMunicipality
@@ -1019,11 +1032,11 @@ const DashboardPage = () => {
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
-    }, [monthFilteredReports, activeMunicipality]);
+    }, [periodReports, activeMunicipality]);
 
     const incidentTypeBarData = useMemo(() => {
         const counts = {};
-        monthFilteredReports.forEach((report) => {
+        periodReports.forEach((report) => {
             const rawType = String(report?.incidentType || report?.incidentCategory || 'Unspecified');
             const name = rawType
                 .replace(/[_-]+/g, ' ')
@@ -1033,19 +1046,19 @@ const DashboardPage = () => {
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
-    }, [monthFilteredReports]);
+    }, [periodReports]);
 
     // Response performance metrics
     const performanceMetrics = useMemo(() => {
-        const responseMinutes = monthFilteredReports
+        const responseMinutes = periodReports
             .filter(r => r?.respondedAt && r?.createdAt)
             .map(r => differenceInMinutes(new Date(r.respondedAt), new Date(r.createdAt)))
             .filter(minutes => Number.isFinite(minutes) && minutes >= 0)
             .sort((a, b) => a - b);
-        const resolvedReports = monthFilteredReports.filter(r => r?.status === 'resolved');
-        const respondingReports = monthFilteredReports.filter(r => r?.status === 'responding');
-        const pendingCount = monthFilteredReports.filter(r => r?.status === 'pending').length;
-        const dispatchReadyCount = monthFilteredReports.filter(r => (
+        const resolvedReports = periodReports.filter(r => r?.status === 'resolved');
+        const respondingReports = periodReports.filter(r => r?.status === 'responding');
+        const pendingCount = periodReports.filter(r => r?.status === 'pending').length;
+        const dispatchReadyCount = periodReports.filter(r => (
             ['verified', 'transferred'].includes(r?.status) && !isReportAssigned(r)
         )).length;
 
@@ -1060,7 +1073,7 @@ const DashboardPage = () => {
             : null;
 
         // Resolution rate
-        const totalActionable = monthFilteredReports.filter(r => ['verified', 'transferred', 'responding', 'resolved'].includes(r?.status)).length;
+        const totalActionable = periodReports.filter(r => ['verified', 'transferred', 'responding', 'resolved'].includes(r?.status)).length;
         const resolutionRate = totalActionable > 0 ? Math.round((resolvedReports.length / totalActionable) * 100) : 0;
 
         return {
@@ -1073,7 +1086,7 @@ const DashboardPage = () => {
             dispatchReadyCount,
             resolutionRate,
         };
-    }, [isReportAssigned, monthFilteredReports]);
+    }, [isReportAssigned, periodReports]);
 
 
     const showMapWorkspace = dashboardView === DASHBOARD_MAP_VIEW;
@@ -1151,7 +1164,11 @@ const DashboardPage = () => {
                 hasMunicipality={hasMunicipality}
                 selectedMonth={selectedMonth}
                 setSelectedMonth={setSelectedMonth}
-                reports={monthFilteredReports}
+                analyticsScope={analyticsScope}
+                setAnalyticsScope={setAnalyticsScope}
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
+                reports={periodReports}
                 allReports={dashboardReports}
                 highRiskZones={highRiskZones}
                 performanceMetrics={performanceMetrics}
