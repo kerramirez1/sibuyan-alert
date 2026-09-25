@@ -56,7 +56,8 @@ export const accidentHotspotCircleLayerId = (classValue) => (
  */
 export const ACCIDENT_HOTSPOT_DEFAULT_RULE = Object.freeze({
     radiusMeters: 100,
-    windowDays: 30,
+    timeScope: 'all_time',
+    windowDays: null,
     mediumMinReports: 3,
     highMinReports: 6,
 });
@@ -197,7 +198,7 @@ export const getAccidentHotspotLegendLabel = (classValue) => (
  * person looking at the map is the one who might otherwise assume a government
  * agency produced the circles under their cursor.
  */
-export const ACCIDENT_HOTSPOT_DISCLAIMER = 'Derived from Sibuyan Alert accident reports, not an official government hazard classification.';
+export const ACCIDENT_HOTSPOT_DISCLAIMER = 'Derived from Sibuyan Alert validated accident reports, not an official government hazard classification. Historical report counts describe past incidents and do not establish current road conditions.';
 
 /**
  * The rule in force for a payload, with the client defaults filling any gap.
@@ -213,9 +214,10 @@ export const resolveAccidentHotspotRule = (layer) => {
         radiusMeters: Number(rule.radiusMeters) > 0
             ? Number(rule.radiusMeters)
             : ACCIDENT_HOTSPOT_DEFAULT_RULE.radiusMeters,
+        timeScope: rule.timeScope || (rule.windowDays ? `last_${rule.windowDays}_days` : 'all_time'),
         windowDays: Number(rule.windowDays) > 0
             ? Number(rule.windowDays)
-            : ACCIDENT_HOTSPOT_DEFAULT_RULE.windowDays,
+            : null,
         mediumMinReports: Number(rule.mediumMinReports) > 0
             ? Number(rule.mediumMinReports)
             : ACCIDENT_HOTSPOT_DEFAULT_RULE.mediumMinReports,
@@ -237,9 +239,12 @@ export const describeEmptyHotspotClass = (rule, classValue) => {
         ? rule?.highMinReports
         : rule?.mediumMinReports;
     const radius = rule?.radiusMeters;
-    const days = rule?.windowDays;
 
-    return `No area with ${minimum}+ validated reports within ${radius} m in the last ${days} days.`;
+    if (rule?.windowDays && rule?.timeScope !== 'all_time') {
+        return `No area with ${minimum}+ validated reports within ${radius} m in the last ${rule.windowDays} days.`;
+    }
+
+    return `No area with ${minimum}+ validated accident reports within ${radius} m across all historical records.`;
 };
 
 /**

@@ -34,7 +34,7 @@ const payload = (overrides = {}) => ({
             source: 'Sibuyan Alert accident reports',
             derivedFromReports: true,
             method: 'radius_cluster',
-            rule: { radiusMeters: 100, windowDays: 30, mediumMinReports: 3, highMinReports: 6 },
+            rule: { radiusMeters: 100, timeScope: 'all_time', windowDays: null, mediumMinReports: 3, highMinReports: 6 },
             classes: [{ value: 2, label: 'Medium' }, { value: 3, label: 'High' }],
             features: [
                 {
@@ -66,6 +66,7 @@ describe('useAccidentHotspots', () => {
     });
 
     test('loads the derived layer and keeps the metadata that explains it', async () => {
+        expect(ACCIDENT_HOTSPOTS_CACHE_KEY).toBe('accident-hotspots:sibuyan:all-time');
         const { result } = renderHook(() => useAccidentHotspots());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
@@ -73,12 +74,15 @@ describe('useAccidentHotspots', () => {
         expect(getAccidentHotspotsMock).toHaveBeenCalledTimes(1);
         expect(result.current.layer.derivedFromReports).toBe(true);
         expect(result.current.layer.method).toBe('radius_cluster');
+        expect(result.current.layer.scope).toBe('all_time');
+        expect(result.current.layer.timeScope).toBe('all_time');
         // The rule travels with the layer, so the map draws the radius the data
         // was clustered by and the UI can state the thresholds it used instead of
         // implying them.
         expect(result.current.layer.rule).toEqual({
             radiusMeters: 100,
-            windowDays: 30,
+            timeScope: 'all_time',
+            windowDays: null,
             mediumMinReports: 3,
             highMinReports: 6,
         });

@@ -195,7 +195,8 @@ const hotspotCell = (classValue, count, coordinates) => ({
 });
 const ACCIDENT_RULE = Object.freeze({
     radiusMeters: 100,
-    windowDays: 30,
+    timeScope: 'all_time',
+    windowDays: null,
     mediumMinReports: 3,
     highMinReports: 6,
 });
@@ -1070,7 +1071,7 @@ describe('AdminHighRiskZonesPage', () => {
         expect(high).toHaveAttribute('aria-checked', 'false');
         expect(high).toHaveAttribute(
             'title',
-            'No area with 6+ validated reports within 100 m in the last 30 days.'
+            'No area with 6+ validated accident reports within 100 m across all historical records.'
         );
         expect(medium).not.toBeDisabled();
 
@@ -1080,6 +1081,24 @@ describe('AdminHighRiskZonesPage', () => {
             'title',
             expect.stringMatching(/not an official government hazard classification/i)
         );
+        expect(medium).toHaveAttribute(
+            'title',
+            expect.stringMatching(/do not establish current road conditions/i)
+        );
+        expect(medium).toHaveAttribute(
+            'title',
+            expect.stringMatching(/across all historical records/i)
+        );
+        expect(medium).toHaveAttribute(
+            'title',
+            expect.not.stringMatching(/last \d+ days/i)
+        );
+
+        // Screen reader text confirms all-time historical derivation and disclaimer
+        const srText = screen.getByText(/Clusters of 3\+ validated accident reports within 100 m/i);
+        expect(srText).toHaveTextContent(/across all historical records/i);
+        expect(srText).not.toHaveTextContent(/last \d+ days/i);
+        expect(srText).toHaveTextContent(/do not establish current road conditions/i);
 
         await waitFor(() => {
             const props = mockMapViewProps.mock.lastCall[0];
@@ -1145,7 +1164,7 @@ describe('AdminHighRiskZonesPage', () => {
         const high = within(group).getByRole('switch', { name: 'High Accident-Prone Area' });
         expect(medium).toBeDisabled();
         expect(high).toBeDisabled();
-        expect(high).toHaveAttribute('title', expect.stringContaining('6+ validated reports within 100 m'));
+        expect(high).toHaveAttribute('title', expect.stringContaining('6+ validated accident reports within 100 m'));
 
         // The layer still reaches the map — empty — because the control's job is
         // to state what can be drawn, and right now that is nothing.
@@ -1163,7 +1182,7 @@ describe('AdminHighRiskZonesPage', () => {
         // A configuration change needs no code change here: the payload's rule is
         // what both the map and this sentence read.
         expect(within(group).getByRole('switch', { name: 'High Accident-Prone Area' }))
-            .toHaveAttribute('title', 'No area with 4+ validated reports within 250 m in the last 30 days.');
+            .toHaveAttribute('title', 'No area with 4+ validated accident reports within 250 m across all historical records.');
         expect(mockMapViewProps.mock.lastCall[0].accidentHotspots.rule.radiusMeters).toBe(250);
     });
 

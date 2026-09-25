@@ -91,12 +91,18 @@ const EARTH_RADIUS_METERS = 6_371_008.8;
  * fetch, because the alternative is transferring every report's coordinates on
  * every map load just to discard most of them.
  */
-export const buildAccidentHotspotMatch = (now = new Date(), rule = resolveAccidentHotspotRule()) => {
-    const since = new Date(now.getTime() - (rule.windowDays * 24 * 60 * 60 * 1000));
+/**
+ * The query filter for "reports that may contribute to a hotspot".
+ *
+ * Exported so the aggregation and the tests share one definition: a report
+ * counts when it is validated and has numeric coordinates inside the island
+ * envelope. The all-time layer includes all historical validated reports.
+ */
+export const buildAccidentHotspotMatch = (firstArg, secondArg) => {
+    const rule = (firstArg instanceof Date ? secondArg : firstArg) || resolveAccidentHotspotRule();
 
-    return {
+    const match = {
         status: { $in: [...ACCIDENT_HOTSPOT_STATUSES] },
-        incidentTime: { $gte: since },
         'coordinates.lat': {
             $type: 'number',
             $gte: ACCIDENT_HOTSPOT_BOUNDS.minLat,
@@ -108,6 +114,14 @@ export const buildAccidentHotspotMatch = (now = new Date(), rule = resolveAccide
             $lte: ACCIDENT_HOTSPOT_BOUNDS.maxLng,
         },
     };
+
+    // If a legacy caller specifically supplies a positive windowDays override without all_time scope
+    if (Number(rule?.windowDays) > 0 && rule?.timeScope !== 'all_time') {
+        const now = (firstArg instanceof Date) ? firstArg : new Date();
+        match.incidentTime = { $gte: new Date(now.getTime() - (rule.windowDays * 24 * 60 * 60 * 1000)) };
+    }
+
+    return match;
 };
 
 /** Whether a coordinate may be plotted. Mirrors the query filter, for points. */
@@ -148,6 +162,89 @@ export const haversineMeters = (from, to) => {
 const roundCoordinate = (value) => Number(Number(value).toFixed(6));
 
 /**
+ * Creates an incremental cluster accumulator for streaming/cursor processing.
+ *
+ * Maintains fixed anchor grouping with spatial grid indexing (~0.002 deg cells, ~220 m)
+ * so anchor lookups are O(1) while strictly preserving the deterministic earliest-anchor
+ * matching rule and exact haversine distance verification.
+ */
+export const createHotspotClusterer = ({ radiusMeters = ACCIDENT_HOTSPOT_RULE_DEFAULTS.radiusMeters } = {}) => {
+    const radius = Number(radiusMeters);
+    const reach = Number.isFinite(radius) && radius > 0 ? radius : ACCIDENT_HOTSPOT_RULE_DEFAULTS.radiusMeters;
+
+    const CELL_SIZE = 0.002;
+    const grid = new Map();
+    const hotspots = [];
+    let totalConsidered = 0;
+
+    const cellKey = (cLat, cLng) => `${Math.floor(cLat / CELL_SIZE)}:${Math.floor(cLng / CELL_SIZE)}`;
+
+    const addPoint = (point) => {
+        const lat = Number(point?.lat);
+        const lng = Number(point?.lng);
+        if (!isValidHotspotCoordinate(lat, lng)) return false;
+
+        totalConsidered += 1;
+
+        const cellLat = Math.floor(lat / CELL_SIZE);
+        const cellLng = Math.floor(lng / CELL_SIZE);
+
+        let earliestMatch = null;
+        let earliestMatchIndex = Number.POSITIVE_INFINITY;
+
+        for (let dLat = -1; dLat <= 1; dLat += 1) {
+            for (let dLng = -1; dLng <= 1; dLng += 1) {
+                const key = `${cellLat + dLat}:${cellLng + dLng}`;
+                const candidates = grid.get(key);
+                if (candidates) {
+                    for (const candidateIndex of candidates) {
+                        if (candidateIndex < earliestMatchIndex) {
+                            const candidate = hotspots[candidateIndex];
+                            if (haversineMeters(candidate, { lat, lng }) <= reach) {
+                                earliestMatch = candidate;
+                                earliestMatchIndex = candidateIndex;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (earliestMatch) {
+            earliestMatch.count += 1;
+            return true;
+        }
+
+        const newIndex = hotspots.length;
+        const newHotspot = { lat, lng, count: 1 };
+        hotspots.push(newHotspot);
+
+        const currentKey = cellKey(lat, lng);
+        if (!grid.has(currentKey)) {
+            grid.set(currentKey, [newIndex]);
+        } else {
+            grid.get(currentKey).push(newIndex);
+        }
+
+        return true;
+    };
+
+    const getHotspots = () => hotspots.map((hotspot) => ({
+        lat: roundCoordinate(hotspot.lat),
+        lng: roundCoordinate(hotspot.lng),
+        count: hotspot.count,
+    }));
+
+    return {
+        addPoint,
+        getHotspots,
+        get totalReports() {
+            return totalConsidered;
+        },
+    };
+};
+
+/**
  * Groups reports into hotspots, each with a fixed anchor.
  *
  * The anchor is the hotspot's first (earliest) report, and a later report joins
@@ -157,11 +254,9 @@ const roundCoordinate = (value) => Number(Number(value).toFixed(6));
  *
  * - **The drawing is the rule.** A circle of exactly this radius drawn on the
  *   anchor is guaranteed to contain every member, because membership was decided
- *   against that same centre. A drifting centroid would let two members sit
- *   ~200 m apart inside one 100 m circle.
+ *   against that same centre.
  * - **A hotspot stays bounded.** Chain-grouping (A near B, B near C, C near D…)
- *   turns a run of scattered accidents into one hotspot spanning kilometres,
- *   which is not an area anyone can act on.
+ *   turns a run of scattered accidents into one hotspot spanning kilometres.
  *
  * Order matters, so the caller sorts deterministically (earliest first, then by
  * id) and the same data always produces the same hotspots.
@@ -172,30 +267,11 @@ const roundCoordinate = (value) => Number(Number(value).toFixed(6));
  *   discovery order, each with the number of reports in it
  */
 export const clusterAccidentReports = (points, { radiusMeters = ACCIDENT_HOTSPOT_RULE_DEFAULTS.radiusMeters } = {}) => {
-    const radius = Number(radiusMeters);
-    const reach = Number.isFinite(radius) && radius > 0 ? radius : ACCIDENT_HOTSPOT_RULE_DEFAULTS.radiusMeters;
-
-    const hotspots = [];
-
+    const clusterer = createHotspotClusterer({ radiusMeters });
     for (const point of Array.isArray(points) ? points : []) {
-        const lat = Number(point?.lat);
-        const lng = Number(point?.lng);
-        if (!isValidHotspotCoordinate(lat, lng)) continue;
-
-        const hotspot = hotspots.find((candidate) => haversineMeters(candidate, { lat, lng }) <= reach);
-        if (hotspot) {
-            hotspot.count += 1;
-            continue;
-        }
-
-        hotspots.push({ lat, lng, count: 1 });
+        clusterer.addPoint(point);
     }
-
-    return hotspots.map((hotspot) => ({
-        lat: roundCoordinate(hotspot.lat),
-        lng: roundCoordinate(hotspot.lng),
-        count: hotspot.count,
-    }));
+    return clusterer.getHotspots();
 };
 
 /**
@@ -253,34 +329,29 @@ export const buildHotspotFeatureCollection = (clusters) => ({
 });
 
 /**
- * Assembles the map layer payload from the validated reports.
+ * Assembles the map layer payload from the validated reports or precomputed clusters.
  *
- * The shape echoes a hazard-layer payload (`datasetId`, `classes`, `features`)
- * so the map's layer handling reads the same way, while `rule` says out loud what
- * this layer is: derived from the system's own reports, over a window, by
- * published thresholds — and it is the same object the server derived with, so
- * the legend, the toggles and the empty state cannot describe a different rule
- * than the data.
- *
- * @param {Array<{lat: number, lng: number}>} reports validated reports, in
- *   consideration order (see `clusterAccidentReports`)
+ * @param {Array<{lat: number, lng: number}>|Array<{lat: number, lng: number, count: number}>} reportsOrClusters
  * @param {object} [rule] the resolved analysis rule
+ * @param {object} [totalsMetadata] completeness and report count metadata
  */
-export const buildAccidentHotspotLayer = (reports, rule = resolveAccidentHotspotRule()) => {
-    const hotspots = classifyHotspotClusters(
-        clusterAccidentReports(reports, { radiusMeters: rule.radiusMeters }),
-        rule
-    );
+export const buildAccidentHotspotLayer = (reportsOrClusters, rule = resolveAccidentHotspotRule(), totalsMetadata = {}) => {
+    const rawClusters = Array.isArray(reportsOrClusters) && reportsOrClusters.length > 0 && typeof reportsOrClusters[0]?.count === 'number'
+        ? reportsOrClusters
+        : clusterAccidentReports(reportsOrClusters, { radiusMeters: rule.radiusMeters });
+
+    const hotspots = classifyHotspotClusters(rawClusters, rule);
+    const totalReports = totalsMetadata.reports ?? (Array.isArray(reportsOrClusters) ? reportsOrClusters.length : 0);
+    const truncated = Boolean(totalsMetadata.truncated);
 
     return {
         datasetId: 'accident_hotspots',
         label: 'Accident-prone',
         source: 'Sibuyan Alert accident reports',
-        // Not a licence-bearing dataset, and named so no reader mistakes it for
-        // one. Government hazard data this is not.
         derivedFromReports: true,
-        // The method, stated: reports grouped by distance, then counted.
         method: 'radius_cluster',
+        scope: 'all_time',
+        timeScope: rule.timeScope || 'all_time',
         rule: Object.freeze({ ...rule }),
         classes: [
             { value: ACCIDENT_HOTSPOT_CLASSES.medium, label: 'Medium' },
@@ -288,12 +359,11 @@ export const buildAccidentHotspotLayer = (reports, rule = resolveAccidentHotspot
         ],
         features: buildHotspotFeatureCollection(hotspots).features,
         totals: {
-            // Reports that were considered, and how many of them ended up inside
-            // a classified hotspot. The difference is the whole point of the
-            // floor: reports happened, but not enough of them in one place.
-            reports: (Array.isArray(reports) ? reports : []).length,
+            reports: totalReports,
             hotspots: hotspots.length,
             clusteredReports: hotspots.reduce((total, hotspot) => total + hotspot.count, 0),
+            isComplete: !truncated,
+            truncated,
         },
     };
 };
@@ -301,20 +371,15 @@ export const buildAccidentHotspotLayer = (reports, rule = resolveAccidentHotspot
 /**
  * Validator for the conditional GET.
  *
- * Built from the payload itself rather than from a version stamp, because the
- * payload is the thing that has to be current: a report being re-pinned ten
- * metres away changes no count and no timestamp, but it does move a hotspot, and
- * a stamp derived from cheap metadata would answer `304 Not Modified` about a map
- * that had moved. The hotspot list is a few hundred characters, so fingerprinting
- * it costs nothing next to the query that produced it — and it folds in the rule,
- * so a config change invalidates every cached copy too.
+ * Built from the payload itself rather than from a version stamp: fingerprint
+ * folds in rule.timeScope, thresholds, and hotspot locations.
  */
 export const accidentHotspotValidator = (layer) => {
     const features = Array.isArray(layer?.features) ? layer.features : [];
     const rule = layer?.rule || {};
     const rulePart = [
         rule.radiusMeters,
-        rule.windowDays,
+        rule.timeScope || 'all_time',
         rule.mediumMinReports,
         rule.highMinReports,
     ].join(',');
@@ -338,6 +403,7 @@ export default {
     buildAccidentHotspotMatch,
     isValidHotspotCoordinate,
     haversineMeters,
+    createHotspotClusterer,
     clusterAccidentReports,
     classifyHotspotClusters,
     buildHotspotFeatureCollection,

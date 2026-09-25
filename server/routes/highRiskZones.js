@@ -318,7 +318,8 @@ router.get('/hazards/:datasetId', protect, requireRole('municipal_admin'), async
 router.get('/accident-hotspots', protect, requireRole('municipal_admin'), async (req, res) => {
     try {
         const policy = resolveQueryPolicy();
-        const layer = await Report.getAccidentHotspots({ maxTimeMS: policy.maxTimeMs });
+        const maxTimeMs = Math.max(policy.maxTimeMs || 5000, 15000);
+        const layer = await Report.getAccidentHotspots({ maxTimeMS: maxTimeMs });
 
         sendConditionalJson(req, res, { success: true, data: layer }, {
             // Fingerprinted from the cells themselves: the payload is small, and a
@@ -326,8 +327,8 @@ router.get('/accident-hotspots', protect, requireRole('municipal_admin'), async 
             // count and no timestamp — only a validator built from the positions
             // notices that.
             etag: buildWeakEtag(
-                'accident-hotspots',
-                layer.windowDays,
+                'accident-hotspots:all-time',
+                layer.rule?.timeScope || 'all_time',
                 accidentHotspotValidator(layer)
             ),
             // Deliberately no server-side TTL, unlike the zone list: this answer

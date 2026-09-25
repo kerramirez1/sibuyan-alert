@@ -24,8 +24,9 @@ export const ACCIDENT_HOTSPOT_RULE_DEFAULTS = Object.freeze({
      */
     radiusMeters: 100,
 
-    /** Rolling window: a hotspot is a claim about roads as they are now. */
-    windowDays: 30,
+    /** All-time historical analysis: includes all validated reports. */
+    timeScope: 'all_time',
+    windowDays: null,
 
     /**
      * Reports needed in one 100 m area before it is classified at all.
@@ -42,14 +43,12 @@ export const ACCIDENT_HOTSPOT_RULE_DEFAULTS = Object.freeze({
 });
 
 /**
- * Hard ceiling on reports read into one derivation.
- *
- * The window is the real bound — this island does not produce thousands of
- * validated accidents in 30 days — but an unbounded read is still an unbounded
- * read, and clustering is the one step here that is not done by the database.
- * Reaching it is reported rather than silent.
+ * Hard safety ceiling on reports processed into one derivation to prevent
+ * runaway memory/CPU loops, while allowing the complete historical dataset
+ * to be processed without arbitrary truncation.
  */
-export const ACCIDENT_HOTSPOT_MAX_REPORTS = 2_000;
+export const ACCIDENT_HOTSPOT_SAFETY_CEILING = 50_000;
+export const ACCIDENT_HOTSPOT_MAX_REPORTS = ACCIDENT_HOTSPOT_SAFETY_CEILING;
 
 const readPositiveNumber = (value, fallback) => {
     const parsed = Number.parseFloat(value);
@@ -78,7 +77,8 @@ export const resolveAccidentHotspotRule = (env = process.env) => {
 
     return Object.freeze({
         radiusMeters: readPositiveNumber(env.ACCIDENT_HOTSPOT_RADIUS_METERS, ACCIDENT_HOTSPOT_RULE_DEFAULTS.radiusMeters),
-        windowDays: readPositiveNumber(env.ACCIDENT_HOTSPOT_WINDOW_DAYS, ACCIDENT_HOTSPOT_RULE_DEFAULTS.windowDays),
+        timeScope: 'all_time',
+        windowDays: null,
         mediumMinReports,
         highMinReports: configuredHigh > mediumMinReports
             ? configuredHigh
@@ -88,6 +88,7 @@ export const resolveAccidentHotspotRule = (env = process.env) => {
 
 export default {
     ACCIDENT_HOTSPOT_RULE_DEFAULTS,
+    ACCIDENT_HOTSPOT_SAFETY_CEILING,
     ACCIDENT_HOTSPOT_MAX_REPORTS,
     resolveAccidentHotspotRule,
 };

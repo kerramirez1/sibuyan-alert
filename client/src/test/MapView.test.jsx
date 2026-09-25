@@ -1070,7 +1070,7 @@ describe('MapView opening framing', () => {
 });
 
 describe('MapView accident-prone circles', () => {
-    const RULE = { radiusMeters: 100, windowDays: 30, mediumMinReports: 3, highMinReports: 6 };
+    const RULE = { radiusMeters: 100, timeScope: 'all_time', windowDays: null, mediumMinReports: 3, highMinReports: 6 };
 
     const hotspotLayer = (features, rule = RULE) => ({
         datasetId: 'accident_hotspots',

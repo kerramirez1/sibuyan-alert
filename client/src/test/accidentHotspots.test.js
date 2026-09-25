@@ -49,7 +49,8 @@ describe('accident hotspot layer config', () => {
         // radius the data was not derived with.
         expect(ACCIDENT_HOTSPOT_DEFAULT_RULE).toEqual({
             radiusMeters: 100,
-            windowDays: 30,
+            timeScope: 'all_time',
+            windowDays: null,
             mediumMinReports: 3,
             highMinReports: 6,
         });
@@ -57,9 +58,9 @@ describe('accident hotspot layer config', () => {
 
     test('resolves the rule from the payload, and never invents a zero', () => {
         const rule = resolveAccidentHotspotRule({
-            rule: { radiusMeters: 250, windowDays: 7, mediumMinReports: 2, highMinReports: 4 },
+            rule: { radiusMeters: 250, timeScope: 'all_time', mediumMinReports: 2, highMinReports: 4 },
         });
-        expect(rule).toEqual({ radiusMeters: 250, windowDays: 7, mediumMinReports: 2, highMinReports: 4 });
+        expect(rule).toEqual({ radiusMeters: 250, timeScope: 'all_time', windowDays: null, mediumMinReports: 2, highMinReports: 4 });
 
         // A payload with no rule — an older cached snapshot — still renders, with
         // the documented defaults rather than with zeros.
@@ -165,21 +166,27 @@ describe('accident hotspot layer config', () => {
         expect(getAccidentHotspotLegendLabel(2)).toBe('Medium Accident-Prone Area');
         expect(getAccidentHotspotLegendLabel(3)).toBe('High Accident-Prone Area');
         expect(ACCIDENT_HOTSPOT_DISCLAIMER).toMatch(/not an official government hazard/i);
+        expect(ACCIDENT_HOTSPOT_DISCLAIMER).toMatch(/do not establish current road conditions/i);
     });
 
     test('an empty class explains itself in the rule\u2019s own terms', () => {
         const rule = resolveAccidentHotspotRule({});
 
         expect(describeEmptyHotspotClass(rule, 2)).toBe(
-            'No area with 3+ validated reports within 100 m in the last 30 days.'
+            'No area with 3+ validated accident reports within 100 m across all historical records.'
         );
         expect(describeEmptyHotspotClass(rule, 3)).toBe(
-            'No area with 6+ validated reports within 100 m in the last 30 days.'
+            'No area with 6+ validated accident reports within 100 m across all historical records.'
         );
         // A retuned rule is described as it is, not as it used to be.
         expect(describeEmptyHotspotClass(resolveAccidentHotspotRule({
             rule: { radiusMeters: 250, mediumMinReports: 2 },
-        }), 2)).toBe('No area with 2+ validated reports within 250 m in the last 30 days.');
+        }), 2)).toBe('No area with 2+ validated accident reports within 250 m across all historical records.');
+
+        // Legacy cached payload with windowDays is described safely without breaking
+        expect(describeEmptyHotspotClass(resolveAccidentHotspotRule({
+            rule: { radiusMeters: 100, windowDays: 30, mediumMinReports: 3 },
+        }), 2)).toBe('No area with 3+ validated reports within 100 m in the last 30 days.');
     });
 
     test('selects each class out of the shared source with a filter', () => {

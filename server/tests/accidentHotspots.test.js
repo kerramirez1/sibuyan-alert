@@ -99,7 +99,8 @@ describe('accident hotspot rule', () => {
     test('the built-in rule is the documented one', () => {
         expect(ACCIDENT_HOTSPOT_RULE_DEFAULTS).toEqual({
             radiusMeters: 100,
-            windowDays: 30,
+            timeScope: 'all_time',
+            windowDays: null,
             mediumMinReports: 3,
             highMinReports: 6,
         });
@@ -110,12 +111,12 @@ describe('accident hotspot rule', () => {
         // Adjustable without touching the analysis or the map.
         expect(resolveAccidentHotspotRule({
             ACCIDENT_HOTSPOT_RADIUS_METERS: '250',
-            ACCIDENT_HOTSPOT_WINDOW_DAYS: '7',
             ACCIDENT_HOTSPOT_MEDIUM_MIN_REPORTS: '2',
             ACCIDENT_HOTSPOT_HIGH_MIN_REPORTS: '4',
         })).toEqual({
             radiusMeters: 250,
-            windowDays: 7,
+            timeScope: 'all_time',
+            windowDays: null,
             mediumMinReports: 2,
             highMinReports: 4,
         });
@@ -157,11 +158,11 @@ describe('accident hotspot rule', () => {
         expect(ACCIDENT_HOTSPOT_STATUSES).toContain('transferred');
     });
 
-    test('the query filter is a rolling window of the configured length', () => {
-        const match = buildAccidentHotspotMatch(new Date('2026-09-21T10:00:00.000Z'));
+    test('the query filter includes all validated reports without a date cutoff', () => {
+        const match = buildAccidentHotspotMatch();
 
         expect(match.status).toEqual({ $in: [...ACCIDENT_HOTSPOT_STATUSES] });
-        expect(match.incidentTime.$gte.toISOString()).toBe('2026-08-22T10:00:00.000Z');
+        expect(match.incidentTime).toBeUndefined();
 
         const weekly = buildAccidentHotspotMatch(
             new Date('2026-09-21T10:00:00.000Z'),
@@ -333,7 +334,7 @@ describe('accident hotspot layer payload', () => {
         const [lng, lat] = layer.features[0].geometry.coordinates;
         expect(lng).toBeCloseTo(REAL_REPORT.lng, 6);
         expect(lat).toBeCloseTo(REAL_REPORT.lat, 6);
-        expect(layer.totals).toEqual({ reports: 6, hotspots: 1, clusteredReports: 6 });
+        expect(layer.totals).toEqual({ reports: 6, hotspots: 1, clusteredReports: 6, isComplete: true, truncated: false });
     });
 
     test('two reports offshore of a hotspot are counted but not classified', () => {
@@ -341,7 +342,7 @@ describe('accident hotspot layer payload', () => {
 
         expect(layer.features).toEqual([]);
         // Both facts are reported: reports happened, but not enough in one place.
-        expect(layer.totals).toEqual({ reports: 2, hotspots: 0, clusteredReports: 0 });
+        expect(layer.totals).toEqual({ reports: 2, hotspots: 0, clusteredReports: 0, isComplete: true, truncated: false });
     });
 
     test('reports in different places stay separate hotspots', () => {
@@ -352,7 +353,30 @@ describe('accident hotspot layer payload', () => {
 
         expect(layer.features).toHaveLength(2);
         expect(layer.features.map((feature) => feature.properties.class)).toEqual([2, 2]);
-        expect(layer.totals).toEqual({ reports: 6, hotspots: 2, clusteredReports: 6 });
+        expect(layer.totals).toEqual({ reports: 6, hotspots: 2, clusteredReports: 6, isComplete: true, truncated: false });
+    });
+
+    test('processes more than 2,000 reports without arbitrary truncation', () => {
+        // Generate 2,500 reports around 5 distinct clusters (500 reports each)
+        const clusterAnchors = [
+            REAL_REPORT,
+            north(REAL_REPORT, 500),
+            north(REAL_REPORT, 1000),
+            north(REAL_REPORT, 1500),
+            north(REAL_REPORT, 2000),
+        ];
+        const largePoints = [];
+        for (let i = 0; i < 2500; i += 1) {
+            const anchor = clusterAnchors[i % clusterAnchors.length];
+            largePoints.push(east(anchor, (i % 50)));
+        }
+
+        const layer = buildAccidentHotspotLayer(largePoints);
+        expect(layer.totals.reports).toBe(2500);
+        expect(layer.totals.hotspots).toBe(5);
+        expect(layer.totals.isComplete).toBe(true);
+        expect(layer.totals.truncated).toBe(false);
+        expect(layer.features).toHaveLength(5);
     });
 
     test('features are points carrying a class and a count, and nothing else', () => {
@@ -392,7 +416,8 @@ describe('accident hotspot layer payload', () => {
         const moved = buildAccidentHotspotLayer(reportsAround(north(REAL_REPORT, 500), [0, 20, 40]));
         const otherRule = buildAccidentHotspotLayer(reportsAround(REAL_REPORT, [0, 20, 40]), {
             radiusMeters: 250,
-            windowDays: 30,
+            timeScope: 'all_time',
+            windowDays: null,
             mediumMinReports: 3,
             highMinReports: 6,
         });
@@ -431,15 +456,17 @@ describe('GET /api/high-risk-zones/accident-hotspots', () => {
             .expect(200);
 
         // Bounded like every other query on the request path.
-        expect(getAccidentHotspotsMock).toHaveBeenCalledWith({ maxTimeMS: 5000 });
+        expect(getAccidentHotspotsMock).toHaveBeenCalledWith({ maxTimeMS: 15000 });
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toMatchObject({
             datasetId: 'accident_hotspots',
             derivedFromReports: true,
             method: 'radius_cluster',
-            rule: { radiusMeters: 100, windowDays: 30, mediumMinReports: 3, highMinReports: 6 },
-            totals: { reports: 3, hotspots: 1, clusteredReports: 3 },
+            scope: 'all_time',
+            timeScope: 'all_time',
+            rule: { radiusMeters: 100, timeScope: 'all_time', windowDays: null, mediumMinReports: 3, highMinReports: 6 },
+            totals: { reports: 3, hotspots: 1, clusteredReports: 3, isComplete: true, truncated: false },
         });
         expect(response.body.data.features).toHaveLength(1);
         const [lng, lat] = response.body.data.features[0].geometry.coordinates;

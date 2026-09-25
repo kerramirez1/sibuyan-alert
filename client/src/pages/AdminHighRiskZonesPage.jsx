@@ -436,7 +436,9 @@ const AdminHighRiskZonesPage = () => {
                         // and the control says so rather than leaving it to be
                         // inferred.
                         title: hasHotspots
-                            ? `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated reports within ${accidentHotspotRule.radiusMeters} m (last ${accidentHotspotRule.windowDays} days). ${ACCIDENT_HOTSPOT_DISCLAIMER}`
+                            ? (accidentHotspotRule.windowDays && accidentHotspotRule.timeScope !== 'all_time'
+                                ? `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated reports within ${accidentHotspotRule.radiusMeters} m (last ${accidentHotspotRule.windowDays} days). ${ACCIDENT_HOTSPOT_DISCLAIMER}`
+                                : `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated accident reports within ${accidentHotspotRule.radiusMeters} m across all historical records. ${ACCIDENT_HOTSPOT_DISCLAIMER}`)
                             : describeEmptyHotspotClass(accidentHotspotRule, classValue),
                         onToggle: () => toggleHotspotClass(classValue),
                     };
@@ -993,7 +995,9 @@ const AdminHighRiskZonesPage = () => {
                             )}
                             {accidentHotspotLayer && (
                                 <span className="sr-only">
-                                    {`Clusters of ${accidentHotspotRule.mediumMinReports}+ validated accident reports within ${accidentHotspotRule.radiusMeters} m of each other (${accidentHotspotRule.highMinReports}+ for High), over the last ${accidentHotspotRule.windowDays} days. `}
+                                    {accidentHotspotRule.windowDays && accidentHotspotRule.timeScope !== 'all_time'
+                                        ? `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated accident reports within ${accidentHotspotRule.radiusMeters} m of each other (${accidentHotspotRule.highMinReports}+ for High), over the last ${accidentHotspotRule.windowDays} days. `
+                                        : `Clusters of ${accidentHotspotRule.mediumMinReports}+ validated accident reports within ${accidentHotspotRule.radiusMeters} m of each other (${accidentHotspotRule.highMinReports}+ for High) across all historical records. `}
                                     {ACCIDENT_HOTSPOT_DISCLAIMER}
                                 </span>
                             )}

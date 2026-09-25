@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 import { RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
-import { ACCIDENT_HOTSPOT_MAX_REPORTS } from '../config/accidentHotspots.js';
+import { ACCIDENT_HOTSPOT_SAFETY_CEILING } from '../config/accidentHotspots.js';
 import {
     buildAccidentHotspotLayer,
     buildAccidentHotspotMatch,
+    createHotspotClusterer,
     resolveAccidentHotspotRule,
 } from '../utils/accidentHotspots.js';
 
@@ -616,34 +617,51 @@ reportSchema.statics.getHighRiskZones = async function () {
  * same timestamp). A reporter, an address or a description is never loaded into
  * memory, so there is no shape of this function that can leak one.
  */
-reportSchema.statics.getAccidentHotspots = async function ({ now = new Date(), maxTimeMS, rule } = {}) {
+reportSchema.statics.getAccidentHotspots = async function ({ maxTimeMS, rule } = {}) {
     const resolvedRule = rule || resolveAccidentHotspotRule();
+    const timeoutMs = Number.isFinite(maxTimeMS) ? maxTimeMS : 15_000;
 
-    const documents = await this.find(buildAccidentHotspotMatch(now, resolvedRule))
+    const clusterer = createHotspotClusterer({ radiusMeters: resolvedRule.radiusMeters });
+    let truncated = false;
+
+    const query = this.find(buildAccidentHotspotMatch(resolvedRule))
         .select('_id coordinates incidentTime')
-        // Earliest first: the first report of a hotspot becomes its anchor, so the
-        // order is part of the result rather than an implementation detail. The id
-        // keeps two reports sharing a timestamp in a stable order.
         .sort({ incidentTime: 1, _id: 1 })
-        .limit(ACCIDENT_HOTSPOT_MAX_REPORTS + 1)
-        .maxTimeMS(Number.isFinite(maxTimeMS) ? maxTimeMS : 5_000)
+        .maxTimeMS(timeoutMs)
         .lean();
 
-    let reports = documents;
-    if (reports.length > ACCIDENT_HOTSPOT_MAX_REPORTS) {
-        console.warn(
-            `Accident hotspot derivation reached its ${ACCIDENT_HOTSPOT_MAX_REPORTS} report ceiling; ` +
-            'oldest reports in the window were left out of this layer.'
-        );
-        reports = reports.slice(0, ACCIDENT_HOTSPOT_MAX_REPORTS);
+    if (typeof query.cursor === 'function') {
+        const cursor = query.cursor();
+        for await (const doc of cursor) {
+            if (clusterer.totalReports >= ACCIDENT_HOTSPOT_SAFETY_CEILING) {
+                truncated = true;
+                console.warn(
+                    `Accident hotspot derivation reached safety ceiling of ${ACCIDENT_HOTSPOT_SAFETY_CEILING} reports; ` +
+                    'remaining historical records were omitted.'
+                );
+                break;
+            }
+            clusterer.addPoint(doc?.coordinates);
+        }
+    } else {
+        const documents = await query;
+        for (const doc of (Array.isArray(documents) ? documents : [])) {
+            if (clusterer.totalReports >= ACCIDENT_HOTSPOT_SAFETY_CEILING) {
+                truncated = true;
+                console.warn(
+                    `Accident hotspot derivation reached safety ceiling of ${ACCIDENT_HOTSPOT_SAFETY_CEILING} reports; ` +
+                    'remaining historical records were omitted.'
+                );
+                break;
+            }
+            clusterer.addPoint(doc?.coordinates);
+        }
     }
 
     return buildAccidentHotspotLayer(
-        reports.map((report) => ({
-            lat: report?.coordinates?.lat,
-            lng: report?.coordinates?.lng,
-        })),
-        resolvedRule
+        clusterer.getHotspots(),
+        resolvedRule,
+        { reports: clusterer.totalReports, truncated }
     );
 };
 

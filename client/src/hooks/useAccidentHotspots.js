@@ -13,7 +13,7 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 
-export const ACCIDENT_HOTSPOTS_CACHE_KEY = 'accident-hotspots:sibuyan';
+export const ACCIDENT_HOTSPOTS_CACHE_KEY = 'accident-hotspots:sibuyan:all-time';
 
 /**
  * A payload this client can draw.
@@ -38,6 +38,8 @@ const normalizeLayer = (payload) => {
         source: payload.source || 'Sibuyan Alert accident reports',
         derivedFromReports: payload.derivedFromReports !== false,
         method: payload.method || 'radius_cluster',
+        scope: payload.scope || 'all_time',
+        timeScope: payload.timeScope || payload.rule?.timeScope || 'all_time',
         // Resolved here, once, so the drawn radius and the copy that explains an
         // empty layer both read the same rule — including for a cached payload
         // written before the server started sending one.
