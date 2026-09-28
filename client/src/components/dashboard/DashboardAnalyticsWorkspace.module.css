@@ -203,9 +203,14 @@
     border-radius: 0 0 11px 11px;
 }
 
+/* Density is the point of these tiles: four numbers and their helper lines are a
+   summary, not the page's subject, and at 20-24px of padding they pushed the
+   charts below the fold on a laptop. The padding is 16px, and the value sits 8px
+   under its label — tight enough to read as one unit, loose enough that the
+   label, the figure and the helper line stay three distinct things. */
 .metric {
     min-width: 0;
-    padding: 20px;
+    padding: 16px;
     border-color: var(--analytics-border);
 }
 
@@ -221,9 +226,9 @@
 }
 
 .metricValue {
-    margin-top: 12px;
+    margin-top: 8px;
     font-family: Outfit, system-ui, sans-serif;
-    font-size: 36px;
+    font-size: 28px;
     font-weight: 600;
     line-height: 1;
     letter-spacing: -0.025em;
@@ -355,8 +360,10 @@
 
 @media (min-width: 640px) {
     .panel { padding: 24px; }
-    .metric { padding: 22px 24px; }
-    .metricValue { font-size: 40px; }
+    /* 16px vertical, 18px horizontal: the extra width buys back the separation
+       the shorter value needs, without returning the tile to its old height. */
+    .metric { padding: 16px 18px; }
+    .metricValue { font-size: 30px; }
     .activityRow { padding: 16px 24px; }
     .mapFilters { display: flex; flex-wrap: wrap; gap: 4px 8px; }
     .mapFilters > button {

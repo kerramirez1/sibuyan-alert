@@ -98,6 +98,7 @@ const SCOPE_TREND_COPY = Object.freeze({
         bucketNoun: 'day',
         selectLabel: 'Filter map by day',
         selectHeading: 'Map day',
+        allOptionLabel: 'All days',
         emptyDetail: 'Choose another month.',
     }),
     [ANALYTICS_SCOPE.YEARLY]: Object.freeze({
@@ -106,6 +107,7 @@ const SCOPE_TREND_COPY = Object.freeze({
         bucketNoun: 'month',
         selectLabel: 'Filter map by month',
         selectHeading: 'Map month',
+        allOptionLabel: 'All months',
         emptyDetail: 'Choose another year.',
     }),
     [ANALYTICS_SCOPE.ALL_TIME]: Object.freeze({
@@ -114,6 +116,7 @@ const SCOPE_TREND_COPY = Object.freeze({
         bucketNoun: 'year',
         selectLabel: 'Filter map by year',
         selectHeading: 'Map year',
+        allOptionLabel: 'All years',
         emptyDetail: 'No reports have been recorded yet.',
     }),
 });
@@ -199,11 +202,6 @@ const renderStackTotalLabel = (barKey) => ({ x, y, width, payload }) => {
     );
 };
 
-const dominantSeverityFill = (day) => {
-    const top = [...SEVERITY_STACK_ORDER].reverse().find((key) => (Number(day?.[key]) || 0) > 0);
-    return SEVERITY_SERIES.find(({ key }) => key === top)?.fill || '#9CA3AF';
-};
-
 const MetricTile = ({ label, value, helper, status, accent = null }) => (
     <div className={`${styles.metric} ${accent ? styles.metricAttention : ''}`}>
         <dt className={styles.metricLabel}>
@@ -211,9 +209,9 @@ const MetricTile = ({ label, value, helper, status, accent = null }) => (
             {label}
         </dt>
         <dd className={`${styles.metricValue} ${accent ? 'text-amber-700 dark:text-amber-400' : ''}`}>{value}</dd>
-        <dd className={`mt-2 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
+        <dd className={`mt-1.5 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
         {accent && (
-            <dd className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+            <dd className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                 <HiOutlineExclamationCircle className="h-3.5 w-3.5" aria-hidden="true" />
                 {accent}
             </dd>
@@ -239,17 +237,6 @@ const TrendPanel = ({
     const daySelectId = useId();
     const copy = SCOPE_TREND_COPY[scope] || SCOPE_TREND_COPY[ANALYTICS_SCOPE.MONTHLY];
     const hasTrendData = activeDays.length > 0;
-    // A full month with almost nothing in it reads as a broken chart, so list
-    // the active days instead. Short excerpts (drill-downs, tests) keep bars.
-    const isSparseTrend = hasTrendData && safeChartData.length >= 28 && activeDays.length <= 2;
-    // A bucketed scope draws one bar per month (Yearly) or per year (All time),
-    // so one or two active buckets leave a full-width plot almost entirely empty
-    // and stretch the bars that remain. Those are listed instead — same period,
-    // same count, same drill-down — rather than plotted as two lonely columns.
-    const isThinTrend = hasTrendData
-        && scope !== ANALYTICS_SCOPE.MONTHLY
-        && activeDays.length <= 2;
-    const isCompactTrend = isSparseTrend || isThinTrend;
     const insight = getTrendInsight(safeChartData, { selectedMonth, prevMonthCount, prevLabel });
     const presentSeverities = SEVERITY_SERIES.filter(({ key }) => safeChartData.some((day) => (Number(day?.[key]) || 0) > 0));
     const reportLabel = `${safeReportCount} ${safeReportCount === 1 ? 'report' : 'reports'}`;
@@ -265,11 +252,6 @@ const TrendPanel = ({
     const handleBarClick = (datum) => {
         if (!datum || (Number(datum.total) || 0) <= 0 || typeof onSelectDay !== 'function') return;
         onSelectDay(datum.dayKey === selectedDay ? null : datum.dayKey);
-    };
-
-    const handleDaySelect = (day) => {
-        if (!day || typeof onSelectDay !== 'function') return;
-        onSelectDay(day.dayKey === selectedDay ? null : day.dayKey);
     };
 
     return (
@@ -313,7 +295,9 @@ const TrendPanel = ({
                     </span>
                 )}
                 {insight.total > 0 && insight.quietDays > 0 && (
-                    <span>{insight.quietDays} quiet {insight.quietDays === 1 ? 'day' : 'days'} of {safeChartData.length}</span>
+                    <span>
+                        {insight.quietDays} quiet {insight.quietDays === 1 ? copy.bucketNoun : `${copy.bucketNoun}s`} of {safeChartData.length}
+                    </span>
                 )}
                 {insight.delta && <span className={styles.subtle}>{insight.delta.label}</span>}
             </div>
@@ -326,34 +310,6 @@ const TrendPanel = ({
                             ? copy.emptyDetail
                             : 'Some reports could not be plotted because their timestamps are missing or invalid.'}
                     />
-                </div>
-            ) : isCompactTrend ? (
-                <div className="mt-3">
-                    <p id={summaryId} className="sr-only">
-                        {reportLabel} recorded. Reports by active {copy.bucketNoun}: {activeDaySummary}. {insightSummary}.
-                    </p>
-                    <p className={`mb-2 text-xs ${styles.secondary}`}>Recorded {copy.bucketNoun}s</p>
-                    <ul data-testid="incident-days-list" className="space-y-1">
-                        {activeDays.map((day, index) => {
-                            const isSelected = day.dayKey === selectedDay;
-                            return (
-                                <li key={day.dayKey || index}>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDaySelect(day)}
-                                        aria-pressed={isSelected}
-                                        aria-label={`Filter map to ${day.fullDate}, ${day.total} ${day.total === 1 ? 'report' : 'reports'}`}
-                                        className={styles.dayRow}
-                                    >
-                                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dominantSeverityFill(day) }} aria-hidden="true" />
-                                        <span className="min-w-0 flex-1 text-sm font-medium">{day.fullDate}</span>
-                                        <span className="shrink-0 text-xs font-semibold tabular-nums">{day.total} {day.total === 1 ? 'report' : 'reports'}</span>
-                                        <HiChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
                 </div>
             ) : (
                 <div className="mt-3">
@@ -374,9 +330,9 @@ const TrendPanel = ({
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 11 }}
-                                    tickFormatter={(value, index) => (index === 0 ? value : formatXAxisDay(value))}
+                                    tickFormatter={(value, index) => (scope === ANALYTICS_SCOPE.MONTHLY ? (index === 0 ? value : formatXAxisDay(value)) : value)}
                                     interval="preserveStartEnd"
-                                    minTickGap={24}
+                                    minTickGap={20}
                                     dy={6}
                                 />
                                 <YAxis
@@ -402,10 +358,13 @@ const TrendPanel = ({
                                         maxBarSize={56}
                                         isAnimationActive={false}
                                         onClick={handleBarClick}
-                                        cursor="pointer"
                                     >
                                         {safeChartData.map((day, index) => (
-                                            <Cell key={day.dayKey || index} fillOpacity={selectedDay && day.dayKey !== selectedDay ? 0.3 : 1} />
+                                            <Cell
+                                                key={day.dayKey || index}
+                                                cursor={day.total > 0 ? 'pointer' : 'default'}
+                                                fillOpacity={selectedDay && day.dayKey !== selectedDay ? 0.3 : 1}
+                                            />
                                         ))}
                                         <LabelList dataKey="total" content={renderStackTotalLabel(key)} />
                                     </Bar>
@@ -417,7 +376,7 @@ const TrendPanel = ({
             )}
             {hasTrendData && (
                 <div className={`mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`}>
-                    <p className={`text-xs ${styles.subtle}`}>Select a {isCompactTrend ? copy.bucketNoun : `bar or a ${copy.bucketNoun}`} to filter the map.</p>
+                    <p className={`text-xs ${styles.subtle}`}>Select a bar or a {copy.bucketNoun} to filter the map.</p>
                     <div className="flex min-w-0 items-center gap-2">
                         <label htmlFor={daySelectId} className={`shrink-0 text-xs font-medium ${styles.secondary}`}>{copy.selectHeading}</label>
                         <select
@@ -427,7 +386,7 @@ const TrendPanel = ({
                             onChange={(event) => onSelectDay?.(event.target.value || null)}
                             className={`flex-1 sm:flex-initial ${styles.daySelect}`}
                         >
-                            <option value="">All days</option>
+                            <option value="">{copy.allOptionLabel || 'All days'}</option>
                             {activeDays.map((day, index) => (
                                 <option key={day.dayKey || index} value={day.dayKey}>
                                     {day.fullDate} · {day.total} {day.total === 1 ? 'report' : 'reports'}
@@ -765,7 +724,7 @@ const DashboardAnalyticsWorkspace = ({
 
     if (loading) {
         return (
-            <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-6`} role="status" aria-busy="true" aria-label="Loading analytics">
+            <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-5`} role="status" aria-busy="true" aria-label="Loading analytics">
                 <span className="sr-only">Loading analytics</span>
                 <div className="space-y-3 py-1">
                     <Skeleton variant="text" className="h-3 w-32" />
@@ -777,8 +736,8 @@ const DashboardAnalyticsWorkspace = ({
                     {[0, 1, 2, 3].map((item) => (
                         <div key={item} className={styles.metric}>
                             <Skeleton variant="text" className="h-3 w-20" />
-                            <Skeleton variant="text" className="mt-3 h-10 w-14" />
-                            <Skeleton variant="text" className="mt-3 h-3 w-24 max-w-full" />
+                            <Skeleton variant="text" className="mt-2 h-7 w-12" />
+                            <Skeleton variant="text" className="mt-1.5 h-3 w-24 max-w-full" />
                         </div>
                     ))}
                 </div>
@@ -794,15 +753,15 @@ const DashboardAnalyticsWorkspace = ({
     }
 
     return (
-        <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-6`}>
-            <header className="space-y-5">
+        <div className={`${styles.workspace} mx-auto w-full min-w-0 max-w-[1500px] space-y-5`}>
+            <header className="space-y-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                     <div className="min-w-0">
                         <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${styles.accent}`}>
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </p>
-                        <h1 className="mt-1.5 font-display text-[28px] font-semibold leading-tight tracking-tight sm:text-[32px]">Municipal Situation Overview</h1>
-                        <p className={`mt-2 max-w-[70ch] text-[13px] leading-relaxed ${styles.secondary}`}>
+                        <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight sm:text-[30px]">Municipal Situation Overview</h1>
+                        <p className={`mt-1.5 max-w-[70ch] text-[13px] leading-relaxed ${styles.secondary}`}>
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${periodLabel}.`
                                 : `Island-wide incident briefing and municipal comparisons for ${periodLabel}.`}
@@ -811,7 +770,7 @@ const DashboardAnalyticsWorkspace = ({
                     {viewSwitch && <div className="shrink-0 sm:pt-1">{viewSwitch}</div>}
                 </div>
 
-                <div className={`flex w-full flex-col gap-3 border-b pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`} role="toolbar" aria-label="Analytics controls">
+                <div className={`flex w-full flex-col gap-3 border-b pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${styles.rule}`} role="toolbar" aria-label="Analytics controls">
                     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
                         {/* The scope control is a segmented group, not three words in a
                             row: one bounded track holds the options, and the active one
@@ -977,7 +936,7 @@ const DashboardAnalyticsWorkspace = ({
                     </p>
                 </div>
 
-                <div className={`${PANEL_SURFACE} mt-3 overflow-hidden`}>
+                <div className={`${PANEL_SURFACE} mt-2.5 overflow-hidden`}>
                     <dl data-testid="overview-band" className="grid grid-cols-2 md:grid-cols-4 [&>*:nth-child(even)]:border-l md:[&>*:nth-child(3)]:border-l max-md:[&>*:nth-child(n+3)]:border-t">
                         <MetricTile
                             label="Pending review"
@@ -1006,7 +965,7 @@ const DashboardAnalyticsWorkspace = ({
                         />
                     </dl>
 
-                    <dl className={`${styles.summaryFooter} grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-3 sm:px-6`}>
+                    <dl className={`${styles.summaryFooter} grid grid-cols-2 gap-x-6 gap-y-3 px-4 py-3 sm:grid-cols-3 sm:px-5`}>
                         <div className="min-w-0">
                             <dt className={`flex items-center gap-1.5 text-xs ${styles.secondary}`}>
                                 <HiOutlineChartBar className="h-4 w-4 shrink-0" aria-hidden="true" />New reports
