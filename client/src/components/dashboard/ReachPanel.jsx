@@ -34,7 +34,16 @@ import styles from './DashboardAnalyticsWorkspace.module.css';
  * saw it", which this is not: a pin scrolling past on the map counts for
  * nothing. Stating that in the UI is the only way the number is not misread.
  */
-const ReachPanel = ({ title, description, rows = [], emptyDetail }) => {
+export const REACH_EXPLANATION =
+    'Counts unique detail viewers, not map views. Public includes anonymous visitors and verified reporters; All viewers also includes responders and municipal admins.';
+
+const ReachPanel = ({
+    title,
+    description,
+    rows = [],
+    emptyDetail,
+    footnote = null,
+}) => {
     const safeRows = Array.isArray(rows) ? rows : [];
     const titleId = useId();
     const descriptionId = useId();
@@ -85,11 +94,11 @@ const ReachPanel = ({ title, description, rows = [], emptyDetail }) => {
                 </table>
             )}
 
-            <p className={`mt-auto border-t px-5 py-4 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
-                Counts someone opening the details. Seeing a pin on the map is not counted, and repeat
-                opens by the same viewer count once. Public is anonymous visitors and verified
-                reporters; All viewers also includes responders and municipal admins.
-            </p>
+            {footnote ? (
+                <p className={`mt-auto border-t px-5 py-4 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
+                    {footnote}
+                </p>
+            ) : null}
         </div>
     );
 };

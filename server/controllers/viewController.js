@@ -203,6 +203,13 @@ export const recordView = async (req, res) => {
  * never consumed by the client and the unscoped copy was, so the displayed
  * figure was the one without a municipality filter. That duplicate is gone.
  *
+ * Both leaderboards are municipal, and the municipality comes from the session
+ * alone. Zones used to be read island-wide here, on the reasoning that the map
+ * shows every zone to every viewer — but visibility and this panel answer
+ * different questions, and the island-wide read handed a Cajidiocan admin the
+ * names of Magdiwang's zones. The map's hazard layer is untouched: this scopes
+ * the leaderboard, not what anyone can see.
+ *
  * Aggregates only — there is deliberately no endpoint that returns which
  * viewers opened a record. A per-viewer list would turn a reach metric into a
  * browsing history, which is not what this was built for and not something the
@@ -223,20 +230,25 @@ export const getReachLeaderboard = async (req, res) => {
         // Incidents are municipal, so their reach is scoped exactly like every
         // other admin surface — same definition of "this office's incidents"
         // (origin, current, or transfer path, minus copies dismissed locally).
-        // Resolving the ids up front keeps the aggregation one indexed group
-        // instead of a global top-N window that then gets narrowed, which would
-        // return fewer rows than asked for whenever a municipality's incidents
-        // are not in the island-wide top N.
-        const scopedReportIds = await Report.distinct('_id', buildMunicipalReportScope(municipality));
+        // Zones are scoped by the municipality the office was assigned; the model
+        // stores that name, so no geometry is involved.
+        //
+        // Both id sets are resolved up front and handed to the aggregation as an
+        // allow-list, which is what makes the scope apply BEFORE its $limit. A
+        // global top-N narrowed afterwards would silently return fewer rows than
+        // asked for — or none at all — for a municipality whose records simply
+        // are not in the island-wide top N, which is the bug this shape exists to
+        // prevent. An empty id set is a real answer ("this office has no such
+        // records"), and `readTopReach` returns no rows for it rather than
+        // falling back to the unscoped read.
+        const [scopedReportIds, scopedZoneIds] = await Promise.all([
+            Report.distinct('_id', buildMunicipalReportScope(municipality)),
+            HighRiskZone.distinct('_id', { municipality }),
+        ]);
 
         const [reportRows, zoneRows] = await Promise.all([
             readTopReach({ targetType: 'report', limit, targetIds: scopedReportIds }),
-            // Zones stay island-wide on purpose: hazard visibility is
-            // intentionally island-wide for every viewer, and municipal scope
-            // governs management permissions, never this read model. Scoping
-            // their reach to one municipality would describe a visibility rule
-            // the app does not have.
-            readTopReach({ targetType: 'zone', limit }),
+            readTopReach({ targetType: 'zone', limit, targetIds: scopedZoneIds }),
         ]);
 
         const [reports, zones] = await Promise.all([

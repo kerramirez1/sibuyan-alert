@@ -4,7 +4,7 @@ import toast from '../../utils/appToast';
 import { toSafeArray, safeCount } from '../../utils/safeCollection';
 import { formatMonthLabel, toValidDate } from '../../utils/safeDate';
 import useReachData from '../../hooks/useReachData';
-import ReachPanel from './ReachPanel';
+import ReachPanel, { REACH_EXPLANATION } from './ReachPanel';
 import {
     Bar,
     BarChart,
@@ -1212,19 +1212,24 @@ const DashboardAnalyticsWorkspace = ({
                 Admin-only, and rendered only once data exists so a viewer
                 without permission never sees an empty shell. */}
             {isAdminViewer && reach ? (
-                <section className={`${PANEL_SURFACE} ${styles.dividedPanels} grid md:grid-cols-2`} aria-label="Reach">
-                    <ReachPanel
-                        title="Incident reach"
-                        description="Distinct viewers who opened each incident"
-                        rows={reach.reports}
-                        emptyDetail="No incident details have been opened yet."
-                    />
-                    <ReachPanel
-                        title="Risk zone reach"
-                        description="Distinct viewers who opened each hazard area"
-                        rows={reach.zones}
-                        emptyDetail="No hazard area details have been opened yet."
-                    />
+                <section className={PANEL_SURFACE} aria-label="Reach">
+                    <div className={`${styles.dividedPanels} grid md:grid-cols-2`}>
+                        <ReachPanel
+                            title="Incident reach"
+                            description="Distinct viewers who opened each incident"
+                            rows={reach.reports}
+                            emptyDetail="No incident details have been opened yet."
+                        />
+                        <ReachPanel
+                            title="Risk zone reach"
+                            description="Distinct viewers who opened each hazard area"
+                            rows={reach.zones}
+                            emptyDetail="No hazard area details have been opened yet."
+                        />
+                    </div>
+                    <p className={`border-t px-5 py-3.5 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
+                        {REACH_EXPLANATION}
+                    </p>
                 </section>
             ) : null}
 

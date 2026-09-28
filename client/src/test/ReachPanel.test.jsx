@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import ReachPanel from '../components/dashboard/ReachPanel';
+import ReachPanel, { REACH_EXPLANATION } from '../components/dashboard/ReachPanel';
 
 /**
  * The panel used to show a single "Viewers" column that mixed every role, so on a
@@ -79,11 +79,18 @@ describe('ReachPanel', () => {
         expect(secondRow).toHaveTextContent('Cambajao River Flash Flood Zone');
     });
 
-    test('states what public means, so the number cannot be misread as reach by staff', () => {
+    test('states what public means when footnote is provided, so the number cannot be misread as reach by staff', () => {
+        renderPanel({ footnote: REACH_EXPLANATION });
+
+        expect(screen.getByText(/Counts unique detail viewers, not map views/i)).toBeInTheDocument();
+        expect(screen.getByText(/Public includes anonymous visitors and verified reporters/i)).toBeInTheDocument();
+        expect(screen.getByText(/All viewers also includes responders and municipal admins/i)).toBeInTheDocument();
+    });
+
+    test('omits the footnote container when no footnote prop is supplied', () => {
         renderPanel();
 
-        expect(screen.getByText(/Public is anonymous visitors and verified reporters/i)).toBeInTheDocument();
-        expect(screen.getByText(/Seeing a pin on the map is not counted/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Counts unique detail viewers/i)).not.toBeInTheDocument();
     });
 
     test('shows the empty state instead of an empty table', () => {

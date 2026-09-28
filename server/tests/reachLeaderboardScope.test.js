@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 /**
  * Reach leaderboard scoping and labelling.
  *
- * These lock in three fixes that were each invisible in the data:
+ * These lock in fixes that were each invisible in the data:
  *
  * 1. **Incident reach is municipal.** The endpoint used to read the island-wide
  *    top N and join it to records with no municipality filter, so a Cajidiocan
@@ -13,9 +13,13 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  *    aggregation's limit rather than after, which is the difference between an
  *    empty panel and a correct one for a municipality absent from the island-wide
  *    top N.
- * 2. **Zone reach stays island-wide**, deliberately: hazard visibility is
- *    island-wide for every viewer, so scoping zone reach to one municipality
- *    would describe a rule the app does not have.
+ * 2. **Zone reach is municipal too.** It used to be island-wide, on the reasoning
+ *    that the map shows every zone to every viewer. Visibility and this
+ *    leaderboard are different questions, and the island-wide read put other
+ *    municipalities' zone names on an office's dashboard. The scope comes from
+ *    `req.user.assignedMunicipality` and nothing else — a query parameter must
+ *    not be able to redirect or widen it — and it is applied before the limit so
+ *    the ten slots are ten LOCAL zones.
  * 3. **Zones are labelled from `municipality`**, not `municipalityName`. Reading
  *    the Report field off a zone document produced a silently empty label on
  *    every row.
@@ -23,6 +27,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     readTopReach: vi.fn(),
     reportDistinct: vi.fn(),
+    zoneDistinct: vi.fn(),
     reportFind: vi.fn(),
     zoneFind: vi.fn(),
 }));
@@ -44,6 +49,7 @@ vi.mock('../models/Report.js', () => ({
 
 vi.mock('../models/HighRiskZone.js', () => ({
     default: {
+        distinct: mocks.zoneDistinct,
         find: mocks.zoneFind,
         exists: vi.fn(),
     },
@@ -69,6 +75,7 @@ describe('getReachLeaderboard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.reportDistinct.mockResolvedValue([REPORT_A]);
+        mocks.zoneDistinct.mockResolvedValue([ZONE_A]);
         mocks.reportFind.mockReturnValue(findReturns([
             { _id: REPORT_A, title: 'Road Accident at Poblacion', incidentType: 'motorcycle', municipalityName: 'Cajidiocan', status: 'verified' },
         ]));
@@ -76,7 +83,7 @@ describe('getReachLeaderboard', () => {
         mocks.readTopReach.mockResolvedValue([]);
     });
 
-    test('scopes incident reach with the shared municipal scope, applied before the limit', async () => {
+    test('scopes both leaderboards with a municipal allow-list, applied before the limit', async () => {
         const res = makeRes();
 
         await getReachLeaderboard(
@@ -88,11 +95,68 @@ describe('getReachLeaderboard', () => {
         // re-implementation. A divergence here is how two admin screens started
         // disagreeing about which incidents belong to the office.
         expect(mocks.reportDistinct).toHaveBeenCalledWith('_id', buildMunicipalReportScope('Cajidiocan'));
+        expect(mocks.zoneDistinct).toHaveBeenCalledWith('_id', { municipality: 'Cajidiocan' });
 
         const [reportCall, zoneCall] = mocks.readTopReach.mock.calls.map(([options]) => options);
         expect(reportCall).toEqual({ targetType: 'report', limit: 10, targetIds: [REPORT_A] });
-        // No targetIds: zone reach is island-wide on purpose.
-        expect(zoneCall).toEqual({ targetType: 'zone', limit: 10 });
+        // Zones carry the allow-list too, so the aggregation ranks local zones
+        // rather than an island-wide top N that gets narrowed afterwards.
+        expect(zoneCall).toEqual({ targetType: 'zone', limit: 10, targetIds: [ZONE_A] });
+    });
+
+    test('takes the municipality from the session and ignores one supplied in the query', async () => {
+        const res = makeRes();
+
+        await getReachLeaderboard(
+            {
+                user: { assignedMunicipality: 'Cajidiocan' },
+                query: { municipality: 'Magdiwang', limit: '10' },
+            },
+            res,
+        );
+
+        // A query parameter must not be able to redirect or widen the scope.
+        expect(mocks.reportDistinct).toHaveBeenCalledWith('_id', buildMunicipalReportScope('Cajidiocan'));
+        expect(mocks.zoneDistinct).toHaveBeenCalledWith('_id', { municipality: 'Cajidiocan' });
+    });
+
+    test('gives a municipal admin only its own zone reach, and joins no foreign zone record', async () => {
+        mocks.readTopReach.mockImplementation(async ({ targetType }) => (
+            targetType === 'zone'
+                ? [{ _id: ZONE_A, uniqueViewers: 4, publicViewers: 3, guestViewers: 1, lastViewedAt: new Date() }]
+                : []
+        ));
+        mocks.zoneFind.mockReturnValue(findReturns([
+            { _id: ZONE_A, name: 'Cambajao River Flash Flood Zone', type: 'flood_prone', municipality: 'Cajidiocan' },
+        ]));
+
+        const res = makeRes();
+        await getReachLeaderboard({ user: { assignedMunicipality: 'Cajidiocan' }, query: { limit: '10' } }, res);
+
+        // The ten slots are ten local zones: the limit is handed to a scoped
+        // aggregation rather than applied to an island-wide one.
+        const zoneCall = mocks.readTopReach.mock.calls.map(([options]) => options)[1];
+        expect(zoneCall).toEqual({ targetType: 'zone', limit: 10, targetIds: [ZONE_A] });
+
+        // And the join is restricted to what came back, so a foreign zone record
+        // is never even loaded.
+        expect(mocks.zoneFind).toHaveBeenCalledWith({ _id: { $in: [ZONE_A] } });
+
+        const { zones } = res.json.mock.calls[0][0].data;
+        expect(zones.map((row) => row.id)).toEqual([ZONE_A]);
+        expect(zones.every((row) => row.municipalityName === 'Cajidiocan')).toBe(true);
+    });
+
+    test('answers a municipality with no zones with an empty list, never an unscoped read', async () => {
+        mocks.zoneDistinct.mockResolvedValue([]);
+        const res = makeRes();
+
+        await getReachLeaderboard({ user: { assignedMunicipality: 'San Fernando' }, query: {} }, res);
+
+        const zoneCall = mocks.readTopReach.mock.calls.map(([options]) => options)[1];
+        expect(zoneCall).toEqual({ targetType: 'zone', limit: 10, targetIds: [] });
+        expect(res.json.mock.calls[0][0].data.zones).toEqual([]);
+        expect(mocks.zoneFind).not.toHaveBeenCalled();
     });
 
     test('answers an empty municipal scope without falling back to island-wide data', async () => {
@@ -174,5 +238,7 @@ describe('getReachLeaderboard', () => {
 
         expect(res.status).toHaveBeenCalledWith(403);
         expect(mocks.readTopReach).not.toHaveBeenCalled();
+        expect(mocks.reportDistinct).not.toHaveBeenCalled();
+        expect(mocks.zoneDistinct).not.toHaveBeenCalled();
     });
 });

@@ -344,11 +344,27 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(screen.getByRole('heading', { name: 'Incident trend' }).closest('div[class*="xl:col-span-3"]')).not.toBeNull();
             expect(screen.getByRole('heading', { name: 'Report lifecycle' }).closest('div[class*="xl:col-span-2"]')).not.toBeNull();
 
-            for (const label of ['Operational breakdown', 'Reach']) {
-                const section = screen.getByLabelText(label);
-                expect(section).toHaveClass('md:grid-cols-2');
-                expect(section.className).not.toMatch(/\blg:grid-cols-2\b/);
-            }
+            const operational = screen.getByLabelText('Operational breakdown');
+            expect(operational).toHaveClass('md:grid-cols-2');
+            expect(operational.className).not.toMatch(/\blg:grid-cols-2\b/);
+
+            const reachSection = screen.getByLabelText('Reach');
+            const reachGrid = reachSection.querySelector('[class*="grid"]');
+            expect(reachGrid).toHaveClass('md:grid-cols-2');
+            expect(reachGrid.className).not.toMatch(/\blg:grid-cols-2\b/);
+        });
+
+        test('renders Reach comparison panels with a single shared explanatory note', () => {
+            render(<DashboardAnalyticsWorkspace {...baseProps} />);
+
+            const reachSection = screen.getByLabelText('Reach');
+            expect(within(reachSection).getByRole('heading', { name: 'Incident reach' })).toBeInTheDocument();
+            expect(within(reachSection).getByRole('heading', { name: 'Risk zone reach' })).toBeInTheDocument();
+
+            const notes = within(reachSection).getAllByText(
+                'Counts unique detail viewers, not map views. Public includes anonymous visitors and verified reporters; All viewers also includes responders and municipal admins.'
+            );
+            expect(notes).toHaveLength(1);
         });
 
         test('caps and centres the insights section instead of letting it run to the workspace edge', () => {

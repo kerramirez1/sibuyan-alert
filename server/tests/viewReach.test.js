@@ -499,9 +499,12 @@ describe('reach aggregation', () => {
     test('leaves the pipeline unscoped when the caller passes no scope', async () => {
         const spy = aggregateSpy();
 
-        await readTopReach({ targetType: 'zone' });
+        // `null` is a service-level capability, not a route behaviour: every
+        // caller in the app — including both reach leaderboards — supplies an
+        // allow-list, and an empty one answers without querying at all.
+        await readTopReach({ targetType: 'report' });
 
-        expect(spy.mock.calls[0][0][0]).toEqual({ $match: { targetType: 'zone' } });
+        expect(spy.mock.calls[0][0][0]).toEqual({ $match: { targetType: 'report' } });
     });
 
     test('answers an empty scope without querying at all', async () => {
