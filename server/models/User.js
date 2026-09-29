@@ -141,10 +141,53 @@ const userSchema = new mongoose.Schema(
         resetPasswordToken: {
             type: String,
             default: null,
+            // Never returned by a query. This is the invitation secret too — a
+            // provisioned responder sets their first password through the same
+            // token — so it must not be able to appear in a user list, a log line
+            // or any other response that happens to load the whole document.
+            select: false,
         },
         resetPasswordExpires: {
             type: Date,
             default: null,
+            select: false,
+        },
+        // Account-provisioning audit trail. Shaped like `verificationHistory`
+        // because that is this model's existing convention for "who did what to
+        // this account, and when" — one place per concern, not a second store.
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+            select: false,
+        },
+        provisioningHistory: {
+            type: [{
+                _id: false,
+                action: {
+                    type: String,
+                    enum: ['invited', 'invitation_resent', 'invitation_failed', 'activated'],
+                    required: true,
+                },
+                actor: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'User',
+                    default: null,
+                },
+                // Denormalised on purpose: the audit line must still say which
+                // municipality the account was created for if the account is
+                // later moved or the actor is deleted.
+                municipality: {
+                    type: String,
+                    default: null,
+                },
+                at: {
+                    type: Date,
+                    default: Date.now,
+                },
+            }],
+            default: [],
+            select: false,
         },
         termsAcceptedAt: {
             type: Date,
@@ -198,6 +241,21 @@ userSchema.methods.recordVerificationEvent = function ({ action, actor = null, f
     this.verificationHistory.push({ action, actor, feedback, at: new Date() });
     if (this.verificationHistory.length > 50) {
         this.verificationHistory.splice(0, this.verificationHistory.length - 50);
+    }
+};
+
+/**
+ * Appends one line to the account-provisioning audit trail.
+ *
+ * `municipality` is required because it is the fact the trail exists to record:
+ * a municipal administrator may only ever create accounts for their own
+ * municipality, so the line has to say which one was written.
+ */
+userSchema.methods.recordProvisioningEvent = function ({ action, actor = null, municipality = null }) {
+    if (!Array.isArray(this.provisioningHistory)) this.provisioningHistory = [];
+    this.provisioningHistory.push({ action, actor, municipality, at: new Date() });
+    if (this.provisioningHistory.length > 50) {
+        this.provisioningHistory.splice(0, this.provisioningHistory.length - 50);
     }
 };
 

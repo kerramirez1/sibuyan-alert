@@ -15,6 +15,7 @@ import PageHeader from '../components/ui/PageHeader';
 import { Skeleton, SkeletonCircle, SkeletonButton, SkeletonRow } from '../components/ui/Skeleton';
 import toast from '../utils/appToast';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
+import { RESPONDER_UNIT_TYPES, getResponderUnitLabel } from '../config/responderUnits';
 import {
     HiOutlineSearch,
     HiOutlineCheckCircle,
@@ -69,6 +70,17 @@ const AdminUsersPage = () => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    // Provisioning a responder. `fieldErrors` mirrors the server's per-field
+    // validation shape so a 400 can mark the inputs instead of only flashing a
+    // banner; `created` holds the account when the email failed, which is what
+    // turns the modal into a retry rather than a dead end.
+    const [addResponderOpen, setAddResponderOpen] = useState(false);
+    const [responderForm, setResponderForm] = useState({ name: '', email: '', agency: '', responderUnit: '' });
+    const [responderFieldErrors, setResponderFieldErrors] = useState({});
+    const [responderError, setResponderError] = useState('');
+    const [responderNotice, setResponderNotice] = useState('');
+    const [responderLoading, setResponderLoading] = useState(false);
+    const [responderCreated, setResponderCreated] = useState(null);
     const [verificationAssets, setVerificationAssets] = useState({
         idDocument: null,
         selfiePhoto: null,
@@ -346,6 +358,93 @@ const AdminUsersPage = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [documentViewer.isOpen, documentViewer.docType, documentViewer.user, closeDocumentPreview, switchDocumentType]);
 
+    const openAddResponder = () => {
+        setResponderForm({ name: '', email: '', agency: '', responderUnit: '' });
+        setResponderFieldErrors({});
+        setResponderError('');
+        setResponderNotice('');
+        setResponderCreated(null);
+        setAddResponderOpen(true);
+    };
+
+    const closeAddResponder = () => {
+        setAddResponderOpen(false);
+        setResponderFieldErrors({});
+        setResponderError('');
+        setResponderNotice('');
+        setResponderCreated(null);
+    };
+
+    /**
+     * Creates the responder, then either closes on success or — when the account
+     * was created but the invitation email was not delivered — keeps the modal
+     * open holding that account, so the only thing left to do is retry the mail.
+     * The account is deliberately not deleted on a mail failure: it is inert
+     * (no password means sign-in is refused), and deleting it would make the
+     * administrator start over for a transient SMTP error.
+     */
+    const handleAddResponder = async (event) => {
+        event.preventDefault();
+        setResponderLoading(true);
+        setResponderError('');
+        setResponderNotice('');
+        setResponderFieldErrors({});
+
+        try {
+            const response = await adminAPI.createResponder({
+                name: responderForm.name.trim(),
+                email: responderForm.email.trim(),
+                agency: responderForm.agency,
+                responderUnit: responderForm.responderUnit.trim(),
+            });
+            const data = response.data?.data || {};
+
+            // Re-read the scoped list rather than inserting locally: the server
+            // owns the account's shape, and a local insert could disagree with it.
+            fetchUsers({ force: true });
+
+            if (data.invitationSent) {
+                toast.success(data.message || 'Invitation sent');
+                closeAddResponder();
+            } else {
+                setResponderCreated(data.user || null);
+                setResponderNotice(data.message || 'Account created, but the invitation email could not be sent.');
+            }
+        } catch (error) {
+            const payload = error.response?.data;
+            const fieldErrors = {};
+            (Array.isArray(payload?.errors) ? payload.errors : []).forEach((entry) => {
+                if (entry?.field) fieldErrors[entry.field] = entry.message;
+            });
+
+            setResponderFieldErrors(fieldErrors);
+            setResponderError(
+                Object.keys(fieldErrors).length
+                    ? 'Please correct the highlighted fields.'
+                    : payload?.message || 'Could not create the responder account.',
+            );
+        } finally {
+            setResponderLoading(false);
+        }
+    };
+
+    const handleResendInvitation = async () => {
+        const id = responderCreated?.id;
+        if (!id) return;
+
+        setResponderLoading(true);
+        setResponderError('');
+        try {
+            const response = await adminAPI.resendResponderInvitation(id);
+            toast.success(response.data?.data?.message || 'Invitation sent');
+            closeAddResponder();
+        } catch (error) {
+            setResponderError(error.response?.data?.message || 'Could not send the invitation.');
+        } finally {
+            setResponderLoading(false);
+        }
+    };
+
     const handleDelete = async () => {
         if (!userToDelete?._id) return;
 
@@ -491,6 +590,15 @@ const AdminUsersPage = () => {
                                 <option value="approved">Approved</option>
                                 <option value="rejected">Rejected</option>
                             </select>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={openAddResponder}
+                                className="col-span-2 sm:col-span-1 sm:ml-auto"
+                                aria-label="Add a responder account"
+                            >
+                                Add responder
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -914,6 +1022,140 @@ const AdminUsersPage = () => {
             </Modal>
 
             {/* Delete Confirmation Modal */}
+            {/* Provision a responder. There is no password field on purpose: the
+                administrator never sets or sees a credential — the responder
+                chooses their own from the emailed invitation, and the account
+                cannot be signed into until they do. The municipality is not a
+                field either; the server reads it from the session. */}
+            <Modal
+                isOpen={addResponderOpen}
+                onClose={closeAddResponder}
+                title="Add responder"
+                size="md"
+            >
+                {responderCreated ? (
+                    <div className="space-y-3.5">
+                        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                            <p>{responderNotice}</p>
+                            <p className="mt-1 font-semibold">{responderCreated.name} · {responderCreated.email}</p>
+                            <p className="mt-1">
+                                The account exists but cannot be signed into until the invitation is followed.
+                            </p>
+                        </div>
+
+                        {responderError ? (
+                            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                                {responderError}
+                            </p>
+                        ) : null}
+
+                        <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                            <Button type="button" variant="secondary" onClick={closeAddResponder} className="sm:flex-1" disabled={responderLoading}>
+                                Close
+                            </Button>
+                            <Button type="button" onClick={handleResendInvitation} loading={responderLoading} className="sm:flex-1">
+                                Resend invitation
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleAddResponder} className="space-y-3.5">
+                        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                            The account is created for your municipality and the responder sets their own
+                            password from a single-use invitation link.
+                        </p>
+
+                        {responderError ? (
+                            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                                {responderError}
+                            </p>
+                        ) : null}
+
+                        <div>
+                            <label htmlFor="responder-name" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Full name</label>
+                            <input
+                                id="responder-name"
+                                type="text"
+                                value={responderForm.name}
+                                onChange={(e) => setResponderForm({ ...responderForm, name: e.target.value })}
+                                className="field-control"
+                                autoComplete="name"
+                                maxLength={100}
+                                required
+                                aria-invalid={Boolean(responderFieldErrors.name)}
+                            />
+                            {responderFieldErrors.name && (
+                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.name}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="responder-email" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Email</label>
+                            <input
+                                id="responder-email"
+                                type="email"
+                                value={responderForm.email}
+                                onChange={(e) => setResponderForm({ ...responderForm, email: e.target.value })}
+                                className="field-control"
+                                autoComplete="email"
+                                required
+                                aria-invalid={Boolean(responderFieldErrors.email)}
+                            />
+                            {responderFieldErrors.email && (
+                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.email}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="responder-agency" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Agency</label>
+                            <select
+                                id="responder-agency"
+                                value={responderForm.agency}
+                                onChange={(e) => setResponderForm({ ...responderForm, agency: e.target.value })}
+                                className="field-control"
+                                required
+                                aria-invalid={Boolean(responderFieldErrors.agency)}
+                            >
+                                <option value="">Select an agency</option>
+                                {RESPONDER_UNIT_TYPES.map((unitType) => (
+                                    <option key={unitType} value={unitType}>{getResponderUnitLabel(unitType)}</option>
+                                ))}
+                            </select>
+                            {responderFieldErrors.agency && (
+                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.agency}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="responder-unit" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Responder unit</label>
+                            <input
+                                id="responder-unit"
+                                type="text"
+                                value={responderForm.responderUnit}
+                                onChange={(e) => setResponderForm({ ...responderForm, responderUnit: e.target.value })}
+                                className="field-control"
+                                placeholder="e.g. MDRRMO Rescue 1"
+                                maxLength={100}
+                                required
+                                aria-invalid={Boolean(responderFieldErrors.responderUnit)}
+                            />
+                            {responderFieldErrors.responderUnit && (
+                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.responderUnit}</p>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                            <Button type="button" variant="secondary" onClick={closeAddResponder} className="sm:flex-1" disabled={responderLoading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" loading={responderLoading} className="sm:flex-1">
+                                Create and send invitation
+                            </Button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
+
             <Modal
                 isOpen={deleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}

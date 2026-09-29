@@ -500,12 +500,18 @@ const DashboardPage = () => {
         }));
     }, [isResponder, user]);
 
+    // The Resolved card's "N today" line reads this set clipped to the map's
+    // resolved pins (see `resolvedTodayMappedCount` in the workspace), so it
+    // can only ever count records this viewer already received. Everyone
+    // except a responder reads the whole visible set — an admin's municipality
+    // (or island scope), a reporter/guest's public feed. The responder keeps
+    // the participation filter, which is what "resolved by you today" means.
     const computedResolvedTodayReports = useMemo(() => {
         return getResolvedTodayReports(mapScopedReports, {
             currentUser: user,
-            includeAll: isAdmin,
+            includeAll: !isResponder,
         });
-    }, [isAdmin, mapScopedReports, user, operationsDateKey]);
+    }, [isResponder, mapScopedReports, user, operationsDateKey]);
 
     useEffect(() => {
         let midnightTimer;

@@ -356,6 +356,91 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
   });
 };
 
+/**
+ * Invitation for a responder account a municipal administrator just created.
+ *
+ * The account is provisioned with NO password, and sign-in already refuses an
+ * account that has none — so this link is the only way in, and nothing about the
+ * account is usable until it is followed. The token is the same single-use,
+ * time-limited one the reset flow issues, which is why the copy says "set your
+ * password" rather than "reset it": there is no old password to replace.
+ *
+ * Deliberately no credential is included, because none exists to include.
+ */
+export const sendResponderInvitationEmail = async (
+  email,
+  name,
+  inviteUrl,
+  { municipality = '', agency = '', invitedBy = '' } = {},
+) => {
+  const context = [
+    municipality ? `<li><strong>Municipality:</strong> ${municipality}</li>` : '',
+    agency ? `<li><strong>Unit type:</strong> ${agency}</li>` : '',
+    invitedBy ? `<li><strong>Added by:</strong> ${invitedBy}</li>` : '',
+  ].filter(Boolean).join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { padding: 30px; }
+        .message { color: #374151; line-height: 1.6; margin-bottom: 20px; }
+        .details { background: #F9FAFB; border-radius: 8px; padding: 15px 15px 15px 35px; margin: 20px 0; color: #374151; line-height: 1.8; }
+        .warning { background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; color: #92400E; }
+        .button { display: inline-block; background: #3B82F6; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 20px 0; font-weight: bold; }
+        .button:hover { background: #2563EB; }
+        .footer { padding: 20px; text-align: center; color: #6B7280; font-size: 14px; border-top: 1px solid #E5E7EB; }
+        .expiry { color: #6B7280; font-size: 14px; margin-top: 15px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🚑 Responder Account Invitation</h1>
+        </div>
+        <div class="content">
+          <p class="message">Hello <strong>${name}</strong>,</p>
+          <p class="message">
+            A responder account has been created for you on the Sibuyan Accident Alert System.
+          </p>
+          ${context ? `<ul class="details">${context}</ul>` : ''}
+          <p class="message">
+            Set your own password to activate the account:
+          </p>
+          <a href="${inviteUrl}" class="button">Set My Password</a>
+          <p class="expiry">⏱️ This link can only be used once and expires in 1 hour</p>
+          <div class="warning">
+            <strong>⚠️ Before you set a password:</strong><br>
+            The account cannot be signed into until you do. If this invitation expires, ask your municipal administrator to send a new one.
+          </div>
+          <p class="message">
+            If the button doesn't work, copy and paste this link into your browser:
+          </p>
+          <p style="word-break: break-all; color: #3B82F6; font-size: 12px;">
+            ${inviteUrl}
+          </p>
+        </div>
+        <div class="footer">
+          <p>Sibuyan Accident Alert System</p>
+          <p>Keeping Sibuyan Island safe together</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: '🚑 You have been added as a responder - Sibuyan Accident Alert',
+    html,
+  });
+};
+
 export default {
   isEmailConfigured,
   getSmtpConfig,
@@ -365,4 +450,5 @@ export default {
   sendReportStatusEmail,
   sendNewReportAlertEmail,
   sendPasswordResetEmail,
+  sendResponderInvitationEmail,
 };

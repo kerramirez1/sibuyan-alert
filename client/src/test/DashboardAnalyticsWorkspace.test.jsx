@@ -390,7 +390,7 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(caps.every((value) => value === 56)).toBe(true);
         });
 
-        test('lists a thin bucketed trend rather than stretching a near-empty chart', () => {
+        test('draws the chart for a thin bucketed trend and keeps its drill-down', () => {
             const february = {
                 ...report,
                 _id: 'feb-1',
@@ -416,14 +416,16 @@ describe('DashboardAnalyticsWorkspace', () => {
                 />
             );
 
-            // One active bucket out of twelve: no plot, but the period, the count
-            // and the drill-down all survive.
-            expect(screen.queryByTestId('incident-bar-chart')).not.toBeInTheDocument();
-            const list = screen.getByTestId('incident-days-list');
-            expect(within(list).getByText('February 2026')).toBeInTheDocument();
-            expect(within(list).getByText('3 reports')).toBeInTheDocument();
+            // The plot IS the sparse presentation now: it sizes its own count axis
+            // and keeps headroom for the total label, so one active bucket out of
+            // twelve still reads as a labelled bar. The one-row day list this used
+            // to fall back to is gone.
+            expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
+            expect(screen.queryByTestId('incident-days-list')).not.toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: 'Filter map to February 2026, 3 reports' }));
+            // The drill-down that list used to own is still reachable — through the
+            // select, which is the keyboard path.
+            fireEvent.change(screen.getByRole('combobox', { name: 'Filter map by month' }), { target: { value: '2026-02' } });
 
             expect(screen.getByText('Showing Feb')).toBeInTheDocument();
             expect(mocks.mapProps.mock.calls.at(-1)[0].reports.map((item) => item._id)).toEqual(['feb-1']);
@@ -526,7 +528,7 @@ describe('DashboardAnalyticsWorkspace', () => {
             expect(mocks.mapProps.mock.calls.at(-1)[0].reports).toHaveLength(3);
         });
 
-        test('lists active days instead of a near-empty chart for a sparse full month', () => {
+        test('draws the chart for a sparse full month and keeps its drill-down', () => {
             const september = new Date(2026, 8, 1);
             const sparseTrend = Array.from({ length: 30 }, (_, index) => {
                 const day = index + 1;
@@ -559,15 +561,18 @@ describe('DashboardAnalyticsWorkspace', () => {
                 />
             );
 
-            expect(screen.queryByTestId('incident-bar-chart')).not.toBeInTheDocument();
-            const daysList = screen.getByTestId('incident-days-list');
-            expect(within(daysList).getByText('Sep 5, 2026')).toBeInTheDocument();
-            expect(within(daysList).getByText('1 report')).toBeInTheDocument();
+            // A full month with one active day keeps the plot rather than falling
+            // back to a list: the axis is sized to the peak and the bar has a
+            // minimum width, so one bar is still a legible bar.
+            expect(screen.getByTestId('incident-bar-chart')).toBeInTheDocument();
+            expect(screen.queryByTestId('incident-days-list')).not.toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: 'Filter map to Sep 5, 2026, 1 report' }));
+            // Selecting the lone active day, then clearing back to "All days".
+            const selector = screen.getByRole('combobox', { name: 'Filter map by day' });
+            fireEvent.change(selector, { target: { value: '2026-09-05' } });
             expect(screen.getByText('Showing Sep 5')).toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: 'Filter map to Sep 5, 2026, 1 report' }));
+            fireEvent.change(selector, { target: { value: '' } });
             expect(screen.queryByText('Showing Sep 5')).not.toBeInTheDocument();
         });
     });

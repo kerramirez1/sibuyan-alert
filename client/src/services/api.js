@@ -181,6 +181,12 @@ export const adminAPI = {
     getUsers: (params) => api.get('/admin/users', { params }),
     getUserById: (id) => api.get(`/admin/users/${id}`),
     verifyReporter: (id, data) => api.put(`/admin/users/${id}/verify`, data),
+    // Provisioning a responder. The municipality is never sent: the server reads
+    // it from the session, and the endpoint rejects a request that supplies one.
+    // There is no password field for the same reason — the responder sets their
+    // own from the emailed invitation.
+    createResponder: (data) => api.post('/admin/users/responder', data),
+    resendResponderInvitation: (id) => api.post(`/admin/users/${id}/invite`),
     getReports: (params) => api.get('/admin/reports', { params }),
     getReportById: (id, config = {}) => api.get(`/admin/reports/${id}`, config),
     verifyReport: (id, data) => api.put(`/admin/reports/${id}/verify`, data),

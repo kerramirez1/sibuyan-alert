@@ -810,9 +810,113 @@ describe('DashboardMapWorkspace permissions', () => {
         }
 
         // What differs is copy about the same set, never an extra tile: an
-        // administrator is told how much closed today, a reporter is not.
+        // administrator and a reporter both read how much of the archive
+        // closed today — only the responder's line stays personal ("by you").
         expect(rowsByRole.municipal_admin[2].helper).toMatch(/closed incidents · 0 today/i);
-        expect(rowsByRole.reporter[2].helper).toBe('Completed incidents');
+        expect(rowsByRole.reporter[2].helper).toMatch(/closed incidents · 0 today/i);
+        expect(rowsByRole.reporter[2].helper).not.toMatch(/by you/i);
+        expect(rowsByRole.responder[2].helper).toMatch(/closed incidents · 0 today by you/i);
+    });
+
+    describe('Resolved card today line across roles', () => {
+        const now = new Date().toISOString();
+        const coords = (lat) => ({ lat, lng: 122.6 });
+        // Two pins closed on different days, one closure with no coordinates
+        // (never a pin), and one pin the page's scope did not hand down.
+        const archiveReports = [
+            { _id: 'resolved-today', status: 'resolved', incidentType: 'fire', resolvedAt: now, coordinates: coords(12.4), createdAt: now },
+            { _id: 'resolved-out-of-scope', status: 'resolved', incidentType: 'marine', resolvedAt: now, coordinates: coords(12.42), createdAt: now },
+            { _id: 'resolved-archive', status: 'resolved', incidentType: 'medical', resolvedAt: '2026-01-02T04:00:00.000Z', coordinates: coords(12.41), createdAt: now },
+            { _id: 'resolved-offmap', status: 'resolved', incidentType: 'other', resolvedAt: now, createdAt: now },
+        ];
+        // What the page hands down for a guest/reporter/admin after its own
+        // Manila-day filter over the viewer's visible set: both of today's
+        // closures, including the one with no pin.
+        const todayProp = [archiveReports[0], archiveReports[3]];
+
+        test.each([
+            ['guest', { user: null, isAuthenticated: false, isReporter: false }],
+            ['reporter', { user: { _id: 'reporter-1', role: 'reporter' }, isAuthenticated: true, isReporter: true }],
+        ])('shows a %s the archive count with today’s visible share beside it', (role, flags) => {
+            renderWorkspace(createProps({
+                ...flags,
+                isResponder: false,
+                isAdmin: false,
+                reports: archiveReports,
+                resolvedTodayReports: todayProp,
+            }));
+
+            const summary = screen.getByRole('region', { name: 'Map summary' });
+            // Three pins in the archive; the out-of-scope pin and the
+            // coordinate-less closure cannot reach the supporting line, which
+            // is clipped to the same mapped set the value counts.
+            const card = within(summary).getByRole('button', { name: /View 3 resolved\. Closed incidents · 1 today/i });
+            expect(card).toBeInTheDocument();
+            expect(card.getAttribute('aria-label')).not.toMatch(/by you/i);
+        });
+
+        test.each([
+            ['guest', { user: null, isAuthenticated: false, isReporter: false }],
+            ['reporter', { user: { _id: 'reporter-1', role: 'reporter' }, isAuthenticated: true, isReporter: true }],
+        ])('tells a %s with no closures today that the archive stands at zero today', (role, flags) => {
+            renderWorkspace(createProps({
+                ...flags,
+                isResponder: false,
+                isAdmin: false,
+                reports: [archiveReports[2]],
+                resolvedTodayReports: [],
+            }));
+
+            const summary = screen.getByRole('region', { name: 'Map summary' });
+            expect(within(summary).getByRole('button', { name: /View 1 resolved\. Closed incidents · 0 today/i })).toBeInTheDocument();
+        });
+
+        test('keeps the responder line personal: only closures they handled', () => {
+            const byMeToday = {
+                _id: 'resolved-by-me', status: 'resolved', incidentType: 'fire',
+                resolvedAt: now, resolvedBy: { _id: 'responder-1' },
+                coordinates: coords(12.4), createdAt: now,
+            };
+            const byOtherToday = {
+                _id: 'resolved-by-other', status: 'resolved', incidentType: 'medical',
+                resolvedAt: now, resolvedBy: { _id: 'responder-2' },
+                coordinates: coords(12.41), createdAt: now,
+            };
+            const byMeArchived = {
+                _id: 'resolved-by-me-old', status: 'resolved', incidentType: 'marine',
+                resolvedAt: '2026-01-02T04:00:00.000Z', resolvedBy: { _id: 'responder-1' },
+                coordinates: coords(12.42), createdAt: now,
+            };
+            // The page's participation filter over the same visible set.
+            renderWorkspace(createProps({
+                user: { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Cajidiocan' },
+                isAuthenticated: true,
+                isReporter: false,
+                isResponder: true,
+                isAdmin: false,
+                reports: [byMeToday, byOtherToday, byMeArchived],
+                resolvedTodayReports: [byMeToday],
+            }));
+
+            const summary = screen.getByRole('region', { name: 'Map summary' });
+            expect(within(summary).getByRole('button', { name: /View 3 resolved\. Closed incidents · 1 today by you/i })).toBeInTheDocument();
+        });
+
+        test('carries the today share into the resolved panel description', () => {
+            renderWorkspace(createProps({
+                user: { _id: 'reporter-1', role: 'reporter' },
+                isAuthenticated: true,
+                isReporter: true,
+                isResponder: false,
+                isAdmin: false,
+                reports: archiveReports,
+                resolvedTodayReports: todayProp,
+                mapSummaryPanel: 'overview:resolved',
+            }));
+
+            const panel = screen.getByRole('dialog', { name: 'Resolved incidents' });
+            expect(panel).toHaveTextContent(/3 incidents in the resolved archive · 1 today/);
+        });
     });
 
     test('keeps municipal admin counts and contextual panel records on the same status definitions', () => {

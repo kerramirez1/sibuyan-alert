@@ -996,13 +996,15 @@ const DashboardMapWorkspace = ({
                     statusDot: 'bg-blue-500',
                 },
                 {
-                    // Same card the reporter map shows, minus the pending one.
+                    // Same card the signed-in row shows, minus the pending one.
                     // Resolved rows were always public — guests already had a
                     // Resolved filter tab — so this exposes no new data, it only
-                    // stops hiding a lifecycle stage from the overview.
+                    // stops hiding a lifecycle stage from the overview. The
+                    // supporting line names today's share of the same archive
+                    // the card opens, exactly as the signed-in card does.
                     id: 'resolved', label: 'Resolved', value: resolvedMapReports.length,
-                    helper: 'Completed incidents', icon: HiOutlineCheckCircle, panelType: 'incidents',
-                    panelTitle: 'Resolved incidents', panelDescription: `${resolvedMapReports.length} ${resolvedMapReports.length === 1 ? 'incident' : 'incidents'} already resolved`,
+                    helper: `Closed incidents · ${resolvedTodayMappedCount} today`, icon: HiOutlineBadgeCheck, panelType: 'incidents',
+                    panelTitle: 'Resolved incidents', panelDescription: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
                     records: resolvedMapReports,
                     mapFilter: 'resolved',
                     emptyTitle: 'No resolved incidents',
@@ -1033,18 +1035,18 @@ const DashboardMapWorkspace = ({
                 : `${pendingMappedReports.length} ${pendingMappedReports.length === 1 ? 'report' : 'reports'} awaiting municipal review.`,
         };
 
-    const resolvedArchiveCopy = isAdmin || isResponder
+    // Every role reads the same archive line now: the admin's municipality
+    // (or island scope), the reporter's and guest's public feed. Only the
+    // responder's line stays personal — "by you" — because its count is still
+    // clipped to incidents they participated in.
+    const resolvedArchiveCopy = isResponder
         ? {
-            helper: isResponder
-                ? `Closed incidents · ${resolvedTodayMappedCount} today by you`
-                : `Closed incidents · ${resolvedTodayMappedCount} today`,
-            description: isResponder
-                ? `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} resolved by you today`
-                : `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
+            helper: `Closed incidents · ${resolvedTodayMappedCount} today by you`,
+            description: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} resolved by you today`,
         }
         : {
-            helper: 'Completed incidents',
-            description: `${resolvedArchivePanelDescription}.`,
+            helper: `Closed incidents · ${resolvedTodayMappedCount} today`,
+            description: `${resolvedArchivePanelDescription} · ${resolvedTodayMappedCount} today`,
         };
 
     // The signed-in row: four cards, one order, one set of names, for reporter,

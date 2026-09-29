@@ -193,6 +193,43 @@ export const validateVerifyReporter = [
     handleValidationErrors,
 ];
 
+/**
+ * A municipal administrator provisions a responder account for their own office.
+ *
+ * `role`, `assignedMunicipality` and `password` are REJECTED rather than ignored.
+ * The server decides all three — the role is always `responder`, the municipality
+ * always comes from the session, and the credential is set by the responder
+ * themselves from the emailed invitation. Silently dropping a supplied value
+ * would let a cross-municipality or role-escalation attempt read as a success,
+ * and a 400 is the honest answer to a field the client should not be sending.
+ */
+export const validateCreateResponder = [
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Name is required')
+        .isLength({ max: 100 }).withMessage('Name cannot exceed 100 characters'),
+    body('email')
+        .trim()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Please enter a valid email'),
+    body('agency')
+        .trim()
+        .notEmpty().withMessage('Agency is required')
+        .isIn(RESPONDER_UNIT_TYPES)
+        .withMessage(`Agency must be one of: ${RESPONDER_UNIT_TYPES.join(', ')}`),
+    body('responderUnit')
+        .trim()
+        .notEmpty().withMessage('Responder unit is required')
+        .isLength({ min: 2, max: 100 }).withMessage('Responder unit must be between 2 and 100 characters'),
+    body('role')
+        .not().exists().withMessage('Role is assigned by the server and cannot be supplied'),
+    body('assignedMunicipality')
+        .not().exists().withMessage('Municipality is derived from your account and cannot be supplied'),
+    body('password')
+        .not().exists().withMessage('The responder sets their own password from the invitation email'),
+    handleValidationErrors,
+];
+
 export const validateVerifyReport = [
     param('id')
         .isMongoId().withMessage('Invalid report ID'),

@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
     getUsers: vi.fn(),
     verifyReporter: vi.fn(),
     deleteUser: vi.fn(),
+    createResponder: vi.fn(),
+    resendResponderInvitation: vi.fn(),
     getProtected: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -15,6 +17,8 @@ vi.mock('../services/api', () => ({
         getUsers: mocks.getUsers,
         verifyReporter: mocks.verifyReporter,
         deleteUser: mocks.deleteUser,
+        createResponder: mocks.createResponder,
+        resendResponderInvitation: mocks.resendResponderInvitation,
     },
     filesAPI: {
         getProtected: mocks.getProtected,
@@ -248,5 +252,133 @@ describe('AdminUsersPage', () => {
             createObjectURLSpy.mockRestore();
             revokeObjectURLSpy.mockRestore();
         }
+    });
+
+    /**
+     * Provisioning a responder. The form exists so an administrator can add a
+     * colleague without ever handling a credential — so the assertions that
+     * matter most are about what the form does NOT send.
+     */
+    describe('add responder', () => {
+        const openForm = async () => {
+            render(<AdminUsersPage />);
+            // The directory renders a desktop table and a mobile card list, so
+            // every user appears twice.
+            await screen.findAllByText('Jayker Ramirez');
+            fireEvent.click(screen.getByRole('button', { name: 'Add a responder account' }));
+            await screen.findByRole('heading', { name: 'Add responder' });
+        };
+
+        const fillForm = () => {
+            fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Juan Dela Cruz' } });
+            fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'juan@example.com' } });
+            fireEvent.change(screen.getByLabelText('Agency'), { target: { value: 'MDRRMO' } });
+            fireEvent.change(screen.getByLabelText('Responder unit'), { target: { value: 'MDRRMO Rescue 1' } });
+        };
+
+        const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Create and send invitation' }));
+
+        test('sends only the four collected fields — never a role, municipality, or password', async () => {
+            mocks.createResponder.mockResolvedValue({
+                data: { data: { invitationSent: true, message: 'Invitation sent to juan@example.com' } },
+            });
+
+            await openForm();
+            fillForm();
+            submit();
+
+            await waitFor(() => expect(mocks.createResponder).toHaveBeenCalledTimes(1));
+
+            const payload = mocks.createResponder.mock.calls[0][0];
+            expect(payload).toEqual({
+                name: 'Juan Dela Cruz',
+                email: 'juan@example.com',
+                agency: 'MDRRMO',
+                responderUnit: 'MDRRMO Rescue 1',
+            });
+            // The server owns all three; the client has no business sending them.
+            expect(payload).not.toHaveProperty('role');
+            expect(payload).not.toHaveProperty('assignedMunicipality');
+            expect(payload).not.toHaveProperty('password');
+        });
+
+        test('surfaces the duplicate-email message the server sent', async () => {
+            mocks.createResponder.mockRejectedValue({
+                response: {
+                    data: {
+                        success: false,
+                        code: 'EMAIL_IN_USE',
+                        message: 'An account with this email already exists',
+                    },
+                },
+            });
+
+            await openForm();
+            fillForm();
+            submit();
+
+            expect(await screen.findByRole('alert')).toHaveTextContent('An account with this email already exists');
+        });
+
+        test('marks the field the server rejected instead of only showing a banner', async () => {
+            mocks.createResponder.mockRejectedValue({
+                response: {
+                    data: {
+                        success: false,
+                        message: 'Validation failed',
+                        errors: [{ field: 'email', message: 'Please enter a valid email' }],
+                    },
+                },
+            });
+
+            await openForm();
+            fillForm();
+            submit();
+
+            expect(await screen.findByText('Please enter a valid email')).toBeInTheDocument();
+            expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true');
+        });
+
+        test('keeps the created account and offers a retry when the email failed', async () => {
+            mocks.createResponder.mockResolvedValue({
+                data: {
+                    data: {
+                        invitationSent: false,
+                        message: 'Account created, but the invitation email could not be sent. Use "Resend invitation" to try again.',
+                        user: { id: 'new-1', name: 'Juan Dela Cruz', email: 'juan@example.com' },
+                    },
+                },
+            });
+            mocks.resendResponderInvitation.mockResolvedValue({
+                data: { data: { invitationSent: true, message: 'Invitation sent' } },
+            });
+
+            await openForm();
+            fillForm();
+            submit();
+
+            // Not a dead end: the account is held on screen and the retry is the
+            // only remaining action.
+            expect(await screen.findByRole('status')).toHaveTextContent(/could not be sent/i);
+            expect(screen.getByText(/juan@example\.com/)).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Resend invitation' }));
+
+            await waitFor(() => expect(mocks.resendResponderInvitation).toHaveBeenCalledWith('new-1'));
+        });
+
+        test('refreshes the scoped list after a successful invitation', async () => {
+            mocks.createResponder.mockResolvedValue({
+                data: { data: { invitationSent: true, message: 'Invitation sent' } },
+            });
+
+            await openForm();
+            const callsBefore = mocks.getUsers.mock.calls.length;
+
+            fillForm();
+            submit();
+
+            await waitFor(() => expect(mocks.getUsers.mock.calls.length).toBeGreaterThan(callsBefore));
+        });
     });
 });

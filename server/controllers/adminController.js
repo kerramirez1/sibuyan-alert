@@ -5,7 +5,7 @@ import Municipality from '../models/Municipality.js';
 import Notification from '../models/Notification.js';
 import AuthSession from '../models/AuthSession.js';
 import { deleteViewEventsForTarget, deleteViewerAliasesForUser } from '../services/viewEventService.js';
-import { sendVerificationEmail, sendReportStatusEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendReportStatusEmail, sendResponderInvitationEmail } from '../services/emailService.js';
 import { sendPushToUser, pushTemplates } from '../services/pushService.js';
 import {
     broadcastReportRejected,
@@ -27,6 +27,7 @@ import {
     RESPONDER_UNIT_TYPES,
     isSupportedResponderUnitType,
     normalizeUnitType,
+    getUnitTypeLabel,
 } from '../config/responderUnits.js';
 import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
@@ -1094,6 +1095,249 @@ export const deleteUser = async (req, res) => {
  * @route   GET /api/admin/dashboard
  * @access  Private (admin only)
  */
+/**
+ * How long a responder invitation stays valid. The same window the password-reset
+ * flow uses, because the invitation IS a password-setup link.
+ */
+const RESPONDER_INVITATION_TTL_MS = 3600000; // 1 hour
+
+/**
+ * Mints a fresh single-use invitation secret for `user` and emails the link.
+ *
+ * The secret is 32 random bytes; only its SHA-256 hash is stored, so reading the
+ * database cannot reconstruct a working link. Reissuing overwrites the previous
+ * secret, which is what makes the link single-use in practice — the old token
+ * stops matching the moment a new one is minted.
+ *
+ * Returns the delivery outcome instead of throwing, so a caller that has just
+ * created an account can report a mail failure without unwinding the account.
+ * The token and URL are never logged: the URL is the credential.
+ */
+const issueResponderInvitation = async (user, { actor = null, municipality = null, action = 'invited' } = {}) => {
+    const crypto = await import('crypto');
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
+    user.resetPasswordExpires = new Date(Date.now() + RESPONDER_INVITATION_TTL_MS);
+
+    const clientBase = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
+    const inviteUrl = clientBase
+        ? `${clientBase}/reset-password/${inviteToken}`
+        : `/reset-password/${inviteToken}`;
+
+    let delivered = false;
+    let failureReason = null;
+    try {
+        const result = await sendResponderInvitationEmail(user.email, user.name, inviteUrl, {
+            municipality,
+            agency: getUnitTypeLabel(user.agency),
+            invitedBy: actor?.name || '',
+        });
+        delivered = Boolean(result?.success);
+        if (!delivered) failureReason = result?.error || 'The mail server rejected the message';
+    } catch (error) {
+        failureReason = error?.message || 'The invitation email could not be sent';
+    }
+
+    user.recordProvisioningEvent({
+        action: delivered ? action : 'invitation_failed',
+        actor: actor?._id || null,
+        municipality,
+    });
+    await user.save();
+
+    if (!delivered) {
+        // Deliberately no URL and no token — see the doc comment above.
+        console.error(`[responder-invite] Delivery failed for account ${user._id}: ${failureReason}`);
+    }
+
+    return { delivered, failureReason };
+};
+
+/**
+ * The responder shape this endpoint returns. Never includes the invitation
+ * secret, the stored hash, or any credential — there is no password to return.
+ */
+const toProvisionedResponderPayload = (user) => ({
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    agency: user.agency,
+    responderUnit: user.responderUnit,
+    assignedMunicipality: user.assignedMunicipality,
+    createdAt: user.createdAt,
+});
+
+/**
+ * @desc    Provision a responder account for the caller's own municipality.
+ * @route   POST /api/admin/users/responder
+ * @access  Private (municipal_admin)
+ *
+ * The municipality comes from the session and nowhere else. The validator already
+ * rejects a supplied `assignedMunicipality`, and this handler would not read one
+ * even if it arrived — two independent reasons a cross-municipality creation
+ * cannot succeed.
+ *
+ * No password is set. Login refuses an account that has none, so the account is
+ * inert until the responder follows the emailed invitation and chooses their own
+ * password. That is also why the administrator never sees a credential: none is
+ * ever generated for them to see.
+ */
+export const createResponder = async (req, res) => {
+    try {
+        const adminUser = req.user;
+        const municipality = adminUser?.assignedMunicipality;
+
+        if (!municipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        const name = String(req.body?.name || '').trim();
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        // Legacy `LGU` normalises to MDRRMO rather than being rejected, matching
+        // how stored accounts are read everywhere else.
+        const agency = normalizeUnitType(String(req.body?.agency || '').trim());
+        const responderUnit = String(req.body?.responderUnit || '').trim();
+
+        if (!isSupportedResponderUnitType(agency)) {
+            return res.status(400).json({
+                success: false,
+                message: `Agency must be one of: ${RESPONDER_UNIT_TYPES.join(', ')}`,
+            });
+        }
+
+        // Checked against the normalised address, matching the schema's own
+        // lowercase+trim, so "A@B.com" cannot slip past a check for "a@b.com".
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                code: 'EMAIL_IN_USE',
+                message: 'An account with this email already exists',
+            });
+        }
+
+        const responder = new User({
+            email,
+            name,
+            // Both of these are the server's decision, never the client's.
+            role: 'responder',
+            assignedMunicipality: municipality,
+            agency,
+            responderUnit,
+            createdBy: adminUser._id,
+        });
+
+        const { delivered } = await issueResponderInvitation(responder, {
+            actor: adminUser,
+            municipality,
+        });
+
+        return res.status(201).json({
+            success: true,
+            data: {
+                user: toProvisionedResponderPayload(responder),
+                invitationSent: delivered,
+                // A delivery failure is not a creation failure: the account exists
+                // and is inert. The administrator gets an explicit retry rather
+                // than an ambiguous half-created state.
+                message: delivered
+                    ? `Invitation sent to ${responder.email}`
+                    : 'Account created, but the invitation email could not be sent. Use "Resend invitation" to try again.',
+            },
+        });
+    } catch (error) {
+        // The unique index is the real duplicate guard; the check above only
+        // exists to return a friendly message before the insert is attempted.
+        if (error?.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                code: 'EMAIL_IN_USE',
+                message: 'An account with this email already exists',
+            });
+        }
+        console.error('Create responder error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to create the responder account',
+        });
+    }
+};
+
+/**
+ * @desc    Re-issue a responder's invitation.
+ * @route   POST /api/admin/users/:id/invite
+ * @access  Private (municipal_admin)
+ *
+ * The recovery path for a failed delivery, and for a link that expired or was
+ * already used. Scoped through `ensureUserScopeAccess`, the same helper every
+ * other user-management action uses, so an administrator cannot invite a
+ * responder belonging to another office.
+ */
+export const resendResponderInvitation = async (req, res) => {
+    try {
+        const adminUser = req.user;
+        // `+password` because the field is select:false and "has this responder
+        // already activated?" is exactly what that flag answers.
+        const user = await User.findById(req.params.id).select('+password');
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const scopeCheck = await ensureUserScopeAccess(adminUser, user);
+        if (!scopeCheck.allowed) {
+            return res.status(403).json({ success: false, message: scopeCheck.message });
+        }
+
+        if (user.role !== 'responder') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invitations are only issued for responder accounts',
+            });
+        }
+
+        if (user.password) {
+            return res.status(409).json({
+                success: false,
+                code: 'ALREADY_ACTIVATED',
+                message: 'This responder has already set a password',
+            });
+        }
+
+        const { delivered } = await issueResponderInvitation(user, {
+            actor: adminUser,
+            municipality: adminUser.assignedMunicipality,
+            action: 'invitation_resent',
+        });
+
+        if (!delivered) {
+            return res.status(502).json({
+                success: false,
+                code: 'INVITATION_DELIVERY_FAILED',
+                message: 'The invitation email could not be sent. Check the address and try again.',
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: {
+                invitationSent: true,
+                message: `Invitation sent to ${user.email}`,
+            },
+        });
+    } catch (error) {
+        console.error('Resend responder invitation error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to send the invitation',
+        });
+    }
+};
+
 export const getDashboardStats = async (req, res) => {
     try {
         const monthRange = getPhilippineCalendarMonthRange();

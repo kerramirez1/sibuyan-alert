@@ -63,4 +63,31 @@ describe('responder resolved-today calculations', () => {
 
         expect(getResolvedTodayReports(reports, { includeAll: true, now })).toEqual([reports[0]]);
     });
+
+    // The dashboard page calls the helper exactly this way for guests and
+    // reporters: no signed-in participant to match against, so the whole
+    // already-visible set is read and only the Manila calendar day filters.
+    test('counts the whole visible set for signed-out viewers across the Manila midnight boundary', () => {
+        const reports = [
+            // 2026-08-04 08:00 Manila — today.
+            { _id: 'today-morning', status: 'resolved', resolvedAt: '2026-08-04T00:00:00.000Z' },
+            // 2026-08-03 23:59:59.999 Manila — yesterday, one millisecond out.
+            { _id: 'yesterday-edge', status: 'resolved', resolvedAt: '2026-08-03T15:59:59.999Z' },
+            // No timestamp, no matter how recently it changed state.
+            { _id: 'missing-time', status: 'resolved', updatedAt: '2026-08-04T00:00:00.000Z' },
+            // Open incidents are never "resolved today", whatever their stamps.
+            { _id: 'still-open', status: 'responding', resolvedAt: '2026-08-04T00:00:00.000Z' },
+        ];
+
+        expect(getResolvedTodayReports(reports, { currentUser: null, includeAll: true, now })
+            .map((report) => report._id)).toEqual(['today-morning']);
+    });
+
+    test('returns an empty set — never null — when nothing closed today', () => {
+        expect(getResolvedTodayReports(
+            [{ _id: 'old', status: 'resolved', resolvedAt: '2026-01-02T04:00:00.000Z' }],
+            { currentUser: null, includeAll: true, now },
+        )).toEqual([]);
+        expect(getResolvedTodayReports(undefined, { currentUser: null, includeAll: true, now })).toEqual([]);
+    });
 });

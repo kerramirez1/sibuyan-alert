@@ -12,6 +12,8 @@ import {
     deleteReport,
     dismissTransferredReport,
     deleteUser,
+    createResponder,
+    resendResponderInvitation,
     getDashboardStats,
     transferReport,
     acknowledgeTransfer,
@@ -19,6 +21,7 @@ import {
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import {
+    validateCreateResponder,
     validateVerifyReporter,
     validateVerifyReport,
     validateRespondToReport,
@@ -44,6 +47,9 @@ router.get('/presence', requireRole('municipal_admin'), getPresence);
 // User management — municipal administrators only (not responders)
 // ============================================================
 router.get('/users', requireRole('municipal_admin'), getUsers);
+// Registered before `/users/:id` so "responder" can never be read as an id.
+router.post('/users/responder', requireRole('municipal_admin'), validateCreateResponder, createResponder);
+router.post('/users/:id/invite', requireRole('municipal_admin'), validateMongoIdParam, resendResponderInvitation);
 router.get('/users/:id', requireRole('municipal_admin'), validateMongoIdParam, getUserById);
 router.put('/users/:id/verify', requireRole('municipal_admin'), validateVerifyReporter, verifyReporter);
 router.delete('/users/:id', requireRole('municipal_admin'), validateMongoIdParam, deleteUser);
