@@ -40,6 +40,27 @@ configured. SMTP acceptance only means the mail server took the message — a
 missing or filtered inbox delivery still requires the responder to check
 spam/quarantine or the administrator to resend.
 
+### Email deliverability
+
+A message the mail server accepts can still be classified as junk. Two things
+are worth knowing before blaming the code:
+
+- **Do not send an invitation repeatedly to the same mailbox while testing.**
+  Five near-identical messages carrying a credential-setting link inside 23
+  minutes is a bulk-send signature, and it trains the recipient's filter against
+  this sender for that mailbox — a reputation that outlives the test. Send once;
+  use a separate test address or a provider sandbox if you need more.
+- The sender is a `@gmail.com` account while the invitation link points at
+  `<app-name>.herokuapp.com`. The From domain and the link domain do not match,
+  and neither is a domain this project controls.
+
+The durable fix is a transactional sender on a domain Sibuyan Alert controls:
+SPF, DKIM and DMARC configured and aligned to that domain, the invitation link
+served from the same domain, bounce and complaint tracking wired to a webhook,
+and a gradual volume ramp on a sending subdomain. Do not spoof a Gmail address,
+do not try to bypass recipient filters, and do not treat "ask users to whitelist
+the sender" as the production answer.
+
 ## Feature-specific config vars
 
 ```text

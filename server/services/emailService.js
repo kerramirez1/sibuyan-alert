@@ -72,12 +72,54 @@ export const maskMailAddress = (value) => {
 };
 
 /**
+ * A readable plain-text rendering of an HTML email body.
+ *
+ * The previous fallback was `html.replace(/<[^>]*>/g, '')`, which strips tags but
+ * leaves the CONTENTS of `<style>` and `<script>` blocks. Every message the app
+ * sent therefore opened its text/plain part with roughly a kilobyte of CSS
+ * declarations. Captured from the real invitation: 2351 bytes, of which the first
+ * ~1000 were `body { ... }`, `.container { ... }`, `.header { ... }` and so on.
+ *
+ * Neither consequence is cosmetic. Mail filters score a text/plain part dense
+ * with code-like tokens as suspicious — it is the shape of an obfuscated payload —
+ * and a screen reader or text-only client received a stylesheet instead of the
+ * invitation, with the actual message buried below it.
+ *
+ * Block boundaries become newlines first, so the result reads as lines rather
+ * than one run-together paragraph. `&amp;` is decoded last so a literal `&lt;`
+ * in the source is not decoded twice.
+ */
+export const htmlToPlainText = (html) => {
+  if (typeof html !== 'string' || !html) return '';
+
+  return html
+    // Style and script CONTENT is never message text.
+    .replace(/<(style|script)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Block boundaries become line breaks before the tags are removed.
+    .replace(/<\/(p|div|h[1-6]|li|tr|ul|ol|blockquote|table)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+/**
  * Send email notification
  * @param {Object} options - Email options
  * @param {string} options.to - Recipient email
  * @param {string} options.subject - Email subject
  * @param {string} options.html - HTML content
- * @param {string} [options.text] - Plain text content
+ * @param {string} [options.text] - Plain text content; derived from `html` when absent
  *
  * Resolving is NOT delivering. `sendMail` resolves once the SMTP transaction
  * completes, and `info.accepted` / `info.rejected` are the transport's own
@@ -104,6 +146,11 @@ export const maskMailAddress = (value) => {
  * the caller for what that means to an administrator.
  */
 export const sendEmail = async (options) => {
+  // Derived before the try so the catch can classify a rejection too — the
+  // throw happens before these would otherwise be assigned.
+  const intended = normalizeMailAddress(options.to);
+  const recipient = maskMailAddress(options.to);
+
   if (!isEmailConfigured()) {
     console.warn('Email skipped: SMTP is not configured (set SMTP_HOST/SMTP_USER/SMTP_PASS to enable password reset emails)');
     return { success: false, code: 'EMAIL_NOT_CONFIGURED', error: 'Email delivery is not configured' };
@@ -116,7 +163,7 @@ export const sendEmail = async (options) => {
       to: options.to,
       subject: options.subject,
       html: options.html,
-      text: options.text || options.html.replace(/<[^>]*>/g, ''),
+      text: options.text || htmlToPlainText(options.html),
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -124,8 +171,6 @@ export const sendEmail = async (options) => {
     const messageId = info?.messageId || null;
     const accepted = Array.isArray(info?.accepted) ? info.accepted.map(normalizeMailAddress) : null;
     const rejected = Array.isArray(info?.rejected) ? info.rejected.map(normalizeMailAddress) : null;
-    const intended = normalizeMailAddress(options.to);
-    const recipient = maskMailAddress(options.to);
 
     // `messageId` is the correlation handle: it is what a provider's logs and a
     // bounce report can be matched against. It carries no secret.
@@ -157,8 +202,37 @@ export const sendEmail = async (options) => {
       };
     }
 
+    console.log(`[email] accepted recipient=${recipient} messageId=${messageId || 'none'}`);
     return { success: true, messageId, accepted, rejected };
   } catch (error) {
+    // A rejection of EVERY recipient makes Nodemailer THROW instead of resolve:
+    // `smtp-connection._actionRCPT` reports `EENVELOPE` ("all recipients were
+    // rejected") and hangs the rejected list off the error. With the single
+    // recipient these flows use, that is the ordinary rejection path — so
+    // classifying it here is what actually reaches an administrator.
+    //
+    // Without this, a rejected address surfaced as a generic `SMTP_ERROR` ("the
+    // mail server did not accept the message") and the RECIPIENT_REJECTED branch
+    // in the caller was unreachable, so nobody was ever told to check the address.
+    const rejectedList = Array.isArray(error?.rejected)
+      ? error.rejected.map(normalizeMailAddress)
+      : [];
+    const intendedRejected = rejectedList.length > 0
+      && (!intended || rejectedList.includes(intended));
+
+    if (error?.code === 'EENVELOPE' && intendedRejected) {
+      console.error(`[email] RECIPIENT_REJECTED recipient=${recipient} (transport threw EENVELOPE, rejected=${rejectedList.length})`);
+      return {
+        success: false,
+        code: 'RECIPIENT_REJECTED',
+        messageId: null,
+        accepted: [],
+        rejected: rejectedList,
+        // No address echoed back — this string reaches an administrator.
+        error: 'The mail server did not accept the recipient address',
+      };
+    }
+
     console.error('❌ Email error:', error);
     return { success: false, code: 'SMTP_ERROR', error: error.message };
   }
@@ -465,6 +539,39 @@ export const sendResponderInvitationEmail = async (
     invitedBy ? `<li><strong>Added by:</strong> ${invitedBy}</li>` : '',
   ].filter(Boolean).join('');
 
+  // Who invited them, in a sentence — not only as a list row. "You have been
+  // added" with no named source is the shape of a phishing mail; a named
+  // municipal administrator is the detail that makes it checkable.
+  const invitedBySentence = invitedBy
+    ? `${invitedBy} has created a responder account for you`
+    : 'A municipal administrator has created a responder account for you';
+
+  // Written by hand rather than derived from the HTML. The link goes on its own
+  // line, the details are one per line, and nothing decorative is carried over.
+  const text = [
+    'Sibuyan Accident Alert',
+    '',
+    `Hello ${name},`,
+    '',
+    `${invitedBySentence} on the Sibuyan Accident Alert System${municipality ? ` for ${municipality}` : ''}.`,
+    '',
+    ...(municipality ? [`  Municipality: ${municipality}`] : []),
+    ...(agency ? [`  Unit type: ${agency}`] : []),
+    ...(invitedBy ? [`  Added by: ${invitedBy}`] : []),
+    ...(municipality || agency || invitedBy ? [''] : []),
+    'Set your own password to activate the account. Open this link:',
+    '',
+    inviteUrl,
+    '',
+    'This link can only be used once and expires in 1 hour.',
+    '',
+    'The account cannot be signed into until you set a password. If this invitation expires, ask your municipal administrator to send a new one.',
+    '',
+    'If you were not expecting this invitation, you can ignore this email.',
+    '',
+    'Sibuyan Accident Alert System',
+  ].join('\n');
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -492,7 +599,7 @@ export const sendResponderInvitationEmail = async (
         <div class="content">
           <p class="message">Hello <strong>${name}</strong>,</p>
           <p class="message">
-            A responder account has been created for you on the Sibuyan Accident Alert System.
+            ${invitedBySentence} on the Sibuyan Accident Alert System${municipality ? ` for ${municipality}` : ''}.
           </p>
           ${context ? `<ul class="details">${context}</ul>` : ''}
           <p class="message">
@@ -522,8 +629,12 @@ export const sendResponderInvitationEmail = async (
 
   return sendEmail({
     to: email,
-    subject: '🚑 You have been added as a responder - Sibuyan Accident Alert',
+    // No emoji in the subject. It carries no meaning a reader needs, and a
+    // decorative pictograph in front of a credential-setting call to action is a
+    // small but free contribution to a spam score.
+    subject: 'Responder account invitation - Sibuyan Accident Alert',
     html,
+    text,
   });
 };
 

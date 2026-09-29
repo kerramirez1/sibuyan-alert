@@ -147,12 +147,68 @@ describe('sendEmail delivery result', () => {
         expect(JSON.stringify(result.error)).not.toMatch(/@/);
     });
 
-    test('still reports failure when the transport throws', async () => {
-        mocks.sendMail.mockRejectedValue(new Error("Can't send mail - all recipients were rejected"));
+    test('classifies a thrown EENVELOPE rejection as a recipient problem', async () => {
+        // This is what Nodemailer actually does when every recipient is rejected:
+        // `_actionRCPT` throws rather than resolving, with the rejected list hung
+        // off the error. Before this branch existed, a rejected address surfaced
+        // as a generic SMTP_ERROR and the caller's RECIPIENT_REJECTED wording was
+        // unreachable — so the administrator was never told to check the address.
+        const envelopeError = Object.assign(
+            new Error("Can't send mail - all recipients were rejected: 550 5.1.1 No such user"),
+            { code: 'EENVELOPE', responseCode: 550, rejected: ['responder@example.com'] },
+        );
+        mocks.sendMail.mockRejectedValue(envelopeError);
 
         const result = await sendEmail(message);
 
         expect(result.success).toBe(false);
+        expect(result.code).toBe('RECIPIENT_REJECTED');
+        expect(result.rejected).toEqual(['responder@example.com']);
+        // Same no-echo rule as the resolved path.
+        expect(result.error).not.toContain('responder@example.com');
+    });
+
+    test('does not blame the recipient when the thrown rejection is someone else', async () => {
+        const envelopeError = Object.assign(
+            new Error('all recipients were rejected'),
+            { code: 'EENVELOPE', rejected: ['other@example.com'] },
+        );
+        mocks.sendMail.mockRejectedValue(envelopeError);
+
+        const result = await sendEmail(message);
+
+        // Misclassifying this would send the administrator to re-check an address
+        // that was never the problem.
+        expect(result.code).toBe('SMTP_ERROR');
+    });
+
+    test('keeps a non-envelope transport failure as a generic SMTP error', async () => {
+        mocks.sendMail.mockRejectedValue(Object.assign(new Error('Connection timeout'), { code: 'ETIMEDOUT' }));
+
+        const result = await sendEmail(message);
+
+        expect(result.success).toBe(false);
+        expect(result.code).toBe('SMTP_ERROR');
+    });
+
+    test('logs a correlation line on success too, not only on failure', async () => {
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        mocks.sendMail.mockResolvedValue({
+            messageId: '<ok@example.com>',
+            accepted: ['juan.delacruz@example.com'],
+            rejected: [],
+        });
+
+        try {
+            await sendEmail({ ...message, to: 'juan.delacruz@example.com' });
+
+            const logged = logSpy.mock.calls.flat().join(' ');
+            expect(logged).toContain('messageId=<ok@example.com>');
+            expect(logged).toContain('j***@example.com');
+            expect(logged).not.toContain('juan.delacruz@');
+        } finally {
+            logSpy.mockRestore();
+        }
     });
 
     test('reports failure when SMTP is not configured, without attempting a send', async () => {
