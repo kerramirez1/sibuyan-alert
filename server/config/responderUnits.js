@@ -46,11 +46,28 @@ export const isSupportedResponderUnitType = (value) => (
 /** Maps a legacy alias to its canonical value; passes everything else through. */
 export const normalizeUnitType = (value) => LEGACY_UNIT_TYPE_ALIASES[value] ?? value;
 
+/**
+ * The unit types a municipal administrator may assign when provisioning a NEW
+ * responder.
+ *
+ * Narrower than `RESPONDER_UNIT_TYPES` on purpose. `RESCUE` and `MEDICAL` remain
+ * valid STORED values — the `User.agency` enum still accepts them, so existing
+ * accounts keep saving — but they are no longer offered for a new account.
+ *
+ * Keep the enum wide and the intake narrow. Removing a value from the enum that
+ * existing documents hold would turn an unrelated save on those accounts into a
+ * validation error, which is the exact failure this module exists to prevent.
+ */
+export const CREATABLE_UNIT_TYPES = Object.freeze(
+    RESPONDER_UNIT_TYPES.filter((value) => !['RESCUE', 'MEDICAL'].includes(value)),
+);
+
 /** Human-readable label for display, defaulting to the raw value. */
 export const getUnitTypeLabel = (value) => normalizeUnitType(value) || '';
 
 export default {
     RESPONDER_UNIT_TYPES,
+    CREATABLE_UNIT_TYPES,
     LEGACY_UNIT_TYPE_ALIASES,
     ACCEPTED_UNIT_TYPE_VALUES,
     isSupportedResponderUnitType,

@@ -273,12 +273,25 @@ describe('AdminUsersPage', () => {
             fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Juan Dela Cruz' } });
             fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'juan@example.com' } });
             fireEvent.change(screen.getByLabelText('Agency'), { target: { value: 'MDRRMO' } });
-            fireEvent.change(screen.getByLabelText('Responder unit'), { target: { value: 'MDRRMO Rescue 1' } });
         };
 
         const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Create and send invitation' }));
 
-        test('sends only the four collected fields — never a role, municipality, or password', async () => {
+        test('offers only the agencies a new responder may be given', async () => {
+            await openForm();
+
+            const options = within(screen.getByLabelText('Agency'))
+                .getAllByRole('option')
+                .map((option) => option.textContent);
+
+            expect(options).toEqual(['Select an agency', 'MDRRMO', 'PNP', 'BFP', 'Medical Team', 'Barangay']);
+            // Removed from the intake, not from storage: existing accounts keep
+            // their value and the server still stores it.
+            expect(options).not.toContain('Rescue');
+            expect(options).not.toContain('Medical');
+        });
+
+        test('sends only the collected fields — never a role, municipality, or password', async () => {
             mocks.createResponder.mockResolvedValue({
                 data: { data: { invitationSent: true, message: 'Invitation sent to juan@example.com' } },
             });
@@ -294,8 +307,9 @@ describe('AdminUsersPage', () => {
                 name: 'Juan Dela Cruz',
                 email: 'juan@example.com',
                 agency: 'MDRRMO',
-                responderUnit: 'MDRRMO Rescue 1',
             });
+            // No responder-unit field on the form any more.
+            expect(payload).not.toHaveProperty('responderUnit');
             // The server owns all three; the client has no business sending them.
             expect(payload).not.toHaveProperty('role');
             expect(payload).not.toHaveProperty('assignedMunicipality');
@@ -415,6 +429,60 @@ describe('AdminUsersPage', () => {
             submit();
 
             await waitFor(() => expect(mocks.getUsers.mock.calls.length).toBeGreaterThan(callsBefore));
+        });
+    });
+
+    /**
+     * Re-issuing an invitation for an account that already exists.
+     *
+     * This is the gap that made "it stopped sending to that account" look true:
+     * once an account exists, re-adding the same address is refused as a
+     * duplicate and never reaches the sender, and the list had no way to send
+     * another.
+     */
+    describe('resend invitation from the list', () => {
+        test('offers a resend action on responder rows', async () => {
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Maria Santos');
+
+            // Desktop row and mobile card both carry it.
+            expect(screen.getAllByRole('button', { name: 'Resend invitation to Maria Santos' }).length).toBeGreaterThan(0);
+        });
+
+        test('does not offer it on a reporter row', async () => {
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Jayker Ramirez');
+
+            // The endpoint only issues invitations for responders, so offering it
+            // here would be a button that can only fail.
+            expect(screen.queryByRole('button', { name: 'Resend invitation to Jayker Ramirez' })).not.toBeInTheDocument();
+        });
+
+        test('calls the endpoint for the row it was clicked on', async () => {
+            mocks.resendResponderInvitation.mockResolvedValue({
+                data: { data: { invitationSent: true, message: 'Invitation sent' } },
+            });
+
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Maria Santos');
+
+            fireEvent.click(screen.getAllByRole('button', { name: 'Resend invitation to Maria Santos' })[0]);
+
+            await waitFor(() => expect(mocks.resendResponderInvitation).toHaveBeenCalledWith('user-2'));
+            expect(mocks.toast.success).toHaveBeenCalledWith('Invitation sent');
+        });
+
+        test('surfaces the endpoint’s refusal for an already-activated responder', async () => {
+            mocks.resendResponderInvitation.mockRejectedValue({
+                response: { data: { message: 'This responder has already set a password' } },
+            });
+
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Maria Santos');
+
+            fireEvent.click(screen.getAllByRole('button', { name: 'Resend invitation to Maria Santos' })[0]);
+
+            await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith('This responder has already set a password'));
         });
     });
 });

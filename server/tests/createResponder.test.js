@@ -87,7 +87,6 @@ const validBody = {
     name: 'Juan Dela Cruz',
     email: 'Juan.DelaCruz@Example.com',
     agency: 'MDRRMO',
-    responderUnit: 'MDRRMO Rescue 1',
 };
 
 /**
@@ -124,6 +123,22 @@ describe('POST /api/admin/users/responder — validation', () => {
 
         expect(passed).toBe(false);
         expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test.each(['RESCUE', 'MEDICAL'])('no longer accepts %s for a new responder', async (agency) => {
+        const { res, passed } = await runChain(validateCreateResponder, { ...validBody, agency });
+
+        // Removed from the intake, not from storage: existing accounts still carry
+        // these values and the User.agency enum still accepts them.
+        expect(passed).toBe(false);
+        expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test('still accepts every agency that remains on offer', async () => {
+        for (const agency of ['MDRRMO', 'PNP', 'BFP', 'Medical Team', 'BARANGAY']) {
+            const { passed } = await runChain(validateCreateResponder, { ...validBody, agency });
+            expect(passed).toBe(true);
+        }
     });
 
     test.each(['role', 'assignedMunicipality', 'password'])(
@@ -163,8 +178,9 @@ describe('createResponder', () => {
         expect(created.assignedMunicipality).toBe('Cajidiocan');
         expect(created.createdBy).toBe('admin-1');
         expect(created.agency).toBe('MDRRMO');
-        expect(created.responderUnit).toBe('MDRRMO Rescue 1');
         expect(created.name).toBe('Juan Dela Cruz');
+        // The form no longer collects a unit name; stored null, not ''.
+        expect(created.responderUnit).toBeNull();
         // Normalised to match the schema's own lowercase+trim.
         expect(created.email).toBe('juan.delacruz@example.com');
 
@@ -227,6 +243,17 @@ describe('createResponder', () => {
         await createResponder({ user: ADMIN, body: { ...validBody, agency: 'LGU' } }, res);
 
         expect(mocks.saved[0].agency).toBe('MDRRMO');
+    });
+
+    test('still stores a unit name when a client supplies one', async () => {
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: { ...validBody, responderUnit: 'MDRRMO Rescue 1' } }, res);
+
+        // Optional now, not removed: an older client that still sends one keeps
+        // working and the value is stored.
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(mocks.saved[0].responderUnit).toBe('MDRRMO Rescue 1');
     });
 
     test('keeps the account when the invitation email fails, and says so', async () => {

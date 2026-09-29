@@ -8,7 +8,7 @@ import {
     INCIDENT_CATEGORY_NAMES,
     isSupportedIncidentType,
 } from '../config/incidentCategories.js';
-import { RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
+import { CREATABLE_UNIT_TYPES, RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
 
 const REPORT_COUNT_FIELDS = [
     ['casualties', 'injured'],
@@ -215,11 +215,15 @@ export const validateCreateResponder = [
     body('agency')
         .trim()
         .notEmpty().withMessage('Agency is required')
-        .isIn(RESPONDER_UNIT_TYPES)
-        .withMessage(`Agency must be one of: ${RESPONDER_UNIT_TYPES.join(', ')}`),
+        .isIn(CREATABLE_UNIT_TYPES)
+        .withMessage(`Agency must be one of: ${CREATABLE_UNIT_TYPES.join(', ')}`),
+    // Optional. The Add-responder form no longer collects a unit name, so
+    // requiring it here would reject every request the current UI sends. It is
+    // still validated when present, so a stale client cannot store a malformed
+    // value.
     body('responderUnit')
+        .optional({ values: 'falsy' })
         .trim()
-        .notEmpty().withMessage('Responder unit is required')
         .isLength({ min: 2, max: 100 }).withMessage('Responder unit must be between 2 and 100 characters'),
     body('role')
         .not().exists().withMessage('Role is assigned by the server and cannot be supplied'),

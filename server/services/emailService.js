@@ -133,7 +133,8 @@ export const htmlToPlainText = (html) => {
  * @param {string} options.to - Recipient email
  * @param {string} options.subject - Email subject
  * @param {string} options.html - HTML content
- * @param {string} [options.text] - Plain text content; derived from `html` when absent
+ * @param {string} [options.text] - Plain text content
+ * @param {Object} [options.headers] - Extra RFC 5322 headers (e.g. List-Unsubscribe); derived from `html` when absent
  *
  * Resolving is NOT delivering. `sendMail` resolves once the SMTP transaction
  * completes, and `info.accepted` / `info.rejected` are the transport's own
@@ -185,6 +186,10 @@ export const sendEmail = async (options) => {
       subject: options.subject,
       html: options.html,
       text: options.text || htmlToPlainText(options.html),
+      // Custom headers are the caller's: List-Unsubscribe for the invitation,
+      // nothing for the rest. Nodemailer rejects header values containing
+      // newlines, so a smuggled second header cannot pass through here.
+      ...(options.headers ? { headers: options.headers } : {}),
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -662,6 +667,15 @@ export const sendResponderInvitationEmail = async (
     </html>
   `;
 
+  // One spam-score lever that costs nothing: a List-Unsubscribe header. Gmail
+  // and Outlook weigh its presence when deciding inbox vs spam, and it lets a
+  // recipient's "unsubscribe" action resolve without becoming a spam complaint
+  // (complaints hurt the sender reputation every future invitation relies on).
+  // Only the mailto form: a one-click URL would need a real endpoint behind
+  // it, and at this volume — per-responder invitations, not bulk mail — there
+  // is no endpoint to build. A dead URL would be worse than none.
+  const senderMailbox = getSmtpConfig().user;
+
   return sendEmail({
     to: email,
     // No emoji in the subject. It carries no meaning a reader needs, and a
@@ -670,6 +684,9 @@ export const sendResponderInvitationEmail = async (
     subject: `Responder account invitation - ${PRODUCT_NAME}`,
     html,
     text,
+    ...(senderMailbox
+      ? { headers: { 'List-Unsubscribe': `<mailto:${senderMailbox}?subject=Unsubscribe>` } }
+      : {}),
   });
 };
 

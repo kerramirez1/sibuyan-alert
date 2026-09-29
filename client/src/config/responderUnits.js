@@ -31,6 +31,29 @@ export const RESPONDER_UNIT_LABELS = Object.freeze({
     BARANGAY: 'Barangay',
 });
 
+/**
+ * The agencies a municipal administrator may pick when creating a responder.
+ *
+ * Deliberately narrower than the canonical list above. `RESCUE` and `MEDICAL`
+ * stay valid STORED values — accounts already carry them, and the server's
+ * `User.agency` enum still accepts them — but they are no longer offered for a
+ * new account.
+ *
+ * Narrowing the enum instead would be the wrong fix: Mongoose validates the enum
+ * on every save, so removing a value that existing documents hold turns an
+ * unrelated profile edit on those accounts into a validation error. That is the
+ * exact failure the server's responderUnits module was written to prevent.
+ * Validation narrows; storage stays permissive.
+ */
+export const CREATABLE_RESPONDER_UNIT_TYPES = Object.freeze(
+    RESPONDER_UNIT_TYPES.filter((unitType) => !['RESCUE', 'MEDICAL'].includes(unitType)),
+);
+
 export const getResponderUnitLabel = (value) => RESPONDER_UNIT_LABELS[value] || value || '';
 
-export default { RESPONDER_UNIT_TYPES, RESPONDER_UNIT_LABELS, getResponderUnitLabel };
+export default {
+    RESPONDER_UNIT_TYPES,
+    CREATABLE_RESPONDER_UNIT_TYPES,
+    RESPONDER_UNIT_LABELS,
+    getResponderUnitLabel,
+};

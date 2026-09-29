@@ -1,7 +1,23 @@
-import { afterEach, describe, expect, test, vi as jest } from 'vitest';
-import { getSmtpConfig, isEmailConfigured, verifyEmailTransport } from '../services/emailService.js';
+import { afterEach, beforeEach, describe, expect, test, vi, vi as jest } from 'vitest';
+import {
+    getSmtpConfig,
+    isEmailConfigured,
+    sendEmail,
+    sendResponderInvitationEmail,
+    verifyEmailTransport,
+} from '../services/emailService.js';
 
 const ORIGINAL_ENV = { ...process.env };
+
+const mailMocks = vi.hoisted(() => ({
+    sendMail: vi.fn(),
+}));
+
+vi.mock('nodemailer', () => ({
+    default: {
+        createTransport: vi.fn(() => ({ sendMail: mailMocks.sendMail })),
+    },
+}));
 
 afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
@@ -43,5 +59,52 @@ describe('verifyEmailTransport', () => {
         delete process.env.SMTP_PASS;
 
         await expect(verifyEmailTransport()).resolves.toMatchObject({ success: false, skipped: true });
+    });
+});
+
+describe('invitation deliverability headers', () => {
+    beforeEach(() => {
+        process.env.SMTP_HOST = 'smtp.gmail.com';
+        process.env.SMTP_USER = 'alerts@example.com';
+        process.env.SMTP_PASS = 'app-password';
+        mailMocks.sendMail.mockReset();
+        mailMocks.sendMail.mockResolvedValue({
+            messageId: '<test-message-id>',
+            accepted: ['responder@example.com'],
+            rejected: [],
+        });
+    });
+
+    test('attaches a List-Unsubscribe mailto header addressed to the sender mailbox', async () => {
+        await sendResponderInvitationEmail(
+            'responder@example.com',
+            'Juan Dela Cruz',
+            `https://app.example/reset-password/${'a'.repeat(64)}`,
+            { municipality: 'Cajidiocan', agency: 'MDRRMO', invitedBy: 'Maria Santos' },
+        );
+
+        const mailOptions = mailMocks.sendMail.mock.calls[0][0];
+        const unsubscribe = mailOptions.headers?.['List-Unsubscribe'];
+        expect(unsubscribe).toBe('<mailto:alerts@example.com?subject=Unsubscribe>');
+        // A header value with a newline would smuggle a second header.
+        expect(unsubscribe).not.toMatch(/[\r\n\s]/);
+    });
+
+    test('carries the full invitation URL in the text part without stylesheet residue', async () => {
+        const inviteUrl = `https://app.example/reset-password/${'b'.repeat(64)}`;
+        await sendResponderInvitationEmail('responder@example.com', 'Juan Dela Cruz', inviteUrl, {});
+
+        const mailOptions = mailMocks.sendMail.mock.calls[0][0];
+        expect(mailOptions.text).toContain(inviteUrl);
+        // The old derived text part opened with ~1KB of CSS, which reads as an
+        // obfuscated payload to a filter. The hand-written part has no tags.
+        expect(mailOptions.text).not.toMatch(/<style|body\s*\{|\.container\s*\{/i);
+        expect(mailOptions.subject).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+    });
+
+    test('leaves mail without a deliverability header request untouched', async () => {
+        await sendEmail({ to: 'responder@example.com', subject: 'Hello', html: '<p>Hello</p>' });
+
+        expect(mailMocks.sendMail.mock.calls[0][0]).not.toHaveProperty('headers');
     });
 });

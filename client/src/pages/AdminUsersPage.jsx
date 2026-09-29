@@ -15,7 +15,7 @@ import PageHeader from '../components/ui/PageHeader';
 import { Skeleton, SkeletonCircle, SkeletonButton, SkeletonRow } from '../components/ui/Skeleton';
 import toast from '../utils/appToast';
 import { formatIncidentRelativeTime } from '../utils/dateTimeUtils';
-import { RESPONDER_UNIT_TYPES, getResponderUnitLabel } from '../config/responderUnits';
+import { CREATABLE_RESPONDER_UNIT_TYPES, getResponderUnitLabel } from '../config/responderUnits';
 import {
     HiOutlineSearch,
     HiOutlineCheckCircle,
@@ -75,12 +75,14 @@ const AdminUsersPage = () => {
     // banner; `created` holds the account when the email failed, which is what
     // turns the modal into a retry rather than a dead end.
     const [addResponderOpen, setAddResponderOpen] = useState(false);
-    const [responderForm, setResponderForm] = useState({ name: '', email: '', agency: '', responderUnit: '' });
+    const [responderForm, setResponderForm] = useState({ name: '', email: '', agency: '' });
     const [responderFieldErrors, setResponderFieldErrors] = useState({});
     const [responderError, setResponderError] = useState('');
     const [responderNotice, setResponderNotice] = useState('');
     const [responderLoading, setResponderLoading] = useState(false);
     const [responderCreated, setResponderCreated] = useState(null);
+    // Which row is mid-resend, so only that row's button spins.
+    const [resendingForId, setResendingForId] = useState(null);
     const [verificationAssets, setVerificationAssets] = useState({
         idDocument: null,
         selfiePhoto: null,
@@ -359,7 +361,7 @@ const AdminUsersPage = () => {
     }, [documentViewer.isOpen, documentViewer.docType, documentViewer.user, closeDocumentPreview, switchDocumentType]);
 
     const openAddResponder = () => {
-        setResponderForm({ name: '', email: '', agency: '', responderUnit: '' });
+        setResponderForm({ name: '', email: '', agency: '' });
         setResponderFieldErrors({});
         setResponderError('');
         setResponderNotice('');
@@ -395,7 +397,6 @@ const AdminUsersPage = () => {
                 name: responderForm.name.trim(),
                 email: responderForm.email.trim(),
                 agency: responderForm.agency,
-                responderUnit: responderForm.responderUnit.trim(),
             });
             const data = response.data?.data || {};
 
@@ -442,6 +443,32 @@ const AdminUsersPage = () => {
             setResponderError(error.response?.data?.message || 'Could not send the invitation.');
         } finally {
             setResponderLoading(false);
+        }
+    };
+
+    /**
+     * Re-issue an invitation for an EXISTING responder.
+     *
+     * This is the action the list was missing, and its absence was a dead end:
+     * once an account exists, adding the same address again is refused as a
+     * duplicate (`EMAIL_IN_USE`) and never reaches the sender. An administrator
+     * whose first invitation did not arrive had no way to send another, so the
+     * only visible symptom was "it stopped sending to that account".
+     *
+     * A responder who has already set a password gets a clear 409 from the
+     * endpoint, surfaced as a toast.
+     */
+    const handleResendInvitationFor = async (user) => {
+        if (!user?._id) return;
+
+        setResendingForId(user._id);
+        try {
+            const response = await adminAPI.resendResponderInvitation(user._id);
+            toast.success(response.data?.data?.message || 'Invitation sent');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Could not send the invitation.');
+        } finally {
+            setResendingForId(null);
         }
     };
 
@@ -742,6 +769,18 @@ const AdminUsersPage = () => {
                                                         </button>
                                                     </>
                                                 )}
+                                                {user?.role === 'responder' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleResendInvitationFor(user)}
+                                                        disabled={resendingForId === user?._id}
+                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                                                        title="Resend invitation"
+                                                        aria-label={`Resend invitation to ${user?.name}`}
+                                                    >
+                                                        <HiOutlineRefresh className={`h-4 w-4 ${resendingForId === user?._id ? 'animate-spin' : ''}`} />
+                                                    </button>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={() => openDeleteModal(user)}
@@ -856,6 +895,18 @@ const AdminUsersPage = () => {
                                                     <HiOutlineXCircle className="h-4 w-4" />
                                                 </button>
                                             </>
+                                        )}
+                                        {user?.role === 'responder' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleResendInvitationFor(user)}
+                                                disabled={resendingForId === user?._id}
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                                                title="Resend invitation"
+                                                aria-label={`Resend invitation to ${user?.name}`}
+                                            >
+                                                <HiOutlineRefresh className={`h-4 w-4 ${resendingForId === user?._id ? 'animate-spin' : ''}`} />
+                                            </button>
                                         )}
                                         <button
                                             type="button"
@@ -1120,30 +1171,12 @@ const AdminUsersPage = () => {
                                 aria-invalid={Boolean(responderFieldErrors.agency)}
                             >
                                 <option value="">Select an agency</option>
-                                {RESPONDER_UNIT_TYPES.map((unitType) => (
+                                {CREATABLE_RESPONDER_UNIT_TYPES.map((unitType) => (
                                     <option key={unitType} value={unitType}>{getResponderUnitLabel(unitType)}</option>
                                 ))}
                             </select>
                             {responderFieldErrors.agency && (
                                 <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.agency}</p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="responder-unit" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Responder unit</label>
-                            <input
-                                id="responder-unit"
-                                type="text"
-                                value={responderForm.responderUnit}
-                                onChange={(e) => setResponderForm({ ...responderForm, responderUnit: e.target.value })}
-                                className="field-control"
-                                placeholder="e.g. MDRRMO Rescue 1"
-                                maxLength={100}
-                                required
-                                aria-invalid={Boolean(responderFieldErrors.responderUnit)}
-                            />
-                            {responderFieldErrors.responderUnit && (
-                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{responderFieldErrors.responderUnit}</p>
                             )}
                         </div>
 

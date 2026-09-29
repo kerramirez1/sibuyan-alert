@@ -24,7 +24,7 @@ import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
 import { resolveQueryPolicy } from '../config/queryPolicy.js';
 import { invalidate } from '../utils/apiCache.js';
 import {
-    RESPONDER_UNIT_TYPES,
+    CREATABLE_UNIT_TYPES,
     isSupportedResponderUnitType,
     normalizeUnitType,
     getUnitTypeLabel,
@@ -1257,12 +1257,19 @@ export const createResponder = async (req, res) => {
         // Legacy `LGU` normalises to MDRRMO rather than being rejected, matching
         // how stored accounts are read everywhere else.
         const agency = normalizeUnitType(String(req.body?.agency || '').trim());
-        const responderUnit = String(req.body?.responderUnit || '').trim();
+        // The form no longer collects a unit name. Stored as null to match the
+        // schema default rather than an empty string, and the response flows that
+        // read it already fall back when it is absent.
+        const responderUnit = String(req.body?.responderUnit || '').trim() || null;
 
-        if (!isSupportedResponderUnitType(agency)) {
+        // Narrower than "a stored value the app understands": RESCUE and MEDICAL
+        // stay valid on existing accounts but are no longer assignable to a new
+        // one. `isSupportedResponderUnitType` would accept them, so the creatable
+        // set is the right guard here.
+        if (!CREATABLE_UNIT_TYPES.includes(agency)) {
             return res.status(400).json({
                 success: false,
-                message: `Agency must be one of: ${RESPONDER_UNIT_TYPES.join(', ')}`,
+                message: `Agency must be one of: ${CREATABLE_UNIT_TYPES.join(', ')}`,
             });
         }
 
