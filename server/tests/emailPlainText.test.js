@@ -19,7 +19,7 @@ vi.mock('nodemailer', () => ({
     default: { createTransport: vi.fn(() => ({ sendMail: mocks.sendMail })) },
 }));
 
-const { htmlToPlainText, sendEmail, sendResponderInvitationEmail } = await import('../services/emailService.js');
+const { htmlToPlainText, sendEmail, sendResponderInvitationEmail, PRODUCT_NAME } = await import('../services/emailService.js');
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -171,7 +171,7 @@ describe('responder invitation message', () => {
     test('sends a subject with no decorative emoji', async () => {
         const { subject } = await sendInvite();
 
-        expect(subject).toBe('Responder account invitation - Sibuyan Accident Alert');
+        expect(subject).toBe(`Responder account invitation - ${PRODUCT_NAME}`);
         // No pictographs in the subject line.
         expect(subject).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
     });

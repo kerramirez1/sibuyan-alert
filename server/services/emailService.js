@@ -1,5 +1,19 @@
 import nodemailer from 'nodemailer';
 
+/**
+ * The approved product name.
+ *
+ * One constant for the sender display name, the subject lines and the body
+ * wordmark, because the three had already drifted apart: the product was renamed
+ * to "Sibuyan Alert" while every transactional email still announced "Sibuyan
+ * Accident Alert" — including the sender name a recipient sees in their inbox
+ * before they open anything.
+ *
+ * The SMTP account address is deliberately NOT part of this. The mailbox the
+ * messages are sent from is unchanged; only the name shown beside it is.
+ */
+export const PRODUCT_NAME = 'Sibuyan Alert';
+
 // MVP: email is optional. Password reset degrades gracefully when SMTP is
 // not configured (see isEmailConfigured + forgotPassword handler).
 export const isEmailConfigured = () => Boolean(
@@ -157,9 +171,16 @@ export const sendEmail = async (options) => {
   }
   try {
     const transporter = createTransporter();
+    // The SAME normalised identity that authenticates. Reading the raw env var
+    // here instead meant a `SMTP_USER` with a stray space or newline — easy to
+    // paste into a Heroku config var or a .env — authenticated as
+    // `alerts@x.com` while the From header said `<alerts@x.com >`. Gmail relays
+    // only for the account it authenticated, so the two must not be able to
+    // diverge.
+    const senderAddress = getSmtpConfig().user;
 
     const mailOptions = {
-      from: `"Sibuyan Accident Alert" <${process.env.SMTP_USER}>`,
+      from: `"${PRODUCT_NAME}" <${senderAddress}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -202,7 +223,21 @@ export const sendEmail = async (options) => {
       };
     }
 
-    console.log(`[email] accepted recipient=${recipient} messageId=${messageId || 'none'}`);
+    // The transport's own final response and the envelope it actually used.
+    //
+    // This is the evidence that separates "the transport took it" from "the
+    // provider relayed it". `response` is the SMTP server's last line (for Gmail,
+    // `250 2.0.0 OK <id> - gsmtp`), and `envelopeFrom` shows the sender address
+    // the envelope carried — which is what reveals a From header that does not
+    // match the authenticated account. Neither carries a secret, and the
+    // recipient is logged only in its masked form.
+    const envelopeFrom = info?.envelope?.from ? normalizeMailAddress(info.envelope.from) : 'unknown';
+    const transportResponse = typeof info?.response === 'string' ? info.response.slice(0, 200) : 'none';
+
+    console.log(
+      `[email] accepted recipient=${recipient} messageId=${messageId || 'none'} `
+      + `envelopeFrom=${envelopeFrom} response="${transportResponse}"`,
+    );
     return { success: true, messageId, accepted, rejected };
   } catch (error) {
     // A rejection of EVERY recipient makes Nodemailer THROW instead of resolve:
@@ -275,7 +310,7 @@ export const sendVerificationEmail = async (user, status, feedback = '') => {
           <div class="status-badge">${isApproved ? '✓ APPROVED' : '✗ REJECTED'}</div>
           <p class="message">
             ${isApproved
-      ? 'Your reporter account has been verified! You can now submit accident reports on the Sibuyan Accident Alert platform.'
+      ? `Your reporter account has been verified! You can now submit accident reports on the ${PRODUCT_NAME} platform.`
       : 'Unfortunately, your reporter verification request was not approved at this time.'}
           </p>
           ${feedback ? `
@@ -292,7 +327,7 @@ export const sendVerificationEmail = async (user, status, feedback = '') => {
           `}
         </div>
         <div class="footer">
-          <p>Sibuyan Accident Alert System</p>
+          <p>${PRODUCT_NAME}</p>
           <p>Keeping Sibuyan Island safe together</p>
         </div>
       </div>
@@ -366,7 +401,7 @@ export const sendReportStatusEmail = async (user, report, status, feedback = '')
           <a href="${process.env.CLIENT_URL}/dashboard" class="button">View on Map</a>
         </div>
         <div class="footer">
-          <p>Sibuyan Accident Alert System</p>
+          <p>${PRODUCT_NAME}</p>
           <p>Thank you for helping keep Sibuyan Island safe!</p>
         </div>
       </div>
@@ -438,7 +473,7 @@ export const sendNewReportAlertEmail = async (adminEmail, report, reporter) => {
           <a href="${process.env.CLIENT_URL}/admin/reports/${report._id}" class="button">Review Report</a>
         </div>
         <div class="footer">
-          <p>Sibuyan Accident Alert - Admin Notification</p>
+          <p>${PRODUCT_NAME} - Admin Notification</p>
         </div>
       </div>
     </body>
@@ -482,7 +517,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
         <div class="content">
           <p class="message">Hello <strong>${name}</strong>,</p>
           <p class="message">
-            We received a request to reset your password for your Sibuyan Accident Alert account.
+            We received a request to reset your password for your ${PRODUCT_NAME} account.
           </p>
           <p class="message">
             Click the button below to reset your password:
@@ -501,7 +536,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
           </p>
         </div>
         <div class="footer">
-          <p>Sibuyan Accident Alert System</p>
+          <p>${PRODUCT_NAME}</p>
           <p>Keeping Sibuyan Island safe together</p>
         </div>
       </div>
@@ -511,7 +546,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
 
   return sendEmail({
     to: email,
-    subject: '🔐 Password Reset Request - Sibuyan Accident Alert',
+    subject: `🔐 Password Reset Request - ${PRODUCT_NAME}`,
     html,
   });
 };
@@ -549,11 +584,11 @@ export const sendResponderInvitationEmail = async (
   // Written by hand rather than derived from the HTML. The link goes on its own
   // line, the details are one per line, and nothing decorative is carried over.
   const text = [
-    'Sibuyan Accident Alert',
+    PRODUCT_NAME,
     '',
     `Hello ${name},`,
     '',
-    `${invitedBySentence} on the Sibuyan Accident Alert System${municipality ? ` for ${municipality}` : ''}.`,
+    `${invitedBySentence} on the ${PRODUCT_NAME} system${municipality ? ` for ${municipality}` : ''}.`,
     '',
     ...(municipality ? [`  Municipality: ${municipality}`] : []),
     ...(agency ? [`  Unit type: ${agency}`] : []),
@@ -569,7 +604,7 @@ export const sendResponderInvitationEmail = async (
     '',
     'If you were not expecting this invitation, you can ignore this email.',
     '',
-    'Sibuyan Accident Alert System',
+    PRODUCT_NAME,
   ].join('\n');
 
   const html = `
@@ -599,7 +634,7 @@ export const sendResponderInvitationEmail = async (
         <div class="content">
           <p class="message">Hello <strong>${name}</strong>,</p>
           <p class="message">
-            ${invitedBySentence} on the Sibuyan Accident Alert System${municipality ? ` for ${municipality}` : ''}.
+            ${invitedBySentence} on the ${PRODUCT_NAME} system${municipality ? ` for ${municipality}` : ''}.
           </p>
           ${context ? `<ul class="details">${context}</ul>` : ''}
           <p class="message">
@@ -619,7 +654,7 @@ export const sendResponderInvitationEmail = async (
           </p>
         </div>
         <div class="footer">
-          <p>Sibuyan Accident Alert System</p>
+          <p>${PRODUCT_NAME}</p>
           <p>Keeping Sibuyan Island safe together</p>
         </div>
       </div>
@@ -632,7 +667,7 @@ export const sendResponderInvitationEmail = async (
     // No emoji in the subject. It carries no meaning a reader needs, and a
     // decorative pictograph in front of a credential-setting call to action is a
     // small but free contribution to a spam score.
-    subject: 'Responder account invitation - Sibuyan Accident Alert',
+    subject: `Responder account invitation - ${PRODUCT_NAME}`,
     html,
     text,
   });
