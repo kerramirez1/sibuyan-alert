@@ -11,21 +11,38 @@ const FieldError = ({ id, children }) => (
     </p>
 );
 
-const SectionHeader = ({ id, step, title, description }) => (
-    <div>
-        <p className="page-eyebrow">
-            Step {step} of 4
-        </p>
-        <h2 id={id} className="section-title">
-            {title}
-        </h2>
-        {description && (
-            <p className="section-description">
-                {description}
-            </p>
-        )}
-    </div>
-);
+const SectionHeader = ({ id, step, title, description }) => {
+    const stepNum = Number(step) || 2;
+    return (
+        <div>
+            <div className="flex items-center gap-2">
+                <p className="page-eyebrow mb-0">
+                    Step {step} of 4
+                </p>
+                <div className="flex items-center gap-1 w-16 sm:w-20" aria-hidden="true">
+                    {[1, 2, 3, 4].map((i) => (
+                        <span
+                            key={i}
+                            className={`h-1 flex-1 rounded-full ${
+                                i <= stepNum
+                                    ? 'bg-brand-700 dark:bg-sky-400'
+                                    : 'bg-gray-200 dark:bg-white/20'
+                            }`}
+                        />
+                    ))}
+                </div>
+            </div>
+            <h2 id={id} className="section-title mt-1.5 sm:mt-2">
+                {title}
+            </h2>
+            {description && (
+                <p className="section-description mt-1 text-xs sm:text-[13px] text-gray-600 dark:text-gray-300">
+                    {description}
+                </p>
+            )}
+        </div>
+    );
+};
 
 const inputClass = 'field-control';
 
@@ -58,9 +75,9 @@ const ReportDetailsPanel = ({
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
 
     return (
-        <div className="surface-panel divide-y divide-[var(--border)] px-5 py-6 sm:px-6">
+        <div className="surface-panel divide-y divide-[var(--border)] px-4 py-5 sm:px-6 sm:py-6">
             {/* Step 2: Incident Details */}
-            <section className="pb-6" aria-labelledby="details-heading">
+            <section className="pb-5 sm:pb-6" aria-labelledby="details-heading">
                 <SectionHeader
                     id="details-heading"
                     step="2"
@@ -142,7 +159,7 @@ const ReportDetailsPanel = ({
             </section>
 
             {/* Step 3: Casualties and Injuries */}
-            <section className="py-6" aria-labelledby="casualties-heading">
+            <section className="py-5 sm:py-6" aria-labelledby="casualties-heading">
                 <SectionHeader
                     id="casualties-heading"
                     step="3"
@@ -178,7 +195,7 @@ const ReportDetailsPanel = ({
             </section>
 
             {/* Step 4: Evidence Photos */}
-            <section className="py-6" aria-labelledby="evidence-heading">
+            <section className="py-5 sm:py-6" aria-labelledby="evidence-heading">
                 <SectionHeader
                     id="evidence-heading"
                     step="4"
@@ -296,7 +313,7 @@ const ReportDetailsPanel = ({
             </section>
 
             {/* Submission Checkpoint */}
-            <section className="pt-6" aria-labelledby="submit-heading">
+            <section className="pt-5 sm:pt-6" aria-labelledby="submit-heading">
                 <h2 id="submit-heading" className="section-title">
                     Review before submitting
                 </h2>

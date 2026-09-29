@@ -9,7 +9,7 @@ client from the same origin.
 1. A unique Heroku app name, for example `sibuyan-alert-testing`.
 2. A production MongoDB connection string.
 3. A new random JWT secret containing at least 32 characters.
-4. SMTP credentials if password reset must work in the test deployment.
+4. SMTP credentials if password reset or responder invitations must work in the test deployment.
 5. A VAPID key pair if browser push notifications must work.
 6. Seed JSON for municipal administrators and responders when using a fresh
    database.
@@ -27,6 +27,18 @@ CLIENT_URL=https://<app-name>.herokuapp.com
 Heroku sets `NODE_ENV=production` and `PORT` automatically. Do not set `PORT`.
 For a combined deployment, leave `VITE_API_URL` and `VITE_SOCKET_URL` unset so
 the client uses `/api` and the current HTTPS origin.
+
+`CLIENT_URL` must be the public client address in any shared deployment — the
+server builds emailed responder-invitation and password-reset links from it as
+`<CLIENT_URL>/reset-password/<token>`. A `localhost` value passes the boot
+check but produces links no recipient can open; the invitation endpoint then
+refuses to send and tells the administrator to fix `CLIENT_URL`. Without
+`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`, invitation and reset emails are not
+attempted at all: responder accounts are still created (inert, no password)
+and the admin UI keeps the "Resend invitation" retry for after SMTP is
+configured. SMTP acceptance only means the mail server took the message — a
+missing or filtered inbox delivery still requires the responder to check
+spam/quarantine or the administrator to resend.
 
 ## Feature-specific config vars
 

@@ -649,7 +649,7 @@ const AccidentHistoryPage = () => {
 
     if (loading && reports.length === 0) {
         return (
-            <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6" role="status" aria-busy="true" aria-label="Loading accident archive">
+            <div className="mx-auto max-w-6xl space-y-5" role="status" aria-busy="true" aria-label="Loading accident archive">
                 <span className="sr-only">Loading accident archive</span>
                 {/* Header Skeleton */}
                 <div className="space-y-2">
@@ -659,9 +659,9 @@ const AccidentHistoryPage = () => {
                 </div>
 
                 {/* 4-Metric Strip Skeleton */}
-                <div className="grid grid-cols-2 divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-x sm:divide-y-0 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0c1813]/90 overflow-hidden">
+                <div className="metric-strip md:grid-cols-2 lg:grid-cols-4 md:[&>*:nth-child(3)]:border-l-0 md:[&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(3)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0">
                     {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="p-3 sm:p-4 space-y-2">
+                        <div key={i} className="metric-tile space-y-2">
                             <Skeleton variant="text" role={null} className="h-3 w-16" />
                             <Skeleton variant="text" role={null} className="h-6 w-10" />
                         </div>
@@ -688,21 +688,22 @@ const AccidentHistoryPage = () => {
     }
 
     return (
-        <div className="page-shell max-w-6xl space-y-6">
+        <div className="page-shell max-w-6xl space-y-5">
             <PageHeader eyebrow="Public Archive" title="Accident history" description="Resolved public-safety incidents across Sibuyan Island." />
 
             {/* Shared summary strip with My Reports / Dashboard: same labels, dots, dividers, sizes. */}
             <section
-                className="metric-strip"
+                className="metric-strip md:grid-cols-2 lg:grid-cols-4 md:[&>*:nth-child(3)]:border-l-0 md:[&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(3)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0"
                 aria-label="History summary"
             >
                 {/* 1. Total Resolved */}
                 <div className="metric-tile">
-                    <p className="metric-value text-green-700 dark:text-green-400">
+                    <p className="metric-value text-brand-900 dark:text-white">
                         {stats.total}
                     </p>
-                    <h2 className="metric-label">
-                        Total resolved
+                    <h2 className="metric-label flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden="true" />
+                        <span>Total resolved</span>
                     </h2>
                     <p className="metric-helper">All recorded incidents</p>
                 </div>
@@ -741,11 +742,15 @@ const AccidentHistoryPage = () => {
                         }
                     }}
                     aria-pressed={barangayFilter !== 'all' && barangayFilter === topBarangayInfo.name}
-                    className={`metric-tile text-left hover:bg-[var(--surface-hover)] ${
+                    className={`metric-tile text-left hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-inset dark:focus-visible:ring-sky-400 ${
                         topBarangayInfo.name && topBarangayInfo.name !== 'No data' ? 'cursor-pointer' : ''
                     }`}
                 >
-                    <p className="metric-value metric-value--text">
+                    <p className={`metric-value metric-value--text ${
+                        topBarangayInfo.name === 'No data'
+                            ? 'text-base font-normal text-gray-400 dark:text-gray-500'
+                            : 'text-gray-900 dark:text-white'
+                    }`}>
                         {topBarangayInfo.name}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-1">
@@ -796,19 +801,19 @@ const AccidentHistoryPage = () => {
                             <button
                                 type="button"
                                 onClick={() => setFilterModalOpen(true)}
-                                className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 text-[13px] font-medium cursor-pointer ${
+                                className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 text-[13px] font-medium transition-colors cursor-pointer ${
                                     activeFilterCount > 0
-                                        ? 'border-gray-400 text-gray-900 dark:border-gray-500 dark:text-white'
-                                        : 'bg-transparent border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
+                                        ? 'border-brand-700/60 bg-brand-50/50 text-brand-900 dark:border-sky-500/50 dark:bg-sky-950/30 dark:text-sky-200'
+                                        : 'border-gray-200 bg-transparent text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/5'
                                 }`}
                             >
                                 <span className="flex items-center gap-1.5">
-                                    <HiOutlineFilter className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    <HiOutlineFilter className={`h-4 w-4 ${activeFilterCount > 0 ? 'text-brand-700 dark:text-sky-400' : 'text-gray-500 dark:text-gray-400'}`} />
                                     <span>Filters</span>
                                 </span>
                                 {activeFilterCount > 0 && (
-                                    <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                                        · {activeFilterCount}
+                                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-[11px] font-semibold text-white dark:bg-sky-400 dark:text-slate-950 tabular-nums">
+                                        {activeFilterCount}
                                     </span>
                                 )}
                             </button>
@@ -927,10 +932,18 @@ const AccidentHistoryPage = () => {
                         ))}
                     </div>
                 ) : filteredReports.length === 0 ? (
-                    <div className="rounded-b-lg px-6 py-14 text-center">
-                        <HiOutlineArchive className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" aria-hidden="true" />
-                        <h2 className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">No accident records found</h2>
-                        <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try adjusting the selected filters.</p>
+                    <div className="flex flex-col items-center justify-center rounded-b-lg px-6 py-8 text-center sm:py-10">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500" aria-hidden="true">
+                            <HiOutlineArchive className="h-5 w-5" />
+                        </div>
+                        <h2 className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">
+                            {hasFilters ? 'No accident records found' : 'No resolved records available'}
+                        </h2>
+                        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
+                            {hasFilters
+                                ? 'Try adjusting the selected filters.'
+                                : 'There are no resolved incident records in the archive yet.'}
+                        </p>
                         {hasFilters && (
                             <button
                                 type="button"
@@ -944,7 +957,7 @@ const AccidentHistoryPage = () => {
                 ) : (
                     <>
                         {/* Desktop Table Header */}
-                        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] gap-4 border-b border-gray-200/80 bg-gray-50/50 px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/[0.01] dark:text-gray-400">
+                        <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] gap-4 border-b border-gray-200/80 bg-gray-50/70 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300">
                             <span>Incident</span>
                             <span>Municipality</span>
                             <span>Resolved</span>
@@ -1027,7 +1040,7 @@ const AccidentHistoryPage = () => {
                                             <div className="border-t border-gray-100 border-l-4 border-l-brand-600/30 px-4 py-4 space-y-4 sm:px-6 dark:border-white/5 dark:border-l-brand-500/30">
                                                 {/* Incident Summary */}
                                                 <div>
-                                                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400 mb-1">
+                                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-sky-400 mb-1">
                                                         Incident summary
                                                     </h3>
                                                     <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 break-words">
@@ -1054,7 +1067,7 @@ const AccidentHistoryPage = () => {
                                                         ] : []),
                                                     ].map(([label, value]) => (
                                                         <div key={label} className="min-w-0">
-                                                            <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">{label}</dt>
+                                                            <dt className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-0.5">{label}</dt>
                                                             <dd className="text-xs font-medium text-gray-900 dark:text-gray-100 break-words tabular-nums">{value}</dd>
                                                         </div>
                                                     ))}
@@ -1065,7 +1078,7 @@ const AccidentHistoryPage = () => {
                                                     {(report.respondedBy || report.resolvedBy) ? (
                                                         <div className="flex flex-wrap items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
                                                             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-                                                            <span className="text-[10px] font-bold uppercase tracking-wider">
+                                                            <span className="text-[11px] font-semibold uppercase tracking-wider">
                                                                 Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}
                                                             </span>
                                                             {canViewFullDetails && (

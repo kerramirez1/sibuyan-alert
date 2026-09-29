@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * Municipal administrators provisioning responder accounts.
@@ -59,6 +59,20 @@ vi.mock('../services/emailService.js', () => ({
 
 const { createResponder, resendResponderInvitation } = await import('../controllers/adminController.js');
 const { validateCreateResponder } = await import('../middleware/validate.js');
+
+// The emailed link is built from CLIENT_URL, so the success path runs with a
+// reachable absolute URL — the same precondition production requires.
+// Failure-path tests override these per case; the restore keeps the process
+// environment identical for every other suite in the file.
+const ORIGINAL_CLIENT_URL = process.env.CLIENT_URL;
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+
+afterEach(() => {
+    if (ORIGINAL_CLIENT_URL === undefined) delete process.env.CLIENT_URL;
+    else process.env.CLIENT_URL = ORIGINAL_CLIENT_URL;
+    if (ORIGINAL_NODE_ENV === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+});
 
 const createRes = () => {
     const res = {};
@@ -132,6 +146,8 @@ describe('createResponder', () => {
         mocks.saved.length = 0;
         mocks.findOne.mockResolvedValue(null);
         mocks.sendInvite.mockResolvedValue({ success: true });
+        process.env.CLIENT_URL = 'https://app.example';
+        process.env.NODE_ENV = 'test';
     });
 
     test('creates a responder in the administrator’s own municipality and emails the invitation', async () => {
@@ -238,6 +254,122 @@ describe('createResponder', () => {
         expect(serialised).not.toMatch(/resetPassword/);
         expect(serialised).not.toContain(mocks.saved[0].resetPasswordToken);
     });
+
+    test('points the administrator at the address when the recipient was not accepted', async () => {
+        // The transport resolved but never accepted the message for this address.
+        mocks.sendInvite.mockResolvedValue({
+            success: false,
+            code: 'RECIPIENT_REJECTED',
+            error: 'The mail server did not accept the recipient address',
+        });
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        expect(res.status).toHaveBeenCalledWith(201);
+        const payload = res.json.mock.calls[0][0].data;
+
+        // Not "sent", and the cause names the address rather than the server —
+        // which is the opposite of the CLIENT_URL and SMTP cases.
+        expect(payload.invitationSent).toBe(false);
+        expect(payload.message).toMatch(/did not accept that recipient address/i);
+        expect(payload.message).not.toMatch(/CLIENT_URL|SMTP/i);
+    });
+
+    test('says so plainly when the transport never confirmed the recipient', async () => {
+        mocks.sendInvite.mockResolvedValue({
+            success: false,
+            code: 'DELIVERY_UNCONFIRMED',
+            messageId: '<unconfirmed@example.com>',
+            error: 'The mail server did not confirm whether it accepted the recipient',
+        });
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        const payload = res.json.mock.calls[0][0].data;
+        expect(payload.invitationSent).toBe(false);
+        // Neither "sent" nor blamed on the address — the honest answer is that
+        // acceptance could not be confirmed.
+        expect(payload.message).toMatch(/did not confirm/i);
+    });
+
+    test('never echoes the address or the link back on a delivery failure', async () => {
+        mocks.sendInvite.mockResolvedValue({
+            success: false,
+            code: 'RECIPIENT_REJECTED',
+            error: 'The mail server did not accept the recipient address',
+        });
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        const payload = res.json.mock.calls[0][0].data;
+        expect(payload.message).not.toContain('juan.delacruz@example.com');
+        expect(payload.message).not.toMatch(/reset-password/);
+        expect(JSON.stringify(payload)).not.toContain(mocks.saved[0].resetPasswordToken);
+    });
+
+    test('emails an absolute invitation URL on the client reset-password route', async () => {
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        const [, , inviteUrl] = mocks.sendInvite.mock.calls[0];
+        // Absolute and reachable: the recipient's browser resolves the host,
+        // and the path is the route the client actually serves.
+        expect(inviteUrl.startsWith('https://app.example/reset-password/')).toBe(true);
+        expect(inviteUrl.split('/reset-password/')[1]).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    test('keeps the account and names CLIENT_URL when no usable client URL is configured', async () => {
+        delete process.env.CLIENT_URL;
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        // Created, not rolled back — and crucially, nothing was emailed, so no
+        // dead relative link is in flight anywhere.
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(mocks.sendInvite).not.toHaveBeenCalled();
+        const payload = res.json.mock.calls[0][0].data;
+        expect(payload.invitationSent).toBe(false);
+        expect(payload.message).toMatch(/CLIENT_URL/);
+        expect(payload.message).toMatch(/resend invitation/i);
+        expect(mocks.saved[0].provisioningHistory[0].action).toBe('invitation_failed');
+
+        // The failure response carries the same secrecy guarantees as success.
+        const serialised = JSON.stringify(res.json.mock.calls[0][0]);
+        expect(serialised).not.toMatch(/resetPassword/);
+        expect(serialised).not.toContain(mocks.saved[0].resetPasswordToken);
+    });
+
+    test('refuses a localhost invitation link in a deployed environment', async () => {
+        process.env.NODE_ENV = 'production';
+        process.env.CLIENT_URL = 'http://localhost:5173';
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        // SMTP would have accepted this message — which is exactly why the
+        // link must be validated first. Nothing is emailed.
+        expect(mocks.sendInvite).not.toHaveBeenCalled();
+        const payload = res.json.mock.calls[0][0].data;
+        expect(payload.invitationSent).toBe(false);
+        expect(payload.message).toMatch(/CLIENT_URL/);
+        expect(mocks.saved[0].provisioningHistory[0].action).toBe('invitation_failed');
+    });
+
+    test('still allows a localhost invitation link in local development', async () => {
+        process.env.NODE_ENV = 'development';
+        process.env.CLIENT_URL = 'http://localhost:5173';
+        const res = createRes();
+
+        await createResponder({ user: ADMIN, body: validBody }, res);
+
+        expect(mocks.sendInvite).toHaveBeenCalledTimes(1);
+        expect(res.json.mock.calls[0][0].data.invitationSent).toBe(true);
+    });
 });
 
 describe('resendResponderInvitation', () => {
@@ -256,6 +388,8 @@ describe('resendResponderInvitation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.sendInvite.mockResolvedValue({ success: true });
+        process.env.CLIENT_URL = 'https://app.example';
+        process.env.NODE_ENV = 'test';
     });
 
     test('re-issues the invitation for a local, not-yet-activated responder', async () => {
@@ -314,6 +448,39 @@ describe('resendResponderInvitation', () => {
 
         expect(res.status).toHaveBeenCalledWith(502);
         expect(res.json.mock.calls[0][0].code).toBe('INVITATION_DELIVERY_FAILED');
+        // A rejected message points at the address, not the server.
+        expect(res.json.mock.calls[0][0].message).toMatch(/check the address/i);
+    });
+
+    test('names the server configuration instead of the address when mail is unconfigured', async () => {
+        mocks.findById.mockReturnValue({ select: vi.fn(async () => ({ ...RESPONDER })) });
+        // The code is what the service actually returns; classification is
+        // code-driven now rather than a regex over the message text.
+        mocks.sendInvite.mockResolvedValue({
+            success: false,
+            code: 'EMAIL_NOT_CONFIGURED',
+            error: 'Email delivery is not configured',
+        });
+        const res = createRes();
+
+        await resendResponderInvitation({ user: ADMIN, params: { id: 'resp-1' } }, res);
+
+        expect(res.status).toHaveBeenCalledWith(502);
+        expect(res.json.mock.calls[0][0].code).toBe('INVITATION_DELIVERY_FAILED');
+        expect(res.json.mock.calls[0][0].message).toMatch(/not configured/i);
+        expect(res.json.mock.calls[0][0].message).not.toMatch(/check the address/i);
+    });
+
+    test('names CLIENT_URL when the invitation link cannot be built', async () => {
+        delete process.env.CLIENT_URL;
+        mocks.findById.mockReturnValue({ select: vi.fn(async () => ({ ...RESPONDER })) });
+        const res = createRes();
+
+        await resendResponderInvitation({ user: ADMIN, params: { id: 'resp-1' } }, res);
+
+        expect(mocks.sendInvite).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(502);
+        expect(res.json.mock.calls[0][0].message).toMatch(/CLIENT_URL/);
     });
 
     test('404s an unknown account', async () => {

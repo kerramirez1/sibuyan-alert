@@ -148,6 +148,8 @@ const MapView = ({
     showRiskZones = true,
     onLocationSelect = null,
     selectedLocation = null,
+    locationStatus = 'idle',
+    initialStyle = null,
     className = '',
     filterCategory = null,
     filterStatus = null,
@@ -404,7 +406,9 @@ const MapView = ({
     const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState(null);
-    const [mapStyle, setMapStyle] = useState('satellite'); // 'satellite' or 'streets'
+    const [mapStyle, setMapStyle] = useState(
+        mode === 'report-location' ? 'satellite' : (initialStyle || 'satellite')
+    ); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
     const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
     const [cursorCoordinate, setCursorCoordinate] = useState(null);
@@ -1157,12 +1161,26 @@ const MapView = ({
             });
 
             ensureLayer({
+                id: 'user-location-halo',
+                type: 'circle',
+                source: 'user-location',
+                paint: {
+                    'circle-radius': 13,
+                    'circle-color': '#3B82F6',
+                    'circle-opacity': 0.22,
+                    'circle-stroke-width': 1.5,
+                    'circle-stroke-color': '#3B82F6',
+                    'circle-stroke-opacity': 0.6,
+                },
+            });
+
+            ensureLayer({
                 id: 'user-location-inner',
                 type: 'circle',
                 source: 'user-location',
                 paint: {
                     'circle-radius': 6,
-                    'circle-color': '#3B82F6',
+                    'circle-color': '#2563EB',
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#ffffff',
                 },
@@ -1918,16 +1936,19 @@ const MapView = ({
             console.warn('Ignoring invalid selected location for map marker');
         }
         if (selectedLocation && hasValidSelectedLocation) {
+            const pinStatus = locationStatus === 'confirmed' ? 'confirmed' : 'selected';
+            const markerSvg = getSelectedLocationMarkerSvg({ status: pinStatus });
+
             if (!selectedMarkerRef.current) {
                 // Create a custom marker element
                 const el = document.createElement('div');
                 el.className = 'selected-location-marker';
                 el.innerHTML = `
                     <div style="position:relative; width:${SELECTED_MARKER_SIZE.width + 4}px; height:${SELECTED_MARKER_SIZE.height + 4}px; display:flex; align-items:flex-end; justify-content:center;">
-                        ${getSelectedLocationMarkerSvg()}
+                        ${markerSvg}
                     </div>
                 `;
-                el.style.cursor = 'pointer';
+                el.style.cursor = 'grab';
                 el.style.zIndex = '3';
 
                 selectedMarkerRef.current = new maplibregl.Marker({
@@ -1939,7 +1960,12 @@ const MapView = ({
                     .setLngLat([selectedLocation.lng, selectedLocation.lat])
                     .addTo(map);
 
+                selectedMarkerRef.current.on('dragstart', () => {
+                    el.style.cursor = 'grabbing';
+                });
+
                 selectedMarkerRef.current.on('dragend', () => {
+                    el.style.cursor = 'grab';
                     const marker = selectedMarkerRef.current;
                     if (!marker) return;
                     const lngLat = marker.getLngLat();
@@ -1956,6 +1982,11 @@ const MapView = ({
                 });
             } else if (Number.isFinite(selectedLocation?.lng) && Number.isFinite(selectedLocation?.lat)) {
                 selectedMarkerRef.current.setLngLat([selectedLocation.lng, selectedLocation.lat]);
+                const el = selectedMarkerRef.current.getElement();
+                const innerContainer = el?.querySelector('div');
+                if (innerContainer) {
+                    innerContainer.innerHTML = markerSvg;
+                }
             }
         } else {
             if (selectedMarkerRef.current) {
@@ -1964,7 +1995,7 @@ const MapView = ({
             }
         }
 
-    }, [selectedLocation, mapReady]);
+    }, [selectedLocation, locationStatus, mapReady]);
 
     // GPS can update frequently. Only touch the blue-dot and accuracy sources so
     // continuous watches remain smooth on mobile devices.
@@ -2121,7 +2152,7 @@ const MapView = ({
     };
 
     return (
-        <div className={`relative min-h-0 rounded-lg ${className}`}>
+        <div className={`relative min-h-0 rounded-lg ${mode === 'report-location' ? 'report-location-map' : ''} ${className}`.trim()}>
             <div
                 ref={mapContainerRef}
                 className="absolute inset-0 overflow-hidden rounded-lg"

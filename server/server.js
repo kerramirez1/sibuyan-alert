@@ -5,9 +5,23 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables.
+//
+// The path is resolved against THIS FILE, not process.cwd(). A bare
+// `dotenv.config()` looks for `./.env` relative to the working directory, so
+// starting the server as `node server/server.js` from the repository root found
+// no file, left every variable undefined, and the email path degraded silently:
+// `isEmailConfigured()` returned false and both the password reset and the
+// responder invitation reported "not configured" without ever attempting a send.
+// Starting it as `npm run dev` from server/ worked, which is what made the
+// failure look intermittent.
+//
+// dotenv does not overwrite variables that are already set, so a host that
+// injects real config (Heroku) is unaffected by this either way.
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 // Import configurations
 import connectDB from './config/db.js';

@@ -222,6 +222,32 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
         });
     });
 
+    test('report-location mode uses satellite as sole basemap with no style switcher, while standard mode retains style toggle', async () => {
+        const { unmount } = render(<MapView mode="report-location" />);
+
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        });
+
+        // Report-location has no style switcher radio group or buttons
+        expect(screen.queryByRole('radiogroup', { name: /map style/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /switch to street map/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /switch to satellite map/i })).not.toBeInTheDocument();
+
+        // Operates in satellite mode: esri-imagery-layer is made visible
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenCalledWith('esri-imagery-layer', 'visibility', 'visible');
+        });
+
+        unmount();
+
+        // Standard map retains the style switcher
+        render(<MapView reports={[]} />);
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
+        });
+    });
+
     test('retains risk zones and incident markers when layers are updated', async () => {
         const mockReports = [
             {

@@ -46,17 +46,67 @@ export const verifyEmailTransport = async () => {
 };
 
 /**
+ * Bare, comparable form of a mail address.
+ *
+ * Nodemailer reports `accepted`/`rejected` as bare addresses (`x@y.com`) while a
+ * caller passes whatever it built, which may carry a display name
+ * (`Name <x@y.com>`). Comparing the two without normalising them would make an
+ * accepted recipient look missing.
+ */
+const normalizeMailAddress = (value) => {
+  const raw = String(value ?? '').trim().toLowerCase();
+  const angled = raw.match(/<([^>]+)>/);
+  return (angled ? angled[1] : raw).trim();
+};
+
+/**
+ * `j***@example.com` — enough to confirm which address was attempted, not enough
+ * to be a contact record. The privacy policy covers email as account data but
+ * says nothing about writing it to logs, so logs get the masked form only.
+ */
+export const maskMailAddress = (value) => {
+  const address = normalizeMailAddress(value);
+  const at = address.indexOf('@');
+  if (at <= 0) return address ? '***' : '';
+  return `${address[0]}***${address.slice(at)}`;
+};
+
+/**
  * Send email notification
  * @param {Object} options - Email options
  * @param {string} options.to - Recipient email
  * @param {string} options.subject - Email subject
  * @param {string} options.html - HTML content
  * @param {string} [options.text] - Plain text content
+ *
+ * Resolving is NOT delivering. `sendMail` resolves once the SMTP transaction
+ * completes, and `info.accepted` / `info.rejected` are the transport's own
+ * verdict per recipient. The original version returned `success: true` for any
+ * resolved send and discarded both lists, so a message the mail server refused
+ * for the intended address still read as delivered — the responder received
+ * nothing while the administrator was told the invitation had been sent.
+ *
+ * ## Why an absent recipient list is a FAILURE, not a pass
+ *
+ * Nodemailer's SMTP transport always reports both lists. `smtp-connection`'s
+ * `_actionDATA` builds `{ accepted, rejected }` and that object is what
+ * `send()` hands back as `info`; and DATA is only reached when
+ * `rejected.length < to.length`, so a completed send always has at least one
+ * entry in `accepted`. Verified against nodemailer 9.0.3 in node_modules.
+ *
+ * So "no lists" and "empty accepted" are not legitimate outcomes for the
+ * configured transport — they mean acceptance could not be confirmed. Treating
+ * them as success is exactly the false positive that let a dead invitation read
+ * as sent, so they are reported as an explicit indeterminate state instead.
+ *
+ * This function reports SMTP acceptance only. A provider that accepts at RCPT
+ * TO and bounces later cannot be detected here — see `DELIVERY_UNCONFIRMED` in
+ * the caller for what that means to an administrator.
  */
 export const sendEmail = async (options) => {
   if (!isEmailConfigured()) {
     console.warn('Email skipped: SMTP is not configured (set SMTP_HOST/SMTP_USER/SMTP_PASS to enable password reset emails)');
-    return { success: false, error: 'Email delivery is not configured' };
+    return { success: false, code: 'EMAIL_NOT_CONFIGURED', error: 'Email delivery is not configured' };
   }
   try {
     const transporter = createTransporter();
@@ -71,10 +121,46 @@ export const sendEmail = async (options) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    return { success: true, messageId: info.messageId };
+    const messageId = info?.messageId || null;
+    const accepted = Array.isArray(info?.accepted) ? info.accepted.map(normalizeMailAddress) : null;
+    const rejected = Array.isArray(info?.rejected) ? info.rejected.map(normalizeMailAddress) : null;
+    const intended = normalizeMailAddress(options.to);
+    const recipient = maskMailAddress(options.to);
+
+    // `messageId` is the correlation handle: it is what a provider's logs and a
+    // bounce report can be matched against. It carries no secret.
+    const context = `recipient=${recipient} messageId=${messageId || 'none'}`;
+
+    if (!accepted || !rejected || (accepted.length === 0 && rejected.length === 0)) {
+      console.error(`[email] DELIVERY_UNCONFIRMED ${context}: transport reported no recipient verdict`);
+      return {
+        success: false,
+        code: 'DELIVERY_UNCONFIRMED',
+        messageId,
+        accepted: accepted || [],
+        rejected: rejected || [],
+        error: 'The mail server did not confirm whether it accepted the recipient',
+      };
+    }
+
+    if (accepted.length === 0 || (intended && !accepted.includes(intended))) {
+      console.error(`[email] RECIPIENT_REJECTED ${context}: accepted=${accepted.length} rejected=${rejected.length}`);
+      return {
+        success: false,
+        code: 'RECIPIENT_REJECTED',
+        messageId,
+        accepted,
+        rejected,
+        // No address is echoed back: this string reaches an administrator and
+        // may end up in a log, and the recipient list is not ours to expose.
+        error: 'The mail server did not accept the recipient address',
+      };
+    }
+
+    return { success: true, messageId, accepted, rejected };
   } catch (error) {
     console.error('❌ Email error:', error);
-    return { success: false, error: error.message };
+    return { success: false, code: 'SMTP_ERROR', error: error.message };
   }
 };
 

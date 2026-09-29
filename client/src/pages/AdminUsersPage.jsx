@@ -485,7 +485,7 @@ const AdminUsersPage = () => {
     };
 
     return (
-        <div className="page-shell max-w-[1120px] space-y-6">
+        <div className="page-shell max-w-[1120px] space-y-5">
             <PageHeader
                 eyebrow="Municipal administration"
                 title="Manage users"
@@ -495,7 +495,10 @@ const AdminUsersPage = () => {
 
             {/* Summary Metrics Strip */}
             {stats && (
-                <section className="metric-strip" aria-label="User directory summary">
+                <section
+                    className="metric-strip md:grid-cols-2 lg:grid-cols-4 md:[&>*:nth-child(3)]:border-l-0 md:[&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(3)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0"
+                    aria-label="User directory summary"
+                >
                     <div className="metric-tile">
                         <p className="metric-value">{stats.totalUsers}</p>
                         <span className="metric-label block">Total users</span>
@@ -503,29 +506,29 @@ const AdminUsersPage = () => {
                     </div>
 
                     <div className="metric-tile">
-                        <div className="flex items-start justify-between gap-3">
-                            <p className="metric-value min-w-0 flex-1">{stats.reporters}</p>
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 mt-2" aria-hidden="true" />
-                        </div>
-                        <span className="metric-label block">Reporters</span>
+                        <p className="metric-value">{stats.reporters}</p>
+                        <span className="metric-label flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                            <span>Reporters</span>
+                        </span>
                         <p className="metric-helper">Field reporters</p>
                     </div>
 
                     <div className="metric-tile">
-                        <div className="flex items-start justify-between gap-3">
-                            <p className="metric-value min-w-0 flex-1">{stats.pendingVerification}</p>
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 mt-2" aria-hidden="true" />
-                        </div>
-                        <span className="metric-label block">Pending</span>
+                        <p className="metric-value">{stats.pendingVerification}</p>
+                        <span className="metric-label flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                            <span>Pending</span>
+                        </span>
                         <p className="metric-helper">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
                     </div>
 
                     <div className="metric-tile">
-                        <div className="flex items-start justify-between gap-3">
-                            <p className="metric-value min-w-0 flex-1">{stats.responders}</p>
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500 mt-2" aria-hidden="true" />
-                        </div>
-                        <span className="metric-label block">Responders</span>
+                        <p className="metric-value">{stats.responders}</p>
+                        <span className="metric-label flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" aria-hidden="true" />
+                            <span>Responders</span>
+                        </span>
                         <p className="metric-helper">Emergency units</p>
                     </div>
                 </section>
@@ -553,7 +556,7 @@ const AdminUsersPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => fetchUsers({ force: true })}
-                                    className="btn-primary"
+                                    className="btn-outline"
                                 >
                                     Search
                                 </button>
@@ -592,7 +595,7 @@ const AdminUsersPage = () => {
                             </select>
                             <Button
                                 type="button"
-                                size="sm"
+                                variant="primary"
                                 onClick={openAddResponder}
                                 className="col-span-2 sm:col-span-1 sm:ml-auto"
                                 aria-label="Add a responder account"
@@ -604,10 +607,10 @@ const AdminUsersPage = () => {
                 </div>
 
                 {/* Desktop & Tablet Table */}
-                <div className="hidden sm:block overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+                    <table className="w-full min-w-[820px] text-left text-xs border-collapse">
                         <thead>
-                            <tr className="border-b border-gray-200/80 bg-gray-50/50 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/[0.01] dark:text-gray-400">
+                            <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300">
                                 <th scope="col" className="py-3 pl-4 pr-3 sm:pl-5">User</th>
                                 <th scope="col" className="px-3 py-3">Role</th>
                                 <th scope="col" className="px-3 py-3">Verification</th>
@@ -722,7 +725,7 @@ const AdminUsersPage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => openVerifyModal(user, 'approved')}
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                             title="Approve reporter"
                                                             aria-label={`Approve reporter ${user?.name}`}
                                                         >
@@ -731,7 +734,7 @@ const AdminUsersPage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => openVerifyModal(user, 'rejected')}
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+                                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                             title="Reject reporter"
                                                             aria-label={`Reject reporter ${user?.name}`}
                                                         >
@@ -742,7 +745,7 @@ const AdminUsersPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openDeleteModal(user)}
-                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                                                     title="Delete user"
                                                     aria-label={`Delete user ${user?.name}`}
                                                 >
@@ -837,7 +840,7 @@ const AdminUsersPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openVerifyModal(user, 'approved')}
-                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
                                                     title="Approve reporter"
                                                     aria-label={`Approve reporter ${user?.name}`}
                                                 >
@@ -846,7 +849,7 @@ const AdminUsersPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openVerifyModal(user, 'rejected')}
-                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
                                                     title="Reject reporter"
                                                     aria-label={`Reject reporter ${user?.name}`}
                                                 >
@@ -857,7 +860,7 @@ const AdminUsersPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => openDeleteModal(user)}
-                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                                             title="Delete user"
                                             aria-label={`Delete user ${user?.name}`}
                                         >

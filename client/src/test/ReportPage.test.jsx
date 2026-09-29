@@ -607,4 +607,49 @@ describe('ReportPage workflow', () => {
             expect(await screen.findByText('My reports destination')).toBeInTheDocument();
         });
     });
+
+    describe('Mobile UI Refinements & Location State Clarity', () => {
+        test('renders device-neutral instructions and secondary required field guidance', () => {
+            renderPage();
+
+            expect(screen.getByText(/select a location on the map or use gps to set the incident coordinates/i)).toBeInTheDocument();
+            expect(screen.getByText(/address or coordinates are required/i)).toBeInTheDocument();
+        });
+
+        test('displays unpinned default island view chip initially, then updates to coordinates when pinned', async () => {
+            renderPage();
+
+            // Unpinned default state shows default island view
+            expect(screen.getByText('Default island view · No pin placed')).toBeInTheDocument();
+            expect(screen.getByRole('status')).toHaveTextContent('Acquiring GPS…');
+
+            // Pin a location
+            fireEvent.click(screen.getByTestId('location-map'));
+
+            await waitFor(() => {
+                expect(screen.getByText(/selected pin: 12\.3926, 122\.6799/i)).toBeInTheDocument();
+                expect(screen.getByRole('status')).toHaveTextContent('Location selected');
+            });
+        });
+
+        test('renders 4-segment progress cues and accessible status transitions', async () => {
+            renderPage();
+
+            // Progress cues in step headers
+            expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+            expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+            expect(screen.getByText('Step 3 of 4')).toBeInTheDocument();
+            expect(screen.getByText('Step 4 of 4')).toBeInTheDocument();
+
+            // My location button with accessible label
+            const myLocationBtn = screen.getByRole('button', { name: /use my current gps location/i });
+            expect(myLocationBtn).toBeInTheDocument();
+
+            // Once location is pinned, detection stops and button displays My location
+            fireEvent.click(screen.getByTestId('location-map'));
+            await waitFor(() => {
+                expect(myLocationBtn).toHaveTextContent('My location');
+            });
+        });
+    });
 });

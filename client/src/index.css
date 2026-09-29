@@ -1404,18 +1404,24 @@
 
 .maplibregl-ctrl-group button:focus-visible {
   outline: 2px solid #35648F;
-  outline-offset: 2px;
+  outline-offset: -2px;
+  position: relative;
+  z-index: 2;
 }
 
-/* Smaller canvases retain at least a 28px target alongside gesture navigation. */
+.dark .maplibregl-ctrl-group button:focus-visible {
+  outline-color: #38bdf8;
+}
+
+/* Mobile canvases provide comfortable 36px touch targets for navigation. */
 @media (max-width: 640px) {
   .maplibregl-ctrl-group button {
-    width: 28px !important;
-    height: 28px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    background-size: 24px 24px;
+    background-size: 22px 22px;
   }
 }
 
@@ -1426,21 +1432,70 @@
 }
 
 .incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-  background-size: 24px 24px;
+  background-size: 20px 20px;
 }
 
-/* Without this, the preview rule above (higher specificity) would keep the
-   control at its desktop size on phones — larger than the plain map's. */
+/* On mobile, maintain at least 32px target for embedded preview */
 @media (max-width: 640px) {
   .incident-location-preview .maplibregl-ctrl-group button {
-    width: 28px !important;
-    height: 28px !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 
   .incident-location-preview .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    background-size: 24px 24px;
+    background-size: 20px 20px;
   }
 }
+
+/* Sleek compact navigation controls scoped strictly to the report-location map */
+.report-location-map .maplibregl-ctrl-top-right {
+  top: 8px !important;
+  right: 8px !important;
+}
+
+.report-location-map .maplibregl-ctrl-group {
+  border-radius: 6px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  overflow: visible !important;
+}
+
+.report-location-map .maplibregl-ctrl-group button {
+  position: relative;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.report-location-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  background-size: 18px 18px !important;
+}
+
+@media (max-width: 640px) {
+  .report-location-map .maplibregl-ctrl-group button {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  /* Expand touch target to at least 44x44px on mobile while keeping visible chrome sleek */
+  .report-location-map .maplibregl-ctrl-group button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+  }
+
+  .report-location-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    background-size: 18px 18px !important;
+  }
+}
+
 
 /*
  * Legacy utility compatibility layer.
@@ -1725,6 +1780,33 @@
 .dark .maplibregl-popup-close-button {
   color: var(--text-secondary);
 }
+
+/* MapLibre scale control follows operational theme tokens */
+.maplibregl-ctrl-scale {
+  background: var(--surface) !important;
+  color: var(--text-secondary) !important;
+  border: 1.5px solid var(--border-strong) !important;
+  border-top: none !important;
+  border-radius: 0 0 3px 3px;
+  box-shadow: var(--shadow-sm);
+  font-family: inherit;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 4px !important;
+}
+
+/* Selected location pin drop animation and drag responsiveness */
+.selected-location-marker {
+  cursor: grab;
+  transition: transform 0.15s ease-out;
+}
+
+.selected-location-marker:active {
+  cursor: grabbing;
+  transform: scale(1.08) translateY(-2px);
+}
+
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

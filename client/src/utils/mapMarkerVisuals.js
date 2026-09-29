@@ -43,6 +43,7 @@ export const STATUS_PIN_PALETTES = Object.freeze({
     rejected: statusPinPalette('rejected'),
     risk: Object.freeze({ base: MAP_RISK_ZONE_CONFIG.markerColor, dark: '#B91C1C' }),
     selected: Object.freeze({ base: '#EF4444', dark: '#DC2626' }),
+    confirmed: Object.freeze({ base: '#10B981', dark: '#059669' }),
     default: Object.freeze({ base: '#6B7280', dark: '#4B5563' }),
 });
 
@@ -111,6 +112,12 @@ export const getStatusIconInnerSvg = (status) => {
     if (status === 'risk') {
         return '<rect x="11" y="5.5" width="2" height="6" rx="1" fill="white"/><circle cx="12" cy="13.8" r="1.4" fill="white"/>';
     }
+    if (status === 'confirmed') {
+        return '<path d="M8 11.5 L10.5 14 L16 8.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+    }
+    if (status === 'selected') {
+        return '<circle cx="12" cy="10.5" r="3.2" stroke="white" stroke-width="1.3" fill="none"/><circle cx="12" cy="10.5" r="1.2" fill="white"/><line x1="12" y1="5.5" x2="12" y2="7.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/><line x1="12" y1="13.5" x2="12" y2="15.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="10.5" x2="9" y2="10.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/><line x1="15" y1="10.5" x2="17" y2="10.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>';
+    }
     return '<circle cx="12" cy="10.5" r="3" fill="white"/>';
 };
 
@@ -143,7 +150,7 @@ export const getMapPinSvg = ({
     //   Rounded head centered at (12, 10.5) with r≈9
     //   Smooth cubic curves narrow to a pointed tip at (12, 30)
     return `
-        <svg width="${width}" height="${height}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 1px 2.5px rgba(0,0,0,0.3));">
+        <svg width="${width}" height="${height}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 0 2px rgba(255,255,255,0.85)) drop-shadow(0 1.5px 3px rgba(0,0,0,0.35));">
             <defs>
                 <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="${base}"/>
@@ -185,11 +192,18 @@ export const getRiskZoneMarkerSvg = (color = MAP_RISK_ZONE_CONFIG.markerColor, {
  * Draggable selected-location marker SVG.
  */
 export const getSelectedLocationMarkerSvg = ({
+    status = 'selected',
     width = SELECTED_MARKER_SIZE.width,
     height = SELECTED_MARKER_SIZE.height,
-} = {}) => (
-    getMapPinSvg({ status: 'selected', color: '#EF4444', width, height })
-);
+} = {}) => {
+    const isConfirmed = status === 'confirmed';
+    return getMapPinSvg({
+        status: isConfirmed ? 'confirmed' : 'selected',
+        color: isConfirmed ? '#10B981' : '#EF4444',
+        width,
+        height,
+    });
+};
 
 /**
  * Waves drawn behind the responding dot.

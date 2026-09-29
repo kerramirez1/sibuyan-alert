@@ -798,7 +798,7 @@ const ReportPage = () => {
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
     return (
-        <div className="page-shell max-w-7xl space-y-6">
+        <div className="page-shell max-w-7xl space-y-5 pb-20 min-[501px]:pb-6">
             <PageHeader eyebrow="Incident reporting" title="Submit incident report" description="Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required." />
 
             {draftRestored && (
@@ -818,7 +818,7 @@ const ReportPage = () => {
             )}
 
             {/* Guided Form Layout (2-column desktop/tablet, sequential mobile) */}
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
+            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
                 {/* Left Column: Interactive Location Map (Sticky on Desktop) */}
                 <div className="w-full min-w-0 self-start xl:sticky xl:top-4">
                     <ReportLocationPanel

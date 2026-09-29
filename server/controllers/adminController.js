@@ -37,6 +37,7 @@ import {
     getPhilippineCalendarWeekRange,
     PHILIPPINES_TIMEZONE,
 } from '../utils/publicAnalytics.js';
+import { resolveRecipientClientUrl } from '../utils/invitationUrl.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -1109,9 +1110,18 @@ const RESPONDER_INVITATION_TTL_MS = 3600000; // 1 hour
  * secret, which is what makes the link single-use in practice — the old token
  * stops matching the moment a new one is minted.
  *
+ * The emailed link is validated before anything is sent: a missing/relative
+ * CLIENT_URL, or a localhost CLIENT_URL in production, would produce a link no
+ * recipient can open, and SMTP would still accept the message — a silent
+ * "delivered" with a dead link. Those cases are reported as delivery failures
+ * with a named cause instead, so the administrator is pointed at the server
+ * configuration rather than at the responder's address.
+ *
  * Returns the delivery outcome instead of throwing, so a caller that has just
  * created an account can report a mail failure without unwinding the account.
- * The token and URL are never logged: the URL is the credential.
+ * `failureCode` is one of `URL_MISCONFIGURED`, `EMAIL_NOT_CONFIGURED` or
+ * `DELIVERY_FAILED`, and is safe to show to an administrator. The token and
+ * URL are never logged and never returned: the URL is the credential.
  */
 const issueResponderInvitation = async (user, { actor = null, municipality = null, action = 'invited' } = {}) => {
     const crypto = await import('crypto');
@@ -1119,23 +1129,38 @@ const issueResponderInvitation = async (user, { actor = null, municipality = nul
     user.resetPasswordToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
     user.resetPasswordExpires = new Date(Date.now() + RESPONDER_INVITATION_TTL_MS);
 
-    const clientBase = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
-    const inviteUrl = clientBase
-        ? `${clientBase}/reset-password/${inviteToken}`
-        : `/reset-password/${inviteToken}`;
-
+    // A minted-but-never-emailed secret is inert: unguessable, expired in an
+    // hour, and overwritten by the next issue. Validating first keeps the
+    // failure audit accurate without a second code path.
+    const recipientBase = resolveRecipientClientUrl();
     let delivered = false;
+    let failureCode = null;
     let failureReason = null;
-    try {
-        const result = await sendResponderInvitationEmail(user.email, user.name, inviteUrl, {
-            municipality,
-            agency: getUnitTypeLabel(user.agency),
-            invitedBy: actor?.name || '',
-        });
-        delivered = Boolean(result?.success);
-        if (!delivered) failureReason = result?.error || 'The mail server rejected the message';
-    } catch (error) {
-        failureReason = error?.message || 'The invitation email could not be sent';
+    let correlationId = null;
+    if (!recipientBase.url) {
+        failureCode = 'URL_MISCONFIGURED';
+        failureReason = recipientBase.error;
+    } else {
+        const inviteUrl = `${recipientBase.url}/reset-password/${inviteToken}`;
+        try {
+            const result = await sendResponderInvitationEmail(user.email, user.name, inviteUrl, {
+                municipality,
+                agency: getUnitTypeLabel(user.agency),
+                invitedBy: actor?.name || '',
+            });
+            delivered = Boolean(result?.success);
+            if (!delivered) {
+                // The service owns the classification — it is the only layer that
+                // sees the transport's own verdict on the recipient. Anything it
+                // does not name falls back to a generic delivery failure.
+                failureCode = result?.code || 'DELIVERY_FAILED';
+                failureReason = result?.error || 'The mail server rejected the message';
+                correlationId = result?.messageId || null;
+            }
+        } catch (error) {
+            failureCode = 'DELIVERY_FAILED';
+            failureReason = error?.message || 'The invitation email could not be sent';
+        }
     }
 
     user.recordProvisioningEvent({
@@ -1146,11 +1171,43 @@ const issueResponderInvitation = async (user, { actor = null, municipality = nul
     await user.save();
 
     if (!delivered) {
-        // Deliberately no URL and no token — see the doc comment above.
-        console.error(`[responder-invite] Delivery failed for account ${user._id}: ${failureReason}`);
+        // Account id and the transport's message id are the correlation handles —
+        // both are opaque, neither is a secret. Deliberately no URL and no token:
+        // the URL is the credential, and the recipient address is masked inside
+        // the service so the log line cannot become a contact record.
+        console.error(
+            `[responder-invite] Delivery failed for account ${user._id} (${failureCode})` +
+            `${correlationId ? ` messageId=${correlationId}` : ''}: ${failureReason}`,
+        );
     }
 
-    return { delivered, failureReason };
+    return { delivered, failureCode, failureReason };
+};
+
+/**
+ * Administrator-safe explanation of an invitation delivery failure.
+ *
+ * Each cause points at a different person and a different fix, which is the whole
+ * point of separating them: a rejected address is the administrator's to re-check,
+ * CLIENT_URL and SMTP are the operator's, and an unconfirmed send is neither —
+ * it is the mail provider's, and only a provider-side check can settle it.
+ *
+ * Never names a secret, token, or URL.
+ */
+const describeInvitationFailure = (failureCode) => {
+    if (failureCode === 'URL_MISCONFIGURED') {
+        return 'the invitation link address (CLIENT_URL) is not set to a public address the recipient can open';
+    }
+    if (failureCode === 'EMAIL_NOT_CONFIGURED') {
+        return 'email delivery is not configured on the server (SMTP)';
+    }
+    if (failureCode === 'RECIPIENT_REJECTED') {
+        return 'the mail server did not accept that recipient address — check it for a typo';
+    }
+    if (failureCode === 'DELIVERY_UNCONFIRMED') {
+        return 'the mail server did not confirm it accepted the message';
+    }
+    return 'the mail server did not accept the message';
 };
 
 /**
@@ -1231,7 +1288,7 @@ export const createResponder = async (req, res) => {
             createdBy: adminUser._id,
         });
 
-        const { delivered } = await issueResponderInvitation(responder, {
+        const { delivered, failureCode } = await issueResponderInvitation(responder, {
             actor: adminUser,
             municipality,
         });
@@ -1242,11 +1299,12 @@ export const createResponder = async (req, res) => {
                 user: toProvisionedResponderPayload(responder),
                 invitationSent: delivered,
                 // A delivery failure is not a creation failure: the account exists
-                // and is inert. The administrator gets an explicit retry rather
-                // than an ambiguous half-created state.
+                // and is inert. The administrator gets the cause — server
+                // configuration versus a rejected message — plus an explicit
+                // retry rather than an ambiguous half-created state.
                 message: delivered
                     ? `Invitation sent to ${responder.email}`
-                    : 'Account created, but the invitation email could not be sent. Use "Resend invitation" to try again.',
+                    : `Account created, but the invitation email could not be sent (${describeInvitationFailure(failureCode)}). Use "Resend invitation" to try again.`,
             },
         });
     } catch (error) {
@@ -1308,17 +1366,22 @@ export const resendResponderInvitation = async (req, res) => {
             });
         }
 
-        const { delivered } = await issueResponderInvitation(user, {
+        const { delivered, failureCode } = await issueResponderInvitation(user, {
             actor: adminUser,
             municipality: adminUser.assignedMunicipality,
             action: 'invitation_resent',
         });
 
         if (!delivered) {
+            // Server-side misconfiguration names the configuration; only a
+            // rejected message points at the address.
+            const message = failureCode === 'DELIVERY_FAILED'
+                ? 'The invitation email could not be sent. Check the address and try again.'
+                : `The invitation email could not be sent (${describeInvitationFailure(failureCode)}). Fix the server configuration and try again.`;
             return res.status(502).json({
                 success: false,
                 code: 'INVITATION_DELIVERY_FAILED',
-                message: 'The invitation email could not be sent. Check the address and try again.',
+                message,
             });
         }
 

@@ -367,6 +367,42 @@ describe('AdminUsersPage', () => {
             await waitFor(() => expect(mocks.resendResponderInvitation).toHaveBeenCalledWith('new-1'));
         });
 
+        test('keeps the retry available when resending fails at the mail server', async () => {
+            mocks.createResponder.mockResolvedValue({
+                data: {
+                    data: {
+                        invitationSent: false,
+                        message: 'Account created, but the invitation email could not be sent. Use "Resend invitation" to try again.',
+                        user: { id: 'new-1', name: 'Juan Dela Cruz', email: 'juan@example.com' },
+                    },
+                },
+            });
+            mocks.resendResponderInvitation.mockRejectedValue({
+                response: {
+                    status: 502,
+                    data: {
+                        success: false,
+                        code: 'INVITATION_DELIVERY_FAILED',
+                        message: 'The invitation email could not be sent (email delivery is not configured on the server (SMTP)). Fix the server configuration and try again.',
+                    },
+                },
+            });
+
+            await openForm();
+            fillForm();
+            submit();
+
+            await screen.findByRole('status');
+
+            fireEvent.click(screen.getByRole('button', { name: 'Resend invitation' }));
+
+            // The server's cause is shown verbatim, and the modal is not a dead
+            // end: the retry and the held account stay on screen.
+            expect(await screen.findByRole('alert')).toHaveTextContent(/not configured/i);
+            expect(screen.getByRole('button', { name: 'Resend invitation' })).toBeInTheDocument();
+            expect(screen.getByText(/juan@example\.com/)).toBeInTheDocument();
+        });
+
         test('refreshes the scoped list after a successful invitation', async () => {
             mocks.createResponder.mockResolvedValue({
                 data: { data: { invitationSent: true, message: 'Invitation sent' } },
