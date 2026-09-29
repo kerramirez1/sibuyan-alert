@@ -461,6 +461,7 @@ const NotificationBell = () => {
                 type="button"
                 onClick={() => setIsOpen((prev) => !prev)}
                 aria-label={accessibleBellLabel}
+                title={accessibleBellLabel}
                 aria-haspopup="dialog"
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? panelId : undefined}

@@ -27,7 +27,13 @@
   /* Typography */
   --text-primary: #152a40;
   --text-secondary: #526176;
-  --text-muted: #65748a;
+  /* One step darker than the original #65748a, which measured 4.38:1 on
+     --bg-primary and failed WCAG AA for normal-size text — the analytics section
+     meta lines and footnotes sit directly on the page background, not on a card.
+     #5f6e85 is 4.78:1 there and 5.18:1 on --surface, and stays visibly lighter
+     than --text-secondary (5.82:1) so the two tokens still mean different things.
+     The dark value is untouched: it already passes at 6.61:1. */
+  --text-muted: #5f6e85;
 
   /* Borders */
   --border: #e1e7ee;

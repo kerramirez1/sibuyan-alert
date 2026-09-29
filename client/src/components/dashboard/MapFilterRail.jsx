@@ -109,12 +109,18 @@ export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, 
             // The native target carries its own hit area; adjacent filters do not overlap.
             className={`relative -mb-px inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-t-lg px-2.5 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${selected
                 ? `${styles.selectedSurface} font-semibold ${styles.selectedText}`
-                : `font-normal text-gray-500 hover:bg-white/80 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white${count === 0 ? ' opacity-60' : ''}`
+                : 'font-normal text-gray-500 hover:bg-white/80 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
                 }`}
         >
             <span className={`h-2 w-2 shrink-0 rounded-full ${styles.dot}`} aria-hidden="true" />
             <span>{label}</span>
-            <span className={`text-[10px] font-medium tabular-nums ${selected ? '' : 'text-gray-400 dark:text-gray-500'}`}>
+            {/* A zero count used to fade the WHOLE tab to 60% opacity, which read as
+                a disabled control — but nothing here is disabled, every tab is
+                clickable and its set is simply empty. The label now keeps full
+                contrast and only the count is muted, and it is muted to
+                text-gray-500 (#6b7280, 4.83:1 on white), not text-gray-400
+                (#9ca3af, 2.54:1), which failed AA for normal-size text. */}
+            <span className={`text-xs font-medium tabular-nums ${selected ? '' : 'text-gray-500 dark:text-gray-400'}`}>
                 {count}
             </span>
             {/* The 2px bar is the selected cue ON the rail's baseline, so it only

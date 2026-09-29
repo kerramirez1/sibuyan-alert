@@ -159,6 +159,7 @@ export const formatXAxisDay = (value) => {
 const ChartTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const firstPayload = payload[0]?.payload;
+    const total = Math.max(Math.round(Number(firstPayload?.total) || 0), 0);
     return (
         <div className={styles.tooltip}>
             <p className="mb-2 font-semibold">{firstPayload?.fullDate || label}</p>
@@ -171,6 +172,14 @@ const ChartTooltip = ({ active, payload, label }) => {
                     <span className="font-semibold tabular-nums">{entry.value}</span>
                 </div>
             ))}
+            {/* The bucket total in one place, so a count hidden from a crowded
+                plot is still exact on hover. */}
+            {total > 0 && (
+                <div className={`mt-1.5 flex items-center justify-between gap-3 border-t pt-1.5 ${styles.rule}`}>
+                    <span className="font-medium">Total</span>
+                    <span className="font-semibold tabular-nums">{total}</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -185,39 +194,148 @@ const EmptyChart = ({ message = 'No data for the selected period', detail }) => 
 
 const SEVERITY_STACK_ORDER = ['minor', 'moderate', 'severe', 'critical', 'unknown'];
 
+const TREND_CHART_MARGIN = Object.freeze({ top: 16, right: 4, left: 0, bottom: 0 });
+
 /**
- * Draws the day total once, on top of the highest non-zero stack segment.
- * Returns null for empty days and for non-top segments so dense months stay
- * readable without duplicated labels.
+ * The trend plot's own geometry, which is what turns a count into pixels: the
+ * panel's h-52 is 208px, the chart's top margin takes 16px and recharts keeps
+ * 30px for the x axis, leaving 162px of plot. A bucket total is drawn 4px above
+ * its bar and its digits need about 10px more, so the count axis has to keep a
+ * little over 14px of headroom above the tallest bar. Without it the top bar
+ * reaches the top of the plot and the label above it is drawn past the bar
+ * layer's clip path — which is where a peak of 4, 8, 12 or 100 used to lose its
+ * own count, because recharts' nice ticks land exactly on those values.
  */
-const renderStackTotalLabel = (barKey) => ({ x, y, width, payload }) => {
-    const total = Number(payload?.total) || 0;
-    if (total <= 0 || typeof x !== 'number' || typeof y !== 'number') return null;
-    const topKey = [...SEVERITY_STACK_ORDER].reverse().find((key) => (Number(payload?.[key]) || 0) > 0);
-    if (topKey !== barKey) return null;
+const TREND_PLOT_HEIGHT_PX = 162;
+const TOTAL_LABEL_HEADROOM_PX = 14;
+const AXIS_HEADROOM_RATIO = 1 / (1 - TOTAL_LABEL_HEADROOM_PX / TREND_PLOT_HEIGHT_PX);
+const MAX_AXIS_TICKS = 7;
+const TOTAL_LABEL_DIGIT_WIDTH_PX = 7;
+const TOTAL_LABEL_MIN_GAP_PX = 4;
+const Y_AXIS_MIN_WIDTH = 28;
+
+/**
+ * The 1-2-5 ladder: the smallest round step that is at least `value`, so the
+ * interval widens as the counts grow instead of the tick count piling up.
+ */
+const axisIntervalFor = (value) => {
+    const target = Math.max(Number(value) || 0, 1);
+    const decade = 10 ** Math.floor(Math.log10(target));
+    const mantissa = target / decade;
+    return (mantissa > 5 ? 10 : mantissa > 2 ? 5 : mantissa > 1 ? 2 : 1) * decade;
+};
+
+/**
+ * The count axis for the trend plot, sized to the tallest bucket: zero-based,
+ * integer, and always clear of the peak by TOTAL_LABEL_HEADROOM_PX of the plot
+ * so the total label above the tallest bar lands inside the plot. Explicit ticks
+ * rather than recharts' own, so the maximum is ours to guarantee.
+ */
+export const buildIncidentCountAxis = (totals = []) => {
+    const peak = toSafeArray(totals).reduce((highest, value) => {
+        const count = Number(value);
+        return Number.isFinite(count) && count > highest ? count : highest;
+    }, 0);
+    const wholePeak = Math.ceil(peak);
+    if (wholePeak <= 0) return { max: 0, interval: 0, ticks: [0] };
+
+    const padded = Math.ceil(wholePeak * AXIS_HEADROOM_RATIO);
+    const interval = axisIntervalFor(padded / (MAX_AXIS_TICKS - 1));
+    const max = Math.ceil(padded / interval) * interval;
+    const ticks = Array.from({ length: max / interval + 1 }, (_, index) => index * interval);
+    return { max, interval, ticks };
+};
+
+/**
+ * A total is drawn only where its digits fit the bucket's own slot on the plot.
+ * Labels that would overprint their neighbour are dropped instead, and the exact
+ * counts stay in the tooltip, the day list and the chart's description. An
+ * unmeasured width — the first paint — keeps every label rather than guessing.
+ */
+const labelFitsSlot = (text, slotWidth) => {
+    const width = Number(slotWidth);
+    if (!(width > 0)) return true;
+    return width >= String(text).length * TOTAL_LABEL_DIGIT_WIDTH_PX + TOTAL_LABEL_MIN_GAP_PX;
+};
+
+/**
+ * What every bucket's total label needs, and where recharts will hand it over.
+ * A label list sits on each severity series and recharts skips the segments it
+ * cannot draw, so the `index` a label receives counts only the buckets that
+ * series actually draws — `drawnByKey` maps that index back to the bucket.
+ * `total` rides along so the renderer can refuse a total the list and the plan
+ * disagree about instead of drawing the wrong one.
+ */
+export const buildTotalLabelPlans = (chartData = [], { slotWidth = 0 } = {}) => {
+    const days = toSafeArray(chartData);
+    const buckets = [];
+    const drawnByKey = Object.fromEntries(SEVERITY_STACK_ORDER.map((key) => [key, []]));
+
+    days.forEach((day, bucketIndex) => {
+        let topKey = null;
+        for (const { key } of SEVERITY_SERIES) {
+            const value = Number(day?.[key]) || 0;
+            if (value <= 0) continue;
+            drawnByKey[key].push(bucketIndex);
+            // Severity series are stacked in this order, so the last positive
+            // segment is the one the total is drawn above.
+            topKey = key;
+        }
+        const total = Math.max(Math.round(Number(day?.total) || 0), 0);
+        const text = String(total);
+        buckets.push({
+            topKey,
+            total,
+            text,
+            show: total > 0 && labelFitsSlot(text, slotWidth),
+        });
+    });
+
+    return { buckets, drawnByKey };
+};
+
+/**
+ * Draws a bucket's total once, on top of the highest non-zero stack segment,
+ * from that bucket's plan. Returns null for empty buckets, for segments that are
+ * not the top of their stack, and for any rect the plan cannot place.
+ */
+const renderStackTotalLabel = (barKey, plans) => ({
+    x, y, width, value, index,
+}) => {
+    const bucketIndex = plans?.drawnByKey?.[barKey]?.[index];
+    if (bucketIndex === undefined || typeof x !== 'number' || typeof y !== 'number') return null;
+    const plan = plans.buckets[bucketIndex];
+    if (!plan?.show || plan.topKey !== barKey || Number(value) !== plan.total) return null;
     return (
         <text x={x + (width || 0) / 2} y={Math.max(y - 4, 9)} textAnchor="middle" fontSize={10} fontWeight={700} fill="var(--chart-axis)">
-            {total}
+            {plan.text}
         </text>
     );
 };
 
-const MetricTile = ({ label, value, helper, status, accent = null }) => (
-    <div className={`${styles.metric} ${accent ? styles.metricAttention : ''}`}>
-        <dt className={styles.metricLabel}>
-            <span className={`h-2 w-2 shrink-0 rounded-full ${MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400'}`} aria-hidden="true" />
-            {label}
-        </dt>
-        <dd className={`${styles.metricValue} ${accent ? 'text-amber-700 dark:text-amber-400' : ''}`}>{value}</dd>
-        <dd className={`mt-1.5 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
-        {accent && (
-            <dd className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                <HiOutlineExclamationCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                {accent}
-            </dd>
-        )}
-    </div>
-);
+const MetricTile = ({ label, value, helper, status, accent = null }) => {
+    // A zero is a real reading, not a missing one, so it keeps its place and its
+    // size but drops one step of emphasis. The amber "Pending review" value is
+    // exempt: it is the strongest number on the row by design.
+    const isZero = !accent && (Number(value) || 0) === 0;
+
+    return (
+        <div className={`${styles.metric} ${accent ? styles.metricAttention : ''}`}>
+            <dt className={styles.metricLabel}>
+                <span className={`h-2 w-2 shrink-0 rounded-full ${MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400'}`} aria-hidden="true" />
+                {label}
+            </dt>
+            <dd className={`${styles.metricValue} ${accent ? 'text-amber-700 dark:text-amber-400' : isZero ? styles.secondary : ''}`}>{value}</dd>
+            <dd className={`mt-1.5 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
+            {accent && (
+                <dd className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    <HiOutlineExclamationCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    {accent}
+                </dd>
+            )}
+        </div>
+    );
+};
 
 const TrendPanel = ({
     chartData = [],
@@ -233,12 +351,30 @@ const TrendPanel = ({
     const safeChartData = toSafeArray(chartData);
     const safeReportCount = Number.isFinite(Number(reportCount)) ? Number(reportCount) : 0;
     const activeDays = safeChartData.filter((day) => Number(day?.total) > 0);
+    const [chartWidth, setChartWidth] = useState(0);
     const summaryId = useId();
     const daySelectId = useId();
     const copy = SCOPE_TREND_COPY[scope] || SCOPE_TREND_COPY[ANALYTICS_SCOPE.MONTHLY];
     const hasTrendData = activeDays.length > 0;
     const insight = getTrendInsight(safeChartData, { selectedMonth, prevMonthCount, prevLabel });
     const presentSeverities = SEVERITY_SERIES.filter(({ key }) => safeChartData.some((day) => (Number(day?.[key]) || 0) > 0));
+    // The count axis is sized from the buckets themselves, and its width grows
+    // with the largest tick so a four-digit count is not cut off at the left
+    // edge. The plot is what is left of the measured container after the axis and
+    // the right margin, and each bucket's slot on it decides whether that
+    // bucket's total fits (see buildTotalLabelPlans).
+    const countAxis = buildIncidentCountAxis(safeChartData.map((day) => day?.total));
+    const yAxisWidth = Math.max(
+        Y_AXIS_MIN_WIDTH,
+        String(countAxis.max).length * TOTAL_LABEL_DIGIT_WIDTH_PX + 8
+    );
+    const plotWidth = Math.max(
+        chartWidth - yAxisWidth - TREND_CHART_MARGIN.left - TREND_CHART_MARGIN.right,
+        0
+    );
+    const labelPlans = buildTotalLabelPlans(safeChartData, {
+        slotWidth: plotWidth / Math.max(safeChartData.length, 1),
+    });
     const reportLabel = `${safeReportCount} ${safeReportCount === 1 ? 'report' : 'reports'}`;
     const activeDaySummary = activeDays
         .map((day) => `${day.fullDate}: ${day.total}`)
@@ -252,6 +388,13 @@ const TrendPanel = ({
     const handleBarClick = (datum) => {
         if (!datum || (Number(datum.total) || 0) <= 0 || typeof onSelectDay !== 'function') return;
         onSelectDay(datum.dayKey === selectedDay ? null : datum.dayKey);
+    };
+
+    // recharts reports the measured plot width here, which is how the total
+    // labels know whether a bucket is wide enough to carry its count.
+    const handleChartResize = (nextWidth) => {
+        const rounded = Math.max(Math.round(Number(nextWidth) || 0), 0);
+        setChartWidth((current) => (current === rounded ? current : rounded));
     };
 
     return (
@@ -322,8 +465,8 @@ const TrendPanel = ({
                         aria-label={`${copy.trendNoun} ${periodLabel}`}
                         aria-describedby={summaryId}
                     >
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={safeChartData} data-testid="incident-bar-chart" margin={{ top: 16, right: 4, left: 0, bottom: 0 }} barCategoryGap="30%" accessibilityLayer>
+                        <ResponsiveContainer width="100%" height="100%" onResize={handleChartResize}>
+                            <BarChart data={safeChartData} data-testid="incident-bar-chart" margin={TREND_CHART_MARGIN} barCategoryGap="30%" accessibilityLayer>
                                 <CartesianGrid strokeDasharray="3 4" vertical={false} stroke="var(--chart-grid)" />
                                 <XAxis
                                     dataKey="date"
@@ -340,7 +483,9 @@ const TrendPanel = ({
                                     tickLine={false}
                                     tick={{ fill: 'var(--chart-axis)', fontSize: 11 }}
                                     allowDecimals={false}
-                                    width={28}
+                                    width={yAxisWidth}
+                                    domain={[0, countAxis.max]}
+                                    ticks={countAxis.ticks}
                                 />
                                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--analytics-accent-soft)' }} />
                                 {SEVERITY_SERIES.map(({ key, label, fill }) => (
@@ -366,7 +511,7 @@ const TrendPanel = ({
                                                 fillOpacity={selectedDay && day.dayKey !== selectedDay ? 0.3 : 1}
                                             />
                                         ))}
-                                        <LabelList dataKey="total" content={renderStackTotalLabel(key)} />
+                                        <LabelList dataKey="total" content={renderStackTotalLabel(key, labelPlans)} />
                                     </Bar>
                                 ))}
                             </BarChart>
@@ -760,7 +905,7 @@ const DashboardAnalyticsWorkspace = ({
                         <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${styles.accent}`}>
                             {hasMunicipality ? `${user?.assignedMunicipality} EOC` : 'Island-wide Operations'}
                         </p>
-                        <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight sm:text-[30px]">Municipal Situation Overview</h1>
+                        <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Municipal Situation Overview</h1>
                         <p className={`mt-1.5 max-w-[70ch] text-[13px] leading-relaxed ${styles.secondary}`}>
                             {hasMunicipality
                                 ? `${user?.assignedMunicipality} incident status and response readiness for ${periodLabel}.`
@@ -822,6 +967,7 @@ const DashboardAnalyticsWorkspace = ({
                                         })}
                                         className={styles.periodButton}
                                         aria-label="Previous month"
+                                        title="Previous month"
                                     >
                                         <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
                                     </button>
@@ -855,6 +1001,7 @@ const DashboardAnalyticsWorkspace = ({
                                         })()}
                                         className={styles.periodButton}
                                         aria-label="Next month"
+                                        title="Next month"
                                     >
                                         <HiChevronRight className="h-5 w-5" aria-hidden="true" />
                                     </button>
@@ -874,6 +1021,7 @@ const DashboardAnalyticsWorkspace = ({
                                         })}
                                         className={styles.periodButton}
                                         aria-label="Previous year"
+                                        title="Previous year"
                                     >
                                         <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
                                     </button>
@@ -896,6 +1044,7 @@ const DashboardAnalyticsWorkspace = ({
                                         disabled={effectiveYear >= currentYear}
                                         className={styles.periodButton}
                                         aria-label="Next year"
+                                        title="Next year"
                                     >
                                         <HiChevronRight className="h-5 w-5" aria-hidden="true" />
                                     </button>
@@ -1186,9 +1335,9 @@ const DashboardAnalyticsWorkspace = ({
                             emptyDetail="No hazard area details have been opened yet."
                         />
                     </div>
-                    <p className={`border-t px-5 py-3.5 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
-                        {REACH_EXPLANATION}
-                    </p>
+                        <p className={`border-t px-5 py-3.5 text-xs leading-relaxed sm:px-6 ${styles.rule} ${styles.secondary}`}>
+                            {REACH_EXPLANATION}
+                        </p>
                 </section>
             ) : null}
 
