@@ -420,4 +420,28 @@ describe('incident marker sizing', () => {
         expect(SELECTED_MARKER_SIZE.width).toBe(INCIDENT_MARKER_SIZE.width);
         expect(SELECTED_MARKER_SIZE.height).toBe(INCIDENT_MARKER_SIZE.height);
     });
+
+    test('builds a visual-only pin when interactive is false', () => {
+        const report = { id: 'rep-preview', status: 'verified', title: 'Fallen tree' };
+
+        const el = createOperationalMarkerElement({
+            report,
+            groupedReports: [report],
+            markerColor: '#2563EB',
+            interactive: false,
+        });
+
+        // Still a pin with the same body markup, at the caller's coordinates.
+        expect(el.className).toContain('report-marker');
+        expect(el.innerHTML).toContain('<svg');
+        // But not exposed as a button, not focusable, no pointer cursor, and
+        // hidden from assistive tech (the panel around it already names the
+        // location in text).
+        expect(el.hasAttribute('role')).toBe(false);
+        expect(el.hasAttribute('tabindex')).toBe(false);
+        expect(el.getAttribute('aria-hidden')).toBe('true');
+        expect(el.style.cursor).not.toBe('pointer');
+        expect(el.hasAttribute('aria-label')).toBe(false);
+        expect(el.hasAttribute('title')).toBe(false);
+    });
 });

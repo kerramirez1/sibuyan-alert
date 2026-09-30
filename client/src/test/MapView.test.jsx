@@ -1417,3 +1417,94 @@ describe('MapView accident-prone circles', () => {
         expect(mockFullscreenControl.mock.calls[0][0]).toBeUndefined();
     });
 });
+
+describe('MapView incident-preview pin interactivity', () => {
+    const previewReport = {
+        _id: 'preview-pin-report',
+        coordinates: { lat: 12.363035, lng: 122.685384 },
+        status: 'verified',
+        incidentCategory: 'accident',
+        title: 'Sibuyan Circumferential Road, Cambajao',
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockMapInstances.length = 0;
+        Object.keys(mockOnCallbacks).forEach((k) => delete mockOnCallbacks[k]);
+    });
+
+    // The maplibre Marker is mocked, so the pin element never reaches the
+    // document: read it back off the constructor call that received it.
+    const getReportPinElements = () =>
+        maplibregl.Marker.mock.calls
+            .map((call) => call[0]?.element)
+            .filter((el) => el?.classList?.contains('report-marker'));
+
+    const renderAndGetPin = async (mode) => {
+        render(
+            <MapView
+                reports={[previewReport]}
+                mode={mode}
+                focusLocation={{ ...previewReport.coordinates, zoom: 16 }}
+            />
+        );
+        await waitFor(() => {
+            expect(getReportPinElements().length).toBeGreaterThan(0);
+        });
+        return getReportPinElements()[0];
+    };
+
+    test('incident-preview pin stays visible at its coordinates but is not interactive', async () => {
+        const pin = await renderAndGetPin('incident-preview');
+
+        // Still drawn at the incident's coordinates.
+        const markerInstance = maplibregl.Marker.mock.instances.find(
+            (instance, index) => maplibregl.Marker.mock.calls[index][0]?.element === pin
+        );
+        expect(markerInstance.setLngLat).toHaveBeenCalledWith([
+            previewReport.coordinates.lng,
+            previewReport.coordinates.lat,
+        ]);
+
+        // Visual-only treatment: not exposed as a button, not focusable, and
+        // hidden from assistive tech (the surrounding panel already names the
+        // location in text), with no pointer cursor.
+        expect(pin.getAttribute('role')).not.toBe('button');
+        expect(pin.hasAttribute('tabindex')).toBe(false);
+        expect(pin.getAttribute('aria-hidden')).toBe('true');
+        expect(pin.style.cursor).not.toBe('pointer');
+
+        // Click, Enter, and Space all do nothing: no details popup opens over
+        // the panel, and the camera is left alone. (The opening flyTo from the
+        // map's own focusLocation framing is cleared first: that is the
+        // preview map's existing behavior, not pin interaction.)
+        mockFlyTo.mockClear();
+        fireEvent.click(pin);
+        fireEvent.keyDown(pin, { key: 'Enter' });
+        fireEvent.keyDown(pin, { key: ' ' });
+        expect(screen.queryByRole('dialog', { name: 'Incident details' })).not.toBeInTheDocument();
+        expect(mockFlyTo).not.toHaveBeenCalled();
+    });
+
+    test('clicking the same incident marker on an operational map still opens details', async () => {
+        const pin = await renderAndGetPin(undefined);
+
+        // Operational pins keep their interactive treatment.
+        expect(pin.getAttribute('role')).toBe('button');
+        expect(pin.getAttribute('tabindex')).toBe('0');
+
+        fireEvent.click(pin);
+        await waitFor(() => {
+            expect(screen.getByRole('dialog', { name: 'Incident details' })).toBeInTheDocument();
+        });
+    });
+
+    test('keyboard activation opens details on an operational map', async () => {
+        const pin = await renderAndGetPin(undefined);
+
+        fireEvent.keyDown(pin, { key: 'Enter' });
+        await waitFor(() => {
+            expect(screen.getByRole('dialog', { name: 'Incident details' })).toBeInTheDocument();
+        });
+    });
+});

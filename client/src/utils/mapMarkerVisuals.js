@@ -269,6 +269,12 @@ export const createOperationalMarkerElement = ({
     groupedReports = [],
     markerColor,
     respondingDot = false,
+    // A non-interactive pin is a visual-only location marker (e.g. the pin in
+    // an incident-preview map, where the surrounding panel already names the
+    // place in text): it stays visible at its coordinates but gets no pointer
+    // cursor, is not exposed as a button, stays out of the tab order, and is
+    // hidden from assistive technology so the location is not announced twice.
+    interactive = true,
 }) => {
     const isRespondingDot = respondingDot && report?.status === 'responding';
     const el = document.createElement('div');
@@ -276,10 +282,14 @@ export const createOperationalMarkerElement = ({
         'report-marker',
         isRespondingDot ? 'report-marker--responding' : '',
     ].filter(Boolean).join(' ');
-    el.style.cursor = 'pointer';
     el.style.zIndex = report?.status === 'pending' ? '2' : '1';
-    el.setAttribute('role', 'button');
-    el.setAttribute('tabindex', '0');
+    if (interactive) {
+        el.style.cursor = 'pointer';
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+    } else {
+        el.setAttribute('aria-hidden', 'true');
+    }
 
     const isGroup = groupedReports.length > 1;
     const groupHasPending = isGroup && groupedReports.some((item) => item?.status === 'pending');
@@ -307,11 +317,15 @@ export const createOperationalMarkerElement = ({
             : isRespondingDot
                 ? `${baseLabel}, being responded to`
                 : baseLabel;
-    el.setAttribute('aria-label', markerLabel);
     // Non-color cues: the screen-reader label always carries them, and the hover
     // tooltip only appears on markers that actually have something extra to say.
-    if (markerLabel !== baseLabel) {
-        el.setAttribute('title', markerLabel);
+    // Both only make sense on an interactive pin: a visual-only preview pin is
+    // aria-hidden, so a label on it would never be announced anyway.
+    if (interactive) {
+        el.setAttribute('aria-label', markerLabel);
+        if (markerLabel !== baseLabel) {
+            el.setAttribute('title', markerLabel);
+        }
     }
 
     // The pin body takes its size from these two custom properties, so the

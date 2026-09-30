@@ -1636,6 +1636,13 @@ const MapView = ({
 
         const map = mapInstanceRef.current;
 
+        // The incident-preview map lives inside a details panel that already
+        // shows the incident: its pin is a visual-only location marker. It
+        // stays visible at its coordinates but gets no click/Enter/Space
+        // handlers, is not focusable, and never opens the details popup that
+        // operational pins open. Every other mode keeps fully interactive pins.
+        const isPreviewPin = mode === 'incident-preview';
+
         // One incident, one marker, on every rail: the palette is not a role
         // feature. Verified, transferred and responding share one blue because
         // every rail now folds those three into a single "Active incidents" tab
@@ -1699,6 +1706,9 @@ const MapView = ({
                     // in the identity. Motion does not: the pulse is CSS, so a
                     // marker never has to be rebuilt to keep animating.
                     isRespondingDot ? 'dot' : 'pin',
+                    // Interactivity changes what is rendered and which handlers
+                    // exist, so a pin that gains or loses it must be rebuilt.
+                    isPreviewPin ? 'preview' : 'live',
                     canRespondToThisReport,
                     canResolveThisReport,
                     canVerifyThisReport,
@@ -1726,6 +1736,7 @@ const MapView = ({
                         groupedReports,
                         markerColor,
                         respondingDot: isRespondingDot,
+                        interactive: !isPreviewPin,
                     });
 
                     const marker = new maplibregl.Marker({
@@ -1761,13 +1772,18 @@ const MapView = ({
                         }
                         setMapModal({ type: 'report', data: report, canRespond: canRespondToThisReport, canResolve: canResolveThisReport, canVerify: canVerifyThisReport, canReject: canVerifyThisReport, canAcknowledgeTransfer: canAcknowledgeThisReport });
                     };
-                    el.addEventListener('click', openMarker);
-                    el.addEventListener('keydown', (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            openMarker(event);
-                        }
-                    });
+                    // A preview pin is visual-only: no click, Enter, or Space
+                    // handler, so it can never open the details popup, change
+                    // selection, or fly the camera.
+                    if (!isPreviewPin) {
+                        el.addEventListener('click', openMarker);
+                        el.addEventListener('keydown', (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                openMarker(event);
+                            }
+                        });
+                    }
 
                     entry = {
                         key,
@@ -1789,7 +1805,7 @@ const MapView = ({
         });
         reportMarkersRef.current = nextMarkers;
 
-    }, [filteredReports, mapReady, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, canAcknowledgeTransfer, canAcknowledgeTransferReport, selectOperationalMarker]);
+    }, [filteredReports, mapReady, mode, performanceProfile, canRespond, canResolve, canResolveReport, canVerify, canVerifyReport, canAcknowledgeTransfer, canAcknowledgeTransferReport, selectOperationalMarker]);
 
     // Fresh-event pulse: toggle the temporary ring on markers touched by the
     // latest socket events. Runs after the marker sync above (same deps plus
