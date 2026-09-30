@@ -576,8 +576,9 @@ describe('MainLayout header brand responsive visibility', () => {
         const brandBlock = brand.parentElement;
         // The regression: `md:hidden` removed the entire brand block at md+.
         expect(brandBlock.className).not.toContain('md:hidden');
-        // Capped so it cannot collide with the search field or utilities.
-        expect(brandBlock).toHaveClass('md:max-w-48', 'lg:max-w-72');
+        // Capped so it cannot collide with the search field or utilities,
+        // while lg+ is wide enough for the full municipality subtitle.
+        expect(brandBlock).toHaveClass('md:max-w-48', 'lg:max-w-96');
         expect(brand).toHaveClass('truncate');
         // Mobile behavior is unchanged: it still fills the row beside the hamburger.
         expect(brandBlock).toHaveClass('flex-1', 'min-w-0');

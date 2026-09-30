@@ -449,10 +449,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 hamburger; at md+ it anchors the header's left with
                                 a capped width and truncation so it never collides
                                 with the search field or the notification/sign-in
-                                cluster. The municipality line shows only where it
-                                fits (lg+) — the old `md:block` sat inside this
-                                block's `md:hidden` parent and could never apply. */}
-                            <div className="min-w-0 flex-1 px-1 md:max-w-48 md:flex-none md:px-0 lg:max-w-72">
+                                cluster. At lg+ the cap (384px) fits the full
+                                municipality subtitle without ellipsis. The
+                                subtitle shows only where it fits (lg+). */}
+                            <div className="min-w-0 flex-1 px-1 md:max-w-48 md:flex-none md:px-0 lg:max-w-96">
                                 <span className="block truncate font-display text-sm font-semibold leading-tight text-[var(--text-primary)] sm:text-base">
                                     Sibuyan Island Operations
                                 </span>
