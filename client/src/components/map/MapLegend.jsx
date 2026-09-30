@@ -180,7 +180,7 @@ const MapLegend = ({
                         onClick={() => setDesktopCollapsed(false)}
                         aria-label="Expand map legend"
                         title="Show map legend"
-                        className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#0c1813] sm:inline-flex cursor-pointer"
+                        className="pointer-events-auto absolute left-2.5 bottom-9 z-20 hidden items-center gap-1.5 rounded-lg border border-gray-200/90 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-[#0c1813]/95 dark:text-gray-200 dark:hover:bg-[#0c1813] sm:inline-flex cursor-pointer"
                     >
                         <HiOutlineMap className="h-3.5 w-3.5 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                         <span>Legend</span>
@@ -197,7 +197,7 @@ const MapLegend = ({
                                 onClick={() => setDesktopCollapsed(true)}
                                 aria-label="Collapse map legend"
                                 title="Collapse map legend"
-                                className="ml-1 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                className="ml-1 p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors cursor-pointer shrink-0"
                             >
                                 <HiChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>

@@ -443,8 +443,8 @@ const MetricStripItem = ({
         // beside it is solid, and two halves of one row reading as two slightly
         // different surfaces is exactly the kind of difference a reader notices
         // without being able to name it.
-        className={`surface-panel group relative flex min-w-0 cursor-pointer flex-col overflow-hidden px-3 py-3 text-left transition-colors duration-150 hover:border-[var(--border-strong)] focus-visible:outline-offset-[-3px] sm:px-4 lg:justify-center ${className} ${selected
-            ? 'border-[var(--focus-ring)]'
+        className={`surface-panel group relative flex min-w-0 cursor-pointer flex-col overflow-hidden px-3 py-3 text-left transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 sm:px-4 lg:justify-center ${className} ${selected
+            ? 'border-[var(--focus-ring)] ring-1 ring-[var(--focus-ring)]/40 shadow-xs'
             : ''
             }`}
     >
@@ -456,7 +456,7 @@ const MetricStripItem = ({
             box-shadow and survives; this tint sits behind the text. */}
         <span
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-0 rounded-xl bg-brand-50 transition-opacity duration-150 dark:bg-white/[0.06] ${selected ? 'opacity-100' : 'opacity-0'}`}
+            className={`pointer-events-none absolute inset-0 rounded-xl bg-brand-50/80 transition-opacity duration-150 dark:bg-white/[0.06] ${selected ? 'opacity-100' : 'opacity-0'}`}
         />
         {/* Below lg: the dot and label on one line, with the value row under it.
             The band has one shape at every width — label row, then the number

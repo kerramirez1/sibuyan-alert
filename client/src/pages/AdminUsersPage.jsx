@@ -512,51 +512,54 @@ const AdminUsersPage = () => {
     };
 
     return (
-        <div className="page-shell max-w-[1120px] space-y-5">
+        <div className="page-shell max-w-[1120px] space-y-4">
             <PageHeader
                 eyebrow="Municipal administration"
                 title="Manage users"
-                description="View and verify reporter accounts."
-                actions={<p className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" /><span>Sibuyan Island · Alert System Active</span></p>}
+                description="View and verify reporter accounts, and manage emergency responders."
+                actions={<p className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" /><span>Sibuyan Island · Alert System Active</span></p>}
             />
 
             {/* Summary Metrics Strip */}
             {stats && (
                 <section
-                    className="metric-strip md:grid-cols-2 lg:grid-cols-4 md:[&>*:nth-child(3)]:border-l-0 md:[&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(3)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0"
+                    className="metric-strip grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 md:[&>*:nth-child(3)]:border-l-0 md:[&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(3)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0"
                     aria-label="User directory summary"
                 >
-                    <div className="metric-tile">
-                        <p className="metric-value">{stats.totalUsers}</p>
-                        <span className="metric-label block">Total users</span>
-                        <p className="metric-helper">Registered accounts</p>
+                    <div className="metric-tile p-3 sm:p-3.5">
+                        <p className="metric-value font-display text-[26px] sm:text-[28px] font-semibold tabular-nums leading-none tracking-tight text-[var(--text-primary)]">{stats.totalUsers}</p>
+                        <span className="metric-label flex items-center gap-1.5 mt-2 text-xs font-semibold text-[var(--text-secondary)]">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400 dark:bg-gray-500" aria-hidden="true" />
+                            <span>Total users</span>
+                        </span>
+                        <p className="metric-helper mt-1 text-[11px] text-[var(--text-muted)]">Registered accounts</p>
                     </div>
 
-                    <div className="metric-tile">
-                        <p className="metric-value">{stats.reporters}</p>
-                        <span className="metric-label flex items-center gap-1.5">
+                    <div className="metric-tile p-3 sm:p-3.5">
+                        <p className="metric-value font-display text-[26px] sm:text-[28px] font-semibold tabular-nums leading-none tracking-tight text-[var(--text-primary)]">{stats.reporters}</p>
+                        <span className="metric-label flex items-center gap-1.5 mt-2 text-xs font-semibold text-[var(--text-secondary)]">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                             <span>Reporters</span>
                         </span>
-                        <p className="metric-helper">Field reporters</p>
+                        <p className="metric-helper mt-1 text-[11px] text-[var(--text-muted)]">Field reporters</p>
                     </div>
 
-                    <div className="metric-tile">
-                        <p className="metric-value">{stats.pendingVerification}</p>
-                        <span className="metric-label flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                    <div className={`metric-tile p-3 sm:p-3.5 transition-colors ${stats.pendingVerification > 0 ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
+                        <p className="metric-value font-display text-[26px] sm:text-[28px] font-semibold tabular-nums leading-none tracking-tight text-[var(--text-primary)]">{stats.pendingVerification}</p>
+                        <span className="metric-label flex items-center gap-1.5 mt-2 text-xs font-semibold text-[var(--text-secondary)]">
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stats.pendingVerification > 0 ? 'bg-amber-500' : 'bg-gray-400 dark:bg-gray-500'}`} aria-hidden="true" />
                             <span>Pending</span>
                         </span>
-                        <p className="metric-helper">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
+                        <p className="metric-helper mt-1 text-[11px] text-[var(--text-muted)]">{stats.pendingVerification === 0 ? 'All clear' : 'Awaiting verification'}</p>
                     </div>
 
-                    <div className="metric-tile">
-                        <p className="metric-value">{stats.responders}</p>
-                        <span className="metric-label flex items-center gap-1.5">
+                    <div className="metric-tile p-3 sm:p-3.5">
+                        <p className="metric-value font-display text-[26px] sm:text-[28px] font-semibold tabular-nums leading-none tracking-tight text-[var(--text-primary)]">{stats.responders}</p>
+                        <span className="metric-label flex items-center gap-1.5 mt-2 text-xs font-semibold text-[var(--text-secondary)]">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" aria-hidden="true" />
                             <span>Responders</span>
                         </span>
-                        <p className="metric-helper">Emergency units</p>
+                        <p className="metric-helper mt-1 text-[11px] text-[var(--text-muted)]">Emergency units</p>
                     </div>
                 </section>
             )}
@@ -564,87 +567,108 @@ const AdminUsersPage = () => {
             {/* Users Data Section */}
             <section className="surface-panel overflow-hidden" aria-label="Users directory">
                 {/* Search & Filters Toolbar */}
-                <div className="border-b border-gray-200 bg-gray-50/70 p-3.5 sm:p-4 dark:border-white/10 dark:bg-white/[0.02]">
-                    <div className="flex flex-col gap-2.5 sm:gap-3">
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <div className="relative flex-1 min-w-0">
-                                <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name or email..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && fetchUsers({ force: true })}
-                                    className="field-control pl-9"
-                                    aria-label="Search users by name or email"
-                                />
-                            </div>
-                            <div className="flex gap-2">
+                <div className="border-b border-gray-200 bg-gray-50/60 p-2.5 sm:p-3 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        {/* Search + Filter Controls Group */}
+                        <div className="flex flex-1 flex-wrap items-center gap-2">
+                            {/* Search Bar with attached Search Button */}
+                            <div className="flex min-w-0 flex-1 sm:max-w-xs items-center">
+                                <div className="relative flex-1 min-w-0">
+                                    <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" aria-hidden="true" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name or email..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && fetchUsers({ force: true })}
+                                        className="field-control h-10 min-h-10 pl-9 pr-2 text-xs rounded-r-none border-r-0 focus:z-10"
+                                        aria-label="Search users by name or email"
+                                    />
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => fetchUsers({ force: true })}
-                                    className="btn-outline"
+                                    className="inline-flex h-10 min-h-10 items-center justify-center rounded-r-lg border border-border-strong bg-surface px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 z-0 shrink-0 cursor-pointer transition-colors"
                                 >
                                     Search
                                 </button>
-                                {hasActiveFilters && (
-                                    <button
-                                        type="button"
-                                        onClick={clearFilters}
-                                        className="btn-outline"
-                                    >
-                                        Clear
-                                    </button>
-                                )}
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5">
+
+                            {/* Role Filter */}
                             <select
                                 value={filter.role}
                                 onChange={(e) => setFilter({ ...filter, role: e.target.value })}
-                                className="field-control sm:w-auto"
+                                className="field-control h-10 min-h-10 text-xs w-auto sm:w-32 cursor-pointer"
                                 aria-label="Filter by role"
                             >
-                                <option value="">All Roles</option>
+                                <option value="">All roles</option>
                                 <option value="ordinary">Ordinary</option>
                                 <option value="reporter">Reporter</option>
                             </select>
+
+                            {/* Verification Status Filter */}
                             <select
                                 value={filter.verificationStatus}
                                 onChange={(e) => setFilter({ ...filter, verificationStatus: e.target.value })}
-                                className="field-control sm:w-auto"
+                                className="field-control h-10 min-h-10 text-xs w-auto sm:w-36 cursor-pointer"
                                 aria-label="Filter by verification status"
                             >
-                                <option value="">All Status</option>
+                                <option value="">All statuses</option>
                                 <option value="pending">Pending</option>
                                 <option value="approved">Approved</option>
                                 <option value="rejected">Rejected</option>
                             </select>
+
+                            {/* Clear Action */}
+                            {hasActiveFilters && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="inline-flex h-10 min-h-10 items-center justify-center rounded-lg border border-border-strong bg-surface px-3 text-xs font-semibold text-[var(--text-secondary)] hover:bg-surface-hover hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Primary Action Button */}
+                        <div className="shrink-0">
                             <Button
                                 type="button"
                                 variant="primary"
                                 onClick={openAddResponder}
-                                className="col-span-2 sm:col-span-1 sm:ml-auto"
+                                className="w-full sm:w-auto h-10 min-h-10 px-3.5 text-xs font-semibold"
                                 aria-label="Add a responder account"
                             >
-                                Add responder
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-sm font-bold leading-none" aria-hidden="true">+</span>
+                                    <span>Add responder</span>
+                                </span>
                             </Button>
                         </div>
                     </div>
+                </div>
+
+                {/* Result Summary Bar */}
+                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/40 px-4 py-2 text-[11px] font-medium text-gray-500 dark:border-white/5 dark:bg-white/[0.01] dark:text-gray-400">
+                    <span>
+                        Showing {users.filter(Boolean).length} {users.filter(Boolean).length === 1 ? 'user' : 'users'}
+                        {hasActiveFilters ? ' matching current filters' : ''}
+                    </span>
                 </div>
 
                 {/* Desktop & Tablet Table */}
                 <div className="hidden sm:block overflow-x-auto custom-scrollbar">
                     <table className="w-full min-w-[820px] text-left text-xs border-collapse">
                         <thead>
-                            <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wider text-gray-700 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-300">
-                                <th scope="col" className="py-3 pl-4 pr-3 sm:pl-5">User</th>
-                                <th scope="col" className="px-3 py-3">Role</th>
-                                <th scope="col" className="px-3 py-3">Verification</th>
-                                <th scope="col" className="px-3 py-3">Documents</th>
-                                <th scope="col" className="px-3 py-3">Joined</th>
-                                <th scope="col" className="px-3 py-3">Last Login</th>
-                                <th scope="col" className="py-3 pl-3 pr-4 sm:pr-5 text-right">Actions</th>
+                            <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wider text-gray-600 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-400">
+                                <th scope="col" className="w-[34%] py-2.5 pl-4 pr-3 sm:pl-5">User</th>
+                                <th scope="col" className="w-[12%] px-3 py-2.5">Role</th>
+                                <th scope="col" className="w-[14%] px-3 py-2.5">Verification</th>
+                                <th scope="col" className="w-[14%] px-3 py-2.5">Documents</th>
+                                <th scope="col" className="w-[12%] px-3 py-2.5">Joined</th>
+                                <th scope="col" className="w-[10%] px-3 py-2.5">Last Login</th>
+                                <th scope="col" className="w-[8%] py-2.5 pl-3 pr-4 sm:pr-5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-white/5">
