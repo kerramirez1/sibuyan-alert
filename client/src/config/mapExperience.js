@@ -45,7 +45,7 @@ const SIGNED_IN_FILTERS = Object.freeze([
     Object.freeze({ value: 'pending', label: 'Pending review', group: 'status' }),
     Object.freeze({ value: 'active', label: 'Active incidents', group: 'status' }),
     Object.freeze({ value: 'risk-zones', label: 'Risk zones', group: 'layers' }),
-    Object.freeze({ value: 'resolved', label: 'Resolved archive', group: 'layers' }),
+    Object.freeze({ value: 'resolved', label: 'Resolved', group: 'layers' }),
 ]);
 
 /**
@@ -66,7 +66,7 @@ const GUEST_FILTERS = Object.freeze([
     // The layer group is labeled exactly as it is for signed-in viewers, so the
     // rail reads the same whether or not there is an account behind it.
     Object.freeze({ value: 'risk-zones', label: 'Risk zones', group: 'layers' }),
-    Object.freeze({ value: 'resolved', label: 'Resolved archive', group: 'layers' }),
+    Object.freeze({ value: 'resolved', label: 'Resolved', group: 'layers' }),
 ]);
 
 /**

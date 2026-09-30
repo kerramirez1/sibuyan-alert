@@ -158,7 +158,9 @@ describe('MapView expanded map control', () => {
         expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
     });
 
-    test('omits "Expand map" tool button on mobile viewports below sm breakpoint', async () => {
+    test('renders "Expand map" tool button on mobile viewports below sm breakpoint', async () => {
+        // The expand entry is available at every viewport, phones included:
+        // expanded mode carries its own mobile filter trigger.
         const handleToggleExpand = vi.fn();
         const originalMatchMedia = window.matchMedia;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
@@ -181,7 +183,7 @@ describe('MapView expanded map control', () => {
                 />
             );
 
-            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /expand map/i })).toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
         } finally {
             window.matchMedia = originalMatchMedia;

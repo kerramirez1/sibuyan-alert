@@ -62,7 +62,7 @@ import {
 } from '../../config/accidentHotspots';
 import MapIncidentDetails from './MapIncidentDetails';
 import HighRiskZoneDetails from './HighRiskZoneDetails';
-import MapOverlayPanel, { PANEL_SHEET_MEDIA_QUERY } from './MapOverlayPanel';
+import MapOverlayPanel from './MapOverlayPanel';
 import {
     isRiskZoneLayerVisibleForFilter,
     MAP_ACTIVE_INCIDENT_CONFIG,
@@ -102,6 +102,32 @@ const OPERATIONAL_MARKER_VISIBILITY = Object.freeze({
     opacity: 1,
     opacityWhenCovered: 1,
 });
+
+// The operational map's last-used basemap, remembered per browser. Only the
+// full operational map reads and writes it: report-location pinning always
+// starts on satellite, and an explicit `initialStyle` prop keeps its own
+// contract. First visit defaults to satellite; an unparsable or unknown
+// stored value falls back to satellite too.
+const BASEMAP_STORAGE_KEY = 'sibuyan-alert:map-basemap';
+const isKnownBasemapStyle = (style) => style === 'streets' || style === 'satellite';
+
+const readStoredBasemap = () => {
+    try {
+        const stored = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
+        return isKnownBasemapStyle(stored) ? stored : null;
+    } catch {
+        return null;
+    }
+};
+
+const storeBasemap = (style) => {
+    try {
+        window.localStorage.setItem(BASEMAP_STORAGE_KEY, style);
+    } catch {
+        // Private mode or a full quota: the map still works, it just starts
+        // on the default next visit.
+    }
+};
 
 /**
  * The tone of the details pane a pin opens, read from the record it is showing:
@@ -420,56 +446,18 @@ const MapView = ({
     const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState(null);
+    // Report-location mode always pins on satellite imagery; everywhere else the
+    // last-used basemap wins, falling back to satellite on first visit.
+    // NOTE: the persisted preference applies to the full operational map
+    // (the default mode). Report-location mode never reads it.
     const [mapStyle, setMapStyle] = useState(
-        mode === 'report-location' ? 'satellite' : (initialStyle || 'satellite')
+        mode === 'report-location' ? 'satellite' : (readStoredBasemap() || initialStyle || 'satellite')
     ); // 'satellite' or 'streets'
     const mapStyleRef = useRef(mapStyle);
     const [showHazardZones, setShowHazardZones] = useState(showRiskZones);
     const [cursorCoordinate, setCursorCoordinate] = useState(null);
     const [mapModal, setMapModal] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
-    const [isPhoneViewport, setIsPhoneViewport] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        if (typeof window.matchMedia === 'function') {
-            return window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches;
-        }
-        return window.innerWidth < 640;
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-
-        const updateViewport = () => {
-            if (typeof window.matchMedia === 'function') {
-                setIsPhoneViewport(window.matchMedia(PANEL_SHEET_MEDIA_QUERY).matches);
-            } else {
-                setIsPhoneViewport(window.innerWidth < 640);
-            }
-        };
-
-        if (window.matchMedia) {
-            const mql = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
-            if (typeof mql.addEventListener === 'function') {
-                mql.addEventListener('change', updateViewport);
-                window.addEventListener('resize', updateViewport);
-                return () => {
-                    mql.removeEventListener('change', updateViewport);
-                    window.removeEventListener('resize', updateViewport);
-                };
-            }
-            if (typeof mql.addListener === 'function') {
-                mql.addListener(updateViewport);
-                window.addEventListener('resize', updateViewport);
-                return () => {
-                    mql.removeListener(updateViewport);
-                    window.removeEventListener('resize', updateViewport);
-                };
-            }
-        }
-
-        window.addEventListener('resize', updateViewport);
-        return () => window.removeEventListener('resize', updateViewport);
-    }, []);
     // Opening framing is a one-time decision: after it is made, data that arrives
     // later (a refresh, a new report, a filter change) must not move the camera
     // out from under whatever the viewer is looking at.
@@ -2364,7 +2352,14 @@ const MapView = ({
                         label={mapStyle === 'satellite' ? 'Switch to street map' : 'Switch to satellite map'}
                         icon={HiOutlineMap}
                         active={mapStyle === 'streets'}
-                        onClick={() => setMapStyle(prev => prev === 'satellite' ? 'streets' : 'satellite')}
+                        onClick={() => {
+                            const next = mapStyle === 'satellite' ? 'streets' : 'satellite';
+                            setMapStyle(next);
+                            // Remember the choice for the next visit. The
+                            // storage is best-effort: a failure leaves the map
+                            // working on its current basemap.
+                            storeBasemap(next);
+                        }}
                         aria-pressed={mapStyle === 'streets'}
                     />
 
@@ -2374,14 +2369,17 @@ const MapView = ({
                         onClick={recenterMap}
                     />
 
-                    {typeof onToggleExpand === 'function' && (isExpanded || !isPhoneViewport) && (
+                    {/* The expand entry is available at every viewport, phones
+                        included: expanded mode carries its own mobile filter
+                        trigger, and the fixed fallback covers browsers without
+                        the Fullscreen API. */}
+                    {typeof onToggleExpand === 'function' && (
                         <MapToolButton
                             label={isExpanded ? 'Exit expanded map' : 'Expand map'}
                             icon={HiOutlineArrowsExpand}
                             active={isExpanded}
                             onClick={onToggleExpand}
                             aria-pressed={isExpanded}
-                            className={!isExpanded ? 'hidden sm:flex' : ''}
                         />
                     )}
                 </div>

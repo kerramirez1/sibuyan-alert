@@ -7,13 +7,13 @@ const SIGNED_IN_FILTERS = [
     { value: 'pending', label: 'Pending review', group: 'status' },
     { value: 'active', label: 'Active incidents', group: 'status' },
     { value: 'risk-zones', label: 'Risk zones', group: 'layers' },
-    { value: 'resolved', label: 'Resolved archive', group: 'layers' },
+    { value: 'resolved', label: 'Resolved', group: 'layers' },
 ];
 
 const GUEST_FILTERS = [
     { value: 'all', label: 'Active Incidents', group: 'status' },
     { value: 'risk-zones', label: 'Risk zones', group: 'layers' },
-    { value: 'resolved', label: 'Resolved archive', group: 'layers' },
+    { value: 'resolved', label: 'Resolved', group: 'layers' },
 ];
 
 describe('statusTabTitle helper', () => {
@@ -82,7 +82,7 @@ describe('MapFilterRail component', () => {
         const riskZonesTab = screen.getByRole('button', { name: /Risk zones layer/i });
         expect(riskZonesTab).toHaveAttribute('title', 'Toggle the mapped hazard layer');
 
-        const resolvedTab = screen.getByRole('button', { name: /Resolved archive/i });
+        const resolvedTab = screen.getByRole('button', { name: /Resolved \(7 records\)/i });
         expect(resolvedTab).toHaveAttribute('title', 'View the resolved incident archive');
 
         fireEvent.click(activeTab);
@@ -126,5 +126,44 @@ describe('MapFilterRail component', () => {
 
         const tab = screen.getByRole('button', { name: /Active incidents filter/i });
         expect(tab).toHaveAttribute('title', 'Custom caller override tooltip');
+    });
+});
+
+describe('MapFilterRail desktop count de-emphasis', () => {
+    test('hides tab counts visually at lg+ when hideCountsAtDesktop, keeping them in the DOM and aria-labels', () => {
+        render(
+            <MapFilterRail
+                filters={SIGNED_IN_FILTERS}
+                showPendingReports={true}
+                selectedFilter="all"
+                onSelectFilter={vi.fn()}
+                getCount={() => 7}
+                hideCountsAtDesktop
+            />
+        );
+
+        const pendingTab = screen.getByRole('button', { name: /Pending review filter \(7 records\)/i });
+        // The count is still rendered (and still announced), only visually
+        // hidden at desktop widths where the overview cards own the numbers.
+        expect(pendingTab).toHaveTextContent('7');
+        const countSpan = pendingTab.querySelector('span.lg\\:hidden');
+        expect(countSpan).not.toBeNull();
+        expect(countSpan).toHaveTextContent('7');
+    });
+
+    test('keeps tab counts visible at every width by default (analytics rail)', () => {
+        render(
+            <MapFilterRail
+                filters={SIGNED_IN_FILTERS}
+                showPendingReports={true}
+                selectedFilter="all"
+                onSelectFilter={vi.fn()}
+                getCount={() => 7}
+            />
+        );
+
+        const pendingTab = screen.getByRole('button', { name: /Pending review filter \(7 records\)/i });
+        expect(pendingTab).toHaveTextContent('7');
+        expect(pendingTab.querySelector('span.lg\\:hidden')).toBeNull();
     });
 });

@@ -360,6 +360,73 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
     });
 });
 
+describe('MapView basemap preference persistence', () => {
+    const STORAGE_KEY = 'sibuyan-alert:map-basemap';
+
+    beforeEach(() => {
+        window.localStorage.removeItem(STORAGE_KEY);
+    });
+
+    test('starts on satellite imagery on first visit, with no stored preference', async () => {
+        render(<MapView reports={[]} />);
+
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalled());
+
+        // Current basemap is satellite, so the toggle offers the street map.
+        expect(screen.getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
+    });
+
+    test('opens on the stored basemap when a preference was saved earlier', async () => {
+        window.localStorage.setItem(STORAGE_KEY, 'streets');
+
+        render(<MapView reports={[]} />);
+
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalled());
+
+        expect(screen.getByRole('button', { name: /switch to satellite map/i })).toBeInTheDocument();
+    });
+
+    test('falls back to satellite when the stored value is not a known basemap', async () => {
+        window.localStorage.setItem(STORAGE_KEY, 'terrain-3d');
+
+        render(<MapView reports={[]} />);
+
+        await waitFor(() => expect(maplibregl.Map).toHaveBeenCalled());
+
+        expect(screen.getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
+    });
+
+    test('persists the basemap when the viewer toggles it', async () => {
+        render(<MapView reports={[]} />);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /switch to street map/i }));
+
+        expect(window.localStorage.getItem(STORAGE_KEY)).toBe('streets');
+        expect(screen.getByRole('button', { name: /switch to satellite map/i })).toBeInTheDocument();
+    });
+
+    test('report-location mode ignores the stored preference and stays on satellite', async () => {
+        window.localStorage.setItem(STORAGE_KEY, 'streets');
+
+        render(<MapView mode="report-location" />);
+
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalled();
+        });
+
+        // No style switcher in this mode, and the imagery layer is visible.
+        expect(screen.queryByRole('button', { name: /switch to street map/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /switch to satellite map/i })).not.toBeInTheDocument();
+        await waitFor(() => {
+            expect(mockSetLayoutProperty).toHaveBeenCalledWith('esri-imagery-layer', 'visibility', 'visible');
+        });
+    });
+});
+
 describe('MapView opening framing', () => {
     const visibleReports = [
         {

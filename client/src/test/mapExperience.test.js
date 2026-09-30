@@ -52,7 +52,7 @@ describe('shared role-aware map experience', () => {
             ['pending', 'Pending review', 'status'],
             ['active', 'Active incidents', 'status'],
             ['risk-zones', 'Risk zones', 'layers'],
-            ['resolved', 'Resolved archive', 'layers'],
+            ['resolved', 'Resolved', 'layers'],
         ];
 
         // One rail, three roles, byte-identical: the same tabs in the same order
@@ -82,7 +82,7 @@ describe('shared role-aware map experience', () => {
         expect(guest.filters.map(({ value, label, group }) => [value, label, group])).toEqual([
             ['all', 'Active Incidents', 'status'],
             ['risk-zones', 'Risk zones', 'layers'],
-            ['resolved', 'Resolved archive', 'layers'],
+            ['resolved', 'Resolved', 'layers'],
         ]);
         expect(guest.filters.map(({ value }) => value)).not.toContain('pending');
         expect(guest.showPendingReports).toBe(false);

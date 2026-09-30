@@ -602,8 +602,10 @@ const DashboardMapWorkspace = ({
     const [panelActionLoading, setPanelActionLoading] = useState(false);
     const [isMapExpanded, setIsMapExpanded] = useState(false);
 
+    // The expand entry is available at every viewport, phones included: the
+    // expanded shell carries its own mobile filter trigger, and the fixed
+    // fallback covers browsers without the Fullscreen API.
     const enterExpandedMap = useCallback(() => {
-        if (isSummaryPaneSheetViewport()) return;
         setIsMapExpanded(true);
         const target = mapSectionRef.current;
         if (target && typeof target.requestFullscreen === 'function') {
@@ -627,39 +629,6 @@ const DashboardMapWorkspace = ({
             enterExpandedMap();
         }
     }, [isMapExpanded, enterExpandedMap, exitExpandedMap]);
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-
-        const handleViewportChange = () => {
-            if (isSummaryPaneSheetViewport() && isMapExpanded) {
-                exitExpandedMap();
-            }
-        };
-
-        if (window.matchMedia) {
-            const mediaQueryList = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
-            if (typeof mediaQueryList.addEventListener === 'function') {
-                mediaQueryList.addEventListener('change', handleViewportChange);
-                window.addEventListener('resize', handleViewportChange);
-                return () => {
-                    mediaQueryList.removeEventListener('change', handleViewportChange);
-                    window.removeEventListener('resize', handleViewportChange);
-                };
-            }
-            if (typeof mediaQueryList.addListener === 'function') {
-                mediaQueryList.addListener(handleViewportChange);
-                window.addEventListener('resize', handleViewportChange);
-                return () => {
-                    mediaQueryList.removeListener(handleViewportChange);
-                    window.removeEventListener('resize', handleViewportChange);
-                };
-            }
-        }
-
-        window.addEventListener('resize', handleViewportChange);
-        return () => window.removeEventListener('resize', handleViewportChange);
-    }, [isMapExpanded, exitExpandedMap]);
 
     useEffect(() => {
         if (!isMapExpanded) return undefined;
@@ -1478,6 +1447,10 @@ const DashboardMapWorkspace = ({
                                 selectedFilter={responderMapFilter}
                                 onSelectFilter={selectMapFilter}
                                 getCount={getFilterCount}
+                                // The "Current overview" cards own the numbers
+                                // at lg+, so the rail's tabs drop their visual
+                                // counts there (see MapFilterRail).
+                                hideCountsAtDesktop
                             />
                         </div>
                     )}
@@ -1722,6 +1695,7 @@ const DashboardMapWorkspace = ({
                                         selectedFilter={responderMapFilter}
                                         onSelectFilter={selectMapFilter}
                                         getCount={getFilterCount}
+                                        hideCountsAtDesktop
                                     />
                                 </div>
                             )}

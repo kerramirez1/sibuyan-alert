@@ -96,7 +96,7 @@ export const getRailDotClass = (filterValue) => RAIL_TONES[getRailTone(filterVal
  * transparent, so an underline tab rendered with no line at all and the tab
  * that was supposed to read as selected looked exactly like the two beside it.
  */
-export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, title, ariaLabel }) => {
+export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, title, ariaLabel, hideCountAtDesktop = false }) => {
     const styles = RAIL_TONES[tone] || RAIL_TONES.neutral;
 
     return (
@@ -120,7 +120,12 @@ export const MapRailTab = ({ label, count, tone = 'neutral', selected, onClick, 
                 contrast and only the count is muted, and it is muted to
                 text-gray-500 (#6b7280, 4.83:1 on white), not text-gray-400
                 (#9ca3af, 2.54:1), which failed AA for normal-size text. */}
-            <span className={`text-xs font-medium tabular-nums ${selected ? '' : 'text-gray-500 dark:text-gray-400'}`}>
+            {/* The count stays in the DOM at every width — the tab's aria-label
+                already names it, so nothing is lost to a screen reader — but a
+                caller can drop it visually at lg+ with `hideCountAtDesktop`,
+                where the operations workspace's "Current overview" cards own the
+                numbers and the rail would otherwise print them twice. */}
+            <span className={`text-xs font-medium tabular-nums${hideCountAtDesktop ? ' lg:hidden' : ''} ${selected ? '' : 'text-gray-500 dark:text-gray-400'}`}>
                 {count}
             </span>
             {/* The 2px bar is the selected cue ON the rail's baseline, so it only
@@ -180,6 +185,11 @@ export const MapFilterRail = ({
     selectedFilter,
     onSelectFilter,
     getCount,
+    // At lg+ the operations workspace's "Current overview" cards own the
+    // numbers, so that rail hides its tab counts there (labels, dots,
+    // tooltips, aria-labels and the selected state stay). The analytics rail
+    // keeps its counts at every width — it has no cards beside it.
+    hideCountsAtDesktop = false,
 }) => {
     const statusFilters = toSafeArray(filters).filter((filter) => filter.group === 'status');
     const layerFilters = toSafeArray(filters).filter((filter) => filter.group === 'layers');
@@ -201,6 +211,7 @@ export const MapFilterRail = ({
                         onClick={() => onSelectFilter(filter.value)}
                         title={statusTabTitle(filter, showPendingReports)}
                         ariaLabel={`${filter.label} filter (${count} ${count === 1 ? 'record' : 'records'})${isSelected ? ', selected' : ''}`}
+                        hideCountAtDesktop={hideCountsAtDesktop}
                     />
                 );
             })}
@@ -226,15 +237,17 @@ export const MapFilterRail = ({
                         onClick={() => onSelectFilter(selectedFilter === 'risk-zones' ? 'all' : 'risk-zones')}
                         title="Toggle the mapped hazard layer"
                         ariaLabel={`Risk zones layer (${countOf('risk-zones')} ${countOf('risk-zones') === 1 ? 'zone' : 'zones'})${selectedFilter === 'risk-zones' ? ', shown' : ''}`}
+                        hideCountAtDesktop={hideCountsAtDesktop}
                     />
                     <MapRailTab
-                        label={layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved archive'}
+                        label={layerFilters.find((filter) => filter.value === 'resolved')?.label || 'Resolved'}
                         count={countOf('resolved')}
                         tone={getRailTone('resolved')}
                         selected={selectedFilter === 'resolved'}
                         onClick={() => onSelectFilter('resolved')}
                         title="View the resolved incident archive"
-                        ariaLabel={`Resolved archive (${countOf('resolved')} ${countOf('resolved') === 1 ? 'record' : 'records'})${selectedFilter === 'resolved' ? ', selected' : ''}`}
+                        ariaLabel={`Resolved (${countOf('resolved')} ${countOf('resolved') === 1 ? 'record' : 'records'})${selectedFilter === 'resolved' ? ', selected' : ''}`}
+                        hideCountAtDesktop={hideCountsAtDesktop}
                     />
                 </span>
             )}

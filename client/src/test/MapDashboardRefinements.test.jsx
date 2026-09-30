@@ -365,7 +365,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
 
             // The archive is not a status: it sits in the labeled layer group the
             // signed-in rail also uses, so a guest learns one rail, not two.
-            const resolvedFilterBtn = within(tablist).getByRole('button', { name: /Resolved archive/i });
+            const resolvedFilterBtn = within(tablist).getByRole('button', { name: /^Resolved \(/i });
             expect(resolvedFilterBtn).toBeInTheDocument();
 
             fireEvent.click(resolvedFilterBtn);
@@ -381,7 +381,7 @@ describe('Map Dashboard Refinements and Operational Workspace', () => {
 
             const tablist = screen.getByRole('group', { name: 'Map status filter' });
             const selectedTab = within(tablist).getByRole('button', { name: /Active Incidents filter/i });
-            const unselectedTab = within(tablist).getByRole('button', { name: /Resolved archive/i });
+            const unselectedTab = within(tablist).getByRole('button', { name: /^Resolved \(/i });
 
             expect(selectedTab).toHaveAttribute('aria-pressed', 'true');
             expect(unselectedTab).toHaveAttribute('aria-pressed', 'false');

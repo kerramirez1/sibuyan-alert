@@ -10,10 +10,9 @@ const { mapPropsSpy, getHazardLayersSpy } = vi.hoisted(() => ({
 vi.mock('../components/map/MapView', () => ({
     default: (props) => {
         mapPropsSpy(props);
-        const isPhone = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 639px)').matches;
         return (
             <div data-testid="map-view">
-                {typeof props.onToggleExpand === 'function' && (props.isExpanded || !isPhone) && (
+                {typeof props.onToggleExpand === 'function' && (
                     <button
                         type="button"
                         aria-label={props.isExpanded ? 'Exit expanded map' : 'Expand map'}
@@ -138,7 +137,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(props.setMapSummaryPanel).toHaveBeenCalledWith('overview:risk-zones');
 
         const filters = screen.getByRole('group', { name: 'Map status filter' });
-        fireEvent.click(within(filters).getByRole('button', { name: /Resolved archive/i }));
+        fireEvent.click(within(filters).getByRole('button', { name: /^Resolved \(/i }));
         expect(props.setResponderMapFilter).toHaveBeenCalledWith('resolved');
     });
 
@@ -1009,7 +1008,7 @@ describe('DashboardMapWorkspace permissions', () => {
         // scoped to today (0 or 1) sitting beside a tab counting the archive (2).
         const summary = screen.getByRole('region', { name: 'Map summary' });
         expect(within(summary).getByRole('button', { name: /View 2 resolved\./i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Resolved archive \(2 records\)/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Resolved \(2 records\)/i })).toBeInTheDocument();
         // Today's closures survive as supporting text on the archive card — and
         // the coordinate-less one is dropped, so the line cannot outrun the
         // number beside it.
@@ -1867,14 +1866,14 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(filterBar).queryByRole('button', { name: /^transferred$/i })).not.toBeInTheDocument();
         // The archive and the hazard layer sit in their own labeled group, so
         // neither can read as a fourth status.
-        expect(within(filterBar).getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
+        expect(within(filterBar).getByRole('button', { name: /^Resolved \(/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('button', { name: /risk zones layer/i })).toBeInTheDocument();
         expect(within(filterBar).getByRole('group', { name: /layers and archive/i })).toBeInTheDocument();
 
         fireEvent.click(within(filterBar).getByRole('button', { name: /risk zones/i }));
         expect(setResponderMapFilter).toHaveBeenCalledWith('risk-zones');
 
-        fireEvent.click(within(filterBar).getByRole('button', { name: /Resolved archive/i }));
+        fireEvent.click(within(filterBar).getByRole('button', { name: /^Resolved \(/i }));
         expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
 
         expect(mapPropsSpy.mock.lastCall[0].highRiskZones).toEqual(highRiskZones);
@@ -2051,7 +2050,7 @@ describe('DashboardMapWorkspace permissions', () => {
         expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
         // The archive is a layer here, exactly as it is on the desktop rail —
         // not a third status.
-        expect(within(radioGroup).getByRole('radio', { name: /resolved archive/i })).toBeInTheDocument();
+        expect(within(radioGroup).getByRole('radio', { name: /^resolved$/i })).toBeInTheDocument();
         // The dispatch and in-response queues are segments inside the Active
         // incidents panel, not sheet options, so they must not reappear here.
         expect(within(radioGroup).queryByRole('radio', { name: /ready to dispatch/i })).not.toBeInTheDocument();
@@ -2196,12 +2195,12 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(screen.getByRole('button', { name: /Active Incidents filter/i })).toBeInTheDocument();
             // The archive is in the labeled layer group, the same place every
             // signed-in rail puts it.
-            expect(screen.getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Resolved \(/i })).toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Transferred filter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Verified filter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Pending filter/i })).not.toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: /Resolved archive/i }));
+            fireEvent.click(screen.getByRole('button', { name: /^Resolved \(/i }));
             expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
         });
 
@@ -2230,15 +2229,15 @@ describe('DashboardMapWorkspace permissions', () => {
             // The sheet reads each option's own group, so it cannot disagree with
             // the rail beside it: the archive is a layer in both places. It used
             // to be hardcoded into the status section, which offered a guest
-            // "Incident status: Resolved archive" and a second Resolved row.
+            // "Incident status: Resolved" and a second Resolved row.
             expect(within(radioGroup).getByRole('radio', { name: /risk zones/i })).toBeInTheDocument();
-            expect(within(radioGroup).getByRole('radio', { name: /resolved archive/i })).toBeInTheDocument();
+            expect(within(radioGroup).getByRole('radio', { name: /^resolved$/i })).toBeInTheDocument();
             // A guest has no status rows beyond the scope row, because the only
             // status a guest is missing is the one they are never sent.
             expect(sheet.querySelectorAll('h3')).toHaveLength(2);
 
-            fireEvent.click(within(radioGroup).getByRole('radio', { name: /resolved archive/i }));
-            expect(screen.getByText(/Showing resolved archive · 2 incidents/i)).toBeInTheDocument();
+            fireEvent.click(within(radioGroup).getByRole('radio', { name: /^resolved$/i }));
+            expect(screen.getByText(/Showing resolved · 2 incidents/i)).toBeInTheDocument();
 
             fireEvent.click(within(sheet).getByRole('button', { name: /show 2 incidents/i }));
             expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
@@ -2352,11 +2351,11 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(screen.queryByRole('button', { name: /Resolved filter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Risk Zones filter/i })).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Risk zones layer/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /Resolved archive/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Resolved \(/i })).toBeInTheDocument();
             // Secondary controls sit in a labeled group so they never read as status tabs.
             expect(screen.getByRole('group', { name: /Layers and archive/i })).toBeInTheDocument();
 
-            fireEvent.click(screen.getByRole('button', { name: /Resolved archive/i }));
+            fireEvent.click(screen.getByRole('button', { name: /^Resolved \(/i }));
             expect(setResponderMapFilter).toHaveBeenCalledWith('resolved');
 
             fireEvent.click(screen.getByRole('button', { name: /Risk zones layer/i }));
@@ -2886,7 +2885,9 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         expect(mapProps.onMapScopeChange).toBeNull();
     });
 
-    test('does not expose any "Expand map" entry button on phone-sized viewports below sm', () => {
+    test('exposes the "Expand map" entry button on phone-sized viewports below sm', () => {
+        // Phones are no longer excluded from expanded mode: the expanded shell
+        // carries its own mobile filter trigger.
         const originalMatchMedia = window.matchMedia;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === '(max-width: 639px)',
@@ -2902,14 +2903,14 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         try {
             renderWorkspace(createProps());
 
-            const expandBtns = screen.queryAllByRole('button', { name: /expand map/i });
-            expect(expandBtns).toHaveLength(0);
+            const expandBtns = screen.getAllByRole('button', { name: /expand map/i });
+            expect(expandBtns.length).toBeGreaterThanOrEqual(1);
         } finally {
             window.matchMedia = originalMatchMedia;
         }
     });
 
-    test('prevents entering expanded map on phone-sized viewports below sm', () => {
+    test('allows entering expanded map on phone-sized viewports below sm', () => {
         const originalMatchMedia = window.matchMedia;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === '(max-width: 639px)',
@@ -2932,7 +2933,7 @@ describe('DashboardMapWorkspace expanded map mode', () => {
                 mapProps.onToggleExpand();
             });
 
-            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
         } finally {
             window.matchMedia = originalMatchMedia;
         }
@@ -2995,7 +2996,9 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         }
     });
 
-    test('automatically exits expanded mode when resizing from expanded tablet/desktop down to mobile', () => {
+    test('stays in expanded mode when resizing from expanded tablet/desktop down to mobile', () => {
+        // Phones can hold expanded mode now: nothing force-exits it when the
+        // viewport narrows.
         const originalMatchMedia = window.matchMedia;
         let isPhone = false;
         let changeListener = null;
@@ -3031,8 +3034,8 @@ describe('DashboardMapWorkspace expanded map mode', () => {
                 window.dispatchEvent(new Event('resize'));
             });
 
-            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
-            expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+            expect(screen.getAllByRole('button', { name: /exit expanded map/i }).length).toBeGreaterThanOrEqual(1);
         } finally {
             window.matchMedia = originalMatchMedia;
         }
@@ -3067,7 +3070,7 @@ describe('DashboardMapWorkspace expanded map mode', () => {
             fireEvent.click(clearBtn);
             expect(setResponderMapFilter).toHaveBeenCalledWith('all');
 
-            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /expand map/i })).toBeInTheDocument();
         } finally {
             window.matchMedia = originalMatchMedia;
         }
