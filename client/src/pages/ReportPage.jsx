@@ -117,11 +117,31 @@ const StepIndicator = ({ activeStep }) => (
     </nav>
 );
 
+// The step-4 Submit mounts where the step-3 Continue was. A second tap
+// landing in that spot (double-tap, impatient re-tap) must not file the
+// report before the review screen is even seen, so Submit stays disabled
+// for a beat after step 4 appears. Nobody can review and deliberately
+// submit faster than this; a disabled submit button also cannot trigger
+// implicit (Enter-key) submission while disarmed.
+const SUBMIT_ARM_MS = 600;
+
 // Back/Continue for steps 1-3. On step 4, Back and the red Submit share one
 // action row beneath the review section. StepNav renders inside the form, so
 // the submit button stays type="submit" and invokes the form's onSubmit;
 // Back stays type="button" and never submits.
 const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) => {
+    const [submitArmed, setSubmitArmed] = useState(false);
+
+    useEffect(() => {
+        if (activeStep < LAST_STEP) {
+            setSubmitArmed(false);
+            return undefined;
+        }
+        setSubmitArmed(false);
+        const timer = setTimeout(() => setSubmitArmed(true), SUBMIT_ARM_MS);
+        return () => clearTimeout(timer);
+    }, [activeStep]);
+
     if (activeStep >= LAST_STEP) {
         return (
             <div className="mt-5 flex items-stretch gap-3">
@@ -130,7 +150,7 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
                 </button>
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !submitArmed}
                     className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
                 >
                     {loading ? (

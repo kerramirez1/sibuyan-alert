@@ -72,6 +72,15 @@ const advanceWizardTo = async (targetStep) => {
     }
 };
 
+// The step-4 Submit arms ~600ms after arrival so a double-tap meant for
+// Continue cannot file the report; wait for it before submitting.
+const awaitSubmitArmed = async () => {
+    await waitFor(
+        () => expect(screen.getByRole('button', { name: /submit incident report/i })).not.toBeDisabled(),
+        { timeout: 5000 }
+    );
+};
+
 /**
  * Minimal in-memory IndexedDB stand-in for the write-ahead queue: enough of the
  * object-store surface to stage, read back, patch and delete a report.
@@ -277,6 +286,19 @@ describe('ReportPage workflow', () => {
         expect(createReportMock).not.toHaveBeenCalled();
     });
 
+    test('submit stays disarmed briefly after arriving on step 4', async () => {
+        renderPage();
+        await advanceWizardTo(4);
+
+        const submitButton = screen.getByRole('button', { name: /submit incident report/i });
+        // A stray second tap meant for Continue lands here; it must not file.
+        expect(submitButton).toBeDisabled();
+        expect(createReportMock).not.toHaveBeenCalled();
+
+        await awaitSubmitArmed();
+        expect(submitButton).not.toBeDisabled();
+    });
+
     test('replaces a prior barangay only with the current pin boundary result', async () => {
         renderPage();
 
@@ -352,6 +374,7 @@ describe('ReportPage workflow', () => {
         await screen.findByText('Step 4 of 4');
 
         // Step 4: review and submit.
+        await awaitSubmitArmed();
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -404,6 +427,7 @@ describe('ReportPage workflow', () => {
         fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
         await screen.findByText('Step 4 of 4');
 
+        await awaitSubmitArmed();
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -581,6 +605,7 @@ describe('ReportPage workflow', () => {
             await screen.findByText('Step 4 of 4');
             expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
 
+            await awaitSubmitArmed();
             fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
             await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -631,7 +656,8 @@ describe('ReportPage workflow', () => {
             await screen.findByText('Step 4 of 4');
         };
 
-        const submitForm = () => {
+        const submitForm = async () => {
+            await awaitSubmitArmed();
             fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
         };
 
@@ -659,7 +685,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
 
@@ -680,7 +706,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
                 'Signal lost while submitting. This report is saved on your device and will be sent automatically once the connection returns.',
@@ -704,7 +730,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
                 'Signal lost while submitting. This report is saved on your device and will be sent automatically once the connection returns.',
@@ -722,7 +748,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
                 'Barangay is required',
@@ -741,7 +767,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
                 'This device could not store the report locally. Keep this screen open and retry, or free up storage.',
@@ -758,7 +784,7 @@ describe('ReportPage workflow', () => {
 
             renderPage();
             await fillRequiredFields();
-            submitForm();
+            await submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
                 'You are offline. This report is saved on your device and will be sent automatically.',
