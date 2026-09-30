@@ -155,18 +155,18 @@ const ReportLocationPanel = ({
                         <span className="font-semibold text-gray-900 dark:text-white">Confirm the GPS position. </span>
                         Estimated accuracy: {gpsAccuracy ? `${Math.round(gpsAccuracy)} meters` : 'unavailable'}
                     </p>
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+                    <div className="grid grid-cols-2 gap-2 max-[420px]:gap-1.5 sm:flex sm:shrink-0">
                         <button
                             type="button"
                             onClick={retryLocation}
-                            className="btn-outline min-h-11 sm:min-h-9"
+                            className="btn-outline min-h-11 whitespace-nowrap max-[420px]:min-h-10 max-[420px]:px-3 max-[420px]:py-2 max-[420px]:text-[13px] sm:min-h-9"
                         >
                             Adjust
                         </button>
                         <button
                             type="button"
                             onClick={confirmLocation}
-                            className="btn-primary min-h-11 sm:min-h-9"
+                            className="btn-primary min-h-11 whitespace-nowrap max-[420px]:min-h-10 max-[420px]:px-3 max-[420px]:py-2 max-[420px]:text-[13px] sm:min-h-9"
                         >
                             Confirm location
                         </button>

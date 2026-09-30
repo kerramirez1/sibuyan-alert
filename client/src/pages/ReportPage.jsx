@@ -144,15 +144,15 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
 
     if (activeStep >= LAST_STEP) {
         return (
-            <div className="mt-5 flex items-stretch gap-3">
-                <button type="button" onClick={onBack} className="btn-outline min-h-12 min-w-0 flex-1 px-6">
+            <div className="mt-5 flex items-stretch gap-3 max-[420px]:gap-2">
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 min-w-0 flex-1 px-6 max-[420px]:px-3 max-[420px]:text-[13px]">
                     <span aria-hidden="true">←</span>
                     <span>Back</span>
                 </button>
                 <button
                     type="submit"
                     disabled={loading || !submitArmed}
-                    className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
+                    className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 max-[420px]:px-3 max-[420px]:text-[13px] sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
                 >
                     {loading ? (
                         <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
@@ -161,7 +161,7 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
                         ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
                             ? `Uploading ${uploadProgress.percent}%…`
                             : 'Submitting report…')
-                        : (<><span>Submit report</span><span aria-hidden="true">→</span></>)}
+                        : (<span className="inline-flex items-center gap-2 whitespace-nowrap"><span>Submit report</span><span aria-hidden="true">→</span></span>)}
                 </button>
             </div>
         );
