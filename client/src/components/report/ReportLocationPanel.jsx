@@ -126,6 +126,11 @@ const ReportLocationPanel = ({
                     focusLocation={focusLocation}
                     gpsAccuracy={gpsAccuracy}
                     className="h-full w-full"
+                    // Placement surface, not an exploration surface: no zoom/compass
+                    // group and no scale bar. Pin drag, scroll/pinch zoom, and the
+                    // "My location" action below cover all positioning tasks.
+                    showNavigationControl={false}
+                    showScaleControl={false}
                 />
 
                 <button
