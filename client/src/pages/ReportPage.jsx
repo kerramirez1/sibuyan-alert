@@ -977,7 +977,7 @@ const ReportPage = () => {
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
     return (
-        <div className="page-shell max-w-7xl space-y-5 pb-20 md:pb-6">
+        <div className="page-shell max-w-7xl space-y-5 md:pb-6">
             <PageHeader eyebrow="Incident reporting" title="Submit incident report" description="Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required." />
 
             {draftRestored && (
