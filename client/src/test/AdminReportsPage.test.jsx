@@ -290,6 +290,35 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.queryByRole('button', { name: 'Delete report' })).not.toBeInTheDocument();
     });
 
+    test('gives the responder row the same primary weight whichever action applies', async () => {
+        // Reported from a screenshot: on the responder queue the buttons looked
+        // flat next to the admin row's filled "Inspect report". The cause was that
+        // "Join response" was filled while "Resolve incident" was a plain outline —
+        // so an ASSIGNED responder saw two outlines and nothing primary, while an
+        // unassigned one saw a primary. Same class of action, two weights.
+        //
+        // The join half is asserted in 'offers join without resolve when another
+        // responder owns the active incident' above; this is the resolve half.
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            agency: 'PNP',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                status: 'responding',
+                respondedBy: { id: 'responder-1', name: 'Assigned Officer', agency: 'PNP' },
+                responders: [{ user: { id: 'responder-1', name: 'Assigned Officer' }, unitName: 'PNP Patrol 01', unitType: 'PNP' }],
+            }),
+        ]));
+
+        renderPage();
+
+        await screen.findAllByText('Poblacion coastal road');
+        expect(screen.getAllByRole('button', { name: 'Resolve incident' })[0]).toHaveClass('bg-brand-700');
+    });
+
     test('offers join without resolve when another responder owns the active incident', async () => {
         mocks.user = {
             id: 'responder-2',
@@ -500,8 +529,19 @@ describe('AdminReportsPage operational queue', () => {
         expect(respondingStatus).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
         expect(resolvedStatus).toHaveClass('text-[var(--text-secondary)]');
         expect(resolvedStatus).not.toHaveClass('bg-green-50', 'text-green-700');
-        expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('border-gray-300', 'bg-white', 'text-gray-700');
-        expect(within(activeRow).getByRole('button', { name: 'Inspect report' })).toHaveClass('btn-outline');
+        // CHANGED DELIBERATELY. This asserted `border-gray-300 bg-white text-gray-700`
+        // — the old outlined treatment, which was the inconsistency itself:
+        // "Join response" was filled while "Resolve incident" was a plain outline,
+        // so an assigned responder's row had no primary at all next to the admin
+        // row's filled "Inspect report". Both now share one treatment; see
+        // 'gives the responder row the same primary weight whichever action applies'.
+        expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('bg-brand-700');
+        // CHANGED: this asserted `btn-outline` on the old wide labelled button.
+        // Inspect is now one compact icon-only control shared by both roles, so
+        // what matters is that it stays reachable by name with no text in it.
+        const inspectButton = within(activeRow).getByRole('button', { name: 'Inspect report' });
+        expect(inspectButton).toHaveAttribute('title', 'Inspect report');
+        expect(inspectButton.textContent).toBe('');
         expect(within(resolvedRow).getByRole('button', { name: 'Inspect report' })).toBeInTheDocument();
         expect(within(resolvedRow).queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });

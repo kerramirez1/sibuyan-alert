@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import {
+    HiOutlineArrowRight,
     HiOutlineBadgeCheck,
     HiOutlineCheckCircle,
     HiOutlineClock,
@@ -246,6 +247,44 @@ const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = fal
     );
 };
 
+/**
+ * Opening a record — the same control on the admin and responder rows.
+ *
+ * It was a wide labelled button before, and it did not look the same on the two
+ * roles: filled on the admin row, outlined on the responder row. The same action
+ * under the same label wearing two different weights is what kept reading as an
+ * inconsistency, so it is now one component with one treatment.
+ *
+ * Icon-only, so the accessible name has to come from `aria-label` rather than the
+ * content — and `title` gives it back to a pointer.
+ *
+ * No border and no resting background: on a card that is already a bordered
+ * surface, a second outline around a single glyph reads as a button-inside-a-card
+ * and competes with the state actions beside it. The hover wash and the focus
+ * ring are what make it findable and operable — an icon-only control with neither
+ * would be invisible to a keyboard user.
+ *
+ * Wider than it is tall on purpose: the arrow is the row's opening affordance, and
+ * a square that matches the delete icon's footprint reads as one more utility
+ * control rather than the way into the record.
+ *
+ * `aria-expanded` / `aria-controls` are unchanged: the inspector is still what
+ * this opens, and the tests that drive it that way still hold.
+ */
+const InspectReportButton = ({ report, onInspect, isSelected = false }) => (
+    <button
+        type="button"
+        onClick={() => onInspect(report)}
+        aria-expanded={isSelected}
+        aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
+        title="Inspect report"
+        aria-label="Inspect report"
+        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-lg text-[var(--accent-text)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:h-9 sm:w-16"
+    >
+        <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
+    </button>
+);
+
 const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
     const hasWorkingAction = capabilities.canVerify
@@ -256,20 +295,10 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
 
     return (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {/* The row's primary action: it opens the record. */}
-            <button
-                type="button"
-                onClick={() => onInspect(report)}
-                aria-expanded={isSelected}
-                aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="btn-primary w-full sm:w-auto"
-            >
-                <HiOutlineEye className="h-4 w-4" aria-hidden="true" />
-                <span>Inspect report</span>
-            </button>
+            <InspectReportButton report={report} onInspect={onInspect} isSelected={isSelected} />
 
             <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                {capabilities.canVerify && (
+            {capabilities.canVerify && (
                     <SecondaryActionButton
                         label="Verify"
                         ariaLabel="Verify report"
@@ -340,29 +369,37 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
     );
 };
 
+/**
+ * The responder row's primary action.
+ *
+ * `Respond` and `Resolve` are the same thing to the reader — the step this
+ * responder takes on this incident — and they can never both render, so they
+ * share one treatment.
+ *
+ * They did not before, and the row lost its anchor because of it: "Respond to
+ * incident" was filled while "Resolve incident" was a plain outline, so as soon
+ * as an incident was assigned to the responder, both buttons in the row read as
+ * outlines and nothing looked primary — unlike the admin row, where a filled
+ * "Inspect report" holds the row together. Same class of action, two different
+ * weights, depending on which one happened to apply.
+ */
+const RESPONDER_PRIMARY_ACTION_CLASS = 'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:text-white dark:hover:bg-brand-500 sm:w-auto';
+
 const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
     const isResponding = report?.status === 'responding';
 
     return (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <button
-                type="button"
-                onClick={() => onInspect(report)}
-                aria-expanded={isSelected}
-                aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="btn-outline w-full sm:w-auto"
-            >
-                <HiOutlineEye className="h-4 w-4" aria-hidden="true" />
-                <span>Inspect report</span>
-            </button>
+            <InspectReportButton report={report} onInspect={onInspect} isSelected={isSelected} />
 
+            <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
             {capabilities.canRespond && (
                 <button
                     type="button"
                     onClick={() => actions.openRespond(report)}
                     disabled={actions.respondLoadingId === report?._id}
-                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:text-white dark:hover:bg-brand-500 sm:w-auto"
+                    className={RESPONDER_PRIMARY_ACTION_CLASS}
                 >
                     {isResponding ? 'Join response' : 'Respond to incident'}
                 </button>
@@ -372,11 +409,12 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                 <button
                     type="button"
                     onClick={() => actions.openResolve(report)}
-                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 sm:w-auto"
+                    className={RESPONDER_PRIMARY_ACTION_CLASS}
                 >
                     Resolve incident
                 </button>
             )}
+            </div>
         </div>
     );
 };
