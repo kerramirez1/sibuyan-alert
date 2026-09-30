@@ -43,6 +43,18 @@ const renderPage = () => render(
     </MemoryRouter>
 );
 
+// Walks the guided flow to the review step with valid data.
+const advanceWizardToReview = async () => {
+    fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+    await screen.findByText('Step 2 of 4');
+    fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+    await screen.findByText('Step 3 of 4');
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+    await screen.findByText('Step 4 of 4');
+};
+
 const installIndexedDbMock = () => {
     const originalIndexedDB = globalThis.indexedDB;
     const storeData = new Map();
@@ -139,9 +151,8 @@ describe('ReportPage automatic offline save', () => {
 
     test('passes an abort signal so a mid-upload signal loss queues at once', async () => {
         renderPage();
+        await advanceWizardToReview();
 
-        fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
-        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -157,9 +168,8 @@ describe('ReportPage automatic offline save', () => {
         }));
 
         renderPage();
+        await advanceWizardToReview();
 
-        fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
-        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         // Staged before the network answers: the safety banner appears mid-flight.
@@ -199,9 +209,8 @@ describe('ReportPage automatic offline save', () => {
 
     test('clears the draft once the report is submitted', async () => {
         renderPage();
+        await advanceWizardToReview();
 
-        fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
-        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();

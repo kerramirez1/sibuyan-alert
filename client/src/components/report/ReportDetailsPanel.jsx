@@ -32,7 +32,7 @@ const SectionHeader = ({ id, step, title, description }) => {
                     ))}
                 </div>
             </div>
-            <h2 id={id} className="section-title mt-1.5 sm:mt-2">
+            <h2 id={id} tabIndex={-1} className="section-title mt-1.5 sm:mt-2 focus:outline-none">
                 {title}
             </h2>
             {description && (
@@ -54,6 +54,7 @@ const formatBytes = (bytes) => {
 };
 
 const ReportDetailsPanel = ({
+    step = 2,
     formData,
     setFormData,
     handleChange,
@@ -77,6 +78,7 @@ const ReportDetailsPanel = ({
     return (
         <div className="surface-panel divide-y divide-[var(--border)] px-4 py-5 sm:px-6 sm:py-6">
             {/* Step 2: Incident Details */}
+            {step === 2 && (
             <section className="pb-5 sm:pb-6" aria-labelledby="details-heading">
                 <SectionHeader
                     id="details-heading"
@@ -157,8 +159,10 @@ const ReportDetailsPanel = ({
                     </label>
                 </div>
             </section>
+            )}
 
             {/* Step 3: Casualties and Injuries */}
+            {step === 3 && (
             <section className="py-5 sm:py-6" aria-labelledby="casualties-heading">
                 <SectionHeader
                     id="casualties-heading"
@@ -193,8 +197,11 @@ const ReportDetailsPanel = ({
                     ))}
                 </div>
             </section>
+            )}
 
             {/* Step 4: Evidence Photos */}
+            {step === 4 && (
+            <>
             <section className="py-5 sm:py-6" aria-labelledby="evidence-heading">
                 <SectionHeader
                     id="evidence-heading"
@@ -393,6 +400,8 @@ const ReportDetailsPanel = ({
                     </p>
                 )}
             </section>
+            </>
+            )}
         </div>
     );
 };

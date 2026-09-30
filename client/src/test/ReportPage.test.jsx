@@ -52,6 +52,26 @@ const renderPage = () => render(
     </MemoryRouter>
 );
 
+// Drives the guided flow forward with valid data, mirroring the reporter's
+// Back/Continue path. Step 1 accepts a typed address alone; pinning via the
+// mocked map also works.
+const advanceWizardTo = async (targetStep) => {
+    if (targetStep >= 2) {
+        fireEvent.click(screen.getByTestId('location-map'));
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 2 of 4');
+    }
+    if (targetStep >= 3) {
+        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 3 of 4');
+    }
+    if (targetStep >= 4) {
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 4 of 4');
+    }
+};
+
 /**
  * Minimal in-memory IndexedDB stand-in for the write-ahead queue: enough of the
  * object-store surface to stage, read back, patch and delete a report.
@@ -160,14 +180,81 @@ describe('ReportPage workflow', () => {
         expect(mapPropsSpy.mock.lastCall[0].mode).toBe('report-location');
     });
 
-    test('shows accessible feedback when required fields are missing', () => {
+    test('blocks Continue on step 1 until a location is provided', () => {
         renderPage();
 
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        // Only the active step is visible.
+        expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+        expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('alert')).toHaveTextContent(/complete the required location and incident-time fields/i);
-        expect(screen.getByText('Accident time is required')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+        expect(screen.getByText('Please select a location on the map or enter an address')).toBeInTheDocument();
+        // Still on step 1; nothing was submitted.
+        expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+        expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
         expect(createReportMock).not.toHaveBeenCalled();
+    });
+
+    test('blocks Continue on step 2 until the incident time is valid', async () => {
+        renderPage();
+        await advanceWizardTo(2);
+
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        expect(screen.getByText('Accident time is required')).toBeInTheDocument();
+        expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+        expect(screen.queryByText('Step 3 of 4')).not.toBeInTheDocument();
+
+        // A future time is rejected as well.
+        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2099-01-01T10:00' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        expect(screen.getByText('Accident time cannot be in the future')).toBeInTheDocument();
+        expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+
+        // A valid time advances.
+        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 3 of 4');
+    });
+
+    test('shows one step at a time and keeps entered values when moving back and forth', async () => {
+        renderPage();
+
+        expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+        expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^back$/i })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('location-map'));
+        await waitFor(() => expect(screen.getByText(/selected pin:/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 2 of 4');
+        expect(screen.queryByText('Step 1 of 4')).not.toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
+        fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Two motorcycles skidded' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 3 of 4');
+        expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
+
+        // Casualties are optional: blanks mean "not recorded".
+        fireEvent.change(screen.getByLabelText(/^injured$/i), { target: { value: '2' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 4 of 4');
+        expect(screen.getByRole('button', { name: /submit incident report/i })).toBeInTheDocument();
+
+        // Back through the steps: every entered value is intact.
+        fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+        await screen.findByText('Step 3 of 4');
+        expect(screen.getByLabelText(/^injured$/i)).toHaveValue(2);
+
+        fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+        await screen.findByText('Step 2 of 4');
+        expect(screen.getByLabelText(/description/i)).toHaveValue('Two motorcycles skidded');
+        expect(screen.getByLabelText(/incident date and time/i)).toHaveValue('2025-01-15T10:30');
+
+        fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+        await screen.findByText('Step 1 of 4');
+        expect(screen.getByText(/selected pin:/i)).toBeInTheDocument();
     });
 
     test('replaces a prior barangay only with the current pin boundary result', async () => {
@@ -228,10 +315,23 @@ describe('ReportPage workflow', () => {
     test('preserves the multipart report contract and redirects after submission', async () => {
         renderPage();
 
+        // Step 1: an address alone satisfies the location gate.
         fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Near Municipal Hall' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 2 of 4');
+
+        // Step 2: incident details.
         fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
-        fireEvent.change(screen.getByLabelText(/^injured$/i), { target: { value: '2' } });
         fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Two motorcycles skidded on loose gravel' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 3 of 4');
+
+        // Step 3: casualties.
+        fireEvent.change(screen.getByLabelText(/^injured$/i), { target: { value: '2' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 4 of 4');
+
+        // Step 4: review and submit.
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -257,8 +357,8 @@ describe('ReportPage workflow', () => {
         const firstHandler = mapPropsSpy.mock.calls.at(-1)[0].onLocationSelect;
         mapPropsSpy.mockClear();
 
-        // An unrelated state change mid-form.
-        fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Skid marks across both lanes' } });
+        // An unrelated state change while the map step is visible.
+        fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Near the port' } });
 
         await waitFor(() => expect(mapPropsSpy).toHaveBeenCalled());
         const secondHandler = mapPropsSpy.mock.calls.at(-1)[0].onLocationSelect;
@@ -272,8 +372,18 @@ describe('ReportPage workflow', () => {
         renderPage();
 
         fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Near Municipal Hall' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 2 of 4');
+
         fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-01-15T10:30' } });
         fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Casualty count unknown at the scene' } });
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 3 of 4');
+
+        // Casualty fields stay blank.
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        await screen.findByText('Step 4 of 4');
+
         fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -284,8 +394,9 @@ describe('ReportPage workflow', () => {
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
     });
 
-    test('updates casualties fields and handles non-zero inputs cleanly', () => {
+    test('updates casualties fields and handles non-zero inputs cleanly', async () => {
         renderPage();
+        await advanceWizardTo(3);
 
         const injuredInput = screen.getByLabelText(/^injured$/i);
         const fatalitiesInput = screen.getByLabelText(/^fatalities$/i);
@@ -301,8 +412,9 @@ describe('ReportPage workflow', () => {
     });
 
     describe('Evidence Photos & Camera Capture MVP', () => {
-        test('renders Take photo and Choose photos actions and hidden capture inputs', () => {
+        test('renders Take photo and Choose photos actions and hidden capture inputs', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const takePhotoButton = screen.getByRole('button', { name: /take photo/i });
             const choosePhotosButton = screen.getByRole('button', { name: /choose photos/i });
@@ -322,6 +434,7 @@ describe('ReportPage workflow', () => {
 
         test('handles photo capture and renders preview with updated count', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const cameraInput = screen.getByLabelText(/take evidence photo/i);
             const testFile = new File(['evidence-image-bytes'], 'accident-scene.jpg', { type: 'image/jpeg' });
@@ -340,6 +453,7 @@ describe('ReportPage workflow', () => {
 
         test('removes captured photo when clicking remove button', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const uploadInput = screen.getByLabelText(/upload evidence photos/i);
             const file1 = new File(['image1'], 'evidence1.jpg', { type: 'image/jpeg' });
@@ -359,8 +473,9 @@ describe('ReportPage workflow', () => {
             });
         });
 
-        test('validates file format, rejecting non-image files', () => {
+        test('validates file format, rejecting non-image files', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const uploadInput = screen.getByLabelText(/upload evidence photos/i);
             const invalidFile = new File(['text-content'], 'notes.txt', { type: 'text/plain' });
@@ -374,8 +489,9 @@ describe('ReportPage workflow', () => {
             expect(screen.getByText(/attached photos \(0\/5\)/i)).toBeInTheDocument();
         });
 
-        test('validates file size, rejecting files over 20 MB', () => {
+        test('validates file size, rejecting files over 20 MB', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const uploadInput = screen.getByLabelText(/upload evidence photos/i);
             const bigFile = new File(['large-content'], 'huge-photo.jpg', { type: 'image/jpeg' });
@@ -392,6 +508,7 @@ describe('ReportPage workflow', () => {
 
         test('enforces maximum 5 photos limit and displays limit banner when full', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             const uploadInput = screen.getByLabelText(/upload evidence photos/i);
             const files = Array.from({ length: 5 }, (_, i) =>
@@ -414,9 +531,21 @@ describe('ReportPage workflow', () => {
         test('submits report with evidence photos in multipart FormData', async () => {
             renderPage();
 
+            // Step 1: location via address.
             fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Barangay Road' } });
-            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 2 of 4');
 
+            // Step 2: incident time.
+            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 3 of 4');
+
+            // Step 3: no casualties to record.
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
+
+            // Step 4: attach a photo, then submit.
             const cameraInput = screen.getByLabelText(/take evidence photo/i);
             const photo = new File(['captured-image'], 'camera-evidence.jpg', { type: 'image/jpeg' });
             fireEvent.change(cameraInput, { target: { files: [photo] } });
@@ -424,6 +553,13 @@ describe('ReportPage workflow', () => {
             await waitFor(() => {
                 expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
             });
+
+            // Photos survive the trip back and forth across steps.
+            fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+            await screen.findByText('Step 3 of 4');
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
+            expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
 
             fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
 
@@ -439,6 +575,7 @@ describe('ReportPage workflow', () => {
 
         test('relies on Submit alone: no manual Save offline button, auto-save is stated', async () => {
             renderPage();
+            await advanceWizardTo(4);
 
             // A single primary action: Submit auto-saves when the signal drops,
             // so there is nothing extra for the reporter to remember.
@@ -460,9 +597,18 @@ describe('ReportPage workflow', () => {
             });
         };
 
-        const fillRequiredFields = () => {
+        const fillRequiredFields = async () => {
+            // Step 1: location via address.
             fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 2 of 4');
+            // Step 2: incident time.
             fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 3 of 4');
+            // Step 3: casualties optional.
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
         };
 
         const submitForm = () => {
@@ -492,7 +638,7 @@ describe('ReportPage workflow', () => {
             });
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
@@ -513,7 +659,7 @@ describe('ReportPage workflow', () => {
             );
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
@@ -537,7 +683,7 @@ describe('ReportPage workflow', () => {
             });
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
@@ -555,7 +701,7 @@ describe('ReportPage workflow', () => {
             });
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
@@ -574,7 +720,7 @@ describe('ReportPage workflow', () => {
             createReportMock.mockRejectedValueOnce(new Error('Network Error'));
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
@@ -591,7 +737,7 @@ describe('ReportPage workflow', () => {
             deviceStorage = installIndexedDbMock();
 
             renderPage();
-            fillRequiredFields();
+            await fillRequiredFields();
             submitForm();
 
             await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
@@ -635,11 +781,15 @@ describe('ReportPage workflow', () => {
         test('renders 4-segment progress cues and accessible status transitions', async () => {
             renderPage();
 
-            // Progress cues in step headers
+            // The guided flow shows one step at a time; the top indicator names
+            // all four steps and each step header keeps its 4-segment cue.
             expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
-            expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
-            expect(screen.getByText('Step 3 of 4')).toBeInTheDocument();
-            expect(screen.getByText('Step 4 of 4')).toBeInTheDocument();
+            expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
+            const progressNav = screen.getByRole('navigation', { name: /report progress/i });
+            expect(progressNav).toHaveTextContent('Location');
+            expect(progressNav).toHaveTextContent('Details');
+            expect(progressNav).toHaveTextContent('Casualties');
+            expect(progressNav).toHaveTextContent('Evidence & review');
 
             // My location button with accessible label
             const myLocationBtn = screen.getByRole('button', { name: /use my current gps location/i });

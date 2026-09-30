@@ -23,6 +23,7 @@ import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import PageHeader from '../components/ui/PageHeader';
+import { HiCheck } from 'react-icons/hi';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
@@ -53,6 +54,96 @@ const DEFAULT_REPORT_FORM = {
         fatalities: '',
         missing: '',
     },
+};
+
+// The guided report flow: exactly one step is visible at a time. headingId
+// points at the focusable h2 inside each step's panel for focus management.
+const STEPS = [
+    { id: 1, label: 'Location', headingId: 'location-heading' },
+    { id: 2, label: 'Details', headingId: 'details-heading' },
+    { id: 3, label: 'Casualties', headingId: 'casualties-heading' },
+    { id: 4, label: 'Evidence & review', headingId: 'evidence-heading' },
+];
+
+const LAST_STEP = STEPS.length;
+
+// Top-of-form progress: all four steps stay visible while only the active
+// step's fields render below. Labels collapse on very small phones; the
+// caption underneath keeps the current step named there.
+const StepIndicator = ({ activeStep }) => (
+    <nav aria-label="Report progress" className="surface-panel px-4 py-3 sm:px-5">
+        <ol className="flex items-center">
+            {STEPS.map((step) => {
+                const isDone = step.id < activeStep;
+                const isCurrent = step.id === activeStep;
+                return (
+                    <li
+                        key={step.id}
+                        aria-current={isCurrent ? 'step' : undefined}
+                        className="flex min-w-0 flex-1 items-center last:flex-none"
+                    >
+                        <span className="flex min-w-0 items-center gap-2">
+                            <span
+                                aria-hidden="true"
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                                    isDone
+                                        ? 'bg-emerald-600 text-white'
+                                        : isCurrent
+                                            ? 'bg-brand-700 text-white dark:bg-sky-500'
+                                            : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'
+                                }`}
+                            >
+                                {isDone ? <HiCheck className="h-3.5 w-3.5" /> : step.id}
+                            </span>
+                            <span
+                                className={`hidden truncate text-xs font-semibold sm:block ${
+                                    isCurrent ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                                }`}
+                            >
+                                {step.label}
+                            </span>
+                        </span>
+                        {step.id < LAST_STEP && (
+                            <span aria-hidden="true" className="mx-2 h-px min-w-[0.5rem] flex-1 bg-gray-200 sm:mx-3 dark:bg-white/10" />
+                        )}
+                    </li>
+                );
+            })}
+        </ol>
+        <p className="mt-2 text-center text-xs font-medium text-gray-500 sm:hidden dark:text-gray-400">
+            Step {activeStep} of {LAST_STEP}: {STEPS[activeStep - 1]?.label}
+        </p>
+    </nav>
+);
+
+// Back/Continue for steps 1-3. Step 4 keeps the existing submit button inside
+// the review section, so only Back renders beneath it.
+const StepNav = ({ activeStep, onBack, onContinue }) => {
+    if (activeStep >= LAST_STEP) {
+        return (
+            <div className="mt-5">
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 px-6">
+                    <span aria-hidden="true">←</span> Back
+                </button>
+            </div>
+        );
+    }
+    return (
+        <div className="mt-5 flex items-stretch gap-3">
+            {activeStep > 1 && (
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 shrink-0 px-6">
+                    <span aria-hidden="true">←</span> Back
+                </button>
+            )}
+            <button
+                type="button"
+                onClick={onContinue}
+                className="btn-primary min-h-12 flex-1 sm:flex-none sm:px-10"
+            >
+                Continue <span aria-hidden="true">→</span>
+            </button>
+        </div>
+    );
 };
 
 const ReportPage = () => {
@@ -104,6 +195,13 @@ const ReportPage = () => {
     const [imagePreviews, setImagePreviews] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    // Guided flow position. All form state lives in this component, so moving
+    // between steps never clears values, photos, previews, or location data —
+    // only the visible step's panel is mounted.
+    const [activeStep, setActiveStep] = useState(1);
+    // Top of the wizard form: step changes scroll the page back here (with a
+    // scroll margin for the fixed header) without moving the fixed chrome.
+    const formTopRef = useRef(null);
     // Populated from a 409 POSSIBLE_DUPLICATE response. Holds the nearby
     // reports the server matched so the reporter can tell them apart.
     const [duplicateWarning, setDuplicateWarning] = useState(null);
@@ -118,31 +216,100 @@ const ReportPage = () => {
         }
     }, [formData.incidentCategory]);
 
-    const validate = () => {
-        const newErrors = {};
+    // Step 1 gate: a location pin or a typed address, and no unconfirmed GPS.
+    const validateLocationStep = () => {
+        const stepErrors = {};
+        const addressRaw = typeof formData.address === 'string'
+            ? formData.address.trim()
+            : String(formData.address ?? '').trim();
+        if (!selectedLocation && !addressRaw) stepErrors.location = 'Please select a location on the map or enter an address';
+        if (locationStatus === 'confirming') stepErrors.location = 'Confirm the GPS position or choose another location before submitting';
+        return stepErrors;
+    };
+
+    // Step 2 gate: incident time is the only required field here.
+    const validateDetailsStep = () => {
+        const stepErrors = {};
         const incidentTimeRaw = typeof formData.incidentTime === 'string'
             ? formData.incidentTime.trim()
             : formData.incidentTime;
         if (!incidentTimeRaw) {
-            newErrors.incidentTime = 'Accident time is required';
+            stepErrors.incidentTime = 'Accident time is required';
         } else {
             const parsedTime = new Date(incidentTimeRaw);
             if (Number.isNaN(parsedTime.getTime())) {
-                newErrors.incidentTime = 'Accident time is invalid';
+                stepErrors.incidentTime = 'Accident time is invalid';
             } else if (parsedTime.getTime() > Date.now()) {
-                newErrors.incidentTime = 'Accident time cannot be in the future';
+                stepErrors.incidentTime = 'Accident time cannot be in the future';
             }
         }
-        const addressRaw = typeof formData.address === 'string'
-            ? formData.address.trim()
-            : String(formData.address ?? '').trim();
-        if (!selectedLocation && !addressRaw) newErrors.location = 'Please select a location on the map or enter an address';
-        if (locationStatus === 'confirming') newErrors.location = 'Confirm the GPS position or choose another location before submitting';
+        return stepErrors;
+    };
+
+    // Step 3 (casualties) has no required fields: blanks mean "not recorded".
+    const validateStep = (step) => {
+        if (step === 1) return validateLocationStep();
+        if (step === 2) return validateDetailsStep();
+        return {};
+    };
+
+    const validate = () => {
+        const newErrors = { ...validateLocationStep(), ...validateDetailsStep() };
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) {
             toast.error('Please complete the required fields');
         }
         return Object.keys(newErrors).length === 0;
+    };
+
+    // Focus target for a failed step validation: the first invalid field, so
+    // the existing inline error is announced beside it.
+    const focusFirstInvalidField = (stepErrors, step) => {
+        const focusSelectors = {
+            location: 'input[name="address"]',
+            incidentTime: 'input[name="incidentTime"]',
+        };
+        window.requestAnimationFrame(() => {
+            for (const key of Object.keys(stepErrors)) {
+                const selector = focusSelectors[key];
+                const field = selector ? document.querySelector(selector) : null;
+                if (field) {
+                    field.focus();
+                    return;
+                }
+            }
+            document.getElementById(STEPS[step - 1]?.headingId)?.focus({ preventScroll: true });
+        });
+    };
+
+    const goToStep = (step) => {
+        const clamped = Math.min(LAST_STEP, Math.max(1, step));
+        setActiveStep(clamped);
+        // Return the form content to its start. The scroll margin on the form
+        // keeps it clear of the fixed header; the fixed bottom nav never moves.
+        window.requestAnimationFrame(() => {
+            try {
+                formTopRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+            } catch {
+                // Scrolling is a nicety; the step change itself must not fail.
+            }
+            document.getElementById(STEPS[clamped - 1]?.headingId)?.focus({ preventScroll: true });
+        });
+    };
+
+    const handleContinue = () => {
+        const stepErrors = validateStep(activeStep);
+        if (Object.keys(stepErrors).length > 0) {
+            setErrors((prev) => ({ ...prev, ...stepErrors }));
+            toast.error('Please complete the required fields');
+            focusFirstInvalidField(stepErrors, activeStep);
+            return;
+        }
+        goToStep(activeStep + 1);
+    };
+
+    const handleBack = () => {
+        goToStep(activeStep - 1);
     };
 
     const handleChange = (e) => {
@@ -457,6 +624,7 @@ const ReportPage = () => {
         setGpsAccuracy(null);
         setLocationCapture(null);
         setErrors({});
+        setActiveStep(1);
     };
 
     const handleImageChange = async (e) => {
@@ -776,7 +944,17 @@ const ReportPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validate()) return;
+        // The submit button only renders on the last step, but an Enter key in
+        // any field submits the form too: advance the wizard instead of filing
+        // an incomplete report from an earlier step.
+        if (activeStep !== LAST_STEP) {
+            handleContinue();
+            return;
+        }
+        if (!validate()) {
+            focusFirstInvalidField({ ...validateLocationStep(), ...validateDetailsStep() }, activeStep);
+            return;
+        }
         await submitReport();
     };
 
@@ -817,48 +995,61 @@ const ReportPage = () => {
                 </div>
             )}
 
-            {/* Guided Form Layout (2-column desktop/tablet, sequential mobile) */}
-            <form onSubmit={handleSubmit} noValidate className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:gap-6 2xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
-                {/* Left Column: Interactive Location Map (Sticky on Desktop) */}
-                <div className="w-full min-w-0 self-start xl:sticky xl:top-4">
-                    <ReportLocationPanel
-                        locationStatus={locationStatus}
-                        geoLoading={geoLoading}
-                        gpsAccuracy={gpsAccuracy}
-                        selectedLocation={selectedLocation}
-                        userLocation={userLocation}
-                        focusLocation={focusLocation}
-                        detectLocation={detectLocation}
-                        retryLocation={retryLocation}
-                        confirmLocation={confirmLocation}
-                        handleLocationSelect={handleLocationSelect}
-                        formData={formData}
-                        handleChange={handleChange}
-                        locationError={errors.location}
-                    />
+            {/* Guided four-step flow: one step visible at a time. The form owns
+                all state, so Back/Continue never clears values, photos, or the
+                location pin. Bottom padding on the page shell keeps this clear
+                of the fixed mobile bottom navigation. */}
+            <form
+                ref={formTopRef}
+                onSubmit={handleSubmit}
+                noValidate
+                className="mx-auto w-full max-w-3xl scroll-mt-24"
+            >
+                <StepIndicator activeStep={activeStep} />
+
+                <div className="mt-4">
+                    {activeStep === 1 && (
+                        <ReportLocationPanel
+                            locationStatus={locationStatus}
+                            geoLoading={geoLoading}
+                            gpsAccuracy={gpsAccuracy}
+                            selectedLocation={selectedLocation}
+                            userLocation={userLocation}
+                            focusLocation={focusLocation}
+                            detectLocation={detectLocation}
+                            retryLocation={retryLocation}
+                            confirmLocation={confirmLocation}
+                            handleLocationSelect={handleLocationSelect}
+                            formData={formData}
+                            handleChange={handleChange}
+                            locationError={errors.location}
+                        />
+                    )}
+
+                    {activeStep >= 2 && (
+                        <ReportDetailsPanel
+                            step={activeStep}
+                            formData={formData}
+                            setFormData={setFormData}
+                            handleChange={handleChange}
+                            errors={errors}
+                            maxDateTime={maxDateTime}
+                            images={images}
+                            imagePreviews={imagePreviews}
+                            fileInputRef={fileInputRef}
+                            cameraInputRef={cameraInputRef}
+                            handleImageChange={handleImageChange}
+                            removeImage={removeImage}
+                            onRetakeImage={retakeImage}
+                            loading={loading}
+                            uploadProgress={uploadProgress}
+                            deviceSaved={deviceSaved}
+                            isOffline={isOffline}
+                        />
+                    )}
                 </div>
 
-                {/* Right Column: Incident Details, Casualties, Evidence, and Review */}
-                <div className="w-full min-w-0">
-                    <ReportDetailsPanel
-                        formData={formData}
-                        setFormData={setFormData}
-                        handleChange={handleChange}
-                        errors={errors}
-                        maxDateTime={maxDateTime}
-                        images={images}
-                        imagePreviews={imagePreviews}
-                        fileInputRef={fileInputRef}
-                        cameraInputRef={cameraInputRef}
-                        handleImageChange={handleImageChange}
-                        removeImage={removeImage}
-                        onRetakeImage={retakeImage}
-                        loading={loading}
-                        uploadProgress={uploadProgress}
-                        deviceSaved={deviceSaved}
-                        isOffline={isOffline}
-                    />
-                </div>
+                <StepNav activeStep={activeStep} onBack={handleBack} onContinue={handleContinue} />
             </form>
 
             <Modal

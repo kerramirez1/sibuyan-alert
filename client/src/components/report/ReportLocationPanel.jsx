@@ -87,7 +87,7 @@ const ReportLocationPanel = ({
                     )}
                 </p>
             </div>
-            <h2 id="location-heading" className="section-title mt-1.5 sm:mt-2">
+            <h2 id="location-heading" tabIndex={-1} className="section-title mt-1.5 sm:mt-2 focus:outline-none">
                 Incident location
             </h2>
             <p className="section-description mt-1 text-xs sm:text-[13px] text-gray-600 dark:text-gray-300">
