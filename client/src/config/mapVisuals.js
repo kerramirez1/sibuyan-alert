@@ -93,13 +93,23 @@ export const MAP_STATUS_CONFIG = Object.freeze({
  * rows). One lookup, so a status cannot be amber on the dashboard and orange in
  * the timeline.
  */
-export const getMapStatusDot = (status) => MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400';
+export const getMapStatusDot = (status) => {
+    if (status === 'active' || status === 'incidents') {
+        return MAP_ACTIVE_INCIDENT_CONFIG.dot;
+    }
+    return MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400';
+};
 
 /**
  * The text tone a status label wears (notification rows and other text-only
  * surfaces). Derived from the same entry as the dot so the two cannot disagree.
  */
-export const getMapStatusTextTone = (status) => MAP_STATUS_CONFIG[status]?.textTone || 'text-gray-600 dark:text-gray-400';
+export const getMapStatusTextTone = (status) => {
+    if (status === 'active' || status === 'incidents') {
+        return 'text-blue-700 dark:text-blue-400';
+    }
+    return MAP_STATUS_CONFIG[status]?.textTone || 'text-gray-600 dark:text-gray-400';
+};
 
 /**
  * Unified active-incident presentation (every rail).

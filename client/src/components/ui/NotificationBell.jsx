@@ -469,7 +469,10 @@ const NotificationBell = () => {
             >
                 <HiOutlineBell className="h-5 w-5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-extrabold text-white shadow-xs">
+                    <span
+                        aria-hidden="true"
+                        className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-extrabold text-white shadow-xs"
+                    >
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}

@@ -173,7 +173,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[240px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[260px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Brand Header */}
                     <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 lg:h-14 lg:px-4">

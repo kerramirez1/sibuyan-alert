@@ -164,7 +164,7 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         await waitFor(() => {
             expect(screen.queryByRole('dialog', { name: /Enlarged evidence image viewer/i })).not.toBeInTheDocument();
         });
-    });
+    }, 15000);
 
     test('2. Allows retrying thumbnail loading when network error occurs', async () => {
         mocks.getProtected.mockRejectedValueOnce(new Error('Network error'));

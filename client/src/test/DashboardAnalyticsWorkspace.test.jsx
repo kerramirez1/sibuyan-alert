@@ -40,7 +40,7 @@ vi.mock('../components/map/MapView', () => ({
     },
 }));
 
-import DashboardAnalyticsWorkspace, { formatXAxisDay } from '../components/dashboard/DashboardAnalyticsWorkspace';
+import DashboardAnalyticsWorkspace, { formatHumanDuration, formatXAxisDay, toSentenceCase } from '../components/dashboard/DashboardAnalyticsWorkspace';
 
 const selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 const report = {
@@ -130,15 +130,24 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(onOpenMap).toHaveBeenCalledTimes(1);
         expect(onOpenReports).toHaveBeenCalledTimes(1);
 
-        // The phone frame is the operations map's 4:3 ratio, not the square this
-        // card used to draw: the same map is the same shape on both pages.
+        // The map container uses responsive aspect ratio: ~21:9 on desktop, ~3:2 on tablet, 4:3 on mobile.
         expect(screen.getByTestId('analytics-map').parentElement).toHaveClass(
             'aspect-[4/3]',
+            'sm:aspect-[3/2]',
+            'lg:aspect-[21/9]',
+            'min-h-[360px]',
+            'sm:min-h-[400px]',
+            'lg:min-h-[420px]',
             'w-full',
-            'sm:aspect-auto',
-            'sm:h-[360px]',
-            'lg:h-[400px]',
         );
+
+        // The side panel renders the status distribution breakdown and top locations
+        const mapSidePanel = screen.getByLabelText('Map distribution and top locations');
+        expect(mapSidePanel).toBeInTheDocument();
+        expect(within(mapSidePanel).getByText('Status distribution')).toBeInTheDocument();
+        expect(within(mapSidePanel).getByText('Top locations')).toBeInTheDocument();
+        expect(within(mapSidePanel).getByText('Poblacion')).toBeInTheDocument();
+
         const recentActivitySection = screen.getByLabelText('Recent activity');
         const activityButton = within(recentActivitySection).getByRole('button', { name: /^View incident queue: E\. Aguinaldo/ });
         expect(activityButton).toHaveTextContent(report.address);
@@ -171,12 +180,12 @@ describe('DashboardAnalyticsWorkspace', () => {
         // are ONE tab: this view used to split them into Verified / Active
         // response / Transferred and call the open set "Active Incidents", the
         // rail's name for the pending-excluded subset.
-        expect(within(rail).getByRole('button', { name: /All open filter \(4 records\), selected/ })).toBeInTheDocument();
+        expect(within(rail).getByRole('button', { name: /All reports filter \(4 records\), selected/ })).toBeInTheDocument();
         expect(within(rail).getByRole('button', { name: /Pending review filter \(1 record\)/ })).toBeInTheDocument();
         expect(within(rail).getByRole('button', { name: /Active incidents filter \(2 records\)/ })).toBeInTheDocument();
         expect(within(rail).getByRole('button', { name: /^Resolved filter \(1 record\)/ })).toBeInTheDocument();
 
-        // They reconcile: All open = Pending review + Active incidents + Resolved,
+        // They reconcile: All reports = Pending review + Active incidents + Resolved,
         // which is what including the closed incidents in `all` buys.
         for (const split of [/Verified filter/i, /Active response filter/i, /Transferred filter/i]) {
             expect(within(rail).queryByRole('button', { name: split })).not.toBeInTheDocument();
@@ -190,7 +199,7 @@ describe('DashboardAnalyticsWorkspace', () => {
         // Selected state is the rail's tinted surface plus its 2px bar — not the
         // `border-b-2` this row used to carry, which the base stylesheet zeroes
         // out on a button and so rendered no selected tab at all.
-        const selected = within(rail).getByRole('button', { name: /All open filter/ });
+        const selected = within(rail).getByRole('button', { name: /All reports filter/ });
         expect(selected).toHaveAttribute('aria-pressed', 'true');
         expect(selected).toHaveClass('bg-gray-100/80', 'font-semibold');
         expect(selected).not.toHaveClass('border-b-2');
@@ -206,6 +215,35 @@ describe('DashboardAnalyticsWorkspace', () => {
 
         fireEvent.click(within(rail).getByRole('button', { name: /Pending review filter/ }));
         expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('pending');
+    });
+
+    test('updates map filter when clicking status rows in the side panel and renders matching status dots', () => {
+        mocks.mapProps.mockClear();
+        const scoped = [
+            { ...report, _id: 'scope-pending', status: 'pending', coordinates: { lat: 12.45, lng: 122.55 } },
+            { ...report, _id: 'scope-verified', status: 'verified', coordinates: { lat: 12.46, lng: 122.56 } },
+        ];
+        render(<DashboardAnalyticsWorkspace {...baseProps} reports={scoped} allReports={scoped} />);
+
+        const sidePanel = screen.getByLabelText('Map distribution and top locations');
+        const statusBreakdown = within(sidePanel).getByRole('group', { name: 'Map status breakdown' });
+
+        // Verify that Active incidents displays the blue dot and each status displays its designated color dot
+        const allRow = within(statusBreakdown).getByRole('button', { name: /All reports/ });
+        const pendingRow = within(statusBreakdown).getByRole('button', { name: /Pending review/ });
+        const activeRow = within(statusBreakdown).getByRole('button', { name: /Active incidents/ });
+        const resolvedRow = within(statusBreakdown).getByRole('button', { name: /Resolved/ });
+
+        expect(allRow.querySelector('.rounded-full')).toHaveClass('bg-gray-400');
+        expect(pendingRow.querySelector('.rounded-full')).toHaveClass('bg-amber-500');
+        expect(activeRow.querySelector('.rounded-full')).toHaveClass('bg-blue-500');
+        expect(resolvedRow.querySelector('.rounded-full')).toHaveClass('bg-green-600');
+
+        fireEvent.click(pendingRow);
+        expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('pending');
+
+        fireEvent.click(allRow);
+        expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('all');
     });
 
     test('opens the monthly map on the operations map default camera', () => {
@@ -289,6 +327,25 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(formatXAxisDay('2026-08-19')).toBe('19');
         expect(formatXAxisDay(null)).toBe('');
         expect(formatXAxisDay(undefined)).toBe('');
+    });
+
+    test('formatHumanDuration converts minutes to readable intervals', () => {
+        expect(formatHumanDuration(0)).toBe('0m');
+        expect(formatHumanDuration(45)).toBe('45m');
+        expect(formatHumanDuration(60)).toBe('1h');
+        expect(formatHumanDuration(422)).toBe('7h 2m');
+        expect(formatHumanDuration(null)).toBe('—');
+        expect(formatHumanDuration(undefined)).toBe('—');
+        expect(formatHumanDuration(-10)).toBe('—');
+    });
+
+    test('toSentenceCase formats labels and removes snake_case delimiters', () => {
+        expect(toSentenceCase('vehicular_accident')).toBe('Vehicular accident');
+        expect(toSentenceCase('medical-emergency')).toBe('Medical emergency');
+        expect(toSentenceCase('fire_incident')).toBe('Fire incident');
+        expect(toSentenceCase('Poblacion')).toBe('Poblacion');
+        expect(toSentenceCase('San Fernando')).toBe('San Fernando');
+        expect(toSentenceCase('')).toBe('');
     });
 
     describe('responsive layout', () => {

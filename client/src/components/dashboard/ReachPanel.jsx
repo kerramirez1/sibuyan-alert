@@ -61,31 +61,35 @@ const ReachPanel = ({
                 <table className="w-full table-fixed text-left" aria-labelledby={titleId} aria-describedby={descriptionId}>
                     <colgroup>
                         <col />
-                        <col className="w-[4.5rem]" />
+                        <col className="w-20" />
                         <col className="w-24" />
                     </colgroup>
                     <thead className={styles.reachHeader}>
                         <tr className={`text-[11px] ${styles.secondary}`}>
                             <th scope="col" className="py-2.5 pl-5 pr-2 font-medium sm:pl-6">Record</th>
                             <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Public</th>
-                            <th scope="col" className="whitespace-nowrap py-2.5 pl-2 pr-5 text-right font-medium sm:pr-6">All viewers</th>
+                            <th scope="col" className="whitespace-nowrap py-2.5 pl-2 pr-5 text-right font-semibold sm:pr-6">All viewers</th>
                         </tr>
                     </thead>
                     <tbody>
                         {safeRows.map((row) => (
                             <tr key={row.id} className={`border-t ${styles.rule}`}>
                                 <td className="break-words py-3 pl-5 pr-2 text-xs font-medium leading-relaxed sm:pl-6">
-                                    {row.label}
-                                    {row.municipalityName ? (
+                                    <span className="block font-medium">{row.label}</span>
+                                    {row.detail ? (
+                                        <span className={`mt-0.5 block text-[11px] font-normal ${styles.subtle}`}>
+                                            {row.detail}
+                                        </span>
+                                    ) : row.municipalityName ? (
                                         <span className={`mt-0.5 block text-[11px] font-normal ${styles.subtle}`}>
                                             {row.municipalityName}
                                         </span>
                                     ) : null}
                                 </td>
-                                <td className={`px-3 py-3 text-right text-sm font-semibold tabular-nums ${styles.accent}`}>
+                                <td className={`px-3 py-3 text-right text-[13px] font-semibold tabular-nums ${styles.accent}`}>
                                     {row.publicViewers}
                                 </td>
-                                <td className={`py-3 pl-2 pr-5 text-right text-xs tabular-nums sm:pr-6 ${styles.secondary}`}>
+                                <td className={`py-3 pl-2 pr-5 text-right text-[13px] font-semibold tabular-nums sm:pr-6 ${styles.secondary}`}>
                                     {row.uniqueViewers}
                                 </td>
                             </tr>
@@ -95,7 +99,7 @@ const ReachPanel = ({
             )}
 
             {footnote ? (
-                <p className={`mt-auto border-t px-5 py-4 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
+                <p className={`mt-auto border-t px-5 py-3 text-[11px] leading-relaxed sm:px-6 ${styles.rule} ${styles.subtle}`}>
                     {footnote}
                 </p>
             ) : null}

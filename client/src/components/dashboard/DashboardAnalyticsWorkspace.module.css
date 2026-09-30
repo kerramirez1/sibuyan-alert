@@ -99,6 +99,7 @@
 
 .periodControl {
     display: flex;
+    min-height: 38px;
     align-items: center;
     justify-content: space-between;
     gap: 2px;
@@ -110,11 +111,11 @@
 
 .periodButton {
     display: inline-flex;
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 32px;
+    min-height: 32px;
     align-items: center;
     justify-content: center;
-    border-radius: 5px;
+    border-radius: 6px;
     color: var(--analytics-secondary);
 }
 
@@ -129,11 +130,12 @@
 .scopeControl {
     display: inline-flex;
     min-width: 0;
+    min-height: 38px;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     border: 1px solid var(--analytics-border);
-    border-radius: 10px;
-    padding: 4px;
+    border-radius: 8px;
+    padding: 3px;
     background: var(--analytics-muted);
 }
 
@@ -144,17 +146,18 @@
        bunched at the left of a full-width track and left two-thirds of it empty. */
     flex: 1 1 0;
     min-width: 0;
-    min-height: 40px;
+    min-height: 32px;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    border-radius: 7px;
+    border-radius: 6px;
     padding: 0 8px;
     color: var(--analytics-secondary);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     line-height: 1;
     white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 @media (min-width: 640px) {
@@ -214,7 +217,15 @@
     border-color: var(--analytics-border);
 }
 
-.metricAttention { background: rgb(245 158 11 / 0.06); }
+.metricAttention {
+    background: rgb(245 158 11 / 0.08);
+    box-shadow: inset 3px 0 0 0 #d97706;
+}
+
+:global(.dark) .metricAttention {
+    background: rgb(245 158 11 / 0.12);
+    box-shadow: inset 3px 0 0 0 #f59e0b;
+}
 
 .metricLabel {
     display: flex;
@@ -240,14 +251,89 @@
     flex-wrap: wrap;
     align-items: center;
     column-gap: 12px;
-    row-gap: 4px;
+    row-gap: 6px;
     margin-top: 16px;
     border-top: 1px solid var(--analytics-border);
     padding-top: 12px;
     color: var(--analytics-secondary);
     font-size: 12px;
-    line-height: 1.7;
+    line-height: 1.6;
     font-variant-numeric: tabular-nums;
+}
+
+.insightItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.insightDivider {
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    background-color: var(--analytics-border);
+}
+
+.deltaBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 9999px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    background: var(--analytics-accent-soft);
+    color: var(--analytics-accent);
+}
+
+.peakButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-weight: 600;
+    color: var(--analytics-accent);
+    background: var(--analytics-accent-soft);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.peakButton:hover {
+    background: var(--analytics-track);
+    color: var(--analytics-ink);
+}
+
+.mapDayChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    border: 1px solid var(--analytics-border);
+    background: var(--analytics-accent-soft);
+    color: var(--analytics-accent);
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mapDayChipClear {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--analytics-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 11px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mapDayChipClear:hover {
+    color: var(--analytics-ink);
+    background: var(--analytics-track);
 }
 
 .tooltip {
@@ -349,6 +435,100 @@
     }
 }
 
+/* Map Card Desktop Split & Side Panel */
+.mapCardSplit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    border-top: 1px solid var(--analytics-border);
+}
+
+@media (min-width: 1024px) {
+    .mapCardSplit {
+        grid-template-columns: minmax(0, 1fr) 280px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .mapCardSplit {
+        grid-template-columns: minmax(0, 1fr) 300px;
+    }
+}
+
+.mapCanvasWrapper {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.mapSidePanel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    background: var(--analytics-surface);
+    border-top: 1px solid var(--analytics-border);
+    min-width: 0;
+}
+
+@media (min-width: 1024px) {
+    .mapSidePanel {
+        border-top: 0;
+        border-left: 1px solid var(--analytics-border);
+        padding: 20px;
+    }
+}
+
+.mapSideSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mapSideHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.mapStatusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--analytics-ink);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mapStatusRow:hover {
+    background-color: var(--analytics-muted);
+}
+
+.mapStatusRowActive {
+    background-color: var(--analytics-accent-soft);
+    font-weight: 600;
+    color: var(--analytics-accent);
+}
+
+.mapBarangayRow {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+}
+
 /* Keep focus visible against both light surfaces and dark map chrome. The
    legacy global button rule suppresses outlines, so scope its replacement. */
 .workspace :is(button, a, select):focus-visible {
@@ -378,3 +558,4 @@
 @media (max-width: 374px) {
     .panel, .metric { padding: 16px; }
 }
+

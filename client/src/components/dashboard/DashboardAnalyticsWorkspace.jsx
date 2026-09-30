@@ -35,7 +35,7 @@ import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { ANALYTICS_SCOPE, countReportsInMonth, filterReportsByPeriodKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
 import { MAP_STATUS_CONFIG } from '../../config/mapVisuals';
-import MapFilterRail from './MapFilterRail';
+import MapFilterRail, { getRailDotClass } from './MapFilterRail';
 import { getFilteredMapReports } from '../../utils/mapReports';
 import { getMapExperience } from '../../config/mapExperience';
 import { getMunicipalityMapFocus } from '../../utils/sibuyanLocations';
@@ -54,12 +54,12 @@ const MAP_STATUS_FILTERS = Object.freeze([
     // `includeResolved` in getFilteredMapReports): a period's incidents are not
     // only the ones still open, and leaving the closed ones out made this tab a
     // smaller set than the sum of the tabs beside it.
-    Object.freeze({ value: 'all', label: 'All open', group: 'status', title: "This month's reports — pending, being handled, and closed" }),
+    Object.freeze({ value: 'all', label: 'All reports', group: 'status', title: "This period's reports — pending, being handled, and closed" }),
     Object.freeze({ value: 'pending', label: 'Pending review', group: 'status', title: 'Unverified reports awaiting review' }),
     Object.freeze({ value: 'active', label: 'Active incidents', group: 'status', title: 'Verified, transferred, and responding incidents' }),
     // Resolved is a status here, not the operations rail's archive layer: this
     // view is one month, and that month's closed incidents are part of it — they
-    // sit inside All open, and this tab is how a viewer isolates them. The rail's
+    // sit inside All reports, and this tab is how a viewer isolates them. The rail's
     // Resolved archive is a different set (every closed record, whatever month),
     // which is why the label differs.
     Object.freeze({ value: 'resolved', label: MAP_STATUS_CONFIG.resolved.label, group: 'status', title: "This month's closed incidents" }),
@@ -70,11 +70,11 @@ const MAP_STATUS_FILTERS = Object.freeze([
 ]);
 
 const SEVERITY_SERIES = Object.freeze([
-    Object.freeze({ key: 'minor', label: 'Minor', fill: '#10B981' }),
+    Object.freeze({ key: 'minor', label: 'Minor', fill: '#818CF8' }),
     Object.freeze({ key: 'moderate', label: 'Moderate', fill: '#F59E0B' }),
-    Object.freeze({ key: 'severe', label: 'Severe', fill: '#F97316' }),
-    Object.freeze({ key: 'critical', label: 'Critical', fill: '#EF4444' }),
-    Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#9CA3AF' }),
+    Object.freeze({ key: 'severe', label: 'Severe', fill: '#EA580C' }),
+    Object.freeze({ key: 'critical', label: 'Critical', fill: '#DC2626' }),
+    Object.freeze({ key: 'unknown', label: 'Unknown', fill: '#94A3B8' }),
 ]);
 
 /**
@@ -247,6 +247,33 @@ export const buildIncidentCountAxis = (totals = []) => {
 };
 
 /**
+ * Formats a duration in minutes into a human-readable string (e.g. 422m -> 7h 2m).
+ */
+export const formatHumanDuration = (minutes) => {
+    if (minutes === null || minutes === undefined) return '—';
+    const min = Number(minutes);
+    if (!Number.isFinite(min) || min < 0) return '—';
+    const wholeMinutes = Math.round(min);
+    if (wholeMinutes < 60) return `${wholeMinutes}m`;
+    const hours = Math.floor(wholeMinutes / 60);
+    const rem = wholeMinutes % 60;
+    return rem > 0 ? `${hours}h ${rem}m` : `${hours}h`;
+};
+
+/**
+ * Normalizes text to sentence-case, converting underscores/hyphens to spaces.
+ */
+export const toSentenceCase = (text) => {
+    if (!text) return '';
+    const str = String(text).trim();
+    if (/[_-]/.test(str)) {
+        const words = str.replace(/[_-]+/g, ' ').trim().toLowerCase();
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    }
+    return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+/**
  * A total is drawn only where its digits fit the bucket's own slot on the plot.
  * Labels that would overprint their neighbour are dropped instead, and the exact
  * counts stay in the tooltip, the day list and the chart's description. An
@@ -325,10 +352,10 @@ const MetricTile = ({ label, value, helper, status, accent = null }) => {
                 <span className={`h-2 w-2 shrink-0 rounded-full ${MAP_STATUS_CONFIG[status]?.dot || 'bg-gray-400'}`} aria-hidden="true" />
                 {label}
             </dt>
-            <dd className={`${styles.metricValue} ${accent ? 'text-amber-700 dark:text-amber-400' : isZero ? styles.secondary : ''}`}>{value}</dd>
+            <dd className={`${styles.metricValue} ${accent ? 'text-amber-800 dark:text-amber-400' : isZero ? 'text-slate-400 dark:text-slate-500' : ''}`}>{value}</dd>
             <dd className={`mt-1.5 text-xs leading-relaxed ${styles.secondary}`}>{helper}</dd>
             {accent && (
-                <dd className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                <dd className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 dark:text-amber-400">
                     <HiOutlineExclamationCircle className="h-3.5 w-3.5" aria-hidden="true" />
                     {accent}
                 </dd>
@@ -401,6 +428,7 @@ const TrendPanel = ({
         <div className={`${PANEL_CLASS} xl:col-span-3`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0 sm:shrink-0">
+                    <p className={SECTION_LABEL_CLASS}>Trend analysis</p>
                     <h2 className={PANEL_TITLE_CLASS}>Incident trend</h2>
                     <p className={PANEL_DESCRIPTION_CLASS}>{copy.volumePrefix} {periodLabel}</p>
                 </div>
@@ -420,29 +448,47 @@ const TrendPanel = ({
             </div>
 
             <div data-testid="trend-insight" className={styles.trendInsight}>
-                <span className={`font-semibold ${styles.accent}`}>{reportLabel}</span>
+                <span className={styles.insightItem}>
+                    <span className={`font-semibold ${styles.accent}`}>{reportLabel}</span>
+                </span>
+                {insight.delta && (
+                    <>
+                        <span className={styles.insightDivider} aria-hidden="true" />
+                        <span className={styles.insightItem}>
+                            <span className={styles.deltaBadge}>{insight.delta.label}</span>
+                        </span>
+                    </>
+                )}
                 {insight.peak && (
-                    <span className="inline-flex items-center gap-1">
-                        Peak
-                        <button
-                            type="button"
-                            onClick={() => onSelectDay?.(insight.peak.dayKey)}
-                            title={`Filter map to ${insight.peak.fullDate}`}
-                            aria-label={`Filter map to ${insight.peak.fullDate}`}
-                            aria-pressed={selectedDay === insight.peak.dayKey}
-                            className={`rounded px-1 font-semibold underline decoration-dotted underline-offset-4 ${styles.accent}`}
-                        >
-                            {insight.peak.label}
-                        </button>
-                        <span>({insight.peak.count})</span>
-                    </span>
+                    <>
+                        <span className={styles.insightDivider} aria-hidden="true" />
+                        <span className={styles.insightItem}>
+                            <span>Peak</span>
+                            <button
+                                type="button"
+                                onClick={() => onSelectDay?.(insight.peak.dayKey)}
+                                title={`Filter map to ${insight.peak.fullDate}`}
+                                aria-label={`Filter map to ${insight.peak.fullDate}`}
+                                aria-pressed={selectedDay === insight.peak.dayKey}
+                                className={styles.peakButton}
+                            >
+                                <HiOutlineCalendar className="h-3.5 w-3.5" aria-hidden="true" />
+                                {insight.peak.label}
+                            </button>
+                            <span className={styles.subtle}>({insight.peak.count})</span>
+                        </span>
+                    </>
                 )}
                 {insight.total > 0 && insight.quietDays > 0 && (
-                    <span>
-                        {insight.quietDays} quiet {insight.quietDays === 1 ? copy.bucketNoun : `${copy.bucketNoun}s`} of {safeChartData.length}
-                    </span>
+                    <>
+                        <span className={styles.insightDivider} aria-hidden="true" />
+                        <span className={styles.insightItem}>
+                            <span>
+                                {insight.quietDays} quiet {insight.quietDays === 1 ? copy.bucketNoun : `${copy.bucketNoun}s`} of {safeChartData.length}
+                            </span>
+                        </span>
+                    </>
                 )}
-                {insight.delta && <span className={styles.subtle}>{insight.delta.label}</span>}
             </div>
 
             {!hasTrendData ? (
@@ -552,6 +598,7 @@ const LifecyclePanel = ({ statusData = [], totalReports = 0, periodLabel = '' })
     <div className={`${PANEL_CLASS} border-t xl:col-span-2 xl:border-l xl:border-t-0 ${styles.rule}`}>
         <div className={PANEL_HEADER_CLASS}>
             <div className="min-w-0">
+                <p className={SECTION_LABEL_CLASS}>Lifecycle</p>
                 <h2 className={PANEL_TITLE_CLASS}>Report lifecycle</h2>
                 <p className={PANEL_DESCRIPTION_CLASS}>Status distribution for {periodLabel}</p>
             </div>
@@ -615,6 +662,7 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
         <div className={PANEL_CLASS}>
             <div className={PANEL_HEADER_CLASS}>
                 <div className="min-w-0">
+                    <p className={SECTION_LABEL_CLASS}>Distribution</p>
                     <h2 className={PANEL_TITLE_CLASS}>{title}</h2>
                     <p className={PANEL_DESCRIPTION_CLASS}>{description}</p>
                 </div>
@@ -641,7 +689,7 @@ const RankedBreakdownPanel = ({ title, description, data = [], emptyDetail, isMu
                                 <span className={`pt-0.5 text-[11px] font-medium tabular-nums ${isTop ? styles.accent : styles.subtle}`} aria-hidden="true">
                                     {String(index + 1).padStart(2, '0')}
                                 </span>
-                                <span className="min-w-0 break-words text-[13px] font-medium leading-5">{item.name}</span>
+                                <span className="min-w-0 break-words text-[13px] font-medium leading-5">{toSentenceCase(item.name)}</span>
                                 <span className="flex items-baseline gap-2 text-[13px] font-semibold tabular-nums">
                                     {count} <span className={`w-9 text-right text-xs font-normal ${styles.secondary}`}>{percentage}%</span>
                                 </span>
@@ -732,6 +780,36 @@ const DashboardAnalyticsWorkspace = ({
     const isAdminViewer = user?.role === 'municipal_admin' || user?.role === 'admin';
     const { reach } = useReachData({ enabled: Boolean(isAdminViewer) });
 
+    // Enrich reach reports with barangay and date to distinguish duplicate titles
+    const enrichedReportReach = useMemo(() => {
+        if (!reach?.reports || !Array.isArray(reach.reports)) return [];
+        const reportMap = new Map();
+        safeAllReports.forEach((rpt) => {
+            if (rpt?._id) reportMap.set(String(rpt._id), rpt);
+            if (rpt?.id) reportMap.set(String(rpt.id), rpt);
+        });
+
+        return reach.reports.map((row) => {
+            const matched = reportMap.get(String(row.id));
+            if (!matched) return row;
+            const parts = [];
+            if (matched.barangay) {
+                parts.push(`Brgy. ${matched.barangay}`);
+            }
+            if (matched.createdAt) {
+                const dateObj = toValidDate(matched.createdAt);
+                if (dateObj) {
+                    parts.push(formatMonthLabel(dateObj, 'MMM d', ''));
+                }
+            }
+            const detail = parts.length > 0 ? parts.join(' · ') : null;
+            return {
+                ...row,
+                detail: detail || row.municipalityName || null,
+            };
+        });
+    }, [reach?.reports, safeAllReports]);
+
     // The analytics map opens on the same camera as the operations map, because
     // it is the same map shown from a different page. Both were given the same
     // MapView, but only the operations workspace handed it a home camera, so
@@ -799,6 +877,21 @@ const DashboardAnalyticsWorkspace = ({
         ? filterReportsByPeriodKey(safeReports, { scope: analyticsScope, periodKey: selectedDay })
         : safeReports;
     const selectedDayLabel = safeChartData.find((day) => day?.dayKey === selectedDay)?.date || selectedDay;
+
+    const topMapBarangays = useMemo(() => {
+        if (selectedDay) {
+            const counts = new Map();
+            toSafeArray(mapDayReports).forEach((rpt) => {
+                const b = rpt?.barangay || 'Unknown';
+                counts.set(b, (counts.get(b) || 0) + 1);
+            });
+            return Array.from(counts.entries())
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 4);
+        }
+        return toSafeArray(barangayBarData).slice(0, 4);
+    }, [selectedDay, mapDayReports, barangayBarData]);
 
     // Every tab counts its own set on the month's reports, `all` included — and
     // `all` counts the closed ones too, so the four counts reconcile: All open =
@@ -1079,7 +1172,10 @@ const DashboardAnalyticsWorkspace = ({
 
             <section aria-label="Analytics summary">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <h2 className={SECTION_LABEL_CLASS}>Incident overview</h2>
+                    <div>
+                        <p className={SECTION_LABEL_CLASS}>Summary</p>
+                        <h2 className="mt-0.5 font-display text-base font-semibold leading-snug text-gray-900 sm:text-[17px] dark:text-white">Incident overview</h2>
+                    </div>
                     <p className={`text-[11px] ${styles.subtle}`}>
                         Operational status · {scopeMetaSuffix}
                     </p>
@@ -1126,12 +1222,15 @@ const DashboardAnalyticsWorkspace = ({
                             <dt className={`flex items-center gap-1.5 text-xs ${styles.secondary}`}>
                                 <HiOutlineClock className="h-4 w-4 shrink-0" aria-hidden="true" />Median response
                             </dt>
-                            <dd className="mt-1 text-lg font-semibold tabular-nums">
-                                {safeMetrics.medianResponseMin === null || safeMetrics.medianResponseMin === undefined ? '—' : `${safeMetrics.medianResponseMin}m`}
+                            <dd
+                                className="mt-1 text-lg font-semibold tabular-nums"
+                                title={safeMetrics.medianResponseMin !== null && safeMetrics.medianResponseMin !== undefined ? `${safeMetrics.medianResponseMin} minutes exact` : undefined}
+                            >
+                                {formatHumanDuration(safeMetrics.medianResponseMin)}
                             </dd>
                             <dd className={`mt-0.5 text-[11px] ${styles.subtle}`}>
                                 {safeMetrics.responseSampleCount
-                                    ? `Based on ${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'}`
+                                    ? `Based on ${safeMetrics.responseSampleCount} responded incident${safeMetrics.responseSampleCount === 1 ? '' : 's'}${Number.isFinite(Number(safeMetrics.medianResponseMin)) ? ` · ${safeMetrics.medianResponseMin}m exact` : ''}`
                                     : 'No responded incidents'}
                             </dd>
                         </div>
@@ -1184,7 +1283,25 @@ const DashboardAnalyticsWorkspace = ({
                 <div className="flex flex-col gap-4 px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
                     <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
                         <div className="min-w-0">
-                            <h2 className={PANEL_TITLE_CLASS}>{SCOPE_MAP_HEADING[analyticsScope] || SCOPE_MAP_HEADING[ANALYTICS_SCOPE.MONTHLY]}</h2>
+                            <p className={SECTION_LABEL_CLASS}>Geographic distribution</p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                <h2 className={PANEL_TITLE_CLASS}>{SCOPE_MAP_HEADING[analyticsScope] || SCOPE_MAP_HEADING[ANALYTICS_SCOPE.MONTHLY]}</h2>
+                                {selectedDay && (
+                                    <span className={styles.mapDayChip} role="status" aria-label={`Active filter: ${selectedDayLabel}`}>
+                                        <HiOutlineCalendar className="h-3.5 w-3.5" aria-hidden="true" />
+                                        <span>Filtered: {selectedDayLabel}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedDay(null)}
+                                            aria-label={`Clear filter for ${selectedDayLabel}`}
+                                            className={styles.mapDayChipClear}
+                                        >
+                                            <HiOutlineX className="h-3 w-3" aria-hidden="true" />
+                                            <span className="sr-only">Clear filter</span>
+                                        </button>
+                                    </span>
+                                )}
+                            </div>
                             <p className={PANEL_DESCRIPTION_CLASS}>
                                 Geographic incident distribution for {periodLabel}
                             </p>
@@ -1245,31 +1362,104 @@ const DashboardAnalyticsWorkspace = ({
                     )}
                 </div>
 
-                {/* The operations map's phone frame: a 4:3 canvas, so a narrow
-                    viewport gets a map as wide as it is tall rather than the
-                    square this used to be — the ratio the mobile incident map
-                    was measured into, so the same map is the same shape on both
-                    pages. From sm the flat heights take over, as before. */}
-                <div className="aspect-[4/3] w-full sm:aspect-auto sm:h-[360px] lg:h-[400px]">
-                    {/* No `highRiskZones`: the hazard layer has no tab here, and
-                        the canvas only draws zones for a filter that asks for
-                        them — so passing them would load and measure a layer
-                        that can never be seen. `allIncludesResolved` is what
-                        makes the canvas agree with the All open tab above it:
-                        both count the month's closed incidents as well. */}
-                    <MapView
-                        reports={mapDayReports}
-                        showPending
-                        filterStatus={mapStatusFilter}
-                        allIncludesResolved
-                        viewerRole={user?.role || 'guest'}
-                        showDataState
-                        enable3D
-                        className="h-full w-full"
-                        focusLocation={focusLocation}
-                        homeFocus={municipalityHomeFocus}
-                        frameReportsOnOpen={mapExperience.framesReportsOnOpen}
-                    />
+                <div className={styles.mapCardSplit}>
+                    <div className={`${styles.mapCanvasWrapper} aspect-[4/3] sm:aspect-[3/2] lg:aspect-[21/9] min-h-[360px] sm:min-h-[400px] lg:min-h-[420px] max-h-[min(640px,65vh)] w-full`}>
+                        <MapView
+                            reports={mapDayReports}
+                            showPending
+                            filterStatus={mapStatusFilter}
+                            allIncludesResolved
+                            viewerRole={user?.role || 'guest'}
+                            showDataState
+                            enable3D
+                            className="h-full w-full"
+                            focusLocation={focusLocation}
+                            homeFocus={municipalityHomeFocus}
+                            frameReportsOnOpen={mapExperience.framesReportsOnOpen}
+                        />
+                    </div>
+
+                    <aside className={styles.mapSidePanel} aria-label="Map distribution and top locations">
+                        <div className="flex flex-col gap-4">
+                            <div className={styles.mapSideSection}>
+                                <div className={styles.mapSideHeader}>
+                                    <p className={SECTION_LABEL_CLASS}>Status distribution</p>
+                                    <span className={styles.meta}>{safeCount(mapDayReports)} total</span>
+                                </div>
+                                <div className="flex flex-col gap-1" role="group" aria-label="Map status breakdown">
+                                    {MAP_STATUS_FILTERS.map((filter) => {
+                                        const count = getMapFilterCount(filter.value);
+                                        const total = safeCount(mapDayReports);
+                                        const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                                        const isSelected = mapStatusFilter === filter.value;
+                                        const dotClass = getRailDotClass(filter.value);
+
+                                        return (
+                                            <button
+                                                key={filter.value}
+                                                type="button"
+                                                onClick={() => setMapStatusFilter(filter.value)}
+                                                aria-pressed={isSelected}
+                                                className={`${styles.mapStatusRow} ${isSelected ? styles.mapStatusRowActive : ''}`}
+                                                title={filter.title}
+                                            >
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+                                                    <span className="truncate">{filter.label}</span>
+                                                </span>
+                                                <span className="flex shrink-0 items-center gap-2 tabular-nums">
+                                                    <span className="font-semibold">{count}</span>
+                                                    <span className={`w-8 text-right text-[11px] ${styles.secondary}`}>{percentage}%</span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className={`${styles.mapSideSection} border-t pt-3 ${styles.rule}`}>
+                                <div className={styles.mapSideHeader}>
+                                    <p className={SECTION_LABEL_CLASS}>Top locations</p>
+                                    {topMapBarangays.length > 0 && (
+                                        <span className={styles.meta}>{topMapBarangays.length} {topMapBarangays.length === 1 ? 'area' : 'areas'}</span>
+                                    )}
+                                </div>
+                                {topMapBarangays.length > 0 ? (
+                                    <div className="flex flex-col gap-2">
+                                        {topMapBarangays.map((item, index) => {
+                                            const total = safeCount(mapDayReports);
+                                            const count = Number(item?.count) || 0;
+                                            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                                            const isTop = index === 0 && count > 0;
+
+                                            return (
+                                                <div key={item.name || index} className={styles.mapBarangayRow}>
+                                                    <span className={`text-[11px] font-medium tabular-nums ${isTop ? styles.accent : styles.subtle}`} aria-hidden="true">
+                                                        {String(index + 1).padStart(2, '0')}
+                                                    </span>
+                                                    <span className="truncate font-medium">{toSentenceCase(item.name)}</span>
+                                                    <span className="flex items-baseline gap-1.5 font-semibold tabular-nums">
+                                                        {count}
+                                                        <span className={`text-[11px] font-normal ${styles.secondary}`}>{percentage}%</span>
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className={`py-1 text-xs ${styles.subtle}`}>
+                                        No location data in this period.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={`border-t pt-3 text-[11px] ${styles.rule} ${styles.subtle}`}>
+                            {selectedDay
+                                ? `Filtered to ${selectedDayLabel} · ${safeCount(mapDayReports)} ${safeCount(mapDayReports) === 1 ? 'report' : 'reports'}`
+                                : `Showing ${safeCount(mapDayReports)} ${safeCount(mapDayReports) === 1 ? 'report' : 'reports'} · ${hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide'}`}
+                        </div>
+                    </aside>
                 </div>
             </section>
 
@@ -1325,7 +1515,7 @@ const DashboardAnalyticsWorkspace = ({
                         <ReachPanel
                             title="Incident reach"
                             description="Distinct viewers who opened each incident"
-                            rows={reach.reports}
+                            rows={enrichedReportReach}
                             emptyDetail="No incident details have been opened yet."
                         />
                         <ReachPanel
@@ -1335,7 +1525,7 @@ const DashboardAnalyticsWorkspace = ({
                             emptyDetail="No hazard area details have been opened yet."
                         />
                     </div>
-                        <p className={`border-t px-5 py-3.5 text-xs leading-relaxed sm:px-6 ${styles.rule} ${styles.secondary}`}>
+                        <p className={`border-t px-5 py-3 text-xs leading-relaxed sm:px-6 ${styles.rule} ${styles.secondary}`}>
                             {REACH_EXPLANATION}
                         </p>
                 </section>
@@ -1344,8 +1534,13 @@ const DashboardAnalyticsWorkspace = ({
             <section ref={historySectionRef} className={`${PANEL_SURFACE} scroll-mt-4`} aria-label="Recent activity">
                 <div className="flex flex-col items-start gap-1 px-5 py-5 sm:flex-row sm:justify-between sm:gap-4 sm:px-6">
                     <div>
+                        <p className={SECTION_LABEL_CLASS}>Activity feed</p>
                         <h2 className={PANEL_TITLE_CLASS}>Recent activity</h2>
-                        <p className={PANEL_DESCRIPTION_CLASS}>Latest updates across the current scope · All dates</p>
+                        <p className={PANEL_DESCRIPTION_CLASS}>
+                            {analyticsScope === ANALYTICS_SCOPE.ALL_TIME
+                                ? 'Latest updates across all recorded incidents'
+                                : `Latest updates across the current scope · ${periodLabel}`}
+                        </p>
                     </div>
                     <button
                         type="button"
@@ -1379,10 +1574,14 @@ const DashboardAnalyticsWorkspace = ({
                                                     <span aria-hidden="true">·</span>
                                                 </span>
                                                 <span className="inline-flex items-baseline gap-2">
-                                                    <span>{reportItem.incidentType ? String(reportItem.incidentType).replace(/[_-]+/g, ' ') : 'Unclassified incident'}</span>
+                                                    <span>{toSentenceCase(reportItem.incidentType) || 'Unclassified incident'}</span>
                                                     <span aria-hidden="true">·</span>
                                                 </span>
-                                                <time dateTime={reportItem.updatedAt || reportItem.createdAt} className={styles.subtle}>
+                                                <time
+                                                    dateTime={reportItem.updatedAt || reportItem.createdAt}
+                                                    className={styles.subtle}
+                                                    title={toValidDate(reportItem.updatedAt || reportItem.createdAt)?.toLocaleString() || undefined}
+                                                >
                                                     {formatActivityTime(reportItem.updatedAt || reportItem.createdAt)}
                                                 </time>
                                             </span>
