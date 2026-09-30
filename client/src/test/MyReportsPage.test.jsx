@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -392,6 +392,43 @@ describe('reporter situation update flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Discard/i }));
         await waitFor(() => expect(discardReport).toHaveBeenCalledWith('rep-queued'));
+
+        mocks.offlineSync = {
+            pendingCount: 0,
+            deliverableCount: 0,
+            blockedReports: [],
+            isSyncing: false,
+            sync: vi.fn(),
+            resolveBlockedReport: vi.fn(),
+            discardReport: vi.fn(),
+        };
+    });
+
+    test('opens the location correction for a GPS-accuracy block', async () => {
+        mocks.offlineSync = {
+            pendingCount: 1,
+            deliverableCount: 0,
+            blockedReports: [{
+                clientReportId: 'rep-gps',
+                blockedCode: 'rejected',
+                blockedReason: 'GPS accuracy must be 100 meters or better. Please retry GPS or pin the incident on the map.',
+                queuedAt: Date.now(),
+                label: 'Cajidiocan Port',
+                coordinates: { lat: 12.3, lng: 122.1 },
+            }],
+            isSyncing: false,
+            sync: vi.fn(),
+            resolveBlockedReport: vi.fn(),
+            discardReport: vi.fn(),
+        };
+
+        renderPage();
+
+        fireEvent.click(await screen.findByRole('button', { name: /Fix location: Cajidiocan Port/i }));
+
+        const dialog = await screen.findByRole('dialog', { name: 'Fix report location' });
+        expect(within(dialog).getByText(/GPS accuracy must be 100 meters or better/i)).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: /Capture GPS position/i })).toBeInTheDocument();
 
         mocks.offlineSync = {
             pendingCount: 0,

@@ -42,6 +42,7 @@
  */
 
 import { QUEUED_REPORT_SENDING_STALE_MS } from '../config/reportSubmission';
+import { GPS_MAX_ACCURACY_METERS } from '../utils/locationQuality';
 
 const DB_NAME = 'sibuyan-offline';
 const DB_VERSION = 1;
@@ -99,6 +100,53 @@ export const POSSIBLE_DUPLICATE_CODE = 'POSSIBLE_DUPLICATE';
 export const QUEUE_BLOCKED_CODES = {
     duplicate: 'duplicate',
     rejected: 'rejected',
+};
+
+/** What the reporter can actually do about a blocked report. */
+export const BLOCKED_RECOVERY = {
+    /** The reporter answers the server's duplicate question. */
+    confirmDuplicate: 'confirm-duplicate',
+    /** The location can be corrected from the queue UI, then retried. */
+    correctLocation: 'correct-location',
+    /** Nothing on the device can fix this: show instructions, not a retry. */
+    guidance: 'guidance',
+};
+
+/**
+ * True when the block is the server's GPS-accuracy rejection, which the
+ * reporter can fix by capturing a fresh position or placing the pin by hand.
+ *
+ * Detected from the payload the server actually refused — a GPS source whose
+ * accuracy is missing or worse than the server's 100-meter rule — so the
+ * classification survives a reworded message. The server's own wording is the
+ * fallback for entries whose fields were patched by an older build.
+ */
+export const isGpsAccuracyBlocked = (entry = {}) => {
+    const fields = entry?.fields || {};
+    const accuracy = Number(fields.locationAccuracy);
+    const accuracyInsufficient = fields.locationAccuracy === undefined
+        || fields.locationAccuracy === null
+        || fields.locationAccuracy === ''
+        || !Number.isFinite(accuracy)
+        || accuracy > GPS_MAX_ACCURACY_METERS;
+    if (fields.locationSource === 'gps' && accuracyInsufficient) return true;
+    return /gps accuracy/i.test(entry?.blockedReason || '');
+};
+
+/**
+ * Maps a blocked entry to the recovery the queue UI should offer.
+ *
+ * A GPS-accuracy rejection must never get the blind "try again": the stored
+ * payload is byte-for-byte what the server just refused, so retrying it is a
+ * guaranteed second rejection. Anything else the reporter cannot fix from the
+ * queue gets guidance instead of a retry that cannot succeed.
+ */
+export const getBlockedReportRecovery = (entry = {}) => {
+    if ((entry?.blockedCode || QUEUE_BLOCKED_CODES.rejected) === QUEUE_BLOCKED_CODES.duplicate) {
+        return BLOCKED_RECOVERY.confirmDuplicate;
+    }
+    if (isGpsAccuracyBlocked(entry)) return BLOCKED_RECOVERY.correctLocation;
+    return BLOCKED_RECOVERY.guidance;
 };
 
 /**
@@ -452,6 +500,64 @@ export const describeQueuedReport = (entry = {}) => ({
 });
 
 /**
+ * Corrects the location on a stored entry in place.
+ *
+ * The GPS-accuracy rejection is correctable: the entry keeps its attachments,
+ * its queued position, its reporter, and — crucially — its `clientReportId`,
+ * so the corrected replay still collapses into one server report. A
+ * hand-placed pin drops the stale GPS accuracy outright: keeping the old
+ * meters would make the server (and any reader) believe this was a GPS fix.
+ *
+ * The block is cleared as part of the same patch, so the next pass delivers
+ * the corrected payload instead of the refused one. Nothing is removed here:
+ * the entry leaves the queue only after the server acknowledges the replay,
+ * exactly like any other delivery.
+ *
+ * @returns {Promise<boolean>} true when the entry was patched, false when it
+ *   is gone from the queue (delivered elsewhere, discarded) or the correction
+ *   itself is invalid — a missing entry is never recreated.
+ */
+export const updateQueuedReportLocation = async (clientReportId, {
+    lat,
+    lng,
+    locationSource,
+    locationAccuracy = null,
+    locationCapturedAt = null,
+} = {}) => {
+    const submitLat = Number(lat);
+    const submitLng = Number(lng);
+    if (!Number.isFinite(submitLat) || !Number.isFinite(submitLng)) return false;
+    if (locationSource !== 'gps' && locationSource !== 'map_pin') return false;
+    if (locationSource === 'gps') {
+        // The server rejects a GPS fix worse than 100 meters, so the queue
+        // must never hold a "corrected" GPS entry it is about to refuse again.
+        const meters = Number(locationAccuracy);
+        if (!Number.isFinite(meters) || meters < 0 || meters > GPS_MAX_ACCURACY_METERS) return false;
+    }
+
+    const patched = await patchQueuedReport(clientReportId, (entry) => {
+        const nextFields = { ...entry.fields };
+        nextFields.lat = submitLat;
+        nextFields.lng = submitLng;
+        nextFields.locationSource = locationSource;
+        if (locationSource === 'gps') {
+            nextFields.locationAccuracy = Number(locationAccuracy);
+        } else {
+            delete nextFields.locationAccuracy;
+        }
+        nextFields.locationCapturedAt = locationCapturedAt || new Date().toISOString();
+        return {
+            fields: nextFields,
+            blockedReason: null,
+            blockedCode: null,
+        };
+    });
+
+    if (patched) notifyQueueChanged();
+    return patched;
+};
+
+/**
  * Clears the blocked state so the next pass may attempt the report again.
  *
  * `confirmDistinct` carries the reporter's answer to the duplicate question the
@@ -584,10 +690,15 @@ export default {
     isTransientSubmitFailure,
     POSSIBLE_DUPLICATE_CODE,
     QUEUE_BLOCKED_CODES,
+    BLOCKED_RECOVERY,
+    getBlockedReportRecovery,
+    isGpsAccuracyBlocked,
     describeSubmitFailure,
     subscribeToQueueChanges,
     enqueueReport,
     listQueuedReports,
+    patchQueuedReport,
+    updateQueuedReportLocation,
     removeQueuedReport,
     clearQueuedReportSending,
     resolveBlockedQueuedReport,

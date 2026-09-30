@@ -27,6 +27,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import ImageViewer from '../components/ui/ImageViewer';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
 import OfflineQueueBanner from '../components/reporterReports/OfflineQueueBanner';
+import QueuedReportLocationFix from '../components/reporterReports/QueuedReportLocationFix';
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
@@ -282,6 +283,7 @@ function MyReportsPage() {
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [viewerItem, setViewerItem] = useState(null);
     const [updateDialogReportId, setUpdateDialogReportId] = useState(null);
+    const [fixingClientReportId, setFixingClientReportId] = useState(null);
     const [highlightedUpdates, setHighlightedUpdates] = useState({});
     const [submittingUpdateId, setSubmittingUpdateId] = useState(null);
     const [searchParams] = useSearchParams();
@@ -573,6 +575,7 @@ function MyReportsPage() {
                         toast.success('Queued report discarded.');
                     }
                 }}
+                onFixLocation={(clientReportId) => setFixingClientReportId(clientReportId)}
             />
 
             {loading ? (
@@ -942,6 +945,14 @@ function MyReportsPage() {
                 submitting={submittingUpdateId === updateDialogReportId}
                 onClose={() => setUpdateDialogReportId(null)}
                 onSubmit={(update) => handleSubmitUpdate(updateDialogReportId, update)}
+            />
+            <QueuedReportLocationFix
+                isOpen={Boolean(fixingClientReportId && (Array.isArray(blockedReports) ? blockedReports : [])
+                    .some((report) => report?.clientReportId === fixingClientReportId))}
+                blockedReport={(Array.isArray(blockedReports) ? blockedReports : [])
+                    .find((report) => report?.clientReportId === fixingClientReportId) || null}
+                isOnline={isOnline}
+                onClose={() => setFixingClientReportId(null)}
             />
             <ImageViewer
                 isOpen={Boolean(viewerItem)}

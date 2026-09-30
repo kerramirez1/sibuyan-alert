@@ -45,6 +45,7 @@ vi.mock('../utils/offlineReportQueue', async (importOriginal) => {
 });
 
 import { nextRetryDelay, useOfflineReportSync } from '../hooks/useOfflineReportSync';
+import { BLOCKED_RECOVERY } from '../utils/offlineReportQueue';
 import {
     OFFLINE_SYNC_RETRY_BASE_MS,
     OFFLINE_SYNC_RETRY_MAX_MS,
@@ -178,12 +179,45 @@ describe('useOfflineReportSync', () => {
             blockedCode: 'duplicate',
             blockedReason: 'A similar incident was already reported nearby.',
             label: 'Cajidiocan Port',
+            recovery: BLOCKED_RECOVERY.confirmDuplicate,
+            coordinates: null,
         });
         // Still owed to the server, so the banner keeps counting it...
         expect(result.current.pendingCount).toBe(1);
         // ...but nothing is deliverable, so no pass can be worth scheduling.
         expect(result.current.deliverableCount).toBe(0);
         expect(toastMock.error).toHaveBeenCalledWith('1 queued report could not be submitted and needs attention.');
+    });
+
+    test('marks a GPS-accuracy block as location-correctable with the refused coordinates', async () => {
+        listQueuedReportsMock.mockResolvedValue([
+            queuedEntry({
+                clientReportId: 'rep-gps',
+                fields: {
+                    address: 'Cajidiocan Port',
+                    lat: 12.3,
+                    lng: 122.1,
+                    locationSource: 'gps',
+                    locationAccuracy: 150,
+                },
+                blockedCode: 'rejected',
+                blockedReason: 'GPS accuracy must be 100 meters or better. Please retry GPS or pin the incident on the map.',
+            }),
+        ]);
+        flushQueuedReportsMock.mockResolvedValue(flushResult({
+            blocked: 1,
+            remaining: 1,
+            deliverableRemaining: 0,
+        }));
+
+        const { result } = renderHook(() => useOfflineReportSync());
+
+        await waitFor(() => expect(result.current.blockedReports).toHaveLength(1));
+        expect(result.current.blockedReports[0]).toMatchObject({
+            clientReportId: 'rep-gps',
+            recovery: BLOCKED_RECOVERY.correctLocation,
+            coordinates: { lat: 12.3, lng: 122.1 },
+        });
     });
 
     test('never shows another account\'s queued report as this reporter\'s own', async () => {

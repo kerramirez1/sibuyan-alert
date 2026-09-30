@@ -7,6 +7,7 @@ import {
     QUEUE_BLOCKED_CODES,
     describeQueuedReport,
     flushQueuedReports,
+    getBlockedReportRecovery,
     listQueuedReports,
     partitionQueuedReports,
     removeQueuedReport,
@@ -66,6 +67,8 @@ export const nextRetryDelay = (current, result) => {
  */
 const describeBlockedReport = (entry) => {
     const details = describeQueuedReport(entry);
+    const lat = Number(entry.fields?.lat);
+    const lng = Number(entry.fields?.lng);
 
     return {
         clientReportId: entry.clientReportId,
@@ -75,6 +78,13 @@ const describeBlockedReport = (entry) => {
         label: details.address
             || details.barangay
             || getIncidentTypeLabel(details.incidentType, 'Incident report'),
+        // What the reporter can actually do about this block. Derived from the
+        // payload the server refused, so the banner never offers a blind retry
+        // for a GPS-accuracy rejection it cannot succeed.
+        recovery: getBlockedReportRecovery(entry),
+        // The stored coordinates, so a correction dialog can open on the pin
+        // the server refused instead of an empty map.
+        coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
     };
 };
 

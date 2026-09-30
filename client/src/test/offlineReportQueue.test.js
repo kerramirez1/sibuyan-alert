@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+    BLOCKED_RECOVERY,
     POSSIBLE_DUPLICATE_CODE,
     QUEUE_BLOCKED_CODES,
     buildQueuedFormData,
@@ -10,6 +11,8 @@ import {
     describeSubmitFailure,
     enqueueReport,
     flushQueuedReports,
+    getBlockedReportRecovery,
+    isGpsAccuracyBlocked,
     isOfflineQueueSupported,
     isTransientSubmitFailure,
     listQueuedReports,
@@ -17,6 +20,7 @@ import {
     removeQueuedReport,
     resolveBlockedQueuedReport,
     subscribeToQueueChanges,
+    updateQueuedReportLocation,
 } from '../utils/offlineReportQueue';
 
 /**
@@ -691,6 +695,214 @@ describe('offline report queue', () => {
             } finally {
                 storage.restore();
             }
+        });
+    });
+
+    describe('recovering a GPS-accuracy block', () => {
+        const GPS_REJECTION_MESSAGE = 'GPS accuracy must be 100 meters or better. Please retry GPS or pin the incident on the map.';
+
+        const gpsBlockedFields = () => ({
+            address: 'Cajidiocan Port',
+            lat: 12.3,
+            lng: 122.1,
+            locationSource: 'gps',
+            locationAccuracy: 150,
+            locationCapturedAt: '2026-09-30T12:00:00.000Z',
+        });
+
+        const blockWithGpsRejection = async (send) => {
+            await enqueueReport({
+                clientReportId: 'rep-gps',
+                reporterId: 'reporter-a',
+                fields: gpsBlockedFields(),
+                images: [
+                    new File(['scene-a'], 'scene-a.jpg', { type: 'image/jpeg' }),
+                    new File(['scene-b'], 'scene-b.jpg', { type: 'image/jpeg' }),
+                ],
+            });
+
+            const rejectingSend = send || vi.fn(async () => {
+                const error = new Error(GPS_REJECTION_MESSAGE);
+                error.response = { status: 400, data: { message: GPS_REJECTION_MESSAGE } };
+                throw error;
+            });
+
+            const result = await flushQueuedReports(rejectingSend, { reporterId: 'reporter-a' });
+            expect(result.blocked).toBe(1);
+            expect(result.deliverableRemaining).toBe(0);
+            return rejectingSend;
+        };
+
+        test('recovers a GPS-accuracy rejection with a manual pin and replays it once', async () => {
+            const storage = createIndexedDbStub();
+            const listener = vi.fn();
+
+            try {
+                await blockWithGpsRejection();
+                const unsubscribe = subscribeToQueueChanges(listener);
+
+                const [blocked] = await listQueuedReports();
+                expect(blocked.blockedCode).toBe(QUEUE_BLOCKED_CODES.rejected);
+                expect(blocked.blockedReason).toBe(GPS_REJECTION_MESSAGE);
+                // The banner must offer a correction here, never a blind retry.
+                expect(isGpsAccuracyBlocked(blocked)).toBe(true);
+                expect(getBlockedReportRecovery(blocked)).toBe(BLOCKED_RECOVERY.correctLocation);
+
+                const corrected = await updateQueuedReportLocation('rep-gps', {
+                    lat: 12.35,
+                    lng: 122.15,
+                    locationSource: 'map_pin',
+                    locationCapturedAt: '2026-10-01T00:00:00.000Z',
+                });
+                expect(corrected).toBe(true);
+                // The correction wakes the sync machinery with the new payload.
+                expect(listener).toHaveBeenCalledTimes(1);
+                unsubscribe();
+
+                const [stored] = await listQueuedReports();
+                // The correction lands in place: same identity, same photos,
+                // same reporter — and the refused GPS meters are gone, because
+                // a hand-placed pin is not a GPS fix.
+                expect(stored.clientReportId).toBe('rep-gps');
+                expect(stored.reporterId).toBe('reporter-a');
+                expect(stored.images).toHaveLength(2);
+                expect(stored.fields.lat).toBe(12.35);
+                expect(stored.fields.lng).toBe(122.15);
+                expect(stored.fields.locationSource).toBe('map_pin');
+                expect('locationAccuracy' in stored.fields).toBe(false);
+                expect(stored.fields.locationCapturedAt).toBe('2026-10-01T00:00:00.000Z');
+                expect(stored.blockedReason).toBeNull();
+                expect(stored.blockedCode).toBeNull();
+
+                const sentBodies = [];
+                const send = vi.fn(async (body) => {
+                    sentBodies.push(body);
+                    return { success: true };
+                });
+                const result = await flushQueuedReports(send, { reporterId: 'reporter-a' });
+
+                expect(result.sent).toBe(1);
+                expect(sentBodies).toHaveLength(1);
+                expect(sentBodies[0].get('clientReportId')).toBe('rep-gps');
+                expect(sentBodies[0].get('locationSource')).toBe('map_pin');
+                expect(sentBodies[0].get('locationAccuracy')).toBeNull();
+                // Delivered reports leave the queue; a blocked one never does.
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('corrects a GPS block with a fresh, usable GPS fix', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await blockWithGpsRejection();
+
+                const corrected = await updateQueuedReportLocation('rep-gps', {
+                    lat: 12.31,
+                    lng: 122.11,
+                    locationSource: 'gps',
+                    locationAccuracy: 25,
+                });
+                expect(corrected).toBe(true);
+
+                const [stored] = await listQueuedReports();
+                expect(stored.fields.locationSource).toBe('gps');
+                expect(stored.fields.locationAccuracy).toBe(25);
+                expect(stored.blockedCode).toBeNull();
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('refuses to save a GPS correction the server would reject again', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await blockWithGpsRejection();
+
+                expect(await updateQueuedReportLocation('rep-gps', {
+                    lat: 12.31,
+                    lng: 122.11,
+                    locationSource: 'gps',
+                    locationAccuracy: 120,
+                })).toBe(false);
+                expect(await updateQueuedReportLocation('rep-gps', {
+                    lat: Number.NaN,
+                    lng: 122.11,
+                    locationSource: 'map_pin',
+                })).toBe(false);
+                expect(await updateQueuedReportLocation('rep-gps', {
+                    lat: 12.31,
+                    lng: 122.11,
+                    locationSource: 'search',
+                })).toBe(false);
+
+                // The refused payload stays exactly as the server left it.
+                const [stored] = await listQueuedReports();
+                expect(stored.fields.locationAccuracy).toBe(150);
+                expect(stored.blockedCode).toBe(QUEUE_BLOCKED_CODES.rejected);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('never recreates a queued report that is gone', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                expect(await updateQueuedReportLocation('never-stored', {
+                    lat: 12.31,
+                    lng: 122.11,
+                    locationSource: 'map_pin',
+                })).toBe(false);
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('classifies a blocked entry by the recovery its reporter can actually use', () => {
+            // The duplicate question still belongs to the reporter.
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.duplicate,
+                blockedReason: 'A similar incident was already reported nearby.',
+            })).toBe(BLOCKED_RECOVERY.confirmDuplicate);
+
+            // A GPS source with a refused accuracy is correctable in place.
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+                blockedReason: GPS_REJECTION_MESSAGE,
+                fields: gpsBlockedFields(),
+            })).toBe(BLOCKED_RECOVERY.correctLocation);
+
+            // ...as is a GPS source with no accuracy at all.
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+                blockedReason: GPS_REJECTION_MESSAGE,
+                fields: { ...gpsBlockedFields(), locationAccuracy: undefined },
+            })).toBe(BLOCKED_RECOVERY.correctLocation);
+
+            // Entries patched by an older build carry no fields, only the
+            // server's wording — still correctable.
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+                blockedReason: GPS_REJECTION_MESSAGE,
+                fields: {},
+            })).toBe(BLOCKED_RECOVERY.correctLocation);
+
+            // Everything else gets guidance, never a blind retry.
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+                blockedReason: 'The incident location could not be assigned safely to a municipality.',
+                fields: { locationSource: 'map_pin', lat: 12.3, lng: 122.1 },
+            })).toBe(BLOCKED_RECOVERY.guidance);
+            expect(getBlockedReportRecovery({
+                blockedCode: QUEUE_BLOCKED_CODES.rejected,
+                blockedReason: 'Rejected by the server',
+                fields: {},
+            })).toBe(BLOCKED_RECOVERY.guidance);
         });
     });
 });
