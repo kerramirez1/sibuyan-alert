@@ -146,21 +146,22 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
         return (
             <div className="mt-5 flex items-stretch gap-3">
                 <button type="button" onClick={onBack} className="btn-outline min-h-12 min-w-0 flex-1 px-6">
-                    <span aria-hidden="true">←</span> Back
+                    <span aria-hidden="true">←</span>
+                    <span>Back</span>
                 </button>
                 <button
                     type="submit"
                     disabled={loading || !submitArmed}
-                    className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
+                    className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
                 >
                     {loading ? (
-                        <span className="mr-2 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
                     ) : null}
                     {loading
                         ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
                             ? `Uploading ${uploadProgress.percent}%…`
                             : 'Submitting report…')
-                        : (<>Submit report <span aria-hidden="true">→</span></>)}
+                        : (<><span>Submit report</span><span aria-hidden="true">→</span></>)}
                 </button>
             </div>
         );
