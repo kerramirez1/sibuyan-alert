@@ -91,6 +91,7 @@ vi.mock('maplibre-gl', () => ({
             mockMapInstances.push(this);
         }),
         NavigationControl: vi.fn(),
+        ScaleControl: vi.fn(),
         FullscreenControl: mockFullscreenControl,
         AttributionControl: vi.fn(),
         Marker: vi.fn(function () {
@@ -246,6 +247,36 @@ describe('MapView 3D Vector Label Rendering & Mode Switching', () => {
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /switch to street map/i })).toBeInTheDocument();
         });
+    });
+
+    test('report-location map omits zoom/compass controls and scale bar when the caller opts out', async () => {
+        render(
+            <MapView
+                mode="report-location"
+                showNavigationControl={false}
+                showScaleControl={false}
+            />
+        );
+
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        });
+
+        // The controls are never constructed, so there is nothing to hide with
+        // CSS — and no viewport size can bring them back.
+        expect(maplibregl.NavigationControl).not.toHaveBeenCalled();
+        expect(maplibregl.ScaleControl).not.toHaveBeenCalled();
+    });
+
+    test('zoom/compass controls and scale bar stay on by default', async () => {
+        render(<MapView mode="full" reports={[]} />);
+
+        await waitFor(() => {
+            expect(maplibregl.Map).toHaveBeenCalledTimes(1);
+        });
+
+        expect(maplibregl.NavigationControl).toHaveBeenCalledTimes(1);
+        expect(maplibregl.ScaleControl).toHaveBeenCalledTimes(1);
     });
 
     test('retains risk zones and incident markers when layers are updated', async () => {
