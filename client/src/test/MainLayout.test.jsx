@@ -548,3 +548,72 @@ describe('MainLayout global header search placement', () => {
         expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
     });
 });
+
+/**
+ * The header brand block used to carry `md:hidden`, so "Sibuyan Island
+ * Operations" vanished at desktop widths, and its subtitle's `md:block`
+ * sat inside that hidden parent and could never apply. jsdom applies no
+ * stylesheet, so these tests assert the responsive contract through the
+ * classes themselves: no `md:hidden` on the block or its ancestors, a
+ * capped truncating width at md+, and the municipality line gated to lg+.
+ */
+describe('MainLayout header brand responsive visibility', () => {
+    beforeEach(() => {
+        mocks.isAuthenticated = true;
+        mocks.canSubmitReports = () => false;
+        mocks.user = {
+            _id: 'admin-1',
+            name: 'Cajidiocan Municipal Admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+    });
+
+    test('keeps the brand block in the DOM at desktop widths with a capped, truncating width', () => {
+        renderLayout('/admin');
+
+        const brand = screen.getByText('Sibuyan Island Operations');
+        const brandBlock = brand.parentElement;
+        // The regression: `md:hidden` removed the entire brand block at md+.
+        expect(brandBlock.className).not.toContain('md:hidden');
+        // Capped so it cannot collide with the search field or utilities.
+        expect(brandBlock).toHaveClass('md:max-w-48', 'lg:max-w-72');
+        expect(brand).toHaveClass('truncate');
+        // Mobile behavior is unchanged: it still fills the row beside the hamburger.
+        expect(brandBlock).toHaveClass('flex-1', 'min-w-0');
+    });
+
+    test('shows the municipality subtitle only where it fits', () => {
+        renderLayout('/admin');
+
+        const subtitle = screen.getByText(/San Fernando Municipal Alert System/);
+        // The old `md:block` lived inside an `md:hidden` parent and never applied.
+        expect(subtitle.className).not.toContain('md:block');
+        expect(subtitle).toHaveClass('hidden', 'lg:block', 'truncate');
+        // No ancestor hides the block at desktop widths.
+        let node = subtitle.parentElement;
+        while (node && node !== document.body) {
+            expect(node.className ?? '').not.toContain('md:hidden');
+            node = node.parentElement;
+        }
+    });
+
+    test('keeps desktop utilities alongside the restored brand', () => {
+        renderLayout('/admin');
+
+        // Brand, search, and notifications share one header row.
+        const header = screen.getByText('Sibuyan Island Operations').closest('header');
+        expect(header).toBeInTheDocument();
+        expect(within(header).getByRole('combobox')).toBeInTheDocument();
+        expect(within(header).getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+    });
+
+    test('keeps the mobile header composition unchanged', () => {
+        renderLayout('/admin');
+
+        // Hamburger stays mobile-only; the brand title still fills the row.
+        expect(screen.getByRole('button', { name: 'Open navigation menu' })).toHaveClass('md:hidden');
+        const brand = screen.getByText('Sibuyan Island Operations');
+        expect(brand.parentElement).toHaveClass('flex-1', 'px-1');
+    });
+});
