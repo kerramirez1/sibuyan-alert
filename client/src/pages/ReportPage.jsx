@@ -117,14 +117,30 @@ const StepIndicator = ({ activeStep }) => (
     </nav>
 );
 
-// Back/Continue for steps 1-3. Step 4 keeps the existing submit button inside
-// the review section, so only Back renders beneath it.
-const StepNav = ({ activeStep, onBack, onContinue }) => {
+// Back/Continue for steps 1-3. On step 4, Back and the red Submit share one
+// action row beneath the review section. StepNav renders inside the form, so
+// the submit button stays type="submit" and invokes the form's onSubmit;
+// Back stays type="button" and never submits.
+const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) => {
     if (activeStep >= LAST_STEP) {
         return (
-            <div className="mt-5">
-                <button type="button" onClick={onBack} className="btn-outline min-h-12 px-6">
+            <div className="mt-5 flex items-stretch gap-3">
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 shrink-0 px-6">
                     <span aria-hidden="true">←</span> Back
+                </button>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center rounded-lg bg-red-600 px-4 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:bg-red-600 dark:hover:bg-red-500"
+                >
+                    {loading ? (
+                        <span className="mr-2 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                    ) : null}
+                    {loading
+                        ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
+                            ? `Uploading ${uploadProgress.percent}%…`
+                            : 'Submitting report…')
+                        : 'Submit incident report'}
                 </button>
             </div>
         );
@@ -1060,7 +1076,7 @@ const ReportPage = () => {
                     </div>
                 </div>
 
-                <StepNav activeStep={activeStep} onBack={handleBack} onContinue={handleContinue} />
+                <StepNav activeStep={activeStep} onBack={handleBack} onContinue={handleContinue} loading={loading} uploadProgress={uploadProgress} />
             </form>
 
             <Modal

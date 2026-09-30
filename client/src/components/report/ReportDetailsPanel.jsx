@@ -362,24 +362,7 @@ const ReportDetailsPanel = ({
                     </div>
                 )}
 
-                <div className="mt-4">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="inline-flex min-h-[44px] w-full flex-1 items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-500"
-                    >
-                        {loading ? (
-                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
-                        ) : null}
-                        {loading
-                            ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
-                                ? `Uploading ${uploadProgress.percent}%…`
-                                : 'Submitting report…')
-                            : 'Submit incident report'}
-                    </button>
-                </div>
-
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
                     Submitting auto-saves on this device if the signal drops and sends when the connection returns.
                 </p>
 

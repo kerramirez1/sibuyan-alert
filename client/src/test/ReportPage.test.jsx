@@ -257,6 +257,26 @@ describe('ReportPage workflow', () => {
         expect(screen.getByText(/selected pin:/i)).toBeInTheDocument();
     });
 
+    test('step 4 shares one action row between Back and Submit, and Back never submits', async () => {
+        renderPage();
+        await advanceWizardTo(4);
+
+        const backButton = screen.getByRole('button', { name: /^back$/i });
+        const submitButton = screen.getByRole('button', { name: /submit incident report/i });
+
+        // Back and Submit sit side by side in a single action row.
+        expect(backButton.parentElement).toBe(submitButton.parentElement);
+        // Back must never submit the form; Submit stays a real submit control.
+        expect(backButton).toHaveAttribute('type', 'button');
+        expect(submitButton).toHaveAttribute('type', 'submit');
+        // No duplicate submit control anywhere on the page.
+        expect(screen.getAllByRole('button', { name: /submit incident report/i })).toHaveLength(1);
+
+        fireEvent.click(backButton);
+        await screen.findByText('Step 3 of 4');
+        expect(createReportMock).not.toHaveBeenCalled();
+    });
+
     test('replaces a prior barangay only with the current pin boundary result', async () => {
         renderPage();
 
