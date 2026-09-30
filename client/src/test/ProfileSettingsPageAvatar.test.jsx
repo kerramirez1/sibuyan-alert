@@ -158,6 +158,57 @@ describe('ProfileSettingsPage avatar upload', () => {
         await waitFor(() => expect(mocks.updateUser).toHaveBeenCalled());
     });
 
+    test('sends an explicit removal flag when the photo is removed and saved', async () => {
+        // The reported bug: "it says successful but the photo is not deleted".
+        // Clearing the local preview sent nothing about the removal, so the
+        // server could not tell it apart from "no photo change" and answered
+        // success while the stored avatar stayed put.
+        mockUser.avatar = '/api/files/507f191e810c19729de860ea/photo.jpg';
+        mocks.updateProfile.mockResolvedValue({
+            data: { success: true, data: { ...mockUser, avatar: null } },
+        });
+
+        try {
+            render(<ProfileSettingsPage />);
+            openPhotoMenu();
+            fireEvent.click(screen.getAllByRole('button', { name: 'Remove photo' })[0]);
+
+            const save = screen.getByRole('button', { name: 'Save changes' });
+            expect(save).not.toBeDisabled();
+            fireEvent.click(save);
+
+            await waitFor(() => expect(mocks.updateProfile).toHaveBeenCalled());
+
+            const payload = mocks.updateProfile.mock.calls[0][0];
+            expect(payload).toBeInstanceOf(FormData);
+            expect(payload.get('removeAvatar')).toBe('true');
+            // No replacement file rides along with a removal.
+            expect(payload.get('avatar')).toBeNull();
+        } finally {
+            mockUser.avatar = null;
+        }
+    });
+
+    test('does not send a removal flag for an ordinary profile edit', async () => {
+        mockUser.avatar = '/api/files/507f191e810c19729de860ea/photo.jpg';
+        mocks.updateProfile.mockResolvedValue({
+            data: { success: true, data: { ...mockUser } },
+        });
+
+        try {
+            render(<ProfileSettingsPage />);
+            fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Renamed Admin' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+            await waitFor(() => expect(mocks.updateProfile).toHaveBeenCalled());
+
+            // Omitting the avatar must mean "leave it alone".
+            expect(mocks.updateProfile.mock.calls[0][0].get('removeAvatar')).toBeNull();
+        } finally {
+            mockUser.avatar = null;
+        }
+    });
+
     test('moves focus into the sheet and returns it to the trigger on close', async () => {
         render(<ProfileSettingsPage />);
         const trigger = screen.getByRole('button', { name: 'Change profile photo' });

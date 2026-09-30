@@ -390,6 +390,12 @@ const ProfileSettingsPage = () => {
             }
             if (formData.avatar) {
                 data.append('avatar', formData.avatar);
+            } else if (avatarRemoved) {
+                // The removal has to be STATED. Clearing the local preview sent
+                // nothing, so the server had no way to tell "remove the photo"
+                // apart from "no photo change" and the request came back
+                // successful with the avatar untouched.
+                data.append('removeAvatar', 'true');
             }
 
             const response = await authAPI.updateProfile(data);

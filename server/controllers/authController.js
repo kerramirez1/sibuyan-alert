@@ -289,7 +289,7 @@ export const updateProfile = async (req, res) => {
     let profileSaved = false;
 
     try {
-        const { name, email, currentPassword, newPassword, notificationPreferences } = req.body;
+        const { name, email, currentPassword, newPassword, notificationPreferences, removeAvatar } = req.body;
 
         const user = await User.findById(req.user._id).select('+password');
         if (!user) {
@@ -355,6 +355,9 @@ export const updateProfile = async (req, res) => {
         }
 
         const previousAvatar = user.avatar;
+        // A multipart body delivers every field as a string, so the flag is
+        // compared textually rather than trusted as a boolean.
+        const avatarRemovalRequested = String(removeAvatar ?? '').trim().toLowerCase() === 'true';
 
         // Handle avatar upload
         if (req.file) {
@@ -366,6 +369,13 @@ export const updateProfile = async (req, res) => {
             });
             uploadedAvatarUrl = storedAvatar.url;
             user.avatar = storedAvatar.url;
+        } else if (avatarRemovalRequested) {
+            // The endpoint had no way to remove an avatar at all: the only branch
+            // that touched `user.avatar` required a replacement file, so the
+            // client's "remove photo" cleared its own preview, sent nothing about
+            // the removal, and got `success: true` back — leaving the photo in
+            // place while the UI said "Profile updated successfully".
+            user.avatar = null;
         }
 
         // Only the explicit editable fields above are assigned. Role, approval
@@ -379,7 +389,10 @@ export const updateProfile = async (req, res) => {
             req.app.get('io')?.in(`user_${user._id}`).disconnectSockets(true)?.catch?.(() => {});
         }
 
-        if (uploadedAvatarUrl && previousAvatar) {
+        // The previous file is discarded when it has been REPLACED or REMOVED.
+        // Restricting this to a replacement would leave the GridFS object behind
+        // after a removal — the field would read null while the bytes stayed.
+        if (previousAvatar && (uploadedAvatarUrl || avatarRemovalRequested)) {
             try {
                 await deleteGridFsFileByUrl(previousAvatar);
             } catch (error) {
