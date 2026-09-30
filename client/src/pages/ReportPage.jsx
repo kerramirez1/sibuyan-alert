@@ -145,7 +145,7 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
     if (activeStep >= LAST_STEP) {
         return (
             <div className="mt-5 flex items-stretch gap-3">
-                <button type="button" onClick={onBack} className="btn-outline min-h-12 shrink-0 px-6">
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 min-w-0 flex-1 px-6">
                     <span aria-hidden="true">←</span> Back
                 </button>
                 <button

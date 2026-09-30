@@ -275,6 +275,9 @@ describe('ReportPage workflow', () => {
 
         // Back and Submit sit side by side in a single action row.
         expect(backButton.parentElement).toBe(submitButton.parentElement);
+        // Equal widths: both flex-1, neither content-sized.
+        expect(backButton).toHaveClass('flex-1');
+        expect(submitButton).toHaveClass('flex-1');
         // Back must never submit the form; Submit stays a real submit control.
         expect(backButton).toHaveAttribute('type', 'button');
         expect(submitButton).toHaveAttribute('type', 'submit');
