@@ -8,6 +8,7 @@ import ReportSearch from '../search/ReportSearch';
 import { useOfflineReportSync } from '../../hooks/useOfflineReportSync';
 import { resolveAssetUrl } from '../../utils/assets';
 import { DASHBOARD_ANALYTICS_VIEW, resolveDashboardView } from '../../utils/dashboardView';
+import { hasGlobalHeaderSearch } from '../../utils/globalSearch';
 import { isVerifiedReporter } from '../../utils/reporterVerification';
 import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
 import {
@@ -152,6 +153,12 @@ const MainLayout = ({ children, fitWindow = false }) => {
             panelView: currentPanel,
         }) === DASHBOARD_ANALYTICS_VIEW;
     const isMapView = location.pathname === '/dashboard' && !isAnalyticsDashboard;
+
+    // The application-wide search belongs to the Dashboard and nowhere else. Every
+    // other page answers questions about itself with its own controls, so the
+    // header there is brand, notifications, and nothing competing with them. The
+    // rule itself lives in utils/globalSearch so this and any other caller agree.
+    const showGlobalSearch = hasGlobalHeaderSearch(location.pathname);
     const isOperationalNavVisible = isAuthenticated
         && (user?.role === 'municipal_admin' || user?.role === 'responder');
 
@@ -445,15 +452,18 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         </div>
 
                         {/* Laptop/desktop: inline search bar in the top row, next to
-                            the notification button. */}
-                        {isAuthenticated && (
+                            the notification button. Dashboard only — elsewhere the
+                            brand takes the width and the header stays a two-part
+                            composition rather than a three-part one with a hole in
+                            the middle. */}
+                        {isAuthenticated && showGlobalSearch && (
                             <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
                                 <ReportSearch className="w-full max-w-md" />
                             </div>
                         )}
 
                         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-                            {isAuthenticated && (
+                            {isAuthenticated && showGlobalSearch && (
                                 <button
                                     type="button"
                                     onClick={() => setMobileSearchOpen((current) => !current)}
@@ -479,7 +489,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                     {/* Mobile: icon button in the header opens this row. Laptop
                         uses the inline top-row bar above. One search entry per
                         viewport; the server filters rows, detail routes re-check. */}
-                    {isAuthenticated && mobileSearchOpen && (
+                    {isAuthenticated && showGlobalSearch && mobileSearchOpen && (
                         <div className="border-b border-gray-200/80 bg-white/95 px-3 pb-2.5 pt-1 sm:px-4 md:hidden dark:border-white/10 dark:bg-gray-950/95">
                             <ReportSearch className="mx-auto w-full max-w-xl" />
                         </div>

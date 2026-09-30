@@ -480,3 +480,72 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).queryByRole('status', { name: 'Verified reporter' })).not.toBeInTheDocument();
     });
 });
+
+/**
+ * The application-wide search belongs to the Dashboard and nowhere else.
+ *
+ * `ReportSearch` renders its input with `role="combobox"`, which is the handle
+ * used here. jsdom applies no stylesheet, so the desktop bar's `md:flex` does
+ * not hide it — present in the DOM means present on the page.
+ *
+ * The Dashboard is `/admin` for municipal admins and responders and `/reporter`
+ * for reporters — the sidebar's own "Dashboard" target. `/dashboard` is the Map.
+ */
+describe('MainLayout global header search placement', () => {
+    beforeEach(() => {
+        mocks.isAuthenticated = true;
+        mocks.canSubmitReports = () => false;
+        mocks.user = {
+            _id: 'admin-1',
+            name: 'Cajidiocan Municipal Admin',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+    });
+
+    test('the admin dashboard carries it', () => {
+        renderLayout('/admin');
+
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+    });
+
+    test('the reporter dashboard carries it', () => {
+        mocks.user = { ...mocks.user, role: 'reporter' };
+        renderLayout('/reporter');
+
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+    });
+
+    test.each([
+        ['incident reports', '/admin/reports'],
+        ['users', '/admin/users'],
+        ['risk zones', '/admin/zones'],
+        ['accident history', '/accident-history'],
+        ['the map', '/dashboard'],
+        ['the profile page', '/profile'],
+    ])('%s does not carry it', (_label, path) => {
+        renderLayout(path);
+
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    });
+
+    test('the mobile search toggle goes with it', () => {
+        renderLayout('/admin/reports');
+
+        // Leaving the icon behind would open a row that renders nothing.
+        expect(screen.queryByRole('button', { name: 'Search incident reports' })).not.toBeInTheDocument();
+    });
+
+    test('the mobile search toggle is still there on the dashboard', () => {
+        renderLayout('/admin');
+
+        expect(screen.getByRole('button', { name: 'Search incident reports' })).toBeInTheDocument();
+    });
+
+    test('notifications survive the search being removed', () => {
+        renderLayout('/admin/reports');
+
+        // The header is brand + notifications there, not brand alone.
+        expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+    });
+});

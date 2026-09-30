@@ -117,6 +117,150 @@
     .skip-link { position: fixed; top: 8px; left: 16px; z-index: 200; transform: translateY(-150%); border-radius: 6px; padding: 10px 16px; background: var(--surface); color: var(--accent-text); font-size: 14px; font-weight: 600; box-shadow: var(--shadow-lg); }
     .skip-link:focus { transform: translateY(0); }
 
+    /* ---- Filtering region ---------------------------------------------------
+       One filtering area rather than a dashboard card: the search row and the
+       status row are separated by a hairline instead of each becoming its own
+       rounded panel. */
+    .filter-bar {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+    }
+
+    .filter-bar__row {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 14px;
+    }
+
+    .filter-bar__row + .filter-bar__row { border-top: 1px solid var(--border); }
+
+    /* The search half of the filter bar. Its own class rather than
+       `.filter-bar__row` because it stacks a control line over a scope note on
+       every width, where the status row is label-beside-content. */
+    .filter-bar__search {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .filter-bar__controls { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+    .filter-bar__buttons { display: flex; min-width: 0; gap: 8px; }
+
+    .filter-bar__label {
+        flex-shrink: 0;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .filter-bar__scope {
+        color: var(--text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    /* Restrained status filter. An underline marks the active state instead of a
+       filled pill, so a row of statuses does not read as a row of buttons, and
+       the colour of the active item is the one already used for the accent. */
+    .status-filter {
+        position: relative;
+        display: inline-flex;
+        min-height: 36px;
+        align-items: center;
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 120ms ease, background-color 120ms ease;
+    }
+
+    .status-filter:hover { background: var(--surface-hover); color: var(--text-primary); }
+    .status-filter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .status-filter[aria-pressed='true'] { color: var(--accent-text); font-weight: 600; }
+    .status-filter[aria-pressed='true']::after {
+        content: '';
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: 0;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--accent);
+    }
+
+    /* Page-level operational controls — "last updated" and refresh — grouped so
+       they read as one control rather than loose text sitting beside a button. */
+    .control-cluster {
+        display: inline-flex;
+        min-width: 0;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 6px 4px 12px;
+        background: var(--surface-muted);
+    }
+
+    .control-cluster__meta {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    /* Incident record metadata: the label stays quiet, the value carries the
+       weight. Columns on wider screens so the record's width is used instead of
+       trailing off into empty space. */
+    .record-meta {
+        display: grid;
+        min-width: 0;
+        gap: 4px 24px;
+    }
+
+    .record-meta__item { display: flex; min-width: 0; align-items: baseline; gap: 6px; }
+    .record-meta__label {
+        flex-shrink: 0;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .record-meta__value {
+        min-width: 0;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+    .record-meta__value--muted { color: var(--warning); }
+
+    /* Severity and response state are different concepts, so they are separated
+       by a hairline rather than a middot — which read as one compound badge. */
+    .record-state-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .record-state-group__divider { width: 1px; height: 14px; background: var(--border-strong); }
+
+    @media (min-width: 640px) {
+        .filter-bar__row { flex-direction: row; align-items: center; gap: 12px; }
+        .filter-bar__controls { flex-direction: row; align-items: center; gap: 12px; }
+        .filter-bar__buttons { flex-shrink: 0; }
+        .record-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 1024px) {
+        .record-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
     @media (min-width: 640px) {
         .page-header { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
         .page-title { font-size: 32px; }

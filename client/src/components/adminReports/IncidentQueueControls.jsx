@@ -61,6 +61,145 @@ const formatLastUpdatedTime = (value) => {
     }).format(date);
 };
 
+/**
+ * "Last updated" and Refresh, held together as one operational control.
+ *
+ * They answer one question between them — how current is what I am looking at,
+ * and can I make it newer — so they are grouped rather than left as loose text
+ * with a button somewhere after it.
+ */
+const OperationalControls = ({ lastUpdatedAt, onRefresh, loading, className = '' }) => {
+    const lastUpdatedLabel = formatLastUpdatedTime(lastUpdatedAt);
+
+    return (
+        <div className={`control-cluster ${className}`}>
+            {lastUpdatedLabel ? (
+                <time dateTime={new Date(lastUpdatedAt).toISOString()} className="control-cluster__meta">
+                    Last updated {lastUpdatedLabel}
+                </time>
+            ) : (
+                <span className="control-cluster__meta">Not yet refreshed</span>
+            )}
+            <button
+                type="button"
+                onClick={onRefresh}
+                disabled={loading}
+                className="btn-outline"
+            >
+                <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Refresh
+            </button>
+        </div>
+    );
+};
+
+/**
+ * The page's filtering area — one region, shared by both roles so the two
+ * variants cannot drift apart.
+ *
+ * Deliberately not a dashboard card: the search row and the status row are
+ * separated by a hairline inside a single bordered region. The active status is
+ * marked with an underline rather than a filled chip, because a row of filled
+ * chips reads as a row of buttons and says nothing about which one is active.
+ *
+ * The field carries a visible "Search incidents" label rather than relying on its
+ * placeholder, so its scope is legible before anything is typed. No further
+ * explanation is needed on the page: this is the only search in the header or the
+ * body here, because the application-wide one belongs to the Dashboard (see
+ * `utils/globalSearch`).
+ */
+const IncidentFilterBar = ({
+    role,
+    responderView,
+    responderDescription,
+    status,
+    setStatus,
+    searchDraft,
+    setSearchDraft,
+    applySearch,
+    clearFilters,
+    hasFilters,
+}) => (
+    <section aria-label="Incident filters" className="filter-bar mb-5">
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                applySearch();
+            }}
+            className="filter-bar__search"
+        >
+            <div className="filter-bar__controls">
+                <label htmlFor="incident-search" className="filter-bar__label">
+                    Search incidents
+                </label>
+                <div className="relative min-w-0 flex-1">
+                    <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                    <input
+                        id="incident-search"
+                        type="search"
+                        value={searchDraft}
+                        onChange={(event) => setSearchDraft(event.target.value)}
+                        placeholder="Address, description, or municipality"
+                        className="field-control pl-9"
+                    />
+                </div>
+                <div className="filter-bar__buttons">
+                    <button
+                        type="submit"
+                        className="btn-primary flex-1 sm:flex-none"
+                    >
+                        Search
+                    </button>
+                    {hasFilters && (
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="btn-outline flex-1 sm:flex-none"
+                        >
+                            <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
+                            Clear
+                        </button>
+                    )}
+                </div>
+            </div>
+        </form>
+
+        <div className="filter-bar__row">
+            <span className="filter-bar__label">
+                {responderView === 'all' ? 'Status' : 'Scope'}
+            </span>
+            {responderView !== 'all' ? (
+                <p className="filter-bar__scope">{responderDescription}</p>
+            ) : (
+                <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Filter by status">
+                    <button
+                        type="button"
+                        aria-pressed={status === ''}
+                        onClick={() => setStatus('')}
+                        className="status-filter"
+                    >
+                        All statuses
+                    </button>
+                    {getRoleStatuses(role).map((statusValue) => {
+                        const config = INCIDENT_STATUS[statusValue];
+                        return (
+                            <button
+                                key={statusValue}
+                                type="button"
+                                aria-pressed={status === statusValue}
+                                onClick={() => setStatus(statusValue)}
+                                className="status-filter"
+                            >
+                                {config.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    </section>
+);
+
 const ResponderQueueControls = ({
     responderView,
     onResponderViewChange,
@@ -86,7 +225,6 @@ const ResponderQueueControls = ({
     const incidentTotal = responderView === 'all'
         ? getResponderIncidentTotal(stats, resultCount)
         : toCount(resultCount);
-    const lastUpdatedLabel = formatLastUpdatedTime(lastUpdatedAt);
 
     return (
         <>
@@ -102,7 +240,7 @@ const ResponderQueueControls = ({
                         Municipality-scoped incident records available to responders.
                     </p>
                     {stats && (
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
+                        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
                             <span className="font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
                             {responderView === 'all' && (
                                 <>
@@ -116,23 +254,12 @@ const ResponderQueueControls = ({
                     )}
                 </div>
 
-                <div className="flex min-h-9 shrink-0 items-center gap-2 self-start text-xs text-gray-500 dark:text-gray-400">
-                    {lastUpdatedLabel && (
-                        <time dateTime={new Date(lastUpdatedAt).toISOString()} className="tabular-nums">
-                            Last updated {lastUpdatedLabel}
-                        </time>
-                    )}
-                    {lastUpdatedLabel && <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>}
-                    <button
-                        type="button"
-                        onClick={onRefresh}
-                        disabled={loading}
-                        className="btn-outline"
-                    >
-                        <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                        Refresh
-                    </button>
-                </div>
+                <OperationalControls
+                    lastUpdatedAt={lastUpdatedAt}
+                    onRefresh={onRefresh}
+                    loading={loading}
+                    className="w-full self-start sm:w-auto"
+                />
             </header>
 
             <nav className="mb-5" aria-label="Responder incident views">
@@ -154,78 +281,18 @@ const ResponderQueueControls = ({
                 </div>
             </nav>
 
-            <section aria-label="Incident filters" className="surface-panel mb-5 p-4 sm:p-5">
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applySearch();
-                    }}
-                    className="flex min-w-0 flex-col gap-2 sm:flex-row"
-                >
-                    <label className="relative min-w-0 flex-1">
-                        <span className="sr-only">Search incidents</span>
-                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-                        <input
-                            type="search"
-                            value={searchDraft}
-                            onChange={(event) => setSearchDraft(event.target.value)}
-                            placeholder="Search address, description, or municipality"
-                            className="field-control pl-9"
-                        />
-                    </label>
-                    <button
-                        type="submit"
-                        className="btn-primary w-full sm:w-auto"
-                    >
-                        Search
-                    </button>
-                    {hasFilters && (
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="btn-outline w-full sm:w-auto"
-                        >
-                            <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
-                            Clear
-                        </button>
-                    )}
-                </form>
-
-                <div className="mt-3 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                    <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {responderView === 'all' ? 'Status' : 'Scope'}
-                    </span>
-                    {responderView !== 'all' ? (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{activeResponderView.description}</p>
-                    ) : (
-                        <div className="flex min-w-0 flex-wrap gap-1.5" aria-label="Filter by status">
-                            <button
-                                type="button"
-                                aria-pressed={status === ''}
-                                onClick={() => setStatus('')}
-                                className="filter-tab"
-                            >
-                                All statuses
-                            </button>
-                            {getRoleStatuses('responder').map((statusValue) => {
-                                const config = INCIDENT_STATUS[statusValue];
-                                const active = status === statusValue;
-                                return (
-                                    <button
-                                        key={statusValue}
-                                        type="button"
-                                        aria-pressed={active}
-                                        onClick={() => setStatus(statusValue)}
-                                        className="filter-tab"
-                                    >
-                                        {config.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </section>
+            <IncidentFilterBar
+                role="responder"
+                responderView={responderView}
+                responderDescription={activeResponderView.description}
+                status={status}
+                setStatus={setStatus}
+                searchDraft={searchDraft}
+                setSearchDraft={setSearchDraft}
+                applySearch={applySearch}
+                clearFilters={clearFilters}
+                hasFilters={hasFilters}
+            />
         </>
     );
 };
@@ -273,8 +340,6 @@ const IncidentQueueControls = ({
         );
     }
 
-    const lastUpdatedLabel = formatLastUpdatedTime(lastUpdatedAt);
-
     return (
         <>
             <header className="page-header mb-5">
@@ -289,7 +354,7 @@ const IncidentQueueControls = ({
                         {`Municipality-scoped incident records${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
                     {stats && (
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
+                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
                             <span className="whitespace-nowrap font-semibold text-gray-700 dark:text-gray-300">{resultCount} incident{resultCount === 1 ? '' : 's'}</span>
                             {isAdmin && (
                                 <>
@@ -314,93 +379,25 @@ const IncidentQueueControls = ({
                     )}
                 </div>
 
-                <div className="flex w-full flex-col gap-2 self-start text-xs text-gray-500 xs:w-auto xs:flex-row xs:items-center dark:text-gray-400">
-                    {lastUpdatedLabel && (
-                        <time dateTime={new Date(lastUpdatedAt).toISOString()} className="tabular-nums">
-                            Last updated {lastUpdatedLabel}
-                        </time>
-                    )}
-                    {lastUpdatedLabel && <span aria-hidden="true" className="hidden text-gray-300 xs:inline dark:text-gray-700">&middot;</span>}
-                    <button
-                        type="button"
-                        onClick={onRefresh}
-                        disabled={loading}
-                        className="btn-outline w-full xs:w-auto"
-                    >
-                        <HiOutlineRefresh className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                        Refresh
-                    </button>
-                </div>
+                <OperationalControls
+                    lastUpdatedAt={lastUpdatedAt}
+                    onRefresh={onRefresh}
+                    loading={loading}
+                    className="w-full self-start sm:w-auto"
+                />
             </header>
 
-            <section aria-label="Incident filters" className="surface-panel mb-5 p-4 sm:p-5">
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applySearch();
-                    }}
-                    className="flex min-w-0 flex-col gap-2 sm:flex-row"
-                >
-                    <label className="relative min-w-0 flex-1">
-                        <span className="sr-only">Search incidents</span>
-                        <HiOutlineSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-                        <input
-                            type="search"
-                            value={searchDraft}
-                            onChange={(event) => setSearchDraft(event.target.value)}
-                            placeholder="Search address, description, or municipality"
-                            className="field-control pl-9"
-                        />
-                    </label>
-                    <button
-                        type="submit"
-                        className="btn-primary w-full sm:w-auto"
-                    >
-                        Search
-                    </button>
-                    {hasFilters && (
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="btn-outline w-full sm:w-auto"
-                        >
-                            <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
-                            Clear
-                        </button>
-                    )}
-                </form>
-
-                <div className="mt-3 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                    <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Status
-                    </span>
-                    <div className="flex min-w-0 flex-wrap gap-1" aria-label="Filter by status">
-                        <button
-                            type="button"
-                            aria-pressed={status === ''}
-                            onClick={() => setStatus('')}
-                            className="filter-tab"
-                        >
-                            All statuses
-                        </button>
-                        {getRoleStatuses(role).map((statusValue) => {
-                            const config = INCIDENT_STATUS[statusValue];
-                            const active = status === statusValue;
-                            return (
-                                <button
-                                    key={statusValue}
-                                    type="button"
-                                    aria-pressed={active}
-                                    onClick={() => setStatus(statusValue)}
-                                    className="filter-tab"
-                                >
-                                    {config.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
+            <IncidentFilterBar
+                role={role}
+                responderView={responderView}
+                status={status}
+                setStatus={setStatus}
+                searchDraft={searchDraft}
+                setSearchDraft={setSearchDraft}
+                applySearch={applySearch}
+                clearFilters={clearFilters}
+                hasFilters={hasFilters}
+            />
         </>
     );
 };

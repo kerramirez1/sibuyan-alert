@@ -213,91 +213,127 @@ const getResponderAssignment = (report) => {
 };
 
 
+/**
+ * A secondary row action.
+ *
+ * Outlined, with the semantic colour kept in the border and the text rather than
+ * a filled tint. The filled tints were visually louder than the "Inspect report"
+ * button beside them, which inverted the hierarchy — the action that opens the
+ * record read as the least prominent thing in the row.
+ *
+ * The colour still carries the meaning (verify is blue, reject is red, a
+ * transfer is violet) and the label is always rendered, so nothing here depends
+ * on colour alone.
+ */
+const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = false }) => {
+    const tones = {
+        verify: 'border-blue-300 text-blue-800 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-950/40',
+        reject: 'border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40',
+        transfer: 'border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-900/60 dark:text-violet-300 dark:hover:bg-violet-950/40',
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            title={ariaLabel}
+            aria-label={ariaLabel}
+            className={`inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-1.5 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50 sm:min-h-9 ${tones[tone]}`}
+        >
+            <span>{label}</span>
+        </button>
+    );
+};
+
 const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
     const capabilities = getIncidentCapabilities(user, report);
+    const hasWorkingAction = capabilities.canVerify
+        || capabilities.canReject
+        || capabilities.canAcknowledgeTransfer
+        || capabilities.canTransfer
+        || capabilities.canDismiss;
 
     return (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {/* The row's primary action: it opens the record. */}
             <button
                 type="button"
                 onClick={() => onInspect(report)}
                 aria-expanded={isSelected}
                 aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
-                className="btn-outline w-full sm:w-auto"
+                className="btn-primary w-full sm:w-auto"
             >
                 <HiOutlineEye className="h-4 w-4" aria-hidden="true" />
                 <span>Inspect report</span>
             </button>
 
-            <div className="flex flex-wrap items-center justify-start gap-1.5 sm:justify-end">
+            <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
                 {capabilities.canVerify && (
-                    <button
-                        type="button"
+                    <SecondaryActionButton
+                        label="Verify"
+                        ariaLabel="Verify report"
+                        tone="verify"
                         onClick={() => actions.openReview(report, 'verified')}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[13px] font-medium text-blue-800 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
-                        title="Verify report"
-                        aria-label="Verify report"
-                    >
-                        <span>Verify</span>
-                    </button>
+                    />
                 )}
                 {capabilities.canReject && (
-                    <button
-                        type="button"
+                    <SecondaryActionButton
+                        label="Reject"
+                        ariaLabel="Reject report"
+                        tone="reject"
                         onClick={() => actions.openReview(report, 'rejected')}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-700 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-                        title="Reject report"
-                        aria-label="Reject report"
-                    >
-                        <span>Reject</span>
-                    </button>
+                    />
                 )}
                 {capabilities.canAcknowledgeTransfer && (
-                    <button
-                        type="button"
+                    <SecondaryActionButton
+                        label="Acknowledge"
+                        ariaLabel="Acknowledge transfer"
+                        tone="transfer"
                         onClick={() => actions.acknowledgeTransfer(report)}
                         disabled={actions.acknowledgeLoadingId === report?._id}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[13px] font-medium text-violet-700 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 disabled:cursor-wait disabled:opacity-50 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300"
-                        title="Acknowledge transfer"
-                        aria-label="Acknowledge transfer"
-                    >
-                        <span>Acknowledge</span>
-                    </button>
+                    />
                 )}
                 {capabilities.canTransfer && (
-                    <button
-                        type="button"
+                    <SecondaryActionButton
+                        label="Transfer"
+                        ariaLabel="Transfer report"
+                        tone="transfer"
                         onClick={() => actions.openTransfer(report)}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
-                        title="Transfer report"
-                        aria-label="Transfer report"
-                    >
-                        <span>Transfer</span>
-                    </button>
-                )}
-                {capabilities.canDelete && (
-                    <button
-                        type="button"
-                        onClick={() => actions.deleteReport(report)}
-                        disabled={actions.deleteLoadingId === report?._id}
-                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 hover:bg-gray-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-wait disabled:opacity-50 sm:h-9 sm:w-9 dark:text-gray-500 dark:hover:bg-white/5 dark:hover:text-red-400"
-                        title="Delete report"
-                        aria-label="Delete report"
-                    >
-                        <HiOutlineTrash className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    />
                 )}
                 {capabilities.canDismiss && (
                     <button
                         type="button"
                         onClick={() => actions.dismissReport(report)}
                         disabled={actions.deleteLoadingId === report?._id}
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg px-3 text-[13px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-wait disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-lg px-3 text-[13px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50 sm:min-h-9 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
                         title="Remove this transferred report from your queue"
                         aria-label="Remove transferred report from queue"
                     >
                         <span>Remove</span>
                     </button>
+                )}
+
+                {/* Destructive, and set apart from the working actions: a hairline,
+                    then a quiet control that only shows its colour on hover or
+                    focus. Still labelled, still a full-size target. */}
+                {capabilities.canDelete && (
+                    <>
+                        {hasWorkingAction && (
+                            <span className="mx-1 hidden h-6 w-px bg-[var(--border)] sm:block" aria-hidden="true" />
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => actions.deleteReport(report)}
+                            disabled={actions.deleteLoadingId === report?._id}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-400 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-wait disabled:opacity-50 sm:h-9 sm:w-9 dark:text-gray-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                            title="Delete report"
+                            aria-label="Delete report"
+                        >
+                            <HiOutlineTrash className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                    </>
                 )}
             </div>
         </div>
@@ -376,20 +412,16 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
             data-selected={isSelected ? 'true' : 'false'}
         >
             {isSelected && <span className="sr-only">Selected incident details are open.</span>}
+            {/* Severity and response state are separate facts — how bad it is,
+                versus how far along the response is — so they are divided by a
+                hairline rather than a middot, which read as one compound badge.
+                Both keep their own label and their own colour; neither is
+                carried by colour alone. */}
             <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <IncidentSeverityIndicator severity={safeReport.severity} />
-                        <span className="text-gray-300 dark:text-gray-700" aria-hidden="true">&middot;</span>
-                        <OperationalStatusIndicator status={safeReport.status} />
-                    </div>
-                    <h2 className={`mt-1.5 break-words text-[15px] font-semibold leading-6 sm:text-base ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
-                        {safeReport.address || 'Address unavailable'}
-                    </h2>
-                    <p className="mt-0.5 line-clamp-1 text-[13px] capitalize text-gray-600 dark:text-gray-300">
-                        {incidentType}
-                        {safeReport.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {safeReport.description}</span>}
-                    </p>
+                <div className="record-state-group min-w-0">
+                    <IncidentSeverityIndicator severity={safeReport.severity} />
+                    <span className="record-state-group__divider" aria-hidden="true" />
+                    <OperationalStatusIndicator status={safeReport.status} />
                 </div>
                 <time
                     dateTime={getIncidentDate(safeReport) || undefined}
@@ -399,10 +431,29 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </time>
             </div>
 
-            <div className="mt-2.5 flex flex-col gap-1 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
-                <span>Reported by <span className="font-semibold text-gray-800 dark:text-gray-200">{safeReport.reporter?.name || 'Unknown reporter'}</span></span>
-                <span className="hidden text-gray-300 dark:text-gray-700 sm:inline" aria-hidden="true">&middot;</span>
-                <span>{assignment === 'Unassigned' ? <span className="font-medium text-amber-700 dark:text-amber-400">Unassigned · needs unit</span> : <>Assigned to <span className="font-medium text-gray-700 dark:text-gray-200">{assignment}</span></>}</span>
+            {/* The strongest content in the record: where it happened. */}
+            <h2 className={`mt-2 break-words text-base font-semibold leading-6 sm:text-[17px] ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
+                {safeReport.address || 'Address unavailable'}
+            </h2>
+            <p className="mt-1 line-clamp-1 text-[13px] capitalize text-gray-600 dark:text-gray-300">
+                {incidentType}
+                {safeReport.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {safeReport.description}</span>}
+            </p>
+
+            {/* Labels stay quiet, values carry the weight, and the pair spreads
+                into columns so the record's width is used rather than trailing
+                off into empty space. */}
+            <div className="record-meta mt-3">
+                <p className="record-meta__item">
+                    <span className="record-meta__label">Reported by</span>
+                    <span className="record-meta__value">{safeReport.reporter?.name || 'Unknown reporter'}</span>
+                </p>
+                <p className="record-meta__item">
+                    <span className="record-meta__label">Assigned to</span>
+                    {assignment === 'Unassigned'
+                        ? <span className="record-meta__value record-meta__value--muted">Unassigned · needs unit</span>
+                        : <span className="record-meta__value">{assignment}</span>}
+                </p>
             </div>
 
             {/* Provenance and acknowledgement, on one line. `flex-wrap` is what
@@ -433,7 +484,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </div>
             )}
 
-            <div className="mt-4 border-t border-[var(--border)] pt-3">
+            <div className="mt-3.5 border-t border-[var(--border)] pt-3">
                 {actionSlot}
             </div>
         </article>
