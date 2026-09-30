@@ -12,26 +12,13 @@ const FieldError = ({ id, children }) => (
 );
 
 const SectionHeader = ({ id, step, title, description }) => {
-    const stepNum = Number(step) || 2;
     return (
         <div>
-            <div className="flex items-center gap-2">
-                <p className="page-eyebrow mb-0">
-                    Step {step} of 4
-                </p>
-                <div className="flex items-center gap-1 w-16 sm:w-20" aria-hidden="true">
-                    {[1, 2, 3, 4].map((i) => (
-                        <span
-                            key={i}
-                            className={`h-1 flex-1 rounded-full ${
-                                i <= stepNum
-                                    ? 'bg-brand-700 dark:bg-sky-400'
-                                    : 'bg-gray-200 dark:bg-white/20'
-                            }`}
-                        />
-                    ))}
-                </div>
-            </div>
+            {/* The top stepper is the single visual progress system; the step
+                position stays available to assistive tech here. */}
+            <p className="sr-only">
+                Step {step} of 4
+            </p>
             <h2 id={id} tabIndex={-1} className="section-title mt-1.5 sm:mt-2 focus:outline-none">
                 {title}
             </h2>
@@ -76,10 +63,10 @@ const ReportDetailsPanel = ({
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
 
     return (
-        <div className="surface-panel divide-y divide-[var(--border)] px-4 py-5 sm:px-6 sm:py-6">
+        <div>
             {/* Step 2: Incident Details */}
             {step === 2 && (
-            <section className="pb-5 sm:pb-6" aria-labelledby="details-heading">
+            <section aria-labelledby="details-heading">
                 <SectionHeader
                     id="details-heading"
                     step="2"
@@ -87,8 +74,8 @@ const ReportDetailsPanel = ({
                     description="Classify the incident, set the approximate time, and describe road or environmental conditions."
                 />
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                    <label className="block min-w-0">
+                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                    <label className="block min-w-0 lg:col-span-2">
                         <span className="field-label">
                             Accident type
                         </span>
@@ -106,7 +93,7 @@ const ReportDetailsPanel = ({
 
                     <label className="block min-w-0">
                         <span className="field-label">
-                            Incident date and time <span className="text-emerald-700 dark:text-emerald-400" aria-hidden="true">*</span>
+                            Incident date and time <span className="required-mark" aria-hidden="true">*</span><span className="sr-only">(required)</span>
                         </span>
                         <input
                             type="datetime-local"
@@ -114,6 +101,8 @@ const ReportDetailsPanel = ({
                             value={formData.incidentTime}
                             onChange={handleChange}
                             max={maxDateTime}
+                            required
+                            aria-required="true"
                             aria-invalid={Boolean(errors.incidentTime)}
                             aria-describedby={errors.incidentTime ? 'incident-time-error' : undefined}
                             className={`${inputClass} ${errors.incidentTime ? 'border-red-300 focus:border-red-400 focus:ring-red-100 dark:border-red-800' : ''}`}
@@ -121,7 +110,7 @@ const ReportDetailsPanel = ({
                         {errors.incidentTime && <FieldError id="incident-time-error">{errors.incidentTime}</FieldError>}
                     </label>
 
-                    <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                    <label className="block min-w-0">
                         <span className="field-label">
                             Severity
                         </span>
@@ -140,7 +129,7 @@ const ReportDetailsPanel = ({
                         </span>
                     </label>
 
-                    <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                    <label className="block lg:col-span-2">
                         <span className="field-label">
                             Description <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
                         </span>
@@ -163,7 +152,7 @@ const ReportDetailsPanel = ({
 
             {/* Step 3: Casualties and Injuries */}
             {step === 3 && (
-            <section className="py-5 sm:py-6" aria-labelledby="casualties-heading">
+            <section aria-labelledby="casualties-heading">
                 <SectionHeader
                     id="casualties-heading"
                     step="3"
@@ -202,7 +191,7 @@ const ReportDetailsPanel = ({
             {/* Step 4: Evidence Photos */}
             {step === 4 && (
             <>
-            <section className="py-5 sm:py-6" aria-labelledby="evidence-heading">
+            <section aria-labelledby="evidence-heading">
                 <SectionHeader
                     id="evidence-heading"
                     step="4"
@@ -320,7 +309,7 @@ const ReportDetailsPanel = ({
             </section>
 
             {/* Submission Checkpoint */}
-            <section className="pt-5 sm:pt-6" aria-labelledby="submit-heading">
+            <section className="mt-5 border-t border-[var(--border)] pt-5 sm:mt-6 sm:pt-6" aria-labelledby="submit-heading">
                 <h2 id="submit-heading" className="section-title">
                     Review before submitting
                 </h2>

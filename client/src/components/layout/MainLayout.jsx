@@ -26,15 +26,11 @@ import {
     HiOutlineSearch,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
+const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2 md:justify-center md:px-2 xl:justify-start xl:px-3';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-sky-300 bg-white/[0.08] text-white'
     : 'border-transparent text-slate-300/70 hover:bg-white/[0.06] hover:text-white'}`;
 const NAV_ICON_CLASS = 'h-[18px] w-[18px] shrink-0 transition-colors group-hover:text-white';
-const ALERT_NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2';
-const getAlertNavLinkClass = (active) => `${ALERT_NAV_LINK_BASE} ${active
-    ? 'border-red-400 bg-red-500/20 text-white'
-    : 'border-transparent bg-red-500/10 text-red-200 hover:bg-red-500/20 hover:text-white'}`;
 
 const getAccountContext = (user) => {
     const roleLabels = {
@@ -172,7 +168,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                     <button
                         type="button"
                         aria-label="Close navigation menu"
-                        className="overlay-fade-in fixed inset-0 z-[90] bg-black/50 lg:hidden"
+                        className="overlay-fade-in fixed inset-0 z-[90] bg-black/50 md:hidden"
                         onClick={closeDrawer}
                     />
                 )}
@@ -180,10 +176,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out lg:static lg:z-auto lg:w-[260px] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out md:static md:z-auto md:w-[76px] md:translate-x-0 xl:w-[260px] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Brand Header */}
-                    <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 lg:h-14 lg:px-4">
+                    <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 md:justify-center md:px-2 xl:justify-between xl:px-4">
                         {(() => {
                             const homeHref = !isAuthenticated
                                 ? '/'
@@ -204,11 +200,11 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                                 alt=""
                                                 className="h-[1.3em] w-[1.3em] shrink-0 object-contain"
                                             />
-                                            <span className="-ml-[0.08em] leading-none">
+                                            <span className="-ml-[0.08em] leading-none md:sr-only xl:not-sr-only">
                                                 ibuyan <span className="text-red-400">Alert</span>
                                             </span>
                                         </span>
-                                        <span className="mt-1 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-slate-300">
+                                        <span className="mt-1 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-slate-300 md:sr-only xl:not-sr-only">
                                             Island Operations
                                         </span>
                                     </span>
@@ -220,7 +216,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             type="button"
                             onClick={closeDrawer}
                             aria-label="Close navigation menu"
-                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 lg:hidden"
+                            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300/70 hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 md:hidden"
                         >
                             <HiOutlineX className="w-5 h-5" />
                         </button>
@@ -250,13 +246,14 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             return (
                                 <NavLink
                                     to={homeHref}
+                                    title={homeLabel}
                                     end={!isAuthenticated}
                                     aria-current={isHomeActive ? 'page' : undefined}
                                     className={() => getNavLinkClass(isHomeActive)}
                                     onClick={closeDrawer}
                                 >
                                     <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
-                                    <span className="truncate">{homeLabel}</span>
+                                    <span className="truncate md:sr-only xl:not-sr-only">{homeLabel}</span>
                                 </NavLink>
                             );
                         })()}
@@ -265,6 +262,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         {isAuthenticated && (user?.role === 'municipal_admin' || user?.role === 'responder') && (
                             <NavLink
                                 to={user?.role === 'responder' ? '/admin/reports?view=dispatch-queue' : '/admin/reports'}
+                                title="Incident Reports"
                                 aria-current={location.pathname === '/admin/reports' ? 'page' : undefined}
                                 className={() => {
                                     const isReportsActive = location.pathname === '/admin/reports';
@@ -273,7 +271,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">Incident Reports</span>
+                                <span className="truncate md:sr-only xl:not-sr-only">Incident Reports</span>
                             </NavLink>
                         )}
 
@@ -281,12 +279,13 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         {isAuthenticated && user?.role === 'municipal_admin' && (
                             <NavLink
                                 to="/admin/users"
+                                title="Users"
                                 aria-current={location.pathname === '/admin/users' ? 'page' : undefined}
                                 className={({ isActive }) => getNavLinkClass(isActive)}
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineUsers className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">Users</span>
+                                <span className="truncate md:sr-only xl:not-sr-only">Users</span>
                             </NavLink>
                         )}
 
@@ -295,36 +294,39 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             <NavLink
                                 key={item.name}
                                 to={item.href}
+                                title={item.name}
                                 aria-current={location.pathname === item.href ? 'page' : undefined}
-                                className={({ isActive }) => (item.name === 'Submit Report' ? getAlertNavLinkClass(isActive) : getNavLinkClass(isActive))}
+                                className={({ isActive }) => getNavLinkClass(isActive)}
                                 onClick={closeDrawer}
                             >
                                 <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">{item.name}</span>
+                                <span className="truncate md:sr-only xl:not-sr-only">{item.name}</span>
                             </NavLink>
                         ))}
 
                         {/* Mapping Link */}
                         <NavLink
                             to="/dashboard"
+                            title="Map"
                             aria-current={isMapView ? 'page' : undefined}
                             className={() => getNavLinkClass(isMapView)}
                             onClick={closeDrawer}
                         >
                             <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
-                            <span className="truncate">Map</span>
+                            <span className="truncate md:sr-only xl:not-sr-only">Map</span>
                         </NavLink>
 
                         {/* Admin Risk Zones link */}
                         {isAuthenticated && user?.role === 'municipal_admin' && (
                             <NavLink
                                 to="/admin/zones"
+                                title="Risk Zones"
                                 aria-current={location.pathname === '/admin/zones' ? 'page' : undefined}
                                 className={({ isActive }) => getNavLinkClass(isActive)}
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineLocationMarker className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">Risk Zones</span>
+                                <span className="truncate md:sr-only xl:not-sr-only">Risk Zones</span>
                             </NavLink>
                         )}
 
@@ -332,35 +334,37 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         {isAuthenticated && user?.role === 'municipal_admin' && (
                             <NavLink
                                 to="/dashboard?view=analytics"
+                                title="Analytics"
                                 aria-current={isAnalyticsDashboard ? 'page' : undefined}
                                 className={() => getNavLinkClass(isAnalyticsDashboard)}
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate">Analytics</span>
+                                <span className="truncate md:sr-only xl:not-sr-only">Analytics</span>
                             </NavLink>
                         )}
 
                         {/* Accident History link */}
                         <NavLink
                             to="/accident-history"
+                            title="Accident History"
                             aria-current={location.pathname === '/accident-history' ? 'page' : undefined}
                             className={({ isActive }) => getNavLinkClass(isActive)}
                             onClick={closeDrawer}
                         >
                             <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
-                            <span className="truncate">Accident History</span>
+                            <span className="truncate md:sr-only xl:not-sr-only">Accident History</span>
                         </NavLink>
                     </nav>
 
                     {/* Account Footer */}
-                    <div className="mt-auto border-t border-white/[0.08] bg-black/20 p-2.5 lg:p-3">
+                    <div className="mt-auto border-t border-white/[0.08] bg-black/20 p-2.5 md:p-2 xl:p-3">
                         {isAuthenticated ? (
                             <div className="flex flex-col gap-1.5">
                                 <Link
                                     to="/profile"
                                     onClick={closeDrawer}
-                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0"
+                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0 md:justify-center xl:justify-start"
                                     aria-label="Open profile settings"
                                     title={user?.assignedMunicipality ? `${user?.name} · ${getAccountContext(user)}` : user?.name}
                                 >
@@ -375,7 +379,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                             user?.name?.charAt(0).toUpperCase() || 'U'
                                         )}
                                     </div>
-                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                    <div className="min-w-0 flex-1 overflow-hidden md:sr-only xl:not-sr-only">
                                         <div className="flex items-center gap-1.5 min-w-0">
                                             <p className="truncate min-w-0 text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
                                                 {user?.name}
@@ -392,10 +396,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5"
+                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5 md:justify-center md:px-2 xl:justify-start xl:px-3"
                                 >
                                     <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    <span>Sign out</span>
+                                    <span className="md:sr-only xl:not-sr-only">Sign out</span>
                                 </button>
                             </div>
                         ) : (
@@ -436,12 +440,15 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={openDrawer}
                                 aria-label="Open navigation menu"
                                 aria-expanded={sidebarOpen}
-                                className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--accent-text)] hover:bg-[var(--surface-hover)] lg:hidden"
+                                className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--accent-text)] hover:bg-[var(--surface-hover)] md:hidden"
                             >
                                 <HiOutlineMenu className="h-5 w-5" />
                             </button>
 
-                            <div className="flex-1 min-w-0 px-1">
+                            {/* Brand block: mobile only. At md+ the sidebar/rail
+                                carries the wordmark, so the header stays a slim
+                                utility strip (search, notifications, identity). */}
+                            <div className="flex-1 min-w-0 px-1 md:hidden">
                                 <span className="block truncate font-display text-sm font-semibold leading-tight text-[var(--text-primary)] sm:text-base">
                                     Sibuyan Island Operations
                                 </span>
@@ -515,8 +522,8 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         natural height and scroll like every other page, which is
                         what a phone needs. */}
                     <main id="main-content" tabIndex={-1} data-map-scroll-container className={isMapView
-                        ? `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-1 sm:px-3 sm:pt-2 lg:px-2 lg:pt-0 ${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-2' : 'pb-2'}`
-                        : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${fitWindow ? 'lg:overflow-y-hidden ' : ''}${isReporter || isOperationalNavVisible ? 'pb-20 min-[501px]:pb-8' : 'pb-8'}`}>
+                        ? `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-1 sm:px-3 sm:pt-2 lg:px-2 lg:pt-0 ${isReporter || isOperationalNavVisible ? 'pb-20 md:pb-2' : 'pb-2'}`
+                        : `custom-scrollbar relative z-0 min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5 ${fitWindow ? 'lg:overflow-y-hidden ' : ''}${isReporter || isOperationalNavVisible ? 'pb-20 md:pb-8' : 'pb-8'}`}>
                         {/* `lg:h-full` and not plain `h-full`: a definite height
                             is only needed where the page sizes itself against it,
                             and at smaller sizes a forced 100% would put the page's
@@ -533,7 +540,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                     {isReporter && (
                         <nav
                             aria-label="Reporter quick navigation"
-                            className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-md min-[501px]:hidden dark:border-white/10 dark:bg-gray-950/95"
+                            className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-md md:hidden dark:border-white/10 dark:bg-gray-950/95"
                         >
                             <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2">
                                 <NavLink

@@ -1,6 +1,10 @@
 import { format, formatDistanceToNow } from 'date-fns';
 
-export function formatIncidentTime(dateValue, pattern = 'MMM d, yyyy, h:mm a') {
+// The app-wide incident datetime convention: "30 Sep 2026, 10:40 PM".
+// Use this everywhere a full incident timestamp is shown so Dashboard, Map,
+// and report views read consistently. Relative phrasing ("2 hours ago") is
+// handled separately by formatIncidentRelativeTime.
+export function formatIncidentTime(dateValue, pattern = 'd MMM yyyy, h:mm a') {
     if (!dateValue) return 'Not available';
     const date = new Date(dateValue);
     return Number.isNaN(date.getTime()) ? 'Not available' : format(date, pattern);

@@ -87,7 +87,12 @@
     .metric-helper { margin-top: 4px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 
     .form-surface { border: 1px solid var(--border); border-radius: 12px; padding: 24px; background: var(--surface); box-shadow: var(--shadow-sm); }
-    .field-label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
+    /* Form labels carry the scanning weight: near-black, semibold, large
+       enough to read at arm's length in bright field conditions. */
+    .field-label { display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 14px; font-weight: 600; }
+    /* Required-field mark: brand red, never decorative green. Paired with a
+       visually-hidden "(required)" in the label for assistive tech. */
+    .required-mark { margin-left: 2px; color: var(--danger); font-weight: 700; }
     .field-control {
         width: 100%;
         min-width: 0;

@@ -35,15 +35,15 @@ describe('VerifiedReporterBadge', () => {
         render(<VerifiedReporterBadge size="sm" variant="sidebar" />);
 
         const badge = screen.getByRole('status', { name: 'Verified reporter' });
-        expect(badge).toHaveClass('border-white/15', 'bg-white/[0.08]', 'text-sky-300');
+        expect(badge).toHaveClass('border-emerald-400/20', 'bg-emerald-400/10', 'text-emerald-300');
     });
 
     test('renders default styling for standard light/dark pages', () => {
         render(<VerifiedReporterBadge />);
 
         const badge = screen.getByRole('status', { name: 'Verified reporter' });
-        expect(badge).toHaveClass('border-brand-200', 'bg-brand-50', 'text-brand-700');
-        expect(badge.className).toContain('dark:text-sky-300');
+        expect(badge).toHaveClass('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+        expect(badge.className).toContain('dark:text-emerald-300');
     });
 
     test('renders md size when explicitly requested', () => {

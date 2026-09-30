@@ -1,13 +1,7 @@
-import { format } from 'date-fns';
+import { formatIncidentTime as formatDate } from '../../utils/dateTimeUtils';
 import { formatIncidentLabel, getPhysicalMunicipality, normalizeCasualties } from '../../utils/incidentDetails';
 import { isVerifiedReportReporter } from '../../utils/reporterVerification';
 import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
-
-const formatDate = (value) => {
-    if (!value) return 'Not available';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Not available' : format(date, 'MMM d, yyyy, h:mm a');
-};
 
 const AGENCY_LABELS = {
     pnp: 'Philippine National Police',

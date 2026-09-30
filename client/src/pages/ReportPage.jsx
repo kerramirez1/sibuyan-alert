@@ -67,11 +67,12 @@ const STEPS = [
 
 const LAST_STEP = STEPS.length;
 
-// Top-of-form progress: all four steps stay visible while only the active
-// step's fields render below. Labels collapse on very small phones; the
-// caption underneath keeps the current step named there.
+// Single progress system for the wizard. The stepper lives inside the same
+// card as the step content (with a light divider between them) so the flow
+// reads as one continuous task. Below sm the labels collapse and the caption
+// underneath names the current step — the compressed mobile stepper.
 const StepIndicator = ({ activeStep }) => (
-    <nav aria-label="Report progress" className="surface-panel px-4 py-3 sm:px-5">
+    <nav aria-label="Report progress" className="px-4 pt-4 sm:px-6 sm:pt-5">
         <ol className="flex items-center">
             {STEPS.map((step) => {
                 const isDone = step.id < activeStep;
@@ -976,7 +977,7 @@ const ReportPage = () => {
     const maxDateTime = localNow.toISOString().slice(0, 16);
 
     return (
-        <div className="page-shell max-w-7xl space-y-5 pb-20 min-[501px]:pb-6">
+        <div className="page-shell max-w-7xl space-y-5 pb-20 md:pb-6">
             <PageHeader eyebrow="Incident reporting" title="Submit incident report" description="Pin the incident location and describe what happened. Fields marked with an asterisk (*) are required." />
 
             {draftRestored && (
@@ -995,58 +996,68 @@ const ReportPage = () => {
                 </div>
             )}
 
-            {/* Guided four-step flow: one step visible at a time. The form owns
-                all state, so Back/Continue never clears values, photos, or the
-                location pin. Bottom padding on the page shell keeps this clear
-                of the fixed mobile bottom navigation. */}
+            {/* Guided four-step flow: one step visible at a time, inside a single
+                flow container — stepper on top, a light divider, then the step
+                content. The form owns all state, so Back/Continue never clears
+                values, photos, or the location pin. Bottom padding on the page
+                shell keeps this clear of the fixed mobile bottom navigation. */}
             <form
                 ref={formTopRef}
                 onSubmit={handleSubmit}
                 noValidate
-                className="mx-auto w-full max-w-3xl scroll-mt-24"
+                className="mx-auto w-full max-w-[720px] scroll-mt-24"
             >
-                <StepIndicator activeStep={activeStep} />
+                {/* Screen-reader announcement for wizard step changes. */}
+                <p aria-live="polite" className="sr-only">
+                    Step {activeStep} of {LAST_STEP}: {STEPS[activeStep - 1]?.label}
+                </p>
 
-                <div className="mt-4">
-                    {activeStep === 1 && (
-                        <ReportLocationPanel
-                            locationStatus={locationStatus}
-                            geoLoading={geoLoading}
-                            gpsAccuracy={gpsAccuracy}
-                            selectedLocation={selectedLocation}
-                            userLocation={userLocation}
-                            focusLocation={focusLocation}
-                            detectLocation={detectLocation}
-                            retryLocation={retryLocation}
-                            confirmLocation={confirmLocation}
-                            handleLocationSelect={handleLocationSelect}
-                            formData={formData}
-                            handleChange={handleChange}
-                            locationError={errors.location}
-                        />
-                    )}
+                <div className="surface-panel">
+                    <StepIndicator activeStep={activeStep} />
 
-                    {activeStep >= 2 && (
-                        <ReportDetailsPanel
-                            step={activeStep}
-                            formData={formData}
-                            setFormData={setFormData}
-                            handleChange={handleChange}
-                            errors={errors}
-                            maxDateTime={maxDateTime}
-                            images={images}
-                            imagePreviews={imagePreviews}
-                            fileInputRef={fileInputRef}
-                            cameraInputRef={cameraInputRef}
-                            handleImageChange={handleImageChange}
-                            removeImage={removeImage}
-                            onRetakeImage={retakeImage}
-                            loading={loading}
-                            uploadProgress={uploadProgress}
-                            deviceSaved={deviceSaved}
-                            isOffline={isOffline}
-                        />
-                    )}
+                    <div aria-hidden="true" className="mx-4 mt-4 border-t border-[var(--border)] sm:mx-6" />
+
+                    <div className="px-4 py-5 sm:px-6 sm:py-6">
+                        {activeStep === 1 && (
+                            <ReportLocationPanel
+                                locationStatus={locationStatus}
+                                geoLoading={geoLoading}
+                                gpsAccuracy={gpsAccuracy}
+                                selectedLocation={selectedLocation}
+                                userLocation={userLocation}
+                                focusLocation={focusLocation}
+                                detectLocation={detectLocation}
+                                retryLocation={retryLocation}
+                                confirmLocation={confirmLocation}
+                                handleLocationSelect={handleLocationSelect}
+                                formData={formData}
+                                handleChange={handleChange}
+                                locationError={errors.location}
+                            />
+                        )}
+
+                        {activeStep >= 2 && (
+                            <ReportDetailsPanel
+                                step={activeStep}
+                                formData={formData}
+                                setFormData={setFormData}
+                                handleChange={handleChange}
+                                errors={errors}
+                                maxDateTime={maxDateTime}
+                                images={images}
+                                imagePreviews={imagePreviews}
+                                fileInputRef={fileInputRef}
+                                cameraInputRef={cameraInputRef}
+                                handleImageChange={handleImageChange}
+                                removeImage={removeImage}
+                                onRetakeImage={retakeImage}
+                                loading={loading}
+                                uploadProgress={uploadProgress}
+                                deviceSaved={deviceSaved}
+                                isOffline={isOffline}
+                            />
+                        )}
+                    </div>
                 </div>
 
                 <StepNav activeStep={activeStep} onBack={handleBack} onContinue={handleContinue} />

@@ -9,9 +9,11 @@ const VerifiedReporterBadge = ({
     const isSm = size === 'sm';
     const isSidebar = variant === 'sidebar';
 
+    // In the dark sidebar the badge tints green against the navy; on light
+    // surfaces it uses the standard verified-green pairing.
     const baseClasses = isSidebar
-        ? 'border-white/15 bg-white/[0.08] text-sky-300'
-        : 'border-brand-200 bg-brand-50 text-brand-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-sky-300';
+        ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300';
 
     const sizeClasses = isSm
         ? 'px-1.5 py-0.5 text-[10px] gap-1'

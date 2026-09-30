@@ -260,7 +260,7 @@ describe('ReportPage workflow', () => {
     test('replaces a prior barangay only with the current pin boundary result', async () => {
         renderPage();
 
-        const barangayInput = screen.getByLabelText(/^barangay$/i);
+        const barangayInput = screen.getByLabelText(/^barangay/i);
         fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
         fireEvent.click(screen.getByTestId('location-map'));
 
@@ -286,7 +286,7 @@ describe('ReportPage workflow', () => {
 
         await waitFor(() => {
             expect(screen.getByLabelText(/address or landmark/i)).toHaveValue('Sibuyan Circumferential Road, Taguilos');
-            expect(screen.getByLabelText(/^barangay$/i)).toHaveValue('Taguilos');
+            expect(screen.getByLabelText(/^barangay/i)).toHaveValue('Taguilos');
         });
         expect(geocodeLocationMock).toHaveBeenCalledWith(
             { lat: 12.39261, lng: 122.67985 },
@@ -301,7 +301,7 @@ describe('ReportPage workflow', () => {
         });
         renderPage();
 
-        const barangayInput = screen.getByLabelText(/^barangay$/i);
+        const barangayInput = screen.getByLabelText(/^barangay/i);
         fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
         fireEvent.click(screen.getByTestId('location-map'));
 

@@ -56,19 +56,13 @@ const ReportLocationPanel = ({
     const StatusIcon = currentConfig.Icon;
 
     return (
-        <section className="surface-panel p-4 sm:p-6" aria-labelledby="location-heading">
+        <section aria-labelledby="location-heading">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                    <p className="page-eyebrow mb-0">
-                        Step 1 of 4
-                    </p>
-                    <div className="flex items-center gap-1 w-16 sm:w-20" aria-hidden="true">
-                        <span className="h-1 flex-1 rounded-full bg-brand-700 dark:bg-sky-400" />
-                        <span className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-white/20" />
-                        <span className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-white/20" />
-                        <span className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-white/20" />
-                    </div>
-                </div>
+                {/* The top stepper is the single visual progress system; the
+                    step position stays available to assistive tech here. */}
+                <p className="sr-only">
+                    Step 1 of 4
+                </p>
                 <p
                     className={`shrink-0 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium ${currentConfig.badgeClass}`}
                     role="status"
@@ -94,7 +88,7 @@ const ReportLocationPanel = ({
                 Select a location on the map or use GPS to set the incident coordinates.
             </p>
             <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                Address or coordinates are required (<span className="text-emerald-700 dark:text-emerald-400 font-bold" aria-hidden="true">*</span>).
+                Address or coordinates are required (<span className="required-mark" aria-hidden="true">*</span>).
             </p>
 
             {/* Interactive map with location control */}
@@ -181,16 +175,18 @@ const ReportLocationPanel = ({
             )}
 
             {/* Location fields */}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="block">
                     <span className="field-label">
-                        Address or landmark <span className="text-emerald-700 dark:text-emerald-400" aria-hidden="true">*</span>
+                        Address or landmark <span className="required-mark" aria-hidden="true">*</span><span className="sr-only">(required)</span>
                     </span>
                     <input
                         type="text"
                         name="address"
                         value={formData.address}
                         onChange={handleChange}
+                        required
+                        aria-required="true"
                         aria-invalid={Boolean(locationError)}
                         aria-describedby={locationError ? 'location-error' : undefined}
                         placeholder="Near Municipal Hall, Poblacion"
@@ -199,7 +195,7 @@ const ReportLocationPanel = ({
                 </label>
                 <label className="block">
                     <span className="field-label">
-                        Barangay
+                        Barangay <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-gray-500">(optional)</span>
                     </span>
                     <input
                         type="text"

@@ -1,4 +1,5 @@
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { formatIncidentTime as formatDate } from '../../utils/dateTimeUtils';
 import {
     HiOutlineClock,
     HiOutlineChevronDown,
@@ -15,12 +16,6 @@ import ProtectedEvidenceGallery from '../report/ProtectedEvidenceGallery';
 import Button from '../ui/Button';
 import { isVerifiedReportReporter } from '../../utils/reporterVerification';
 import VerifiedReporterBadge from '../ui/VerifiedReporterBadge';
-
-const formatDate = (value) => {
-    if (!value) return 'Not available';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Not available' : format(date, 'MMM d, yyyy, h:mm a');
-};
 
 const formatRelativeTime = (value) => {
     if (!value) return '';

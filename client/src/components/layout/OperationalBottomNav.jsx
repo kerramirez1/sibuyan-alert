@@ -89,7 +89,7 @@ const OperationalBottomNav = ({ role }) => {
     return (
         <nav
             aria-label="Operational quick navigation"
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-md min-[501px]:hidden dark:border-white/10 dark:bg-gray-950/95"
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-md md:hidden dark:border-white/10 dark:bg-gray-950/95"
         >
             <div className="mx-auto grid max-w-md grid-cols-4 items-end px-2">
                 {items.map((item) => (

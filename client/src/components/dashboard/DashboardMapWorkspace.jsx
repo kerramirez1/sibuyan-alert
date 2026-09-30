@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { format } from 'date-fns';
+import { formatIncidentTime as formatDate } from '../../utils/dateTimeUtils';
 import toast from 'react-hot-toast';
 import {
     HiChevronRight,
@@ -105,12 +105,6 @@ const PHONE_MAP_FRAME_CLASSES = 'aspect-[4/3] w-full';
  * nothing about opening a card behaves differently than it did.
  */
 const PHONE_PANE_BOX_CLASSES = 'h-[52svh] min-h-[320px] max-h-[440px]';
-
-const formatDate = (value, pattern = 'MMM d, h:mm a') => {
-    if (!value) return 'Date unavailable';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Date unavailable' : format(date, pattern);
-};
 
 const formatIncidentType = (report) => getReportIncidentTypeLabel(report);
 

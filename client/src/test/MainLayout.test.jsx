@@ -322,12 +322,11 @@ describe('MainLayout responsive navigation', () => {
         expect(dashboardLink).toHaveAttribute('aria-current', 'page');
         expect(dashboardLink).toHaveClass('focus-visible:ring-sky-400');
 
-        // Submit Report is prominent action but clearly NOT selected/active
-        expect(submitReportLink).toHaveClass('border-transparent', 'bg-red-500/10', 'text-red-200');
-        expect(submitReportLink).not.toHaveClass('border-red-400');
+        // Submit Report shares the standard inactive treatment — clearly NOT selected/active
+        expect(submitReportLink).toHaveClass('border-transparent', 'text-slate-300/70');
         expect(submitReportLink).not.toHaveClass('border-sky-300');
         expect(submitReportLink).not.toHaveAttribute('aria-current');
-        expect(submitReportLink).toHaveClass('focus-visible:ring-red-400');
+        expect(submitReportLink).toHaveClass('focus-visible:ring-sky-400');
 
         // Remaining destinations are inactive
         expect(myReportsLink).toHaveClass('border-transparent', 'text-slate-300/70');
@@ -343,9 +342,9 @@ describe('MainLayout responsive navigation', () => {
         const activeSubmitReportLink = within(reportSidebar).getByRole('link', { name: 'Submit Report' });
         const inactiveDashboardLink = within(reportSidebar).getByRole('link', { name: 'Dashboard' });
 
-        expect(activeSubmitReportLink).toHaveClass('border-red-400', 'bg-red-500/20', 'text-white');
+        expect(activeSubmitReportLink).toHaveClass('border-sky-300', 'bg-white/[0.08]', 'text-white');
         expect(activeSubmitReportLink).toHaveAttribute('aria-current', 'page');
-        expect(activeSubmitReportLink).toHaveClass('focus-visible:ring-red-400');
+        expect(activeSubmitReportLink).toHaveClass('focus-visible:ring-sky-400');
 
         expect(inactiveDashboardLink).toHaveClass('border-transparent');
         expect(inactiveDashboardLink).not.toHaveClass('border-sky-300');
@@ -362,7 +361,7 @@ describe('MainLayout responsive navigation', () => {
         expect(activeMyReportsLink).toHaveClass('border-sky-300', 'bg-white/[0.08]', 'text-white');
         expect(activeMyReportsLink).toHaveAttribute('aria-current', 'page');
 
-        expect(inactiveSubmitLink).toHaveClass('border-transparent', 'bg-red-500/10');
+        expect(inactiveSubmitLink).toHaveClass('border-transparent', 'text-slate-300/70');
         expect(inactiveSubmitLink).not.toHaveAttribute('aria-current');
     });
 
