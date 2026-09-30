@@ -100,6 +100,9 @@ describe('Municipal Administrator Login Redirect and Navigation Contracts', () =
     beforeEach(() => {
         vi.clearAllMocks();
         currentUser = null;
+        // The auth session hint is per-browser state; a login in one test must
+        // not change the cold-boot render path asserted by the next.
+        window.localStorage.clear();
 
         api.get.mockImplementation(async (url) => {
             if (url === '/auth/me') {

@@ -44,7 +44,7 @@ const PageLoader = () => (
 );
 
 function App() {
-    const { isAuthenticated, loading, user } = useAuth();
+    const { isAuthenticated, loading, user, hadSessionHint } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const bootRedirectDoneRef = useRef(false);
@@ -105,7 +105,15 @@ function App() {
         }
     }, [loading, isAuthenticated, user, location.pathname, location.search, navigate]);
 
-    if (loading) {
+    // First paint must never wait for the session check. Public routes
+    // (landing, auth pages, public map/history) render while /auth/me is
+    // still in flight; the auth-dependent chrome (header buttons) swaps in
+    // when it resolves. ProtectedRoute keeps its own "Loading secure page..."
+    // skeleton during the check, so no protected content can leak early.
+    // Returning visitors with a session hint keep the boot loader so the
+    // role redirect below fires without flashing the landing page first.
+    const canRenderShell = !loading || !hadSessionHint;
+    if (!canRenderShell) {
         return <PageLoader />;
     }
 

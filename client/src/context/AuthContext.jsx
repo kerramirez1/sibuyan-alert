@@ -29,9 +29,42 @@ export const useAuth = () => {
     return context;
 };
 
+// The session cookie is HttpOnly, so JS cannot see whether a session exists
+// until /auth/me resolves. This hint remembers the last known outcome so the
+// app shell can decide, on a cold boot, whether to paint public routes
+// immediately (no hint: almost certainly a first-time or signed-out visitor)
+// or to hold the boot loader (hint set: a returning user who will likely be
+// bounced to their dashboard). It is a hint, not a credential — every
+// authorization decision still waits for the real /auth/me result.
+const AUTH_HINT_KEY = 'sibuyan-alert:auth-hint';
+
+const readAuthHint = () => {
+    try {
+        return localStorage.getItem(AUTH_HINT_KEY) === '1';
+    } catch {
+        // Storage unavailable (private mode, sandbox): fall back to the
+        // instant public render; the auth check still runs normally.
+        return false;
+    }
+};
+
+const writeAuthHint = (hasSession) => {
+    try {
+        if (hasSession) {
+            localStorage.setItem(AUTH_HINT_KEY, '1');
+        } else {
+            localStorage.removeItem(AUTH_HINT_KEY);
+        }
+    } catch {
+        // Non-fatal: the hint is a pure performance optimization.
+    }
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    // Snapshot taken once per mount, before the restore below can rewrite it.
+    const [hadSessionHint] = useState(readAuthHint);
     const [pushState, setPushState] = useState({
         supported: true,
         permission: 'default',
@@ -59,9 +92,11 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await api.get('/auth/me', { _skipAuthRefresh: true });
                 setUser(response.data.data);
+                writeAuthHint(true);
                 lastSessionRefreshAtRef.current = Date.now();
             } catch {
                 setUser(null);
+                writeAuthHint(false);
             }
             setLoading(false);
         };
@@ -163,6 +198,7 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Login response did not include a user');
             }
             setUser(user);
+            writeAuthHint(true);
 
             const greeting = `Welcome back, ${user.name}!`;
             toast.success(greeting);
@@ -195,6 +231,7 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Registration response did not include a user');
             }
             setUser(user);
+            writeAuthHint(true);
 
             navigate('/registration-submitted');
 
@@ -222,6 +259,7 @@ export const AuthProvider = ({ children }) => {
         clearOfflineCaches();
         setCacheScope(null);
         setUser(null);
+        writeAuthHint(false);
         toast.success('Logged out successfully');
         navigate('/');
     }, [navigate]);
@@ -233,6 +271,7 @@ export const AuthProvider = ({ children }) => {
             clearOfflineCaches();
             setCacheScope(null);
             setUser(null);
+            writeAuthHint(false);
         };
         if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
             return () => { };
@@ -494,6 +533,9 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         isAuthenticated: !!user,
+        // Cold-boot hint: was there a session last time? Lets the shell paint
+        // public routes instantly instead of blocking on /auth/me.
+        hadSessionHint,
         login,
         register,
         logout,
