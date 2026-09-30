@@ -2152,7 +2152,7 @@ const MapView = ({
     };
 
     return (
-        <div className={`relative min-h-0 rounded-lg ${mode === 'report-location' ? 'report-location-map' : ''} ${className}`.trim()}>
+        <div className={`relative min-h-0 rounded-lg ${mode === 'report-location' ? 'report-location-map' : ''} ${mode === 'full' ? 'operational-map' : ''} ${className}`.trim()}>
             <div
                 ref={mapContainerRef}
                 className="absolute inset-0 overflow-hidden rounded-lg"
