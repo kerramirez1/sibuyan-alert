@@ -1425,6 +1425,51 @@
   }
 }
 
+/* Operational dashboard zoom cluster, aligned with the lower-right
+   MapToolButton family: 28px of visible chrome and 12px glyphs instead of
+   the larger generic navigation sizing above. Only the zoom-in, zoom-out,
+   and compass buttons are resized — the group's vertical order,
+   separators, position, surface, and behavior are untouched, and other
+   controls sharing the corner (e.g. fullscreen) keep their sizing. */
+.operational-map .maplibregl-ctrl-group {
+  overflow: visible !important;
+}
+
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-compass {
+  position: relative;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+/* MapLibre paints each glyph at its SVG's natural 29px; scale down to the
+   12px optical size of the rail icons (MapToolButton renders lucide at
+   h-3 w-3) so the two families read as one. */
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-compass .maplibregl-ctrl-icon {
+  background-size: 12px 12px;
+}
+
+/* The visible control stays a compact 28px at every breakpoint; an
+   invisible ::after expands the hit area toward 44px like the rail's own
+   before:-inset-2 overlay. Each button keeps an unambiguous 28px core —
+   only the 8px boundary strips are shared with the neighbor below, so a
+   tap aimed at a control always lands on it. */
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in::after,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out::after,
+.operational-map .maplibregl-ctrl-group button.maplibregl-ctrl-compass::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  pointer-events: auto;
+}
+
 /* Compact zoom controls in embedded incident location preview */
 .incident-location-preview .maplibregl-ctrl-group button {
   width: 28px !important;
