@@ -273,6 +273,20 @@ const MapView = ({
     onMapScopeChange = null,
     mapScopeMunicipality = '',
     /**
+     * Zoom / compass control group (MapLibre NavigationControl).
+     *
+     * On by default: an operational map is explored, not just glanced at, and
+     * the zoom buttons plus compass are the primary way to do that — including
+     * for keyboard and touch users who cannot pinch-zoom or right-drag.
+     *
+     * A caller opts out explicitly when the map is a placement surface rather
+     * than an exploration surface: the incident report location map drops the
+     * group because the pin, the "My location" action, and drag/scroll zoom
+     * already cover every positioning task, and the corner stays clear for the
+     * coordinates chip. Incident previews keep a zoom-only variant (see below).
+     */
+    showNavigationControl = true,
+    /**
      * Metric scale bar.
      *
      * A hazard zone is defined by a radius in metres, and this map had no
@@ -953,26 +967,31 @@ const MapView = ({
             removeCompactAttribution = () => {};
         }
 
-        if (mode === 'incident-preview') {
-            try {
-                const navigationControl = new maplibregl.NavigationControl({
-                    showCompass: false,
-                    showZoom: true,
-                });
-                mapInstance.addControl(navigationControl, 'top-right');
-            } catch {
-                // Navigation control is progressive enhancement.
-            }
-        } else {
-            try {
-                const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
-                mapInstance.addControl(navigationControl, 'top-right');
-                removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
-                    pitch: effective3D ? 45 : 0,
-                    bearing: effective3D ? -17 : 0,
-                }) || (() => {});
-            } catch {
-                removeCompassToggle = () => {};
+        // Zoom / compass group. Never added when the caller opts out with
+        // showNavigationControl={false} (the report-location map): the control
+        // is absent from the map rather than hidden with CSS.
+        if (showNavigationControl) {
+            if (mode === 'incident-preview') {
+                try {
+                    const navigationControl = new maplibregl.NavigationControl({
+                        showCompass: false,
+                        showZoom: true,
+                    });
+                    mapInstance.addControl(navigationControl, 'top-right');
+                } catch {
+                    // Navigation control is progressive enhancement.
+                }
+            } else {
+                try {
+                    const navigationControl = new maplibregl.NavigationControl({ visualizePitch: true });
+                    mapInstance.addControl(navigationControl, 'top-right');
+                    removeCompassToggle = installCompassOrientationToggle(mapInstance, navigationControl, {
+                        pitch: effective3D ? 45 : 0,
+                        bearing: effective3D ? -17 : 0,
+                    }) || (() => {});
+                } catch {
+                    removeCompassToggle = () => {};
+                }
             }
         }
 
