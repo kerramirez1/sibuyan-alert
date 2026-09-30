@@ -59,7 +59,7 @@ const advanceWizardToReview = async () => {
 // Continue cannot file the report; wait for it before submitting.
 const awaitSubmitArmed = async () => {
     await waitFor(
-        () => expect(screen.getByRole('button', { name: /submit incident report/i })).not.toBeDisabled(),
+        () => expect(screen.getByRole('button', { name: /submit report/i })).not.toBeDisabled(),
         { timeout: 5000 }
     );
 };
@@ -163,7 +163,7 @@ describe('ReportPage automatic offline save', () => {
         await advanceWizardToReview();
 
         await awaitSubmitArmed();
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
         const config = createReportMock.mock.calls[0][1];
@@ -181,7 +181,7 @@ describe('ReportPage automatic offline save', () => {
         await advanceWizardToReview();
 
         await awaitSubmitArmed();
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
         // Staged before the network answers: the safety banner appears mid-flight.
         expect(await screen.findByText(/saved on this device — sending to dispatch/i)).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe('ReportPage automatic offline save', () => {
         await advanceWizardToReview();
 
         await awaitSubmitArmed();
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
         expect(await screen.findByText('My reports destination')).toBeInTheDocument();
         expect(localStorage.getItem(REPORT_DRAFT_STORAGE_KEY)).toBeNull();

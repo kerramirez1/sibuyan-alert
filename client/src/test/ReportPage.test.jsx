@@ -76,7 +76,7 @@ const advanceWizardTo = async (targetStep) => {
 // Continue cannot file the report; wait for it before submitting.
 const awaitSubmitArmed = async () => {
     await waitFor(
-        () => expect(screen.getByRole('button', { name: /submit incident report/i })).not.toBeDisabled(),
+        () => expect(screen.getByRole('button', { name: /submit report/i })).not.toBeDisabled(),
         { timeout: 5000 }
     );
 };
@@ -249,7 +249,7 @@ describe('ReportPage workflow', () => {
         fireEvent.change(screen.getByLabelText(/^injured$/i), { target: { value: '2' } });
         fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
         await screen.findByText('Step 4 of 4');
-        expect(screen.getByRole('button', { name: /submit incident report/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /submit report/i })).toBeInTheDocument();
 
         // Back through the steps: every entered value is intact.
         fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
@@ -271,7 +271,7 @@ describe('ReportPage workflow', () => {
         await advanceWizardTo(4);
 
         const backButton = screen.getByRole('button', { name: /^back$/i });
-        const submitButton = screen.getByRole('button', { name: /submit incident report/i });
+        const submitButton = screen.getByRole('button', { name: /submit report/i });
 
         // Back and Submit sit side by side in a single action row.
         expect(backButton.parentElement).toBe(submitButton.parentElement);
@@ -282,7 +282,7 @@ describe('ReportPage workflow', () => {
         expect(backButton).toHaveAttribute('type', 'button');
         expect(submitButton).toHaveAttribute('type', 'submit');
         // No duplicate submit control anywhere on the page.
-        expect(screen.getAllByRole('button', { name: /submit incident report/i })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: /submit report/i })).toHaveLength(1);
 
         fireEvent.click(backButton);
         await screen.findByText('Step 3 of 4');
@@ -293,7 +293,7 @@ describe('ReportPage workflow', () => {
         renderPage();
         await advanceWizardTo(4);
 
-        const submitButton = screen.getByRole('button', { name: /submit incident report/i });
+        const submitButton = screen.getByRole('button', { name: /submit report/i });
         // A stray second tap meant for Continue lands here; it must not file.
         expect(submitButton).toBeDisabled();
         expect(createReportMock).not.toHaveBeenCalled();
@@ -378,7 +378,7 @@ describe('ReportPage workflow', () => {
 
         // Step 4: review and submit.
         await awaitSubmitArmed();
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
         const payload = createReportMock.mock.calls[0][0];
@@ -431,7 +431,7 @@ describe('ReportPage workflow', () => {
         await screen.findByText('Step 4 of 4');
 
         await awaitSubmitArmed();
-        fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+        fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
         await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
         const payload = createReportMock.mock.calls[0][0];
@@ -609,7 +609,7 @@ describe('ReportPage workflow', () => {
             expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
 
             await awaitSubmitArmed();
-            fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+            fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
             await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
             const payload = createReportMock.mock.calls[0][0];
@@ -628,7 +628,7 @@ describe('ReportPage workflow', () => {
             // A single primary action: Submit auto-saves when the signal drops,
             // so there is nothing extra for the reporter to remember.
             expect(screen.queryByRole('button', { name: /save offline/i })).not.toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /submit incident report/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /submit report/i })).toBeInTheDocument();
             expect(screen.getAllByText(/submitting auto-saves on this device if the signal drops/i).length).toBeGreaterThan(0);
         });
     });
@@ -661,7 +661,7 @@ describe('ReportPage workflow', () => {
 
         const submitForm = async () => {
             await awaitSubmitArmed();
-            fireEvent.click(screen.getByRole('button', { name: /submit incident report/i }));
+            fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
         };
 
         beforeEach(() => {

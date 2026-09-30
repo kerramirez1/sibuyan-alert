@@ -160,7 +160,7 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
                         ? (uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
                             ? `Uploading ${uploadProgress.percent}%…`
                             : 'Submitting report…')
-                        : (<>Submit incident report <span aria-hidden="true">→</span></>)}
+                        : (<>Submit report <span aria-hidden="true">→</span></>)}
                 </button>
             </div>
         );
