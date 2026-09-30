@@ -132,14 +132,14 @@ const StepNav = ({ activeStep, onBack, onContinue }) => {
     return (
         <div className="mt-5 flex items-stretch gap-3">
             {activeStep > 1 && (
-                <button type="button" onClick={onBack} className="btn-outline min-h-12 shrink-0 px-6">
+                <button type="button" onClick={onBack} className="btn-outline min-h-12 flex-1 px-6">
                     <span aria-hidden="true">←</span> Back
                 </button>
             )}
             <button
                 type="button"
                 onClick={onContinue}
-                className="btn-primary min-h-12 flex-1 sm:flex-none sm:px-10"
+                className="btn-primary min-h-12 flex-1 px-6"
             >
                 Continue <span aria-hidden="true">→</span>
             </button>
