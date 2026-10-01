@@ -89,8 +89,8 @@ const LandingHero = ({
                             <p data-testid="landing-hero-eyebrow" className="mb-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-[var(--accent-text)] sm:text-[11px]">
                                 Island-wide incident coordination
                             </p>
-                            <p className="mb-4 flex items-center gap-1 whitespace-nowrap text-[9.5px] leading-relaxed text-[var(--text-secondary)] min-[360px]:text-[10.5px] sm:text-[11px]">
-                                <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
+                            <p className="mb-4 flex items-center gap-0.5 whitespace-nowrap text-[7.5px] tracking-tight leading-relaxed text-[var(--text-secondary)] min-[320px]:text-[8px] min-[340px]:gap-1 min-[340px]:text-[9px] min-[380px]:text-[10px] min-[380px]:tracking-normal sm:text-[11px]">
+                                <HiOutlineLocationMarker className="h-2.5 w-2.5 shrink-0 text-brand-600 dark:text-sky-400 min-[340px]:h-3 min-[340px]:w-3" aria-hidden="true" />
                                 Sibuyan Island · Romblon, Philippines
                             </p>
                             <h1 className="font-display text-[1.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--text-primary)] min-[400px]:text-[2rem] min-[430px]:text-4xl sm:text-5xl lg:text-[4rem] xl:text-[4.5rem]">
@@ -163,7 +163,7 @@ const LandingHero = ({
                     </div>
 
                     {/* ── Column 2: Sibuyan Island Map ── */}
-                    <div data-testid="landing-hero-map" className="relative z-10 order-2 w-[clamp(110px,34vw,200px)] shrink-0 self-stretch sm:w-[clamp(220px,34vw,360px)] lg:order-none lg:w-auto lg:min-w-0 lg:flex-1 lg:self-start">
+                    <div data-testid="landing-hero-map" className="relative z-10 order-2 w-[clamp(92px,30vw,200px)] shrink-0 self-stretch sm:w-[clamp(220px,34vw,360px)] lg:order-none lg:w-auto lg:min-w-0 lg:flex-1 lg:self-start">
                         <SibuyanIslandMap />
                     </div>
 
