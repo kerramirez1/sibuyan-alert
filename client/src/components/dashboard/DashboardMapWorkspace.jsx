@@ -602,9 +602,33 @@ const DashboardMapWorkspace = ({
     const [panelActionLoading, setPanelActionLoading] = useState(false);
     const [isMapExpanded, setIsMapExpanded] = useState(false);
 
-    // The expand entry is available at every viewport, phones included: the
-    // expanded shell carries its own mobile filter trigger, and the fixed
-    // fallback covers browsers without the Fullscreen API.
+    // The expand entry is desktop-only on the dashboard map: on phone
+    // viewports onToggleExpand is omitted below, so MapView renders no expand
+    // button at all — nothing to tab to, nothing exposed to assistive tech.
+    // The Risk Zones map passes its own onToggleExpand and is unaffected.
+    const [isPhoneViewport, setIsPhoneViewport] = useState(() => isSummaryPaneSheetViewport());
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const handleViewportChange = () => {
+            setIsPhoneViewport(isSummaryPaneSheetViewport());
+        };
+        handleViewportChange();
+        let mediaQueryList = null;
+        if (typeof window.matchMedia === 'function') {
+            mediaQueryList = window.matchMedia(PANEL_SHEET_MEDIA_QUERY);
+            if (typeof mediaQueryList.addEventListener === 'function') {
+                mediaQueryList.addEventListener('change', handleViewportChange);
+            }
+        }
+        window.addEventListener('resize', handleViewportChange);
+        return () => {
+            if (mediaQueryList && typeof mediaQueryList.removeEventListener === 'function') {
+                mediaQueryList.removeEventListener('change', handleViewportChange);
+            }
+            window.removeEventListener('resize', handleViewportChange);
+        };
+    }, []);
     const enterExpandedMap = useCallback(() => {
         setIsMapExpanded(true);
         const target = mapSectionRef.current;
@@ -661,6 +685,15 @@ const DashboardMapWorkspace = ({
             document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
         };
     }, [isMapExpanded, exitExpandedMap]);
+
+    // Leaving the expand entry behind when the viewport shrinks to a phone:
+    // the entry button is gone there, so an expanded map from a wider
+    // viewport exits instead of stranding the shell without its entry point.
+    useEffect(() => {
+        if (isPhoneViewport && isMapExpanded) {
+            exitExpandedMap();
+        }
+    }, [isPhoneViewport, isMapExpanded, exitExpandedMap]);
 
     const effectiveDockTarget = isMapExpanded ? null : summaryDockNode;
     const createFocusRequestId = () => {
@@ -1865,7 +1898,9 @@ const DashboardMapWorkspace = ({
                         // details float contextually over the map canvas.
                         dockTarget={effectiveDockTarget}
                         isExpanded={isMapExpanded}
-                        onToggleExpand={toggleExpandedMap}
+                        // Desktop-only entry: on phone viewports MapView gets
+                        // no onToggleExpand and renders no expand button.
+                        onToggleExpand={isPhoneViewport ? undefined : toggleExpandedMap}
                         className="h-full w-full"
                         focusLocation={focusLocation}
                         homeFocus={municipalityHomeFocus}

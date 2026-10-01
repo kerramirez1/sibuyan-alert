@@ -2885,9 +2885,10 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         expect(mapProps.onMapScopeChange).toBeNull();
     });
 
-    test('exposes the "Expand map" entry button on phone-sized viewports below sm', () => {
-        // Phones are no longer excluded from expanded mode: the expanded shell
-        // carries its own mobile filter trigger.
+    test('hides the "Expand map" entry button on phone-sized viewports below sm', () => {
+        // Phones get no expand entry on the dashboard map: onToggleExpand is
+        // omitted, so MapView renders no button — nothing to tab to, nothing
+        // exposed to assistive tech.
         const originalMatchMedia = window.matchMedia;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === '(max-width: 639px)',
@@ -2903,14 +2904,15 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         try {
             renderWorkspace(createProps());
 
-            const expandBtns = screen.getAllByRole('button', { name: /expand map/i });
-            expect(expandBtns.length).toBeGreaterThanOrEqual(1);
+            const mapProps = mapPropsSpy.mock.lastCall[0];
+            expect(typeof mapProps.onToggleExpand).not.toBe('function');
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
         } finally {
             window.matchMedia = originalMatchMedia;
         }
     });
 
-    test('allows entering expanded map on phone-sized viewports below sm', () => {
+    test('does not enter expanded map on phone-sized viewports below sm', () => {
         const originalMatchMedia = window.matchMedia;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
             matches: query === '(max-width: 639px)',
@@ -2928,12 +2930,11 @@ describe('DashboardMapWorkspace expanded map mode', () => {
 
             const mapProps = mapPropsSpy.mock.lastCall[0];
             expect(mapProps.isExpanded).toBe(false);
+            expect(mapProps.onToggleExpand).toBeUndefined();
 
-            act(() => {
-                mapProps.onToggleExpand();
-            });
-
-            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
+            // No entry point exists, so expanded mode is unreachable here.
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
         } finally {
             window.matchMedia = originalMatchMedia;
         }
@@ -2962,7 +2963,7 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         }
     });
 
-    test('keeps "Exit expanded map" available when expanded, including on mobile viewports', () => {
+    test('keeps "Exit expanded map" available when expanded on desktop viewports', () => {
         const originalMatchMedia = window.matchMedia;
         let isPhone = false;
         window.matchMedia = vi.fn().mockImplementation((query) => ({
@@ -2996,9 +2997,10 @@ describe('DashboardMapWorkspace expanded map mode', () => {
         }
     });
 
-    test('stays in expanded mode when resizing from expanded tablet/desktop down to mobile', () => {
-        // Phones can hold expanded mode now: nothing force-exits it when the
-        // viewport narrows.
+    test('exits expanded mode when resizing from expanded tablet/desktop down to mobile', () => {
+        // The expand entry is desktop-only: narrowing to a phone viewport
+        // exits expanded mode instead of stranding the shell without its
+        // entry point.
         const originalMatchMedia = window.matchMedia;
         let isPhone = false;
         let changeListener = null;
@@ -3034,8 +3036,10 @@ describe('DashboardMapWorkspace expanded map mode', () => {
                 window.dispatchEvent(new Event('resize'));
             });
 
-            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(true);
-            expect(screen.getAllByRole('button', { name: /exit expanded map/i }).length).toBeGreaterThanOrEqual(1);
+            expect(mapPropsSpy.mock.lastCall[0].isExpanded).toBe(false);
+            expect(mapPropsSpy.mock.lastCall[0].onToggleExpand).toBeUndefined();
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /exit expanded map/i })).not.toBeInTheDocument();
         } finally {
             window.matchMedia = originalMatchMedia;
         }
@@ -3070,7 +3074,8 @@ describe('DashboardMapWorkspace expanded map mode', () => {
             fireEvent.click(clearBtn);
             expect(setResponderMapFilter).toHaveBeenCalledWith('all');
 
-            expect(screen.getByRole('button', { name: /expand map/i })).toBeInTheDocument();
+            // The expand entry stays desktop-only on phone viewports.
+            expect(screen.queryByRole('button', { name: /expand map/i })).not.toBeInTheDocument();
         } finally {
             window.matchMedia = originalMatchMedia;
         }
