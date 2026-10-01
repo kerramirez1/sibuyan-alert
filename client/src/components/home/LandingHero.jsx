@@ -89,7 +89,7 @@ const LandingHero = ({
                             <p data-testid="landing-hero-eyebrow" className="mb-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-[var(--accent-text)] sm:text-[11px]">
                                 Island-wide incident coordination
                             </p>
-                            <p className="mb-4 flex items-start gap-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                            <p className="mb-4 flex items-center gap-1 whitespace-nowrap text-[9.5px] leading-relaxed text-[var(--text-secondary)] min-[360px]:text-[10.5px] sm:text-[11px]">
                                 <HiOutlineLocationMarker className="h-3 w-3 shrink-0 text-brand-600 dark:text-sky-400" aria-hidden="true" />
                                 Sibuyan Island · Romblon, Philippines
                             </p>
@@ -110,12 +110,13 @@ const LandingHero = ({
                                 {reportCta.show && (
                                     reportCta.disabled ? (
                                         <div
-                                            className="group relative inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-gray-200 px-2 py-2.5 text-[10px] font-bold text-gray-400 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-gray-500"
+                                            className="group relative inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-200 px-2 py-2.5 text-[10px] font-semibold text-gray-400 min-[360px]:gap-2 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-6 sm:py-3 sm:text-sm dark:bg-white/10 dark:text-gray-500"
                                             aria-disabled="true"
+                                            aria-label="Report an Incident"
                                             title={reportCta.reason}
                                         >
                                             <HiClock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            Report an Incident
+                                            <span>Report<span className="hidden min-[380px]:inline"> an Incident</span></span>
                                             <span
                                                 role="tooltip"
                                                 className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-sm bg-gray-900 px-3 py-1.5 text-center text-[11px] font-medium leading-snug text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
@@ -127,10 +128,11 @@ const LandingHero = ({
                                         <Link
                                             to={reportCta.to}
                                             id="hero-report-cta"
-                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-2 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
+                                            aria-label="Report an Incident"
+                                            className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-red-600 px-2 py-2.5 text-[10px] font-semibold text-white transition-colors hover:bg-red-700 min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
                                         >
                                             <HiExclamation className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                            <span>Report an Incident</span>
+                                            <span>Report<span className="hidden min-[380px]:inline"> an Incident</span></span>
                                         </Link>
                                     )
                                 )}
@@ -138,7 +140,7 @@ const LandingHero = ({
                                 {/* Secondary CTA: View map */}
                                 <Link
                                     to="/dashboard?view=map"
-                                    className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
+                                    className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-2.5 text-[10px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] min-[360px]:px-3 min-[360px]:text-xs sm:min-h-12 sm:min-w-[195px] sm:flex-none sm:px-5 sm:py-3 sm:text-sm"
                                 >
                                     <HiMap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                     <span>View map</span>
@@ -161,7 +163,7 @@ const LandingHero = ({
                     </div>
 
                     {/* ── Column 2: Sibuyan Island Map ── */}
-                    <div data-testid="landing-hero-map" className="relative z-10 order-2 w-[clamp(130px,36vw,200px)] shrink-0 self-stretch sm:w-[clamp(220px,34vw,360px)] lg:order-none lg:w-auto lg:min-w-0 lg:flex-1 lg:self-start">
+                    <div data-testid="landing-hero-map" className="relative z-10 order-2 w-[clamp(110px,34vw,200px)] shrink-0 self-stretch sm:w-[clamp(220px,34vw,360px)] lg:order-none lg:w-auto lg:min-w-0 lg:flex-1 lg:self-start">
                         <SibuyanIslandMap />
                     </div>
 
