@@ -87,6 +87,10 @@
     .metric-helper { margin-top: 4px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 
     .form-surface { border: 1px solid var(--border); border-radius: 12px; padding: 24px; background: var(--surface); box-shadow: var(--shadow-sm); }
+
+    /* Compact variant for dense auth cards (e.g. login): keeps every field
+       reachable without a page scrollbar on laptop-height viewports. */
+    .form-surface--compact { padding: 20px; }
     /* Form labels carry the scanning weight: near-black, semibold, large
        enough to read at arm's length in bright field conditions. */
     .field-label { display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 14px; font-weight: 600; }
@@ -272,6 +276,7 @@
         .page-title--compact { font-size: 24px; }
         .page-actions { justify-content: flex-end; }
         .form-surface { padding: 32px; }
+        .form-surface--compact { padding: 24px; }
     }
 
     @media (min-width: 768px) {

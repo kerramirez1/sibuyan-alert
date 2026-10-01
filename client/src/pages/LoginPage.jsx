@@ -87,7 +87,7 @@ const LoginPage = () => {
 
     return (
         <div className="w-full">
-            <div className="form-surface w-full">
+            <div className="form-surface form-surface--compact w-full">
                 {/* Compact system context for mobile screens */}
                 <div className="mb-6 border-b border-[var(--border)] pb-5 lg:hidden">
                     <div className="flex items-center gap-2.5">
@@ -108,7 +108,7 @@ const LoginPage = () => {
 
                 {/* Header */}
                 <PageHeader
-                    className="mb-6"
+                    className="mb-4"
                     eyebrow="Secure Authentication"
                     title="Sign in to Sibuyan Alert"
                     description="Access your account securely."
@@ -123,7 +123,7 @@ const LoginPage = () => {
                 )}
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} data-testid="login-form" className="space-y-4">
+                <form onSubmit={handleSubmit} data-testid="login-form" className="space-y-3">
                     {/* Email Field */}
                     <div>
                         <label htmlFor="login-email" className="field-label">
@@ -250,9 +250,9 @@ const LoginPage = () => {
                 </form>
 
                 {/* Additional Options */}
-                <div className="mt-6 border-t border-[var(--border)] pt-5">
+                <div className="mt-4 border-t border-[var(--border)] pt-4">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Additional Options</p>
-                    <div className="mt-3 flex flex-col gap-3.5">
+                    <div className="mt-2 flex flex-col gap-2.5">
                         <div>
                             <Link
                                 to="/register"

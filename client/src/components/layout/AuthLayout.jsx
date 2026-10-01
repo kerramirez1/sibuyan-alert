@@ -65,7 +65,7 @@ const MunicipalitySeals = () => (
 );
 
 const MunicipalityCoverage = ({ compact = false }) => compact ? (
-    <div className="mt-8 border-t border-white/10 pt-6">
+    <div className="mt-6 border-t border-white/10 pt-5">
         <p className="text-[11px] font-bold uppercase tracking-wider text-white">Coverage across 3 municipalities</p>
         <div className="mt-2.5">
             <MunicipalitySeals />
@@ -99,7 +99,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                 className={`auth-overview relative hidden min-h-dvh border-r border-brand-900/60 bg-brand-950 text-white lg:flex lg:flex-col ${isRegistrationPortal ? 'lg:sticky lg:top-0 lg:h-dvh lg:self-start lg:overflow-y-auto' : ''}`}
                 aria-label={isRegistrationPortal ? 'Sibuyan Alert reporter registration overview' : 'Sibuyan Alert system overview'}
             >
-                <div className={`relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-between px-8 py-10 xl:px-12 ${isFocusedPortal ? '' : 'justify-center'}`}>
+                <div className={`relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-between px-8 py-6 xl:px-12 xl:py-8 ${isFocusedPortal ? '' : 'justify-center'}`}>
                     {/* Brand Lockup — unified wordmark: the logo IS the letter S,
                         sharing one flex line with "ibuyan Alert" and sized in em so
                         the visible S glyph matches the text cap height. */}
@@ -121,7 +121,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                     </div>
 
                     {/* Headline & Description */}
-                    <section className={isFocusedPortal ? 'my-auto py-6' : 'my-8'}>
+                    <section className={isFocusedPortal ? 'mt-10 py-4' : 'my-8'}>
                         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-sky-300">
                             Sibuyan Island incident coordination
                         </p>
@@ -173,10 +173,12 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                         </div>
                     )}
 
-                    {/* Coverage & System Footer */}
-                    <div>
+                    {/* Coverage & System Footer — pinned to the panel bottom so the
+                        gap between the brand and the headline stays fixed
+                        instead of stretching on tall viewports. */}
+                    <div className="mt-auto">
                         <MunicipalityCoverage compact={isFocusedPortal} />
-                        <p className="mt-6 text-[11px] text-brand-200/80">
+                        <p className="mt-4 text-[11px] text-brand-200/80">
                             © 2026 Sibuyan Alert System
                         </p>
                     </div>
@@ -184,7 +186,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
             </aside>
 
             {/* ── Right Content Panel ── */}
-            <main id="main-content" tabIndex={-1} className="auth-content relative flex min-h-dvh w-full min-w-0 items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <main id="main-content" tabIndex={-1} className="auth-content relative flex min-h-dvh w-full min-w-0 items-center justify-center px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
                 <div className={`w-full ${isRegistrationPortal ? 'max-w-[640px]' : 'max-w-[420px]'}`}>
                     {children}
                 </div>
