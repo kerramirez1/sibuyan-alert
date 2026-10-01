@@ -168,6 +168,28 @@ describe('MainLayout responsive navigation', () => {
         expect(sidebar.className).toContain('motion-safe:duration-200');
     });
 
+    test('expands the sidebar with visible labels at lg and keeps the icon rail below it', () => {
+        renderLayout();
+        const sidebar = getSidebar();
+
+        // Width contract: 76px icon rail from md, full 260px sidebar from lg —
+        // no xl breakpoint remains anywhere in the sidebar.
+        expect(sidebar).toHaveClass('md:w-[76px]', 'lg:w-[260px]');
+        expect(sidebar.className).not.toContain('xl:');
+
+        // Navigation labels are icon-only (sr-only) between md and lg, visible at lg+.
+        expect(within(sidebar).getByText('Map')).toHaveClass('md:sr-only', 'lg:not-sr-only');
+        expect(within(sidebar).getByText('Island Operations')).toHaveClass('md:sr-only', 'lg:not-sr-only');
+        expect(within(sidebar).getByRole('link', { name: 'Accident History' }))
+            .toHaveClass('md:justify-center', 'md:px-2', 'lg:justify-start', 'lg:px-3');
+
+        // Account details and sign-out text follow the same breakpoint.
+        expect(screen.getByText('Municipal admin · Cajidiocan').parentElement)
+            .toHaveClass('md:sr-only', 'lg:not-sr-only');
+        expect(screen.getByRole('button', { name: 'Sign out' }).querySelector('span'))
+            .toHaveClass('md:sr-only', 'lg:not-sr-only');
+    });
+
     test('removes visible section headings (Operations, Mapping, History) for municipal admin and retains all admin links', () => {
         renderLayout('/admin');
 

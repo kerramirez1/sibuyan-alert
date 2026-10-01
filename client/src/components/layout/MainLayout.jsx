@@ -26,7 +26,7 @@ import {
     HiOutlineSearch,
 } from 'react-icons/hi';
 
-const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2 md:justify-center md:px-2 xl:justify-start xl:px-3';
+const NAV_LINK_BASE = 'group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-md px-3 py-3 text-[13px] font-medium transition-colors border-l-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:py-2 md:justify-center md:px-2 lg:justify-start lg:px-3';
 const getNavLinkClass = (active) => `${NAV_LINK_BASE} ${active
     ? 'border-sky-300 bg-white/[0.08] text-white'
     : 'border-transparent text-slate-300/70 hover:bg-white/[0.06] hover:text-white'}`;
@@ -176,10 +176,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                 {/* Sidebar */}
                 <aside
                     aria-label="Primary navigation"
-                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out md:static md:z-auto md:w-[76px] md:translate-x-0 xl:w-[260px] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-[100] flex w-[min(80vw,320px)] flex-col border-r border-white/[0.08] bg-brand-950 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out md:static md:z-auto md:w-[76px] md:translate-x-0 lg:w-[260px] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     {/* Brand Header */}
-                    <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 md:justify-center md:px-2 xl:justify-between xl:px-4">
+                    <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-3.5 md:justify-center md:px-2 lg:justify-between lg:px-4">
                         {(() => {
                             const homeHref = !isAuthenticated
                                 ? '/'
@@ -200,11 +200,11 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                                 alt=""
                                                 className="h-[1.3em] w-[1.3em] shrink-0 object-contain"
                                             />
-                                            <span className="-ml-[0.08em] leading-none md:sr-only xl:not-sr-only">
+                                            <span className="-ml-[0.08em] leading-none md:sr-only lg:not-sr-only">
                                                 ibuyan <span className="text-red-400">Alert</span>
                                             </span>
                                         </span>
-                                        <span className="mt-1 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-slate-300 md:sr-only xl:not-sr-only">
+                                        <span className="mt-1 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-slate-300 md:sr-only lg:not-sr-only">
                                             Island Operations
                                         </span>
                                     </span>
@@ -253,7 +253,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                     onClick={closeDrawer}
                                 >
                                     <HiOutlineHome className={NAV_ICON_CLASS} aria-hidden="true" />
-                                    <span className="truncate md:sr-only xl:not-sr-only">{homeLabel}</span>
+                                    <span className="truncate md:sr-only lg:not-sr-only">{homeLabel}</span>
                                 </NavLink>
                             );
                         })()}
@@ -271,7 +271,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineClipboardList className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate md:sr-only xl:not-sr-only">Incident Reports</span>
+                                <span className="truncate md:sr-only lg:not-sr-only">Incident Reports</span>
                             </NavLink>
                         )}
 
@@ -285,7 +285,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineUsers className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate md:sr-only xl:not-sr-only">Users</span>
+                                <span className="truncate md:sr-only lg:not-sr-only">Users</span>
                             </NavLink>
                         )}
 
@@ -300,7 +300,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <item.icon className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate md:sr-only xl:not-sr-only">{item.name}</span>
+                                <span className="truncate md:sr-only lg:not-sr-only">{item.name}</span>
                             </NavLink>
                         ))}
 
@@ -313,7 +313,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             onClick={closeDrawer}
                         >
                             <HiOutlineGlobe className={NAV_ICON_CLASS} aria-hidden="true" />
-                            <span className="truncate md:sr-only xl:not-sr-only">Map</span>
+                            <span className="truncate md:sr-only lg:not-sr-only">Map</span>
                         </NavLink>
 
                         {/* Admin Risk Zones link */}
@@ -326,7 +326,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineLocationMarker className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate md:sr-only xl:not-sr-only">Risk Zones</span>
+                                <span className="truncate md:sr-only lg:not-sr-only">Risk Zones</span>
                             </NavLink>
                         )}
 
@@ -340,7 +340,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 onClick={closeDrawer}
                             >
                                 <HiOutlineChartBar className={NAV_ICON_CLASS} aria-hidden="true" />
-                                <span className="truncate md:sr-only xl:not-sr-only">Analytics</span>
+                                <span className="truncate md:sr-only lg:not-sr-only">Analytics</span>
                             </NavLink>
                         )}
 
@@ -353,18 +353,18 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             onClick={closeDrawer}
                         >
                             <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
-                            <span className="truncate md:sr-only xl:not-sr-only">Accident History</span>
+                            <span className="truncate md:sr-only lg:not-sr-only">Accident History</span>
                         </NavLink>
                     </nav>
 
                     {/* Account Footer */}
-                    <div className="mt-auto border-t border-white/[0.08] bg-black/20 p-2.5 md:p-2 xl:p-3">
+                    <div className="mt-auto border-t border-white/[0.08] bg-black/20 p-2.5 md:p-2 lg:p-3">
                         {isAuthenticated ? (
                             <div className="flex flex-col gap-1.5">
                                 <Link
                                     to="/profile"
                                     onClick={closeDrawer}
-                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0 md:justify-center xl:justify-start"
+                                    className="group flex min-h-[44px] min-w-0 items-center gap-2 rounded-md px-1 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 focus-visible:ring-offset-brand-950 sm:min-h-0 md:justify-center lg:justify-start"
                                     aria-label="Open profile settings"
                                     title={user?.assignedMunicipality ? `${user?.name} · ${getAccountContext(user)}` : user?.name}
                                 >
@@ -379,7 +379,7 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                             user?.name?.charAt(0).toUpperCase() || 'U'
                                         )}
                                     </div>
-                                    <div className="min-w-0 flex-1 overflow-hidden md:sr-only xl:not-sr-only">
+                                    <div className="min-w-0 flex-1 overflow-hidden md:sr-only lg:not-sr-only">
                                         <div className="flex items-center gap-1.5 min-w-0">
                                             <p className="truncate min-w-0 text-[10px] font-bold uppercase leading-tight tracking-tight text-white">
                                                 {user?.name}
@@ -396,10 +396,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                                 <button
                                     type="button"
                                     onClick={logout}
-                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5 md:justify-center md:px-2 xl:justify-start xl:px-3"
+                                    className="inline-flex min-h-9 w-full items-center justify-start gap-2 rounded-md border border-transparent px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:border-red-900/30 hover:bg-red-950/20 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:py-1.5 md:justify-center md:px-2 lg:justify-start lg:px-3"
                                 >
                                     <HiOutlineLogout className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                    <span className="md:sr-only xl:not-sr-only">Sign out</span>
+                                    <span className="md:sr-only lg:not-sr-only">Sign out</span>
                                 </button>
                             </div>
                         ) : (
