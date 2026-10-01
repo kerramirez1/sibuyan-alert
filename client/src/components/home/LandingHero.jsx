@@ -32,12 +32,12 @@ const benefits = [
 ];
 
 const Metric = ({ value, label, sublabel = null }) => (
-    <div className="flex min-w-0 flex-1 flex-col px-2 py-3 text-left sm:px-8 sm:py-4">
-        <p className="font-display text-2xl font-semibold leading-none tabular-nums text-white sm:text-4xl">{value}</p>
-        <p className="mt-2 text-[11px] font-medium leading-relaxed text-slate-200 sm:text-xs">{label}</p>
+    <div className="flex min-w-0 flex-1 flex-col px-1.5 py-2.5 text-left min-[340px]:px-2 sm:px-8 sm:py-4">
+        <p className="font-display text-xl font-semibold leading-none tabular-nums text-white min-[360px]:text-2xl sm:text-4xl">{value}</p>
+        <p className="mt-1.5 text-[9.5px] font-medium leading-tight text-slate-200 min-[340px]:text-[10px] min-[360px]:mt-2 min-[360px]:leading-snug min-[380px]:text-[11px] sm:text-xs">{label}</p>
         {/* Reserved slot keeps all three columns the same height whether or
             not a sublabel exists, so dividers and baselines stay even. */}
-        <p className="mt-1 min-h-4 text-[10px] leading-relaxed text-slate-300 sm:text-[11px]">{sublabel || ' '}</p>
+        <p className="mt-1 min-h-3.5 text-[8.5px] leading-tight text-slate-300 min-[340px]:text-[9px] min-[360px]:min-h-4 min-[380px]:text-[10px] sm:text-[11px]">{sublabel || ' '}</p>
     </div>
 );
 
@@ -185,7 +185,7 @@ const LandingHero = ({
             </div>
 
             {/* ── Telemetry Readout: single row on all viewports, dividers carry structure ── */}
-            <div data-testid="landing-hero-metrics" className="w-full border-t border-white/10 bg-brand-950 px-3 py-3 dark:border-white/10 dark:bg-brand-950 sm:px-4 sm:py-3.5">
+            <div data-testid="landing-hero-metrics" className="w-full border-t border-white/10 bg-brand-950 px-2 py-2.5 dark:border-white/10 dark:bg-brand-950 min-[360px]:px-3 min-[360px]:py-3 sm:px-4 sm:py-3.5">
                 <div className="mx-auto grid max-w-[1440px] grid-cols-3 divide-x divide-white/10 sm:px-8 lg:px-10 xl:px-14 dark:divide-white/10">
                     <Metric value={isLoading ? '…' : publicStats?.verifiedReportsThisMonth ?? '—'} label="Verified reports" sublabel={verifiedPeriodLabel} />
                     <Metric value={isLoading ? '…' : publicStats?.activeHighRiskZones ?? '—'} label="Active risk zones" />
