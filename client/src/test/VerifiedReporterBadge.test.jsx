@@ -36,6 +36,13 @@ describe('VerifiedReporterBadge', () => {
 
         const badge = screen.getByRole('status', { name: 'Verified reporter' });
         expect(badge).toHaveClass('border-emerald-400/20', 'bg-emerald-400/10', 'text-emerald-300');
+        // Icon-only in the sidebar: no visible text, but the accessible name
+        // and the hover tooltip still expose "Verified reporter".
+        expect(screen.queryByText('Verified')).toBeNull();
+        expect(badge).toHaveAttribute('title', 'Verified reporter');
+        expect(badge).toHaveAttribute('aria-label', 'Verified reporter');
+        expect(badge).toHaveClass('p-1');
+        expect(badge).not.toHaveClass('text-[10px]');
     });
 
     test('renders default styling for standard light/dark pages', () => {
