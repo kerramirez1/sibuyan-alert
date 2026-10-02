@@ -747,6 +747,18 @@ const DashboardAnalyticsWorkspace = ({
     const safeReports = toSafeArray(reports);
     const safeAllReports = toSafeArray(allReports);
     const safeZones = toSafeArray(highRiskZones);
+    // Analytics scope for risk zones: the island-wide read model from
+    // useGlobalHighRiskZones is correct for the map, but analytics (the
+    // on-screen card and the export) must reflect the active municipality.
+    // Zones with a missing/unknown municipality are excluded from a
+    // municipal scope and kept in the island-wide view.
+    const scopedZones = useMemo(() => {
+        if (!hasMunicipality || !user?.assignedMunicipality) return safeZones;
+        const targetMunicipality = user.assignedMunicipality;
+        return safeZones.filter(
+            (zone) => (zone?.municipality || zone?.municipalityName) === targetMunicipality,
+        );
+    }, [safeZones, hasMunicipality, user?.assignedMunicipality]);
     const safeChartData = toSafeArray(chartData);
     const safeMetrics = (performanceMetrics && typeof performanceMetrics === 'object') ? performanceMetrics : {};
     const effectiveMonth = toValidDate(selectedMonth) || new Date();
@@ -769,7 +781,7 @@ const DashboardAnalyticsWorkspace = ({
         : analyticsScope === ANALYTICS_SCOPE.ALL_TIME
             ? 'All-time insights'
             : 'Monthly insights';
-    const activeRiskZoneCount = safeZones.filter((zone) => zone?.isActive !== false).length;
+    const activeRiskZoneCount = scopedZones.filter((zone) => zone?.isActive !== false).length;
     const [mapStatusFilter, setMapStatusFilter] = useState('all');
     const [selectedDay, setSelectedDay] = useState(null);
 
@@ -954,7 +966,7 @@ const DashboardAnalyticsWorkspace = ({
                     { metric: 'Active High-Risk Zones (Current, as of Export)', value: activeRiskZoneCount },
                 ],
                 incidents: exportIncidents,
-                zones: safeZones,
+                zones: scopedZones,
             });
 
             const buffer = await writeWorkbookToBuffer(workbook);
