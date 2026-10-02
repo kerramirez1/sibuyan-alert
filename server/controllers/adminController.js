@@ -430,6 +430,10 @@ export const getAllReports = async (req, res) => {
         }
 
         const scopedMunicipality = admin.assignedMunicipality;
+        // The responder's own id: used both by the list-query view filters
+        // below and by the $facet view-count aggregation further down, so the
+        // two can never disagree about whose assignments count.
+        const responderId = admin._id;
         // Single municipal visibility definition shared with analytics
         // (utils/analyticsScope.js): origin-inclusive + dismissed excluded.
         // Read-only transferred copies an admin dismissed from their
@@ -451,7 +455,6 @@ export const getAllReports = async (req, res) => {
         // never lost behind an unrelated first page of report history.
         if (admin.role === 'responder') {
             const responderVisibleStatuses = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
-            const responderId = admin._id;
 
             if (!reportId && responderView === 'available') {
                 query.municipalityName = scopedMunicipality;
@@ -555,7 +558,89 @@ export const getAllReports = async (req, res) => {
         const sortSpec = admin.role === 'responder' && responderView === 'available'
             ? { verifiedAt: 1, createdAt: 1 }
             : { incidentTime: -1, createdAt: -1 };
-        const [reports, total, statusGroups] = await Promise.all([
+
+        // Responder view-tab counts: one $facet round trip whose pipelines
+        // mirror the list-query view filters above exactly (same scopeClause
+        // base, same $and/$or shapes, same responderId), so a tab's count
+        // always matches what the tab lists. Only responders need these;
+        // other roles resolve an empty bucket list and get no viewCounts key.
+        const viewCountPipeline = admin.role === 'responder'
+            ? [
+                {
+                    $facet: {
+                        available: [
+                            {
+                                $match: {
+                                    $and: [
+                                        scopeClause,
+                                        { municipalityName: scopedMunicipality },
+                                        {
+                                            $or: [
+                                                { status: 'transferred' },
+                                                {
+                                                    status: 'verified',
+                                                    respondedBy: null,
+                                                    'responders.0': { $exists: false },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            },
+                            { $count: 'count' },
+                        ],
+                        municipalActive: [
+                            {
+                                $match: {
+                                    $and: [
+                                        scopeClause,
+                                        { municipalityName: scopedMunicipality },
+                                        { status: { $in: ['verified', 'transferred', 'responding'] } },
+                                    ],
+                                },
+                            },
+                            { $count: 'count' },
+                        ],
+                        active: [
+                            {
+                                $match: {
+                                    $and: [
+                                        scopeClause,
+                                        { status: 'responding' },
+                                        {
+                                            $or: [
+                                                { respondedBy: responderId },
+                                                { 'responders.user': responderId },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            },
+                            { $count: 'count' },
+                        ],
+                        history: [
+                            {
+                                $match: {
+                                    $and: [
+                                        scopeClause,
+                                        { status: 'resolved' },
+                                        {
+                                            $or: [
+                                                { respondedBy: responderId },
+                                                { 'responders.user': responderId },
+                                                { resolvedBy: responderId },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            },
+                            { $count: 'count' },
+                        ],
+                    },
+                },
+            ]
+            : null;
+        const [reports, total, statusGroups, viewCountDocs] = await Promise.all([
             Report.find(query)
                 .populate('reporter', reporterProjection)
                 .populate('respondedBy', 'name email agency assignedMunicipality')
@@ -573,6 +658,9 @@ export const getAllReports = async (req, res) => {
                 { $match: statsQuery },
                 { $group: { _id: '$status', count: { $sum: 1 } } },
             ]).option({ maxTimeMS: policy.maxTimeMs }),
+            viewCountPipeline
+                ? Report.aggregate(viewCountPipeline).option({ maxTimeMS: policy.maxTimeMs })
+                : Promise.resolve([]),
         ]);
 
         const statusCounts = statusGroups.reduce((acc, entry) => {
@@ -585,6 +673,23 @@ export const getAllReports = async (req, res) => {
             return acc;
         }, {});
         stats.total = REPORT_STATUS_KEYS.reduce((sum, status) => sum + stats[status], 0);
+
+        // Nested inside stats so no new top-level response key appears; the
+        // brief verified no code iterates stats keys. Non-responders get no
+        // viewCounts key, keeping their response shape byte-identical.
+        if (admin.role === 'responder') {
+            const [facetResult = {}] = viewCountDocs;
+            // $count yields no document for an empty bucket, so a missing
+            // bucket defaults to 0 — the zero is the point ("walang laman").
+            const facetCount = (key) => facetResult[key]?.[0]?.count ?? 0;
+            stats.viewCounts = {
+                available: facetCount('available'),
+                municipalActive: facetCount('municipalActive'),
+                active: facetCount('active'),
+                history: facetCount('history'),
+                all: stats.total || 0,
+            };
+        }
 
 
         res.json({

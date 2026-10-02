@@ -38,23 +38,58 @@ describe('IncidentQueueControls responder tab row', () => {
         expect(nav).toHaveAttribute('tabindex', '0');
 
         const tabs = screen.getAllByRole('button', { name: /available|municipal active|my active|history|all incidents/i });
-        expect(tabs.map((tab) => tab.textContent)).toEqual(RESPONDER_TAB_LABELS);
+        expect(tabs.map((tab) => tab.getAttribute('aria-label'))).toEqual(
+            RESPONDER_TAB_LABELS.map((label) => `${label}, 0 incidents`),
+        );
 
         // Only the active tab carries aria-current.
-        const activeTab = screen.getByRole('button', { name: 'Municipal active' });
+        const activeTab = screen.getByRole('button', { name: 'Municipal active, 0 incidents' });
         expect(activeTab).toHaveAttribute('aria-current', 'page');
         tabs.filter((tab) => tab !== activeTab).forEach((tab) => {
             expect(tab).not.toHaveAttribute('aria-current');
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'History' }));
+        fireEvent.click(screen.getByRole('button', { name: 'History, 0 incidents' }));
         expect(onResponderViewChange).toHaveBeenCalledWith('history');
     });
 
     test('keeps the default view active without aria-current elsewhere', () => {
         renderResponderControls({ responderView: 'available' });
 
-        expect(screen.getByRole('button', { name: 'Available' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('button', { name: 'Available, 0 incidents' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    test('renders view-count pills from stats.viewCounts, zero included', () => {
+        renderResponderControls({
+            responderView: 'available',
+            stats: {
+                viewCounts: { available: 3, municipalActive: 7, active: 0, history: 1, all: 12 },
+            },
+        });
+
+        // The pill is aria-hidden; the button's aria-label carries the count.
+        expect(screen.getByRole('button', { name: 'Available, 3 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Municipal active, 7 incidents' })).toBeInTheDocument();
+        // The zero is the point ("walang laman"): the pill still renders.
+        const myActive = screen.getByRole('button', { name: 'My active, 0 incidents' });
+        expect(myActive).toBeInTheDocument();
+        const zeroPill = myActive.querySelector('span[aria-hidden="true"]');
+        expect(zeroPill).toHaveTextContent('0');
+        expect(screen.getByRole('button', { name: 'History, 1 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'All incidents, 12 incidents' })).toBeInTheDocument();
+    });
+
+    test('shows status counts in the all-view filter tabs', () => {
+        renderResponderControls({
+            responderView: 'all',
+            stats: { pending: 2, verified: 1, transferred: 0, responding: 3, resolved: 4, total: 10 },
+        });
+
+        expect(screen.getByRole('button', { name: 'All statuses, 10 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Pending, 2 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Verified, 1 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Active response, 3 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Resolved, 4 incidents' })).toBeInTheDocument();
     });
 
     test('shows the dotted operational totals in the dispatch-queue view', () => {

@@ -120,6 +120,7 @@ const IncidentFilterBar = ({
     applySearch,
     clearFilters,
     hasFilters,
+    stats,
 }) => (
     <section aria-label="Incident filters" className="filter-bar mb-5">
         <form
@@ -176,22 +177,27 @@ const IncidentFilterBar = ({
                     <button
                         type="button"
                         aria-pressed={status === ''}
+                        aria-label={`All statuses, ${stats?.total ?? 0} incidents`}
                         onClick={() => setStatus('')}
                         className="status-filter"
                     >
                         All statuses
+                        <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{stats?.total ?? 0}</span>
                     </button>
                     {getRoleStatuses(role).map((statusValue) => {
                         const config = INCIDENT_STATUS[statusValue];
+                        const count = stats?.[statusValue] ?? 0;
                         return (
                             <button
                                 key={statusValue}
                                 type="button"
                                 aria-pressed={status === statusValue}
+                                aria-label={`${config.label}, ${count} incidents`}
                                 onClick={() => setStatus(statusValue)}
                                 className="status-filter"
                             >
                                 {config.label}
+                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>
                             </button>
                         );
                     })}
@@ -287,16 +293,22 @@ const ResponderQueueControls = ({
                 <div className="filter-tabs">
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
+                        // Always rendered, including 0 — the zero is the point
+                        // ("walang laman"). The pill is aria-hidden; the
+                        // button's aria-label carries the count for SR users.
+                        const count = stats?.viewCounts?.[view.value] ?? 0;
                         return (
                             <button
                                 key={view.value}
                                 type="button"
                                 ref={(node) => { tabButtonRefs.current[view.value] = node; }}
                                 aria-current={active ? 'page' : undefined}
+                                aria-label={`${view.label}, ${count} incidents`}
                                 onClick={() => onResponderViewChange(view.value)}
                                 className="filter-tab"
                             >
                                 {view.label}
+                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>
                             </button>
                         );
                     })}
@@ -314,6 +326,7 @@ const ResponderQueueControls = ({
                 applySearch={applySearch}
                 clearFilters={clearFilters}
                 hasFilters={hasFilters}
+                stats={stats}
             />
         </>
     );
@@ -419,6 +432,7 @@ const IncidentQueueControls = ({
                 applySearch={applySearch}
                 clearFilters={clearFilters}
                 hasFilters={hasFilters}
+                stats={stats}
             />
         </>
     );

@@ -176,7 +176,11 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.queryByRole('button', { name: /respond to incident/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /join response/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /resolve incident/i })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Transferred' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Transferred, 0 incidents' })).toBeInTheDocument();
+        // Status tabs carry their counts in the accessible name; the pill is
+        // aria-hidden. The mock stats omit `transferred`, so the pill shows 0.
+        expect(screen.getByRole('button', { name: 'Pending, 1 incidents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'All statuses, 0 incidents' })).toBeInTheDocument();
     });
 
     test('opens the exact scoped incident from an update notification before marking it read', async () => {
@@ -472,10 +476,10 @@ describe('AdminReportsPage operational queue', () => {
 
         expect(await screen.findByText('No incidents are waiting for dispatch')).toBeInTheDocument();
         expect(screen.getByLabelText('Operational totals')).toHaveTextContent('0 incidents');
-        // Municipal-global sub-counts must not leak into a filtered view —
-        // they count transferred-out incidents the queue itself excludes.
-        expect(screen.queryByText(/1 responding/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/1 resolved/)).not.toBeInTheDocument();
+        // The headline is the view-specific count, but the breakdown reflects
+        // municipal-scope stats, exactly like the admin header.
+        expect(screen.getByText('1 responding')).toBeInTheDocument();
+        expect(screen.getByText('1 resolved')).toBeInTheDocument();
     });
 
     test('shows transfer provenance and lets the origin admin remove a transferred-out copy', async () => {
@@ -706,14 +710,23 @@ describe('AdminReportsPage operational queue', () => {
         expect(screen.getByText(/Last updated/)).toBeInTheDocument();
         // One lifecycle state, one name: these filter buttons read the same
         // canonical labels as the map rail, the cards, and the badges.
-        ['All statuses', 'Pending', 'Verified', 'Transferred', 'Active response', 'Resolved'].forEach((label) => {
-            expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+        // The accessible name carries the status count (mock stats have no
+        // `total`, so "All statuses" and "Transferred" show 0).
+        [
+            ['All statuses', 0],
+            ['Pending', 1],
+            ['Verified', 1],
+            ['Transferred', 0],
+            ['Active response', 1],
+            ['Resolved', 1],
+        ].forEach(([label, count]) => {
+            expect(screen.getByRole('button', { name: `${label}, ${count} incidents` })).toBeInTheDocument();
         });
         expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Active response' }));
-        expect(screen.getByRole('button', { name: 'Active response' })).toHaveAttribute('aria-pressed', 'true');
-        expect(screen.getByRole('button', { name: 'Active response' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
+        fireEvent.click(screen.getByRole('button', { name: 'Active response, 1 incidents' }));
+        expect(screen.getByRole('button', { name: 'Active response, 1 incidents' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'Active response, 1 incidents' })).not.toHaveClass('bg-cyan-50', 'text-cyan-700');
         await waitFor(() => expect(mocks.getReports).toHaveBeenLastCalledWith({ page: 1, limit: 20, status: 'responding' }));
 
         fireEvent.change(screen.getByRole('searchbox', { name: 'Search incidents' }), {
@@ -753,7 +766,7 @@ describe('AdminReportsPage operational queue', () => {
 
         const incidentList = await screen.findByRole('list', { name: 'Responder incident list' });
         expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20 });
-        expect(screen.getByRole('button', { name: 'All statuses' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'All statuses, 0 incidents' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.queryByRole('button', { name: 'Rejected' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
         expect(within(incidentList).getByText('Active response')).toBeInTheDocument();
@@ -770,19 +783,19 @@ describe('AdminReportsPage operational queue', () => {
 
         renderPage('/admin/reports?view=dispatch-queue');
         expect(await screen.findByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Available' })).toHaveAttribute('aria-current', 'page');
-        fireEvent.click(screen.getByRole('button', { name: 'Municipal active' }));
+        expect(screen.getByRole('button', { name: 'Available, 0 incidents' })).toHaveAttribute('aria-current', 'page');
+        fireEvent.click(screen.getByRole('button', { name: 'Municipal active, 0 incidents' }));
 
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Municipal active' })).toHaveAttribute('aria-current', 'page'));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Municipal active, 0 incidents' })).toHaveAttribute('aria-current', 'page'));
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({
             page: 1,
             limit: 20,
             responderView: 'municipalActive',
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'My active' }));
+        fireEvent.click(screen.getByRole('button', { name: 'My active, 0 incidents' }));
 
-        await waitFor(() => expect(screen.getByRole('button', { name: 'My active' })).toHaveAttribute('aria-current', 'page'));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'My active, 0 incidents' })).toHaveAttribute('aria-current', 'page'));
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({
             page: 1,
             limit: 20,
@@ -817,7 +830,7 @@ describe('AdminReportsPage operational queue', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Respond to incident' })[0]);
 
         await waitFor(() => expect(mocks.getReports).toHaveBeenCalledWith({ reportId }));
-        expect(await screen.findByRole('button', { name: 'My active' })).toHaveAttribute('aria-current', 'page');
+        expect(await screen.findByRole('button', { name: 'My active, 0 incidents' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('dialog', { name: 'Poblacion coastal road' })).toBeInTheDocument();
     });
 
