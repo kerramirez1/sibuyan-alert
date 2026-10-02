@@ -24,8 +24,16 @@ describe('report request validation', () => {
         await request(createApp()).post('/reports').send(validReport).expect(204);
     });
 
+    test('accepts an incident time within the clock-skew grace period', async () => {
+        await request(createApp())
+            .post('/reports')
+            .send({ ...validReport, incidentTime: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
+            .expect(204);
+    });
+
     test.each([
         [{ incidentTime: 'not-a-date' }, 'Incident time must be a valid date'],
+        [{ incidentTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() }, 'Incident time cannot be in the future'],
         [{ incidentType: 'invented-type' }, 'Invalid incident type'],
         [{ casualties: { injured: -1 } }, 'injured must be a non-negative whole number'],
         [{ casualties: { fatalities: 1.5 } }, 'fatalities must be a non-negative whole number'],

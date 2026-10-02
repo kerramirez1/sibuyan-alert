@@ -107,6 +107,13 @@ export const validateCreateReport = [
         if (Number.isNaN(Date.parse(incidentTime))) {
             throw new Error('Incident time must be a valid date');
         }
+        // Root prevention for the dispatch-queue future-date bug: reject
+        // incident times more than an hour ahead (grace covers reporter clock
+        // skew). Already-filed future rows are handled at display/sort time;
+        // stored values are never mutated to fix display.
+        if (Date.parse(incidentTime) - Date.now() > 60 * 60 * 1000) {
+            throw new Error('Incident time cannot be in the future');
+        }
 
         const category = req.body.incidentCategory || 'accident';
         const type = req.body.incidentType || req.body.accidentType || 'vehicular';

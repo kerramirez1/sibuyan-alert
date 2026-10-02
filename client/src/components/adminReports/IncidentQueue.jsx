@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import {
     HiOutlineArrowRight,
     HiOutlineBadgeCheck,
@@ -23,11 +23,23 @@ import { getTransferOrigin } from '../../utils/incidentDetails';
 import { getMapStatusDot } from '../../config/mapVisuals';
 import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
-const formatRelativeTime = (value) => {
-    if (!value) return 'Time unavailable';
+// Erroneous future incident times (beyond clock-skew tolerance) render as an
+// absolute timestamp with a quiet flag instead of a confusing "in X hours".
+// Stored values are never mutated to fix display.
+const FUTURE_TIME_TOLERANCE_MS = 60 * 60 * 1000; // 1 hour
+
+const getTimeDisplay = (value) => {
+    const fallback = { text: 'Time unavailable', absolute: undefined, isFuture: false };
+    if (!value) return fallback;
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Time unavailable';
-    return formatDistanceToNow(date, { addSuffix: true });
+    if (Number.isNaN(date.getTime())) return fallback;
+    const absolute = format(date, 'MMM d, yyyy, h:mm a');
+    const isFuture = date.getTime() - Date.now() > FUTURE_TIME_TOLERANCE_MS;
+    return {
+        text: isFuture ? absolute : formatDistanceToNow(date, { addSuffix: true }),
+        absolute,
+        isFuture,
+    };
 };
 
 export const IncidentStatusBadge = ({ status }) => (
@@ -440,6 +452,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
             ? `Transferred to ${safeReport.municipalityName || 'another municipality'}`
             : `Transferred from ${transferOrigin}`)
         : '';
+    const timeDisplay = getTimeDisplay(getIncidentDate(safeReport));
 
     return (
         <article
@@ -463,9 +476,15 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </div>
                 <time
                     dateTime={getIncidentDate(safeReport) || undefined}
+                    title={timeDisplay.absolute}
                     className="shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400 sm:pt-0.5 sm:text-right"
                 >
-                    {formatRelativeTime(getIncidentDate(safeReport))}
+                    {timeDisplay.text}
+                    {timeDisplay.isFuture && (
+                        <span className="ml-1.5 font-normal text-amber-600 dark:text-amber-400">
+                            check time
+                        </span>
+                    )}
                 </time>
             </div>
 

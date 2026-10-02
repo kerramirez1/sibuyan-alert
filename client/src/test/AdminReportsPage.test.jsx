@@ -433,6 +433,31 @@ describe('AdminReportsPage operational queue', () => {
         expect(mocks.getReports).toHaveBeenCalledWith({ page: 1, limit: 20, responderView: 'available' });
     });
 
+    test('renders a future incident time as absolute with a quiet flag, not "in X hours"', async () => {
+        mocks.user = {
+            _id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({
+                _id: '64b100000000000000000013',
+                address: 'Future-dated incident',
+                status: 'verified',
+                incidentTime: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+            }),
+        ]));
+
+        renderPage('/admin/reports?view=dispatch-queue');
+
+        const flag = await screen.findByText('check time');
+        expect(flag).toBeInTheDocument();
+        const timeElement = flag.closest('time');
+        expect(timeElement).toHaveAttribute('title');
+        // The absolute timestamp must not read as a relative future ("in ...").
+        expect(timeElement.textContent).not.toMatch(/\bin about\b|\bin \d+/);
+    });
+
     test('shows the active view count — not the municipal stats total — in a filtered responder queue', async () => {
         mocks.user = {
             _id: 'responder-1',

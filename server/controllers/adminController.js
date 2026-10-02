@@ -545,6 +545,16 @@ export const getAllReports = async (req, res) => {
         //     already handles plain objects.
         //   - maxTimeMS bounds each statement so a pathological query fails
         //     fast instead of holding a weak-signal client's connection open.
+        //
+        // Sort is view-aware: the responder dispatch queue ('available' view)
+        // orders longest-waiting first (verifiedAt asc, createdAt asc as
+        // tiebreak). verifiedAt is set on every verification, so queue rows
+        // carry it; sorting this view on incidentTime would let erroneous
+        // future dates top the queue above genuinely waiting incidents. All
+        // other admin/responder views keep the newest-first incidentTime sort.
+        const sortSpec = admin.role === 'responder' && responderView === 'available'
+            ? { verifiedAt: 1, createdAt: 1 }
+            : { incidentTime: -1, createdAt: -1 };
         const [reports, total, statusGroups] = await Promise.all([
             Report.find(query)
                 .populate('reporter', reporterProjection)
@@ -552,7 +562,7 @@ export const getAllReports = async (req, res) => {
                 .populate('resolvedBy', 'name email agency assignedMunicipality')
                 .populate('responders.user', 'name agency assignedMunicipality')
                 .populate('municipality', 'name code')
-                .sort({ incidentTime: -1, createdAt: -1 })
+                .sort(sortSpec)
                 .limit(safeLimit)
                 .skip((safePage - 1) * safeLimit)
                 .maxTimeMS(policy.maxTimeMs)
