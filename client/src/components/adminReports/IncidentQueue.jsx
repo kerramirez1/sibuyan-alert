@@ -297,7 +297,11 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
         || capabilities.canDismiss;
 
     return (
-        <div className="flex w-full flex-row flex-wrap items-center gap-1.5">
+        <div className="flex w-full flex-row flex-wrap items-center gap-1.5 sm:justify-between">
+            {/* w-full on mobile so Verify/Reject keep their full-width flex-1
+                sizing exactly as before; content-width on sm+ so
+                justify-between can push the group right. */}
+            <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
             {capabilities.canVerify && (
                     <SecondaryActionButton
                         label="Verify"
@@ -366,9 +370,16 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         </button>
                     </>
                 )}
+            </div>
 
-                {/* View details sits last: the workflow actions lead. */}
+            {/* View details sits last on mobile where the workflow actions lead;
+                on sm+ order-first returns it to the left while justify-between
+                pushes the buttons right — the original desktop arrangement.
+                The span (not the shared button) carries the ordering so the
+                responder row is untouched. */}
+            <span className="order-last sm:order-first inline-flex">
                 <InspectReportButton report={report} onInspect={onInspect} isSelected={isSelected} />
+            </span>
         </div>
     );
 };

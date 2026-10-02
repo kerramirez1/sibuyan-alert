@@ -633,6 +633,38 @@ describe('AdminReportsPage operational queue', () => {
         expect(inspectButton).toHaveAttribute('aria-controls', 'responder-incident-inspector');
     });
 
+    test('restores the desktop button arrangement on the admin action row', async () => {
+        mocks.user = {
+            _id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({ _id: 'pending-1', status: 'pending', address: 'Poblacion coastal road' }),
+        ]));
+
+        renderPage();
+
+        const card = (await screen.findByText('Poblacion coastal road')).closest('article');
+        const inspectButton = within(card).getByRole('button', { name: 'Inspect report' });
+
+        // The ordering lives on a wrapper span, not the shared button, so the
+        // responder row is untouched.
+        const viewDetailsWrapper = inspectButton.parentElement;
+        expect(viewDetailsWrapper.tagName).toBe('SPAN');
+        expect(viewDetailsWrapper).toHaveClass('order-last', 'sm:order-first', 'inline-flex');
+
+        const actionRow = viewDetailsWrapper.parentElement;
+        expect(actionRow).toHaveClass('flex-row', 'flex-wrap', 'sm:justify-between');
+        // DOM order: the buttons group first (mobile shows buttons, then View
+        // details); on sm+ order-first moves View details left and
+        // justify-between pushes the buttons right.
+        const buttonsGroup = actionRow.firstElementChild;
+        expect(buttonsGroup).not.toBe(viewDetailsWrapper);
+        expect(buttonsGroup).toHaveClass('flex', 'flex-wrap');
+        expect(within(buttonsGroup).getByRole('button', { name: 'Verify report' })).toBeInTheDocument();
+    });
+
     test('resets the panel body scroll when switching incidents and restores focus after Escape', async () => {
         mocks.user = {
             id: 'responder-1',
