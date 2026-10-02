@@ -254,16 +254,23 @@ const ResponderQueueControls = ({
                         Municipality-scoped incident records available to responders.
                     </p>
                     {stats && (
-                        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
-                            {responderView === 'all' && (
-                                <>
-                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                                    <span>{toCount(stats.responding)} responding</span>
-                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                                    <span>{toCount(stats.resolved)} resolved</span>
-                                </>
-                            )}
+                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
+                            <span className="whitespace-nowrap font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('pending')}`} aria-hidden="true" />
+                                <span>{toCount(stats.pending)} pending review</span>
+                            </span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('responding')}`} aria-hidden="true" />
+                                <span>{toCount(stats.responding)} responding</span>
+                            </span>
+                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('resolved')}`} aria-hidden="true" />
+                                <span>{toCount(stats.resolved)} resolved</span>
+                            </span>
                         </div>
                     )}
                 </div>
