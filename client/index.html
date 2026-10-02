@@ -11,6 +11,12 @@
          points at a dedicated fully-opaque 180x180 variant. Do not repoint it
          at icon-192.png / icon-512.png, which are transparent by design. -->
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <!-- Preload the landing-page municipality illustration so the browser
+         discovers it during HTML parse instead of waiting for the app JS to
+         boot and render. The <img> in SibuyanIslandMap.jsx requests this same
+         URL with no srcset, so the preloaded response is reused and the asset
+         is downloaded exactly once. -->
+    <link rel="preload" as="image" type="image/png" href="/icons/Municipality.png" fetchpriority="high" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
