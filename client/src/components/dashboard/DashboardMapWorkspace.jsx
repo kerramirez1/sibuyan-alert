@@ -21,6 +21,7 @@ import HighRiskZoneDetails from '../map/HighRiskZoneDetails';
 import MapOverlayPanel, { PANEL_SHEET_MEDIA_QUERY } from '../map/MapOverlayPanel';
 import MapMobileFilterSheet from './MapMobileFilterSheet';
 import { SkeletonRow } from '../ui/Skeleton';
+import ScrollFadeRow from '../ui/ScrollFadeRow';
 import MapFilterRail, { RAIL_TONES, getRailTone, getRailDotClass } from './MapFilterRail';
 import {
     getFilteredMapReports,
@@ -1473,7 +1474,7 @@ const DashboardMapWorkspace = ({
                     role="group"
                 >
                     {mapExperience.filters.length > 0 && (
-                        <div className="hidden min-w-0 flex-1 items-end gap-x-1 overflow-x-auto no-scrollbar lg:flex">
+                        <ScrollFadeRow className="hidden min-w-0 flex-1 items-end gap-x-1 overflow-x-auto no-scrollbar lg:flex" tabIndex={0}>
                             <MapFilterRail
                                 filters={mapExperience.filters}
                                 showPendingReports={mapExperience.showPendingReports}
@@ -1485,7 +1486,7 @@ const DashboardMapWorkspace = ({
                                 // counts there (see MapFilterRail).
                                 hideCountsAtDesktop
                             />
-                        </div>
+                        </ScrollFadeRow>
                     )}
                 </div>
             )}
@@ -1721,7 +1722,7 @@ const DashboardMapWorkspace = ({
                     <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-1 pb-2 pt-0.5 sm:px-2">
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                             {mapExperience.filters.length > 0 && (
-                                <div className="hidden min-w-0 flex-1 items-center gap-x-1 overflow-x-auto no-scrollbar lg:flex" role="group" aria-label="Expanded map status filter">
+                                <ScrollFadeRow className="hidden min-w-0 flex-1 items-center gap-x-1 overflow-x-auto no-scrollbar lg:flex" role="group" aria-label="Expanded map status filter" tabIndex={0}>
                                     <MapFilterRail
                                         filters={mapExperience.filters}
                                         showPendingReports={mapExperience.showPendingReports}
@@ -1730,7 +1731,7 @@ const DashboardMapWorkspace = ({
                                         getCount={getFilterCount}
                                         hideCountsAtDesktop
                                     />
-                                </div>
+                                </ScrollFadeRow>
                             )}
 
                             {mapExperience.filters.length > 0 && (() => {

@@ -5,6 +5,7 @@ import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
 import MapLayerControl from '../components/map/MapLayerControl';
 import CustomSelect from '../components/ui/CustomSelect';
+import ScrollFadeRow from '../components/ui/ScrollFadeRow';
 import toast from '../utils/appToast';
 import useGlobalHighRiskZones from '../hooks/useGlobalHighRiskZones';
 import useHazardAreas from '../hooks/useHazardAreas';
@@ -914,7 +915,7 @@ const AdminHighRiskZonesPage = () => {
             </header>
 
             {/* Mobile / Tablet View Switcher */}
-            <div className="filter-tabs shrink-0 lg:hidden" role="tablist" aria-label="Mobile workspace view">
+            <ScrollFadeRow className="filter-tabs shrink-0 no-scrollbar lg:hidden" role="tablist" aria-label="Mobile workspace view" tabIndex={0}>
                 <button
                     type="button"
                     role="tab"
@@ -933,7 +934,7 @@ const AdminHighRiskZonesPage = () => {
                 >
                     {showForm ? (editingZone ? 'Edit Zone' : 'New Zone Form') : `Marked Zones (${Array.isArray(zones) ? zones.length : 0})`}
                 </button>
-            </div>
+            </ScrollFadeRow>
 
             {/* Main Workspace: Full-Height Synchronized Stage.
 
@@ -1597,7 +1598,7 @@ const AdminHighRiskZonesPage = () => {
                                                 aria-label="Search zones or municipality"
                                             />
                                         </div>
-                                        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" role="toolbar" aria-label="Filter zones by hazard type" tabIndex={0}>
+                                        <ScrollFadeRow className="flex flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" role="toolbar" aria-label="Filter zones by hazard type" tabIndex={0}>
                                             {[
                                                 { id: 'all', label: 'All' },
                                                 { id: 'landslide_prone', label: 'Landslide' },
@@ -1614,7 +1615,7 @@ const AdminHighRiskZonesPage = () => {
                                                     {chip.label}
                                                 </button>
                                             ))}
-                                        </div>
+                                        </ScrollFadeRow>
                                     </div>
                                 )}
 

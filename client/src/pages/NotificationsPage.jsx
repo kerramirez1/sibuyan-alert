@@ -11,6 +11,7 @@ import {
 import { useNavigate } from '../router';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
+import ScrollFadeRow from '../components/ui/ScrollFadeRow';
 import { notificationsAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
@@ -177,9 +178,11 @@ const NotificationsPage = () => {
             />
 
             {/* Filter Tabs */}
-            <nav
-                className="filter-tabs"
+            <ScrollFadeRow
+                className="filter-tabs no-scrollbar"
                 aria-label="Notification filters"
+                role="navigation"
+                tabIndex={0}
             >
                 {FILTERS.map((filter) => {
                     const active = activeFilter === filter.key;
@@ -203,7 +206,7 @@ const NotificationsPage = () => {
                         </button>
                     );
                 })}
-            </nav>
+            </ScrollFadeRow>
 
             {error && (
                 <div className="rounded-xl border border-red-200/90 bg-red-50/80 p-4 text-xs sm:text-sm font-medium text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300" role="alert">

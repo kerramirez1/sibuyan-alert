@@ -4,6 +4,7 @@ import {
     HiOutlineSearch,
     HiOutlineX,
 } from 'react-icons/hi';
+import ScrollFadeRow from '../ui/ScrollFadeRow';
 import {
     getRoleStatuses,
     INCIDENT_STATUS,
@@ -165,7 +166,7 @@ const IncidentFilterBar = ({
             {responderView !== 'all' ? (
                 <p className="filter-bar__scope">{responderDescription}</p>
             ) : (
-                <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by status" tabIndex={0}>
+                <ScrollFadeRow className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by status" tabIndex={0}>
                     <button
                         type="button"
                         aria-pressed={status === ''}
@@ -193,7 +194,7 @@ const IncidentFilterBar = ({
                             </button>
                         );
                     })}
-                </div>
+                </ScrollFadeRow>
             )}
         </div>
     </section>
@@ -253,8 +254,7 @@ const ResponderQueueControls = ({
                 />
             </header>
 
-            <nav className="mb-5" aria-label="Responder incident views" tabIndex={0}>
-                <div className="filter-tabs">
+            <ScrollFadeRow className="mb-5 filter-tabs" aria-label="Responder incident views" tabIndex={0} role="navigation">
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
                         // Always rendered, including 0 — the zero is the point
@@ -276,8 +276,7 @@ const ResponderQueueControls = ({
                             </button>
                         );
                     })}
-                </div>
-            </nav>
+            </ScrollFadeRow>
 
             <IncidentFilterBar
                 role="responder"
