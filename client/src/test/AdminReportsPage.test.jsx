@@ -462,26 +462,6 @@ describe('AdminReportsPage operational queue', () => {
         expect(timeElement.textContent).not.toMatch(/\bin about\b|\bin \d+/);
     });
 
-    test('shows the active view count — not the municipal stats total — in a filtered responder queue', async () => {
-        mocks.user = {
-            _id: 'responder-1',
-            role: 'responder',
-            assignedMunicipality: 'Cajidiocan',
-        };
-        // Stats total is nonzero (verified + responding + resolved) while the
-        // dispatch queue itself is empty — the headline must match the list.
-        mocks.getReports.mockResolvedValue(apiResponse([]));
-
-        renderPage('/admin/reports?view=dispatch-queue');
-
-        expect(await screen.findByText('No incidents are waiting for dispatch')).toBeInTheDocument();
-        expect(screen.getByLabelText('Operational totals')).toHaveTextContent('0 incidents');
-        // The headline is the view-specific count, but the breakdown reflects
-        // municipal-scope stats, exactly like the admin header.
-        expect(screen.getByText('1 responding')).toBeInTheDocument();
-        expect(screen.getByText('1 resolved')).toBeInTheDocument();
-    });
-
     test('shows transfer provenance and lets the origin admin remove a transferred-out copy', async () => {
         mocks.user = {
             _id: 'admin-1',
@@ -546,7 +526,6 @@ describe('AdminReportsPage operational queue', () => {
         expect(list).toHaveClass('surface-panel', 'divide-y');
         expect(screen.queryByTestId('incident-table')).not.toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Incident reports' })).toBeInTheDocument();
-        expect(screen.getByLabelText('Operational totals')).toHaveTextContent('3 incidents');
         expect(screen.getByText('critical')).toHaveClass('text-red-700');
         expect(screen.getByText('MDRRMO Rescue 1')).toBeInTheDocument();
 
@@ -1087,7 +1066,7 @@ describe('AdminReportsPage operational queue', () => {
         renderPage();
 
         await screen.findAllByText('Poblacion coastal road');
-        expect(screen.getByText('4 pending review')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Pending, 4 incidents' })).toBeInTheDocument();
 
         // 1. Open inspector
         fireEvent.click(screen.getAllByRole('button', { name: 'Inspect report' })[0]);
@@ -1129,7 +1108,7 @@ describe('AdminReportsPage operational queue', () => {
         // 6. Inspector remains open and stats update
         expect(activeInspector).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText('3 pending review')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Pending, 3 incidents' })).toBeInTheDocument();
         });
     });
 

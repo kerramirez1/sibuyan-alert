@@ -4,9 +4,7 @@ import {
     HiOutlineSearch,
     HiOutlineX,
 } from 'react-icons/hi';
-import { getMapStatusDot } from '../../config/mapVisuals';
 import {
-    ADMIN_ROLES,
     getRoleStatuses,
     INCIDENT_STATUS,
 } from './incidentReportConfig';
@@ -45,12 +43,6 @@ const RESPONDER_VIEWS = [
 const toCount = (value) => {
     const count = Number(value);
     return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
-};
-
-const getResponderIncidentTotal = (stats, fallback) => {
-    if (!stats) return toCount(fallback);
-    return ['verified', 'transferred', 'responding', 'resolved']
-        .reduce((total, key) => total + toCount(stats[key]), 0);
 };
 
 const formatLastUpdatedTime = (value) => {
@@ -177,16 +169,16 @@ const IncidentFilterBar = ({
                     <button
                         type="button"
                         aria-pressed={status === ''}
-                        aria-label={`All statuses, ${stats?.total ?? 0} incidents`}
+                        aria-label={`All statuses, ${toCount(stats?.total)} incidents`}
                         onClick={() => setStatus('')}
                         className="status-filter"
                     >
                         All statuses
-                        <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{stats?.total ?? 0}</span>
+                        <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{toCount(stats?.total)}</span>
                     </button>
                     {getRoleStatuses(role).map((statusValue) => {
                         const config = INCIDENT_STATUS[statusValue];
-                        const count = stats?.[statusValue] ?? 0;
+                        const count = toCount(stats?.[statusValue]);
                         return (
                             <button
                                 key={statusValue}
@@ -211,7 +203,6 @@ const ResponderQueueControls = ({
     responderView,
     onResponderViewChange,
     stats,
-    resultCount,
     lastUpdatedAt,
     status,
     setStatus,
@@ -238,13 +229,6 @@ const ResponderQueueControls = ({
             activeButton.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
     }, [responderView]);
-    // MVP honesty: the stats total uses a transfer-inclusive municipal scope,
-    // while each queue view is a stricter server-filtered query. Show the
-    // active view's own result count so the headline never contradicts the list
-    // (e.g. "4 incidents" above an empty dispatch queue).
-    const incidentTotal = responderView === 'all'
-        ? getResponderIncidentTotal(stats, resultCount)
-        : toCount(resultCount);
 
     return (
         <>
@@ -259,26 +243,6 @@ const ResponderQueueControls = ({
                     <p className="page-description">
                         Municipality-scoped incident records available to responders.
                     </p>
-                    {stats && (
-                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
-                            <span className="whitespace-nowrap font-semibold text-gray-700 dark:text-gray-300">{incidentTotal} incident{incidentTotal === 1 ? '' : 's'}</span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('pending')}`} aria-hidden="true" />
-                                <span>{toCount(stats.pending)} pending review</span>
-                            </span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('responding')}`} aria-hidden="true" />
-                                <span>{toCount(stats.responding)} responding</span>
-                            </span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('resolved')}`} aria-hidden="true" />
-                                <span>{toCount(stats.resolved)} resolved</span>
-                            </span>
-                        </div>
-                    )}
                 </div>
 
                 <OperationalControls
@@ -296,7 +260,7 @@ const ResponderQueueControls = ({
                         // Always rendered, including 0 — the zero is the point
                         // ("walang laman"). The pill is aria-hidden; the
                         // button's aria-label carries the count for SR users.
-                        const count = stats?.viewCounts?.[view.value] ?? 0;
+                        const count = toCount(stats?.viewCounts?.[view.value]);
                         return (
                             <button
                                 key={view.value}
@@ -350,7 +314,6 @@ const IncidentQueueControls = ({
     onRefresh,
     loading,
 }) => {
-    const isAdmin = ADMIN_ROLES.includes(role);
     const isResponder = role === 'responder';
     const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
 
@@ -388,30 +351,6 @@ const IncidentQueueControls = ({
                     <p className="page-description">
                         {`Municipality-scoped incident records${municipality ? ` for ${municipality}` : ''}.`}
                     </p>
-                    {stats && (
-                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400" aria-label="Operational totals">
-                            <span className="whitespace-nowrap font-semibold text-gray-700 dark:text-gray-300">{resultCount} incident{resultCount === 1 ? '' : 's'}</span>
-                            {isAdmin && (
-                                <>
-                                    <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                        <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('pending')}`} aria-hidden="true" />
-                                        <span>{toCount(stats.pending)} pending review</span>
-                                    </span>
-                                </>
-                            )}
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('responding')}`} aria-hidden="true" />
-                                <span>{toCount(stats.responding)} responding</span>
-                            </span>
-                            <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">&middot;</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className={`h-1.5 w-1.5 rounded-full ${getMapStatusDot('resolved')}`} aria-hidden="true" />
-                                <span>{toCount(stats.resolved)} resolved</span>
-                            </span>
-                        </div>
-                    )}
                 </div>
 
                 <OperationalControls
