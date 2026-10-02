@@ -82,6 +82,47 @@ describe('server-side reporter selfie face validation', () => {
         expect(response.body.message).toMatch(/no face detected in the verification selfie/i);
     });
 
+    test.each([
+        ['oversized_candidate', /too close to the camera/i],
+        ['too_small', /too small in the frame/i],
+        ['weak_confidence', /no face detected in the verification selfie/i],
+        [undefined, /no face detected in the verification selfie/i],
+    ])('returns an actionable message for qualityRejection=%s', async (qualityRejection, expectedMessage) => {
+        const detectFacesSpy = vi.spyOn(faceService, 'detectFaces').mockResolvedValue({
+            status: 'no_faces_detected',
+            faces: [],
+            qualityRejection,
+            confidenceSummary: { maxConfidence: 0, faceCount: 0, averageConfidence: 0 },
+        });
+
+        const response = await request(createRegisterApp())
+            .post('/api/auth/register')
+            .field('name', 'Juan Dela Cruz')
+            .field('email', 'juan@example.com')
+            .field('password', 'secure-password-123')
+            .field('municipality', 'Cajidiocan')
+            .field('barangay', 'Gutivan')
+            .field('agreeToTerms', 'true')
+            .attach('idDocument', createPngHeader(), {
+                filename: 'id.png',
+                contentType: 'image/png',
+            })
+            .attach('selfiePhoto', createPngHeader(750, 1200), {
+                filename: 'selfie.png',
+                contentType: 'image/png',
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.message).toMatch(expectedMessage);
+        // The server selfie gate aligns with the client capture gate (0.78).
+        expect(detectFacesSpy).toHaveBeenCalledWith(expect.any(Buffer), {
+            fastMode: true,
+            maxDimension: 800,
+            maxFaceSizeRatio: 0.8,
+        });
+    });
+
     test('rejects registration when server face detector detects multiple faces in selfie', async () => {
         vi.spyOn(faceService, 'detectFaces').mockResolvedValue({
             status: 'faces_detected',

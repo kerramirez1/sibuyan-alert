@@ -25,6 +25,22 @@ import { buildSelfUserPayload } from '../utils/userPayload.js';
 import { detectFaces } from '../services/faceDetectionService.js';
 
 /**
+ * Maps a selfie quality-gate rejection to an actionable user message.
+ * qualityRejection is a single enum string from detectFaces — raw
+ * diagnostics are never surfaced to the client.
+ */
+const getSelfieNoFaceMessage = (detection) => {
+    switch (detection?.qualityRejection) {
+        case 'oversized_candidate':
+            return 'Your face is too close to the camera. Hold the phone a bit farther away and retake the selfie.';
+        case 'too_small':
+            return 'Your face is too small in the frame. Move closer to the camera and retake the selfie.';
+        default:
+            return 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.';
+    }
+};
+
+/**
  * @desc    Register a new reporter with private ID-photo verification
  * @route   POST /api/auth/register
  * @access  Public
@@ -71,7 +87,10 @@ export const register = async (req, res) => {
         // Authoritative server-side face validation (fail-closed).
         // Fast single-pass gate keeps Heroku single-dyno p95 low; the full
         // multi-pass pipeline stays reserved for evidence redaction.
-        const selfieDetection = await detectFaces(selfiePhotoFile.buffer, { fastMode: true, maxDimension: 800 });
+        // maxFaceSizeRatio 0.8 aligns the server gate with the client
+        // capture gate (face up to 0.78 of the frame); the evidence flow
+        // keeps the strict 0.55 default.
+        const selfieDetection = await detectFaces(selfiePhotoFile.buffer, { fastMode: true, maxDimension: 800, maxFaceSizeRatio: 0.8 });
         if (selfieDetection.status === 'detector_failed') {
             return res.status(503).json({
                 success: false,
@@ -87,7 +106,7 @@ export const register = async (req, res) => {
         if (selfieDetection.status === 'no_faces_detected' || (selfieDetection.faces && selfieDetection.faces.length === 0)) {
             return res.status(400).json({
                 success: false,
-                message: 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.',
+                message: getSelfieNoFaceMessage(selfieDetection),
             });
         }
         if (selfieDetection.faces && selfieDetection.faces.length > 1) {
@@ -588,7 +607,9 @@ export const resubmitIdDocument = async (req, res) => {
 
         const selfieFile = req.files?.selfiePhoto?.[0] || null;
         if (selfieFile) {
-            const selfieDetection = await detectFaces(selfieFile.buffer, { fastMode: true, maxDimension: 800 });
+            // Same gate as registration: maxFaceSizeRatio 0.8 aligns with the
+            // client capture gate (0.78); evidence redaction keeps 0.55.
+            const selfieDetection = await detectFaces(selfieFile.buffer, { fastMode: true, maxDimension: 800, maxFaceSizeRatio: 0.8 });
             if (selfieDetection.status === 'detector_failed') {
                 await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(503).json({
@@ -607,7 +628,7 @@ export const resubmitIdDocument = async (req, res) => {
                 await deleteGridFsFilesByUrls(uploadedFileUrls);
                 return res.status(400).json({
                     success: false,
-                    message: 'No face detected in the verification selfie. Please provide a clear, front-facing photo of your face.',
+                    message: getSelfieNoFaceMessage(selfieDetection),
                 });
             }
             if (selfieDetection.faces && selfieDetection.faces.length > 1) {

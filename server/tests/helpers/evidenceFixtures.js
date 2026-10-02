@@ -183,6 +183,27 @@ export const createDarkFacePhoto = async () => {
 };
 
 /**
+ * Creates a close-up face photo: the face fills ~65-70% of the frame width,
+ * inside the client capture gate (0.78) but above the default server gate
+ * (0.55). Exercises the selfie maxFaceSizeRatio alignment.
+ */
+export const createCloseUpFacePhoto = async (options = {}) => {
+    const { width = 400, height = 500 } = options;
+    const gray = new Uint8Array(width * height);
+
+    // Plain background — the face dominates the frame
+    gray.fill(130);
+
+    // Face oval sized so the detected box lands in the 0.55-0.8 band of the
+    // frame's min dimension (pico's box runs wider than the painted oval)
+    const rx = Math.round(Math.min(width, height) * 0.29);
+    const ry = Math.round(rx * 1.15);
+    paintNaturalFace(gray, width, height, Math.round(width / 2), Math.round(height / 2), rx, ry);
+
+    return sharp(gray, { raw: { width, height, channels: 1 } }).jpeg({ quality: 90 }).toBuffer();
+};
+
+/**
  * Creates an invalid/corrupt non-image buffer.
  */
 export const createCorruptImage = () => {
@@ -197,4 +218,5 @@ export default {
     createLowResFacePhoto,
     createDarkFacePhoto,
     createCorruptImage,
+    createCloseUpFacePhoto,
 };

@@ -138,6 +138,12 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         // background false positives and must not be treated as a verified face.
         minConfidence = 5,
         minConfirmedConfidence = 6,
+        // Upper bound on an accepted face's projected size relative to the
+        // frame. The evidence-redaction flow keeps the strict 0.55 default so
+        // oversized detections (e.g. a face on a poster) are never treated as
+        // real faces; the registration/resubmit selfie gates pass 0.8 to align
+        // with the client capture gate (0.78) plus a small margin.
+        maxFaceSizeRatio = 0.55,
         // Fast mode for latency-sensitive flows (e.g. registration selfie
         // gate). Runs the single standard-grayscale pass at <=800px and skips
         // the contrast-normalization and multi-rotation passes. Same
@@ -361,8 +367,8 @@ export const detectFaces = async (imageBuffer, options = {}) => {
                 if (confidence < minConfirmedConfidence) qualityReasons.push('weak_confidence');
                 if (projectedWidth < 18 || projectedHeight < 18) qualityReasons.push('too_small');
                 if (aspectRatio < 0.55 || aspectRatio > 1.8) qualityReasons.push('implausible_aspect_ratio');
-                if (projectedWidth > Math.min(orientedWidth, orientedHeight) * 0.55
-                    || projectedHeight > Math.min(orientedWidth, orientedHeight) * 0.55) {
+                const maxFacePixels = Math.min(orientedWidth, orientedHeight) * maxFaceSizeRatio;
+                if (projectedWidth > maxFacePixels || projectedHeight > maxFacePixels) {
                     qualityReasons.push('oversized_candidate');
                 }
                 if (safeX + projectedWidth > orientedWidth || safeY + projectedHeight > orientedHeight) {
@@ -382,6 +388,21 @@ export const detectFaces = async (imageBuffer, options = {}) => {
                 if (qualityReasons.length === 0) faces.push(candidate);
                 else rejectedDetections.push({ ...candidate, reasons: qualityReasons });
             }
+        }
+
+        // When every detection was quality-gated out, surface the dominant
+        // rejection reason as a single enum string (never raw diagnostics) so
+        // callers can give the user an actionable message.
+        let qualityRejection;
+        if (faces.length === 0 && rejectedDetections.length > 0) {
+            const reasonCounts = {};
+            for (const rejected of rejectedDetections) {
+                for (const reason of rejected.reasons || []) {
+                    reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+                }
+            }
+            const ranked = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]);
+            qualityRejection = ranked.length > 0 ? ranked[0][0] : undefined;
         }
 
         const maxConfidence = faces.reduce((max, f) => Math.max(max, f.confidence), 0);
@@ -413,6 +434,10 @@ export const detectFaces = async (imageBuffer, options = {}) => {
         return {
             status: faces.length > 0 ? 'faces_detected' : 'no_faces_detected',
             faces,
+            // Single dominant quality-gate rejection reason (or undefined).
+            // Raw diagnostics stay server-side; this is safe to map to a
+            // user-facing message.
+            qualityRejection,
             detectorVersion: DETECTOR_VERSION,
             confidenceSummary: {
                 maxConfidence,

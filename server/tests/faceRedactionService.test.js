@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { expandBoundingBox, generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import * as faceDetectionService from '../services/faceDetectionService.js';
 import {
+    createCloseUpFacePhoto,
     createCorruptImage,
     createDarkFacePhoto,
     createDocumentFixture,
@@ -240,5 +241,35 @@ describe('Face Redaction and Evidence Derivative Services with Real Fixtures', {
 
         expect(cachedFirst.metadata.cacheHit).toBe(false);
         expect(cachedSecond.metadata.cacheHit).toBe(true);
+    });
+
+    test('14. Close-up face: passes the selfie gate (maxFaceSizeRatio 0.8) but is rejected under the 0.55 default', async () => {
+        const closeUpBuffer = await createCloseUpFacePhoto();
+
+        // Selfie gate (registration/resubmit): aligns with the client capture
+        // gate (0.78) plus margin — the close-up is accepted.
+        const selfieGate = await faceDetectionService.detectFaces(closeUpBuffer, {
+            fastMode: true,
+            maxDimension: 800,
+            maxFaceSizeRatio: 0.8,
+        });
+        expect(selfieGate.status).toBe('faces_detected');
+        expect(selfieGate.faces.length).toBeGreaterThanOrEqual(1);
+        expect(selfieGate.qualityRejection).toBeUndefined();
+
+        // Default gate (evidence redaction): the same face is still rejected
+        // as oversized, with the dominant reason surfaced (no raw diagnostics).
+        const defaultGate = await faceDetectionService.detectFaces(closeUpBuffer, {
+            fastMode: true,
+            maxDimension: 800,
+        });
+        expect(defaultGate.status).toBe('no_faces_detected');
+        expect(defaultGate.faces.length).toBe(0);
+        expect(defaultGate.qualityRejection).toBe('oversized_candidate');
+
+        // The redaction pipeline keeps the strict default end-to-end.
+        const derivative = await generateRedactedEvidenceDerivative(closeUpBuffer, { skipCache: true });
+        expect(derivative.metadata.detectionStatus).toBe('no_faces_detected');
+        expect(derivative.metadata.redactionType).toBe('none');
     });
 });
