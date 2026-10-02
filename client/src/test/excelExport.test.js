@@ -123,7 +123,8 @@ describe('excelExport workbook', () => {
     test('appends a Notes section explaining the metrics, plus the truncation note when given', () => {
         const truncated = 'Incident list truncated to the first 5000 rows; totals above reflect the full set.';
         const workbook = build({ truncatedNote: truncated });
-        const summaryTexts = workbook.getWorksheet('Summary').getColumn(1).values.join(' ');
+        const sheet = workbook.getWorksheet('Summary');
+        const summaryTexts = sheet.getColumn(1).values.join(' ');
 
         expect(summaryTexts).toContain('Notes');
         expect(summaryTexts).toContain('Resolution rate = Resolved ÷ (Verified + Transferred + Responding + Resolved). Pending-review reports are excluded.');
@@ -133,6 +134,41 @@ describe('excelExport workbook', () => {
 
         const withoutTruncation = build().getWorksheet('Summary').getColumn(1).values.join(' ');
         expect(withoutTruncation).not.toContain(truncated);
+    });
+
+    test('renders notes as full-width merged rows so long text wraps instead of truncating', () => {
+        const workbook = build({ truncatedNote: 'Truncated note here.' });
+        const sheet = workbook.getWorksheet('Summary');
+
+        // Metric column widened to fit the longest label on one line.
+        expect(sheet.getColumn(1).width).toBe(48);
+        expect(sheet.getColumn(2).width).toBe(28);
+
+        const noteRows = [];
+        sheet.eachRow((row, rowNumber) => {
+            const text = row.getCell(1).value;
+            if (rowNumber > 2 && typeof text === 'string' && (text === 'Notes' || text.startsWith('Resolution rate') || text === 'Truncated note here.')) {
+                noteRows.push({ row, rowNumber, text });
+            }
+        });
+        expect(noteRows.length).toBe(3);
+
+        // ExcelJS Cell.Types.Merge — not exported from the installed build,
+        // so the numeric value is pinned here.
+        const CELL_TYPE_MERGE = 1;
+        for (const { row, rowNumber } of noteRows) {
+            // Merged across both columns: B is a merge slave holding no
+            // independent value, so no empty-string cell blocks Excel/WPS
+            // text overflow.
+            expect(sheet.model.merges).toContain(`A${rowNumber}:B${rowNumber}`);
+            expect(row.getCell(2).type).toBe(CELL_TYPE_MERGE);
+            expect(row.getCell(1).alignment).toMatchObject({ wrapText: true, vertical: 'top' });
+            expect(row.height).toBe(30);
+        }
+
+        // The Notes header reads as a section header, not a data row.
+        const headerRow = noteRows.find(({ text }) => text === 'Notes').row;
+        expect(headerRow.getCell(1).font).toMatchObject({ bold: true, size: 11 });
     });
 
     test('serializes to bytes that reload as the same workbook', async () => {

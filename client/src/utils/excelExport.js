@@ -50,6 +50,22 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable 
     });
 
     rows.forEach((record) => {
+        // Full-width rows (e.g. Summary notes): the text is written into
+        // column A and merged across to the last column, so Excel/WPS can
+        // wrap it instead of truncating at column A — a real empty-string
+        // cell in column B would block text overflow into truly empty cells.
+        if (record.fullWidth) {
+            const fullRow = worksheet.addRow([toCellValue(record.metric)]);
+            worksheet.mergeCells(`A${fullRow.number}:${lastColumn}${fullRow.number}`);
+            const mergedCell = fullRow.getCell(1);
+            mergedCell.alignment = { wrapText: true, vertical: 'top' };
+            if (record.bold) {
+                mergedCell.font = { bold: true, size: 11, color: { argb: 'FF111827' } };
+            }
+            // Tall enough for two wrapped lines without manual resizing.
+            fullRow.height = 30;
+            return;
+        }
         const row = worksheet.addRow(columns.map((column) => toCellValue(record[column.key])));
         columns.forEach((column, index) => {
             const cell = row.getCell(index + 1);
@@ -118,7 +134,9 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
         title: `Situation Overview · ${scopeLabel}${monthLabel ? ` · ${monthLabel}` : ''}`,
         filterable: false,
         columns: [
-            { key: 'metric', label: 'Metric', width: 36 },
+            // 48 fits the longest label ('Active High-Risk Zones (Current, as
+            // of Export)', 44 chars) on one line.
+            { key: 'metric', label: 'Metric', width: 48 },
             // No blanket date flag here: the only Date on this sheet is the
             // 'Exported At' row, which opts its own cell in via record.date.
             { key: 'value', label: 'Value', width: 28 },
@@ -129,13 +147,14 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             ...safeSummary,
             { metric: 'Exported At (Asia/Manila)', value: exportedAt instanceof Date ? exportedAt : new Date(), date: true },
             // Blank row, then the Notes section: methodology the reader needs
-            // to interpret the metrics. Metric column holds the note text.
+            // to interpret the metrics. Notes span the full width (merged +
+            // wrapped) so long text is never visually truncated.
             { metric: '', value: '' },
-            { metric: 'Notes', value: '' },
-            { metric: 'Resolution rate = Resolved ÷ (Verified + Transferred + Responding + Resolved). Pending-review reports are excluded.', value: '' },
-            { metric: 'Response time = minutes from report creation to first responder response, within the selected period.', value: '' },
-            { metric: 'Incident list matches the selected period; zone count is current as of export.', value: '' },
-            ...(truncatedNote ? [{ metric: truncatedNote, value: '' }] : []),
+            { metric: 'Notes', value: '', fullWidth: true, bold: true },
+            { metric: 'Resolution rate = Resolved ÷ (Verified + Transferred + Responding + Resolved). Pending-review reports are excluded.', value: '', fullWidth: true },
+            { metric: 'Response time = minutes from report creation to first responder response, within the selected period.', value: '', fullWidth: true },
+            { metric: 'Incident list matches the selected period; zone count is current as of export.', value: '', fullWidth: true },
+            ...(truncatedNote ? [{ metric: truncatedNote, value: '', fullWidth: true }] : []),
         ],
     });
 
