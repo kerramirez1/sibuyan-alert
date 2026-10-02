@@ -1,5 +1,6 @@
 import { normalizeSpreadsheetValue } from './csvExport';
 import { formatCasualtyMetric } from './incidentDetails';
+import { formatTrendBucketLabel } from './trendChartImage';
 
 const TITLE_FONT = { bold: true, size: 14, color: { argb: 'FF111827' } };
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E5F46' } };
@@ -29,6 +30,31 @@ const columnLetter = (index) => {
     return letter;
 };
 
+/**
+ * Writes a full-width note row: the text goes into column A and is merged
+ * across to lastColumn with wrapping, so long text is never visually
+ * truncated. Returns the row.
+ */
+const writeFullWidthRow = (worksheet, lastColumn, text, { bold = false } = {}) => {
+    const row = worksheet.addRow([toCellValue(text)]);
+    worksheet.mergeCells(`A${row.number}:${lastColumn}${row.number}`);
+    const cell = row.getCell(1);
+    cell.alignment = { wrapText: true, vertical: 'top' };
+    if (bold) {
+        cell.font = { bold: true, size: 11, color: { argb: 'FF111827' } };
+    }
+    // Tall enough for two wrapped lines without manual resizing.
+    row.height = 30;
+    return row;
+};
+
+/**
+ * Appends a full-width note row to the Summary sheet after the workbook was
+ * built (e.g. the trend-chart note, which can only be added once
+ * rasterization succeeds). The Summary sheet has two columns (A:B).
+ */
+export const appendSummaryNote = (summarySheet, text) => writeFullWidthRow(summarySheet, 'B', text);
+
 const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable = true }) => {
     const lastColumn = columnLetter(columns.length);
 
@@ -55,15 +81,7 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable 
         // wrap it instead of truncating at column A — a real empty-string
         // cell in column B would block text overflow into truly empty cells.
         if (record.fullWidth) {
-            const fullRow = worksheet.addRow([toCellValue(record.metric)]);
-            worksheet.mergeCells(`A${fullRow.number}:${lastColumn}${fullRow.number}`);
-            const mergedCell = fullRow.getCell(1);
-            mergedCell.alignment = { wrapText: true, vertical: 'top' };
-            if (record.bold) {
-                mergedCell.font = { bold: true, size: 11, color: { argb: 'FF111827' } };
-            }
-            // Tall enough for two wrapped lines without manual resizing.
-            fullRow.height = 30;
+            writeFullWidthRow(worksheet, lastColumn, record.metric, { bold: record.bold });
             return;
         }
         const row = worksheet.addRow(columns.map((column) => toCellValue(record[column.key])));
@@ -106,6 +124,11 @@ const formatAgencies = (report) => {
     return agencies ? agencies.join(', ') : 'Awaiting assignment';
 };
 
+const toTrendCount = (value) => {
+    const count = Number(value);
+    return Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0;
+};
+
 /**
  * Builds a formatted multi-sheet analytics workbook.
  *
@@ -119,11 +142,13 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     summary = [],
     incidents = [],
     zones = [],
+    trend = [],
     truncatedNote = '',
 } = {}) => {
     const safeIncidents = Array.isArray(incidents) ? incidents : [];
     const safeZones = Array.isArray(zones) ? zones : [];
     const safeSummary = Array.isArray(summary) ? summary : [];
+    const safeTrend = Array.isArray(trend) ? trend : [];
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Sibuyan Alert';
     workbook.created = exportedAt instanceof Date ? exportedAt : new Date();
@@ -209,6 +234,29 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             respondingAgencies: formatAgencies(report),
             description: report?.description || '',
             reporter: report?.reporter?.name || 'Unknown User',
+        })),
+    });
+
+    const trendSheet = workbook.addWorksheet('Trend Data');
+    addTitledTable(trendSheet, {
+        title: `Incident Trend Data · ${scopeLabel}${monthLabel ? ` · ${monthLabel}` : ''}`,
+        columns: [
+            { key: 'period', label: 'Period', width: 18 },
+            { key: 'minor', label: 'Minor', width: 12 },
+            { key: 'moderate', label: 'Moderate', width: 12 },
+            { key: 'severe', label: 'Severe', width: 12 },
+            { key: 'critical', label: 'Critical', width: 12 },
+            { key: 'unknown', label: 'Unknown', width: 12 },
+            { key: 'total', label: 'Total', width: 12 },
+        ],
+        rows: safeTrend.map((bucket) => ({
+            period: formatTrendBucketLabel(bucket),
+            minor: toTrendCount(bucket?.minor),
+            moderate: toTrendCount(bucket?.moderate),
+            severe: toTrendCount(bucket?.severe),
+            critical: toTrendCount(bucket?.critical),
+            unknown: toTrendCount(bucket?.unknown),
+            total: toTrendCount(bucket?.total),
         })),
     });
 

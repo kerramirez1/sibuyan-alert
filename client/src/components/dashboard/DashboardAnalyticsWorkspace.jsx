@@ -927,10 +927,11 @@ const DashboardAnalyticsWorkspace = ({
     const exportDashboard = async () => {
         const toastId = 'dashboard-export';
         try {
-            const [{ default: ExcelJS }, { buildAnalyticsWorkbook, writeWorkbookToBuffer }, { default: fileSaver }] = await Promise.all([
+            const [{ default: ExcelJS }, { buildAnalyticsWorkbook, writeWorkbookToBuffer, appendSummaryNote }, { default: fileSaver }, { renderTrendChartPng }] = await Promise.all([
                 import('exceljs'),
                 import('../../utils/excelExport'),
                 import('file-saver'),
+                import('../../utils/trendChartImage'),
             ]);
             // The caption names whatever period is on screen, so an all-time
             // export cannot be filed as if it were one month's.
@@ -967,7 +968,24 @@ const DashboardAnalyticsWorkspace = ({
                 ],
                 incidents: exportIncidents,
                 zones: scopedZones,
+                trend: safeChartData,
             });
+
+            // Trend chart image: enhancement, never a blocker. The PNG is
+            // rasterized from a dedicated export-only SVG (never the live
+            // DOM, whose CSS variables would not resolve off-document). Any
+            // raster failure skips the image and its note; the workbook
+            // still downloads.
+            try {
+                const trendPng = await renderTrendChartPng(safeChartData);
+                const trendImageId = workbook.addImage({ base64: trendPng.split(',')[1], extension: 'png' });
+                const summarySheet = workbook.getWorksheet('Summary');
+                summarySheet.getColumn(3).width = 3; // visual gutter between the table and the chart
+                summarySheet.addImage(trendImageId, { tl: { col: 3, row: 1 }, ext: { width: 640, height: 300 } });
+                appendSummaryNote(summarySheet, 'Trend chart (right) and Trend Data sheet reflect the selected period.');
+            } catch (chartError) {
+                console.warn('Trend chart image skipped:', chartError);
+            }
 
             const buffer = await writeWorkbookToBuffer(workbook);
             // Filename names the reporting period, not the export date.

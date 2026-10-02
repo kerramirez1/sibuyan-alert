@@ -40,10 +40,10 @@ const build = (overrides = {}) => buildAnalyticsWorkbook(ExcelJS, {
 const headerLabels = (sheet) => sheet.getRow(2).values.slice(1);
 
 describe('excelExport workbook', () => {
-    test('creates three titled sheets with frozen headers; only data sheets are filterable', () => {
+    test('creates four titled sheets with frozen headers; only data sheets are filterable', () => {
         const workbook = build();
 
-        expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Incidents', 'Risk Zones']);
+        expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Incidents', 'Trend Data', 'Risk Zones']);
 
         for (const sheet of workbook.worksheets) {
             expect(sheet.getRow(1).getCell(1).value).toMatch(/Cajidiocan/);
@@ -54,6 +54,7 @@ describe('excelExport workbook', () => {
         // sheets keep them.
         expect(workbook.getWorksheet('Summary').autoFilter).toBeFalsy();
         expect(workbook.getWorksheet('Incidents').autoFilter).toBeTruthy();
+        expect(workbook.getWorksheet('Trend Data').autoFilter).toBeTruthy();
         expect(workbook.getWorksheet('Risk Zones').autoFilter).toBeTruthy();
 
         expect(headerLabels(workbook.getWorksheet('Incidents'))).toContain('Origin Municipality');
@@ -163,9 +164,33 @@ describe('excelExport workbook', () => {
         const reloaded = new ExcelJS.Workbook();
         await reloaded.xlsx.load(buffer);
 
-        expect(reloaded.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Incidents', 'Risk Zones']);
+        expect(reloaded.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Incidents', 'Trend Data', 'Risk Zones']);
         const incidents = reloaded.getWorksheet('Incidents');
         expect(incidents.getRow(2).getCell(1).value).toBe('Date Reported');
         expect(incidents.getRow(3).getCell(3).value).toBe("'=1+1 malicious title");
+    });
+
+    test('Trend Data sheet lists per-bucket severity counts in order', () => {
+        const workbook = build({
+            trend: [
+                { date: 'Sep 1', dayKey: '2026-09-01', total: 3, minor: 1, moderate: 1, severe: 0, critical: 1, unknown: 0 },
+                { date: 'Sep 2', dayKey: '2026-09-02', total: 0, minor: 0, moderate: 0, severe: 0, critical: 0, unknown: 0 },
+            ],
+        });
+        const sheet = workbook.getWorksheet('Trend Data');
+
+        expect(sheet.getRow(1).getCell(1).value).toBe('Incident Trend Data · Cajidiocan · August 2026');
+        expect(headerLabels(sheet)).toEqual(['Period', 'Minor', 'Moderate', 'Severe', 'Critical', 'Unknown', 'Total']);
+
+        const first = sheet.getRow(3);
+        expect(first.getCell(1).value).toBe('1');
+        expect(first.getCell(2).value).toBe(1);
+        expect(first.getCell(3).value).toBe(1);
+        expect(first.getCell(5).value).toBe(1);
+        expect(first.getCell(7).value).toBe(3);
+
+        const second = sheet.getRow(4);
+        expect(second.getCell(1).value).toBe('2');
+        expect(second.getCell(7).value).toBe(0);
     });
 });
