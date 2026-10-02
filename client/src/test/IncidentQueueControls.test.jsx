@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import IncidentQueueControls from '../components/adminReports/IncidentQueueControls';
 
@@ -89,5 +89,15 @@ describe('IncidentQueueControls responder tab row', () => {
         expect(screen.getByRole('button', { name: 'Verified, 1 incidents' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Active response, 3 incidents' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Resolved, 4 incidents' })).toBeInTheDocument();
+
+        // Single-line horizontal scroll: the row never wraps, and keyboard
+        // users can move focus into it to scroll when the chips overflow.
+        const statusRow = screen.getByLabelText('Filter by status');
+        expect(statusRow).toHaveClass('flex-nowrap', 'overflow-x-auto', 'no-scrollbar');
+        expect(statusRow).not.toHaveClass('flex-wrap');
+        expect(statusRow).toHaveAttribute('tabindex', '0');
+        within(statusRow).getAllByRole('button').forEach((button) => {
+            expect(button).toHaveClass('shrink-0', 'whitespace-nowrap');
+        });
     });
 });

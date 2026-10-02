@@ -518,6 +518,23 @@ describe('AdminHighRiskZonesPage', () => {
         expect(within(filterToolbar).queryByRole('button', { name: /Flood/i })).not.toBeInTheDocument();
     });
 
+    test('renders the hazard type chips in a single scrollable row', () => {
+        render(<AdminHighRiskZonesPage />);
+
+        const filterToolbar = screen.getByRole('toolbar', { name: 'Filter zones by hazard type' });
+        // Single-line horizontal scroll: never wraps on narrow phones, and
+        // keyboard users can move focus into it to scroll on overflow.
+        expect(filterToolbar).toHaveClass('flex-nowrap', 'overflow-x-auto', 'no-scrollbar');
+        expect(filterToolbar).not.toHaveClass('flex-wrap');
+        expect(filterToolbar).toHaveAttribute('tabindex', '0');
+
+        const chips = within(filterToolbar).getAllByRole('button');
+        expect(chips).toHaveLength(4);
+        chips.forEach((chip) => {
+            expect(chip).toHaveClass('shrink-0', 'whitespace-nowrap');
+        });
+    });
+
     test('keeps the zone type in one closed row, with the options inside a menu', async () => {
         render(<AdminHighRiskZonesPage />);
 

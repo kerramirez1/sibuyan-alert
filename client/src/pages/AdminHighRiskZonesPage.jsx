@@ -1597,7 +1597,7 @@ const AdminHighRiskZonesPage = () => {
                                                 aria-label="Search zones or municipality"
                                             />
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="Filter zones by hazard type">
+                                        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" role="toolbar" aria-label="Filter zones by hazard type" tabIndex={0}>
                                             {[
                                                 { id: 'all', label: 'All' },
                                                 { id: 'landslide_prone', label: 'Landslide' },
@@ -1609,7 +1609,7 @@ const AdminHighRiskZonesPage = () => {
                                                     type="button"
                                                     onClick={() => setZoneTypeFilter(chip.id)}
                                                     aria-pressed={zoneTypeFilter === chip.id}
-                                                    className="filter-tab px-2 text-xs"
+                                                    className="filter-tab shrink-0 whitespace-nowrap px-2 text-xs"
                                                 >
                                                     {chip.label}
                                                 </button>

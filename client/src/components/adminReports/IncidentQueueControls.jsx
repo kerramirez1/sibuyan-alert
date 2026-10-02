@@ -165,13 +165,13 @@ const IncidentFilterBar = ({
             {responderView !== 'all' ? (
                 <p className="filter-bar__scope">{responderDescription}</p>
             ) : (
-                <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Filter by status">
+                <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by status" tabIndex={0}>
                     <button
                         type="button"
                         aria-pressed={status === ''}
                         aria-label={`All statuses, ${toCount(stats?.total)} incidents`}
                         onClick={() => setStatus('')}
-                        className="status-filter"
+                        className="status-filter shrink-0 whitespace-nowrap"
                     >
                         All statuses
                         <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{toCount(stats?.total)}</span>
@@ -186,7 +186,7 @@ const IncidentFilterBar = ({
                                 aria-pressed={status === statusValue}
                                 aria-label={`${config.label}, ${count} incidents`}
                                 onClick={() => setStatus(statusValue)}
-                                className="status-filter"
+                                className="status-filter shrink-0 whitespace-nowrap"
                             >
                                 {config.label}
                                 <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>
