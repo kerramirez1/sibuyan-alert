@@ -29,7 +29,7 @@ const columnLetter = (index) => {
     return letter;
 };
 
-const addTitledTable = (worksheet, { title, columns = [], rows = [] }) => {
+const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable = true }) => {
     const lastColumn = columnLetter(columns.length);
 
     const titleRow = worksheet.addRow([title]);
@@ -53,7 +53,10 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [] }) => {
         const row = worksheet.addRow(columns.map((column) => toCellValue(record[column.key])));
         columns.forEach((column, index) => {
             const cell = row.getCell(index + 1);
-            if (column.date && cell.value instanceof Date) {
+            // A column can opt its Date cells in wholesale (column.date), or a
+            // single record can opt in (record.date) — e.g. the Summary sheet's
+            // 'Exported At' row is the only dated cell on that sheet.
+            if ((column.date || record.date) && cell.value instanceof Date) {
                 cell.numFmt = DATE_NUMBER_FORMAT;
             }
             if (column.wrap) {
@@ -63,10 +66,14 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [] }) => {
     });
 
     worksheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
-    worksheet.autoFilter = {
-        from: `A${headerRow.number}`,
-        to: `${lastColumn}${headerRow.number}`,
-    };
+    // Key-value sheets (Summary) get no AutoFilter dropdowns — filtering a
+    // two-column metric list is noise, not navigation.
+    if (filterable) {
+        worksheet.autoFilter = {
+            from: `A${headerRow.number}`,
+            to: `${lastColumn}${headerRow.number}`,
+        };
+    }
 };
 
 const formatCoordinates = (report) => {
@@ -97,6 +104,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     summary = [],
     incidents = [],
     zones = [],
+    truncatedNote = '',
 } = {}) => {
     const safeIncidents = Array.isArray(incidents) ? incidents : [];
     const safeZones = Array.isArray(zones) ? zones : [];
@@ -108,15 +116,26 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     const summarySheet = workbook.addWorksheet('Summary');
     addTitledTable(summarySheet, {
         title: `Situation Overview · ${scopeLabel}${monthLabel ? ` · ${monthLabel}` : ''}`,
+        filterable: false,
         columns: [
             { key: 'metric', label: 'Metric', width: 36 },
-            { key: 'value', label: 'Value', width: 28, date: true },
+            // No blanket date flag here: the only Date on this sheet is the
+            // 'Exported At' row, which opts its own cell in via record.date.
+            { key: 'value', label: 'Value', width: 28 },
         ],
         rows: [
             { metric: 'Scope', value: scopeLabel },
             ...(monthLabel ? [{ metric: 'Month', value: monthLabel }] : []),
             ...safeSummary,
-            { metric: 'Exported At', value: exportedAt instanceof Date ? exportedAt : new Date() },
+            { metric: 'Exported At (Asia/Manila)', value: exportedAt instanceof Date ? exportedAt : new Date(), date: true },
+            // Blank row, then the Notes section: methodology the reader needs
+            // to interpret the metrics. Metric column holds the note text.
+            { metric: '', value: '' },
+            { metric: 'Notes', value: '' },
+            { metric: 'Resolution rate = Resolved ÷ (Verified + Transferred + Responding + Resolved). Pending-review reports are excluded.', value: '' },
+            { metric: 'Response time = minutes from report creation to first responder response, within the selected period.', value: '' },
+            { metric: 'Incident list matches the selected period; zone count is current as of export.', value: '' },
+            ...(truncatedNote ? [{ metric: truncatedNote, value: '' }] : []),
         ],
     });
 

@@ -925,34 +925,49 @@ const DashboardAnalyticsWorkspace = ({
             const monthLabel = analyticsScope === ANALYTICS_SCOPE.ALL_TIME ? 'All time' : periodLabel;
             // Cap export rows: a full prod history can OOM the tab on EOC hardware.
             const MAX_EXPORT_ROWS = 5000;
-            const exportIncidents = safeAllReports.slice(0, MAX_EXPORT_ROWS);
-            if (safeAllReports.length > MAX_EXPORT_ROWS) {
-                toast(`Exporting first ${MAX_EXPORT_ROWS} of ${safeAllReports.length} rows.`, { id: toastId });
+            // The incident list must match the period the title and summary
+            // metrics describe (safeReports), not the all-time safeAllReports.
+            const exportIncidents = safeReports.slice(0, MAX_EXPORT_ROWS);
+            const truncatedNote = safeReports.length > MAX_EXPORT_ROWS
+                ? `Incident list truncated to the first ${MAX_EXPORT_ROWS} rows; totals above reflect the full set.`
+                : '';
+            if (truncatedNote) {
+                toast(`Exporting first ${MAX_EXPORT_ROWS} of ${safeReports.length} rows.`, { id: toastId });
             }
+            const responseSampleN = safeMetrics.responseSampleCount ?? 0;
+            const scopeName = hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide';
             const workbook = buildAnalyticsWorkbook(ExcelJS, {
-                scopeLabel: hasMunicipality ? (user?.assignedMunicipality || 'Municipal') : 'Island-wide',
+                scopeLabel: scopeName,
                 monthLabel,
                 exportedAt: new Date(),
+                truncatedNote,
                 summary: [
                     { metric: 'New Reports in Selected Month', value: safeCount(safeReports) },
-                    { metric: 'Total Reports in Scope', value: safeCount(safeAllReports) },
+                    { metric: 'Total Reports in Scope (All Time)', value: safeCount(safeAllReports) },
                     { metric: 'Pending Review', value: safeMetrics.pendingCount ?? 0 },
                     { metric: 'Available for Dispatch', value: safeMetrics.dispatchReadyCount ?? 0 },
                     { metric: 'Active Responses', value: safeMetrics.respondingCount ?? 0 },
                     { metric: 'Resolved Cases', value: safeMetrics.resolvedCount ?? 0 },
                     { metric: 'Resolution Rate', value: `${safeMetrics.resolutionRate ?? 0}%` },
-                    { metric: 'Average Response Time (Minutes)', value: safeMetrics.avgResponseMin ?? 'No data' },
-                    { metric: 'Median Response Time (Minutes)', value: safeMetrics.medianResponseMin ?? 'No data' },
-                    { metric: 'Active High-Risk Zones', value: activeRiskZoneCount },
+                    { metric: `Average Response Time (Minutes, n=${responseSampleN})`, value: safeMetrics.avgResponseMin ?? 'No data' },
+                    { metric: `Median Response Time (Minutes, n=${responseSampleN})`, value: safeMetrics.medianResponseMin ?? 'No data' },
+                    { metric: 'Active High-Risk Zones (Current, as of Export)', value: activeRiskZoneCount },
                 ],
                 incidents: exportIncidents,
                 zones: safeZones,
             });
 
             const buffer = await writeWorkbookToBuffer(workbook);
+            // Filename names the reporting period, not the export date.
+            const filenamePeriod = analyticsScope === ANALYTICS_SCOPE.ALL_TIME
+                ? 'All-time'
+                : analyticsScope === ANALYTICS_SCOPE.YEARLY
+                    ? String(effectiveYear)
+                    : formatMonthLabel(effectiveMonth, 'yyyy-MM', 'period');
+            const filenameScope = String(scopeName).replace(/[^A-Za-z0-9-]+/g, '_').replace(/^_+|_+$/g, '') || 'Export';
             fileSaver.saveAs(
                 new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-                `Sibuyan_Alert_Analytics_${formatMonthLabel(new Date(), 'yyyy-MM-dd', 'export')}.xlsx`
+                `Sibuyan_Alert_Analytics_${filenameScope}_${filenamePeriod}.xlsx`
             );
         } catch (exportError) {
             console.error('Dashboard export failed:', exportError);

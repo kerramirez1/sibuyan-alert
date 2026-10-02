@@ -40,7 +40,7 @@ const build = (overrides = {}) => buildAnalyticsWorkbook(ExcelJS, {
 const headerLabels = (sheet) => sheet.getRow(2).values.slice(1);
 
 describe('excelExport workbook', () => {
-    test('creates three titled sheets with frozen filterable headers', () => {
+    test('creates three titled sheets with frozen headers; only data sheets are filterable', () => {
         const workbook = build();
 
         expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Incidents', 'Risk Zones']);
@@ -48,8 +48,13 @@ describe('excelExport workbook', () => {
         for (const sheet of workbook.worksheets) {
             expect(sheet.getRow(1).getCell(1).value).toMatch(/Cajidiocan/);
             expect(sheet.views).toEqual([{ state: 'frozen', ySplit: 2 }]);
-            expect(sheet.autoFilter).toBeTruthy();
         }
+
+        // The key-value Summary sheet gets no AutoFilter dropdowns; the data
+        // sheets keep them.
+        expect(workbook.getWorksheet('Summary').autoFilter).toBeFalsy();
+        expect(workbook.getWorksheet('Incidents').autoFilter).toBeTruthy();
+        expect(workbook.getWorksheet('Risk Zones').autoFilter).toBeTruthy();
 
         expect(headerLabels(workbook.getWorksheet('Incidents'))).toContain('Origin Municipality');
         expect(headerLabels(workbook.getWorksheet('Incidents'))).toContain('Severity');
@@ -87,7 +92,47 @@ describe('excelExport workbook', () => {
         expect(workbook.getWorksheet('Risk Zones').rowCount).toBe(2);
         const summaryTexts = workbook.getWorksheet('Summary').getColumn(1).values.join(' ');
         expect(summaryTexts).toContain('Scope');
-        expect(summaryTexts).toContain('Exported At');
+        expect(summaryTexts).toContain('Exported At (Asia/Manila)');
+    });
+
+    test('labels Exported At with the timezone and formats only its cell as a date', () => {
+        const workbook = build();
+        const sheet = workbook.getWorksheet('Summary');
+        const labels = headerLabels(sheet);
+
+        let exportedRow = null;
+        sheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 2 && row.getCell(1).value === 'Exported At (Asia/Manila)') {
+                exportedRow = row;
+            }
+        });
+        expect(exportedRow).not.toBeNull();
+        const valueCell = exportedRow.getCell(labels.indexOf('Value') + 1);
+        expect(valueCell.value instanceof Date).toBe(true);
+        expect(valueCell.numFmt).toBe('yyyy-mm-dd hh:mm');
+
+        // No other Summary value cell carries a date format (the blanket
+        // column-level date flag is gone).
+        sheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 2 && row !== exportedRow) {
+                expect(row.getCell(labels.indexOf('Value') + 1).numFmt).not.toBe('yyyy-mm-dd hh:mm');
+            }
+        });
+    });
+
+    test('appends a Notes section explaining the metrics, plus the truncation note when given', () => {
+        const truncated = 'Incident list truncated to the first 5000 rows; totals above reflect the full set.';
+        const workbook = build({ truncatedNote: truncated });
+        const summaryTexts = workbook.getWorksheet('Summary').getColumn(1).values.join(' ');
+
+        expect(summaryTexts).toContain('Notes');
+        expect(summaryTexts).toContain('Resolution rate = Resolved ÷ (Verified + Transferred + Responding + Resolved). Pending-review reports are excluded.');
+        expect(summaryTexts).toContain('Response time = minutes from report creation to first responder response, within the selected period.');
+        expect(summaryTexts).toContain('Incident list matches the selected period; zone count is current as of export.');
+        expect(summaryTexts).toContain(truncated);
+
+        const withoutTruncation = build().getWorksheet('Summary').getColumn(1).values.join(' ');
+        expect(withoutTruncation).not.toContain(truncated);
     });
 
     test('serializes to bytes that reload as the same workbook', async () => {
