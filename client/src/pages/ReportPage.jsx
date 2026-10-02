@@ -39,6 +39,19 @@ const QUEUED_REPORT_MESSAGES = {
 // the point: navigating away would hide a report that no longer exists anywhere.
 const DEVICE_STORAGE_ERROR = 'This device could not store the report locally. Keep this screen open and retry, or free up storage.';
 
+// The datetime-local input yields a timezone-naive string like
+// "2026-10-02T14:30". The browser parses that as local time, so toISOString()
+// converts it to the true UTC instant the server expects. A server parsing
+// the naive string as UTC would land ~8h in the future for Manila reporters
+// and trip the future-date rejection. Empty/invalid values pass through
+// untouched so the existing client+server validation messages still apply.
+const toUtcIncidentTime = (value) => {
+    if (!value) return value;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toISOString();
+};
+
 const DEFAULT_REPORT_FORM = {
     incidentCategory: 'accident',
     incidentType: 'vehicular',
@@ -758,7 +771,7 @@ const ReportPage = () => {
             incidentCategory: formData.incidentCategory,
             incidentType: formData.incidentType,
             description: formData.description,
-            incidentTime: formData.incidentTime,
+            incidentTime: toUtcIncidentTime(formData.incidentTime),
             severity: formData.severity,
             'casualties[injured]': formData.casualties.injured,
             'casualties[fatalities]': formData.casualties.fatalities,
@@ -944,7 +957,15 @@ const ReportPage = () => {
                 // the real message, so the stored copy is dropped either way.
                 if (staged) await removeQueuedReport(staged.entry.clientReportId);
 
-                const serverMessage = error.response?.data?.message;
+                const responseData = error.response?.data;
+                // 400s carry the specific reason in errors[] (e.g. the future-
+                // date rejection); the generic envelope message alone hides it.
+                const fieldError = error.response?.status === 400
+                    && Array.isArray(responseData?.errors)
+                    && responseData.errors.length > 0
+                    ? responseData.errors[0]?.message
+                    : null;
+                const serverMessage = fieldError || responseData?.message;
                 if (serverMessage) {
                     toast.error(serverMessage);
                 } else if (staged) {

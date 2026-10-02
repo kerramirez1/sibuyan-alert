@@ -391,7 +391,7 @@ describe('ReportPage workflow', () => {
         expect(payload.get('incidentCategory')).toBe('accident');
         expect(payload.get('incidentType')).toBe('vehicular');
         expect(payload.get('address')).toBe('Near Municipal Hall');
-        expect(payload.get('incidentTime')).toBe('2025-01-15T10:30');
+        expect(payload.get('incidentTime')).toBe(new Date('2025-01-15T10:30').toISOString());
         expect(payload.get('casualties[injured]')).toBe('2');
         expect(payload.get('severity')).toBe('moderate');
         expect(payload.get('description')).toBe('Two motorcycles skidded on loose gravel');
