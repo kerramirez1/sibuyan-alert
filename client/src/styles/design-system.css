@@ -144,12 +144,12 @@
        Horizontally scrollable chip/tab rows hide their scrollbar (no-scrollbar),
        so without a visual cue users never discover the off-screen content. The
        ScrollFadeRow component toggles is-scrollable / is-at-start / is-at-end on
-       the row; these mask rules fade the leading/trailing 28px edge that still
+       the row; these mask rules fade the leading/trailing 40px edge that still
        has content beyond it. Mask, not an overlay div, so it works on any
        background in light/dark mode. */
-    .scroll-fade.is-scrollable:not(.is-at-start) { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px); mask-image: linear-gradient(to right, transparent, #000 28px); }
-    .scroll-fade.is-scrollable:not(.is-at-end) { -webkit-mask-image: linear-gradient(to left, transparent, #000 28px); mask-image: linear-gradient(to left, transparent, #000 28px); }
-    .scroll-fade.is-scrollable:not(.is-at-start):not(.is-at-end) { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+    .scroll-fade.is-scrollable:not(.is-at-start) { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+    .scroll-fade.is-scrollable:not(.is-at-end) { -webkit-mask-image: linear-gradient(to left, transparent, #000 40px); mask-image: linear-gradient(to left, transparent, #000 40px); }
+    .scroll-fade.is-scrollable:not(.is-at-start):not(.is-at-end) { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 
     .skip-link { position: fixed; top: 8px; left: 16px; z-index: 200; transform: translateY(-150%); border-radius: 6px; padding: 10px 16px; background: var(--surface); color: var(--accent-text); font-size: 14px; font-weight: 600; box-shadow: var(--shadow-lg); }
     .skip-link:focus { transform: translateY(0); }

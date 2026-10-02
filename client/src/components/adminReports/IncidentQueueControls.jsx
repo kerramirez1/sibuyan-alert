@@ -254,7 +254,7 @@ const ResponderQueueControls = ({
                 />
             </header>
 
-            <ScrollFadeRow className="mb-5 filter-tabs" aria-label="Responder incident views" tabIndex={0} role="navigation">
+            <ScrollFadeRow className="mb-5 filter-tabs" aria-label="Responder incident views" tabIndex={0} role="navigation" hint={false}>
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
                         // Always rendered, including 0 — the zero is the point
