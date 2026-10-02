@@ -90,31 +90,15 @@ describe('excelExport workbook', () => {
 
         expect(workbook.getWorksheet('Incidents').rowCount).toBe(2);
         expect(workbook.getWorksheet('Risk Zones').rowCount).toBe(2);
-        const summaryTexts = workbook.getWorksheet('Summary').getColumn(1).values.join(' ');
+        const summarySheet = workbook.getWorksheet('Summary');
+        const summaryTexts = summarySheet.getColumn(1).values.join(' ');
         expect(summaryTexts).toContain('Scope');
-        expect(summaryTexts).toContain('Exported At (Asia/Manila)');
-    });
-
-    test('labels Exported At with the timezone and formats only its cell as a date', () => {
-        const workbook = build();
-        const sheet = workbook.getWorksheet('Summary');
-        const labels = headerLabels(sheet);
-
-        let exportedRow = null;
-        sheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 2 && row.getCell(1).value === 'Exported At (Asia/Manila)') {
-                exportedRow = row;
-            }
-        });
-        expect(exportedRow).not.toBeNull();
-        const valueCell = exportedRow.getCell(labels.indexOf('Value') + 1);
-        expect(valueCell.value instanceof Date).toBe(true);
-        expect(valueCell.numFmt).toBe('yyyy-mm-dd hh:mm');
-
-        // No other Summary value cell carries a date format (the blanket
-        // column-level date flag is gone).
-        sheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 2 && row !== exportedRow) {
+        // The Exported At row was removed; the timestamp lives only in the
+        // workbook metadata. No Summary value cell carries a date format.
+        expect(summaryTexts).not.toContain('Exported At');
+        const labels = headerLabels(summarySheet);
+        summarySheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 2) {
                 expect(row.getCell(labels.indexOf('Value') + 1).numFmt).not.toBe('yyyy-mm-dd hh:mm');
             }
         });

@@ -70,8 +70,7 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable 
         columns.forEach((column, index) => {
             const cell = row.getCell(index + 1);
             // A column can opt its Date cells in wholesale (column.date), or a
-            // single record can opt in (record.date) — e.g. the Summary sheet's
-            // 'Exported At' row is the only dated cell on that sheet.
+            // single record can opt in (record.date).
             if ((column.date || record.date) && cell.value instanceof Date) {
                 cell.numFmt = DATE_NUMBER_FORMAT;
             }
@@ -137,15 +136,13 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             // 48 fits the longest label ('Active High-Risk Zones (Current, as
             // of Export)', 44 chars) on one line.
             { key: 'metric', label: 'Metric', width: 48 },
-            // No blanket date flag here: the only Date on this sheet is the
-            // 'Exported At' row, which opts its own cell in via record.date.
+            // No blanket date flag here: this sheet carries no Date values.
             { key: 'value', label: 'Value', width: 28 },
         ],
         rows: [
             { metric: 'Scope', value: scopeLabel },
             ...(monthLabel ? [{ metric: 'Month', value: monthLabel }] : []),
             ...safeSummary,
-            { metric: 'Exported At (Asia/Manila)', value: exportedAt instanceof Date ? exportedAt : new Date(), date: true },
             // Blank row, then the Notes section: methodology the reader needs
             // to interpret the metrics. Notes span the full width (merged +
             // wrapped) so long text is never visually truncated.
