@@ -576,6 +576,17 @@ function MyReportsPage() {
                 status: data.report.status || data.status,
             });
         });
+        // Evidence attached server-side (reportController emits 'reportEvidenceUpdated'
+        // to the municipality and 'reporters' rooms): silently refetch through the
+        // existing list flow when it targets the open report, so the gallery —
+        // and its canonical preview-URL validation — picks up the new evidence.
+        const unsubEvidenceUpdated = subscribe('reportEvidenceUpdated', (data) => {
+            const evidenceReportId = data?.reportId ?? data?.id ?? data?._id;
+            if (evidenceReportId === null || evidenceReportId === undefined || evidenceReportId === '') return;
+            if (selectedReportId && String(evidenceReportId) === String(selectedReportId)) {
+                fetchReports(true);
+            }
+        });
 
         return () => {
             unsubRespond();
@@ -588,8 +599,9 @@ function MyReportsPage() {
             unsubHidden();
             unsubUnhidden();
             unsubReporterUpdate();
+            unsubEvidenceUpdated();
         };
-    }, [subscribe, fetchReports, fetchHiddenReports]);
+    }, [subscribe, fetchReports, fetchHiddenReports, selectedReportId]);
 
     // Per-reporter visibility (NOT a delete): removes the report from the
     // reporter's own views only. The record stays in accident history,

@@ -11,6 +11,7 @@ import {
 } from 'react-icons/hi';
 import IncidentDetailsContent from '../incidentDetails/IncidentDetailsContent';
 import useRecordView from '../../hooks/useRecordView';
+import { useSocket } from '../../context/SocketContext';
 import { IncidentSeverityIndicator, OperationalStatusIndicator } from './IncidentQueue';
 import { getIncidentCapabilities } from './incidentReportConfig';
 
@@ -381,6 +382,23 @@ const ResponderIncidentInspector = ({
     const [entered, setEntered] = useState(false);
     const isOpen = Boolean(report);
     const reportId = String(report?._id || report?.id || '');
+    const { subscribe } = useSocket();
+
+    // Evidence attached server-side ('reportEvidenceUpdated' to the
+    // municipality room): refetch the open report through the existing
+    // detail flow so the gallery — and its canonical preview-URL
+    // validation — picks up the new evidence.
+    useEffect(() => {
+        if (!isOpen || !reportId) return undefined;
+        const unsubscribe = subscribe('reportEvidenceUpdated', (data) => {
+            const evidenceReportId = data?.reportId ?? data?.id ?? data?._id;
+            if (evidenceReportId === null || evidenceReportId === undefined || evidenceReportId === '') return;
+            if (String(evidenceReportId) === reportId && typeof onRetryDetails === 'function') {
+                onRetryDetails();
+            }
+        });
+        return () => unsubscribe();
+    }, [subscribe, isOpen, reportId, onRetryDetails]);
 
     // Reach: this drawer mounts only when an incident is opened, so mounting is
     // the view — the same rule the map sheet follows. Recording here keeps the

@@ -373,7 +373,9 @@ export const broadcastDispatchEscalation = (io, report, { escalationCount, maxEs
 
     if (!report.municipalityName) return;
 
-    io.to(`municipality_${report.municipalityName}_responders`).emit('dispatchEscalated', payload);
+    // NOTE: the 'dispatchEscalated' socket emit was removed as dead wiring —
+    // no client subscribes to it. Escalation reaches responders via the push
+    // path (dispatchEscalationService -> pushTemplates.dispatchEscalated).
     io.to(`municipality_${report.municipalityName}`).emit('localDispatchEscalated', payload);
 };
 

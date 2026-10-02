@@ -439,11 +439,23 @@ const AccidentHistoryPage = () => {
             if (!data?.id) return;
             setReports((current) => (Array.isArray(current) ? current : []).filter((report) => String(report?._id) !== String(data.id)));
         });
+        // Evidence attached server-side ('reportEvidenceUpdated' to the
+        // municipality and 'reporters' rooms): silently refetch through the
+        // existing list flow when it targets the open report, so the gallery —
+        // and its canonical preview-URL validation — picks up the new evidence.
+        const unsubscribeEvidenceUpdated = subscribe('reportEvidenceUpdated', (data) => {
+            const evidenceReportId = data?.reportId ?? data?.id ?? data?._id;
+            if (evidenceReportId === null || evidenceReportId === undefined || evidenceReportId === '') return;
+            if (expandedId && String(evidenceReportId) === String(expandedId)) {
+                fetchReports(true);
+            }
+        });
         return () => {
             unsubscribeResolved();
             unsubscribeDeleted();
+            unsubscribeEvidenceUpdated();
         };
-    }, [subscribe, fetchReports]);
+    }, [subscribe, fetchReports, expandedId]);
 
     const municipalities = useMemo(() => {
         const set = new Set(SIBUYAN_MUNICIPALITY_NAMES);

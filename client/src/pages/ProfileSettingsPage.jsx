@@ -841,7 +841,7 @@ const ProfileSettingsPage = () => {
                                         disabled={pushState?.loading}
                                         className="btn-outline"
                                     >
-                                        Send test
+                                        Send test notification
                                     </button>
                                 )}
                                 <button

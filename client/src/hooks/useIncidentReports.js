@@ -259,6 +259,18 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             refreshRef.current({ silent: true });
         });
 
+        // Targeted transfer alert for the responder room (municipality_{muni}_responders).
+        // Same payload shape as 'reportTransferred' (socketService broadcastReportTransfer);
+        // mirrors that handler so inter-municipality transfers update the queue live.
+        const unsubTransferredAlert = subscribe('reportTransferredAlert', (data) => {
+            patchReport(data?.id, {
+                ...(data && typeof data === 'object' && !Array.isArray(data) ? data : {}),
+                status: 'transferred',
+                municipalityName: data?.municipalityName || data?.toMunicipality,
+            });
+            refreshRef.current({ silent: true });
+        });
+
         const unsubTransferAcknowledged = subscribe('reportTransferAcknowledged', (data) => {
             patchReport(data?.id, (report) => {
                 const history = Array.isArray(report?.transferHistory) ? report.transferHistory.filter(Boolean) : [];
@@ -300,6 +312,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             unsubReject();
             unsubDelete();
             unsubTransferred();
+            unsubTransferredAlert();
             unsubTransferAcknowledged();
             unsubReporterUpdate();
         };
