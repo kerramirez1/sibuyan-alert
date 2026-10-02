@@ -31,23 +31,25 @@ import QueuedReportLocationFix from '../components/reporterReports/QueuedReportL
 import ReportActivityTimeline from '../components/reporterReports/ReportActivityTimeline';
 import SituationUpdateDialog from '../components/reporterReports/SituationUpdateDialog';
 import { getReportIncidentTypeLabel } from '../config/incidentTypes';
-import { getMapStatusDot, MAP_STATUS_CONFIG } from '../config/mapVisuals';
+import { MAP_STATUS_CONFIG } from '../config/mapVisuals';
 
 // Canonical lifecycle vocabulary shared with the dashboard, so one
 // state is never named two different ways across pages.
 const STATUS_CONFIG = {
-    // Colours come from MAP_STATUS_CONFIG (via getMapStatusDot), so this page and
-    // the admin dashboard it mirrors print one dot for one status. These shades
-    // used to be repeated here by hand — cyan-500 against the admin dashboard's
-    // cyan-600 — which is exactly the drift the shared lookup removes.
-    pending: { label: 'Pending review', dot: getMapStatusDot('pending') },
-    verified: { label: 'Verified', dot: getMapStatusDot('verified') },
-    transferred: { label: 'Transferred', dot: getMapStatusDot('transferred') },
-    // One lifecycle state, one name: the display name is owned by
+    // Status stays achromatic on this page: hue is reserved for the severity
+    // scale only (see ReporterDashboardPage.jsx), so every status shares one
+    // slate dot instead of reusing the map-pin's colored lookup. The shared
+    // getMapStatusDot() is intentionally NOT used here — pending pins must
+    // stay amber on the map and the admin dashboard, but on this reporter
+    // list the same amber would collide with SEVERITY_CONFIG.moderate.
+    pending: { label: 'Pending review', dot: 'bg-slate-400' },
+    verified: { label: 'Verified', dot: 'bg-slate-400' },
+    transferred: { label: 'Transferred', dot: 'bg-slate-400' },
+    // One lifecycle state, one name: the display name is still owned by
     // MAP_STATUS_CONFIG, the same source the map legend and the badges read.
-    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: getMapStatusDot('responding') },
-    resolved: { label: 'Resolved', dot: getMapStatusDot('resolved') },
-    rejected: { label: 'Rejected', dot: getMapStatusDot('rejected') },
+    responding: { label: MAP_STATUS_CONFIG.responding.label, dot: 'bg-slate-400' },
+    resolved: { label: 'Resolved', dot: 'bg-slate-400' },
+    rejected: { label: 'Rejected', dot: 'bg-slate-400' },
 };
 
 const SEVERITY_CONFIG = {
@@ -63,6 +65,20 @@ const formatDate = (value, pattern = 'MMM d, yyyy, h:mm a') => {
     if (!value) return 'Not available';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? 'Not available' : format(date, pattern);
+};
+
+// Incident date as two deliberate lines (date, then time) so the value never
+// wraps mid-string and orphans "PM" in narrow grid cells.
+const formatIncidentDateTime = (value) => {
+    const datePart = formatDate(value, 'MMM d, yyyy');
+    if (datePart === 'Not available') return datePart;
+    const timePart = formatDate(value, 'h:mm a');
+    return (
+        <>
+            <span className="block">{datePart}</span>
+            <span className="block">{timePart}</span>
+        </>
+    );
 };
 
 const formatRelativeDate = (value) => {
@@ -531,11 +547,14 @@ function MyReportsPage() {
             .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt))
     ), [filterStatus, reports]);
 
+    // Each card drives the ?status= deep-link filter via filterStatus. 'active'
+    // is the dashboard-level grouping (verified + transferred + responding);
+    // it is named by the existing "Filter: Active" chip, which also clears it.
     const metricCards = [
-        { label: 'Total reports', value: stats.total, helper: 'All submissions' },
-        { label: 'Pending review', value: stats.pending, helper: 'Waiting for verification' },
-        { label: 'Active', value: stats.active, helper: 'Verified or in response' },
-        { label: 'Resolved', value: stats.resolved, helper: 'Closed incidents' },
+        { label: 'Total reports', value: stats.total, helper: 'All submissions', filter: 'all' },
+        { label: 'Pending review', value: stats.pending, helper: 'Waiting for verification', filter: 'pending' },
+        { label: 'Active', value: stats.active, helper: 'Verified or in response', filter: 'active' },
+        { label: 'Resolved', value: stats.resolved, helper: 'Closed incidents', filter: 'resolved' },
     ];
 
     // Human label for the active filter chip (covers the 'active' dashboard
@@ -594,29 +613,35 @@ function MyReportsPage() {
                 <div>
                     {/* Summary KPI cards */}
                     <section aria-label="Report summary" className="metric-strip">
-                        {metricCards.map(({ label, value, helper }) => (
-                            <div
-                                key={label}
-                                className="metric-tile min-w-0 p-3 min-[360px]:p-4 sm:p-[18px] md:p-5"
-                                aria-label={`${label}: ${value}, ${helper}`}
-                            >
-                                <p className="metric-value">
-                                    {value}
-                                </p>
-                                <p
-                                    className="metric-label truncate"
-                                    title={label}
+                        {metricCards.map(({ label, value, helper, filter }) => {
+                            const isActive = filterStatus === filter;
+                            return (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    onClick={() => setFilterStatus(filter)}
+                                    aria-pressed={isActive}
+                                    aria-label={`${label}: ${value}, ${helper}`}
+                                    className="metric-tile min-w-0 cursor-pointer p-3 text-left min-[360px]:p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:p-[18px] md:p-5"
                                 >
-                                    {label}
-                                </p>
-                                <p
-                                    className="metric-helper truncate"
-                                    title={helper}
-                                >
-                                    {helper}
-                                </p>
-                            </div>
-                        ))}
+                                    <p className="metric-value">
+                                        {value}
+                                    </p>
+                                    <p
+                                        className="metric-label truncate"
+                                        title={label}
+                                    >
+                                        {label}
+                                    </p>
+                                    <p
+                                        className="metric-helper truncate"
+                                        title={helper}
+                                    >
+                                        {helper}
+                                    </p>
+                                </button>
+                            );
+                        })}
                     </section>
 
                     {/* Submitted incident records */}
@@ -757,7 +782,7 @@ function MyReportsPage() {
                                                 {/* Location & Title */}
                                                 <div className="min-w-0">
                                                     <h3
-                                                        className="truncate text-sm font-medium leading-normal text-[var(--text-primary)] min-[400px]:text-[15px]"
+                                                        className="line-clamp-2 text-sm font-medium leading-normal text-[var(--text-primary)] min-[400px]:text-[15px]"
                                                         title={getLocation(report)}
                                                     >
                                                         {getLocation(report)}
@@ -770,12 +795,12 @@ function MyReportsPage() {
                                                     </p>
                                                     <p
                                                         className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-xs leading-snug text-gray-500 sm:hidden dark:text-gray-400"
-                                                        title={`Status: ${status.label} · Severity: ${severityLabel}`}
+                                                        title={`Severity: ${severityLabel} · Status: ${status.label}`}
                                                     >
-                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} aria-hidden="true" />
-                                                        <span className="truncate">{status.label}</span>
-                                                        <span className="shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true">·</span>
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
                                                         <span className="shrink-0">{severityLabel}</span>
+                                                        <span className="shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true">·</span>
+                                                        <span className="truncate">{status.label}</span>
                                                     </p>
                                                 </div>
 
@@ -816,21 +841,32 @@ function MyReportsPage() {
                                                         <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
                                                             {report?.description || (
                                                                 <span className="text-gray-400 dark:text-gray-500">
-                                                                    No incident description was provided.
+                                                                    No description was added to this report.
+                                                                    {!isClosed && ' You can add details with “Send situation update” below.'}
                                                                 </span>
                                                             )}
                                                         </p>
                                                     </div>
 
                                                     {/* 2. Key Facts Grid */}
-                                                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+                                                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
                                                         {[
-                                                            { label: 'Incident date', value: formatDate(report?.incidentTime || report?.accidentTime || report?.createdAt) },
+                                                            { label: 'Incident date', value: formatIncidentDateTime(report?.incidentTime || report?.accidentTime || report?.createdAt) },
                                                             { label: 'Incident type', value: formatIncidentType(report) },
                                                             { label: 'Coordinates', value: formatCoordinates(report) },
                                                             { label: 'Report views', value: report?.viewCount || 0 },
+                                                            {
+                                                                label: 'Severity',
+                                                                value: (
+                                                                    <span className="inline-flex items-center gap-1.5">
+                                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
+                                                                        {severityLabel}
+                                                                    </span>
+                                                                ),
+                                                            },
+                                                            { label: 'Municipality', value: getPhysicalMunicipality(report) || 'Not available' },
                                                         ].map(({ label, value }) => (
-                                                            <div key={label}>
+                                                            <div key={label} className="min-w-0">
                                                                 <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                                     {label}
                                                                 </dt>

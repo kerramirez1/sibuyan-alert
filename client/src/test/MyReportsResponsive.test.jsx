@@ -72,12 +72,13 @@ describe('MyReportsPage responsive text layout refinements', () => {
         mocks.getMyReports.mockResolvedValue({ data: { data: [longReport] } });
     });
 
-    test('1. Location title in collapsed row is truncated to a single line with accessible title', async () => {
+    test('1. Location title in collapsed row clamps to two lines with accessible title', async () => {
         renderPage();
 
         const titleEl = await screen.findByRole('heading', { level: 3, name: /Sibuyan Circumferential Road/i });
         expect(titleEl).toBeInTheDocument();
-        expect(titleEl.className).toContain('truncate');
+        expect(titleEl.className).toContain('line-clamp-2');
+        expect(titleEl.className).not.toContain('truncate');
         expect(titleEl.className).not.toContain('break-words');
         expect(titleEl).toHaveAttribute('title', longReport.address);
     });
@@ -102,7 +103,7 @@ describe('MyReportsPage responsive text layout refinements', () => {
         expect(mobileStatusEl.className).toContain('flex');
         expect(mobileStatusEl).toHaveTextContent(/Pending review/i);
         expect(mobileStatusEl).toHaveTextContent(/Moderate/i);
-        expect(mobileStatusEl).toHaveAttribute('title', 'Status: Pending review · Severity: Moderate');
+        expect(mobileStatusEl).toHaveAttribute('title', 'Severity: Moderate · Status: Pending review');
 
         // Check for colored status indicator dot
         const statusDot = mobileStatusEl.querySelector('span.rounded-full');

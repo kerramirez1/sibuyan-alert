@@ -197,8 +197,8 @@ describe('reporter situation update flow', () => {
         expect(screen.getByText('Total reports')).toBeInTheDocument();
         expect(screen.getByText('Active')).toBeInTheDocument();
 
-        // Filter by resolved
-        const resolvedFilterBtn = screen.getByRole('button', { name: /^Resolved/i });
+        // Filter by resolved via the stat-strip KPI card (aria-label "Resolved: <n>, ...")
+        const resolvedFilterBtn = screen.getByRole('button', { name: /^Resolved: \d/i });
         fireEvent.click(resolvedFilterBtn);
 
         expect(screen.queryByText('Poblacion coastal road')).not.toBeInTheDocument();
