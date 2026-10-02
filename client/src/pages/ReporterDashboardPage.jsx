@@ -36,7 +36,10 @@ const STATUS_CONFIG = {
     // cannot name the state differently from the map, the cards, or the badges.
     responding: { label: MAP_STATUS_CONFIG.responding.label, stepIndex: 3 },
     resolved: { label: 'Resolved', stepIndex: 4 },
-    rejected: { label: 'Rejected', stepIndex: 1 },
+    // Terminal state: rejected occupies no progress step (a stepIndex here
+    // would render "Step 2 of 5 · Pending review" on a dead report). The
+    // stepper and the mobile step line treat it as terminal instead.
+    rejected: { label: 'Rejected' },
 };
 
 // Hue is reserved for the severity scale only; status stays achromatic so the
@@ -278,21 +281,47 @@ const ReporterDashboardPage = () => {
         { key: 'resolved', label: 'Resolved', value: summary.resolved, helper: 'Closed incidents', to: '/my-reports?status=resolved' },
     ]), [summary]);
 
-    const recentReports = useMemo(() => {
-        return (Array.isArray(reports) ? reports : []).filter(Boolean).slice(0, 5);
+    // Defensive newest-first ordering: the API usually returns reports sorted,
+    // but "latest" must stay correct even when it does not. Guards
+    // missing/invalid createdAt so a bad timestamp never throws the sort.
+    const sortedReports = useMemo(() => {
+        const safeReports = (Array.isArray(reports) ? reports : []).filter(Boolean);
+        return [...safeReports].sort((a, b) => {
+            const aTime = new Date(a?.createdAt).getTime();
+            const bTime = new Date(b?.createdAt).getTime();
+            const aValid = Number.isFinite(aTime) ? aTime : 0;
+            const bValid = Number.isFinite(bTime) ? bTime : 0;
+            return bValid - aValid;
+        });
     }, [reports]);
 
     const latestActiveReport = useMemo(() => {
-        const safeReports = (Array.isArray(reports) ? reports : []).filter(Boolean);
-        return safeReports.find((r) => r?.status === 'responding' || r?.status === 'pending' || r?.status === 'verified' || r?.status === 'transferred')
-            || safeReports[0]
+        return sortedReports.find((r) => r?.status === 'responding' || r?.status === 'pending' || r?.status === 'verified' || r?.status === 'transferred')
+            || sortedReports[0]
             || null;
-    }, [reports]);
+    }, [sortedReports]);
+
+    // The featured report is shown in "Latest update" above, so it is
+    // excluded here; the section hides entirely when nothing remains.
+    const recentReports = useMemo(() => {
+        const featuredId = latestActiveReport ? String(latestActiveReport?._id ?? latestActiveReport?.id ?? '') : null;
+        return sortedReports
+            .filter((report) => !featuredId || String(report?._id ?? report?.id ?? '') !== featuredId)
+            .slice(0, 5);
+    }, [sortedReports, latestActiveReport]);
+
+    // Terminal states occupy no progress step. Rejected: every stepper dot
+    // renders hollow with no current step, and the mobile line names the
+    // status instead of a step count. Resolved: every step shows completed.
+    const isRejectedTerminal = latestActiveReport?.status === 'rejected';
+    const isResolvedTerminal = latestActiveReport?.status === 'resolved';
 
     const activeStepIndex = useMemo(() => {
         if (!latestActiveReport) return 0;
         const cfg = STATUS_CONFIG[latestActiveReport?.status];
-        return cfg ? cfg.stepIndex : 0;
+        if (!cfg) return 0;
+        // -1 = no current step (terminal states); guarded at every use site.
+        return typeof cfg.stepIndex === 'number' ? cfg.stepIndex : -1;
     }, [latestActiveReport]);
 
     return (
@@ -359,14 +388,17 @@ const ReporterDashboardPage = () => {
                                 {getReportHeading(latestActiveReport)}
                             </p>
 
-                            {/* Compact progress summary on mobile; full stepper on sm+ */}
+                            {/* Compact progress summary on mobile; full stepper on sm+.
+                                Rejected is terminal: the status label alone, never a step count. */}
                             <p className="mt-1 text-xs text-gray-500 sm:hidden dark:text-gray-400">
-                                Step {activeStepIndex + 1} of {LIFECYCLE_STEPS.length} · {LIFECYCLE_STEPS[activeStepIndex] || LIFECYCLE_STEPS[0]}
+                                {isRejectedTerminal
+                                    ? STATUS_CONFIG.rejected.label
+                                    : `Step ${activeStepIndex + 1} of ${LIFECYCLE_STEPS.length}`}
                             </p>
                             <ol className="mt-4 hidden sm:flex" aria-label="Reporting progress">
                                 {LIFECYCLE_STEPS.map((label, idx) => {
-                                    const isCurrent = activeStepIndex === idx;
-                                    const isCompleted = activeStepIndex > idx;
+                                    const isCurrent = !isRejectedTerminal && !isResolvedTerminal && activeStepIndex === idx;
+                                    const isCompleted = isResolvedTerminal || (!isRejectedTerminal && activeStepIndex > idx);
                                     return (
                                         <li key={label} className="min-w-0 flex-1" aria-current={isCurrent ? 'step' : undefined}>
                                             <div className="flex items-center">
@@ -415,7 +447,12 @@ const ReporterDashboardPage = () => {
                         </section>
                     )}
 
-                    {/* Recent reports: rows are the links, no Action column */}
+                    {/* Recent reports: rows are the links, no Action column.
+                        The featured "Latest update" report is excluded from this
+                        list; the section hides entirely when nothing remains,
+                        but the empty state still shows when there are no
+                        reports at all. */}
+                    {(recentReports.length > 0 || !latestActiveReport) && (
                     <section aria-labelledby="recent-reports-heading" className="surface-panel p-5 sm:p-6">
                         <div className="flex items-baseline justify-between gap-2">
                             <h2 id="recent-reports-heading" className="section-title">
@@ -456,8 +493,11 @@ const ReporterDashboardPage = () => {
                                                         Reported {formatRelativeDate(report?.createdAt)}
                                                         {report?.status === 'responding' && ' · Units on scene'}
                                                     </span>
-                                                    <span className="mt-0.5 block text-[11px] text-gray-500 sm:hidden dark:text-gray-400">
-                                                        {statusLabel} · {severity.label}
+                                                    <span className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 sm:hidden dark:text-gray-400">
+                                                        <span>{statusLabel}</span>
+                                                        <span aria-hidden="true">·</span>
+                                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severity.dot}`} aria-hidden="true" />
+                                                        <span>{severity.label}</span>
                                                     </span>
                                                 </span>
                                                 <span className="hidden w-28 shrink-0 truncate text-xs text-gray-600 sm:block dark:text-gray-400">
@@ -490,6 +530,7 @@ const ReporterDashboardPage = () => {
                             </div>
                         )}
                     </section>
+                    )}
                 </div>
             )}
         </div>

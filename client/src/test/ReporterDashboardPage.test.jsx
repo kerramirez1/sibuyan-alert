@@ -95,14 +95,17 @@ describe('ReporterDashboardPage', () => {
         expect(screen.queryByRole('link', { name: /Live incident map/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /^Submit incident report$/i })).not.toBeInTheDocument();
 
-        // Recent report rows are the links (no Action column)
-        expect(screen.getByText('Poblacion, San Fernando')).toBeInTheDocument();
+        // Recent report rows are the links (no Action column). The featured
+        // "Latest update" report (Poblacion) is excluded from this list and
+        // appears in the Latest update heading instead.
+        expect(screen.getByText(/Poblacion, San Fernando/)).toBeInTheDocument();
         expect(screen.getByText('España, San Fernando')).toBeInTheDocument();
         expect(screen.getByText('Ambulong, Magdiwang')).toBeInTheDocument();
 
         const openLinks = screen.getAllByRole('link', { name: /Open report: /i });
-        expect(openLinks).toHaveLength(3);
-        expect(openLinks[0]).toHaveAttribute('href', '/my-reports?report=report-1');
+        // The featured "Latest update" report is excluded from Recent reports
+        expect(openLinks).toHaveLength(2);
+        expect(openLinks[0]).toHaveAttribute('href', '/my-reports?report=report-2');
         expect(screen.getByRole('link', { name: /Open all reports/i })).toHaveAttribute('href', '/my-reports');
     }, 12000);
 
@@ -213,14 +216,16 @@ describe('ReporterDashboardPage', () => {
         const recentSection = screen.getByRole('region', { name: 'Recent reports' });
         const scope = within(recentSection);
 
-        // Status indicators (canonical names)
-        expect(scope.getAllByText('Pending review').length).toBeGreaterThanOrEqual(1);
+        // Status indicators (canonical names). The featured "Latest update"
+        // report (Pending review) is excluded from this list.
         expect(scope.getAllByText('Active response').length).toBeGreaterThanOrEqual(1);
         expect(scope.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
+        expect(scope.queryByText('Pending review')).not.toBeInTheDocument();
 
-        // Severity indicators
-        expect(scope.getByText('Severe')).toBeInTheDocument();
-        expect(scope.getByText('Moderate')).toBeInTheDocument();
-        expect(scope.getByText('Minor')).toBeInTheDocument();
+        // Severity indicators (the featured report's Severe is excluded too;
+        // each renders once on mobile and once on desktop)
+        expect(scope.queryByText('Severe')).not.toBeInTheDocument();
+        expect(scope.getAllByText('Moderate').length).toBeGreaterThanOrEqual(1);
+        expect(scope.getAllByText('Minor').length).toBeGreaterThanOrEqual(1);
     });
 });
