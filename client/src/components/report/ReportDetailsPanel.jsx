@@ -58,6 +58,10 @@ const ReportDetailsPanel = ({
     uploadProgress,
     deviceSaved,
     isOffline,
+    // True when the measured link (or the Network Information API fallback)
+    // says photos should compress small: suggest fewer photos now, since the
+    // report itself always sends first and photos keep uploading after.
+    slowConnectionHint = false,
 }) => {
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
@@ -198,6 +202,11 @@ const ReportDetailsPanel = ({
                     title="Evidence photos"
                     description="Optional. Capture evidence directly with your camera or select existing photos (up to 5 images, max 20 MB each)."
                 />
+                {slowConnectionHint && (
+                    <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-200">
+                        Slow connection detected — 1–2 key photos are enough for now. Your report sends first, and photos keep uploading in the background.
+                    </p>
+                )}
 
                 <div className="mt-4 space-y-3">
                     <div className="flex items-baseline justify-between gap-2 text-xs">

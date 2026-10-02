@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getIncidentTypeLabel } from '../config/incidentTypes';
 import {
     QUEUE_BLOCKED_CODES,
+    buildPhotoFormData,
     describeQueuedReport,
     flushQueuedReports,
     getBlockedReportRecovery,
@@ -19,12 +20,16 @@ import {
     OFFLINE_SYNC_RETRY_BASE_MS,
     OFFLINE_SYNC_RETRY_FACTOR,
     OFFLINE_SYNC_RETRY_MAX_MS,
+    REPORT_SUBMIT_TIMEOUT_MS,
 } from '../config/reportSubmission';
 
-const EMPTY_QUEUE = { deliverable: [], blocked: [], deferred: [], foreignCount: 0 };
+const EMPTY_QUEUE = { deliverable: [], blocked: [], deferred: [], foreignCount: 0, photoDeliverable: [], photoDeferred: [] };
 
 /** Everything still owed to the server that the queue can attempt on its own. */
 const pendingDeliverableCount = (queue) => queue.deliverable.length + queue.deferred.length;
+
+/** Phase-2 photo uploads waiting on the retry loop. Kept out of every report-facing count. */
+const pendingPhotoCount = (queue) => (queue.photoDeliverable?.length ?? 0) + (queue.photoDeferred?.length ?? 0);
 
 /**
  * True when another pass could still deliver something on its own.
@@ -36,7 +41,10 @@ const pendingDeliverableCount = (queue) => queue.deliverable.length + queue.defe
  */
 export const hasDeliverableReports = (result) => {
     if (!result) return true;
-    return (result.deliverableRemaining ?? result.remaining) > 0;
+    if ((result.deliverableRemaining ?? result.remaining) > 0) return true;
+    // Phase-2 photo entries retry through the same loop; they never read as
+    // incident reports, but they must keep the timer armed while pending.
+    return (result.photoDeliverableRemaining ?? 0) > 0;
 };
 
 /**
@@ -52,7 +60,7 @@ export const hasDeliverableReports = (result) => {
  */
 export const nextRetryDelay = (current, result) => {
     if (!result) return current;
-    if (result.sent > 0 || !hasDeliverableReports(result)) return OFFLINE_SYNC_RETRY_BASE_MS;
+    if (result.sent > 0 || result.photosSent > 0 || !hasDeliverableReports(result)) return OFFLINE_SYNC_RETRY_BASE_MS;
     if (result.failed > 0 || result.blocked > 0) {
         return Math.min(current * OFFLINE_SYNC_RETRY_FACTOR, OFFLINE_SYNC_RETRY_MAX_MS);
     }
@@ -131,6 +139,9 @@ export const useOfflineReportSync = () => {
 
     const deliverableCount = queue.deliverable.length;
     const deliverablePendingCount = pendingDeliverableCount(queue);
+    // Photo uploads are invisible to the reporter-facing counts but must keep
+    // the retry loop alive on the same backoff cadence as reports.
+    const photoPendingCount = pendingPhotoCount(queue);
     const pendingCount = deliverablePendingCount + queue.blocked.length;
 
     const refreshQueue = useCallback(async () => {
@@ -146,7 +157,16 @@ export const useOfflineReportSync = () => {
         try {
             const result = await flushQueuedReports(
                 (formData) => reportsAPI.create(formData),
-                { reporterId },
+                {
+                    reporterId,
+                    // Phase-2 photo entries upload one photo per request to
+                    // the evidence endpoint of their already-created report.
+                    sendPhoto: (photoEntry) => reportsAPI.uploadEvidence(
+                        photoEntry.reportId,
+                        buildPhotoFormData(photoEntry),
+                        { timeout: REPORT_SUBMIT_TIMEOUT_MS },
+                    ),
+                },
             );
             await refreshQueue();
             retryDelayRef.current = nextRetryDelay(retryDelayRef.current, result);
@@ -208,7 +228,7 @@ export const useOfflineReportSync = () => {
     // otherwise never schedule the next attempt. Reports waiting on the reporter
     // are excluded — a report that needs an answer does not need a timer.
     useEffect(() => {
-        if (!isOnline || !canDeliver || deliverablePendingCount <= 0) return undefined;
+        if (!isOnline || !canDeliver || deliverablePendingCount + photoPendingCount <= 0) return undefined;
 
         let cancelled = false;
         let timer = null;
@@ -228,7 +248,7 @@ export const useOfflineReportSync = () => {
             cancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [isOnline, canDeliver, deliverablePendingCount, sync]);
+    }, [isOnline, canDeliver, deliverablePendingCount, photoPendingCount, sync]);
 
     // Signal often returns while the phone is in a pocket or the tab is in the
     // background, where no `online` event is guaranteed to land usefully.

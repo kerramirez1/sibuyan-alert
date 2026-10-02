@@ -6,6 +6,7 @@ const {
     flushQueuedReportsMock,
     subscribeMock,
     createReportMock,
+    uploadEvidenceMock,
     toastMock,
     authMock,
 } = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const {
     flushQueuedReportsMock: vi.fn(),
     subscribeMock: vi.fn(),
     createReportMock: vi.fn(),
+    uploadEvidenceMock: vi.fn(),
     toastMock: {
         success: vi.fn(),
         error: vi.fn(),
@@ -23,7 +25,7 @@ const {
 }));
 
 vi.mock('../services/api', () => ({
-    reportsAPI: { create: createReportMock },
+    reportsAPI: { create: createReportMock, uploadEvidence: uploadEvidenceMock },
 }));
 
 vi.mock('../utils/appToast', () => ({ default: toastMock }));
@@ -44,11 +46,12 @@ vi.mock('../utils/offlineReportQueue', async (importOriginal) => {
     };
 });
 
-import { nextRetryDelay, useOfflineReportSync } from '../hooks/useOfflineReportSync';
+import { hasDeliverableReports, nextRetryDelay, useOfflineReportSync } from '../hooks/useOfflineReportSync';
 import { BLOCKED_RECOVERY } from '../utils/offlineReportQueue';
 import {
     OFFLINE_SYNC_RETRY_BASE_MS,
     OFFLINE_SYNC_RETRY_MAX_MS,
+    REPORT_SUBMIT_TIMEOUT_MS,
 } from '../config/reportSubmission';
 
 const setOnline = (value) => {
@@ -117,6 +120,27 @@ describe('useOfflineReportSync', () => {
             blocked: 1,
             deliverableRemaining: 0,
         }))).toBe(OFFLINE_SYNC_RETRY_BASE_MS);
+        // A delivered photo resets the clock like a delivered report...
+        expect(nextRetryDelay(OFFLINE_SYNC_RETRY_MAX_MS, flushResult({
+            photosSent: 1,
+            deliverableRemaining: 0,
+            photoDeliverableRemaining: 0,
+        }))).toBe(OFFLINE_SYNC_RETRY_BASE_MS);
+        // ...while a pending photo keeps the retry loop armed on the same
+        // backoff cadence.
+        expect(nextRetryDelay(OFFLINE_SYNC_RETRY_BASE_MS, flushResult({
+            failed: 1,
+            deliverableRemaining: 0,
+            photoDeliverableRemaining: 1,
+        }))).toBe(OFFLINE_SYNC_RETRY_BASE_MS * 2);
+        expect(hasDeliverableReports(flushResult({
+            deliverableRemaining: 0,
+            photoDeliverableRemaining: 1,
+        }))).toBe(true);
+        expect(hasDeliverableReports(flushResult({
+            deliverableRemaining: 0,
+            photoDeliverableRemaining: 0,
+        }))).toBe(false);
     });
 
     test('hands the queue the authenticated report endpoint and the signed-in reporter', async () => {
@@ -132,11 +156,27 @@ describe('useOfflineReportSync', () => {
 
         await waitFor(() => expect(flushQueuedReportsMock).toHaveBeenCalled());
         expect(result.current.isSyncing).toBe(false);
-        expect(options).toEqual({ reporterId: 'reporter-1' });
+        expect(options.reporterId).toBe('reporter-1');
+        // Phase-2 photo entries ride the same flush through their own sender.
+        expect(typeof options.sendPhoto).toBe('function');
 
         const formData = new FormData();
         await send(formData);
         expect(createReportMock).toHaveBeenCalledWith(formData);
+
+        const photoEntry = {
+            reportId: 'report-9',
+            photo: new File(['captured'], 'scene.jpg', { type: 'image/jpeg' }),
+            photoName: 'scene.jpg',
+        };
+        await options.sendPhoto(photoEntry);
+        expect(uploadEvidenceMock).toHaveBeenCalledWith(
+            'report-9',
+            expect.any(FormData),
+            { timeout: REPORT_SUBMIT_TIMEOUT_MS },
+        );
+        const photoBody = uploadEvidenceMock.mock.calls[0][1];
+        expect(photoBody.getAll('images')).toHaveLength(1);
 
         await waitFor(() => expect(result.current.pendingCount).toBe(0));
     });

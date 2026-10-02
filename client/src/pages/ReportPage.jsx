@@ -6,14 +6,17 @@ import ReportLocationPanel from '../components/report/ReportLocationPanel';
 import ReportDetailsPanel from '../components/report/ReportDetailsPanel';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import { assessGpsAccuracy, buildLocationCapture, GPS_MAX_ACCURACY_METERS, isValidLocation } from '../utils/locationQuality';
-import { prepareEvidenceImages, validateEvidenceImageFile } from '../utils/evidenceImage';
+import { prepareEvidenceImages, validateEvidenceImageFile, getAdaptiveCompressionSettings, recordUploadThroughput } from '../utils/evidenceImage';
 import { createThrottledProgressEmitter } from '../utils/progressThrottle';
 import {
+    buildPhotoFormData,
     clearQueuedReportSending,
     createClientReportId,
+    enqueuePhotoUpload,
     enqueueReport,
     isTransientSubmitFailure,
     removeQueuedReport,
+    uploadQueuedPhotos,
 } from '../utils/offlineReportQueue';
 import { useConnectivity } from '../hooks/useConnectivity';
 import { useAuth } from '../context/AuthContext';
@@ -244,6 +247,10 @@ const ReportPage = () => {
     const [locationCapture, setLocationCapture] = useState(() => initialDraft?.locationCapture ?? null);
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
+    // True when the measured link (or, before any measurement, the Network
+    // Information API) says photos should compress small. Refreshed after
+    // phase 1 of a submission, when the fields POST has timed the real link.
+    const [slowLink, setSlowLink] = useState(() => getAdaptiveCompressionSettings().isSlowConnection);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     // Guided flow position. All form state lives in this component, so moving
@@ -856,7 +863,11 @@ const ReportPage = () => {
 
     // Rebuilt on every attempt: a FormData body cannot be replayed, and the
     // duplicate confirmation resubmits the same report.
-    const buildSubmitData = ({ confirmDistinct = false } = {}) => {
+    // Phase 1 of the two-phase submit sends fields only (`includeImages:
+    // false`) so the report exists before any photo; the legacy all-in-one
+    // POST (fields + photos) is kept as the fallback when phase 1's response
+    // carries no report id.
+    const buildSubmitData = ({ confirmDistinct = false, includeImages = true } = {}) => {
         const submitData = new FormData();
 
         for (const [key, value] of Object.entries(buildSubmitFields())) {
@@ -864,11 +875,105 @@ const ReportPage = () => {
             submitData.append(key, String(value));
         }
 
-        images.forEach((image) => { submitData.append('images', image); });
+        if (includeImages) {
+            images.forEach((image) => { submitData.append('images', image); });
+        }
         submitData.append('clientReportId', getClientReportId());
         if (confirmDistinct) submitData.append('confirmDistinct', 'true');
 
         return submitData;
+    };
+
+    /**
+     * The server answers create with `{ success, message, data: report }`;
+     * an idempotent replay nests the same shape. Phase 2 needs the report id,
+     * so extract it defensively — anything else means "no id", which selects
+     * the legacy all-in-one fallback instead of failing the submission.
+     */
+    const extractCreatedReportId = (response) => {
+        const payload = response?.data ?? {};
+        const report = payload?.data ?? payload?.report ?? payload;
+        const id = report?._id ?? report?.id;
+        return (typeof id === 'string' && id.trim()) || (typeof id === 'number' && Number.isFinite(id))
+            ? String(id)
+            : null;
+    };
+
+    /**
+     * Queues one photo entry per prepared image, then uploads them one at a
+     * time against the created report's evidence endpoint.
+     *
+     * Fire-and-forget by design: phase 1 already filed the report, so the
+     * reporter can navigate away — a failed photo stays queued on the device
+     * and retries on the usual backoff, and a photo can never block or roll
+     * back the report. Each photo carries the standard 60s submit timeout and
+     * no offline-abort wiring: the queue owns the retries from here.
+     *
+     * When the device cannot queue (private mode, blocked storage), the photo
+     * uploads directly instead — one best-effort attempt, no retry — rather
+     * than being silently dropped.
+     */
+    const startPhase2PhotoUpload = (createdReportId, photos, clientReportId) => {
+        const reporterId = user?._id || user?.id || null;
+        const total = photos.length;
+        let done = 0;
+        const sendPhoto = (photoEntry) => reportsAPI.uploadEvidence(
+            photoEntry.reportId || createdReportId,
+            buildPhotoFormData(photoEntry),
+            { timeout: REPORT_SUBMIT_TIMEOUT_MS },
+        );
+        const reportProgress = () => {
+            if (done < total) toast.success(`Report sent! Uploading photos (${done}/${total})…`);
+        };
+
+        const run = async () => {
+            let failed = 0;
+            const unqueued = [];
+            for (const [index, photo] of photos.entries()) {
+                const photoName = photo?.name || `evidence-${index + 1}.jpg`;
+                const entry = await enqueuePhotoUpload({
+                    reportId: createdReportId,
+                    photo,
+                    photoName,
+                    photoId: `${clientReportId}:photo-${index}`,
+                    reporterId,
+                });
+                if (!entry) unqueued.push({ photo, photoName });
+            }
+            for (const { photo, photoName } of unqueued) {
+                try {
+                    await sendPhoto({ photo, photoName });
+                } catch {
+                    failed += 1;
+                }
+                done += 1;
+                reportProgress();
+            }
+            const photoResult = await uploadQueuedPhotos({
+                reportId: createdReportId,
+                reporterId,
+                send: sendPhoto,
+                onProgress: ({ done: queuedDone }) => {
+                    done = unqueued.length + queuedDone;
+                    reportProgress();
+                },
+            });
+            failed += photoResult?.failed ?? 0;
+            return failed;
+        };
+
+        toast.success(`Report sent! Uploading photos (0/${total})…`);
+        run().then((failed) => {
+            if (failed === 0) {
+                toast.success('Report sent! All photos uploaded.');
+            } else {
+                toast.success('Report sent! Remaining photos will upload automatically.');
+            }
+        }).catch(() => {
+            // The report is already filed and every photo is queued: there is
+            // nothing for the reporter to do, and the background retry owns
+            // the rest. Staying silent beats a false alarm.
+        });
     };
 
     const submitReport = async (options = {}) => {
@@ -920,18 +1025,30 @@ const ReportPage = () => {
                 removeOfflineAbort = () => window.removeEventListener('offline', abortOnOffline);
             }
 
+            // Phase 1: fields only. The report must exist before any photo, and
+            // this small POST doubles as the session's throughput probe: its
+            // real transmitted bytes and duration tune photo compression for
+            // the link the reporter actually has. Photos are NOT in this
+            // payload — they follow in phase 2.
+            let phase1Bytes = 0;
+            const phase1StartedAt = Date.now();
+            let createResponse = null;
             try {
-                await reportsAPI.create(buildSubmitData(options), {
+                createResponse = await reportsAPI.create(buildSubmitData({ ...options, includeImages: false }), {
                     timeout: REPORT_SUBMIT_TIMEOUT_MS,
                     ...(submitController ? { signal: submitController.signal } : {}),
                     onUploadProgress: (progressEvent) => {
                         const loaded = progressEvent.loaded || 0;
                         const total = progressEvent.total || 0;
+                        if (total > 0) phase1Bytes = total;
                         const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
                         progressEmitter.push({ percent, loaded, total });
                     },
                 });
             } catch (error) {
+                // The throughput probe failed with the fields POST: treat the
+                // link as slow for this session's photo compression.
+                recordUploadThroughput({ failed: true });
                 // The server warns rather than blocks: it hands back the nearby
                 // reports so the reporter can confirm this is a different event.
                 if (error.response?.status === 409 && error.response?.data?.code === 'POSSIBLE_DUPLICATE') {
@@ -979,8 +1096,64 @@ const ReportPage = () => {
                 return;
             }
 
+            // Phase 1 delivered. The staged copy is dropped only after
+            // acknowledgement. The idempotency key stays alive through the
+            // legacy fallback below, so both attempts ride the same key.
+            const queuedClientReportId = staged?.entry?.clientReportId || getClientReportId();
+
+            // The fields POST timed the real link: later photo preparations in
+            // this session compress for it.
+            if (phase1Bytes > 0) {
+                recordUploadThroughput({ bytes: phase1Bytes, durationMs: Date.now() - phase1StartedAt });
+            } else {
+                recordUploadThroughput({ failed: true });
+            }
+            setSlowLink(getAdaptiveCompressionSettings().isSlowConnection);
+
+            const createdReportId = extractCreatedReportId(createResponse);
+
+            if (createdReportId && images.length > 0) {
+                // Phase 2: photos upload one at a time against the created
+                // report's evidence endpoint. The report is already filed, so
+                // this runs in the background — a photo failure can never
+                // block or roll back the report, and the reporter may navigate
+                // away while the queue finishes.
+                pendingReportIdRef.current = null;
+                if (staged) await removeQueuedReport(staged.entry.clientReportId);
+                clearReportDraft();
+                setDraftRestored(false);
+                setUploadProgress({ percent: 100, loaded: 0, total: 0 });
+                startPhase2PhotoUpload(createdReportId, images, queuedClientReportId);
+                navigate('/my-reports');
+                return;
+            }
+
+            if (!createdReportId && images.length > 0) {
+                // Legacy fallback: the response carried no report id, so fall
+                // back to the old all-in-one POST. The staged copy stays until
+                // this POST lands; the idempotency key rides along, so a
+                // phase-1 report that did land is replayed, not duplicated.
+                try {
+                    await reportsAPI.create(buildSubmitData({ ...options, includeImages: true }), {
+                        timeout: REPORT_SUBMIT_TIMEOUT_MS,
+                        ...(submitController ? { signal: submitController.signal } : {}),
+                        onUploadProgress: (progressEvent) => {
+                            const loaded = progressEvent.loaded || 0;
+                            const total = progressEvent.total || 0;
+                            const percent = total > 0 ? Math.min(100, Math.round((loaded * 100) / total)) : null;
+                            progressEmitter.push({ percent, loaded, total });
+                        },
+                    });
+                } catch {
+                    // Phase 1 filed the report; keep the staged copy (fields +
+                    // images) queued and let the background retry replay it.
+                    if (staged) await clearQueuedReportSending(staged.entry.clientReportId);
+                    reportQueued(staged, 'signalLost');
+                    return;
+                }
+            }
+
             // Delivered. The staged copy is dropped only after acknowledgement.
-            pendingReportIdRef.current = null;
             if (staged) await removeQueuedReport(staged.entry.clientReportId);
             clearReportDraft();
             setDraftRestored(false);
@@ -1113,6 +1286,7 @@ const ReportPage = () => {
                                 uploadProgress={uploadProgress}
                                 deviceSaved={deviceSaved}
                                 isOffline={isOffline}
+                                slowConnectionHint={slowLink}
                             />
                         )}
                     </div>

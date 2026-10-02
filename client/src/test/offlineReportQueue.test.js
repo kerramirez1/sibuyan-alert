@@ -1,19 +1,23 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
     BLOCKED_RECOVERY,
+    PHOTO_UPLOAD_KIND,
     POSSIBLE_DUPLICATE_CODE,
     QUEUE_BLOCKED_CODES,
+    buildPhotoFormData,
     buildQueuedFormData,
     clearOfflineReportQueue,
     clearQueuedReportSending,
     classifySubmitFailure,
     createClientReportId,
     describeSubmitFailure,
+    enqueuePhotoUpload,
     enqueueReport,
     flushQueuedReports,
     getBlockedReportRecovery,
     isGpsAccuracyBlocked,
     isOfflineQueueSupported,
+    isPhotoUploadEntry,
     isTransientSubmitFailure,
     listQueuedReports,
     partitionQueuedReports,
@@ -21,6 +25,7 @@ import {
     resolveBlockedQueuedReport,
     subscribeToQueueChanges,
     updateQueuedReportLocation,
+    uploadQueuedPhotos,
 } from '../utils/offlineReportQueue';
 
 /**
@@ -903,6 +908,249 @@ describe('offline report queue', () => {
                 blockedReason: 'Rejected by the server',
                 fields: {},
             })).toBe(BLOCKED_RECOVERY.guidance);
+        });
+    });
+
+    describe('phase-2 photo uploads', () => {
+        test('marks entries as photo uploads and builds the single-photo evidence body', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                const photo = new File(['captured'], 'scene.jpg', { type: 'image/jpeg' });
+                const entry = await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo,
+                    photoId: 'key:photo-0',
+                    reporterId: 'reporter-a',
+                });
+
+                expect(entry).toMatchObject({ kind: PHOTO_UPLOAD_KIND, reportId: 'report-1' });
+                expect(isPhotoUploadEntry(entry)).toBe(true);
+                expect(isPhotoUploadEntry({ clientReportId: 'rep' })).toBe(false);
+
+                const formData = buildPhotoFormData(entry);
+                expect(formData.getAll('images')).toHaveLength(1);
+                expect(formData.get('images').name).toBe('scene.jpg');
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('uploads one report\'s photos sequentially and reports progress', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key:photo-0',
+                    reporterId: 'reporter-a',
+                });
+                await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo: new File(['b'], 'b.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key:photo-1',
+                    reporterId: 'reporter-a',
+                });
+
+                const uploadOrder = [];
+                const progressEvents = [];
+                const send = vi.fn(async (entry) => {
+                    uploadOrder.push(entry.photoName);
+                    return { success: true };
+                });
+
+                const result = await uploadQueuedPhotos({
+                    reportId: 'report-1',
+                    send,
+                    reporterId: 'reporter-a',
+                    onProgress: (event) => progressEvents.push(event),
+                });
+
+                expect(result).toMatchObject({ attempted: 2, sent: 2, failed: 0 });
+                expect(send).toHaveBeenCalledTimes(2);
+                expect(uploadOrder).toEqual(['a.jpg', 'b.jpg']);
+                expect(progressEvents).toEqual([{ done: 1, total: 2 }, { done: 2, total: 2 }]);
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('only touches photos bound to the given report', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key-1',
+                    reporterId: 'reporter-a',
+                });
+                await enqueuePhotoUpload({
+                    reportId: 'report-2',
+                    photo: new File(['b'], 'b.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key-2',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => ({ success: true }));
+                const result = await uploadQueuedPhotos({ reportId: 'report-1', send, reporterId: 'reporter-a' });
+
+                expect(result).toMatchObject({ attempted: 1, sent: 1 });
+                expect(storage.storeData.size).toBe(1);
+                expect(storage.storeData.has('key-2')).toBe(true);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('keeps a photo queued on transient failure with its attempt counted', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key:photo-0',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => { throw new Error('Network Error'); });
+                const result = await uploadQueuedPhotos({ reportId: 'report-1', send, reporterId: 'reporter-a' });
+
+                expect(result).toMatchObject({ attempted: 1, sent: 0, failed: 1 });
+                const [entry] = Array.from(storage.storeData.values());
+                expect(entry.attempts).toBe(1);
+                // Never parked as a blocked "report": photos stay best-effort.
+                expect(entry.blockedReason).toBeNull();
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('drops the photo when its report is gone instead of resurrecting it', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueuePhotoUpload({
+                    reportId: 'deleted-report',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key:photo-0',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => {
+                    throw { response: { status: 404, data: { message: 'Report not found' } } };
+                });
+                const result = await uploadQueuedPhotos({ reportId: 'deleted-report', send, reporterId: 'reporter-a' });
+
+                expect(result).toMatchObject({ attempted: 1, sent: 1, failed: 0 });
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('drops a refused photo instead of parking it as a blocked report', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueuePhotoUpload({
+                    reportId: 'report-1',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'key:photo-0',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => {
+                    throw { response: { status: 400, data: { message: 'File rejected' } } };
+                });
+                const result = await uploadQueuedPhotos({ reportId: 'report-1', send, reporterId: 'reporter-a' });
+
+                expect(result).toMatchObject({ attempted: 1, sent: 1, failed: 0 });
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('a photo failure never blocks its report', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueueReport({
+                    clientReportId: 'rep-1',
+                    fields: { address: 'Poblacion' },
+                    reporterId: 'reporter-a',
+                });
+                await enqueuePhotoUpload({
+                    reportId: 'report-9',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'photo-1',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => ({ success: true }));
+                const sendPhoto = vi.fn(async () => { throw new Error('Network Error'); });
+                const result = await flushQueuedReports(send, { reporterId: 'reporter-a', sendPhoto });
+
+                expect(send).toHaveBeenCalledTimes(1);
+                expect(sendPhoto).toHaveBeenCalledTimes(1);
+                expect(result.sent).toBe(1);
+                expect(result.photosSent).toBe(0);
+                expect(result.failed).toBe(1);
+                // The report went out; the photo stays queued for the retry.
+                expect(storage.storeData.size).toBe(1);
+                expect(storage.storeData.has('photo-1')).toBe(true);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('routes photo entries to the photo sender without counting them as reports', async () => {
+            const storage = createIndexedDbStub();
+
+            try {
+                await enqueueReport({
+                    clientReportId: 'rep-1',
+                    fields: { address: 'Poblacion' },
+                    reporterId: 'reporter-a',
+                });
+                await enqueuePhotoUpload({
+                    reportId: 'report-9',
+                    photo: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+                    photoId: 'photo-1',
+                    reporterId: 'reporter-a',
+                });
+
+                const send = vi.fn(async () => ({ success: true }));
+                const sendPhoto = vi.fn(async () => ({ success: true }));
+                const result = await flushQueuedReports(send, { reporterId: 'reporter-a', sendPhoto });
+
+                expect(send).toHaveBeenCalledTimes(1);
+                expect(sendPhoto).toHaveBeenCalledTimes(1);
+                expect(result.sent).toBe(1);
+                expect(result.photosSent).toBe(1);
+                // Photo entries never read as incident reports in report-facing
+                // counts, but their pending work is still reported.
+                expect(result.deliverableRemaining).toBe(0);
+                expect(result.photoDeliverableRemaining).toBe(0);
+                expect(storage.storeData.size).toBe(0);
+            } finally {
+                storage.restore();
+            }
+        });
+
+        test('partitions photo entries away from the report buckets', () => {
+            const partition = partitionQueuedReports([
+                { clientReportId: 'rep', reporterId: 'reporter-a', fields: {} },
+                { clientReportId: 'ph', kind: PHOTO_UPLOAD_KIND, reporterId: 'reporter-a', reportId: 'report-1' },
+            ], { reporterId: 'reporter-a' });
+
+            expect(partition.deliverable.map((entry) => entry.clientReportId)).toEqual(['rep']);
+            expect(partition.photoDeliverable.map((entry) => entry.clientReportId)).toEqual(['ph']);
+            expect(partition.blocked).toEqual([]);
         });
     });
 });

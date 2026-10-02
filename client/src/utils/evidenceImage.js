@@ -20,8 +20,50 @@ export const MAX_OUTPUT_EDGE = 1200; // Standardized optimal balance of crisp de
 export const JPEG_COMPRESSION_QUALITY = 0.82;
 export const SLOW_NETWORK_MAX_OUTPUT_EDGE = 800;
 export const SLOW_NETWORK_QUALITY = 0.65;
+/**
+ * Measured effective throughput below this is treated as a slow link. A 1-bar
+ * connection (~50-150 Kbps) lands well under it; a healthy link clears it
+ * even for small payloads.
+ */
+export const SLOW_THROUGHPUT_KBPS = 300;
 
 let webpSupportedCache = null;
+
+// Last measured effective upload throughput for this session. A real
+// measurement beats the Network Information API: a 1-bar link often reports
+// '3g'/'4g' with unusable real throughput, and iOS Safari does not implement
+// the API at all. Recorded by the report form after its fields POST (phase 1
+// of the two-phase submit), so later photo preparations in the session can
+// compress for the link the reporter actually has.
+let measuredUploadKbps = null;
+let uploadProbeFailed = false;
+
+/**
+ * Records the effective throughput of a completed (or failed) upload probe.
+ * A failed probe counts as slow: if the fields POST could not complete, the
+ * link is in no state to carry full-resolution photos.
+ */
+export const recordUploadThroughput = ({ bytes = 0, durationMs = 0, failed = false } = {}) => {
+    if (failed) {
+        uploadProbeFailed = true;
+        return;
+    }
+    const seconds = Math.max(0.001, (Number(durationMs) || 0) / 1000);
+    const kbps = ((Number(bytes) || 0) * 8) / 1000 / seconds;
+    if (Number.isFinite(kbps) && kbps >= 0) {
+        measuredUploadKbps = kbps;
+        uploadProbeFailed = false;
+    }
+};
+
+/** The last measured effective upload throughput in Kbps, or null if none yet. */
+export const getMeasuredUploadKbps = () => measuredUploadKbps;
+
+/** Resets the throughput measurement (primarily for unit tests). */
+export const resetUploadThroughputForTesting = () => {
+    measuredUploadKbps = null;
+    uploadProbeFailed = false;
+};
 
 /**
  * Detects whether the current environment canvas supports WebP export.
@@ -53,11 +95,20 @@ export const resetWebpSupportCacheForTesting = () => {
 
 /**
  * Determines adaptive image scaling and compression quality based on network conditions.
- * Uses navigator.connection (Network Information API) when available.
+ * A measured effective throughput (see recordUploadThroughput) wins when one
+ * exists; navigator.connection (Network Information API) is only the fallback
+ * for sessions with no measurement yet.
  * @returns {{ maxEdge: number, quality: number, isSlowConnection: boolean }}
  */
 export const getAdaptiveCompressionSettings = () => {
-    if (typeof navigator !== 'undefined') {
+    if (uploadProbeFailed || (measuredUploadKbps !== null && measuredUploadKbps < SLOW_THROUGHPUT_KBPS)) {
+        return {
+            maxEdge: SLOW_NETWORK_MAX_OUTPUT_EDGE,
+            quality: SLOW_NETWORK_QUALITY,
+            isSlowConnection: true,
+        };
+    }
+    if (measuredUploadKbps === null && typeof navigator !== 'undefined') {
         const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         const effectiveType = conn?.effectiveType;
         const isSlow = effectiveType === '2g' || effectiveType === 'slow-2g' || conn?.saveData === true;

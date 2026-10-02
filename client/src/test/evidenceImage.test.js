@@ -3,8 +3,15 @@ import {
     EVIDENCE_IMAGE_ACCEPT,
     MAX_OUTPUT_EDGE,
     MAX_RAW_EVIDENCE_BYTES,
+    SLOW_NETWORK_MAX_OUTPUT_EDGE,
+    SLOW_NETWORK_QUALITY,
+    JPEG_COMPRESSION_QUALITY,
+    getAdaptiveCompressionSettings,
+    getMeasuredUploadKbps,
     prepareEvidenceImage,
     prepareEvidenceImages,
+    recordUploadThroughput,
+    resetUploadThroughputForTesting,
     validateEvidenceImageFile,
 } from '../utils/evidenceImage';
 
@@ -239,5 +246,61 @@ describe('Evidence Image Compression & Validation Utility (evidenceImage.js)', (
         expect(result.file.type).toBe('image/jpeg');
 
         createElementSpy.mockRestore();
+    });
+});
+
+describe('measured upload throughput (evidenceImage.js)', () => {
+    beforeEach(() => {
+        resetUploadThroughputForTesting();
+    });
+
+    test('a slow measured link selects the small compression settings', () => {
+        // ~120 Kbps: a 15 KB fields POST taking a full second.
+        recordUploadThroughput({ bytes: 15 * 1024, durationMs: 1000 });
+        expect(getMeasuredUploadKbps()).toBeCloseTo(122.88, 1);
+
+        const settings = getAdaptiveCompressionSettings();
+        expect(settings.isSlowConnection).toBe(true);
+        expect(settings.maxEdge).toBe(SLOW_NETWORK_MAX_OUTPUT_EDGE);
+        expect(settings.quality).toBe(SLOW_NETWORK_QUALITY);
+    });
+
+    test('a fast measured link keeps the standard settings', () => {
+        // ~1.2 Mbps: the same 15 KB in a tenth of a second.
+        recordUploadThroughput({ bytes: 15 * 1024, durationMs: 100 });
+        expect(getMeasuredUploadKbps()).toBeGreaterThan(300);
+
+        const settings = getAdaptiveCompressionSettings();
+        expect(settings.isSlowConnection).toBe(false);
+        expect(settings.maxEdge).toBe(MAX_OUTPUT_EDGE);
+        expect(settings.quality).toBe(JPEG_COMPRESSION_QUALITY);
+    });
+
+    test('a failed probe counts as slow', () => {
+        recordUploadThroughput({ failed: true });
+
+        const settings = getAdaptiveCompressionSettings();
+        expect(settings.isSlowConnection).toBe(true);
+        expect(settings.maxEdge).toBe(SLOW_NETWORK_MAX_OUTPUT_EDGE);
+    });
+
+    test('a real measurement beats the Network Information API fallback', () => {
+        // Pretend the device reports a miserable link, then measure a good one.
+        const originalConnection = Object.getOwnPropertyDescriptor(window.navigator, 'connection');
+        Object.defineProperty(window.navigator, 'connection', {
+            value: { effectiveType: '2g', saveData: false },
+            configurable: true,
+        });
+
+        try {
+            recordUploadThroughput({ bytes: 15 * 1024, durationMs: 100 });
+            expect(getAdaptiveCompressionSettings().isSlowConnection).toBe(false);
+
+            resetUploadThroughputForTesting();
+            expect(getAdaptiveCompressionSettings().isSlowConnection).toBe(true);
+        } finally {
+            if (originalConnection) Object.defineProperty(window.navigator, 'connection', originalConnection);
+            else delete window.navigator.connection;
+        }
     });
 });

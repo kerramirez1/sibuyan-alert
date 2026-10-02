@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
 
-const { createReportMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
+const { createReportMock, uploadEvidenceMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoisted(() => ({
     createReportMock: vi.fn(),
+    uploadEvidenceMock: vi.fn(),
     geocodeLocationMock: vi.fn(),
     mapPropsSpy: vi.fn(),
     toastMock: {
@@ -17,6 +18,7 @@ const { createReportMock, geocodeLocationMock, mapPropsSpy, toastMock } = vi.hoi
 vi.mock('../services/api', () => ({
     reportsAPI: {
         create: createReportMock,
+        uploadEvidence: uploadEvidenceMock,
         geocodeLocation: geocodeLocationMock,
     },
 }));
@@ -42,6 +44,7 @@ vi.mock('../components/map/MapView', () => ({
 
 import ReportPage from '../pages/ReportPage';
 import { resetToastDedupeForTests } from '../utils/appToast';
+import { resetUploadThroughputForTesting } from '../utils/evidenceImage';
 
 const renderPage = () => render(
     <MemoryRouter initialEntries={['/report']}>
@@ -151,7 +154,14 @@ describe('ReportPage workflow', () => {
 
     beforeEach(() => {
         createReportMock.mockReset();
-        createReportMock.mockResolvedValue({ data: { success: true } });
+        // Phase 1 answers with a report id, so the default path exercises the
+        // two-phase submit; the legacy all-in-one fallback has its own case.
+        createReportMock.mockResolvedValue({ data: { success: true, data: { _id: 'report-1' } } });
+        uploadEvidenceMock.mockReset();
+        uploadEvidenceMock.mockResolvedValue({ data: { success: true } });
+        // Phase-1 submissions record a throughput probe; reset it so the
+        // slow-link hint in one test cannot leak into the next.
+        resetUploadThroughputForTesting();
         geocodeLocationMock.mockReset();
         geocodeLocationMock.mockResolvedValue({
             data: {
@@ -580,7 +590,83 @@ describe('ReportPage workflow', () => {
             expect(screen.queryByRole('button', { name: /^(choose photos|choose more)$/i })).not.toBeInTheDocument();
         });
 
-        test('submits report with evidence photos in multipart FormData', async () => {
+        test('submits fields first, then uploads each photo to the evidence endpoint', async () => {
+            renderPage();
+
+            // Step 1: location via address.
+            fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Barangay Road' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 2 of 4');
+
+            // Step 2: incident time.
+            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 3 of 4');
+
+            // Step 3: no casualties to record.
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
+
+            // Step 4: attach two photos, then submit.
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const photoA = new File(['captured-image-a'], 'camera-evidence-a.jpg', { type: 'image/jpeg' });
+            const photoB = new File(['captured-image-b'], 'camera-evidence-b.jpg', { type: 'image/jpeg' });
+            fireEvent.change(cameraInput, { target: { files: [photoA, photoB] } });
+
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(2\/5\)/i)).toBeInTheDocument();
+            });
+
+            // Photos survive the trip back and forth across steps.
+            fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+            await screen.findByText('Step 3 of 4');
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
+            expect(screen.getByText(/attached photos \(2\/5\)/i)).toBeInTheDocument();
+
+            await awaitSubmitArmed();
+            fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
+
+            // Phase 1: fields only — no image rides the report POST.
+            await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
+            const phase1Payload = createReportMock.mock.calls[0][0];
+            expect(phase1Payload.getAll('images')).toHaveLength(0);
+            expect(phase1Payload.get('clientReportId')).toBeTruthy();
+            expect(phase1Payload.get('incidentTime')).toBe(new Date('2025-02-01T08:00').toISOString());
+
+            const config = createReportMock.mock.calls[0][1];
+            expect(config).toBeDefined();
+            expect(config.timeout).toBe(60000);
+            expect(typeof config.onUploadProgress).toBe('function');
+
+            // Phase 2: one evidence POST per photo, in order, against the
+            // report id from phase 1.
+            await waitFor(() => expect(uploadEvidenceMock).toHaveBeenCalledTimes(2));
+            expect(uploadEvidenceMock.mock.calls[0][0]).toBe('report-1');
+            expect(uploadEvidenceMock.mock.calls[1][0]).toBe('report-1');
+            const firstPhotoBody = uploadEvidenceMock.mock.calls[0][1];
+            expect(firstPhotoBody.getAll('images')).toHaveLength(1);
+            expect(firstPhotoBody.getAll('images')[0].name).toBe('camera-evidence-a.jpg');
+            const secondPhotoBody = uploadEvidenceMock.mock.calls[1][1];
+            expect(secondPhotoBody.getAll('images')[0].name).toBe('camera-evidence-b.jpg');
+            expect(uploadEvidenceMock.mock.calls[0][2]).toMatchObject({ timeout: 60000 });
+
+            // The reporter learns the report is sent while photos upload.
+            await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
+                expect.stringMatching(/Report sent! Uploading photos/),
+                expect.anything(),
+            ));
+            await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
+                'Report sent! All photos uploaded.',
+                expect.anything(),
+            ));
+            expect(await screen.findByText('My reports destination')).toBeInTheDocument();
+        });
+
+        test('falls back to the all-in-one POST when phase 1 returns no report id', async () => {
+            // A response with no report id: the legacy single-POST fallback.
+            createReportMock.mockResolvedValue({ data: { success: true } });
+
             renderPage();
 
             // Step 1: location via address.
@@ -601,29 +687,44 @@ describe('ReportPage workflow', () => {
             const cameraInput = screen.getByLabelText(/take evidence photo/i);
             const photo = new File(['captured-image'], 'camera-evidence.jpg', { type: 'image/jpeg' });
             fireEvent.change(cameraInput, { target: { files: [photo] } });
-
             await waitFor(() => {
                 expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
             });
 
-            // Photos survive the trip back and forth across steps.
-            fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
-            await screen.findByText('Step 3 of 4');
-            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
-            await screen.findByText('Step 4 of 4');
-            expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
-
             await awaitSubmitArmed();
             fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
 
-            await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
-            const payload = createReportMock.mock.calls[0][0];
-            expect(payload.getAll('images')).toHaveLength(1);
-            expect(payload.getAll('images')[0].name).toBe('camera-evidence.jpg');
+            // Phase 1 goes out fields-only, then the fallback replays the old
+            // all-in-one POST with the photo.
+            await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(2));
+            expect(createReportMock.mock.calls[0][0].getAll('images')).toHaveLength(0);
+            const fallbackPayload = createReportMock.mock.calls[1][0];
+            expect(fallbackPayload.getAll('images')).toHaveLength(1);
+            expect(fallbackPayload.getAll('images')[0].name).toBe('camera-evidence.jpg');
+            // The idempotency key rides both attempts.
+            expect(fallbackPayload.get('clientReportId')).toBe(createReportMock.mock.calls[0][0].get('clientReportId'));
 
-            const config = createReportMock.mock.calls[0][1];
-            expect(config).toBeDefined();
-            expect(typeof config.onUploadProgress).toBe('function');
+            expect(uploadEvidenceMock).not.toHaveBeenCalled();
+            expect(await screen.findByText('My reports destination')).toBeInTheDocument();
+        });
+
+        test('suggests fewer photos on step 4 when the link measures slow', async () => {
+            const originalConnection = Object.getOwnPropertyDescriptor(window.navigator, 'connection');
+            Object.defineProperty(window.navigator, 'connection', {
+                value: { effectiveType: '2g', saveData: false },
+                configurable: true,
+            });
+
+            try {
+                renderPage();
+                await advanceWizardTo(4);
+
+                expect(screen.getByText(/slow connection detected/i)).toBeInTheDocument();
+                expect(screen.getByText(/1–2 key photos are enough/i)).toBeInTheDocument();
+            } finally {
+                if (originalConnection) Object.defineProperty(window.navigator, 'connection', originalConnection);
+                else delete window.navigator.connection;
+            }
         });
 
         test('relies on Submit alone: no manual Save offline button, auto-save is stated', async () => {

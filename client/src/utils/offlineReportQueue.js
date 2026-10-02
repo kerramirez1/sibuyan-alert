@@ -336,6 +336,74 @@ export const listQueuedReports = async () => {
     }
 };
 
+/**
+ * Phase-2 photo uploads share the report store. `kind: 'photo'` marks a
+ * single prepared photo bound for POST /reports/:id/evidence on an already
+ * created report. Report entries carry no `kind`.
+ */
+export const PHOTO_UPLOAD_KIND = 'photo';
+
+/** True for phase-2 photo upload entries (as opposed to report entries). */
+export const isPhotoUploadEntry = (entry = {}) => entry?.kind === PHOTO_UPLOAD_KIND;
+
+/**
+ * Queues one prepared photo for phase-2 upload to an existing report.
+ *
+ * Best-effort by design: the entry shares the store, the exponential backoff
+ * cadence, the in-flight lease guard, and the lifetime of report entries —
+ * but a photo the server permanently refuses is dropped, never parked as
+ * blocked, and never resurrected into a report. A photo upload can neither
+ * block nor roll back its report.
+ *
+ * @param {object} params
+ * @param {string} params.reportId - The server report id from phase 1.
+ * @param {File|Blob} params.photo - The prepared (compressed) photo.
+ * @param {string} [params.photoName]
+ * @param {string} [params.photoId] - Unique key for this photo upload.
+ * @param {string} [params.reporterId]
+ * @returns {Promise<Object|null>} the stored entry, or null when the device
+ *   cannot persist it — the caller then uploads it directly, best-effort.
+ */
+export const enqueuePhotoUpload = async ({ reportId, photo, photoName, photoId, reporterId = null }) => {
+    if (!isOfflineQueueSupported()) return null;
+    if (!reportId || !photo) return null;
+
+    try {
+        const safePhotoId = typeof photoId === 'string' && photoId.trim()
+            ? photoId.trim()
+            : createClientReportId();
+        const entry = {
+            kind: PHOTO_UPLOAD_KIND,
+            clientReportId: safePhotoId,
+            reportId: String(reportId),
+            reporterId: reporterId ? String(reporterId) : null,
+            photo,
+            photoName: photoName || photo?.name || 'evidence.jpg',
+            queuedAt: Date.now(),
+            attempts: 0,
+            blockedReason: null,
+            blockedCode: null,
+            sendingSince: null,
+            sendingToken: null,
+        };
+        await runTransaction('readwrite', (store) => store.put(entry));
+        notifyQueueChanged();
+        return entry;
+    } catch (error) {
+        console.error('Could not queue photo upload:', error);
+        return null;
+    }
+};
+
+/** Builds the single-photo multipart body for POST /reports/:id/evidence. */
+export const buildPhotoFormData = (entry = {}) => {
+    const formData = new FormData();
+    if (entry?.photo) {
+        formData.append('images', entry.photo, entry.photoName || entry.photo?.name || 'evidence.jpg');
+    }
+    return formData;
+};
+
 export const removeQueuedReport = async (clientReportId) => {
     if (!isOfflineQueueSupported()) return false;
     try {
@@ -469,12 +537,21 @@ const isOwnedBy = (entry, reporterId) => {
  * the reporter rather than the network.
  */
 export const partitionQueuedReports = (entries = [], { reporterId = null, now = Date.now() } = {}) => {
-    const partition = { deliverable: [], blocked: [], deferred: [], foreignCount: 0 };
+    const partition = { deliverable: [], blocked: [], deferred: [], foreignCount: 0, photoDeliverable: [], photoDeferred: [] };
 
     for (const entry of entries) {
         if (!entry) continue;
         if (!isOwnedBy(entry, reporterId)) {
             partition.foreignCount += 1;
+            continue;
+        }
+        // Phase-2 photo uploads share the store, the backoff cadence and the
+        // lease guard, but they are never blocked: a refused photo is dropped
+        // on delivery, so they get their own buckets and never pose as
+        // incident reports in report-facing counts.
+        if (isPhotoUploadEntry(entry)) {
+            if (isReplayableNow(entry, now)) partition.photoDeliverable.push(entry);
+            else partition.photoDeferred.push(entry);
             continue;
         }
         if (entry.blockedReason) {
@@ -576,6 +653,106 @@ export const resolveBlockedQueuedReport = async (clientReportId, { confirmDistin
 };
 
 /**
+ * True when the failure means the report the photo was bound for is gone from
+ * the server (deleted, or never created). The photo must be dropped with it:
+ * delivering evidence for a missing report would resurrect what the reporter
+ * or an admin removed.
+ */
+const isMissingReportError = (error) => {
+    const status = error?.response?.status ?? error?.status;
+    return status === 404;
+};
+
+/**
+ * Delivers one phase-2 photo entry, best-effort.
+ *
+ * Success removes the entry. A transient failure keeps it queued with the
+ * usual backoff. Anything else drops it: a 404 means its report is gone (the
+ * entry must not resurrect a deleted report), and a refused photo is never
+ * parked as a blocked "report" the reporter would have to resolve.
+ *
+ * @returns {Promise<'sent'|'failed'>} 'sent' when the entry left the queue.
+ */
+const deliverPhotoEntry = async (entry, sendPhoto) => {
+    try {
+        await sendPhoto(entry);
+        await removeQueuedReport(entry.clientReportId);
+        return 'sent';
+    } catch (error) {
+        if (isMissingReportError(error)) {
+            await removeQueuedReport(entry.clientReportId);
+            return 'sent';
+        }
+        if (isTransientSubmitFailure(error)) {
+            await markAttempt(entry.clientReportId, null);
+            return 'failed';
+        }
+        await removeQueuedReport(entry.clientReportId);
+        return 'sent';
+    }
+};
+
+/**
+ * Foreground phase-2 upload for one report's photos, sequential.
+ *
+ * Used by the report form right after phase 1 creates the report. Entries are
+ * delivered one at a time on purpose — a 1-bar link fails N parallel uploads
+ * together — and photo failures never touch the created report. Shares the
+ * process-wide flush lock with flushQueuedReports so a background pass can
+ * never upload the same photo twice.
+ *
+ * @param {object} params
+ * @param {string} params.reportId - The server report id from phase 1.
+ * @param {Function} params.send - async (photoEntry) => response
+ * @param {string} [params.reporterId]
+ * @param {Function} [params.onProgress] - called with { done, total } after
+ *   each photo leaves the device.
+ * @returns {Promise<{attempted: number, sent: number, failed: number}>}
+ */
+const runPhotoFlush = async ({ reportId, send, reporterId = null, onProgress = null } = {}) => {
+    const result = { attempted: 0, sent: 0, failed: 0 };
+    if (!isOfflineQueueSupported() || typeof send !== 'function' || !reportId) return result;
+
+    const now = Date.now();
+    const photos = ((await listQueuedReports()) || []).filter(
+        (entry) => isPhotoUploadEntry(entry)
+            && String(entry.reportId) === String(reportId)
+            && isOwnedBy(entry, reporterId)
+            && isReplayableNow(entry, now),
+    );
+
+    result.attempted = photos.length;
+    let done = 0;
+    for (const entry of photos) {
+        const outcome = await deliverPhotoEntry(entry, send);
+        if (outcome === 'sent') result.sent += 1;
+        else result.failed += 1;
+        done += 1;
+        if (typeof onProgress === 'function') onProgress({ done, total: photos.length });
+    }
+    return result;
+};
+
+export const uploadQueuedPhotos = (params) => {
+    if (activeFlush) {
+        // A flush is already in flight: chain behind it, holding the lock
+        // through the photo pass so a background sync cannot interleave and
+        // upload the same photo twice.
+        const chained = activeFlush.then(() => runPhotoFlush(params)).finally(() => {
+            if (activeFlush === chained) activeFlush = null;
+        });
+        activeFlush = chained;
+        return chained;
+    }
+
+    const flush = runPhotoFlush(params).finally(() => {
+        if (activeFlush === flush) activeFlush = null;
+    });
+    activeFlush = flush;
+    return flush;
+};
+
+/**
  * Attempts to deliver every queued report.
  *
  * Sequential on purpose: this runs on a reconnect, often on a weak link, and
@@ -587,12 +764,17 @@ export const resolveBlockedQueuedReport = async (clientReportId, { confirmDistin
  * pass could still deliver on its own — the number the hook times against.
  *
  * @param {Function} send - async (formData) => response
- * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, foreign: number, remaining: number, deliverableRemaining: number}>}
+ * @param {object} [options]
+ * @param {string} [options.reporterId]
+ * @param {Function} [options.sendPhoto] - async (photoEntry) => response, for
+ *   phase-2 photo entries against POST /reports/:id/evidence
+ * @returns {Promise<{sent: number, failed: number, blocked: number, deferred: number, foreign: number, remaining: number, deliverableRemaining: number, photosSent: number, photoDeliverableRemaining: number}>}
  */
-const runFlush = async (send, { reporterId = null } = {}) => {
+const runFlush = async (send, { reporterId = null, sendPhoto = null } = {}) => {
     const queued = (await listQueuedReports()) || [];
     const partition = partitionQueuedReports(queued, { reporterId, now: Date.now() });
     const owned = queued.length - partition.foreignCount;
+    const photoOwned = partition.photoDeliverable.length + partition.photoDeferred.length;
 
     if (typeof send !== 'function') {
         return {
@@ -603,6 +785,8 @@ const runFlush = async (send, { reporterId = null } = {}) => {
             foreign: partition.foreignCount,
             remaining: owned,
             deliverableRemaining: partition.deliverable.length + partition.deferred.length,
+            photosSent: 0,
+            photoDeliverableRemaining: photoOwned,
         };
     }
 
@@ -614,6 +798,8 @@ const runFlush = async (send, { reporterId = null } = {}) => {
         foreign: partition.foreignCount,
         remaining: owned,
         deliverableRemaining: 0,
+        photosSent: 0,
+        photoDeliverableRemaining: 0,
     };
 
     for (const entry of partition.deliverable) {
@@ -635,14 +821,28 @@ const runFlush = async (send, { reporterId = null } = {}) => {
         }
     }
 
-    result.remaining = Math.max(0, owned - result.sent);
+    // Phase-2 photo uploads ride the same store, backoff and lease guard, but
+    // route to their own sender: one photo per request against the evidence
+    // endpoint of an already-created report. Without a photo sender the
+    // entries simply stay queued for the next pass.
+    if (typeof sendPhoto === 'function') {
+        for (const entry of partition.photoDeliverable) {
+            const outcome = await deliverPhotoEntry(entry, sendPhoto);
+            if (outcome === 'sent') result.photosSent += 1;
+            else result.failed += 1;
+        }
+    }
+
+    result.remaining = Math.max(0, owned - result.sent - result.photosSent);
     // What is left that is worth another pass: everything owned and still
     // stored, minus what just went out and minus what now needs the reporter.
-    // A blocked report must not keep the retry loop alive.
+    // A blocked report must not keep the retry loop alive. Photo entries are
+    // tracked separately so they never read as incident reports.
     result.deliverableRemaining = Math.max(
         0,
-        owned - result.sent - partition.blocked.length - result.blocked,
+        owned - photoOwned - result.sent - partition.blocked.length - result.blocked,
     );
+    result.photoDeliverableRemaining = Math.max(0, photoOwned - result.photosSent);
     return result;
 };
 
@@ -707,4 +907,9 @@ export default {
     buildQueuedFormData,
     flushQueuedReports,
     clearOfflineReportQueue,
+    PHOTO_UPLOAD_KIND,
+    isPhotoUploadEntry,
+    enqueuePhotoUpload,
+    buildPhotoFormData,
+    uploadQueuedPhotos,
 };
