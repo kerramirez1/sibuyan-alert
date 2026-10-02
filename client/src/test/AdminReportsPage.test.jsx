@@ -665,6 +665,33 @@ describe('AdminReportsPage operational queue', () => {
         expect(within(buttonsGroup).getByRole('button', { name: 'Verify report' })).toBeInTheDocument();
     });
 
+    test('hides the "Assigned to" label when no unit is assigned yet', async () => {
+        mocks.user = {
+            _id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({ _id: 'unassigned-1', status: 'pending', address: 'Unassigned street' }),
+            createReport({
+                _id: 'assigned-1',
+                status: 'responding',
+                address: 'Assigned street',
+                responders: [{ user: { id: 'responder-1', name: 'Assigned Officer' }, unitName: 'PNP Patrol 01', unitType: 'PNP' }],
+            }),
+        ]));
+
+        renderPage();
+
+        const unassignedCard = (await screen.findByText('Unassigned street')).closest('article');
+        expect(within(unassignedCard).getByText('Unassigned · needs unit')).toBeInTheDocument();
+        expect(within(unassignedCard).queryByText('Assigned to')).not.toBeInTheDocument();
+
+        const assignedCard = (await screen.findByText('Assigned street')).closest('article');
+        expect(within(assignedCard).getByText('Assigned to')).toBeInTheDocument();
+        expect(within(assignedCard).getByText('PNP Patrol 01')).toBeInTheDocument();
+    });
+
     test('resets the panel body scroll when switching incidents and restores focus after Escape', async () => {
         mocks.user = {
             id: 'responder-1',

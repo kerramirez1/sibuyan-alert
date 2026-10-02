@@ -509,7 +509,9 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                     <span className="record-meta__value">{safeReport.reporter?.name || 'Unknown reporter'}</span>
                 </p>
                 <p className="record-meta__item">
-                    <span className="record-meta__label">Assigned to</span>
+                    {assignment !== 'Unassigned' && (
+                        <span className="record-meta__label">Assigned to</span>
+                    )}
                     {assignment === 'Unassigned'
                         ? <span className="record-meta__value record-meta__value--muted">Unassigned · needs unit</span>
                         : <span className="record-meta__value">{assignment}</span>}
