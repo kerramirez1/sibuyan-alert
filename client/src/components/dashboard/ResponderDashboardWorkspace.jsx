@@ -110,13 +110,13 @@ const getSeverityBadgeConfig = (severity) => {
         case 'critical':
             return { label: 'Critical', dot: 'bg-red-500' };
         case 'high':
-            return { label: 'High', dot: 'bg-orange-500' };
+            return { label: 'Severe', dot: 'bg-orange-500' };
         case 'medium':
         case 'moderate':
-            return { label: 'Medium', dot: 'bg-amber-500' };
+            return { label: 'Moderate', dot: 'bg-amber-500' };
         case 'low':
         default:
-            return { label: 'Low', dot: 'bg-emerald-500' };
+            return { label: 'Minor', dot: 'bg-emerald-500' };
     }
 };
 
@@ -148,7 +148,7 @@ const ResponderDashboardWorkspace = ({
         {
             title: 'Active emergencies',
             value: activeEmergencies,
-            subtext: 'Verified, transferred & responding',
+            subtext: `Verified, transferred & responding in ${municipalityName}`,
             link: '/admin/reports?view=active-incidents',
             actionLabel: 'View municipal incidents',
             priority: 'primary',
@@ -338,6 +338,11 @@ const ResponderDashboardWorkspace = ({
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                 Active road & environmental risks in {municipalityName}
                             </p>
+                            {activeRiskZones > 0 && (
+                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    Showing critical & high severity zones · {criticalZones.length} of {activeRiskZones} zones
+                                </p>
+                            )}
                         </div>
                         <Link
                             to="/dashboard?view=map"
