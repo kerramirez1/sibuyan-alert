@@ -119,6 +119,23 @@
     .text-action:hover { text-decoration: underline; }
 
     .filter-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    @media (max-width: 639px) {
+        /* Single scrollable row on phones: the responder's five tabs total
+           ~480px at full 13px sizing, wider than a ~308px content column, so
+           wrapping would push tabs to a second line. Shrinking text is not an
+           option (12px legibility floor) — the standard mobile chip pattern is
+           a non-wrapping row with hidden scrollbars instead. Desktop (sm and
+           up) keeps flex-wrap: wrap untouched, and every other .filter-tabs
+           usage keeps its current rendering where its tabs already fit. */
+        .filter-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .filter-tabs::-webkit-scrollbar { display: none; }
+        .filter-tabs .filter-tab { flex-shrink: 0; }
+    }
     .filter-tab { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; padding: 8px 12px; color: var(--text-secondary); font-size: 13px; font-weight: 500; }
     .filter-tab:hover { background: var(--surface-hover); color: var(--text-primary); }
     .filter-tab[aria-pressed='true'], .filter-tab[aria-selected='true'], .filter-tab[aria-current='page'] { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }

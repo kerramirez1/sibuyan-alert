@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
     HiOutlineRefresh,
     HiOutlineSearch,
@@ -218,6 +219,19 @@ const ResponderQueueControls = ({
 }) => {
     const activeResponderView = RESPONDER_VIEW_COPY[responderView] || RESPONDER_VIEW_COPY.all;
     const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
+    // Refs to each tab button, keyed by view value, so the active tab can be
+    // scrolled into view inside the horizontally scrollable tab row.
+    const tabButtonRefs = useRef({});
+
+    // When the active view changes, keep the active tab visible in the tab
+    // row on narrow screens. block: 'nearest' never moves the page
+    // vertically beyond what is needed, so this cannot steal page scroll.
+    useEffect(() => {
+        const activeButton = tabButtonRefs.current[responderView];
+        if (activeButton && typeof activeButton.scrollIntoView === 'function') {
+            activeButton.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }, [responderView]);
     // MVP honesty: the stats total uses a transfer-inclusive municipal scope,
     // while each queue view is a stricter server-filtered query. Show the
     // active view's own result count so the headline never contradicts the list
@@ -262,7 +276,7 @@ const ResponderQueueControls = ({
                 />
             </header>
 
-            <nav className="mb-5" aria-label="Responder incident views">
+            <nav className="mb-5" aria-label="Responder incident views" tabIndex={0}>
                 <div className="filter-tabs">
                     {RESPONDER_VIEWS.map((view) => {
                         const active = responderView === view.value;
@@ -270,6 +284,7 @@ const ResponderQueueControls = ({
                             <button
                                 key={view.value}
                                 type="button"
+                                ref={(node) => { tabButtonRefs.current[view.value] = node; }}
                                 aria-current={active ? 'page' : undefined}
                                 onClick={() => onResponderViewChange(view.value)}
                                 className="filter-tab"
