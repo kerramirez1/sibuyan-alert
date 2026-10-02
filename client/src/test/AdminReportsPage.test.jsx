@@ -544,12 +544,12 @@ describe('AdminReportsPage operational queue', () => {
         // row's filled "Inspect report". Both now share one treatment; see
         // 'gives the responder row the same primary weight whichever action applies'.
         expect(within(activeRow).getByRole('button', { name: 'Resolve incident' })).toHaveClass('bg-brand-700');
-        // CHANGED: this asserted `btn-outline` on the old wide labelled button.
-        // Inspect is now one compact icon-only control shared by both roles, so
-        // what matters is that it stays reachable by name with no text in it.
+        // CHANGED: the inspect control is now a text affordance ("View details"
+        // with an arrow) instead of an icon-only glyph, so the button carries
+        // visible text while staying reachable by its "Inspect report" name.
         const inspectButton = within(activeRow).getByRole('button', { name: 'Inspect report' });
         expect(inspectButton).toHaveAttribute('title', 'Inspect report');
-        expect(inspectButton.textContent).toBe('');
+        expect(inspectButton).toHaveTextContent('View details');
         expect(within(resolvedRow).getByRole('button', { name: 'Inspect report' })).toBeInTheDocument();
         expect(within(resolvedRow).queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument();
     });
@@ -605,6 +605,32 @@ describe('AdminReportsPage operational queue', () => {
         ));
         expect(screen.getByTestId('current-location')).not.toHaveTextContent('lat=');
         expect(screen.getByTestId('current-location')).not.toHaveTextContent('duration=');
+    });
+
+    test('renders the inspect control as "View details" text that opens the inspector', async () => {
+        mocks.user = {
+            _id: 'admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getReports.mockResolvedValue(apiResponse([
+            createReport({ _id: 'pending-1', status: 'pending', address: 'Poblacion coastal road' }),
+        ]));
+
+        renderPage();
+
+        const card = (await screen.findByText('Poblacion coastal road')).closest('article');
+        const inspectButton = within(card).getByRole('button', { name: 'Inspect report' });
+        // Text affordance, not an orphaned glyph: the visible label reads
+        // "View details" while the accessible name stays "Inspect report".
+        expect(inspectButton).toHaveTextContent('View details');
+        expect(inspectButton).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(inspectButton);
+
+        expect(screen.getByTestId('responder-incident-inspector')).toBeInTheDocument();
+        expect(inspectButton).toHaveAttribute('aria-expanded', 'true');
+        expect(inspectButton).toHaveAttribute('aria-controls', 'responder-incident-inspector');
     });
 
     test('resets the panel body scroll when switching incidents and restores focus after Escape', async () => {

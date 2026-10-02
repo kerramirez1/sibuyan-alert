@@ -238,7 +238,7 @@ const getResponderAssignment = (report) => {
  * transfer is violet) and the label is always rendered, so nothing here depends
  * on colour alone.
  */
-const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = false }) => {
+const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = false, className = '' }) => {
     const tones = {
         verify: 'border-blue-300 text-blue-800 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-950/40',
         reject: 'border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40',
@@ -252,7 +252,7 @@ const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = fal
             disabled={disabled}
             title={ariaLabel}
             aria-label={ariaLabel}
-            className={`inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-1.5 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50 sm:min-h-9 ${tones[tone]}`}
+            className={`inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3 py-1.5 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50 sm:min-h-9 ${tones[tone]} ${className}`}
         >
             <span>{label}</span>
         </button>
@@ -262,24 +262,14 @@ const SecondaryActionButton = ({ label, ariaLabel, tone, onClick, disabled = fal
 /**
  * Opening a record — the same control on the admin and responder rows.
  *
- * It was a wide labelled button before, and it did not look the same on the two
- * roles: filled on the admin row, outlined on the responder row. The same action
- * under the same label wearing two different weights is what kept reading as an
- * inconsistency, so it is now one component with one treatment.
+ * Text affordance, not an icon-only glyph: on mobile the arrow rendered
+ * orphaned on its own line with no border and no label, reading as decoration
+ * rather than the way into the dossier. `View details` plus the arrow is quiet
+ * but unmistakably a control; the underline on hover and the focus ring are
+ * what make it findable and operable for pointer and keyboard users alike.
  *
- * Icon-only, so the accessible name has to come from `aria-label` rather than the
- * content — and `title` gives it back to a pointer.
- *
- * No border and no resting background: on a card that is already a bordered
- * surface, a second outline around a single glyph reads as a button-inside-a-card
- * and competes with the state actions beside it. The hover wash and the focus
- * ring are what make it findable and operable — an icon-only control with neither
- * would be invisible to a keyboard user.
- *
- * Wider than it is tall on purpose: the arrow is the row's opening affordance, and
- * a square that matches the delete icon's footprint reads as one more utility
- * control rather than the way into the record.
- *
+ * The accessible name stays `Inspect report` via `aria-label` (the visible
+ * text is the friendlier "View details"); `title` gives it back to a pointer.
  * `aria-expanded` / `aria-controls` are unchanged: the inspector is still what
  * this opens, and the tests that drive it that way still hold.
  */
@@ -291,8 +281,9 @@ const InspectReportButton = ({ report, onInspect, isSelected = false }) => (
         aria-controls={isSelected ? 'responder-incident-inspector' : undefined}
         title="Inspect report"
         aria-label="Inspect report"
-        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-lg text-[var(--accent-text)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:h-9 sm:w-16"
+        className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-[13px] font-semibold text-[var(--accent-text)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
     >
+        <span>View details</span>
         <HiOutlineArrowRight className="h-4 w-4" aria-hidden="true" />
     </button>
 );
@@ -306,16 +297,14 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
         || capabilities.canDismiss;
 
     return (
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <InspectReportButton report={report} onInspect={onInspect} isSelected={isSelected} />
-
-            <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+        <div className="flex w-full flex-row flex-wrap items-center gap-1.5">
             {capabilities.canVerify && (
                     <SecondaryActionButton
                         label="Verify"
                         ariaLabel="Verify report"
                         tone="verify"
                         onClick={() => actions.openReview(report, 'verified')}
+                        className="flex-1 sm:flex-none"
                     />
                 )}
                 {capabilities.canReject && (
@@ -324,6 +313,7 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         ariaLabel="Reject report"
                         tone="reject"
                         onClick={() => actions.openReview(report, 'rejected')}
+                        className="flex-1 sm:flex-none"
                     />
                 )}
                 {capabilities.canAcknowledgeTransfer && (
@@ -376,7 +366,9 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
                         </button>
                     </>
                 )}
-            </div>
+
+                {/* View details sits last: the workflow actions lead. */}
+                <InspectReportButton report={report} onInspect={onInspect} isSelected={isSelected} />
         </div>
     );
 };
