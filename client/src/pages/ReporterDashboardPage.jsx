@@ -224,6 +224,19 @@ const ReporterDashboardPage = () => {
             const targetId = String(deleteId);
             setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((r) => String(r?._id ?? r?.id) !== targetId));
         });
+        // Per-reporter visibility (scoped to this user's room server-side),
+        // mirroring MyReportsPage: hidden reports leave the reporter's own
+        // views (Latest update / Recent reports / KPI counts) live. The
+        // report itself is untouched everywhere else.
+        const unsubHidden = subscribe('reportHidden', (data) => {
+            const hiddenId = data?.id ?? data?._id;
+            if (hiddenId === null || hiddenId === undefined || hiddenId === '') return;
+            const targetId = String(hiddenId);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((r) => String(r?._id ?? r?.id) !== targetId));
+        });
+        const unsubUnhidden = subscribe('reportUnhidden', () => {
+            fetchReports(true);
+        });
         const unsubTransferred = subscribe('reportTransferred', (data) => {
             updateReport(data?.id ?? data?._id, { status: data?.status || 'transferred' });
         });
@@ -238,10 +251,12 @@ const ReporterDashboardPage = () => {
             unsubVerify();
             unsubReject();
             unsubDelete();
+            unsubHidden();
+            unsubUnhidden();
             unsubTransferred();
             unsubUpdateRejected();
         };
-    }, [subscribe]);
+    }, [subscribe, fetchReports]);
 
     const summary = useMemo(() => {
         const safeReports = (Array.isArray(reports) ? reports : []).filter(Boolean);

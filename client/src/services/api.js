@@ -147,8 +147,12 @@ export const reportsAPI = {
         ...(signal ? { signal } : {}),
     }),
     getById: (id, config = {}) => api.get(`/reports/${id}`, config),
-    getMyReports: () => api.get('/reports/my-reports'),
+    getMyReports: (params) => api.get('/reports/my-reports', { params }),
     addUpdate: (id, data) => api.post(`/reports/${id}/updates`, data),
+    // Per-reporter visibility (NOT a delete): removes the report from the
+    // reporter's own views only; it stays in history, queues, and public feeds.
+    hideMyReport: (id) => api.post(`/reports/${id}/hide`),
+    unhideMyReport: (id) => api.post(`/reports/${id}/unhide`),
     getMapConfig: () => api.get('/reports/map-config'),
     getStats: (params) => api.get('/reports/stats', { params }),
     getMunicipalities: (config = {}) => api.get('/reports/municipalities', config),

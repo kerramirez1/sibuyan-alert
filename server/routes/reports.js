@@ -5,6 +5,8 @@ import {
     getReports,
     getReportById,
     getMyReports,
+    hideMyReport,
+    unhideMyReport,
     searchReports,
     addReportUpdate,
     getHighRiskZones,
@@ -68,6 +70,10 @@ router.post(
 // Single report: public can view verified/responding, private for pending/rejected
 router.get('/:id/evidence/:index/preview', optionalAuth, getReportEvidencePreview);
 router.post('/:id/updates', protect, requireVerifiedReporter, validateMongoIdParam, addReportUpdate);
+// Per-reporter visibility (NOT a delete): the report stays in history, queues,
+// and public feeds. Scoped to the owner's socket room only.
+router.post('/:id/hide', protect, requireVerifiedReporter, validateMongoIdParam, reportCreationLimiter, hideMyReport);
+router.post('/:id/unhide', protect, requireVerifiedReporter, validateMongoIdParam, reportCreationLimiter, unhideMyReport);
 // Lightweight view recorder for dossier expands (owner self-views excluded server-side)
 router.post('/:id/views', optionalAuth, viewLimiter, validateMongoIdParam, recordReportView);
 router.get('/:id', optionalAuth, getReportById);

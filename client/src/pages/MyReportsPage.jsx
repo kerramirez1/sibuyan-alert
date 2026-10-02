@@ -142,7 +142,7 @@ const getEvidenceCount = (report) => {
 };
 
 // Mobile filter bottom sheet / modal
-function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, counts, totalReports }) {
+function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, counts, totalReports, hiddenCount = 0 }) {
     const [draftStatus, setDraftStatus] = useState(filterStatus);
     const modalId = useId();
 
@@ -227,6 +227,24 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
                             </button>
                         );
                     })}
+                    {/* Visibility grouping (not a report status): shown only
+                        when the reporter actually has hidden reports. */}
+                    {hiddenCount > 0 && (
+                        <button
+                            key="hidden"
+                            type="button"
+                            onClick={() => setDraftStatus('hidden')}
+                            aria-pressed={draftStatus === 'hidden'}
+                            className={`flex w-full items-center justify-between rounded px-3 py-2.5 text-sm cursor-pointer ${
+                                draftStatus === 'hidden'
+                                    ? 'font-semibold text-gray-900 dark:text-white'
+                                    : 'font-normal text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                            }`}
+                        >
+                            <span>Hidden from my list</span>
+                            <span className="text-xs tabular-nums text-gray-400">{hiddenCount}</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* Footer Actions */}
@@ -246,6 +264,66 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
                             Apply filters
                         </Button>
                     </div>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    );
+}
+
+// Confirm modal for per-reporter hiding (NOT a delete). Mirrors the
+// MyReportsFilterModal portal pattern: bottom sheet on mobile, centered
+// dialog on sm+, Escape-to-close, dark-mode aware.
+function MyReportsHideConfirmModal({ isOpen, onClose, onConfirm, confirming }) {
+    const modalId = useId();
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
+    if (!isOpen || typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
+            <div
+                className="fixed inset-0 bg-black/40"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`${modalId}-title`}
+                aria-describedby={`${modalId}-description`}
+                className="relative z-10 w-full max-w-md rounded-md border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#0c1813]"
+            >
+                <h3 id={`${modalId}-title`} className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Remove from my list?
+                </h3>
+                <p id={`${modalId}-description`} className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                    This removes the report from your list only. It stays in the official accident history and remains visible to emergency responders and admins.
+                </p>
+                <div className="mt-5 flex items-center justify-end gap-2">
+                    <Button variant="ghost" size="md" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        className="rounded-md"
+                        onClick={onConfirm}
+                        disabled={confirming}
+                    >
+                        {confirming ? 'Removing…' : 'Remove from list'}
+                    </Button>
                 </div>
             </div>
         </div>,
@@ -302,6 +380,12 @@ function MyReportsPage() {
     const [fixingClientReportId, setFixingClientReportId] = useState(null);
     const [highlightedUpdates, setHighlightedUpdates] = useState({});
     const [submittingUpdateId, setSubmittingUpdateId] = useState(null);
+    // Per-reporter visibility (NOT a delete): reports the reporter removed
+    // from their own views. Fetched separately; the main list never includes
+    // them (the server excludes them from the default my-reports query).
+    const [hiddenReports, setHiddenReports] = useState([]);
+    const [hideConfirmReportId, setHideConfirmReportId] = useState(null);
+    const [hidingReportId, setHidingReportId] = useState(null);
     const [searchParams] = useSearchParams();
     const { subscribe } = useSocket();
     const { isOnline } = useConnectivity();
@@ -354,9 +438,22 @@ function MyReportsPage() {
         }
     }, [cacheKey]);
 
+    // Best-effort fetch of the reporter's hidden reports (powers the 'Hidden'
+    // filter entry and its count). A failure here never blocks the main list.
+    const fetchHiddenReports = useCallback(async () => {
+        try {
+            const response = await reportsAPI.getMyReports({ hidden: 'only' });
+            const raw = response?.data?.data;
+            setHiddenReports(Array.isArray(raw) ? raw.filter(Boolean) : []);
+        } catch {
+            // Keep whatever was there; hiding/unhiding still works.
+        }
+    }, []);
+
     useEffect(() => {
         fetchReports();
-    }, [fetchReports]);
+        fetchHiddenReports();
+    }, [fetchReports, fetchHiddenReports]);
 
     useEffect(() => {
         if (!requestedReportId) return;
@@ -456,6 +553,21 @@ function MyReportsPage() {
             const targetId = String(deleteId);
             setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((report) => String(report?._id) !== targetId));
         });
+        // Per-reporter visibility (scoped to this user's room server-side):
+        // 'reportHidden' drops the row from the personal list, 'reportUnhidden'
+        // silently refetches so a restored report reappears. Never touches the
+        // admin 'reportDeleted' flow above.
+        const unsubHidden = subscribe('reportHidden', (data) => {
+            const hiddenId = data?.id ?? data?._id;
+            if (hiddenId === null || hiddenId === undefined || hiddenId === '') return;
+            const targetId = String(hiddenId);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean).filter((report) => String(report?._id ?? report?.id) !== targetId));
+            fetchHiddenReports();
+        });
+        const unsubUnhidden = subscribe('reportUnhidden', () => {
+            fetchReports(true);
+            fetchHiddenReports();
+        });
         const unsubReporterUpdate = subscribe('reportUpdatedByReporter', (data) => {
             const updateId = data?.id ?? data?._id;
             if (updateId === null || updateId === undefined || updateId === '' || !Array.isArray(data?.report?.reportUpdates)) return;
@@ -473,12 +585,53 @@ function MyReportsPage() {
             unsubReject();
             unsubTransfer();
             unsubDelete();
+            unsubHidden();
+            unsubUnhidden();
             unsubReporterUpdate();
         };
-    }, [subscribe]);
+    }, [subscribe, fetchReports, fetchHiddenReports]);
 
-    const handleSubmitUpdate = async (reportId, update) => {
-        setSubmittingUpdateId(reportId);
+    // Per-reporter visibility (NOT a delete): removes the report from the
+    // reporter's own views only. The record stays in accident history,
+    // admin queues, and public feeds.
+    const handleHideReport = async (reportId) => {
+        if (!reportId || hidingReportId) return;
+        const targetId = String(reportId);
+        setHidingReportId(targetId);
+        try {
+            await reportsAPI.hideMyReport(targetId);
+            toast.success('Removed from your list');
+            setHideConfirmReportId(null);
+            if (String(selectedReportId) === targetId) setSelectedReportId(null);
+            setReports((current) => (Array.isArray(current) ? current : []).filter(Boolean)
+                .filter((report) => String(report?._id ?? report?.id) !== targetId));
+            fetchHiddenReports();
+        } catch {
+            toast.error('Could not remove the report. Check your connection and try again.');
+        } finally {
+            setHidingReportId(null);
+        }
+    };
+
+    const handleUnhideReport = async (reportId) => {
+        if (!reportId || hidingReportId) return;
+        const targetId = String(reportId);
+        setHidingReportId(targetId);
+        try {
+            await reportsAPI.unhideMyReport(targetId);
+            toast.success('Restored to your list');
+            setHiddenReports((current) => (Array.isArray(current) ? current : []).filter(Boolean)
+                .filter((report) => String(report?._id ?? report?.id) !== targetId));
+            if (String(selectedReportId) === targetId) setSelectedReportId(null);
+            fetchReports(true);
+        } catch {
+            toast.error('Could not restore the report. Check your connection and try again.');
+        } finally {
+            setHidingReportId(null);
+        }
+    };
+
+    const handleSubmitUpdate = async (reportId, update) => {        setSubmittingUpdateId(reportId);
         try {
             const response = await reportsAPI.addUpdate(reportId, update);
             const responseData = response.data?.data || {};
@@ -534,18 +687,21 @@ function MyReportsPage() {
         };
     }, [counts, reports]);
 
-    const filteredReports = useMemo(() => (
-        (Array.isArray(reports) ? reports : [])
+    // 'hidden' is a visibility grouping, not a report status: the server
+    // already returns only hidden reports for it, so it passes through.
+    const filteredReports = useMemo(() => {
+        const listSource = filterStatus === 'hidden' ? hiddenReports : reports;
+        return (Array.isArray(listSource) ? listSource : [])
             .filter(Boolean)
             .filter((report) => {
-                if (filterStatus === 'all') return true;
+                if (filterStatus === 'all' || filterStatus === 'hidden') return true;
                 // 'active' is a dashboard-level grouping (verified + transferred + responding),
                 // not a report status — it only arrives via ?status= deep links.
                 if (filterStatus === 'active') return ['verified', 'transferred', 'responding'].includes(report?.status);
                 return report?.status === filterStatus;
             })
-            .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt))
-    ), [filterStatus, reports]);
+            .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt));
+    }, [filterStatus, reports, hiddenReports]);
 
     // Each card drives the ?status= deep-link filter via filterStatus. 'active'
     // is the dashboard-level grouping (verified + transferred + responding);
@@ -563,7 +719,9 @@ function MyReportsPage() {
         ? null
         : filterStatus === 'active'
             ? 'Active'
-            : STATUS_CONFIG[filterStatus]?.label || filterStatus;
+            : filterStatus === 'hidden'
+                ? 'Hidden'
+                : STATUS_CONFIG[filterStatus]?.label || filterStatus;
 
     return (
         <div className="page-shell max-w-5xl space-y-6">
@@ -652,12 +810,16 @@ function MyReportsPage() {
                                 title={
                                     filterStatus === 'all'
                                         ? 'Submitted reports'
-                                        : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`
+                                        : filterStatus === 'hidden'
+                                            ? `Hidden reports · ${filteredReports.length}`
+                                            : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`
                                 }
                             >
                                 {filterStatus === 'all'
                                     ? 'Submitted reports'
-                                    : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`}
+                                    : filterStatus === 'hidden'
+                                        ? `Hidden reports · ${filteredReports.length}`
+                                        : `Submitted reports · ${filteredReports.length} of ${Array.isArray(reports) ? reports.length : 0}`}
                             </h2>
 
                             {(Array.isArray(reports) ? reports.length : 0) > 0 && (
@@ -954,6 +1116,46 @@ function MyReportsPage() {
                                                             />
                                                         </div>
                                                     </div>
+
+                                                    {/* 6. Personal visibility (NOT a delete): the report stays in
+                                                        the official accident history and remains visible to
+                                                        emergency responders and admins. */}
+                                                    {filterStatus === 'hidden' ? (
+                                                        <div>
+                                                            <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                                Hidden from your list
+                                                            </h4>
+                                                            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                                This report is hidden from your personal views only. It remains in the official accident history.
+                                                            </p>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="md"
+                                                                className="mt-2 rounded-md"
+                                                                onClick={() => handleUnhideReport(reportId)}
+                                                                disabled={hidingReportId === String(reportId)}
+                                                            >
+                                                                Restore to my list
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                                Remove from my list
+                                                            </h4>
+                                                            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                                Hide this report from your personal views. It stays in the official accident history and remains visible to emergency responders and admins.
+                                                            </p>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="md"
+                                                                className="mt-2 rounded-md"
+                                                                onClick={() => setHideConfirmReportId(reportId)}
+                                                            >
+                                                                Remove from my list
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </article>
@@ -973,8 +1175,15 @@ function MyReportsPage() {
                 onApplyFilter={(status) => setFilterStatus(status)}
                 counts={counts}
                 totalReports={Array.isArray(reports) ? reports.length : 0}
+                hiddenCount={hiddenReports.length}
             />
 
+            <MyReportsHideConfirmModal
+                isOpen={Boolean(hideConfirmReportId)}
+                onClose={() => setHideConfirmReportId(null)}
+                onConfirm={() => handleHideReport(hideConfirmReportId)}
+                confirming={Boolean(hidingReportId)}
+            />
             <SituationUpdateDialog
                 isOpen={Boolean(updateDialogReportId)}
                 report={(Array.isArray(reports) ? reports : []).filter(Boolean).find((report) => String(report?._id ?? report?.id) === String(updateDialogReportId)) || null}

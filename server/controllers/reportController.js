@@ -719,6 +719,13 @@ export const getReports = async (req, res) => {
             query.municipality = municipality;
         }
 
+        // Per-reporter visibility: a reporter never sees their own hidden
+        // reports in public feeds. Every other role — and anonymous viewers —
+        // still does: the record stays in history, queues, maps, and stats.
+        if (req.user?.role === 'reporter' && req.user?._id) {
+            query.$nor = [{ reporter: req.user._id, hiddenFromReporterAt: { $ne: null } }];
+        }
+
         const policy = resolveQueryPolicy();
 
         // The explicit projection is both the payload-size control and the
@@ -874,8 +881,17 @@ export const searchReports = async (req, res) => {
 
         const policy = resolveQueryPolicy();
 
+        // Per-reporter visibility: a reporter's own hidden reports stay out of
+        // their search results; every other viewer still sees them.
+        const andClauses = [{ $or: visibilityOr }, textClause];
+        if (user?.role === 'reporter' && user?._id) {
+            andClauses.push({
+                $nor: [{ reporter: user._id, hiddenFromReporterAt: { $ne: null } }],
+            });
+        }
+
         const [docs, zoneDocs] = await Promise.all([
-            Report.find({ $and: [{ $or: visibilityOr }, textClause] })
+            Report.find({ $and: andClauses })
                 .select([
                     '_id',
                     'reporter',
@@ -1222,6 +1238,9 @@ export const getReportEvidencePreview = async (req, res) => {
  * @desc    Get my submitted reports
  * @route   GET /api/reports/my-reports
  * @access  Private
+ *
+ * Per-reporter visibility: by default the caller's own hidden reports are
+ * excluded. ?hidden=only returns just the hidden ones (same shape).
  */
 export const getMyReports = async (req, res) => {
     try {
@@ -1230,8 +1249,16 @@ export const getMyReports = async (req, res) => {
         const safeLimit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
         const safePage = Math.max(parseInt(req.query.page, 10) || 1, 1);
 
+        // { hiddenFromReporterAt: null } matches documents where the field is
+        // null OR missing, so no migration is needed for older reports.
+        const hiddenOnly = req.query.hidden === 'only';
+        const visibilityClause = hiddenOnly
+            ? { hiddenFromReporterAt: { $ne: null } }
+            : { hiddenFromReporterAt: null };
+        const ownerQuery = { reporter: req.user._id, ...visibilityClause };
+
         const [reports, total] = await Promise.all([
-            Report.find({ reporter: req.user._id })
+            Report.find(ownerQuery)
                 .populate('municipality', 'name code')
                 .populate('respondedBy', 'name agency assignedMunicipality')
                 .populate('resolvedBy', 'name agency assignedMunicipality')
@@ -1240,7 +1267,7 @@ export const getMyReports = async (req, res) => {
                 .limit(safeLimit)
                 .skip((safePage - 1) * safeLimit)
                 .lean(),
-            Report.countDocuments({ reporter: req.user._id }),
+            Report.countDocuments(ownerQuery),
         ]);
 
         const serialized = reports.map((report) => {
@@ -1275,6 +1302,67 @@ export const getMyReports = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Remove one of the reporter's own reports from their personal views
+ * @route   POST /api/reports/:id/hide
+ * @access  Private (verified reporter, owner only)
+ *
+ * Per-reporter visibility flag, NOT a delete: the report stays fully visible
+ * in accident history, admin queues, the public map/stats, and analytics.
+ * Any status may be hidden; hiding changes nothing operationally. Idempotent.
+ */
+export const hideMyReport = async (req, res) => {
+    try {
+        const report = await Report.findById(req.params.id);
+        // 404 (not 403) so one account cannot probe another account's report ids.
+        if (!report || String(report.reporter) !== String(req.user._id)) {
+            return res.status(404).json({ success: false, message: 'Report not found' });
+        }
+
+        report.hiddenFromReporterAt = new Date();
+        await report.save();
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user_${req.user._id}`).emit('reportHidden', { id: String(report._id) });
+        }
+
+        res.json({ success: true, message: 'Report removed from your list' });
+    } catch (error) {
+        console.error('Hide report error:', error);
+        res.status(500).json({ success: false, message: 'Failed to hide report' });
+    }
+};
+
+/**
+ * @desc    Restore one of the reporter's own hidden reports to their personal views
+ * @route   POST /api/reports/:id/unhide
+ * @access  Private (verified reporter, owner only)
+ *
+ * Idempotent: succeeds even when the report was not hidden.
+ */
+export const unhideMyReport = async (req, res) => {
+    try {
+        const report = await Report.findById(req.params.id);
+        // 404 (not 403) so one account cannot probe another account's report ids.
+        if (!report || String(report.reporter) !== String(req.user._id)) {
+            return res.status(404).json({ success: false, message: 'Report not found' });
+        }
+
+        report.hiddenFromReporterAt = null;
+        await report.save();
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user_${req.user._id}`).emit('reportUnhidden', { id: String(report._id) });
+        }
+
+        res.json({ success: true, message: 'Report restored to your list' });
+    } catch (error) {
+        console.error('Unhide report error:', error);
+        res.status(500).json({ success: false, message: 'Failed to restore report' });
+    }
+};
 
 const REPORT_UPDATE_NOTIFICATION_TITLES = {
     general: 'Situation update received',
@@ -1877,6 +1965,8 @@ export default {
     getReports,
     getReportById,
     getMyReports,
+    hideMyReport,
+    unhideMyReport,
     addReportUpdate,
     getHighRiskZones,
     getMapConfig,

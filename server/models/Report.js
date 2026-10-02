@@ -277,6 +277,16 @@ const reportSchema = new mongoose.Schema(
             default: null,
         },
 
+        // Per-reporter visibility: when set, the owning reporter has removed
+        // this report from their personal views ("My reports", reporter
+        // dashboard). This is NOT a delete — the report stays fully visible
+        // in accident history, admin queues, the public map/stats, and
+        // analytics. Null (or missing) means visible to the reporter.
+        hiddenFromReporterAt: {
+            type: Date,
+            default: null,
+        },
+
         // Multi-Responder Tracking (new non-exclusive model)
         responders: [{
             user: {
@@ -400,6 +410,7 @@ reportSchema.index({ priority: 1, createdAt: -1 });
 reportSchema.index({ 'responders.user': 1 }); // For multi-responder queries
 // Drives the escalation sweeper: due, unacknowledged, still-verified incidents.
 reportSchema.index({ status: 1, 'dispatch.nextEscalationAt': 1 });
+reportSchema.index({ hiddenFromReporterAt: 1 });
 // Sparse so the many reports without a client key do not collide on null.
 reportSchema.index({ clientReportId: 1 }, { unique: true, sparse: true });
 
