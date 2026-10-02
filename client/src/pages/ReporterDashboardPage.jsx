@@ -276,16 +276,6 @@ const ReporterDashboardPage = () => {
         };
     }, [reports]);
 
-    const headerSummary = useMemo(() => {
-        if (summary.total === 0) {
-            return 'Track your submitted reports and follow their response progress.';
-        }
-        const parts = [`${summary.total} ${summary.total === 1 ? 'report' : 'reports'}`];
-        if (summary.pending > 0) parts.push(`${summary.pending} awaiting review`);
-        if (summary.responding > 0) parts.push(`${summary.responding} in response`);
-        return parts.join(' · ');
-    }, [summary]);
-
     // Shared summary vocabulary with My Reports: identical labels and helpers.
     // Each card deep-links to its filtered My Reports view.
     // Active matches MyReports: verified + transferred + responding.
@@ -341,7 +331,7 @@ const ReporterDashboardPage = () => {
 
     return (
         <div className="page-shell max-w-5xl space-y-6">
-            <PageHeader eyebrow="Reporter workspace" title="Dashboard" description={loading ? 'Loading your report overview.' : headerSummary} />
+            <PageHeader eyebrow="Reporter workspace" title="Dashboard" />
             {verification && !verification.approved && (
                 <section className="surface-panel p-4 sm:p-5" aria-label="Account verification">
                     <ReporterVerificationStatus user={user}>

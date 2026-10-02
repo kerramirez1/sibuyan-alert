@@ -81,8 +81,8 @@ describe('ReporterDashboardPage', () => {
         );
 
         expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
-        // Live subline replaces the static tagline
-        expect(screen.getByText('3 reports · 1 awaiting review · 1 in response')).toBeInTheDocument();
+        // No summary description line under the title (removed by design)
+        expect(screen.queryByText('3 reports · 1 awaiting review · 1 in response')).not.toBeInTheDocument();
 
         // Stat strip metrics (canonical vocabulary, links into the full list)
         expect(screen.getByText('Total reports')).toBeInTheDocument();
