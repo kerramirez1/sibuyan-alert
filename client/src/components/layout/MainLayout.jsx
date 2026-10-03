@@ -510,6 +510,28 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         responder can never mistake stale data for live data. */}
                     <OfflineBanner />
 
+                    {/* Offline grace mode: the session could not be revalidated,
+                        so this is a degraded identity, not a live one. The
+                        badge makes that unmistakable on every screen. */}
+                    {user?.offline === true && (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className="flex items-start gap-3 border-b border-sky-300 bg-sky-50 px-4 py-2.5 text-sky-900 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100"
+                        >
+                            <span
+                                className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500"
+                                aria-hidden="true"
+                            />
+                            <p className="text-xs leading-relaxed sm:text-sm">
+                                <span className="font-semibold">Offline mode.</span>{' '}
+                                Signed in as {user?.name || 'reporter'} from this device — the
+                                session couldn&apos;t be verified right now. Reports are saved
+                                on this device and sent automatically when you reconnect.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Page Content Scrollable Area. The keyed div re-runs the CSS
                         enter animation on navigation. Unlike the previous
                         AnimatePresence "wait" mode there is no exit delay, so the

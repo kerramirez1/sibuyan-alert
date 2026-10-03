@@ -18,6 +18,11 @@ import {
     clearOfflineCaches,
     onServiceWorkerControllerChange,
 } from '../services/serviceWorker';
+import {
+    clearOfflineSnapshot,
+    readOfflineSnapshot,
+    writeOfflineSnapshot,
+} from '../utils/offlineUserSnapshot';
 
 const AuthContext = createContext(null);
 
@@ -91,18 +96,87 @@ export const AuthProvider = ({ children }) => {
             }
             try {
                 const response = await api.get('/auth/me', { _skipAuthRefresh: true });
-                setUser(response.data.data);
+                const me = response.data.data;
+                setUser(me);
                 writeAuthHint(true);
+                writeOfflineSnapshot(me);
                 lastSessionRefreshAtRef.current = Date.now();
-            } catch {
-                setUser(null);
-                writeAuthHint(false);
+            } catch (error) {
+                const status = error?.response?.status;
+                if (status === 401 || status === 403) {
+                    // The server says the session is dead: today's behavior —
+                    // clear everything, including the offline snapshot.
+                    setUser(null);
+                    writeAuthHint(false);
+                    clearOfflineSnapshot();
+                } else {
+                    // No response at all: the device is offline, not logged
+                    // out. A fresh reporter snapshot restores a degraded,
+                    // explicitly-marked offline identity so the report form
+                    // and its queue stay reachable on a cold start; without
+                    // one, today's behavior stands.
+                    const snapshot = readOfflineSnapshot();
+                    if (snapshot) {
+                        setUser({ ...snapshot, offline: true });
+                        writeAuthHint(true);
+                    } else {
+                        setUser(null);
+                        writeAuthHint(false);
+                    }
+                }
             }
             setLoading(false);
         };
 
         initAuth();
     }, []);
+
+    // Re-validates the session against the server. Used when connectivity
+    // returns while in offline grace mode, and by the proactive refresh loop
+    // for offline users. The request goes through the normal axios
+    // interceptor, so an expired access token is refreshed-then-retried
+    // first; only a server 401/403 ends the grace period (via the
+    // auth:session-expired path). A failed re-check keeps offline mode — the
+    // snapshot survives for the next attempt.
+    const revalidateSession = useCallback(async () => {
+        try {
+            const response = await api.get('/auth/me');
+            const me = response.data?.data;
+            if (!me) return false;
+            setUser(me);
+            writeAuthHint(true);
+            writeOfflineSnapshot(me);
+            lastSessionRefreshAtRef.current = Date.now();
+            return true;
+        } catch (error) {
+            const status = error?.response?.status;
+            if (status === 401 || status === 403) {
+                // The interceptor dispatches auth:session-expired when the
+                // refresh attempt fails; clear locally as well in case that
+                // path was skipped.
+                setUser(null);
+                writeAuthHint(false);
+                clearOfflineSnapshot();
+            }
+            return false;
+        }
+    }, []);
+
+    // When the device regains connectivity while in offline grace mode,
+    // re-validate the session before anything tries to use it. A live (or
+    // refreshable) session restores the full user and the queued reports
+    // flush through the normal sync hook; a 401 ends at the login redirect.
+    useEffect(() => {
+        if (!user?.offline) return undefined;
+        if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+            return undefined;
+        }
+        const handleOnline = () => {
+            revalidateSession();
+        };
+        window.addEventListener('online', handleOnline);
+        return () => window.removeEventListener('online', handleOnline);
+    }, [user?.offline, revalidateSession]);
 
     // Proactive background session renewal (every 10 minutes) and on tab visibility restoration.
     // Keeps the 15-minute HttpOnly access token fresh even during passive dashboard monitoring.
@@ -113,7 +187,14 @@ export const AuthProvider = ({ children }) => {
 
         const performProactiveRefresh = async () => {
             try {
-                await refreshAuthSession();
+                if (user?.offline) {
+                    // No live session to renew — re-validate instead. A
+                    // restored session flips the user back to live mode and
+                    // the report queue flushes; a failure keeps offline mode.
+                    await revalidateSession();
+                } else {
+                    await refreshAuthSession();
+                }
                 lastSessionRefreshAtRef.current = Date.now();
             } catch {
                 // Network or session issues will be handled on demand by the axios interceptor
@@ -142,11 +223,13 @@ export const AuthProvider = ({ children }) => {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
             }
         };
-    }, [user?.id]);
+    }, [user?.id, user?.offline, revalidateSession]);
 
-    // Keep reporter verification status fresh while account is pending/rejected
+    // Keep reporter verification status fresh while account is pending/rejected.
+    // Skipped for offline-mode users: there is no session to poll with, and
+    // the snapshot's verification status is what the route guards read.
     useEffect(() => {
-        if (!user || user.role !== 'reporter') {
+        if (!user || user.role !== 'reporter' || user.offline) {
             prevVerificationStatusRef.current = null;
             return;
         }
@@ -199,6 +282,7 @@ export const AuthProvider = ({ children }) => {
             }
             setUser(user);
             writeAuthHint(true);
+            writeOfflineSnapshot(user);
 
             const greeting = `Welcome back, ${user.name}!`;
             toast.success(greeting);
@@ -232,6 +316,7 @@ export const AuthProvider = ({ children }) => {
             }
             setUser(user);
             writeAuthHint(true);
+            writeOfflineSnapshot(user);
 
             navigate('/registration-submitted');
 
@@ -260,6 +345,7 @@ export const AuthProvider = ({ children }) => {
         setCacheScope(null);
         setUser(null);
         writeAuthHint(false);
+        clearOfflineSnapshot();
         toast.success('Logged out successfully');
         navigate('/');
     }, [navigate]);
@@ -272,6 +358,7 @@ export const AuthProvider = ({ children }) => {
             setCacheScope(null);
             setUser(null);
             writeAuthHint(false);
+            clearOfflineSnapshot();
         };
         if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
             return () => { };
@@ -390,7 +477,7 @@ export const AuthProvider = ({ children }) => {
     // permission prompt. Permission prompts are reserved for explicit user actions.
     useEffect(() => {
         let cancelled = false;
-        if (!user) {
+        if (!user || user.offline) {
             setPushState({ supported: true, permission: 'default', subscribed: false, loading: false });
             return () => { cancelled = true; };
         }
@@ -536,6 +623,9 @@ export const AuthProvider = ({ children }) => {
         // Cold-boot hint: was there a session last time? Lets the shell paint
         // public routes instantly instead of blocking on /auth/me.
         hadSessionHint,
+        // Re-checks the session against the server. The offline-mode notice
+        // uses it for its manual "try again" action.
+        revalidateSession,
         login,
         register,
         logout,

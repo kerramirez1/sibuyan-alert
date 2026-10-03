@@ -21,6 +21,7 @@ const mockAuthValue = {
     user: null,
     isAuthenticated: false,
     loading: false,
+    revalidateSession: vi.fn(),
 };
 
 vi.mock('../context/AuthContext', () => ({
@@ -125,5 +126,74 @@ describe('ProtectedRoute', () => {
 
         expect(screen.getByRole('status', { name: 'Loading secure page...' })).toBeInTheDocument();
         expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    });
+
+    describe('offline grace mode', () => {
+        const offlineReporter = (overrides = {}) => ({
+            id: 'reporter-1',
+            role: 'reporter',
+            name: 'Juan Dela Cruz',
+            reporterVerificationStatus: 'approved',
+            offline: true,
+            ...overrides,
+        });
+
+        const renderOfflineAt = (path, props = {}) => {
+            mockAuthValue.user = offlineReporter(props.userOverrides);
+            mockAuthValue.isAuthenticated = true;
+            mockAuthValue.loading = false;
+            return render(
+                <MemoryRouter initialEntries={[path]}>
+                    <Routes>
+                        <Route path="/report" element={<ProtectedRoute allowedRoles={['reporter']} requireVerified><div>Report Form</div></ProtectedRoute>} />
+                        <Route path="/reporter" element={<ProtectedRoute allowedRoles={['reporter']}><div>Reporter Dashboard</div></ProtectedRoute>} />
+                        <Route path="/my-reports" element={<ProtectedRoute allowedRoles={['reporter']}><div>My Reports</div></ProtectedRoute>} />
+                        <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['municipal_admin', 'responder']}><div>Admin Queue</div></ProtectedRoute>} />
+                        <Route path="/login" element={<div>Login Page</div>} />
+                    </Routes>
+                </MemoryRouter>
+            );
+        };
+
+        test('allows an offline reporter on /report', () => {
+            renderOfflineAt('/report');
+
+            expect(screen.getByText('Report Form')).toBeInTheDocument();
+            expect(screen.queryByText('Offline mode')).not.toBeInTheDocument();
+        });
+
+        test('allows an offline reporter on /reporter', () => {
+            renderOfflineAt('/reporter');
+
+            expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
+            expect(screen.queryByText('Offline mode')).not.toBeInTheDocument();
+        });
+
+        test('blocks an offline reporter from /my-reports with the offline notice', () => {
+            renderOfflineAt('/my-reports');
+
+            expect(screen.getByText('Offline mode')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Try reconnecting' })).toBeInTheDocument();
+            expect(screen.queryByText('My Reports')).not.toBeInTheDocument();
+            expect(screen.queryByText('Login Page')).not.toBeInTheDocument();
+        });
+
+        test('never grants admin operational routes in offline mode', () => {
+            renderOfflineAt('/admin/reports');
+
+            expect(screen.getByText('Offline mode')).toBeInTheDocument();
+            expect(screen.queryByText('Admin Queue')).not.toBeInTheDocument();
+            // The role mismatch must not bounce into a live-looking page.
+            expect(screen.queryByText('Reporter Dashboard')).not.toBeInTheDocument();
+        });
+
+        test('bounces an unverified offline reporter from /report to their dashboard', () => {
+            renderOfflineAt('/report', {
+                userOverrides: { reporterVerificationStatus: 'pending' },
+            });
+
+            expect(screen.getByText('Reporter Dashboard')).toBeInTheDocument();
+            expect(screen.queryByText('Report Form')).not.toBeInTheDocument();
+        });
     });
 });

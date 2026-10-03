@@ -413,6 +413,12 @@ const ReportPage = () => {
     // Stable identity on purpose: this handler is a `MapView` prop, and the map
     // is memoized so typing or an upload progress update does not rebuild it.
     const resolveLocationLabels = useCallback(async (location, successPrefix = 'Pinned in') => {
+        // Offline, the geocode can never succeed — and attempting it would
+        // first wipe any address the reporter typed, then fail. The pin or
+        // GPS coordinates alone are enough: the queue accepts coordinate-only
+        // reports and the address field keeps whatever was typed.
+        if (isOffline) return;
+
         reverseGeocodeAbortRef.current?.abort();
         const requestId = reverseGeocodeRequestRef.current + 1;
         reverseGeocodeRequestRef.current = requestId;
@@ -462,7 +468,7 @@ const ReportPage = () => {
                 reverseGeocodeAbortRef.current = null;
             }
         }
-    }, []);
+    }, [isOffline]);
 
     const watchIdRef = useRef(null);
     const locationTimeoutRef = useRef(null);

@@ -106,3 +106,61 @@ describe('LoginPage system-accurate content', () => {
         });
     });
 });
+
+describe('LoginPage offline state', () => {
+    const setOnline = (value) => {
+        Object.defineProperty(window.navigator, 'onLine', {
+            value,
+            configurable: true,
+        });
+    };
+
+    beforeEach(() => {
+        window.localStorage.clear();
+        setOnline(true);
+    });
+
+    test('shows the explanatory offline state instead of the form when offline with no usable snapshot', () => {
+        setOnline(false);
+
+        renderLogin();
+
+        expect(screen.getByText('You appear to be offline.')).toBeInTheDocument();
+        expect(screen.getByText(/Log in once with internet, then you can file reports offline/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('login-form')).not.toBeInTheDocument();
+        // The public map stays reachable.
+        expect(screen.getByRole('link', { name: /View public incident map/i })).toBeInTheDocument();
+    });
+
+    test('keeps the login form when offline but a usable snapshot exists', () => {
+        window.localStorage.setItem('sibuyan-alert:offline-user', JSON.stringify({
+            id: 'reporter-1',
+            role: 'reporter',
+            name: 'Juan Dela Cruz',
+            reporterVerificationStatus: 'approved',
+            savedAt: Date.now(),
+        }));
+        setOnline(false);
+
+        renderLogin();
+
+        expect(screen.getByTestId('login-form')).toBeInTheDocument();
+        expect(screen.queryByText('You appear to be offline.')).not.toBeInTheDocument();
+    });
+
+    test('treats a stale snapshot as no snapshot', () => {
+        window.localStorage.setItem('sibuyan-alert:offline-user', JSON.stringify({
+            id: 'reporter-1',
+            role: 'reporter',
+            name: 'Juan Dela Cruz',
+            reporterVerificationStatus: 'approved',
+            savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+        }));
+        setOnline(false);
+
+        renderLogin();
+
+        expect(screen.getByText('You appear to be offline.')).toBeInTheDocument();
+        expect(screen.queryByTestId('login-form')).not.toBeInTheDocument();
+    });
+});

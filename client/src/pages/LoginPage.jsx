@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from '../router';
 import { useAuth } from '../context/AuthContext';
+import { useConnectivity } from '../hooks/useConnectivity';
+import { readOfflineSnapshot } from '../utils/offlineUserSnapshot';
 import PageHeader from '../components/ui/PageHeader';
 import {
     HiOutlineMail,
@@ -9,11 +11,17 @@ import {
     HiOutlineEye,
     HiOutlineEyeOff,
     HiOutlineCheckCircle,
+    HiOutlineWifi,
 } from 'react-icons/hi';
 
 const LoginPage = () => {
     const { login } = useAuth();
+    const { isOnline } = useConnectivity();
     const location = useLocation();
+    // A usable snapshot means a previous online sign-in this device still
+    // remembers. Without one, an offline login form could never succeed, so
+    // the page explains that instead of presenting dead inputs.
+    const [hasOfflineSnapshot] = useState(() => Boolean(readOfflineSnapshot()));
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -84,6 +92,66 @@ const LoginPage = () => {
             setErrors({ ...errors, [e.target.name]: '', form: '' });
         }
     };
+
+    // No connection and no remembered sign-in: the form could never succeed,
+    // so explain the offline path instead of presenting dead inputs. When the
+    // connection returns, isOnline flips and the form renders.
+    if (!isOnline && !hasOfflineSnapshot) {
+        return (
+            <div className="w-full">
+                <div className="form-surface form-surface--compact w-full">
+                    <div className="mb-6 border-b border-[var(--border)] pb-5 lg:hidden">
+                        <div className="flex items-center gap-2.5">
+                            <img src="/icons/Alert.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
+                            <div>
+                                <p className="font-display text-base font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
+                                    Sibuyan <span className="text-red-600 dark:text-red-400">Alert</span>
+                                </p>
+                                <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                    Accident Alert &amp; Mapping System
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <PageHeader
+                        className="mb-4"
+                        eyebrow="No connection"
+                        title="You're offline"
+                        description="Signing in needs the internet the first time."
+                    />
+
+                    <div
+                        role="status"
+                        className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+                    >
+                        <HiOutlineWifi className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                        <div className="text-sm leading-relaxed">
+                            <p className="font-semibold">You appear to be offline.</p>
+                            <p className="mt-1">
+                                Log in once with internet, then you can file reports offline.
+                                This device remembers your sign-in for 7 days — reports you
+                                file without a connection are saved here and sent automatically
+                                when you&apos;re back online.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 border-t border-[var(--border)] pt-4">
+                        <Link
+                            to="/dashboard?view=map"
+                            className="text-action"
+                        >
+                            View public incident map
+                        </Link>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            Accessible without an account.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full">
