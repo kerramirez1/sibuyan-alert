@@ -86,7 +86,7 @@ const LandingHero = ({
                     {/* ── Column 1: Copy and Actions ── */}
                     <div className="contents lg:flex lg:min-w-0 lg:flex-[1.1] lg:flex-col lg:items-start">
                         <div data-testid="landing-hero-copy" className="order-1 flex min-w-0 flex-1 self-stretch flex-col justify-between overflow-visible text-left lg:order-none lg:w-full lg:flex-none">
-                            <p data-testid="landing-hero-eyebrow" className="mb-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-[var(--accent-text)] sm:text-[11px]">
+                            <p data-testid="landing-hero-eyebrow" className="mb-2 whitespace-nowrap text-[8px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-[var(--accent-text)] min-[360px]:text-[9px] min-[400px]:text-[10px] sm:text-[11px]">
                                 Island-wide incident coordination
                             </p>
                             <p className="mb-4 flex items-center gap-0.5 whitespace-nowrap text-[7.5px] tracking-tight leading-relaxed text-[var(--text-secondary)] min-[320px]:text-[8px] min-[340px]:gap-1 min-[340px]:text-[9px] min-[380px]:text-[10px] min-[380px]:tracking-normal sm:text-[11px]">

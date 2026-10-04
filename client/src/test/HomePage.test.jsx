@@ -149,8 +149,15 @@ describe('HomePage operational landing page', () => {
         expect(staticMapPreview).toHaveAttribute('width', '640');
         expect(staticMapPreview).toHaveAttribute('height', '530');
         expect(eyebrow).toHaveTextContent('Island-wide incident coordination');
-        expect(eyebrow).toHaveClass('text-[10px]', 'sm:text-[11px]');
-        expect(eyebrow).not.toHaveClass('whitespace-nowrap');
+        // One line at every mobile width: nowrap plus a stepped size ramp that
+        // mirrors the location line below it (8px → 9px → 10px → 11px at sm+).
+        expect(eyebrow).toHaveClass(
+            'whitespace-nowrap',
+            'text-[8px]',
+            'min-[360px]:text-[9px]',
+            'min-[400px]:text-[10px]',
+            'sm:text-[11px]',
+        );
         expect(eyebrow).not.toHaveClass('hidden');
         expect(copy).toContainElement(eyebrow);
         expect(description).toHaveClass('order-3', 'basis-full', 'lg:basis-auto');
