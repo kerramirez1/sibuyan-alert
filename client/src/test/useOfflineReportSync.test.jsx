@@ -34,6 +34,20 @@ vi.mock('../context/AuthContext', () => ({
     useAuth: () => authMock,
 }));
 
+// The hook's /api/health probe has no server to answer in jsdom and would
+// flip the suite offline mid-test; the probe itself is covered in
+// useConnectivity.test.jsx. Link state stays driven by the setOnline helper.
+const connectivityMock = vi.hoisted(() => ({ isOffline: false }));
+
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: !connectivityMock.isOffline,
+        isOffline: connectivityMock.isOffline,
+        lastChangedAt: null,
+        probeNow: async () => !connectivityMock.isOffline,
+    }),
+}));
+
 // Only the storage and the delivery are stubbed: partitioning is pure, so the
 // real implementation runs and the hook is tested against the real rules.
 vi.mock('../utils/offlineReportQueue', async (importOriginal) => {
@@ -55,6 +69,7 @@ import {
 } from '../config/reportSubmission';
 
 const setOnline = (value) => {
+    connectivityMock.isOffline = !value;
     Object.defineProperty(window.navigator, 'onLine', {
         configurable: true,
         get: () => value,
@@ -352,12 +367,15 @@ describe('useOfflineReportSync', () => {
         setOnline(false);
         listQueuedReportsMock.mockResolvedValue([queuedEntry()]);
 
-        renderHook(() => useOfflineReportSync());
+        const { rerender } = renderHook(() => useOfflineReportSync());
 
         await waitFor(() => expect(listQueuedReportsMock).toHaveBeenCalled());
         expect(flushQueuedReportsMock).not.toHaveBeenCalled();
 
+        // The mocked hook does not subscribe to window events, so the return
+        // of connectivity is delivered with an explicit re-render.
         setOnline(true);
+        rerender();
 
         await waitFor(() => expect(flushQueuedReportsMock).toHaveBeenCalled());
     });

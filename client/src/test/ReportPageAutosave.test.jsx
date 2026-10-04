@@ -26,6 +26,17 @@ vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({ user: { _id: 'reporter-1', role: 'reporter', isVerified: true } }),
 }));
 
+// The page's own connectivity read: the real hook's /api/health probe has no
+// server to answer in jsdom and would flip these suites offline mid-test.
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: true,
+        isOffline: false,
+        lastChangedAt: null,
+        probeNow: async () => true,
+    }),
+}));
+
 vi.mock('../components/map/MapView', () => ({
     default: () => <div data-testid="location-map" />,
 }));

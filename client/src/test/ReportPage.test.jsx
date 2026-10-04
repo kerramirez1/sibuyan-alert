@@ -15,6 +15,21 @@ const { createReportMock, uploadEvidenceMock, geocodeLocationMock, mapPropsSpy, 
     },
 }));
 
+// The page's connectivity is driven through this mock, not the real hook:
+// the real hook's /api/health probe has no server to answer in jsdom and
+// would flip the page offline mid-test. The probe itself is covered in
+// useConnectivity.test.jsx.
+const connectivityMock = vi.hoisted(() => ({ isOffline: false, probeResult: true }));
+
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: !connectivityMock.isOffline,
+        isOffline: connectivityMock.isOffline,
+        lastChangedAt: null,
+        probeNow: async () => connectivityMock.probeResult,
+    }),
+}));
+
 vi.mock('../services/api', () => ({
     reportsAPI: {
         create: createReportMock,
@@ -157,6 +172,8 @@ describe('ReportPage workflow', () => {
         // Phase 1 answers with a report id, so the default path exercises the
         // two-phase submit; the legacy all-in-one fallback has its own case.
         createReportMock.mockResolvedValue({ data: { success: true, data: { _id: 'report-1' } } });
+        connectivityMock.isOffline = false;
+        connectivityMock.probeResult = true;
         uploadEvidenceMock.mockReset();
         uploadEvidenceMock.mockResolvedValue({ data: { success: true } });
         // Phase-1 submissions record a throughput probe; reset it so the
@@ -767,6 +784,8 @@ describe('ReportPage workflow', () => {
 
         const setOnline = (value) => {
             onlineState = value;
+            connectivityMock.isOffline = !value;
+            connectivityMock.probeResult = value;
             Object.defineProperty(window.navigator, 'onLine', {
                 configurable: true,
                 get: () => onlineState,
@@ -927,6 +946,28 @@ describe('ReportPage workflow', () => {
             // Nothing is sending it, so no lease is held and the queue may deliver
             // it as soon as there is a connection.
             expect(Array.from(deviceStorage.storeData.values())[0].sendingSince).toBeNull();
+            expect(await screen.findByText('My reports destination')).toBeInTheDocument();
+        });
+
+        test('queues immediately when the link is up but the server is unreachable (no prepaid load)', async () => {
+            // navigator.onLine stays true with mobile data ON and no internet:
+            // the pre-submit probe is what catches it.
+            setOnline(true);
+            connectivityMock.probeResult = false;
+            deviceStorage = installIndexedDbMock();
+
+            renderPage();
+            await fillRequiredFields();
+            await submitForm();
+
+            await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(
+                'You are offline. This report is saved on your device and will be sent automatically.',
+                expect.anything()
+            ));
+
+            // The live POST is never attempted: worst case is the ~5s probe,
+            // not the 60s submit timeout.
+            expect(createReportMock).not.toHaveBeenCalled();
             expect(await screen.findByText('My reports destination')).toBeInTheDocument();
         });
     });

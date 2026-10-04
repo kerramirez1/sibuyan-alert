@@ -202,7 +202,7 @@ const StepNav = ({ activeStep, onBack, onContinue, loading, uploadProgress }) =>
 
 const ReportPage = () => {
     const navigate = useNavigate();
-    const { isOffline } = useConnectivity();
+    const { isOffline, probeNow } = useConnectivity();
     const { user } = useAuth();
     // Stamped on every stored copy: only this reporter's own session may deliver
     // it later, so a report cannot be filed under whoever signs in next.
@@ -1037,9 +1037,15 @@ const ReportPage = () => {
             // spinner for the full request timeout when the signal is fading.
             if (staged) setDeviceSaved(true);
 
+            // navigator.onLine stays true when mobile data is ON but the SIM has
+            // no load/internet, so verify the server is actually reachable
+            // before the live POST: a dead link queues immediately (bounded by
+            // the ~5s probe) instead of hanging on the 60s submit timeout.
+            const serverUp = await probeNow();
+
             // Known-offline: there is no route to the server. Sending anyway only
             // spins the button until the OS gives the request up.
-            if (isOffline) {
+            if (isOffline || !serverUp) {
                 if (staged) reportQueued(staged, 'offline');
                 else toast.error(DEVICE_STORAGE_ERROR);
                 return;

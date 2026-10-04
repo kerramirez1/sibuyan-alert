@@ -23,6 +23,17 @@ vi.mock('../hooks/useOfflineReportSync', () => ({
     default: () => mocks.offlineSync,
 }));
 
+// The page's own connectivity read: the real hook's /api/health probe has no
+// server to answer in jsdom and would flip these suites offline mid-test.
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: true,
+        isOffline: false,
+        lastChangedAt: null,
+        probeNow: async () => true,
+    }),
+}));
+
 vi.mock('../context/SocketContext', () => ({
     useSocket: () => ({
         subscribe: (event, callback) => {
